@@ -8,8 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\InternalServerErrorException;
@@ -29,9 +27,8 @@ use Throwable;
 
 /**
  * Laravel AI's database store on the `intelligence` connection, with the Kanvas columns on top: the
- * acting `user_id`, the tenant (`apps_id`/`companies_id`) and `agent_id` on the conversation, and the
- * pre-1.x `tool_calls`/`tool_results` mirrors until they are dropped. Steps, status, approval pause /
- * resume, failed turns and replay are all the package's own.
+ * acting `user_id`, and the tenant (`apps_id`/`companies_id`) and `agent_id` on the conversation.
+ * Steps, status, approval pause / resume, failed turns and replay are all the package's own.
  */
 class KanvasConversationStore extends DatabaseConversationStore
 {
@@ -160,6 +157,9 @@ class KanvasConversationStore extends DatabaseConversationStore
      * The one lookup that binds a session to its conversation — the agent's own history and logTurn both
      * come through here, so they cannot resolve one chat to two rows. Oldest first, because a session can
      * own several rows and the oldest is the thread a person is reading.
+     *
+     * A conversation opened for an anonymous public session has no participant; the first turn after the
+     * session is keyed to a Person claims it here, so the promotion path never has to know about this table.
      */
     public function conversationForSession(
         int $userId,
@@ -179,8 +179,10 @@ class KanvasConversationStore extends DatabaseConversationStore
             ? $query->where('agent_id', $agentId)
             : $query->whereNull('agent_id');
 
-        return $query->orderBy('id')->first()?->id
-            ?? $this->insertConversation(
+        $conversation = $query->orderBy('id')->first();
+
+        if ($conversation === null) {
+            return $this->insertConversation(
                 $userId,
                 $agentId,
                 $appsId,
@@ -188,6 +190,17 @@ class KanvasConversationStore extends DatabaseConversationStore
                 $sessionId,
                 $participant,
             );
+        }
+
+        if ($conversation->participant_type === null && $participant !== null) {
+            [$participantType, $participantId] = self::participantColumns($participant, $userId);
+
+            $this->table($this->conversationsTable())
+                ->where('id', $conversation->id)
+                ->update(['participant_type' => $participantType, 'participant_id' => $participantId]);
+        }
+
+        return (string) $conversation->id;
     }
 
     public function insertConversation(
@@ -240,8 +253,7 @@ class KanvasConversationStore extends DatabaseConversationStore
 
     /**
      * The acting user comes from the conversation, which `storeConversation()` already resolved for every
-     * participant type. The old columns mirror `steps` until they are dropped — they are NOT NULL, and a
-     * reader on the previous release still expects them.
+     * participant type.
      *
      * @param array<string, mixed> $attributes
      *
@@ -256,9 +268,6 @@ class KanvasConversationStore extends DatabaseConversationStore
         mixed $now,
         array $attributes
     ): array {
-        $steps = json_decode((string) ($attributes['steps'] ?? '[]'), true);
-        [$toolCalls, $toolResults] = ConversationStepsHelper::legacyColumnsFromSteps(is_array($steps) ? $steps : []);
-
         return parent::messageAttributes(
             $messageId,
             $conversationId,
@@ -267,31 +276,9 @@ class KanvasConversationStore extends DatabaseConversationStore
             $now,
             [
                 ...$attributes,
-                'user_id' => $this->conversationUserId($conversationId) ?? $this->actingUserIdFor($participantType, $participantId, null),
-                'tool_calls' => json_encode($toolCalls),
-                'tool_results' => json_encode($toolResults),
+                'user_id' => $this->conversationUserId($conversationId) ?? $this->actingUserIdFor($participantType, $participantId),
             ],
         );
-    }
-
-    /**
-     * A row the backfill has not reached (or one a dual-writer missed) still replays from the old columns
-     * instead of disappearing from memory. Goes away with those columns.
-     */
-    #[Override]
-    protected function decodedSteps(object $record): Collection
-    {
-        if ($record->steps !== null) {
-            return parent::decodedSteps($record);
-        }
-
-        return collect(ConversationStepsHelper::forRow(
-            (string) $record->role,
-            (string) $record->content,
-            $this->decoded($record->tool_calls ?? null),
-            $this->decoded($record->tool_results ?? null),
-            (string) ($this->decoded($record->meta)['reasoning'] ?? ''),
-        ));
     }
 
     /**
@@ -496,9 +483,12 @@ class KanvasConversationStore extends DatabaseConversationStore
             'role' => $role,
             'content' => $content,
             'attachments' => '[]',
-            'tool_calls' => json_encode($toolCalls),
-            'tool_results' => json_encode($toolResults),
-            'steps' => json_encode(ConversationStepsHelper::forRow($role, $content, $toolCalls, $toolResults)),
+            'steps' => json_encode(ConversationStepsHelper::forRow(
+                $role,
+                $content,
+                $toolCalls,
+                $toolResults,
+            )),
             'status' => AgentConversationMessage::STATUS_COMPLETED,
             'usage' => json_encode($usage),
             'meta' => '[]',
@@ -550,7 +540,7 @@ class KanvasConversationStore extends DatabaseConversationStore
      * a People participant has no user of its own, and the row keeps null until a Kanvas caller, which
      * knows the agent, records the turn.
      */
-    private function actingUserIdFor(?string $participantType, string|int|null $participantId, ?int $agentId): string|int|null
+    private function actingUserIdFor(?string $participantType, string|int|null $participantId, ?int $agentId = null): string|int|null
     {
         if ($participantType === Relation::getMorphAlias(People::class)) {
             return null;

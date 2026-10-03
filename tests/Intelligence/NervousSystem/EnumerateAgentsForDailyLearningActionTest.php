@@ -65,8 +65,6 @@ class EnumerateAgentsForDailyLearningActionTest extends TestCase
             'status' => $status,
             'content' => 'turn',
             'attachments' => [],
-            'tool_calls' => [],
-            'tool_results' => [],
             'steps' => [],
             'usage' => [],
             'meta' => [],

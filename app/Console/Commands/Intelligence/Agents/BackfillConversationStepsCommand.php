@@ -10,26 +10,28 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Kanvas\Companies\Models\CompaniesSettings;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Helpers\ConversationStepsHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Users\Models\Users;
-use stdClass;
 
 /**
- * One-off after the Laravel AI 1.x schema migration: rewrites every message that still has no `steps`
- * and keys every conversation to its participant. Idempotent — each pass only touches rows the previous
- * one did not finish — so it can be re-run until `steps IS NULL` and `participant_type IS NULL` both
- * count zero. The participant rules run in this order on purpose: a public-chat conversation also
- * carries the AI agent user in `user_id`, so the People rule has to claim it before the Users rule would.
+ * The Laravel AI 1.x data move: rewrites every message that still has no `steps` and keys every
+ * conversation to its participant. The drop-legacy-columns migration runs it itself when it finds rows
+ * to do, so a single deploy carries the whole upgrade; it can also be run by hand ahead of that. Idempotent —
+ * each pass only touches rows the previous one did not finish. The participant rules run in this order on
+ * purpose: a public-chat conversation also carries the AI agent user in `user_id`, so the People rule has
+ * to claim it before the Users rule would. Transitional: goes away with the v2 cleanup once every tenant
+ * has migrated.
  */
 class BackfillConversationStepsCommand extends Command
 {
     use KanvasJobsTrait;
 
-    protected $signature = 'agents:backfill-conversation-steps {--chunk=200 : Message rows rewritten per batch}';
+    protected $signature = 'agents:backfill-conversation-steps {--chunk=500 : Message rows rewritten per statement}';
 
     protected $description = 'Rewrite agent_conversation_messages into the Laravel AI 1.x steps shape and key conversations to their participant';
 
@@ -38,7 +40,7 @@ class BackfillConversationStepsCommand extends Command
         $this->table(
             ['Backfill', 'Rows'],
             [
-                ['message steps', $this->backfillSteps(max(1, (int) $this->option('chunk')))],
+                ['message steps', $this->legacyColumnsPresent() ? $this->backfillSteps(max(1, (int) $this->option('chunk'))) : 'n/a (columns dropped)'],
                 ['People conversations', $this->backfillPeopleParticipants()],
                 ['Agent conversations', $this->backfillAgentParticipants()],
                 ['Users conversations', $this->backfillUserParticipants()],
@@ -49,6 +51,11 @@ class BackfillConversationStepsCommand extends Command
         return self::SUCCESS;
     }
 
+    private function legacyColumnsPresent(): bool
+    {
+        return Schema::connection('intelligence')->hasColumn('agent_conversation_messages', 'tool_calls');
+    }
+
     private function backfillSteps(int $chunk): int
     {
         $updated = 0;
@@ -57,33 +64,50 @@ class BackfillConversationStepsCommand extends Command
             ->whereNull('steps')
             ->orderBy('id')
             ->chunkById($chunk, function (Collection $rows) use (&$updated): void {
-                foreach ($rows as $row) {
-                    $this->rewriteRow($row);
-                    $updated++;
-                }
+                $this->rewriteRows($rows);
+                $updated += $rows->count();
             }, 'id');
 
         return $updated;
     }
 
-    private function rewriteRow(stdClass $row): void
+    /**
+     * One statement per chunk — a CASE per column keyed on the primary key — so a table in the millions is
+     * thousands of round trips rather than millions, which is what lets the migration do this inline.
+     *
+     * @param Collection<int, object> $rows
+     */
+    private function rewriteRows(Collection $rows): void
     {
-        $meta = $this->decoded($row->meta);
+        $ids = [];
+        $stepsBindings = [];
+        $metaBindings = [];
 
-        $steps = ConversationStepsHelper::forRow(
-            (string) $row->role,
-            (string) $row->content,
-            $this->decoded($row->tool_calls),
-            $this->decoded($row->tool_results),
-            (string) ($meta['reasoning'] ?? ''),
+        foreach ($rows as $row) {
+            $meta = $this->decoded($row->meta);
+
+            $steps = ConversationStepsHelper::forRow(
+                (string) $row->role,
+                (string) $row->content,
+                $this->decoded($row->tool_calls),
+                $this->decoded($row->tool_results),
+                (string) ($meta['reasoning'] ?? ''),
+            );
+
+            unset($meta['provider_steps'], $meta['provider_content_blocks'], $meta['reasoning']);
+
+            $ids[] = $row->id;
+            array_push($stepsBindings, $row->id, json_encode($steps));
+            array_push($metaBindings, $row->id, json_encode($meta));
+        }
+
+        $case = implode(' ', array_fill(0, count($ids), 'WHEN ? THEN ?'));
+        $in = implode(',', array_fill(0, count($ids), '?'));
+
+        DB::connection('intelligence')->update(
+            "UPDATE agent_conversation_messages SET steps = CASE id {$case} END, meta = CASE id {$case} END WHERE id IN ({$in})",
+            [...$stepsBindings, ...$metaBindings, ...$ids],
         );
-
-        unset($meta['provider_steps'], $meta['provider_content_blocks'], $meta['reasoning']);
-
-        $this->messages()->where('id', $row->id)->update([
-            'steps' => json_encode($steps),
-            'meta' => json_encode($meta),
-        ]);
     }
 
     /**

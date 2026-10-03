@@ -268,8 +268,6 @@ abstract class BaseCollectSessionTranscriptsAction
             'role' => $msg->role,
             'content' => $msg->content,
             'attachments' => '[]',
-            'tool_calls' => json_encode($msg->toolCalls ?? [], JSON_THROW_ON_ERROR),
-            'tool_results' => json_encode($msg->toolResults ?? [], JSON_THROW_ON_ERROR),
             'steps' => json_encode($steps, JSON_THROW_ON_ERROR),
             'status' => AgentConversationMessage::STATUS_COMPLETED,
             'usage' => $msg->tokenCount !== null

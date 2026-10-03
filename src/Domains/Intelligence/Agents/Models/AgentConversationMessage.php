@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Intelligence\Agents\Helpers\ConversationStepsHelper;
 use Kanvas\Intelligence\Models\ImmutableBaseModel;
 use Kanvas\Users\Models\Users;
 use Laravel\Ai\Enums\MessageStatus;
@@ -22,8 +24,9 @@ use Override;
  *
  * `steps` is the Laravel AI 1.x shape of an assistant turn: one entry per model round trip, each
  * carrying `content`, `tool_calls` (every call with its own `result`, or an `approval_reason` while
- * it waits), `reasoning`, `replay_blocks` and `provider_tool_calls`. `tool_calls`/`tool_results` are
- * the pre-1.x columns, dual-written until the backfill has rewritten every row, then dropped.
+ * it waits), `reasoning`, `replay_blocks` and `provider_tool_calls`. `tool_calls` / `tool_results`
+ * are accessors derived from `steps`, kept for the GraphQL fields of the same name while clients move
+ * to `steps` — transitional, removed in the v2 cleanup.
  *
  * `status` is `completed`, `paused` (a tool asked for approval) or `failed` (the run threw; the
  * error is in `meta.error`). Only the laravel path produces the last two.
@@ -45,14 +48,14 @@ use Override;
  * @property bool $is_public
  * @property string|null $content
  * @property array|null $attachments
- * @property array|null $tool_calls
- * @property array|null $tool_results
- * @property array|null $steps
+ * @property array $steps
  * @property string $status
  * @property array|null $usage
  * @property array|null $meta
  * @property Carbon $created_at
  * @property Carbon $updated_at
+ * @property-read list<array<string, mixed>> $tool_calls
+ * @property-read list<array<string, mixed>> $tool_results
  */
 class AgentConversationMessage extends ImmutableBaseModel
 {
@@ -74,14 +77,22 @@ class AgentConversationMessage extends ImmutableBaseModel
         return [
             'is_public' => 'boolean',
             'attachments' => Json::class,
-            'tool_calls' => Json::class,
-            'tool_results' => Json::class,
             'steps' => Json::class,
             'usage' => Json::class,
             'meta' => Json::class,
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    protected function toolCalls(): Attribute
+    {
+        return Attribute::get(fn (): array => ConversationStepsHelper::legacyColumnsFromSteps($this->steps ?? [])[0]);
+    }
+
+    protected function toolResults(): Attribute
+    {
+        return Attribute::get(fn (): array => ConversationStepsHelper::legacyColumnsFromSteps($this->steps ?? [])[1]);
     }
 
     public function conversation(): BelongsTo

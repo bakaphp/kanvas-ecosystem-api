@@ -55,12 +55,9 @@ class BaseCollectSessionTranscriptsActionTest extends TestCase
         $this->assertSame('Hello there', $messages[0]->content);
         $this->assertSame('assistant', $messages[1]->role);
 
-        // Tool-result row: content is empty/null (DB column is NOT NULL DEFAULT '',
-        // so MySQL coerces a null write to ''), payload in tool_results per
-        // Laravel AI rules. The KanvasConversationStore reader builds
-        // ToolResultMessage(toolResults) and ignores the content column for tool
-        // rows, so the Laravel AI invariant (content=null on ToolResultMessage)
-        // is satisfied at read time regardless.
+        // Tool-result row: content is empty/null (DB column is NOT NULL DEFAULT '', so MySQL coerces a
+        // null write to ''); the payload lives on the call inside `steps`. `tool_results` is the model
+        // accessor that derives the pre-1.x view from steps for the GraphQL field of the same name.
         $toolResult = $messages->firstWhere('role', 'tool_result');
         $this->assertNotNull($toolResult);
         $this->assertEmpty($toolResult->content, 'tool_result row should have empty content');

@@ -116,9 +116,9 @@ final class ConversationStepsHelper
     }
 
     /**
-     * The pre-1.x `tool_calls` / `tool_results` columns, derived from `steps` so a writer that only knows
-     * steps (the package store) keeps the mirrors in sync until they are dropped. A result is a call that
-     * carries one; the bare call list never carries results.
+     * The pre-1.x `tool_calls` / `tool_results` view of a turn, derived from `steps` for the GraphQL fields
+     * of the same name — the columns are gone, the API contract is not. A result is a call that carries
+     * one; the bare call list never carries results.
      *
      * @param list<array<string, mixed>> $steps
      *

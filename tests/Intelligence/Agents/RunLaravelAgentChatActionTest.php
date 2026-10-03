@@ -71,20 +71,13 @@ class RunLaravelAgentChatActionTest extends TestCase
 
         $this->assertNotNull($row);
 
-        $toolCalls = json_decode($row->tool_calls, true);
-        $toolResults = json_decode($row->tool_results, true);
         $usage = json_decode($row->usage, true);
-
-        $this->assertNotEmpty($toolCalls, 'tool_calls should be persisted, not an empty array');
-        $this->assertSame('InventorySearchTool', $toolCalls[0]['name']);
-        $this->assertSame('call-1', $toolCalls[0]['id']);
-
-        $this->assertNotEmpty($toolResults, 'tool_results should be persisted');
-        $this->assertSame('InventorySearchTool', $toolResults[0]['name']);
 
         $steps = json_decode($row->steps, true);
         $this->assertCount(2, $steps, 'a turn that called a tool and answered is two steps');
-        $this->assertSame(['hit'], $steps[0]['tool_calls'][0]['result']);
+        $this->assertSame('call-1', $steps[0]['tool_calls'][0]['id']);
+        $this->assertSame('InventorySearchTool', $steps[0]['tool_calls'][0]['name']);
+        $this->assertSame(['hit'], $steps[0]['tool_calls'][0]['result'], 'the result travels on the call that produced it');
         $this->assertSame('Found 2 products.', $steps[1]['content']);
         $this->assertSame('completed', $row->status);
         $this->assertSame($user->getMorphClass(), $row->participant_type);

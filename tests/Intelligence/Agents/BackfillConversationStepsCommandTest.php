@@ -5,24 +5,54 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Agents;
 
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
+use Override;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+/**
+ * The command rewrites the pre-1.x `tool_calls` / `tool_results` columns, which the schema no longer has
+ * once every migration has run. Each test that needs them adds them (nullable) for its own duration and
+ * drops them again; DDL commits implicitly, so there is no DatabaseTransactions here and every seeded
+ * row is removed by hand. Serial because the columns come and go under the other processes.
+ */
+#[Group('serial')]
 class BackfillConversationStepsCommandTest extends TestCase
 {
-    use DatabaseTransactions;
+    private bool $addedLegacyColumns = false;
 
-    protected array $connectionsToTransact = ['mysql', 'intelligence', 'crm'];
+    /** @var list<string> */
+    private array $conversationIds = [];
+
+    #[Override]
+    protected function tearDown(): void
+    {
+        if ($this->conversationIds !== []) {
+            DB::connection('intelligence')->table('agent_conversation_messages')->whereIn('conversation_id', $this->conversationIds)->delete();
+            DB::connection('intelligence')->table('agent_conversations')->whereIn('id', $this->conversationIds)->delete();
+        }
+
+        if ($this->addedLegacyColumns) {
+            Schema::connection('intelligence')->table('agent_conversation_messages', function (Blueprint $table) {
+                $table->dropColumn(['tool_calls', 'tool_results']);
+            });
+        }
+
+        parent::tearDown();
+    }
 
     public function testRewritesOldRowsIntoStepsAndKeysEveryConversationToItsParticipant(): void
     {
+        $this->withLegacyColumns();
+
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -34,17 +64,7 @@ class BackfillConversationStepsCommandTest extends TestCase
 
         $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
         $sessionUuid = (string) Str::uuid();
-        Session::create([
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'agents_id' => $agent->getId(),
-            'uuid' => $sessionUuid,
-            'canal_id' => '',
-            'entity_namespace' => People::class,
-            'entity_id' => $people->getId(),
-            'user' => [],
-            'content' => [],
-        ]);
+        $this->seedSession($agent, $sessionUuid, People::class, $people->getId());
 
         $userConversation = $this->seedConversation($agent, userId: $user->getId(), title: 'a user chat');
         $hermesConversation = $this->seedConversation($agent, userId: null, title: 'hermes-run-77');
@@ -81,29 +101,11 @@ class BackfillConversationStepsCommandTest extends TestCase
         // The same uuid with a stale People session beside a newer Users one: the newest row is the live
         // session, so the Person must not claim an AI-run conversation on that uuid either.
         $staleUuid = (string) Str::uuid();
-        foreach ([[People::class, $people->getId()], [Users::class, $user->getId()]] as [$namespace, $entityId]) {
-            Session::create([
-                'apps_id' => $app->getId(),
-                'companies_id' => $company->getId(),
-                'agents_id' => $agent->getId(),
-                'uuid' => $staleUuid,
-                'canal_id' => '',
-                'entity_namespace' => $namespace,
-                'entity_id' => $entityId,
-                'user' => [],
-                'content' => [],
-            ]);
-        }
+        $this->seedSession($agent, $staleUuid, People::class, $people->getId());
+        $this->seedSession($agent, $staleUuid, Users::class, $user->getId());
         $staleConversation = $this->seedConversation($agent, userId: $user->getId(), title: $staleUuid);
 
         $this->artisan('agents:backfill-conversation-steps', ['--chunk' => 2])->assertExitCode(0);
-
-        $staleRow = $this->conversation($staleConversation);
-        $this->assertSame(Relation::getMorphAlias(Users::class), $staleRow->participant_type, 'the newest session row decides, not a stale People one');
-
-        $staffRow = $this->conversation($staffConversation);
-        $this->assertSame(Relation::getMorphAlias(Users::class), $staffRow->participant_type);
-        $this->assertSame($humanUserId, (int) $staffRow->participant_id);
 
         $laravel = $this->message($laravelTurn);
         $steps = json_decode($laravel->steps, true);
@@ -114,10 +116,10 @@ class BackfillConversationStepsCommandTest extends TestCase
         $this->assertSame(['provider' => 'gemini'], json_decode($laravel->meta, true));
         $this->assertSame('completed', $laravel->status);
 
-        $this->assertSame([], json_decode($this->message($hermesCall)->steps, true)[0]['tool_calls'][0]['arguments'] === ['path' => 'a.php'] ? [] : ['unexpected arguments']);
-        $this->assertArrayNotHasKey('result', json_decode($this->message($hermesCall)->steps, true)[0]['tool_calls'][0]);
+        $callStep = json_decode($this->message($hermesCall)->steps, true)[0];
+        $this->assertSame(['path' => 'a.php'], $callStep['tool_calls'][0]['arguments']);
+        $this->assertArrayNotHasKey('result', $callStep['tool_calls'][0]);
         $this->assertSame('<?php', json_decode($this->message($hermesResult)->steps, true)[0]['tool_calls'][0]['result']);
-
         $this->assertSame('[]', $this->message($this->firstMessageId($userConversation, 'user'))->steps);
 
         $usersMorph = Relation::getMorphAlias(Users::class);
@@ -135,6 +137,10 @@ class BackfillConversationStepsCommandTest extends TestCase
         $this->assertSame($people->getId(), (int) $publicRow->participant_id);
         $this->assertSame($user->getId(), (int) $publicRow->user_id, 'the acting user of a public chat stays');
 
+        $this->assertSame($usersMorph, $this->conversation($staffConversation)->participant_type);
+        $this->assertSame($humanUserId, (int) $this->conversation($staffConversation)->participant_id);
+        $this->assertSame($usersMorph, $this->conversation($staleConversation)->participant_type, 'the newest session row decides, not a stale People one');
+
         $hermesMessage = $this->message($hermesCall);
         $this->assertSame(Relation::getMorphAlias(Agent::class), $hermesMessage->participant_type);
         $this->assertSame($user->getId(), (int) $hermesMessage->user_id, 'message user_id is filled from the conversation');
@@ -143,6 +149,8 @@ class BackfillConversationStepsCommandTest extends TestCase
 
     public function testASecondRunTouchesNothing(): void
     {
+        $this->withLegacyColumns();
+
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -171,9 +179,56 @@ class BackfillConversationStepsCommandTest extends TestCase
         $this->assertEquals($before, $this->message($messageId));
     }
 
+    public function testOnceTheLegacyColumnsAreGoneTheStepsRewriteIsSkipped(): void
+    {
+        if (Schema::connection('intelligence')->hasColumn('agent_conversation_messages', 'tool_calls')) {
+            $this->markTestSkipped('The legacy columns are still present on this database.');
+        }
+
+        $this->artisan('agents:backfill-conversation-steps')
+            ->expectsTable(['Backfill', 'Rows'], [
+                ['message steps', 'n/a (columns dropped)'],
+                ['People conversations', 0],
+                ['Agent conversations', 0],
+                ['Users conversations', 0],
+                ['message participants', 0],
+            ])
+            ->assertExitCode(0);
+    }
+
+    private function withLegacyColumns(): void
+    {
+        if (Schema::connection('intelligence')->hasColumn('agent_conversation_messages', 'tool_calls')) {
+            return;
+        }
+
+        Schema::connection('intelligence')->table('agent_conversation_messages', function (Blueprint $table) {
+            $table->longText('tool_calls')->nullable()->after('attachments');
+            $table->longText('tool_results')->nullable()->after('tool_calls');
+        });
+
+        $this->addedLegacyColumns = true;
+    }
+
+    private function seedSession(Agent $agent, string $uuid, string $entityNamespace, int $entityId): void
+    {
+        Session::create([
+            'apps_id' => $agent->apps_id,
+            'companies_id' => $agent->companies_id,
+            'agents_id' => $agent->getId(),
+            'uuid' => $uuid,
+            'canal_id' => '',
+            'entity_namespace' => $entityNamespace,
+            'entity_id' => $entityId,
+            'user' => [],
+            'content' => [],
+        ]);
+    }
+
     private function seedConversation(Agent $agent, ?int $userId, string $title): string
     {
         $id = (string) Str::uuid7();
+        $this->conversationIds[] = $id;
 
         DB::connection('intelligence')->table('agent_conversations')->insert([
             'id' => $id,
@@ -214,6 +269,7 @@ class BackfillConversationStepsCommandTest extends TestCase
             'attachments' => '[]',
             'tool_calls' => json_encode($toolCalls),
             'tool_results' => json_encode($toolResults),
+            'steps' => null,
             'usage' => '[]',
             'meta' => json_encode($meta),
             'created_at' => now(),

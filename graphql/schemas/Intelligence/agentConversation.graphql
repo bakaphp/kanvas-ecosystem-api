@@ -31,8 +31,8 @@ type AgentConversationMessage {
     is_public: Boolean!
     content: String
     attachments: Mixed
-    tool_calls: Mixed
-    tool_results: Mixed
+    tool_calls: Mixed @deprecated(reason: "Derived from steps; read steps.tool_calls, each call carries its result.")
+    tool_results: Mixed @deprecated(reason: "Derived from steps; read steps.tool_calls, each call carries its result.")
     steps: Mixed
     usage: Mixed
     meta: Mixed

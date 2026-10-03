@@ -77,13 +77,13 @@ class KanvasMessageHistoryPersistTest extends TestCase
         $this->assertSame('user', $prompt->role);
         $this->assertSame([], $prompt->decodedSteps);
 
-        $call = $rows->first(fn (object $r): bool => $r->role === 'assistant' && json_decode($r->tool_calls, true) !== []);
+        $call = $rows->first(fn (object $r): bool => $r->role === 'assistant' && ($r->decodedSteps[0]['tool_calls'] ?? []) !== []);
         $this->assertSame('c1', $call->decodedSteps[0]['tool_calls'][0]['id']);
         $this->assertSame(['lead_id' => 7], $call->decodedSteps[0]['tool_calls'][0]['arguments']);
         $this->assertArrayNotHasKey('result', $call->decodedSteps[0]['tool_calls'][0]);
 
         // Neuron's ToolResultMessage is a UserMessage: the row is role=user and still carries the result.
-        $result = $rows->first(fn (object $r): bool => $r->role === 'user' && json_decode($r->tool_results, true) !== []);
+        $result = $rows->first(fn (object $r): bool => $r->role === 'user' && isset($r->decodedSteps[0]['tool_calls'][0]['result']));
         $this->assertSame('', $result->decodedSteps[0]['content']);
         // Neuron's Tool::setResult() JSON-encodes a non-string result, so what is stored is that string.
         $this->assertSame('{"status":"won"}', $result->decodedSteps[0]['tool_calls'][0]['result']);

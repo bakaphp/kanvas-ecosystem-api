@@ -17,8 +17,6 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Laravel\Ai\Approvals\Decisions;
 use Laravel\Ai\Approvals\PendingApproval;
 use Laravel\Ai\Contracts\Providers\TextProvider;
-use Laravel\Ai\Messages\AssistantMessage;
-use Laravel\Ai\Messages\ToolResultMessage;
 use Laravel\Ai\Messages\UserMessage;
 use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\Responses\AgentResponse;
@@ -294,7 +292,6 @@ class KanvasConversationStoreTest extends TestCase
         $this->assertSame($user->getId(), (int) $assistantRow->user_id);
         $this->assertSame('hi there', json_decode($assistantRow->steps, true)[0]['content']);
         $this->assertSame('completed', $assistantRow->status);
-        $this->assertSame('[]', $assistantRow->tool_calls, 'the pre-1.x mirror column is still written');
         $this->assertSame(['input_tokens' => 3, 'output_tokens' => 4], array_intersect_key(json_decode($assistantRow->usage, true), ['input_tokens' => 1, 'output_tokens' => 1]));
     }
 
@@ -305,9 +302,21 @@ class KanvasConversationStoreTest extends TestCase
         $type = $user->getMorphClass();
 
         $withA = $store->storeConversation($type, $user->getId(), 'with A');
-        $store->storeUserMessage($withA, $type, $user->getId(), 'Agents\\A', new UserMessage('hi A'));
+        $store->storeUserMessage(
+            $withA,
+            $type,
+            $user->getId(),
+            'Agents\\A',
+            new UserMessage('hi A'),
+        );
         $withB = $store->storeConversation($type, $user->getId(), 'with B');
-        $store->storeUserMessage($withB, $type, $user->getId(), 'Agents\\B', new UserMessage('hi B'));
+        $store->storeUserMessage(
+            $withB,
+            $type,
+            $user->getId(),
+            'Agents\\B',
+            new UserMessage('hi B'),
+        );
 
         $this->assertSame($withA, $store->latestConversationId($type, $user->getId(), 'Agents\\A'));
         $this->assertSame($withB, $store->latestConversationId($type, $user->getId(), 'Agents\\B'));
@@ -319,7 +328,12 @@ class KanvasConversationStoreTest extends TestCase
         $user = auth()->user();
         $id = (string) Str::uuid7();
 
-        $stored = new KanvasConversationStore()->storeConversation($user->getMorphClass(), $user->getId(), 'pre-keyed', $id);
+        $stored = new KanvasConversationStore()->storeConversation(
+            $user->getMorphClass(),
+            $user->getId(),
+            'pre-keyed',
+            $id,
+        );
 
         $this->assertSame($id, $stored);
         $this->assertSame('pre-keyed', $this->conversation($id)->title);
@@ -427,41 +441,6 @@ class KanvasConversationStoreTest extends TestCase
         $this->assertSame('completed', $this->message($deniedId)->status);
     }
 
-    public function testARowWithoutStepsReplaysFromTheOldColumns(): void
-    {
-        $user = auth()->user();
-        $store = new KanvasConversationStore();
-        $conversationId = $store->storeConversation($user->getMorphClass(), $user->getId(), 'legacy replay');
-
-        DB::connection('intelligence')->table('agent_conversation_messages')->insert([
-            'id' => (string) Str::uuid7(),
-            'conversation_id' => $conversationId,
-            'user_id' => $user->getId(),
-            'participant_type' => $user->getMorphClass(),
-            'participant_id' => $user->getId(),
-            'agent' => 'Legacy\\Agent',
-            'role' => 'assistant',
-            'content' => 'Found it.',
-            'attachments' => '[]',
-            'tool_calls' => json_encode([['id' => 'c9', 'name' => 'search', 'arguments' => ['q' => 'x']]]),
-            'tool_results' => json_encode([['id' => 'c9', 'name' => 'search', 'arguments' => ['q' => 'x'], 'result' => 'found']]),
-            'steps' => null,
-            'usage' => '[]',
-            'meta' => '[]',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $messages = $store->getLatestConversationMessages($conversationId, 10);
-
-        $this->assertCount(3, $messages);
-        $this->assertInstanceOf(AssistantMessage::class, $messages[0]);
-        $this->assertSame('c9', $messages[0]->toolCalls->first()->id);
-        $this->assertInstanceOf(ToolResultMessage::class, $messages[1]);
-        $this->assertSame('found', $messages[1]->toolResults->first()->result);
-        $this->assertSame('Found it.', $messages[2]->content);
-    }
-
     private function prompt(KanvasGenericLaravelAgent $handler, ?Decisions $decisions = null): AgentPrompt
     {
         return new AgentPrompt(
@@ -541,8 +520,6 @@ class KanvasConversationStoreTest extends TestCase
         $this->assertNotNull($assistant);
         $this->assertSame('Of course you can reschedule.', $assistant->content);
         $this->assertSame($usage, json_decode($assistant->usage, true));
-        $this->assertSame($toolCalls, json_decode($assistant->tool_calls, true));
-        $this->assertSame($toolResults, json_decode($assistant->tool_results, true));
 
         $steps = json_decode($assistant->steps, true);
         $this->assertCount(2, $steps);
@@ -632,6 +609,48 @@ class KanvasConversationStoreTest extends TestCase
             $this->assertSame($people->getId(), (int) $row->participant_id);
             $this->assertSame($user->getId(), (int) $row->user_id);
         }
+    }
+
+    public function testAnAnonymousConversationIsClaimedByThePersonOnTheFirstTurnAfterPromotion(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $sessionId = (string) Str::uuid();
+
+        $store = new KanvasConversationStore();
+
+        // Anonymous shopper: the session has no People yet, so the row opens without a participant.
+        $anonymous = $this->conversation($store->insertConversation(
+            $user->getId(),
+            $agent->getId(),
+            $app->getId(),
+            $company->getId(),
+            $sessionId,
+        ));
+        DB::connection('intelligence')->table('agent_conversations')->where('id', $anonymous->id)
+            ->update(['participant_type' => null, 'participant_id' => null]);
+
+        $resolved = $store->conversationForSession(
+            $user->getId(),
+            $sessionId,
+            $agent->getId(),
+            $app->getId(),
+            $company->getId(),
+            $people,
+        );
+
+        $this->assertSame($anonymous->id, $resolved, 'the same thread, not a second row');
+        $claimed = $this->conversation($resolved);
+        $this->assertSame($people->getMorphClass(), $claimed->participant_type);
+        $this->assertSame($people->getId(), (int) $claimed->participant_id);
+        $this->assertSame($user->getId(), (int) $claimed->user_id, 'the acting user stays');
     }
 
     public function testStoreConversationForAnAgentParticipantActsThroughTheAgentUser(): void

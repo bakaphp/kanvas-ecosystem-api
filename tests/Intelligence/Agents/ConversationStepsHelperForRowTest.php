@@ -11,7 +11,12 @@ class ConversationStepsHelperForRowTest extends TestCase
 {
     public function testAHumanPromptHasNoSteps(): void
     {
-        $this->assertSame([], ConversationStepsHelper::forRow('user', 'hello', [], []));
+        $this->assertSame([], ConversationStepsHelper::forRow(
+            'user',
+            'hello',
+            [],
+            [],
+        ));
     }
 
     public function testANeuronToolResultRowIsUserRoleAndStillCarriesTheResult(): void
@@ -43,7 +48,13 @@ class ConversationStepsHelperForRowTest extends TestCase
 
     public function testAnAssistantRowKeepsItsText(): void
     {
-        $steps = ConversationStepsHelper::forRow('assistant', 'Done.', [], [], 'thought');
+        $steps = ConversationStepsHelper::forRow(
+            'assistant',
+            'Done.',
+            [],
+            [],
+            'thought',
+        );
 
         $this->assertSame('Done.', $steps[0]['content']);
         $this->assertSame('thought', $steps[0]['reasoning']);

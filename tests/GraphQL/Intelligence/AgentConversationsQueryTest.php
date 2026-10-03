@@ -65,6 +65,7 @@ class AgentConversationsQueryTest extends TestCase
                                 content
                                 status
                                 steps
+                                tool_calls
                                 participant { __typename }
                             }
                         }
@@ -82,6 +83,7 @@ class AgentConversationsQueryTest extends TestCase
         $reply = collect($mine['messages']['data'])->firstWhere('content', 'A replies');
         $this->assertSame('completed', $reply['status']);
         $this->assertSame('A replies', $reply['steps'][0]['content']);
+        $this->assertSame([], $reply['tool_calls'], 'the deprecated field still answers, derived from steps');
         $this->assertSame('User', $reply['participant']['__typename']);
 
         $byAgent = [];

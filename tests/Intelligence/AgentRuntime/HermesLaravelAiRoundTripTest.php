@@ -6,21 +6,19 @@ namespace Tests\Intelligence\AgentRuntime;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Intelligence\Agents\Helpers\ConversationStepsHelper;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Laravel\Ai\Messages\AssistantMessage;
 use Laravel\Ai\Messages\Message;
 use Tests\TestCase;
 
 /**
- * Validates that Hermes-shaped rows round-trip cleanly through the existing
- * KanvasConversationStore reader (the only Laravel\Ai\Contracts\ConversationStore
- * impl in the codebase). The key invariants:
- *  - role='tool_result' rows construct a ToolResultMessage without throwing
- *    (MessageRole::tryFrom('tool_result') resolves);
- *  - assistant rows with empty content + tool_calls construct an
- *    AssistantMessage with the tool_calls populated;
+ * Validates that Hermes-shaped rows round-trip cleanly through the KanvasConversationStore reader (the
+ * only Laravel\Ai\Contracts\ConversationStore impl in the codebase). The key invariants:
+ *  - a role='tool_result' row replays as the call carrying its result, without throwing;
+ *  - a bare assistant call row (no result) is dropped from replay rather than crashing it;
  *  - user rows construct a plain Message('user', content);
- *  - rows with user_id=null do not appear in any user's latestConversationId.
+ *  - agent-owned rows (user_id=null) do not appear in any user's latestConversationId.
  */
 class HermesLaravelAiRoundTripTest extends TestCase
 {
@@ -32,9 +30,8 @@ class HermesLaravelAiRoundTripTest extends TestCase
         // Hermes-imported rows. Earlier failures (TypeError on ToolCall, bad
         // role enum) caught upstream and fixed in the reader's decoding step.
         //
-        // Hermes stores a call and its result as separate rows. These rows have no `steps` yet, so the
-        // store rebuilds them from the old columns: the bare call row has no answer and is dropped from
-        // replay (the model never saw a result), the result row becomes the call carrying its result.
+        // Hermes stores a call and its result as separate rows. On replay the bare call row has no answer
+        // and is dropped (the model never saw a result); the result row becomes the call carrying its result.
         $store = new KanvasConversationStore();
         $messages = $store->getLatestConversationMessages($conversationId, 50);
 
@@ -108,8 +105,8 @@ class HermesLaravelAiRoundTripTest extends TestCase
                 'id' => $conversationId . ':1',
                 'role' => 'user',
                 'content' => 'what is the weather?',
-                'tool_calls' => '[]',
-                'tool_results' => '[]',
+                'tool_calls' => [],
+                'tool_results' => [],
             ],
             [
                 'id' => $conversationId . ':2',
@@ -118,29 +115,30 @@ class HermesLaravelAiRoundTripTest extends TestCase
                 // arguments must be an array (Laravel AI's ToolCall::__construct
                 // requires it). The reader decodes OpenAI's string-encoded
                 // arguments before persisting — we mirror that shape here.
-                'tool_calls' => json_encode([
+                'tool_calls' => [
                     ['id' => 'tc-1', 'name' => 'weather_lookup', 'arguments' => ['city' => 'Miami']],
-                ], JSON_THROW_ON_ERROR),
-                'tool_results' => '[]',
+                ],
+                'tool_results' => [],
             ],
             [
                 'id' => $conversationId . ':3',
                 'role' => 'tool_result',
                 'content' => '',
-                'tool_calls' => '[]',
-                'tool_results' => json_encode([
+                'tool_calls' => [],
+                'tool_results' => [
                     ['id' => 'tc-1', 'name' => 'weather_lookup', 'arguments' => null, 'result' => 'sunny', 'result_id' => 'tc-1'],
-                ], JSON_THROW_ON_ERROR),
+                ],
             ],
             [
                 'id' => $conversationId . ':4',
                 'role' => 'assistant',
                 'content' => 'It is sunny.',
-                'tool_calls' => '[]',
-                'tool_results' => '[]',
+                'tool_calls' => [],
+                'tool_results' => [],
             ],
         ];
 
+        // The ingest writes `steps` through the same helper, so the seed takes the same path.
         foreach ($rows as $r) {
             DB::connection('intelligence')->table('agent_conversation_messages')->insert([
                 'id' => $r['id'],
@@ -150,8 +148,12 @@ class HermesLaravelAiRoundTripTest extends TestCase
                 'role' => $r['role'],
                 'content' => $r['content'],
                 'attachments' => '[]',
-                'tool_calls' => $r['tool_calls'],
-                'tool_results' => $r['tool_results'],
+                'steps' => json_encode(ConversationStepsHelper::forRow(
+                    $r['role'],
+                    $r['content'],
+                    $r['tool_calls'],
+                    $r['tool_results'],
+                )),
                 'usage' => '[]',
                 'meta' => '[]',
                 'created_at' => $now,
