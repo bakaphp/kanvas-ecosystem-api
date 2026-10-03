@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
@@ -11,8 +12,10 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasTokenCounter;
 use Kanvas\Intelligence\Agents\ChatHistory\RebuildsTrimmedHistory;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
+use Kanvas\Intelligence\Agents\Helpers\ConversationStepsHelper;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
 use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Users\Models\Users;
@@ -61,6 +64,7 @@ class KanvasMessageHistory extends AbstractChatHistory
         private readonly array $turnMedia = [],
         private readonly ?string $model = null,
         private readonly bool $privateUserTurn = false,
+        private readonly ?Model $participant = null,
     ) {
         parent::__construct($contextWindow, KanvasTokenCounter::trimmer());
 
@@ -74,6 +78,7 @@ class KanvasMessageHistory extends AbstractChatHistory
                 $this->agent?->getId(),
                 $this->app->getId(),
                 $this->company->getId(),
+                $this->participant,
             )
             : $this->findLatestConversation();
 
@@ -162,6 +167,7 @@ class KanvasMessageHistory extends AbstractChatHistory
                 $this->app->getId(),
                 $this->company->getId(),
                 Str::limit($content !== '' ? $content : '[tool call]', 100, ''),
+                $this->participant,
             );
         } else {
             DB::connection(self::CONNECTION)
@@ -202,18 +208,26 @@ class KanvasMessageHistory extends AbstractChatHistory
         );
 
         $messageId = (string) Str::uuid7();
+        [$participantType, $participantId] = KanvasConversationStore::participantColumns($this->participant, $this->user->getId());
 
         DB::connection(self::CONNECTION)->table(self::TABLE_MESSAGES)->insert([
             'id' => $messageId,
             'conversation_id' => $this->conversationId,
             'user_id' => $this->user->getId(),
+            'participant_type' => $participantType,
+            'participant_id' => $participantId,
             'agent' => $this->agentClass,
             'role' => $role,
             'is_public' => $isPublic,
             'content' => $content,
             'attachments' => json_encode($attachments),
-            'tool_calls' => json_encode($toolCalls),
-            'tool_results' => json_encode($toolResults),
+            'steps' => json_encode(ConversationStepsHelper::forRow(
+                $role,
+                $content,
+                $toolCalls,
+                $toolResults,
+            )),
+            'status' => AgentConversationMessage::STATUS_COMPLETED,
             'usage' => json_encode($usage),
             'meta' => json_encode($meta),
             'created_at' => now(),

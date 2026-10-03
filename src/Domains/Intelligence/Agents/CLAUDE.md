@@ -343,6 +343,7 @@ coalesces same-role turns, drops leading assistant turns (providers require a us
 | `SalesAssistKanvasMessageHistory` | `applyLoadedHistory()` | `mergeOrAppend()` |
 | `RedisAgentChatHistory` | `applyLoadedHistory()` | appends + trims; `sanitizeAlternation()` is what keeps it alternating |
 | `ChannelMessageHistory` | adds each row through `addMessage()`, so it was never exposed | its own merge, which also re-attaches media blocks |
+| Laravel agents (`KanvasLaravelAgent::messages()`, `RemembersConversationsWithinBudget`) | `LaravelHistoryBudgetTrimmer::trim()` to the same `ModelContextWindowService` budget | n/a — the package replays from the store each turn |
 
 `MAX_LOADED_ROWS` on `KanvasMessageHistory` caps hydration on top of that — a memory guard, not a
 context guard, because `content` is a longtext, and it sits far above what any window holds so the
@@ -692,3 +693,35 @@ plus the per-domain equivalents in [`AccountsReceivableAgentToolsTest`](../../..
 - [`Neuron/Tools/CRM/SendEmailTool.php`](Neuron/Tools/CRM/SendEmailTool.php) — reference for tool authoring: resolve-or-error, entity-derived recipient, and the allowlist-filtered `cc` (destination-safety) pattern. Traits it leans on live in [`Neuron/Tools/Traits/`](Neuron/Tools/Traits/).
 - Product recommendation tool (`Laravel/Tools/Inventory/ProductRecommendationLookupTool.php`) — a thin pass-through to `RecommendProductsAction`; the search backend is resolved per tenant behind it. Pass the shopper's sentence verbatim. Pipeline and configuration: [`src/Domains/Inventory/CLAUDE.md`](../../Inventory/CLAUDE.md).
 - Existing end-to-end tests in [`tests/Connectors/Integration/{WaSender,Mailgun,RespondIO,Twilio}/AgentChannelResponderEndToEndTest.php`](../../../../tests/Connectors/Integration/) — copy-paste shape when adding a new connector
+
+## `agent_conversations` / `agent_conversation_messages` — the Laravel AI 1.x shape
+
+Both tables are Laravel AI's conversation store (`KanvasConversationStore extends DatabaseConversationStore`,
+connection `intelligence`) with Kanvas columns on top. Rules every writer follows:
+
+- **An assistant turn is `steps`, never `tool_calls`/`tool_results` columns** — those are gone. Build the
+  value with `ConversationStepsHelper::forRow($role, $content, $toolCalls, $toolResults)`; it folds each
+  result onto the call that produced it and normalises the Laravel (`id`/`arguments`), Neuron
+  (`callId`/`inputs`) and OpenAI (`function.name`, JSON-string arguments) spellings. Neuron's
+  `ToolResultMessage` is a `UserMessage`, so a tool result can sit on a `role = user` row — `forRow()`
+  handles that; "user row ⇒ empty steps" is wrong.
+- **GraphQL `tool_calls` / `tool_results` are deprecated accessors over `steps`**
+  (`AgentConversationMessage::toolCalls()` / `toolResults()`), kept so clients can migrate to `steps`.
+- **`status`** is `completed` / `paused` (a tool awaits approval) / `failed` (`meta.error`). Readers that feed
+  a model (daily learning) filter on completed; budget and spend readers keep failed turns.
+- **Participant = who the conversation belongs to**, a morph: `Users` (staff chat), `People` (public /
+  agentic-commerce chat), `Agent` (runtime import, scheduled wake, an agent acting as its own user).
+  Resolve it with `KanvasConversationStore::participantFor($session, $user, $agent)`: a human at the keyboard
+  owns the conversation whatever record the session points at (a staff session can be keyed to a People
+  record; a uuid can carry a stale People session beside the live one); only when the acting user is an AI
+  identity (`actsAsAi()` — the agent's dedicated user or the company's AI agent user) does the session's
+  Person own it, else the Agent. `user_id` is always the acting user (the
+  agent's dedicated user for agent-owned rows); `agent_id` is which agent the conversation is with. An
+  anonymous public session opens with no participant and `conversationForSession()` claims it on the
+  first turn after the session is keyed to a Person.
+- **Usage JSON differs by writer** — laravel ≤0.11 `prompt_tokens`, laravel 1.x `input_tokens` INCLUDING
+  cache tokens, Neuron/runtimes `input_tokens` excluding them. Sum it only through
+  `ConversationUsageSqlHelper`, which subtracts the cache counts where the 1.x keys are present.
+- **Never assume the backfill state of a shared database.** Tests that skip `DatabaseTransactions` on the
+  `intelligence` connection leave rows behind; the drop migration runs `agents:backfill-conversation-steps` itself when rows lack `steps` and stops with the count
+  if any remain, so the whole upgrade ships in one deploy.

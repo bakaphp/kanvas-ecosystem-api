@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Inventory;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
+use Kanvas\Intelligence\Agents\Laravel\Concerns\RemembersConversationsWithinBudget;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\AttributeSearchTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\CategorySearchTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\InventorySearchTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\ListAvailableProductsTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\VariantSearchTool;
-use Laravel\Ai\Concerns\RemembersConversations;
 use Laravel\Ai\Contracts\Tool;
 use Override;
 use Stringable;
@@ -23,7 +23,7 @@ use Stringable;
 )]
 class AgentInventoryAssistance extends KanvasLaravelAgent
 {
-    use RemembersConversations;
+    use RemembersConversationsWithinBudget;
 
     #[Override]
     public function instructions(): Stringable|string

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
+use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
 use Kanvas\Intelligence\Agents\Models\AgentDailyCycle;
 use Kanvas\NervousSystem\DailyLearning\Notifications\DailyLearningDigestNotification;
 use Kanvas\NervousSystem\DailyLearning\Services\CycleWindowResolverService;
@@ -149,6 +150,7 @@ class SendDailyLearningDigestAction
             ->whereHas(
                 'messages',
                 fn ($q) => $q->whereBetween('created_at', [$dayStart, $dayEnd])
+                    ->where('status', AgentConversationMessage::STATUS_COMPLETED)
             )
             ->count();
     }

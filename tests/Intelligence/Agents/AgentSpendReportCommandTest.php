@@ -55,8 +55,7 @@ final class AgentSpendReportCommandTest extends TestCase
             'role' => 'assistant',
             'content' => 'fixture',
             'attachments' => [],
-            'tool_calls' => [],
-            'tool_results' => [],
+            'steps' => [],
             'meta' => [],
             'usage' => ['model' => $model, 'prompt_tokens' => $input, 'completion_tokens' => $output],
         ]);

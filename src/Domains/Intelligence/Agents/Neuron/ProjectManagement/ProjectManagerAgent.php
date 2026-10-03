@@ -56,6 +56,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateEmailRouteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\ListCompanyWorkflowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\ListWorkflowOptionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\UpdateCompanyWorkflowTool;
+use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Services\ProjectContextService;
@@ -90,6 +91,7 @@ class ProjectManagerAgent extends SystemUserAgent
             model: $this->resolvedModelName(),
             privateUserTurn: $this->privateUserTurn,
             contextWindow: $this->resolvedContextWindow(),
+            participant: KanvasConversationStore::participantFor($this->session, $this->user, $this->agent),
         );
     }
 

@@ -165,6 +165,7 @@ class RunNeuronChatAction
                     assistantResponse: $fallback,
                     agentId: $this->agent->getId(),
                     usage: ['error' => $e::class, 'message' => $e->getMessage()],
+                    participant: KanvasConversationStore::participantFor($this->session, $this->user, $this->agent),
                 );
             }
 
@@ -203,6 +204,7 @@ class RunNeuronChatAction
                 toolCalls: $toolCalls,
                 toolResults: $toolResults,
                 usage: $usage,
+                participant: KanvasConversationStore::participantFor($this->session, $this->user, $this->agent),
             );
         }
 

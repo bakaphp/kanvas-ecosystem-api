@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Laravel;
 
+use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Config;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\ChatHistory\LaravelHistoryBudgetTrimmer;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Common\CurrentTimeTool;
@@ -15,6 +17,7 @@ use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
 use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
+use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
 use Kanvas\Intelligence\Agents\Traits\HasEntityContext;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Laravel\Ai\Contracts\Agent;
@@ -32,6 +35,9 @@ use Stringable;
 abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
 {
     use Promptable;
+
+    /** A hydration cap, not the budget: `historyTokenBudget()` decides what the model sees. */
+    private const int MAX_LOADED_HISTORY_ROWS = 500;
 
     protected ?AgentRecord $agentRecord = null;
     protected ?Apps $app = null;
@@ -115,6 +121,16 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
         };
     }
 
+    /**
+     * The token budget the replayed history is cut to — the same one the Neuron histories use, from the
+     * same service, so both backends keep the same amount of memory on the same model. The cost cap in
+     * it (`kanvas.agents.max_history_tokens`) wins over the model ceiling on purpose.
+     */
+    protected function historyTokenBudget(): int
+    {
+        return ModelContextWindowService::forAgent($this->agentRecord);
+    }
+
     #[Override]
     public function messages(): iterable
     {
@@ -122,12 +138,12 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
             return [];
         }
 
-        return AgentHistory::where('agent_id', $this->agentRecord->getId())
+        $messages = AgentHistory::where('agent_id', $this->agentRecord->getId())
             ->where('entity_namespace', get_class($this->entity))
             ->where('entity_id', $this->entity->getId())
             ->notDeleted()
             ->latest()
-            ->limit(50)
+            ->limit(self::MAX_LOADED_HISTORY_ROWS)
             ->get()
             ->reverse()
             ->flatMap(function (AgentHistory $history) {
@@ -150,6 +166,8 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
                 return $messages;
             })
             ->all();
+
+        return LaravelHistoryBudgetTrimmer::trim($messages, $this->historyTokenBudget());
     }
 
     /**
@@ -183,7 +201,7 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
      * Returns a closure that restores the original config — call it in finally
      * to guarantee no cross-tenant leak under Octane.
      */
-    protected function applyTenantProviderCredentials(): \Closure
+    protected function applyTenantProviderCredentials(): Closure
     {
         $selected = $this->selectedLlmConfig();
         if ($selected !== null) {
@@ -225,7 +243,7 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
      * `driver` is set explicitly because getInstanceConfig() only defaults it when the whole provider
      * block is absent — once we set `.key`/`.url` the block exists without a driver and would break.
      */
-    private function applySelectedConfigCredentials(AgentLlmConfig $config): \Closure
+    private function applySelectedConfigCredentials(AgentLlmConfig $config): Closure
     {
         $driver = self::labForProvider($config->providerEnum())->value;
 

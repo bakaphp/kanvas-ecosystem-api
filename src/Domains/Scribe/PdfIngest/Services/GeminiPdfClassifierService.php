@@ -27,7 +27,7 @@ use function Laravel\Ai\agent;
  * Gemini 2.5 multimodal classifier — one structured agent call extracts + classifies.
  *
  * Wired through `Laravel\Ai\agent()` with `Lab::Gemini`. The package handles:
- *   - API-key resolution (via the KanvasGeminiGateway registered in AppServiceProvider)
+ *   - API-key resolution (`ai.providers.gemini.key`)
  *   - HTTP transport, retries, model failover
  *   - JSON-schema enforcement on the response (returns a typed array via `$response->structured`)
  *
