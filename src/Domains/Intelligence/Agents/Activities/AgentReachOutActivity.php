@@ -37,7 +37,11 @@ class AgentReachOutActivity extends KanvasActivity
             integrationOperation: function () use ($lead, $app, $params): array {
                 $this->validateBeforeReachOut($lead, $app, $params);
 
-                $result = new AgentReachOutAction($lead, $params)->execute();
+                $result = new AgentReachOutAction(
+                    $lead,
+                    $params,
+                    deferDelivery: $this->shouldDeferDelivery($lead),
+                )->execute();
                 $this->afterReachOut($lead, $app, $params, $result);
 
                 return $result;
@@ -49,6 +53,11 @@ class AgentReachOutActivity extends KanvasActivity
 
     protected function validateBeforeReachOut(Lead $lead, Apps $app, array $params): void
     {
+    }
+
+    protected function shouldDeferDelivery(Lead $lead): ?bool
+    {
+        return null; // Preserve the generic action's support-mode policy.
     }
 
     /**

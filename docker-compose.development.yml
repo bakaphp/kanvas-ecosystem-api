@@ -163,6 +163,8 @@ services:
   agent-runtime-queue:
     <<: *common-queue-settings
     # REMOVED container_name because replicas > 1
+    deploy:
+      replicas: 3
     command:
       - "sh"
       - "-c"
@@ -200,6 +202,8 @@ services:
   agent-chat-queue:
     <<: *common-queue-settings
     # REMOVED container_name because replicas > 1
+    deploy:
+      replicas: 3
     command:
       - "sh"
       - "-c"

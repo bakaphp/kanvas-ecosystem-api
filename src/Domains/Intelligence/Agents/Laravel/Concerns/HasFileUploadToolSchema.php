@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Laravel\Traits;
+namespace Kanvas\Intelligence\Agents\Laravel\Concerns;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Model as EloquentModel;

@@ -7,7 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExposesPersonCustomFields;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExposesCustomFields;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExtractsPersonContacts;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesOrganizationForTool;
@@ -21,7 +21,7 @@ use Override;
 #[AgentTool(name: 'List Organization People', category: 'crm')]
 class ListOrganizationPeopleTool extends Tool implements HasRunKey
 {
-    use ExposesPersonCustomFields;
+    use ExposesCustomFields;
     use ExtractsPersonContacts;
     use HasKanvasContext;
     use ResolvesOrganizationForTool;
