@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Traits;
+namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\KnowledgeRetrieval;

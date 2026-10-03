@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Laravel;
 
+use Kanvas\Intelligence\Agents\Laravel\Concerns\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
-use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\CanActAsTool;
 use Laravel\Ai\Contracts\HasTools;

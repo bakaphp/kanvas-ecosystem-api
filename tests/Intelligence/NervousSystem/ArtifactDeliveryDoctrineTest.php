@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Neuron\Coding\ProgrammingAgent;
+use Kanvas\Intelligence\Agents\Neuron\Concerns\HasKanvasAgentBehavior;
 use Kanvas\Intelligence\Agents\Neuron\KanvasGenericNeuronAgent;
 use Kanvas\Intelligence\Agents\Neuron\ProjectManagement\ProjectManagerAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\CreateTemplateTool;
-use Kanvas\Intelligence\Agents\Neuron\Traits\HasKanvasAgentBehavior;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionMethod;
 use Tests\TestCase;

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderProvider;
 use Kanvas\Souk\Orders\Models\OrderTypes;
@@ -21,8 +22,6 @@ class OrderReportService
      * Statuses that take an order out of the operational pipeline — a cancelled order is not a
      * backlog item no matter what its payment/fulfillment columns still say.
      */
-    private const CLOSED_STATUSES = ['draft', 'canceled', 'cancelled', 'failed'];
-
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
@@ -164,7 +163,7 @@ class OrderReportService
     {
         $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
         $base = fn (): Builder => $this->baseQuery($typeIds, $since, $until);
-        $open = fn (): Builder => $base()->whereNotIn('orders.status', self::CLOSED_STATUSES);
+        $open = fn (): Builder => $base()->whereNotIn('orders.status', OrderStatusEnum::closedValues());
 
         $paid = PaymentStatusEnum::PAID->value;
         $fulfilled = OrderFulfillmentStatusEnum::COMPLETED->value;

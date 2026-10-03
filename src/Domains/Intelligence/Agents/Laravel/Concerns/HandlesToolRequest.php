@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Laravel\Traits;
+namespace Kanvas\Intelligence\Agents\Laravel\Concerns;
 
 use Baka\Support\Str;
 use Kanvas\Users\Models\Users;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Traits;
+namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;

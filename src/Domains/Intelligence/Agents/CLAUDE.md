@@ -50,7 +50,7 @@ The archetype above is declared in code by one of two empty marker interfaces in
 | Session keyed on | the entity (lead) timeline | the user thread |
 | Memory | prospect-isolated — continuity within the lead only | company-wide recall via `read_my_ledger` |
 | Speaks as | a persona, name only, never internal ids | itself, its own user |
-| Implemented by | `SalesAgent`, `ReceptionistAgent` | `SystemUserAgent` |
+| Implemented by | `SalesAgent`, `ReceptionistAgent`, `ShoppingAssistantAgent` — all share `Neuron\Concerns\HasProspectIsolatedHistory` for the per-prospect rollup | `SystemUserAgent` |
 | Read at runtime | `Agent::conversesWithCustomer()` | `Agent::conversesWithUser()` |
 
 **They are markers, not a required choice — and internal is the default.** Subclassing inherits the
