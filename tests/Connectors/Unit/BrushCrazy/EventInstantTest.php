@@ -46,7 +46,7 @@ final class EventInstantTest extends TestCase
         $this->assertSame('2026-09-15 02:00:00', $instant->endAt->format('Y-m-d H:i:s'));
         $this->assertSame('America/New_York', $instant->displayTimezone);
         $this->assertSame('19:00:00', $instant->localStartTime());
-        $this->assertSame('2026-09-15', $instant->localDate());
+        $this->assertSame('2026-09-14', $instant->localDate());
     }
 
     /** Historical rows keep the stored instant so they still reconcile against the legacy UI. */
