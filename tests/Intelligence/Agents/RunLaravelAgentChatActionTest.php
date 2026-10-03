@@ -18,9 +18,9 @@ use Laravel\Ai\Files\Base64Document;
 use Laravel\Ai\Files\Base64Image;
 use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\Meta;
+use Laravel\Ai\Responses\Data\TextUsage;
 use Laravel\Ai\Responses\Data\ToolCall;
 use Laravel\Ai\Responses\Data\ToolResult;
-use Laravel\Ai\Responses\Data\Usage;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 use Mockery;
 use Tests\TestCase;
@@ -39,7 +39,7 @@ class RunLaravelAgentChatActionTest extends TestCase
             ->withCompanyId($company->getId())
             ->create(['user_id' => $user->getId() + 1]);
 
-        $response = new AgentResponse('inv-1', 'Found 2 products.', new Usage(10, 20), new Meta());
+        $response = new AgentResponse('inv-1', 'Found 2 products.', new TextUsage(10, 20), new Meta());
         $response->withToolCallsAndResults(
             new Collection([new ToolCall('call-1', 'InventorySearchTool', ['keyword' => 'perfume'])]),
             new Collection([new ToolResult('call-1', 'InventorySearchTool', ['keyword' => 'perfume'], ['hit'])]),
@@ -90,8 +90,8 @@ class RunLaravelAgentChatActionTest extends TestCase
         $this->assertSame($user->getMorphClass(), $row->participant_type);
         $this->assertSame($user->getId(), (int) $row->participant_id);
 
-        $this->assertSame(10, $usage['prompt_tokens']);
-        $this->assertSame(20, $usage['completion_tokens']);
+        $this->assertSame(10, $usage['input_tokens']);
+        $this->assertSame(20, $usage['output_tokens']);
     }
 
     public function testForwardsImagesToTheModelAsAttachments(): void
@@ -106,7 +106,7 @@ class RunLaravelAgentChatActionTest extends TestCase
             ->create(['user_id' => $user->getId()]);
 
         $imagePath = $this->writeTempPng();
-        $response = new AgentResponse('inv-3', 'I see a 1x1 image.', new Usage(1, 1), new Meta());
+        $response = new AgentResponse('inv-3', 'I see a 1x1 image.', new TextUsage(1, 1), new Meta());
 
         $handler = Mockery::mock(KanvasLaravelAgent::class);
         $handler->shouldReceive('promptWithConfig')
@@ -147,7 +147,7 @@ class RunLaravelAgentChatActionTest extends TestCase
             ->create(['user_id' => $user->getId()]);
 
         $unreachable = 'http://127.0.0.1/pizza.jpg';
-        $response = new AgentResponse('inv-4', 'I could not open that image.', new Usage(1, 1), new Meta());
+        $response = new AgentResponse('inv-4', 'I could not open that image.', new TextUsage(1, 1), new Meta());
 
         $handler = Mockery::mock(KanvasLaravelAgent::class);
         $handler->shouldReceive('promptWithConfig')
@@ -190,7 +190,7 @@ class RunLaravelAgentChatActionTest extends TestCase
             ->create(['user_id' => $user->getId()]);
 
         $imagePath = $this->writeTempPng();
-        $response = new AgentResponse('inv-4', 'noted', new Usage(1, 1), new Meta());
+        $response = new AgentResponse('inv-4', 'noted', new TextUsage(1, 1), new Meta());
 
         $handler = Mockery::mock(KanvasLaravelAgent::class);
         $handler->shouldReceive('promptWithConfig')->once()->andReturn($response);
@@ -232,7 +232,7 @@ class RunLaravelAgentChatActionTest extends TestCase
             ->create(['user_id' => $user->getId()]);
 
         $pdfPath = $this->writeTempPdf();
-        $response = new AgentResponse('inv-5', 'I read the PDF.', new Usage(1, 1), new Meta());
+        $response = new AgentResponse('inv-5', 'I read the PDF.', new TextUsage(1, 1), new Meta());
 
         $handler = Mockery::mock(KanvasLaravelAgent::class);
         $handler->shouldReceive('promptWithConfig')
@@ -297,7 +297,7 @@ class RunLaravelAgentChatActionTest extends TestCase
         // A HasStructuredOutput agent puts its answer in ->structured and leaves
         // ->text empty in JSON mode. The action must surface the JSON, not "".
         $structured = ['recommendations' => [['product' => ['id' => 42]]]];
-        $response = new StructuredAgentResponse('inv-2', $structured, '', new Usage(1, 2), new Meta());
+        $response = new StructuredAgentResponse('inv-2', $structured, '', new TextUsage(1, 2), new Meta());
 
         $handler = Mockery::mock(KanvasLaravelAgent::class);
         $handler->shouldReceive('promptWithConfig')->once()->andReturn($response);

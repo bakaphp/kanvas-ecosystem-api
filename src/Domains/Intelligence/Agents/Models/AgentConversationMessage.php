@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Models\ImmutableBaseModel;
 use Kanvas\Users\Models\Users;
+use Laravel\Ai\Enums\MessageStatus;
 use Override;
 
 /**
@@ -55,9 +56,9 @@ use Override;
  */
 class AgentConversationMessage extends ImmutableBaseModel
 {
-    public const string STATUS_COMPLETED = 'completed';
-    public const string STATUS_PAUSED = 'paused';
-    public const string STATUS_FAILED = 'failed';
+    public const string STATUS_COMPLETED = MessageStatus::Completed->value;
+    public const string STATUS_PAUSED = MessageStatus::Paused->value;
+    public const string STATUS_FAILED = MessageStatus::Failed->value;
 
     protected $table = 'agent_conversation_messages';
 

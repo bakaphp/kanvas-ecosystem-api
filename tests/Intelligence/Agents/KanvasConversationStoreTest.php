@@ -14,9 +14,20 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Laravel\Ai\Approvals\Decisions;
+use Laravel\Ai\Approvals\PendingApproval;
 use Laravel\Ai\Contracts\Providers\TextProvider;
+use Laravel\Ai\Messages\AssistantMessage;
+use Laravel\Ai\Messages\ToolResultMessage;
+use Laravel\Ai\Messages\UserMessage;
 use Laravel\Ai\Prompts\AgentPrompt;
+use Laravel\Ai\Responses\AgentResponse;
+use Laravel\Ai\Responses\Data\Meta;
+use Laravel\Ai\Responses\Data\TextUsage;
+use Laravel\Ai\Responses\Data\ToolCall;
+use Laravel\Ai\Responses\Data\ToolResult;
 use Mockery;
+use RuntimeException;
 use Tests\TestCase;
 
 class KanvasConversationStoreTest extends TestCase
@@ -227,7 +238,7 @@ class KanvasConversationStoreTest extends TestCase
         $this->assertSame([$taggedSessionId], $visibleIds);
     }
 
-    public function testStoreUserMessageBackfillsAgentIdFromKanvasLaravelAgent(): void
+    public function testTheAssistantTurnBackfillsAgentIdFromKanvasLaravelAgent(): void
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -243,33 +254,243 @@ class KanvasConversationStoreTest extends TestCase
 
         $store = new KanvasConversationStore();
 
-        // Mirror Laravel AI's RememberConversation middleware: the interface
-        // creates the conversation with NULL agent_id (no prompt in scope),
-        // then storeUserMessage carries the agent via $prompt->agent.
+        // Mirror Laravel AI's RememberConversation middleware: the conversation opens with NULL agent_id,
+        // the user message carries only the agent CLASS, and the assistant turn is the first call that
+        // carries the agent instance.
         $conversationId = $store->storeConversation($user->getMorphClass(), $user->getId(), 'middleware-flow-test');
 
-        $rowBefore = DB::connection('intelligence')->table('agent_conversations')
-            ->where('id', $conversationId)
-            ->first();
+        $rowBefore = $this->conversation($conversationId);
         $this->assertNull($rowBefore->agent_id);
         $this->assertSame($user->getMorphClass(), $rowBefore->participant_type);
         $this->assertSame($user->getId(), (int) $rowBefore->participant_id);
         $this->assertSame($user->getId(), (int) $rowBefore->user_id);
 
-        $prompt = new AgentPrompt(
+        $userMessageId = $store->storeUserMessage(
+            $conversationId,
+            $user->getMorphClass(),
+            $user->getId(),
+            $handler::class,
+            new UserMessage('hello agent'),
+        );
+
+        $userRow = $this->message($userMessageId);
+        $this->assertSame($user->getId(), (int) $userRow->user_id);
+        $this->assertSame($user->getMorphClass(), $userRow->participant_type);
+        $this->assertSame('completed', $userRow->status);
+        $this->assertSame('[]', $userRow->steps);
+        $this->assertNull($this->conversation($conversationId)->agent_id);
+
+        $assistantMessageId = $store->storeAssistantMessage(
+            $conversationId,
+            $user->getMorphClass(),
+            $user->getId(),
+            $this->prompt($handler),
+            new AgentResponse('inv-1', 'hi there', new TextUsage(3, 4), new Meta()),
+        );
+
+        $this->assertSame($agent->getId(), (int) $this->conversation($conversationId)->agent_id);
+
+        $assistantRow = $this->message($assistantMessageId);
+        $this->assertSame($user->getId(), (int) $assistantRow->user_id);
+        $this->assertSame('hi there', json_decode($assistantRow->steps, true)[0]['content']);
+        $this->assertSame('completed', $assistantRow->status);
+        $this->assertSame('[]', $assistantRow->tool_calls, 'the pre-1.x mirror column is still written');
+        $this->assertSame(['input_tokens' => 3, 'output_tokens' => 4], array_intersect_key(json_decode($assistantRow->usage, true), ['input_tokens' => 1, 'output_tokens' => 1]));
+    }
+
+    public function testLatestConversationIdIsScopedToTheAgentClass(): void
+    {
+        $user = auth()->user();
+        $store = new KanvasConversationStore();
+        $type = $user->getMorphClass();
+
+        $withA = $store->storeConversation($type, $user->getId(), 'with A');
+        $store->storeUserMessage($withA, $type, $user->getId(), 'Agents\\A', new UserMessage('hi A'));
+        $withB = $store->storeConversation($type, $user->getId(), 'with B');
+        $store->storeUserMessage($withB, $type, $user->getId(), 'Agents\\B', new UserMessage('hi B'));
+
+        $this->assertSame($withA, $store->latestConversationId($type, $user->getId(), 'Agents\\A'));
+        $this->assertSame($withB, $store->latestConversationId($type, $user->getId(), 'Agents\\B'));
+        $this->assertNull($store->latestConversationId($type, $user->getId(), 'Agents\\Never'));
+    }
+
+    public function testStoreConversationHonoursThePreGeneratedId(): void
+    {
+        $user = auth()->user();
+        $id = (string) Str::uuid7();
+
+        $stored = new KanvasConversationStore()->storeConversation($user->getMorphClass(), $user->getId(), 'pre-keyed', $id);
+
+        $this->assertSame($id, $stored);
+        $this->assertSame('pre-keyed', $this->conversation($id)->title);
+    }
+
+    public function testAFailedTurnIsStoredWithItsError(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $handler = new KanvasGenericLaravelAgent();
+        $handler->setConfiguration($agent);
+
+        $store = new KanvasConversationStore();
+        $conversationId = $store->storeConversation($user->getMorphClass(), $user->getId(), 'failing');
+
+        $messageId = $store->storeAssistantMessage(
+            $conversationId,
+            $user->getMorphClass(),
+            $user->getId(),
+            $this->prompt($handler),
+            new AgentResponse('inv-9', '', new TextUsage(), new Meta()),
+            new RuntimeException('Provider connection failed'),
+        );
+
+        $row = $this->message($messageId);
+        $this->assertSame('failed', $row->status);
+        $this->assertSame('Provider connection failed', json_decode($row->meta, true)['error']);
+    }
+
+    public function testAPausedTurnResumesIntoTheSameRowAndADenialIsRecorded(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $handler = new KanvasGenericLaravelAgent();
+        $handler->setConfiguration($agent);
+
+        $store = new KanvasConversationStore();
+        $type = $user->getMorphClass();
+        $conversationId = $store->storeConversation($type, $user->getId(), 'approvals');
+
+        $pausedId = $store->storeAssistantMessage(
+            $conversationId,
+            $type,
+            $user->getId(),
+            $this->prompt($handler),
+            $this->pausedOn('call-1', ['path' => 'x']),
+        );
+
+        $pausedRow = $this->message($pausedId);
+        $this->assertSame('paused', $pausedRow->status);
+        $call = json_decode($pausedRow->steps, true)[0]['tool_calls'][0];
+        $this->assertSame('Destructive.', $call['approval_reason']);
+        $this->assertArrayNotHasKey('result', $call);
+        $this->assertCount(1, $store->pendingApprovalsFor($conversationId));
+
+        $store->storeApprovalResults($conversationId, [new ToolResult('call-1', 'delete_file', ['path' => 'x'], 'deleted')]);
+
+        $resumedId = $store->storeAssistantMessage(
+            $conversationId,
+            $type,
+            $user->getId(),
+            $this->prompt($handler, Decisions::from(['call-1' => true])),
+            new AgentResponse('inv-2', 'Deleted.', new TextUsage(5, 5), new Meta()),
+        );
+
+        $this->assertSame($pausedId, $resumedId, 'a resume folds into the row it paused on');
+        $resumedRow = $this->message($resumedId);
+        $this->assertSame('completed', $resumedRow->status);
+        $this->assertSame('Deleted.', $resumedRow->content);
+        $this->assertSame('deleted', json_decode($resumedRow->steps, true)[0]['tool_calls'][0]['result']);
+        $this->assertCount(0, $store->pendingApprovalsFor($conversationId));
+        $this->assertSame(1, DB::connection('intelligence')->table('agent_conversation_messages')
+            ->where('conversation_id', $conversationId)->where('role', 'assistant')->count());
+
+        $deniedId = $store->storeAssistantMessage(
+            $conversationId,
+            $type,
+            $user->getId(),
+            $this->prompt($handler),
+            $this->pausedOn('call-2', ['path' => 'y']),
+        );
+        $store->storeApprovalResults($conversationId, [new ToolResult('call-2', 'delete_file', ['path' => 'y'], 'Denied by the user.', denied: true)]);
+        $store->storeAssistantMessage(
+            $conversationId,
+            $type,
+            $user->getId(),
+            $this->prompt($handler, Decisions::from(['call-2' => false])),
+            new AgentResponse('inv-3', 'Understood, leaving it.', new TextUsage(), new Meta()),
+        );
+
+        $deniedCall = json_decode($this->message($deniedId)->steps, true)[0]['tool_calls'][0];
+        $this->assertTrue($deniedCall['denied']);
+        $this->assertSame('completed', $this->message($deniedId)->status);
+    }
+
+    public function testARowWithoutStepsReplaysFromTheOldColumns(): void
+    {
+        $user = auth()->user();
+        $store = new KanvasConversationStore();
+        $conversationId = $store->storeConversation($user->getMorphClass(), $user->getId(), 'legacy replay');
+
+        DB::connection('intelligence')->table('agent_conversation_messages')->insert([
+            'id' => (string) Str::uuid7(),
+            'conversation_id' => $conversationId,
+            'user_id' => $user->getId(),
+            'participant_type' => $user->getMorphClass(),
+            'participant_id' => $user->getId(),
+            'agent' => 'Legacy\\Agent',
+            'role' => 'assistant',
+            'content' => 'Found it.',
+            'attachments' => '[]',
+            'tool_calls' => json_encode([['id' => 'c9', 'name' => 'search', 'arguments' => ['q' => 'x']]]),
+            'tool_results' => json_encode([['id' => 'c9', 'name' => 'search', 'arguments' => ['q' => 'x'], 'result' => 'found']]),
+            'steps' => null,
+            'usage' => '[]',
+            'meta' => '[]',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $messages = $store->getLatestConversationMessages($conversationId, 10);
+
+        $this->assertCount(3, $messages);
+        $this->assertInstanceOf(AssistantMessage::class, $messages[0]);
+        $this->assertSame('c9', $messages[0]->toolCalls->first()->id);
+        $this->assertInstanceOf(ToolResultMessage::class, $messages[1]);
+        $this->assertSame('found', $messages[1]->toolResults->first()->result);
+        $this->assertSame('Found it.', $messages[2]->content);
+    }
+
+    private function prompt(KanvasGenericLaravelAgent $handler, ?Decisions $decisions = null): AgentPrompt
+    {
+        return new AgentPrompt(
             agent: $handler,
             prompt: 'hello agent',
             attachments: new Collection([]),
             provider: Mockery::mock(TextProvider::class),
             model: 'fake-model',
+            approvalDecisions: $decisions,
         );
+    }
 
-        $store->storeUserMessage($conversationId, 'user', $user->getId(), $prompt);
+    /**
+     * @param array<string, mixed> $arguments
+     */
+    private function pausedOn(string $callId, array $arguments): AgentResponse
+    {
+        return AgentResponse::fakeWithPendingApprovals([new PendingApproval($callId, 'delete_file', $arguments, 'Destructive.')])
+            ->withToolCallsAndResults(new Collection([new ToolCall($callId, 'delete_file', $arguments)]), new Collection([]));
+    }
 
-        $rowAfter = DB::connection('intelligence')->table('agent_conversations')
-            ->where('id', $conversationId)
-            ->first();
-        $this->assertSame($agent->getId(), (int) $rowAfter->agent_id);
+    private function message(string $id): object
+    {
+        return DB::connection('intelligence')->table('agent_conversation_messages')->where('id', $id)->first();
+    }
+
+    private function conversation(string $id): object
+    {
+        return DB::connection('intelligence')->table('agent_conversations')->where('id', $id)->first();
     }
 
     /**

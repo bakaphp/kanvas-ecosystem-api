@@ -116,6 +116,37 @@ final class ConversationStepsHelper
     }
 
     /**
+     * The pre-1.x `tool_calls` / `tool_results` columns, derived from `steps` so a writer that only knows
+     * steps (the package store) keeps the mirrors in sync until they are dropped. A result is a call that
+     * carries one; the bare call list never carries results.
+     *
+     * @param list<array<string, mixed>> $steps
+     *
+     * @return array{0: list<array<string, mixed>>, 1: list<array<string, mixed>>}
+     */
+    public static function legacyColumnsFromSteps(array $steps): array
+    {
+        $calls = [];
+        $results = [];
+
+        foreach ($steps as $step) {
+            foreach ($step['tool_calls'] ?? [] as $call) {
+                if (! is_array($call)) {
+                    continue;
+                }
+
+                $calls[] = array_diff_key($call, array_flip(['result', 'denied', 'failed', 'approval_reason']));
+
+                if (array_key_exists('result', $call)) {
+                    $results[] = $call;
+                }
+            }
+        }
+
+        return [$calls, $results];
+    }
+
+    /**
      * Laravel AI (`id`/`arguments`), Neuron (`callId`/`inputs`), OpenAI-shaped runtimes (`function.name`,
      * `function.arguments` as a JSON string) spell the same three fields differently.
      *

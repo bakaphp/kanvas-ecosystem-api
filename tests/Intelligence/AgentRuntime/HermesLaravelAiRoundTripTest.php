@@ -32,12 +32,9 @@ class HermesLaravelAiRoundTripTest extends TestCase
         // Hermes-imported rows. Earlier failures (TypeError on ToolCall, bad
         // role enum) caught upstream and fixed in the reader's decoding step.
         //
-        // Note: KanvasConversationStore was designed for in-Kanvas-runtime
-        // assistant rows that carry BOTH tool_calls and tool_results on the
-        // same DB row. Hermes stores them as separate event rows; a tool_result
-        // row falls through to a plain AssistantMessage on read. Merging them
-        // at read time is a v1.1 enhancement — for v1 the contract is "no
-        // exceptions, every event is reachable as a Message subclass".
+        // Hermes stores a call and its result as separate rows. These rows have no `steps` yet, so the
+        // store rebuilds them from the old columns: the bare call row has no answer and is dropped from
+        // replay (the model never saw a result), the result row becomes the call carrying its result.
         $store = new KanvasConversationStore();
         $messages = $store->getLatestConversationMessages($conversationId, 50);
 
@@ -73,7 +70,7 @@ class HermesLaravelAiRoundTripTest extends TestCase
         // The Hermes-imported conversation has user_id = null. A user that
         // doesn't own it should not see it as their "latest" conversation.
         $someUserId = (int) auth()->user()->getId();
-        $latest = new KanvasConversationStore()->latestConversationId('user', $someUserId);
+        $latest = new KanvasConversationStore()->latestConversationId(auth()->user()->getMorphClass(), $someUserId, 'Any\\Agent');
 
         // The current user might have other conversations from other tests; what
         // we care about is that the Hermes-imported one (user_id=null) is not it.
