@@ -170,6 +170,17 @@ class FollowUpAgentStub extends FollowUpAgent
     }
 
     #[Override]
+    protected function retrieval(): \NeuronAI\RAG\Retrieval\RetrievalInterface
+    {
+        return new class () implements \NeuronAI\RAG\Retrieval\RetrievalInterface {
+            public function retrieve(Message $query): array
+            {
+                return [];
+            }
+        };
+    }
+
+    #[Override]
     protected function chatHistory(): AbstractChatHistory
     {
         return new InMemoryChatHistory();
