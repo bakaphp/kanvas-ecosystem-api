@@ -22,6 +22,10 @@ final class ReviewTagVerificationBlocksToolTest extends TestCase
     {
         parent::setUp();
 
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('PasoRapido tests require the tenant app company and are skipped in CI.');
+        }
+
         Carbon::setTestNow(Carbon::parse('2020-06-15 12:00:00', 'UTC'));
     }
 
