@@ -66,6 +66,18 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
         return true;
     }
 
+    #[Override]
+    protected function remembersForCompany(): bool
+    {
+        return true;
+    }
+
+    #[Override]
+    protected function durableRuns(): bool
+    {
+        return true;
+    }
+
     /**
      * Answering an @mention: read the WHOLE channel this turn, not the per-session store.
      */

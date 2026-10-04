@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\CompanyMemoryRetrieval;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\KnowledgeRetrieval;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
+use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
 use NeuronAI\RAG\PostProcessor\AdaptiveThresholdPostProcessor;
 use NeuronAI\RAG\PreProcessor\QueryTransformationPreProcessor;
 use NeuronAI\RAG\PreProcessor\QueryTransformationType;
+use NeuronAI\RAG\Retrieval\CompositeRetrieval;
 use NeuronAI\RAG\Retrieval\RetrievalInterface;
+use NeuronAI\RAG\VectorStore\Filter\Filter;
+use NeuronAI\RAG\VectorStore\Filter\FilterExpression;
+use NeuronAI\RAG\VectorStore\Filter\FilterGroup;
 use NeuronAI\RAG\VectorStore\MemoryVectorStore;
 use NeuronAI\RAG\VectorStore\VectorStoreInterface;
 use Override;
@@ -28,12 +34,51 @@ trait HasKnowledgeRag
     #[Override]
     protected function retrieval(): RetrievalInterface
     {
-        return new KnowledgeRetrieval(
+        $knowledge = new KnowledgeRetrieval(
             $this->app,
             $this->company,
             $this->agent,
             $this->resolveEntityForTurn(),
             organizationWide: $this->usesOrganizationWideKnowledge(),
+        );
+
+        if (! $this->companyMemoryActive()) {
+            return $knowledge;
+        }
+
+        $recallScope = $this->recallMemoryScope();
+
+        if ($recallScope === null) {
+            return $knowledge;
+        }
+
+        return new CompositeRetrieval([
+            $knowledge,
+            new CompanyMemoryRetrieval(
+                store: $this->companyMemoryStore(),
+                embeddings: $this->companyMemoryEmbeddings(),
+                appId: $this->app->getId(),
+                companyId: $this->company->getId(),
+                topK: KnowledgeComponents::memoryResultLimit($this->app),
+                recallScope: $recallScope,
+            ),
+        ]);
+    }
+
+    /**
+     * The tenant pair, AND-ed by Neuron onto every retrieval of this agent. KnowledgeRetrieval pins it
+     * through KnowledgeScope on its own; this is what pins the memory retrieval and anything added later.
+     */
+    #[Override]
+    protected function retrievalScope(): ?FilterExpression
+    {
+        if ($this->app === null || $this->company === null) {
+            return null;
+        }
+
+        return FilterGroup::and(
+            Filter::eq('apps_id', $this->app->getId()),
+            Filter::eq('companies_id', $this->company->getId()),
         );
     }
 

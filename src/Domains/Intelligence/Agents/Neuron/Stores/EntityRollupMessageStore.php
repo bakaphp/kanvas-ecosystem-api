@@ -13,6 +13,7 @@ use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Intelligence\Agents\Enums\AgentMessageTypeEnum;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -53,6 +54,7 @@ class EntityRollupMessageStore extends KanvasMessageStore
         LeadMessageTypeEnum::AI_ASSIST->value,
         LeadMessageTypeEnum::INTERNAL->value,
         LeadMessageTypeEnum::CONVERSATION_SUMMARY->value,
+        AgentMessageTypeEnum::AGENT_SUMMARY->value,
     ];
 
     public function __construct(

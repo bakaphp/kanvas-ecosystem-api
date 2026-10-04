@@ -21,6 +21,15 @@ use Typesense\Exceptions\ObjectNotFound;
  */
 final class TypesenseKnowledgeStore
 {
+    /**
+     * Facets added after the collection shipped. Typesense adds a field to a live collection in place,
+     * so an existing index gains them on the next write with no re-index.
+     */
+    private const array LATER_FIELDS = [
+        ['name' => 'agent_id', 'type' => 'int64', 'facet' => true],
+        ['name' => 'users_id', 'type' => 'int64', 'facet' => true],
+    ];
+
     public function __construct(
         private readonly Client $client,
         private readonly string $collection,
@@ -125,6 +134,24 @@ final class TypesenseKnowledgeStore
         int $topK = 8,
         ?float $minScore = null
     ): array {
+        return $this->searchByFilter($embedding, $scope->filter(), $topK, $minScore);
+    }
+
+    /**
+     * @param array<int, float> $embedding
+     * @param string $filterBy a compiled Typesense filter; never empty, every read of this collection is pinned to a tenant
+     * @return array<int, array{content: string, sourceType: string, sourceName: string, score: float, metadata: array<string, mixed>}>
+     */
+    public function searchByFilter(
+        array $embedding,
+        string $filterBy,
+        int $topK = 8,
+        ?float $minScore = null
+    ): array {
+        if ($filterBy === '') {
+            throw new RuntimeException('A knowledge search must be scoped: pass at least the tenant filters.');
+        }
+
         if (! $this->collectionExists()) {
             return [];
         }
@@ -134,7 +161,7 @@ final class TypesenseKnowledgeStore
                 'collection' => $this->collection,
                 'q' => '*',
                 'vector_query' => 'embedding:(' . (string) json_encode($embedding) . ', k:' . $topK . ')',
-                'filter_by' => $scope->filter(),
+                'filter_by' => $filterBy,
                 'exclude_fields' => 'embedding',
                 'per_page' => $topK,
                 'num_candidates' => max(50, $topK * 4),
@@ -160,6 +187,15 @@ final class TypesenseKnowledgeStore
         return array_values(array_filter($hits, static fn (array $hit): bool => $hit['score'] >= $minScore));
     }
 
+    public function deleteByFilter(string $filterBy): void
+    {
+        if ($filterBy === '' || ! $this->collectionExists()) {
+            return;
+        }
+
+        $this->client->collections[$this->collection]->documents->delete(['filter_by' => $filterBy]);
+    }
+
     private function toRecord(KnowledgeDocument $document): array
     {
         $metadata = $document->metadata;
@@ -177,6 +213,8 @@ final class TypesenseKnowledgeStore
             'source_type' => (string) ($metadata['source_type'] ?? ''),
             'source_id' => (string) ($metadata['source_id'] ?? ''),
             'channel_names' => (string) ($metadata['channel_names'] ?? ''),
+            'agent_id' => (int) ($metadata['agent_id'] ?? 0),
+            'users_id' => (int) ($metadata['users_id'] ?? 0),
             'created_at' => (int) ($metadata['created_at'] ?? 0),
         ];
     }
@@ -194,6 +232,16 @@ final class TypesenseKnowledgeStore
                     $this->collection,
                 ));
             }
+
+            $present = array_column($schema['fields'] ?? [], 'name');
+            $missing = array_values(array_filter(
+                self::LATER_FIELDS,
+                static fn (array $field): bool => ! in_array($field['name'], $present, true),
+            ));
+
+            if ($missing !== []) {
+                $this->client->collections[$this->collection]->update(['fields' => $missing]);
+            }
         } catch (ObjectNotFound) {
             $this->client->collections->create([
                 'name' => $this->collection,
@@ -209,6 +257,7 @@ final class TypesenseKnowledgeStore
                     ['name' => 'source_type', 'type' => 'string', 'facet' => true],
                     ['name' => 'source_id', 'type' => 'string'],
                     ['name' => 'channel_names', 'type' => 'string', 'facet' => true],
+                    ...self::LATER_FIELDS,
                     ['name' => 'created_at', 'type' => 'int64', 'sort' => true],
                 ],
             ]);

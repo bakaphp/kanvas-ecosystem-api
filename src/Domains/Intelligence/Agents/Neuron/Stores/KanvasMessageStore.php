@@ -16,11 +16,10 @@ use NeuronAI\Tools\ToolCall;
  * media); the thread id reaches every call from the agent instead of the constructor, so a store can be
  * built before its conversation is known.
  *
- * archive() is a deliberate no-op everywhere: a Kanvas store re-derives the active window from the
- * database on every load, and the trimmer is the only cut. ChatHistory::addMessage() computes the
- * number to archive as `count(before) − count(trimmed)`, which a fold in KanvasHistoryTrimmer makes
- * wrong for a real archive; keeping this a no-op is what makes the fold safe. A store that wants
- * archiving (the summarization work) must stop folding first.
+ * Archiving is by identity, never by count: KanvasChatHistory hands archiveMessages() the ids a trim
+ * dropped, and the interface's count-based archive() stays a no-op because a fold makes that count
+ * wrong. A store whose rows belong to other writers (Social) keeps both as no-ops and re-derives its
+ * window from the database on every load; the conversation store stamps `archived_at`.
  */
 abstract class KanvasMessageStore implements MessageStoreInterface
 {
@@ -51,11 +50,28 @@ abstract class KanvasMessageStore implements MessageStoreInterface
         return $this->paginate($this->loadActive($threadId), $limit, $before);
     }
 
-    public function archive(string $threadId, int $count): void
+    final public function archive(string $threadId, int $count): void
     {
     }
 
-    public function clear(string $threadId): void
+    /**
+     * @param list<string> $ids
+     */
+    public function archiveMessages(string $threadId, array $ids): void
+    {
+    }
+
+    /**
+     * Summarization flushes the thread and re-appends the summary plus the kept tail, so the ids seen
+     * so far are forgotten with it or the kept tail would be skipped as already written.
+     */
+    final public function clear(string $threadId): void
+    {
+        $this->appended = [];
+        $this->archiveAll($threadId);
+    }
+
+    protected function archiveAll(string $threadId): void
     {
     }
 
@@ -70,6 +86,14 @@ abstract class KanvasMessageStore implements MessageStoreInterface
         return array_map(static fn (ToolCall $call): array => $call->jsonSerialize(), $calls);
     }
 
+    /**
+     * The id a message would have as a row: Neuron prefixes its ids with `msg_`, the columns do not.
+     */
+    public static function bareId(string $id): string
+    {
+        return str_starts_with($id, 'msg_') ? substr($id, 4) : $id;
+    }
+
     protected static function isConversationTurn(Message $message): bool
     {
         return in_array($message->getRole(), [MessageRole::USER->value, MessageRole::ASSISTANT->value], true);
@@ -81,8 +105,7 @@ abstract class KanvasMessageStore implements MessageStoreInterface
      */
     protected static function rowUuid(Message $message): string
     {
-        $id = $message->getId();
-        $bare = str_starts_with($id, 'msg_') ? substr($id, 4) : $id;
+        $bare = self::bareId($message->getId());
 
         if (! Str::isUuid($bare)) {
             $bare = (string) Str::uuid7();

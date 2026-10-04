@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Knowledge\Contracts\KnowledgeEmbedder;
 use Kanvas\Intelligence\Knowledge\Embedders\LaravelAiKnowledgeEmbedder;
 use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
+use Kanvas\Intelligence\Knowledge\VectorStores\KnowledgeVectorStore;
 use Kanvas\Intelligence\Knowledge\VectorStores\TypesenseKnowledgeStore;
 
 /**
@@ -52,6 +53,46 @@ final class KnowledgeComponents
     public static function resultLimit(Apps $app): int
     {
         return min(max((int) ($app->get(KnowledgeConfigurationEnum::RESULT_LIMIT->value) ?? 8), 1), 20);
+    }
+
+    /**
+     * Company memory is off until a tenant asks for it: every qualifying turn of every remembering agent
+     * costs one embedding call on the app's own key.
+     */
+    public static function memoryEnabled(Apps $app): bool
+    {
+        return self::flag($app, KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED);
+    }
+
+    public static function knowledgeEnabled(Apps $app): bool
+    {
+        return self::flag($app, KnowledgeConfigurationEnum::ENABLED);
+    }
+
+    private static function flag(Apps $app, KnowledgeConfigurationEnum $key): bool
+    {
+        return filter_var($app->get($key->value), FILTER_VALIDATE_BOOL);
+    }
+
+    public static function memoryStore(Apps $app): KnowledgeVectorStore
+    {
+        return new KnowledgeVectorStore(self::store($app), self::memoryResultLimit($app));
+    }
+
+    /** On top of the knowledge result limit, never in its place. */
+    public static function memoryResultLimit(Apps $app): int
+    {
+        return min(max((int) ($app->get(KnowledgeConfigurationEnum::AGENT_MEMORY_RESULT_LIMIT->value) ?? 4), 1), 10);
+    }
+
+    public static function memoryIngestMinChars(Apps $app): int
+    {
+        return max((int) ($app->get(KnowledgeConfigurationEnum::AGENT_MEMORY_INGEST_MIN_CHARS->value) ?? 80), 1);
+    }
+
+    public static function memoryRetentionDays(Apps $app): int
+    {
+        return max((int) ($app->get(KnowledgeConfigurationEnum::AGENT_MEMORY_RETENTION_DAYS->value) ?? 365), 1);
     }
 
     /** Optional similarity floor; null when the app hasn't configured one (no filtering). */

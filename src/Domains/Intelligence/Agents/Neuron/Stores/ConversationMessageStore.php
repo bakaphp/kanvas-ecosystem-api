@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Stores;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Helpers\ConversationStepsHelper;
 use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
@@ -90,8 +92,10 @@ class ConversationMessageStore extends KanvasMessageStore
         return DB::connection(self::CONNECTION)
             ->table(self::TABLE_MESSAGES)
             ->where('conversation_id', $this->conversationId($threadId))
-            ->orderBy('created_at', 'desc')
-            ->orderBy('id', 'desc')
+            ->whereNull('archived_at')
+            ->orderByDesc('sequence')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->limit(self::MAX_LOADED_ROWS)
             ->get(['id', 'role', 'content', 'attachments'])
             ->reverse()
@@ -99,7 +103,6 @@ class ConversationMessageStore extends KanvasMessageStore
                 $content = (string) ($row->content ?? '');
                 $marker = self::attachmentMarker(self::decodeAttachments($row->attachments ?? null));
 
-                // An attachment-only turn (e.g. a photo with no caption) must not vanish from history.
                 if ($content === '' && $marker === '') {
                     return null;
                 }
@@ -117,10 +120,32 @@ class ConversationMessageStore extends KanvasMessageStore
             ->all();
     }
 
+    /**
+     * @param list<string> $ids
+     */
+    #[Override]
+    public function archiveMessages(string $threadId, array $ids): void
+    {
+        $this->activeRows($threadId)->whereIn('id', $ids)->update(['archived_at' => now()]);
+    }
+
+    #[Override]
+    protected function archiveAll(string $threadId): void
+    {
+        $this->activeRows($threadId)->update(['archived_at' => now()]);
+    }
+
     #[Override]
     protected function persist(string $threadId, Message $message): void
     {
         if (! self::isConversationTurn($message)) {
+            return;
+        }
+
+        $messageId = self::rowUuid($message);
+        $conversationId = $this->conversationId($threadId);
+
+        if ($this->reviveArchivedRow($messageId, $conversationId)) {
             return;
         }
 
@@ -133,8 +158,6 @@ class ConversationMessageStore extends KanvasMessageStore
             return;
         }
 
-        $conversationId = $this->conversationId($threadId);
-
         DB::connection(self::CONNECTION)
             ->table(self::TABLE_CONVERSATIONS)
             ->where('id', $conversationId)
@@ -146,24 +169,18 @@ class ConversationMessageStore extends KanvasMessageStore
         $usage = $message->getUsage() !== null
             ? ConversationUsageSqlHelper::neuronUsageRow($message->getUsage(), (int) ($message->getMetadata('cacheWriteTokens') ?? 0))
             : [];
-        // Carry the model on assistant turns so the usage rollup can price them — Neuron doesn't
-        // put the model on the message.
+        // Neuron does not put the model on the message; the spend rollup prices by it.
         if ($role === MessageRole::ASSISTANT->value && $this->model !== null && ! isset($usage['model'])) {
             $usage['model'] = $this->model;
         }
 
-        // A private turn (e.g. an injected agent-task wake instruction) is persisted is_public=0 so the
-        // chat UI hides it. Only the user turn is hidden — the agent's own reply stays visible.
+        // A private turn (an injected wake instruction) hides only the user side; the reply stays visible.
         $isUserTurn = $role === MessageRole::USER->value;
         $isPublic = $this->privateUserTurn && $isUserTurn ? 0 : 1;
 
-        $messageId = self::rowUuid($message);
-
         $meta = $message->jsonSerialize();
-        unset($meta['__id'], $meta['role'], $meta['content'], $meta['usage'], $meta['tools']);
+        unset($meta['__id'], $meta['role'], $meta['content'], $meta['usage'], $meta['tools'], $meta['__meta'][KanvasHistoryTrimmer::FOLDED_IDS]);
 
-        // Only the user turn carries the prompt's attachments; persist a reference so the describe
-        // backfill (and any later rebuild) can recover them — the stored row is text-only.
         $turnMedia = $isUserTurn ? $this->turnMedia : [];
         $attachments = array_map(
             static fn (string $url): array => ['url' => $url, 'caption' => ''],
@@ -190,6 +207,7 @@ class ConversationMessageStore extends KanvasMessageStore
                 $toolResults,
             )),
             'status' => AgentConversationMessage::STATUS_COMPLETED,
+            'sequence' => $this->nextSequence($conversationId),
             'usage' => json_encode($usage),
             'meta' => json_encode($meta),
             'created_at' => now(),
@@ -206,6 +224,46 @@ class ConversationMessageStore extends KanvasMessageStore
                 array_values($turnMedia),
             );
         }
+    }
+
+    /**
+     * A message whose row exists is one a summary kept: the flush archived it and it comes back active,
+     * at the end of the window. The same check keeps a replayed write from inserting a duplicate key.
+     */
+    private function reviveArchivedRow(string $messageId, string $conversationId): bool
+    {
+        $rows = DB::connection(self::CONNECTION)->table(self::TABLE_MESSAGES)->where('id', $messageId);
+
+        if (! (clone $rows)->exists()) {
+            return false;
+        }
+
+        $rows->update([
+            'archived_at' => null,
+            'sequence' => $this->nextSequence($conversationId),
+            'updated_at' => now(),
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Legacy rows carry null and sort first, which is where they belong: they predate every numbered row.
+     */
+    private function nextSequence(string $conversationId): int
+    {
+        return (int) DB::connection(self::CONNECTION)
+            ->table(self::TABLE_MESSAGES)
+            ->where('conversation_id', $conversationId)
+            ->max('sequence') + 1;
+    }
+
+    private function activeRows(string $threadId): Builder
+    {
+        return DB::connection(self::CONNECTION)
+            ->table(self::TABLE_MESSAGES)
+            ->where('conversation_id', $this->conversationId($threadId))
+            ->whereNull('archived_at');
     }
 
     /**

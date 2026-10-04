@@ -12,7 +12,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\ThrottlesExceptions;
-use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeSourceRegistry;
@@ -56,24 +55,16 @@ class IndexKnowledgeJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(KnowledgeSourceRegistry $sources): void
     {
-        $entity = $sources->resolve(
-            $this->entity->type,
-            $this->entity->id,
-            $this->entity->appId,
-            $this->entity->companyId,
-        );
+        $source = $sources->for($this->entity->type);
+        $entity = $source?->find($this->entity->id, $this->entity->appId, $this->entity->companyId);
 
-        if ($entity === null || ! RagComponents::isEnabled($entity)) {
+        if ($source === null || $entity === null || ! $source->isEnabledFor($entity->app)) {
             return;
         }
 
         $this->overwriteAppService($entity->app);
 
-        $source = $sources->for($entity::class);
-
-        if ($source !== null) {
-            KnowledgeComponents::indexer($entity->app)->indexEntity($source, $entity);
-        }
+        KnowledgeComponents::indexer($entity->app)->indexEntity($source, $entity);
     }
 
     public function uniqueId(): string

@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
@@ -27,8 +28,8 @@ class RememberKnowledgeTool extends Tool
 
     protected ?string $description = 'Save a durable fact, decision, or pattern to your long-term memory so you recall it in '
         . 'future conversations. Use it for things worth keeping — a company preference, a recurring risk, a '
-        . 'decision and its rationale — NOT for one-off chit-chat. You recall saved knowledge later via '
-        . 'read_my_ledger.';
+        . 'decision and its rationale — NOT for one-off chit-chat. Saved knowledge comes back to you on its '
+        . 'own in later conversations, and read_my_ledger lists it.';
 
     public function __construct(
         private readonly Apps $app,
@@ -75,7 +76,7 @@ class RememberKnowledgeTool extends Tool
                 app: $this->app,
                 company: $this->company,
                 sourceDomain: 'NervousSystem.Memory',
-                eventType: 'agent.knowledge.saved',
+                eventType: LedgerKnowledgeSource::MEMORY_EVENT,
                 status: EventStatusEnum::INFO,
                 actorType: 'Agent',
                 actorId: $this->agent->getId(),
