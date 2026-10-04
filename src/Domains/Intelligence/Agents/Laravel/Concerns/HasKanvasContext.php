@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Laravel\Concerns;
 
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Users\Models\Users;
 
@@ -25,6 +27,15 @@ trait HasKanvasContext
         $this->agent = $agent;
 
         return $this;
+    }
+
+    /**
+     * Prompts name tools by the snake form of the #[AgentTool] label (`create_lead`); without name() laravel-ai
+     * declares the class basename, which no prompt uses. A tool the prompts call something else overrides this.
+     */
+    public function name(): string
+    {
+        return Str::slug(AgentTool::fromClass($this)?->name ?? Str::beforeLast(class_basename($this), 'Tool'), '_');
     }
 
     /**

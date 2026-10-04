@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Apollo;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Str;
 use Kanvas\Connectors\Apollo\Client as ApolloClient;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Concerns\HasKanvasContext;
@@ -19,11 +18,6 @@ use Throwable;
 class ApolloLinkedInLookupTool implements KanvasToolInterface
 {
     use HasKanvasContext;
-
-    public function name(): string
-    {
-        return Str::slug(AgentTool::fromClass($this)?->name ?? class_basename($this), '_');
-    }
 
     public function instructions(): string
     {

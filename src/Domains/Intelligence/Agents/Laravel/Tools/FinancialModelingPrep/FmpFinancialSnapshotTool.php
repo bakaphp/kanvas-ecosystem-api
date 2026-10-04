@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Kanvas\Connectors\FinancialModelingPrep\Client;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Concerns\HasKanvasContext;
@@ -21,11 +20,6 @@ use Throwable;
 class FmpFinancialSnapshotTool implements KanvasToolInterface
 {
     use HasKanvasContext;
-
-    public function name(): string
-    {
-        return Str::slug(AgentTool::fromClass($this)?->name ?? class_basename($this), '_');
-    }
 
     public function instructions(): string
     {

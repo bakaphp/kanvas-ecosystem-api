@@ -281,10 +281,20 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
             if (in_array(HasEntityContext::class, class_uses_recursive($tool), true)) {
                 $tool->withEntity($this->entity);
             }
-            $tools[] = $tool;
+            $tools[] = KanvasSubAgentTool::wrap($tool);
         }
 
         return $tools;
+    }
+
+    /**
+     * Same knob as `config['timeout']`. Null keeps laravel-ai's own budget of 1.5 steps per tool.
+     */
+    public function maxSteps(): ?int
+    {
+        $steps = $this->agentRecord?->config['max_steps'] ?? null;
+
+        return $steps !== null ? max(1, (int) $steps) : null;
     }
 
     /**

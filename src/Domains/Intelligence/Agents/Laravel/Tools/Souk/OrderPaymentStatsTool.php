@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Souk;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Concerns\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
@@ -18,11 +17,6 @@ use Stringable;
 class OrderPaymentStatsTool implements KanvasToolInterface
 {
     use HasKanvasContext;
-
-    public function name(): string
-    {
-        return Str::slug(AgentTool::fromClass($this)?->name ?? class_basename($this), '_');
-    }
 
     #[Override]
     public function description(): Stringable|string
