@@ -126,9 +126,23 @@ class KnowledgeVectorStoreTest extends TestCase
         );
     }
 
+    /**
+     * Without a configured key (CI) the client is a throwaway: the unit tests never reach the network,
+     * and the round trip skips in requireTypesense() on the first call.
+     */
     private function client(): Client
     {
-        return SearchEngineResolver::getTypesenseClient(app(Apps::class)->get('typesense_search_settings') ?? []);
+        $settings = app(Apps::class)->get('typesense_search_settings') ?? [];
+
+        if (($settings['api_key'] ?? config('scout.typesense.api_key', '')) === '') {
+            return new Client([
+                'api_key' => 'unconfigured',
+                'nodes' => [['host' => '127.0.0.1', 'port' => '1', 'protocol' => 'http']],
+                'connection_timeout_seconds' => 1,
+            ]);
+        }
+
+        return SearchEngineResolver::getTypesenseClient($settings);
     }
 
     private function requireTypesense(): void
