@@ -31,9 +31,12 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 class HumanResourcesAgentToolsTest extends TestCase
 {
+    use AssertsToolRunKeys;
+
     use DatabaseTransactions;
     use HrTestSetup;
 
@@ -347,11 +350,7 @@ class HumanResourcesAgentToolsTest extends TestCase
         foreach ($tools as $tool) {
             $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must key runs by inputs.');
 
-            $keyA = $tool->setInputs(['x' => 'a'])->getRunKey();
-            $keyB = $tool->setInputs(['x' => 'b'])->getRunKey();
-            $keyARepeat = $tool->setInputs(['x' => 'a'])->getRunKey();
-            $this->assertNotEquals($keyA, $keyB, $tool::class . ': distinct inputs need distinct budgets.');
-            $this->assertEquals($keyA, $keyARepeat, $tool::class . ': identical inputs must still collapse to cap loops.');
+            $this->assertRunKeyFollowsInputs($tool);
         }
     }
 

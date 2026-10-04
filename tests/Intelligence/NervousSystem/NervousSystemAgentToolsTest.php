@@ -26,9 +26,12 @@ use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 class NervousSystemAgentToolsTest extends TestCase
 {
+    use AssertsToolRunKeys;
+
     /**
      * Sentry KANVAS-ECOSYSTEM-621 hit add_nervous_system_task mid-plan-build: an agent adding many
      * tasks to a plan in one turn trips NeuronAI's per-tool-name run cap. Every per-item NS tool must
@@ -55,14 +58,7 @@ class NervousSystemAgentToolsTest extends TestCase
         foreach ($tools as $tool) {
             $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must key runs by inputs.');
 
-            // The key hashes declared inputs only, so an undeclared name would collapse every call to one key.
-            $input = $tool->getProperties()[0]->getName();
-
-            $keyA = $tool->setInputs([$input => 'a'])->getRunKey();
-            $keyB = $tool->setInputs([$input => 'b'])->getRunKey();
-            $keyARepeat = $tool->setInputs([$input => 'a'])->getRunKey();
-            $this->assertNotEquals($keyA, $keyB, $tool::class . ': distinct inputs need distinct budgets.');
-            $this->assertEquals($keyA, $keyARepeat, $tool::class . ': identical inputs must collapse to cap loops.');
+            $this->assertRunKeyFollowsInputs($tool);
         }
     }
 

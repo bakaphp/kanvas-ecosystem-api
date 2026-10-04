@@ -16,9 +16,12 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchDealsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 class ReadToolRunKeyTest extends TestCase
 {
+    use AssertsToolRunKeys;
+
     public function testReadLookupToolsKeyRunsPerInputsNotPerToolName(): void
     {
         $tools = [
@@ -37,15 +40,7 @@ class ReadToolRunKeyTest extends TestCase
         foreach ($tools as $tool) {
             $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must track runs by inputs.');
 
-            // The key hashes declared inputs only, so an undeclared name would collapse every call to one key.
-            $input = $tool->getProperties()[0]->getName();
-
-            $keyA = $tool->setInputs([$input => 'grupofamilia'])->getRunKey();
-            $keyB = $tool->setInputs([$input => 'essity'])->getRunKey();
-            $keyAAgain = $tool->setInputs([$input => 'grupofamilia'])->getRunKey();
-
-            $this->assertNotEquals($keyA, $keyB, $tool::class . ': distinct queries must not share a run budget.');
-            $this->assertEquals($keyA, $keyAAgain, $tool::class . ': identical calls must collapse to one key.');
+            $this->assertRunKeyFollowsInputs($tool);
         }
     }
 }

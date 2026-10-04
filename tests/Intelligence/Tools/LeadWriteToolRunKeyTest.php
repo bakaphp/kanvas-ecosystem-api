@@ -9,9 +9,12 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetLeadStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateLeadTool;
 use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 class LeadWriteToolRunKeyTest extends TestCase
 {
+    use AssertsToolRunKeys;
+
     public function testPerLeadWriteToolsKeyRunsPerInputsNotPerToolName(): void
     {
         $tools = [
@@ -23,12 +26,7 @@ class LeadWriteToolRunKeyTest extends TestCase
         foreach ($tools as $tool) {
             $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must track runs by inputs.');
 
-            $keyA = $tool->setInputs(['lead_id' => 754175])->getRunKey();
-            $keyB = $tool->setInputs(['lead_id' => 753871])->getRunKey();
-            $keyAAgain = $tool->setInputs(['lead_id' => 754175])->getRunKey();
-
-            $this->assertNotEquals($keyA, $keyB, $tool::class . ': distinct leads must not share a run budget.');
-            $this->assertEquals($keyA, $keyAAgain, $tool::class . ': identical calls must collapse to one key.');
+            $this->assertRunKeyFollowsInputs($tool);
         }
     }
 }

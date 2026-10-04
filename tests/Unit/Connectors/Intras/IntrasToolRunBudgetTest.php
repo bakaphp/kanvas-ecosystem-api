@@ -7,6 +7,7 @@ namespace Tests\Unit\Connectors\Intras;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\TrackByInputs;
 use PHPUnit\Framework\TestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 /**
  * Every INTRAS tool budgets its runs per arguments, not per tool name.
@@ -28,6 +29,8 @@ use PHPUnit\Framework\TestCase;
  */
 class IntrasToolRunBudgetTest extends TestCase
 {
+    use AssertsToolRunKeys;
+
     public function testEveryIntrasToolKeysItsRunBudgetByInputs(): void
     {
         $unkeyed = [];
@@ -56,21 +59,7 @@ class IntrasToolRunBudgetTest extends TestCase
                 continue;
             }
 
-            // The key hashes declared inputs only, so an undeclared name would collapse every call to one key.
-            $properties = $tool->getProperties();
-
-            if ($properties === []) {
-                continue;
-            }
-
-            $input = $properties[0]->getName();
-
-            $first = $tool->setInputs([$input => '2025-01-01'])->getRunKey();
-            $second = $tool->setInputs([$input => '2024-01-01'])->getRunKey();
-            $repeat = $tool->setInputs([$input => '2025-01-01'])->getRunKey();
-
-            $this->assertNotSame($first, $second, $tool->getName() . ': two periods must not share a budget');
-            $this->assertSame($repeat, $first, $tool->getName() . ': an identical call must still be capped');
+            $this->assertRunKeyFollowsInputs($tool);
         }
     }
 

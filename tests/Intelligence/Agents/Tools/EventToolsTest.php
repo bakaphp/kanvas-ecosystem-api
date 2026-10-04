@@ -32,9 +32,12 @@ use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\TrackByInputs;
 use Spatie\LaravelData\DataCollection;
 use Tests\TestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 final class EventToolsTest extends TestCase
 {
+    use AssertsToolRunKeys;
+
     private Apps $currentApp;
     private Companies $currentCompany;
     private Users $actingUser;
@@ -125,17 +128,7 @@ final class EventToolsTest extends TestCase
         foreach ($tools as $tool) {
             $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool->getName() . ' must key its run budget by inputs.');
 
-            $tool->setInputs(['event_id' => 1, 'version_id' => 1, 'report' => 'inscription_track']);
-            $keyOne = $tool->getRunKey();
-
-            $tool->setInputs(['event_id' => 2, 'version_id' => 2, 'report' => 'inscription_track']);
-            $keyTwo = $tool->getRunKey();
-
-            $tool->setInputs(['event_id' => 1, 'version_id' => 1, 'report' => 'inscription_track']);
-            $keyOneAgain = $tool->getRunKey();
-
-            $this->assertNotEquals($keyOne, $keyTwo, $tool->getName() . ': distinct events must not share a run budget.');
-            $this->assertEquals($keyOneAgain, $keyOne, $tool->getName() . ': identical calls must collapse so a loop is still capped.');
+            $this->assertRunKeyFollowsInputs($tool);
         }
     }
 

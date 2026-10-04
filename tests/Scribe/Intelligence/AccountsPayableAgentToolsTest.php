@@ -51,9 +51,12 @@ use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\TrackByInputs;
 use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 class AccountsPayableAgentToolsTest extends ScribeTestCase
 {
+    use AssertsToolRunKeys;
+
     private function receiveOpenBill(Organization $vendor, float $amount, string $dueDate): void
     {
         $bill = new CreateBillAction(
@@ -1219,17 +1222,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         foreach ($tools as $tool) {
             $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool->getName() . ' must key its run budget by inputs.');
 
-            $tool->setInputs(['name' => 'Globex Supply', 'vendor' => 'Globex Supply', 'bill_number' => 'B-1', 'order_number' => 'PO-1']);
-            $keyOne = $tool->getRunKey();
-
-            $tool->setInputs(['name' => 'Initech', 'vendor' => 'Initech', 'bill_number' => 'B-2', 'order_number' => 'PO-2']);
-            $keyTwo = $tool->getRunKey();
-
-            $tool->setInputs(['name' => 'Globex Supply', 'vendor' => 'Globex Supply', 'bill_number' => 'B-1', 'order_number' => 'PO-1']);
-            $keyOneAgain = $tool->getRunKey();
-
-            $this->assertNotEquals($keyOne, $keyTwo, $tool->getName() . ': distinct records must not share a run budget.');
-            $this->assertEquals($keyOneAgain, $keyOne, $tool->getName() . ': identical calls must collapse so a loop is still capped.');
+            $this->assertRunKeyFollowsInputs($tool);
         }
     }
 
