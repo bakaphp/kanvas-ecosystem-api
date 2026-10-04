@@ -19,6 +19,14 @@ class CurrentTimeTool implements KanvasToolInterface
 {
     use HasKanvasContext;
 
+    /**
+     * The name the souls and the Neuron twin use; the label-derived default would be `current_time`.
+     */
+    public function name(): string
+    {
+        return 'get_current_time';
+    }
+
     #[Override]
     public function description(): Stringable|string
     {

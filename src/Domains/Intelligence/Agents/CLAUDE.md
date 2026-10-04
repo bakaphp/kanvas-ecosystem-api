@@ -694,6 +694,33 @@ plus the per-domain equivalents in [`AccountsReceivableAgentToolsTest`](../../..
 - Product recommendation tool (`Laravel/Tools/Inventory/ProductRecommendationLookupTool.php`) — a thin pass-through to `RecommendProductsAction`; the search backend is resolved per tenant behind it. Pass the shopper's sentence verbatim. Pipeline and configuration: [`src/Domains/Inventory/CLAUDE.md`](../../Inventory/CLAUDE.md).
 - Existing end-to-end tests in [`tests/Connectors/Integration/{WaSender,Mailgun,RespondIO,Twilio}/AgentChannelResponderEndToEndTest.php`](../../../../tests/Connectors/Integration/) — copy-paste shape when adding a new connector
 
+## Laravel agents: a tool result must never be empty, and a sub-agent needs steps to answer in
+
+Gemini's Interactions API rejects the whole follow-up request when a `function_result` carries an empty
+text block — `400 Request contains an invalid argument`, with no field named (Sentry KANVAS-ECOSYSTEM-6J2).
+The old `generateContent` path accepted an empty result, so this only surfaced with laravel/ai 1.x.
+
+The way it happens: laravel-ai budgets **1.5 steps per tool** (`TextGenerationLoop::resolveMaxSteps`), so
+a one-tool sub-agent gets two steps; when the model spends both on tool calls the loop stops and the
+sub-agent's `->text` is `''`. `CheckLeadDuplicateSubAgent` is told to run two searches, so it ran out
+every time and had been handing the parent an empty answer for months before Gemini started refusing it.
+
+- **Every `KanvasAgentAsTool` is passed to the model through `KanvasSubAgentTool`** (`KanvasLaravelAgent::tools()`
+  and `KanvasAgentAsTool::tools()` both wrap), which turns an empty answer into a sentence the parent can
+  act on. Never hand laravel-ai a bare sub-agent.
+- **`KanvasAgentAsTool::maxSteps()` is 8** so a sub-agent can run its calls and still answer. Override per
+  sub-agent only with the reason in a docblock.
+- **A parent agent's budget is `config['max_steps']` on the Agent record** (`KanvasLaravelAgent::maxSteps()`);
+  null keeps the 1.5×tools default.
+- **A tool's model-facing name is the snake slug of its `#[AgentTool]` label** (`HasKanvasContext::name()`,
+  so `Create Lead` → `create_lead`), which is what every prompt already says. Before that default,
+  laravel-ai declared the class basename (`CreateLeadTool`) for 20 tools and the model was told to call
+  functions that did not exist. Override `name()` only when the prompts use another word
+  (`search_leads`, `get_current_time`). `DynamicSubAgent` slugs the tenant's agent name and falls back to
+  `sub_agent_{id}` when the slug cannot open a function name: Gemini accepts only
+  `[a-zA-Z_][a-zA-Z0-9_.-]{0,63}` and rejects the whole request otherwise.
+  `LaravelToolNamesTest` fails on a class-named or invalid tool.
+
 ## `agent_conversations` / `agent_conversation_messages` — the Laravel AI 1.x shape
 
 Both tables are Laravel AI's conversation store (`KanvasConversationStore extends DatabaseConversationStore`,
