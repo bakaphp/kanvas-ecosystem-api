@@ -50,7 +50,7 @@ class AgentType extends BaseModel
 
     protected $fillable = [
         'uuid',
-        'app_id',
+        'apps_id',
         'name',
         'description',
         'provider',

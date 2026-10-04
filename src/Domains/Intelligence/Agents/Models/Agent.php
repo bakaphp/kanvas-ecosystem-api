@@ -353,6 +353,13 @@ class Agent extends BaseModel
             ->latestOfMany();
     }
 
+    public function latestDeployment(): HasOne
+    {
+        return $this->hasOne(AgentDeployment::class)
+            ->where('is_deleted', 0)
+            ->latestOfMany();
+    }
+
     public function isContainerRuntime(): bool
     {
         if ($this->activeDeployment instanceof AgentDeployment) {
