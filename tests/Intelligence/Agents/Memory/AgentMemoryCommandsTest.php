@@ -31,6 +31,7 @@ use Tests\Stubs\Intelligence\ConstantEmbeddingsProvider;
 use Tests\Stubs\Intelligence\SharedCompanyMemory;
 use Tests\TestCase;
 use Tests\Traits\MakesAgents;
+use Tests\Traits\StubsTypesenseCredentials;
 
 /**
  * Serial: both commands read an app setting, which lives in Redis and is shared by every parallel
@@ -42,6 +43,7 @@ class AgentMemoryCommandsTest extends TestCase
 {
     use DatabaseTransactions;
     use MakesAgents;
+    use StubsTypesenseCredentials;
 
     protected array $connectionsToTransact = ['mysql', 'intelligence', 'crm'];
 
@@ -54,7 +56,8 @@ class AgentMemoryCommandsTest extends TestCase
         parent::setUp();
 
         $this->kanvasApp = app(Apps::class);
-        $this->kanvasApp->set(KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED->value, 1);
+        $this->kanvasApp->del(KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED->value);
+        $this->stubTypesenseCredentials($this->kanvasApp);
 
         $this->memory = SharedCompanyMemory::newStore(50);
         $this->app->instance(VectorStoreInterface::class, $this->memory);
@@ -63,8 +66,8 @@ class AgentMemoryCommandsTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->kanvasApp->del(KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED->value);
         $this->kanvasApp->del(KnowledgeConfigurationEnum::AGENT_MEMORY_RETENTION_DAYS->value);
+        $this->removeStubbedTypesenseCredentials($this->kanvasApp);
 
         parent::tearDown();
     }

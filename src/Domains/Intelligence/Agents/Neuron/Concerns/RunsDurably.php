@@ -27,8 +27,8 @@ trait RunsDurably
 {
     /**
      * Whether this agent type keeps its run in Redis so a turn killed with the worker (OOM, timeout,
-     * deploy) resumes from its last committed step instead of restarting and repeating a write. Off by
-     * default; internal teammates opt in.
+     * deploy) resumes from its last committed step instead of restarting and repeating a write. The
+     * type opts in; the app can only opt out.
      */
     protected function durableRuns(): bool
     {
@@ -39,7 +39,7 @@ trait RunsDurably
     {
         return $this->durableRuns()
             && $this->app !== null
-            && filter_var($this->app->get(AgentRunConfigurationEnum::DURABLE_RUNS->value), FILTER_VALIDATE_BOOL);
+            && $this->app->getBool(AgentRunConfigurationEnum::DURABLE_RUNS->value, default: true);
     }
 
     /**

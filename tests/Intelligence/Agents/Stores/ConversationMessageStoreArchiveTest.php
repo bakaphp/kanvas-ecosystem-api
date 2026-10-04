@@ -12,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
+use Kanvas\Intelligence\Services\KanvasConversationStore;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\UserMessage;
@@ -59,6 +60,25 @@ class ConversationMessageStoreArchiveTest extends TestCase
         ] as $message) {
             $this->store->append($this->thread, $message);
         }
+    }
+
+    public function testAReplyAppendedOutsideTheStoreLandsAtTheEndOfTheWindow(): void
+    {
+        $app = app(Apps::class);
+
+        new KanvasConversationStore()->appendAssistantMessageForSession(
+            appsId: $app->getId(),
+            companiesId: auth()->user()->getCurrentCompany()->getId(),
+            sessionId: $this->thread,
+            agentClass: 'Stub\\Agent',
+            content: 'five',
+        );
+
+        $this->assertSame(
+            ['one', 'two', 'three', 'four', 'five'],
+            $this->contents($this->store->loadActive($this->thread)),
+            'A scheduled reply joins the chat after it, never ahead of it'
+        );
     }
 
     public function testArchivedRowsLeaveTheActiveWindowButStayInTheTranscript(): void

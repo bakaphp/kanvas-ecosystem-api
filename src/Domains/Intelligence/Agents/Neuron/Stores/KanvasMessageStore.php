@@ -123,6 +123,11 @@ abstract class KanvasMessageStore implements MessageStoreInterface
      *
      * @param list<mixed> $attachments
      */
+    protected static function withMarker(string $text, string $marker): string
+    {
+        return trim($text . ($marker !== '' ? "\n" . $marker : ''));
+    }
+
     protected static function attachmentMarker(array $attachments): string
     {
         $markers = [];

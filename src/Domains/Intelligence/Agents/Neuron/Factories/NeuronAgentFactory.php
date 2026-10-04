@@ -21,13 +21,8 @@ class NeuronAgentFactory
         ?Users $user = null,
         ?string $threadId = null,
     ): BehavesAsKanvasAgent {
-        $agent = Agent::where('name', $name)
-            ->where('apps_id', $app->getId())
-            ->where('is_deleted', 0)
-            ->firstOrFail();
-
         return self::fromAgent(
-            $agent,
+            self::findAgent('name', $name, $app),
             $entity,
             $externalReferenceId,
             $user,
@@ -43,13 +38,8 @@ class NeuronAgentFactory
         ?Users $user = null,
         ?string $threadId = null,
     ): BehavesAsKanvasAgent {
-        $agent = Agent::where('slug', $slug)
-            ->where('apps_id', $app->getId())
-            ->where('is_deleted', 0)
-            ->firstOrFail();
-
         return self::fromAgent(
-            $agent,
+            self::findAgent('slug', $slug, $app),
             $entity,
             $externalReferenceId,
             $user,
@@ -57,10 +47,14 @@ class NeuronAgentFactory
         );
     }
 
-    /**
-     * @param string|null $threadId The conversation's address. Neuron refuses to run an unbound agent, so a
-     *                              caller that chats without going through AgentChatKernel binds one here.
-     */
+    private static function findAgent(string $column, string $value, Apps $app): Agent
+    {
+        return Agent::where($column, $value)
+            ->where('apps_id', $app->getId())
+            ->where('is_deleted', 0)
+            ->firstOrFail();
+    }
+
     public static function fromAgent(
         Agent $agent,
         ?Model $entity = null,

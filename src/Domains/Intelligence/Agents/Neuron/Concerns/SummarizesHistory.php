@@ -19,7 +19,7 @@ trait SummarizesHistory
      */
     protected function summarizesHistory(): bool
     {
-        return $this->messageStore() instanceof ConversationMessageStore;
+        return $this->resolveMessageStore() instanceof ConversationMessageStore;
     }
 
     protected function summarization(): KanvasSummarization

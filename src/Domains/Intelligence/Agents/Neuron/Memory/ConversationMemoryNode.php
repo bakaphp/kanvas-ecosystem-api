@@ -96,6 +96,34 @@ final class ConversationMemoryNode extends Node implements AgentNodeInterface
             ]);
     }
 
+    /**
+     * The one key set a memory document carries, for the live exit node and the reindex sweep alike.
+     *
+     * @return array<string, int|string>
+     */
+    public static function metadata(
+        int $appId,
+        int $companyId,
+        int $agentId,
+        int $usersId,
+        ?string $entityType = null,
+        ?int $entityId = null,
+    ): array {
+        $metadata = [
+            'apps_id' => $appId,
+            'companies_id' => $companyId,
+            'agent_id' => $agentId,
+            'users_id' => $usersId,
+        ];
+
+        if ($entityType !== null && $entityId !== null) {
+            $metadata['entity_type'] = $entityType;
+            $metadata['entity_id'] = $entityId;
+        }
+
+        return $metadata;
+    }
+
     public static function transcript(string $question, string $answer): ?string
     {
         $question = trim($question);

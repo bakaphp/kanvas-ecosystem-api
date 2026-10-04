@@ -126,20 +126,15 @@ trait RemembersForCompany
      */
     protected function companyMemoryMetadata(): array
     {
-        $metadata = [
-            'apps_id' => $this->requireApp()->getId(),
-            'companies_id' => (int) $this->company?->getId(),
-            'agent_id' => $this->requireAgent()->getId(),
-            'users_id' => (int) $this->requestingHuman()?->getId(),
-        ];
-
         $entity = $this->resolveEntityForTurn();
 
-        if ($entity !== null) {
-            $metadata['entity_type'] = $entity::class;
-            $metadata['entity_id'] = (int) $entity->getKey();
-        }
-
-        return $metadata;
+        return ConversationMemoryNode::metadata(
+            appId: $this->requireApp()->getId(),
+            companyId: (int) $this->company?->getId(),
+            agentId: $this->requireAgent()->getId(),
+            usersId: (int) $this->requestingHuman()?->getId(),
+            entityType: $entity === null ? null : $entity::class,
+            entityId: $entity === null ? null : (int) $entity->getKey(),
+        );
     }
 }

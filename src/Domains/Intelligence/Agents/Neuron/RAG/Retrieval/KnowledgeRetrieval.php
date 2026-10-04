@@ -35,8 +35,7 @@ class KnowledgeRetrieval implements RetrievalInterface
     }
 
     /**
-     * The injected filters are Neuron's per-run scoping channel; nothing injects any today, and the
-     * tenant and entity scope is enforced by KnowledgeScope below rather than by Neuron filters.
+     * Per-run Neuron filters are ignored: tenant and entity scope is enforced by KnowledgeScope.
      *
      * @return list<Document>
      */

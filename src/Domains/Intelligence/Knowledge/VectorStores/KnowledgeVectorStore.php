@@ -18,14 +18,15 @@ use Override;
 /**
  * The shared knowledge collection as a Neuron vector store, so Neuron's own retrieval and ingestion
  * nodes can read and write it with the portable filter vocabulary. The collection keeps one shape for
- * every writer (the Laravel tool and the indexer keep using TypesenseKnowledgeStore directly); this
- * only maps a Document to that shape and a FilterExpression to `filter_by`.
+ * every writer; this only maps a Document to that shape and a FilterExpression to `filter_by`.
  *
  * A search without filters is refused: every read of this collection is pinned to a tenant pair, and
  * the agent's retrieval scope is what pins it.
  */
 final class KnowledgeVectorStore implements VectorStoreInterface
 {
+    private static ?DocumentSchema $schema = null;
+
     public function __construct(
         private readonly TypesenseKnowledgeStore $store,
         private readonly int $topK = 8,
@@ -40,7 +41,7 @@ final class KnowledgeVectorStore implements VectorStoreInterface
 
     public static function schema(): DocumentSchema
     {
-        return DocumentSchema::of(
+        return self::$schema ??= DocumentSchema::of(
             DocumentField::integer('apps_id')->required()->filterable(),
             DocumentField::integer('companies_id')->required()->filterable(),
             DocumentField::string('entity_type')->filterable(),

@@ -82,9 +82,6 @@ class ChannelMessageStore extends KanvasMessageStore
     }
 
     /**
-     * Resolve every distinct author in one query so each human turn can be attributed without
-     * N per-message lookups.
-     *
      * @param EloquentCollection<int, SocialMessage> $messages
      *
      * @return array<int, string>

@@ -21,10 +21,9 @@ use Override;
  *
  * The fold refuses to duplicate. A turn can reach the history twice — written once by the store's own
  * persist hook and once by the canonical writer for that surface (a connector's outbound,
- * PersistChatTurnToSocialAction) — and the two copies are identical. Concatenating them put
- * `"reply\n\nreply"` in the model's context, which the model imitated by emitting its own replies twice
- * (the duplicate-email feedback loop). Keep the longer copy when one contains the other; only genuinely
- * different turns concatenate.
+ * PersistChatTurnToSocialAction) — and the two copies are identical. Concatenating them puts
+ * `"reply\n\nreply"` in the model's context and the model learns to send its replies twice. Keep the
+ * longer copy when one contains the other; only genuinely different turns concatenate.
  *
  * A fold shortens the list without dropping a turn, so a count-based archive would stamp the wrong rows;
  * the survivor records the ids it absorbed and KanvasChatHistory archives by identity instead.

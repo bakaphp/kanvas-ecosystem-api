@@ -124,9 +124,14 @@ An internal turn with no human (a cron) recalls only the shared kinds. Hits reac
 `[Saved memory, …]`, `[Ledger, …]` so it knows provenance and age. Uploaded knowledge stays the
 knowledge retrieval's job: memory only reads `source_type in (conversation, memory, ledger)`.
 
-Per-app switches (`KnowledgeConfigurationEnum`): `agent_memory_enabled` (off until a tenant asks: one
-embedding per qualifying turn on the app's key), `agent_memory_ingest_min_chars` (80),
-`agent_memory_result_limit` (4, on top of the knowledge limit), `agent_memory_retention_days` (365).
+Per-app switches (`KnowledgeConfigurationEnum`): `agent_memory_enabled` (**on by default**, a tenant
+sets `0` to opt out; it costs one embedding per qualifying turn on the app's key, and an app with no
+Typesense credentials is off without a setting because it has nowhere to write — `KnowledgeComponents::memoryEnabled()`
+is the one predicate every reader uses), `agent_memory_ingest_min_chars` (80), `agent_memory_result_limit`
+(4, on top of the knowledge limit), `agent_memory_retention_days` (365). Because memory is on everywhere,
+a Typesense or embedding outage must never fail a turn: `CompanyMemoryRetrieval` answers without recall
+and `ConversationMemoryNode` ends the turn without the write, both logged. Uploaded knowledge
+(`knowledge_enabled`) stays opt-in. Boolean app settings read through `HashTableTrait::getBool($key, default:)`.
 
 Two more kinds reach the same store through the ledger (`LedgerKnowledgeSource`, registered in
 `KnowledgeSourceRegistry`, dispatched from `AppendEventAction::maybeIndexMemory()` through the queued
@@ -143,8 +148,8 @@ round trip is `KnowledgeVectorStoreTest`, skipped when no cluster is reachable.
 
 ## Durable runs: resume, never restart
 
-`SystemUserAgent` and subclasses opt in (`durableRuns()`), behind the per-app `agent_durable_runs_enabled`
-(`AgentRunConfigurationEnum`). Active, `persistence()` keeps the run in Redis (`RedisPersistence`,
+`SystemUserAgent` and subclasses opt in (`durableRuns()`); the per-app `agent_durable_runs_enabled`
+(`AgentRunConfigurationEnum`) is **on by default** and only ever turns it off (`0`). Active, `persistence()` keeps the run in Redis (`RedisPersistence`,
 prefix `kanvas:agent-run:`, phpredis client required; any other client falls back to in-memory with a
 warning). Every committed step, each tool result included, survives the worker.
 

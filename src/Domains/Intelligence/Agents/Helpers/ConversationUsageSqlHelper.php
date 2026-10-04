@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Helpers;
 
-use NeuronAI\Chat\Messages\Usage;
+use NeuronAI\Chat\Messages\Message;
 
 /**
  * SQL for summing the per-turn `usage` JSON on agent_conversation_messages. Three writers spell the keys
@@ -24,8 +24,15 @@ final class ConversationUsageSqlHelper
      *
      * @return array<string, int>
      */
-    public static function neuronUsageRow(Usage $usage, int $cacheWriteTokens = 0): array
+    public static function neuronUsageRow(Message $message): array
     {
+        $usage = $message->getUsage();
+
+        if ($usage === null) {
+            return [];
+        }
+
+        $cacheWriteTokens = (int) ($message->getMetadata('cacheWriteTokens') ?? 0);
         $row = [
             'input_tokens' => max(0, $usage->inputTokens - $usage->cachedInputTokens - $cacheWriteTokens),
             'output_tokens' => $usage->outputTokens,

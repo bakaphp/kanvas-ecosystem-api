@@ -24,7 +24,7 @@ final class UnknownToolStub extends Tool
     /**
      * @param list<string> $available
      */
-    public static function feedback(string $name, array $available): string
+    private static function feedback(string $name, array $available): string
     {
         return sprintf(
             'There is no tool named "%s". Never call a tool that is not in your tool list. %s',

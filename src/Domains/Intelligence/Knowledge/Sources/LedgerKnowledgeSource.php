@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Knowledge\Sources;
 
+use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
@@ -43,17 +45,26 @@ final class LedgerKnowledgeSource implements KnowledgeSource
 
     public static function wants(string $eventType): bool
     {
-        if ($eventType === self::MEMORY_EVENT || in_array($eventType, self::OUTCOME_EVENTS, true)) {
-            return true;
-        }
+        return $eventType === self::MEMORY_EVENT
+            || in_array($eventType, self::OUTCOME_EVENTS, true)
+            || Str::startsWith($eventType, self::OUTCOME_PREFIXES);
+    }
 
-        foreach (self::OUTCOME_PREFIXES as $prefix) {
-            if (str_starts_with($eventType, $prefix)) {
-                return true;
+    /**
+     * The same allowlist as wants(), applied in SQL for a sweep over the ledger.
+     *
+     * @param Builder<Event> $query
+     * @return Builder<Event>
+     */
+    public static function whereWanted(Builder $query): Builder
+    {
+        return $query->where(static function (Builder $wanted): void {
+            $wanted->whereIn('event_type', [self::MEMORY_EVENT, ...self::OUTCOME_EVENTS]);
+
+            foreach (self::OUTCOME_PREFIXES as $prefix) {
+                $wanted->orWhere('event_type', 'like', $prefix . '%');
             }
-        }
-
-        return false;
+        });
     }
 
     #[Override]

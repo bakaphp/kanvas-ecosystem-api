@@ -51,7 +51,7 @@ class TypesenseSchemaReconciler
 
     public static function forApp(Apps $app): self
     {
-        $settings = $app->get('typesense_search_settings') ?? [];
+        $settings = SearchEngineResolver::typesenseSettings($app);
 
         return new self($app, SearchEngineResolver::getTypesenseClient($settings), $settings);
     }

@@ -81,17 +81,14 @@ class ReindexAgentMemoryCommand extends Command
     {
         $queued = 0;
 
-        Event::query()
+        // The job re-reads the row, so only what KnowledgeEntity needs is hydrated here.
+        LedgerKnowledgeSource::whereWanted(Event::query())
             ->where('apps_id', $app->getId())
             ->where('companies_id', '>', 0)
             ->where('occurred_at', '>=', $since)
-            ->orderBy('id')
+            ->select(['id', 'apps_id', 'companies_id'])
             ->chunkById(500, function ($events) use (&$queued): void {
                 foreach ($events as $event) {
-                    if (! LedgerKnowledgeSource::wants($event->event_type)) {
-                        continue;
-                    }
-
                     IndexKnowledgeJob::dispatch(KnowledgeEntity::fromModel($event));
                     $queued++;
                 }
@@ -205,27 +202,17 @@ class ReindexAgentMemoryCommand extends Command
      */
     private function metadataFor(Apps $app, object $row, string $usersMorph): array
     {
-        $metadata = [
-            'apps_id' => $app->getId(),
-            'companies_id' => (int) $row->companies_id,
-            'agent_id' => (int) $row->agent_id,
-            'users_id' => (int) $row->user_id,
-        ];
+        $humanParticipant = $row->participant_type === $usersMorph && $row->participant_id !== null;
+        $recordParticipant = ! $humanParticipant && $row->participant_type !== null && $row->participant_id !== null;
 
-        if ($row->participant_type === null || $row->participant_id === null) {
-            return $metadata;
-        }
-
-        if ($row->participant_type === $usersMorph) {
-            $metadata['users_id'] = (int) $row->participant_id;
-
-            return $metadata;
-        }
-
-        $metadata['entity_type'] = Relation::getMorphedModel($row->participant_type) ?? $row->participant_type;
-        $metadata['entity_id'] = (int) $row->participant_id;
-
-        return $metadata;
+        return ConversationMemoryNode::metadata(
+            appId: $app->getId(),
+            companyId: (int) $row->companies_id,
+            agentId: (int) $row->agent_id,
+            usersId: $humanParticipant ? (int) $row->participant_id : (int) $row->user_id,
+            entityType: $recordParticipant ? (Relation::getMorphedModel($row->participant_type) ?? $row->participant_type) : null,
+            entityId: $recordParticipant ? (int) $row->participant_id : null,
+        );
     }
 
     /**

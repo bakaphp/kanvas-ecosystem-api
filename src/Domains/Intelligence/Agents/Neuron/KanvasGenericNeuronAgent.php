@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
-use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use NeuronAI\Chat\History\MessageStoreInterface;
@@ -26,17 +25,6 @@ class KanvasGenericNeuronAgent extends BaseKanvasAgent
     protected function messageStore(): MessageStoreInterface
     {
         return $this->conversationStore();
-    }
-
-    /**
-     * ConversationMessageStore already persists every turn (with usage + agent_id), so RunNeuronChatAction
-     * must NOT also logTurn or every chat gets a duplicate conversation. Agents on the rollup store write
-     * to Social messages instead and leave this false so logTurn stays their only usage record.
-     */
-    #[Override]
-    public function persistsTurnsToConversationStore(): bool
-    {
-        return true;
     }
 
     /**

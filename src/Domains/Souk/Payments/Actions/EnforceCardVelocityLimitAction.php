@@ -32,7 +32,7 @@ class EnforceCardVelocityLimitAction
             return;
         }
 
-        $isCorporate = filter_var($this->payment->company?->get('is_corporate'), FILTER_VALIDATE_BOOLEAN);
+        $isCorporate = $this->payment->company?->getBool('is_corporate') ?? false;
         $maxCards = $orderType->cardVelocityLimit($isCorporate ? 'corporate_max_cards_daily' : 'max_cards_daily');
         $banCards = $orderType->cardVelocityLimit($isCorporate ? 'corporate_ban_cards_daily' : 'ban_cards_daily');
 

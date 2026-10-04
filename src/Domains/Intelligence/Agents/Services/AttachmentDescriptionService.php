@@ -67,7 +67,7 @@ class AttachmentDescriptionService
 
         $handler->setConfiguration(agent: $agent, user: $user);
 
-        return new self($handler->captionProvider(), ! $handler instanceof ConversesWithCustomer);
+        return new self($handler->getProvider(), ! $handler instanceof ConversesWithCustomer);
     }
 
     /**

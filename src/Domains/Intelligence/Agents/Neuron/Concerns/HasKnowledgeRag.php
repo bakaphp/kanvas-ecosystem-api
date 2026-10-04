@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\CompanyMemoryRetrieval;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\KnowledgeRetrieval;
-use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
-use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
 use NeuronAI\RAG\PostProcessor\AdaptiveThresholdPostProcessor;
 use NeuronAI\RAG\PreProcessor\QueryTransformationPreProcessor;
@@ -23,11 +20,10 @@ use NeuronAI\RAG\VectorStore\VectorStoreInterface;
 use Override;
 
 /**
- * RAG wiring for a Neuron agent. Retrieval pulls the agent's own uploaded docs
- * plus the record in scope this turn (resolveEntityForTurn() — a Lead for
- * SalesAgent, any registered-source entity for a future agent). Scoped per agent
- * so knowledge never leaks between agents. The retrieval chain itself (pre-process,
- * retrieve, post-process, inject) is Neuron's stock RAG entry chain built from these hooks.
+ * RAG wiring for a Neuron agent: the agent's knowledge (KnowledgeRetrieval, scoped to the agent and
+ * the record in scope this turn) plus, when the agent remembers for the company, company memory
+ * narrowed by recallMemoryScope(). The chain itself (pre-process, retrieve, post-process, inject) is
+ * Neuron's stock RAG entry chain built from these hooks.
  */
 trait HasKnowledgeRag
 {
@@ -59,7 +55,6 @@ trait HasKnowledgeRag
                 embeddings: $this->companyMemoryEmbeddings(),
                 appId: $this->app->getId(),
                 companyId: $this->company->getId(),
-                topK: KnowledgeComponents::memoryResultLimit($this->app),
                 recallScope: $recallScope,
             ),
         ]);
@@ -85,13 +80,7 @@ trait HasKnowledgeRag
     #[Override]
     protected function embeddings(): EmbeddingsProviderInterface
     {
-        if ($this->app === null) {
-            throw new ValidationException(
-                'App not set. Call setConfiguration() before resolving RAG embeddings.'
-            );
-        }
-
-        return RagComponents::embeddings($this->app);
+        return $this->companyMemoryEmbeddings();
     }
 
     // Retrieval is custom (retrieval() → KnowledgeRetrieval), so the RAG base never

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval;
 
+use Illuminate\Support\Facades\Log;
 use Kanvas\Intelligence\Agents\Neuron\Memory\ConversationMemoryNode;
 use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
 use NeuronAI\Chat\Messages\Message;
@@ -13,10 +14,9 @@ use NeuronAI\RAG\Retrieval\SimilarityRetrieval;
 use NeuronAI\RAG\VectorStore\Filter\Filter;
 use NeuronAI\RAG\VectorStore\Filter\FilterExpression;
 use NeuronAI\RAG\VectorStore\Filter\FilterGroup;
-use NeuronAI\RAG\VectorStore\Filter\FilterScope;
-use NeuronAI\RAG\VectorStore\SearchRequest;
 use NeuronAI\RAG\VectorStore\VectorStoreInterface;
 use Override;
+use Throwable;
 
 /**
  * What any of the company's agents learned, agreed or did: the memory document kinds, pinned to one
@@ -45,7 +45,6 @@ final class CompanyMemoryRetrieval extends SimilarityRetrieval
         EmbeddingsProviderInterface $embeddings,
         int $appId,
         int $companyId,
-        private readonly int $topK,
         ?FilterExpression $recallScope = null,
     ) {
         $scope = [
@@ -67,19 +66,22 @@ final class CompanyMemoryRetrieval extends SimilarityRetrieval
     #[Override]
     public function retrieve(Message $query, ?FilterExpression $filters = null): array
     {
-        $text = trim((string) $query->getContent());
-
-        if ($text === '') {
+        if (trim((string) $query->getContent()) === '') {
             return [];
         }
 
-        $documents = $this->vectorStore->search(new SearchRequest(
-            embedding: $this->embeddingProvider->embedText($text),
-            filters: FilterScope::merge($this->filters, $filters)?->expression(),
-            topK: $this->topK,
-        ));
+        // Memory is on for every tenant, so a Typesense or embedding outage must cost the answer its
+        // recall, never the answer itself.
+        try {
+            $documents = parent::retrieve($query, $filters);
+        } catch (Throwable $e) {
+            Log::warning('Company memory recall failed; answering without it', [
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
 
-        $documents = is_array($documents) ? array_values($documents) : iterator_to_array($documents, false);
+            return [];
+        }
 
         return array_map(self::labelled(...), $documents);
     }

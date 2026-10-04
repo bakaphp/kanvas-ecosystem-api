@@ -135,7 +135,7 @@ class BoundToolResultsMiddleware extends AgentMiddleware
             }
 
             foreach ($message->getToolCalls() as $call) {
-                if ($call->hasResult() && (string) $call->getResult() !== self::NOT_EXECUTED) {
+                if ($call->hasResult() && ! self::isRefused($call)) {
                     $calls[] = $call->getName() . ':' . sha1((string) json_encode($call->getInputs()));
                 }
             }
@@ -211,7 +211,7 @@ class BoundToolResultsMiddleware extends AgentMiddleware
         return $spent;
     }
 
-    private function isRefused(ToolCall $call): bool
+    private static function isRefused(ToolCall $call): bool
     {
         return (string) $call->getResult() === self::NOT_EXECUTED;
     }

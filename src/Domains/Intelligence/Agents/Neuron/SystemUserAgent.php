@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ChannelMessageStore;
-use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
@@ -101,21 +100,12 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     }
 
     /**
-     * ConversationMessageStore self-persists each turn, so RunNeuronChatAction must skip logTurn there.
-     * The rollup store writes to Social and leaves logTurn as its usage record — mirror that per branch.
+     * A mention reply is stored as a child message by the responder, so logTurn is skipped there too.
      */
     #[Override]
     public function persistsTurnsToConversationStore(): bool
     {
-        // Mention replies are stored as a child message by the responder — skip logTurn.
-        if ($this->mentionChannel !== null) {
-            return true;
-        }
-
-        return $this->app !== null
-            && $this->company !== null
-            && $this->user !== null
-            && ! $this->usesEntityRollup();
+        return $this->mentionChannel !== null || parent::persistsTurnsToConversationStore();
     }
 
     /**

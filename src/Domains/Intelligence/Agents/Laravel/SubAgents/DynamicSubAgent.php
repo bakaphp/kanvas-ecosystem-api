@@ -13,7 +13,12 @@ use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 
-#[AgentTool(name: 'Dynamic Sub Agent', category: 'crm')]
+// The catalog reads descriptions by reflection; this one comes from the agent record, so the attribute carries the summary.
+#[AgentTool(
+    name: 'Dynamic Sub Agent',
+    description: 'Delegate a question to one of the company\'s own configured agents, described by that agent\'s record at runtime.',
+    category: 'crm',
+)]
 class DynamicSubAgent extends KanvasAgentAsTool
 {
     use MergesRegisteredTools;

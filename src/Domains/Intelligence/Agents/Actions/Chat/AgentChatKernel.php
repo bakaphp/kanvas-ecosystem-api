@@ -280,9 +280,7 @@ class AgentChatKernel
      * key of its durable run. userChat (no source channel) keys it on the session, one per chat window.
      * A channel turn keys it on the record the session is about, so a lead talked to over SMS, email
      * and WhatsApp has one address — the cross-channel rollup is the design intent of
-     * EntityRollupMessageStore, and that store never narrows its load by this id. Every model that
-     * appears as a session entity carries a uuid; the class-and-id form is the fallback for one that
-     * does not.
+     * EntityRollupMessageStore, and that store never narrows its load by this id.
      */
     protected function threadId(?Model $entity): string
     {

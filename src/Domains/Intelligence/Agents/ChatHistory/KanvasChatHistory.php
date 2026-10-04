@@ -57,7 +57,8 @@ class KanvasChatHistory extends ChatHistory
      */
     public function tokensOf(array $messages): int
     {
-        $this->trimmer->trim($messages, PHP_INT_MAX);
+        // The fold mutates what it merges; a measurement must leave the caller's messages untouched.
+        $this->trimmer->trim(array_map(static fn (Message $message): Message => clone $message, $messages), PHP_INT_MAX);
 
         return $this->trimmer->getTotalTokens();
     }

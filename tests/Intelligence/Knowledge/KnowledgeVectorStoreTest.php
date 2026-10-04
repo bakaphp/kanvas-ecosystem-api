@@ -132,9 +132,9 @@ class KnowledgeVectorStoreTest extends TestCase
      */
     private function client(): Client
     {
-        $settings = app(Apps::class)->get('typesense_search_settings') ?? [];
+        $settings = SearchEngineResolver::typesenseSettings(app(Apps::class));
 
-        if (($settings['api_key'] ?? config('scout.typesense.api_key', '')) === '') {
+        if (! SearchEngineResolver::hasTypesenseCredentials($settings)) {
             return new Client([
                 'api_key' => 'unconfigured',
                 'nodes' => [['host' => '127.0.0.1', 'port' => '1', 'protocol' => 'http']],

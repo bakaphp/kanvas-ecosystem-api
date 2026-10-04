@@ -414,7 +414,7 @@ class SendEmailTool extends Tool
     use ResolvesLeadForTool;              // pull in the resolve-or-error trait(s) you need
 
     protected string $name = 'send_email';   // snake_case — the id the LLM calls
-    protected string $description = '…';     // what it does, WHEN to use it, and hard limits ("you cannot choose the recipient")
+    protected ?string $description = '…';    // nullable to match the vendor base; what it does, WHEN to use it, and hard limits ("you cannot choose the recipient")
 
     #[Override]
     protected function properties(): array

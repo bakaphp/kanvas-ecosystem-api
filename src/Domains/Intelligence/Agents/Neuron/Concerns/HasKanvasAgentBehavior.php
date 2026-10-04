@@ -137,12 +137,12 @@ trait HasKanvasAgentBehavior
 
     /**
      * Whether this agent's message store already writes each turn to agent_conversation_messages. When
-     * true, RunNeuronChatAction skips its own logTurn to avoid a duplicate conversation. Default false:
-     * the rollup store writes to Social messages, so logTurn is its only conversation-store record.
+     * true, RunNeuronChatAction skips its own logTurn to avoid a duplicate conversation; the rollup and
+     * in-memory stores leave logTurn as the only conversation-store record.
      */
     public function persistsTurnsToConversationStore(): bool
     {
-        return false;
+        return $this->resolveMessageStore() instanceof ConversationMessageStore;
     }
 
     public function setCurrentLead(?Lead $lead): void
@@ -168,16 +168,6 @@ trait HasKanvasAgentBehavior
     public function setRendersArtifacts(bool $renders): void
     {
         $this->rendersArtifacts = $renders;
-    }
-
-    /**
-     * The provider the agent is currently configured to call. Exposed so the image-caption
-     * path can describe attachments with the SAME model the agent uses (provider() is
-     * protected on the NeuronAI base).
-     */
-    public function captionProvider(): AIProviderInterface
-    {
-        return $this->getProvider();
     }
 
     // The record this turn is about, entity-agnostic: the kernel-plumbed currentLead

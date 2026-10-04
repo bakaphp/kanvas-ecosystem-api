@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Stores;
 
+use Baka\Traits\ScalarCoercionTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,8 @@ use Override;
  */
 class ConversationMessageStore extends KanvasMessageStore
 {
+    use ScalarCoercionTrait;
+
     private const string CONNECTION = 'intelligence';
     private const string TABLE_CONVERSATIONS = 'agent_conversations';
     private const string TABLE_MESSAGES = 'agent_conversation_messages';
@@ -89,10 +92,7 @@ class ConversationMessageStore extends KanvasMessageStore
     #[Override]
     public function loadActive(string $threadId): array
     {
-        return DB::connection(self::CONNECTION)
-            ->table(self::TABLE_MESSAGES)
-            ->where('conversation_id', $this->conversationId($threadId))
-            ->whereNull('archived_at')
+        return $this->activeRows($threadId)
             ->orderByDesc('sequence')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
@@ -101,13 +101,13 @@ class ConversationMessageStore extends KanvasMessageStore
             ->reverse()
             ->map(function (object $row): ?Message {
                 $content = (string) ($row->content ?? '');
-                $marker = self::attachmentMarker(self::decodeAttachments($row->attachments ?? null));
+                $marker = self::attachmentMarker($this->decodeJsonArray($row->attachments ?? null) ?? []);
 
                 if ($content === '' && $marker === '') {
                     return null;
                 }
 
-                $content = trim($content . ($marker !== '' ? "\n" . $marker : ''));
+                $content = self::withMarker($content, $marker);
 
                 $message = $row->role === MessageRole::ASSISTANT->value
                     ? new AssistantMessage($content)
@@ -166,9 +166,7 @@ class ConversationMessageStore extends KanvasMessageStore
         $toolCalls = $isToolCall ? self::serializeCalls($message->getToolCalls()) : [];
         $toolResults = $isToolResult ? self::serializeCalls($message->getToolCalls()) : [];
 
-        $usage = $message->getUsage() !== null
-            ? ConversationUsageSqlHelper::neuronUsageRow($message->getUsage(), (int) ($message->getMetadata('cacheWriteTokens') ?? 0))
-            : [];
+        $usage = ConversationUsageSqlHelper::neuronUsageRow($message);
         // Neuron does not put the model on the message; the spend rollup prices by it.
         if ($role === MessageRole::ASSISTANT->value && $this->model !== null && ! isset($usage['model'])) {
             $usage['model'] = $this->model;
@@ -247,15 +245,9 @@ class ConversationMessageStore extends KanvasMessageStore
         return true;
     }
 
-    /**
-     * Legacy rows carry null and sort first, which is where they belong: they predate every numbered row.
-     */
     private function nextSequence(string $conversationId): int
     {
-        return (int) DB::connection(self::CONNECTION)
-            ->table(self::TABLE_MESSAGES)
-            ->where('conversation_id', $conversationId)
-            ->max('sequence') + 1;
+        return new KanvasConversationStore()->nextSequence($conversationId);
     }
 
     private function activeRows(string $threadId): Builder
@@ -264,19 +256,5 @@ class ConversationMessageStore extends KanvasMessageStore
             ->table(self::TABLE_MESSAGES)
             ->where('conversation_id', $this->conversationId($threadId))
             ->whereNull('archived_at');
-    }
-
-    /**
-     * @return list<mixed>
-     */
-    private static function decodeAttachments(?string $json): array
-    {
-        if ($json === null || $json === '' || $json === '[]') {
-            return [];
-        }
-
-        $decoded = json_decode($json, true);
-
-        return is_array($decoded) ? array_values($decoded) : [];
     }
 }

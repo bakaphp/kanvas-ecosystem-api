@@ -86,7 +86,6 @@ class CompanyMemoryRetrievalTest extends TestCase
             embeddings: new ConstantEmbeddingsProvider(),
             appId: self::APP,
             companyId: $companyId,
-            topK: 5,
         );
     }
 

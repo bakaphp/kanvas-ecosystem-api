@@ -48,7 +48,6 @@ class EntityRollupMessageStore extends KanvasMessageStore
     private const string AGENT_VERB = 'agent';
     private const string USER_VERB = 'user';
 
-    // Verbs never exposed to the lead
     private const array INTERNAL_VERBS = [
         LeadMessageTypeEnum::NOTES->value,
         LeadMessageTypeEnum::AI_ASSIST->value,
@@ -87,8 +86,10 @@ class EntityRollupMessageStore extends KanvasMessageStore
             $rawRows->pluck('message_id')->filter()->unique()->all(),
         );
 
+        $identity = $this->entityIdentityLabel();
+
         return $rawRows
-            ->map(function (AppModuleMessage $appModuleMessage) use ($leadTitleByMessage): ?Message {
+            ->map(function (AppModuleMessage $appModuleMessage) use ($leadTitleByMessage, $identity): ?Message {
                 $socialMessage = $appModuleMessage->message;
 
                 if (! $socialMessage) {
@@ -135,7 +136,7 @@ class EntityRollupMessageStore extends KanvasMessageStore
                     return new AssistantMessage($leadPrefix . $clean)->setId('social:' . $socialMessage->getId());
                 }
 
-                $text = trim($text . ($marker !== '' ? "\n" . $marker : ''));
+                $text = self::withMarker($text, $marker);
                 $channel = $socialMessage->channels->first();
 
                 if ($channel?->isNoteChannel() || $channel?->isAiAssistChannel()) {
@@ -144,7 +145,7 @@ class EntityRollupMessageStore extends KanvasMessageStore
                     $owner = $socialMessage->user?->displayname ?: 'Owner';
                     $prefixed = "[Owner - {$owner}] {$text}";
                 } else {
-                    $prefixed = '[' . $this->entityIdentityLabel() . "] {$text}";
+                    $prefixed = "[{$identity}] {$text}";
                 }
 
                 return new UserMessage($leadPrefix . $prefixed)->setId('social:' . $socialMessage->getId());
@@ -158,9 +159,8 @@ class EntityRollupMessageStore extends KanvasMessageStore
      * Persists ONLY tool-call / tool-result telemetry. The conversational rows (user prompt + assistant
      * reply) are written, and attached to this same Lead/People entity, by the canonical writer of every
      * path that uses this store: connector createMessage(), PersistChatTurnToSocialAction (userChat),
-     * FollowUp persistMessage(), and the outreach action. A second copy of the reply reaches the model
-     * as `reply\n\nreply` and it learns to repeat itself (the duplicate-email loop); tool telemetry is the
-     * only thing no other writer captures.
+     * FollowUp persistMessage(), and the outreach action. A second copy would reach the model twice (see
+     * KanvasHistoryTrimmer); tool telemetry is the only thing no other writer captures.
      */
     #[Override]
     protected function persist(string $threadId, Message $message): void

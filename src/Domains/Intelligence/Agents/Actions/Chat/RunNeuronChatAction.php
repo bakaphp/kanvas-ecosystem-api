@@ -69,9 +69,8 @@ class RunNeuronChatAction
     {
         $sessionId = $this->session?->uuid ?? '';
 
-        // Neuron refuses to run an unbound agent. The kernel binds the thread itself; a caller that runs
-        // this action directly (RespondToMentionJob, DraftCustomerUpdateAction) gets the session as its
-        // address, the same choice the kernel makes when there is no source channel.
+        // A caller that skips the kernel (RespondToMentionJob, DraftCustomerUpdateAction) gets the session as
+        // its thread, the kernel's own choice when there is no source channel.
         if ($this->handler instanceof BehavesAsKanvasAgent && $this->handler->getThreadId() === null) {
             $this->handler->setThreadId($this->session?->uuid ?? Str::uuid()->toString());
         }
@@ -377,11 +376,8 @@ class RunNeuronChatAction
                     $toolResults[] = $call->jsonSerialize();
                 }
             }
-            if ($u = $m->getUsage()) {
-                $row = ConversationUsageSqlHelper::neuronUsageRow($u, (int) ($m->getMetadata('cacheWriteTokens') ?? 0));
-                foreach ($row as $key => $count) {
-                    $usage[$key] += $count;
-                }
+            foreach (ConversationUsageSqlHelper::neuronUsageRow($m) as $key => $count) {
+                $usage[$key] += $count;
             }
         };
 
@@ -399,10 +395,6 @@ class RunNeuronChatAction
             $accumulate($finalMessage);
         }
 
-        return [
-            $toolCalls,
-            $toolResults,
-            array_sum($usage) > 0 ? array_filter($usage, static fn (int $count): bool => $count > 0) : [],
-        ];
+        return [$toolCalls, $toolResults, array_filter($usage)];
     }
 }

@@ -70,16 +70,13 @@ use Override;
 )]
 class ProjectManagerAgent extends SystemUserAgent
 {
+    /**
+     * Always the conversation store: a project wake is never a mention and never rolls up on a record.
+     */
     #[Override]
     protected function messageStore(): MessageStoreInterface
     {
         return $this->conversationStore();
-    }
-
-    #[Override]
-    public function persistsTurnsToConversationStore(): bool
-    {
-        return true;
     }
 
     /**

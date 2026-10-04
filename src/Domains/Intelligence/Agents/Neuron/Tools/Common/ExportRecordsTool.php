@@ -22,7 +22,12 @@ use Throwable;
  * so a new domain is a new exporter class, not a new tool. Company-scoped. For the specialized
  * data-quality exports use export_changes / export_bounces.
  */
-#[AgentTool(name: 'Export Records', category: 'common')]
+// The catalog reads descriptions by reflection; this one is built at runtime, so the attribute carries the summary.
+#[AgentTool(
+    name: 'Export Records',
+    description: 'Generate a downloadable CSV of a list of Kanvas records (leads, people, orders, ...) with fixed columns per record type, and return its file URL and row count.',
+    category: 'common',
+)]
 class ExportRecordsTool extends Tool
 {
     use DecodesJsonObjectParam;

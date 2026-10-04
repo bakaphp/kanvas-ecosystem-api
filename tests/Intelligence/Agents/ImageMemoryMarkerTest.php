@@ -37,9 +37,15 @@ class ImageMemoryMarkerTest extends TestCase
 
     private function conversationMarker(?string $attachmentsJson): string
     {
-        $attachments = new ReflectionMethod(ConversationMessageStore::class, 'decodeAttachments')->invoke(null, $attachmentsJson);
+        $attachments = new ReflectionMethod(ConversationMessageStore::class, 'decodeJsonArray')
+            ->invoke($this->conversationStore(), $attachmentsJson) ?? [];
 
         return new ReflectionMethod(KanvasMessageStore::class, 'attachmentMarker')->invoke(null, $attachments);
+    }
+
+    private function conversationStore(): ConversationMessageStore
+    {
+        return new ReflectionClass(ConversationMessageStore::class)->newInstanceWithoutConstructor();
     }
 
     public function testSalesDescriptionsBecomeMemoryLines(): void

@@ -21,7 +21,6 @@ class RagComponents
     public static function isEnabled(?Model $model): bool
     {
         return $model !== null
-            && new KnowledgeSourceRegistry()->for($model::class) !== null
-            && KnowledgeComponents::knowledgeEnabled($model->app);
+            && (new KnowledgeSourceRegistry()->for($model::class)?->isEnabledFor($model->app) ?? false);
     }
 }

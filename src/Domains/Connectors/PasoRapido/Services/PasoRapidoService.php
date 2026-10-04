@@ -457,7 +457,7 @@ class PasoRapidoService
 
     private function assertCompanyNotBlocked(CompanyInterface $company, string $tag, ?UserInterface $user): void
     {
-        if (! filter_var($company->get(CompanySettingsEnum::VERIFY_BLOCKED->value), FILTER_VALIDATE_BOOLEAN)) {
+        if (! $company->getBool(CompanySettingsEnum::VERIFY_BLOCKED->value)) {
             return;
         }
 

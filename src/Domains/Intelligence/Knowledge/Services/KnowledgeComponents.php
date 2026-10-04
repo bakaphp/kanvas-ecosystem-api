@@ -30,7 +30,7 @@ final class KnowledgeComponents
         $configuredCollection = trim((string) ($collection ?? $app->get(KnowledgeConfigurationEnum::COLLECTION->value)));
 
         return new TypesenseKnowledgeStore(
-            client: SearchEngineResolver::getTypesenseClient($app->get('typesense_search_settings') ?? []),
+            client: SearchEngineResolver::getTypesenseClient(SearchEngineResolver::typesenseSettings($app)),
             collection: $configuredCollection !== ''
                 ? $configuredCollection
                 : config('scout.prefix') . 'neuron_lead_knowledge_gemini_' . $app->getId(),
@@ -56,22 +56,19 @@ final class KnowledgeComponents
     }
 
     /**
-     * Company memory is off until a tenant asks for it: every qualifying turn of every remembering agent
-     * costs one embedding call on the app's own key.
+     * On unless the tenant opts out, and only where there is somewhere to write: an app without
+     * Typesense credentials would fail every turn instead of remembering. Each qualifying turn of a
+     * remembering agent costs one embedding call on the app's own key.
      */
     public static function memoryEnabled(Apps $app): bool
     {
-        return self::flag($app, KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED);
+        return $app->getBool(KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED->value, default: true)
+            && SearchEngineResolver::hasTypesenseCredentials(SearchEngineResolver::typesenseSettings($app));
     }
 
     public static function knowledgeEnabled(Apps $app): bool
     {
-        return self::flag($app, KnowledgeConfigurationEnum::ENABLED);
-    }
-
-    private static function flag(Apps $app, KnowledgeConfigurationEnum $key): bool
-    {
-        return filter_var($app->get($key->value), FILTER_VALIDATE_BOOL);
+        return $app->getBool(KnowledgeConfigurationEnum::ENABLED->value);
     }
 
     public static function memoryStore(Apps $app): KnowledgeVectorStore

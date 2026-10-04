@@ -46,7 +46,7 @@ interface BehavesAsKanvasAgent extends ProvidesToolDependencies
 
     public function persistsTurnsToConversationStore(): bool;
 
-    public function captionProvider(): AIProviderInterface;
+    public function getProvider(): AIProviderInterface;
 
     public function resolvedModelName(): string;
 

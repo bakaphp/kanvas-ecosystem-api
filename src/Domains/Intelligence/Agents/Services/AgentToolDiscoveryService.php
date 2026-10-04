@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Services;
 
 use Baka\Discovery\AttributeClassDiscovery;
+use Baka\Support\Str as BakaStr;
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
@@ -149,27 +150,15 @@ class AgentToolDiscoveryService extends AttributeClassDiscovery
         if ($reflection->isSubclassOf(NeuronTool::class)) {
             $default = $reflection->getDefaultProperties()['description'] ?? null;
 
-            return is_string($default) && trim($default) !== '' ? trim($default) : null;
-        }
-
-        $constructor = $reflection->getConstructor();
-
-        if ($constructor !== null && $constructor->getNumberOfRequiredParameters() > 0) {
-            return null;
+            return BakaStr::trimToNull(is_string($default) ? $default : null);
         }
 
         try {
             $instance = $reflection->newInstance();
 
-            if (method_exists($instance, 'description')) {
-                $value = trim((string) $instance->description());
-
-                return $value !== '' ? $value : null;
-            }
+            return method_exists($instance, 'description') ? BakaStr::trimToNull((string) $instance->description()) : null;
         } catch (Throwable) {
             return null;
         }
-
-        return null;
     }
 }

@@ -490,6 +490,7 @@ class KanvasConversationStore extends DatabaseConversationStore
                 $toolResults,
             )),
             'status' => AgentConversationMessage::STATUS_COMPLETED,
+            'sequence' => $this->nextSequence($conversationId),
             'usage' => json_encode($usage),
             'meta' => '[]',
             'created_at' => now(),
@@ -497,6 +498,18 @@ class KanvasConversationStore extends DatabaseConversationStore
         ]);
 
         return $messageId;
+    }
+
+    /**
+     * The active window is ordered by this, so every writer of a row stamps one: a reply appended by a
+     * scheduled action lands after the chat it joins, not ahead of it. Rows older than the column carry
+     * null and sort first.
+     */
+    public function nextSequence(string $conversationId): int
+    {
+        return (int) $this->table($this->messagesTable())
+            ->where('conversation_id', $conversationId)
+            ->max('sequence') + 1;
     }
 
     protected function insertConversationRow(

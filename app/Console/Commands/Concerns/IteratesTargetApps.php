@@ -7,7 +7,7 @@ namespace App\Console\Commands\Concerns;
 use Kanvas\Apps\Models\Apps;
 
 /**
- * The apps a maintenance command runs over: the one named by `--app`, or every live app.
+ * The using command must declare an `--app=` option.
  */
 trait IteratesTargetApps
 {

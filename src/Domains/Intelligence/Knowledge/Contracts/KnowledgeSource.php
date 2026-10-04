@@ -22,6 +22,5 @@ interface KnowledgeSource
      */
     public function find(int $entityId, int $appId, int $companyId): ?Model;
 
-    /** The per-app switch this source's documents live behind. */
     public function isEnabledFor(Apps $app): bool;
 }
