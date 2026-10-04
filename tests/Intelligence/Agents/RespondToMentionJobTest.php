@@ -144,7 +144,7 @@ class RespondToMentionJobTest extends TestCase
 
     public function testChannelHistoryDropsLeadingAgentTurnsInsteadOfThrowing(): void
     {
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('InventoryBot');
 
         // A channel the agent opened: the first turn on record is the agent's, not a human's.
@@ -167,7 +167,7 @@ class RespondToMentionJobTest extends TestCase
 
     public function testAgentUserMentionGetsAChildReply(): void
     {
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
 
         $agentUser = $this->makeAgentUser('InventoryBot');
         $agent = $this->makeAgent($agentUser);
@@ -194,7 +194,7 @@ class RespondToMentionJobTest extends TestCase
      */
     public function testTheReplyIsSkippedWhenTheAgentAlreadyPostedDuringTheTurn(): void
     {
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('InventoryBot');
         $agent = $this->makeAgent($agentUser);
 
@@ -240,9 +240,9 @@ class RespondToMentionJobTest extends TestCase
 
     public function testUsesTheChannelEntityAsContextWhenTheMentionHasNoEntity(): void
     {
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $app = app(Apps::class);
-        $company = $human->getCurrentCompany();
+        $company = auth()->user()->getCurrentCompany();
 
         $agentUser = $this->makeAgentUser('InventoryBot');
         $agent = $this->makeAgent($agentUser);
@@ -277,8 +277,8 @@ class RespondToMentionJobTest extends TestCase
         CapturingSystemUserAgentStub::$lastConversationHuman = null;
 
         $app = app(Apps::class);
-        $human = auth()->user();
-        $company = $human->getCurrentCompany();
+        $human = $this->registerFreshUser();
+        $company = auth()->user()->getCurrentCompany();
 
         $agentUser = $this->makeAgentUser('ReminderBot');
         $agent = $this->makeCapturingAgent($agentUser);
@@ -307,9 +307,9 @@ class RespondToMentionJobTest extends TestCase
 
     public function testTheReplyIsRecordedInTheLedgerForCrossEntityMemory(): void
     {
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $app = app(Apps::class);
-        $company = $human->getCurrentCompany();
+        $company = auth()->user()->getCurrentCompany();
 
         $agentUser = $this->makeAgentUser('InventoryBot');
         $agent = $this->makeAgent($agentUser);
@@ -359,7 +359,7 @@ class RespondToMentionJobTest extends TestCase
 
     public function testReplyStaysOneLevelDeepWhenMentionedInsideAChild(): void
     {
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
 
         $agentUser = $this->makeAgentUser('InventoryBot');
         $agent = $this->makeAgent($agentUser);
@@ -408,7 +408,7 @@ class RespondToMentionJobTest extends TestCase
     {
         Bus::fake([RespondToMentionJob::class]);
 
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('InventoryBot');
         $this->makeAgent($agentUser);
         $message = $this->makeMessage($human, 'plain note');
@@ -442,7 +442,7 @@ class RespondToMentionJobTest extends TestCase
         // (RunNeuronChatAction sniffs the bytes → FileContent), or the agent answers "I can't read the file."
         CapturingNeuronProvider::$lastMessages = [];
 
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('ContractBot');
         $agent = $this->makeCapturingAgent($agentUser);
 
@@ -479,7 +479,7 @@ class RespondToMentionJobTest extends TestCase
         // its text (NeuronAI wraps it as a TextContent block), but no media block is ever attached.
         CapturingNeuronProvider::$lastMessages = [];
 
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('ContractBot');
         $agent = $this->makeCapturingAgent($agentUser);
 
@@ -512,7 +512,7 @@ class RespondToMentionJobTest extends TestCase
         CapturingNeuronProvider::$lastMessages = [];
 
         $app = app(Apps::class);
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
 
         // Unique, space-free handle so the parser's regex matches and the shared test DB can't collide.
         $agentUser = $this->makeAgentUser('ContractBot');
@@ -558,7 +558,7 @@ class RespondToMentionJobTest extends TestCase
         // which resets the block list to text only. A PDF on the incoming @mention (a user turn folding
         // into the prior user turn) was silently dropped before reaching the model — so a capable model
         // that CAN read the PDF still answered "I can't see the file". The media block must survive.
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $channel = $this->makeChannel($human);
         // A prior human turn so the incoming mention (same USER role) coalesces into it.
         $channel->addMessage($this->makeMessage($human, 'here is some background on the deal'), $human);
@@ -601,7 +601,7 @@ class RespondToMentionJobTest extends TestCase
         // message. When the mention has no file yet, the reply must be delayed so the upload can settle.
         Bus::fake([RespondToMentionJob::class]);
 
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('DelayBot');
         $this->makeAgent($agentUser);
 
@@ -624,7 +624,7 @@ class RespondToMentionJobTest extends TestCase
         // A mention that already carries its file (or a plain text mention) must not eat the delay.
         Bus::fake([RespondToMentionJob::class]);
 
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('DelayBot');
         $agent = $this->makeAgent($agentUser);
 
@@ -652,7 +652,7 @@ class RespondToMentionJobTest extends TestCase
     {
         CapturingNeuronProvider::$lastMessages = [];
 
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('BookkeeperBot');
         $agent = $this->makeCapturingAgent($agentUser);
 
