@@ -22,7 +22,7 @@ Two archetypes, split by **audience**:
 | Reached via | @mention, channel, DM, task assignment, ownership, follow | inbound connector channel (WhatsApp/email/SMS) on a lead |
 | Acts as | itself (its own user) | itself, as a consistent **persona** |
 | Conversation memory | per channel/entity | per prospect (`EntityRollupMessageStore` rollup — continuity *within* a lead) |
-| Cross-entity memory | ✅ full — `read_my_ledger` is company-wide | ❌ none on the customer surface — prospect-isolated |
+| Cross-entity memory | ✅ full — `read_my_ledger` is company-wide, and company memory (`remembersForCompany()`) recalls any earlier conversation of the company's agents | ❌ none on the customer surface — prospect-isolated, never ingested into company memory |
 
 ### The core rule: memory scope follows AUDIENCE, not agent type
 
@@ -376,8 +376,12 @@ view.
   TokenCounter assumes 4 chars/token while code and JSON run nearer 3, so an undiscounted budget
   under-counts a diff-heavy history by about a third and can still cross the ceiling.
 
-Trimming still *forgets* the dropped turns. Replacing that with a rolling summary is planned, not built:
-`docs/intelligence/agent-history-compaction-plan.md`.
+Trimming forgets; summarizing keeps. Agents on `ConversationMessageStore` register
+`KanvasSummarization` on the chat node: at 80% of the window the oldest turns are compacted into a
+summary the model reads, their rows are stamped `archived_at` (never deleted, so the transcript and the
+spend rollup keep them), and the summary itself is written to Social as a private `agent_summary`
+message so a human can see what the agent kept. Rollup and channel stores never summarize: their rows
+belong to other writers. Detail in [`Neuron/CLAUDE.md`](Neuron/CLAUDE.md).
 
 ### When the tool-output budget runs out: refuse, then continue
 
@@ -735,6 +739,10 @@ connection `intelligence`) with Kanvas columns on top. Rules every writer follow
   (`AgentConversationMessage::toolCalls()` / `toolResults()`), kept so clients can migrate to `steps`.
 - **`status`** is `completed` / `paused` (a tool awaits approval) / `failed` (`meta.error`). Readers that feed
   a model (daily learning) filter on completed; budget and spend readers keep failed turns.
+- **`archived_at` and `sequence`** belong to the Neuron working window, not to the transcript: a row stamped
+  `archived_at` was compacted into a summary and the model no longer sees it, but every reader of the
+  table (GraphQL, daily learning, spend rollup) keeps reading it. Order the active window by `sequence`,
+  never by `created_at` alone.
 - **Participant = who the conversation belongs to**, a morph: `Users` (staff chat), `People` (public /
   agentic-commerce chat), `Agent` (runtime import, scheduled wake, an agent acting as its own user).
   Resolve it with `KanvasConversationStore::participantFor($session, $user, $agent)`: a human at the keyboard

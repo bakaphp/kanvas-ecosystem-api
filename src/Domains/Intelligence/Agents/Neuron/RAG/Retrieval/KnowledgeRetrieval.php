@@ -9,7 +9,6 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
-use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\RAG\Document;
@@ -48,7 +47,7 @@ class KnowledgeRetrieval implements RetrievalInterface
             return [];
         }
 
-        if (! filter_var($this->app->get(KnowledgeConfigurationEnum::ENABLED->value), FILTER_VALIDATE_BOOL)) {
+        if (! KnowledgeComponents::knowledgeEnabled($this->app)) {
             return [];
         }
 

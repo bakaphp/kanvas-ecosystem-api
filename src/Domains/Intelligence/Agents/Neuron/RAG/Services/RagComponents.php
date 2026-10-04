@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\RAG\Services;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Embeddings\NeuronEmbeddingsAdapter;
-use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeSourceRegistry;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
@@ -23,9 +22,6 @@ class RagComponents
     {
         return $model !== null
             && new KnowledgeSourceRegistry()->for($model::class) !== null
-            && filter_var(
-                $model->app->get(KnowledgeConfigurationEnum::ENABLED->value),
-                FILTER_VALIDATE_BOOL,
-            );
+            && KnowledgeComponents::knowledgeEnabled($model->app);
     }
 }

@@ -57,8 +57,9 @@ contextWindow() → model ceiling, capped by AGENT_MAX_HISTORY_TOKENS
 ```
 
 Stores extend `Stores/KanvasMessageStore`: `loadActive()` reads rows, `persist()` writes one,
-`append()` dedupes by message id, and `archive()` / `clear()` are deliberate no-ops because Kanvas
-owns retention (Social messages and `agent_conversation_messages` are business records, not a cache).
+`append()` dedupes by message id, `clear()` archives the thread, and the count-based `archive()` is a
+final no-op (see "Archive and summarize" below). Nothing is ever deleted: Social messages and
+`agent_conversation_messages` are business records, not a cache.
 A row id is the message's own UUIDv7 with Neuron's `msg_` prefix stripped, and the store calls
 `setId()` back so a reply carries its row id without a second query.
 
@@ -67,6 +68,97 @@ A row id is the message's own UUIDv7 with Neuron's `msg_` prefix stripped, and t
 | `ConversationMessageStore` | `KanvasGenericNeuronAgent`, userChat, scheduled actions, project manager |
 | `EntityRollupMessageStore` | customer-facing agents on a Lead / People, `FollowUpAgent` |
 | `ChannelMessageStore` | `SystemUserAgent` answering in a Social channel |
+
+## Archive and summarize: by identity, never by count
+
+`ChatHistory::addMessage()` archives `count(before) − count(after)` oldest rows after a trim. Our
+trimmer also folds consecutive same-role turns, which shortens the list without dropping a turn, so
+that count would stamp the wrong rows. `KanvasChatHistory` (what `resources()` builds) archives by
+identity instead: the fold records the ids it absorbed under `KanvasHistoryTrimmer::FOLDED_IDS`, and
+the rows archived are exactly the loaded ids that neither survived nor live on inside a survivor.
+`KanvasMessageStore::archive(count)` therefore stays a no-op everywhere; `archiveMessages(ids)` is the
+real hook, and only `ConversationMessageStore` implements it (`archived_at`).
+
+`KanvasSummarization` runs on `ChatNode` for agents whose store is the conversation store, at
+`contextWindow() * 0.8` keeping 8 messages. Three Kanvas rules on top of Neuron's middleware:
+
+- `flushAll()` archives the thread, never deletes it: the GraphQL transcript reads every row, the model
+  reads `loadActive()`. A kept-tail message re-appended after the flush has a row already, so
+  `persist()` un-archives it instead of inserting a duplicate, and gives it a fresh `sequence`: the
+  active window is ordered by that column, because a kept turn must follow the summary and neither
+  `created_at` (seconds) nor the uuid7 id (construction time) can say so. Legacy rows carry null and
+  sort first, where they belong.
+- The summary row carries `meta.__meta.summary = true` and `social_message_id`; the same text is written
+  to Social as a private `agent_summary` message (`AgentMessageTypeEnum`, distinct from the lead
+  `summary` verb) on the session channel and entity, with the covered id range, `archived_count` and the
+  token counts before and after. That write never fails the turn.
+- `EntityRollupMessageStore` lists `agent_summary` among its internal verbs and `ChannelMessageStore`
+  skips it, so a customer-facing agent never replays the agent's own compaction note.
+
+Thresholds are the `summarizationMaxTokens()` / `summarizationMessagesToKeep()` hooks; a test lowers
+them (`SummarizingNeuronAgentStub`) instead of generating 40K tokens of history.
+
+## Company memory: the tenant pair is the key, the thread is a filter
+
+v4's own semantic memory is keyed by thread id, the individual-assistant design. Here memory belongs
+to the company and the record: `ConversationMemoryNode` replaces `AgentEndNode` on agents whose
+`remembersForCompany()` is true (`SystemUserAgent` and subclasses, and every customer-facing agent on
+`HasProspectIsolatedHistory`; never a `privateUserTurn`) and writes the last human message plus
+the final reply as one `conversation` document into the shared knowledge collection, through
+`KnowledgeVectorStore` (the Neuron `VectorStoreInterface` over `TypesenseKnowledgeStore`). The
+document is keyed by the reply id so a replay upserts; `apps_id`, `companies_id`, `agent_id`,
+`users_id` and the subject entity ride as metadata. A failed embedding never fails the turn.
+
+Reading it back is `CompanyMemoryRetrieval`, composed with `KnowledgeRetrieval` in
+`HasKnowledgeRag::retrieval()`. It pins `apps_id`/`companies_id` itself AND `retrievalScope()` pins
+them again on every retrieval of the agent, so a per-run filter can narrow but never widen
+(`CompanyMemoryRetrievalTest`). **Who recalls what is decided by audience, not by the switch**
+(`recallMemoryScope()`): a `ConversesWithCustomer` agent gets `recordMemoryScope()`, the record it is on
+(and a Lead's person, which every channel session of that prospect is keyed to), so it remembers and
+improves with its customer and never sees another prospect (`CustomerFacingAgentMemoryTest`); no record
+in scope on a customer surface means no recall at all. An internal agent recalls the raw conversations
+**its own human** had with any agent, plus everything the company kept on purpose: saved memories
+(`remember`) and ledger outcomes. What Jenn told agent B is hers; a fact she asked an agent to remember,
+or a plan it approved, is the company's (`InternalAgentMemoryPrivacyTest`, Max's decision 2026-10-04).
+An internal turn with no human (a cron) recalls only the shared kinds. Hits reach the model labelled `[Earlier conversation, 2026-09-28]`,
+`[Saved memory, …]`, `[Ledger, …]` so it knows provenance and age. Uploaded knowledge stays the
+knowledge retrieval's job: memory only reads `source_type in (conversation, memory, ledger)`.
+
+Per-app switches (`KnowledgeConfigurationEnum`): `agent_memory_enabled` (off until a tenant asks: one
+embedding per qualifying turn on the app's key), `agent_memory_ingest_min_chars` (80),
+`agent_memory_result_limit` (4, on top of the knowledge limit), `agent_memory_retention_days` (365).
+
+Two more kinds reach the same store through the ledger (`LedgerKnowledgeSource`, registered in
+`KnowledgeSourceRegistry`, dispatched from `AppendEventAction::maybeIndexMemory()` through the queued
+`IndexKnowledgeJob`): a `remember` tool call (`agent.knowledge.saved`) as `source_type = memory`, kept
+as the agent wrote it and never pruned, and an allowlisted outcome (`plan.approved`, `task.completed`,
+`lead.status.changed`, `message.sent`, `agent.decision.*`) as `source_type = ledger`, one line of what
+happened, pruned like a conversation. Each `KnowledgeSource` now owns its `find()` and `isEnabledFor()`:
+the ledger table has no `is_deleted` and memory has its own switch, which is why the registry no longer
+queries models itself. `agents:prune-memory` (03:30 daily) applies the retention; `agents:reindex-memory
+--since --app` writes a window of past turns and outcomes for a first rollout or after an embedding
+outage, keyed like the live path so a re-run upserts. A test swaps the store and embeddings through `companyMemoryStore()` /
+`companyMemoryEmbeddings()` (`RememberingSystemUserAgentStub`) instead of needing Typesense; the live
+round trip is `KnowledgeVectorStoreTest`, skipped when no cluster is reachable.
+
+## Durable runs: resume, never restart
+
+`SystemUserAgent` and subclasses opt in (`durableRuns()`), behind the per-app `agent_durable_runs_enabled`
+(`AgentRunConfigurationEnum`). Active, `persistence()` keeps the run in Redis (`RedisPersistence`,
+prefix `kanvas:agent-run:`, phpredis client required; any other client falls back to in-memory with a
+warning). Every committed step, each tool result included, survives the worker.
+
+The engine's rules decide what happens next, so know them: a plain `chat()` on a thread with a dead run
+(status failed, or running with its 600s lease expired) **sweeps it and starts over**, tools included;
+`chat()` on a thread whose lease is still fresh throws `RunInFlightException`, because another worker is
+probably alive on it. Recovery is explicit: `recoverInterruptedRun($inbound)` inspects the thread and,
+only when the dead run was started by that same message, continues it by run id
+(`ExecutionRequest::start(..., runId, recoverFailed: true)`), replaying memoized tool results instead of
+running them. `RunNeuronChatAction` tries that before `chat()`, so a redelivered job never repeats a
+write (`DurableAgentRunTest`). A different message is a new turn.
+
+Neuron tool approvals leave a run Suspended; nothing here uses them, and a suspended durable run would
+refuse new chats on its thread until `abandon()`. Renaming a tool strands any run suspended on it.
 
 ## Tool-result budget: swap the tool, don't skip the call
 

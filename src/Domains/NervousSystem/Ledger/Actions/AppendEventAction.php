@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Ledger\Actions;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
+use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
+use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
+use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\LedgerConfigurationEnum;
 use Kanvas\NervousSystem\Ledger\Events\LedgerEventBroadcast;
@@ -41,8 +46,32 @@ class AppendEventAction
         $event->saveOrFail();
 
         $this->maybeBroadcast($event);
+        $this->maybeIndexMemory($event);
 
         return $event;
+    }
+
+    /**
+     * A saved memory or an allowlisted outcome becomes a company-memory document, queued so the embed
+     * never sits on the ledger write. Swallowed like the broadcast: the row is already persisted.
+     */
+    protected function maybeIndexMemory(Event $event): void
+    {
+        if ($event->companies_id < 1 || ! LedgerKnowledgeSource::wants($event->event_type)) {
+            return;
+        }
+
+        try {
+            $app = $this->data->app instanceof Apps ? $this->data->app : $event->app;
+
+            if (! KnowledgeComponents::memoryEnabled($app)) {
+                return;
+            }
+
+            KnowledgeIndexRequested::dispatch(KnowledgeEntity::fromModel($event));
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**

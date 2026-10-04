@@ -29,9 +29,7 @@ final class NeuronEmbeddingsAdapter implements EmbeddingsProviderInterface
     #[Override]
     public function embedDocument(Document $document): Document
     {
-        $document->embedding = $this->embedder->embed($document->getContent());
-
-        return $document;
+        return $document->setEmbedding($this->embedder->embed($document->getContent()));
     }
 
     #[Override]
@@ -43,7 +41,7 @@ final class NeuronEmbeddingsAdapter implements EmbeddingsProviderInterface
         );
 
         foreach ($documents as $index => $document) {
-            $document->embedding = $vectors[$index] ?? [];
+            $document->setEmbedding($vectors[$index] ?? null);
         }
 
         return $documents;
