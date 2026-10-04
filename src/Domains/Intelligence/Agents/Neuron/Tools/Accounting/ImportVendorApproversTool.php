@@ -21,22 +21,18 @@ class ImportVendorApproversTool extends Tool
     use HasKanvasContext;
     use ResolvesFilesystemForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'import_vendor_approvers',
-            description: 'Imports a whole vendor/approver spreadsheet (xlsx/csv) in one call — sets each vendor '
-                . 'Organization\'s approver email and links a real Kanvas User as its approver, creating the '
-                . 'Organization when nothing matches and linking to the closest existing one when there is '
-                . 'exactly one plausible candidate (flagged back as low-confidence, since that link is weaker '
-                . 'evidence than a normal match). Only a genuine tie between several similarly-plausible '
-                . 'candidates is left for manual resolution. Re-running with the same or an updated sheet only '
-                . 'touches vendors whose recorded approver actually differs. The sheet needs a "Vendor Name" '
-                . 'column and an "Approver Email" column (any other columns, e.g. "Approver Name", are ignored) '
-                . '— never guess column names, the sheet must have these exact headers somewhere in it. Use '
-                . 'this when the user attaches an updated vendor/approver list and asks to load it.',
-        );
-    }
+    protected string $name = 'import_vendor_approvers';
+
+    protected ?string $description = 'Imports a whole vendor/approver spreadsheet (xlsx/csv) in one call — sets each vendor '
+        . 'Organization\'s approver email and links a real Kanvas User as its approver, creating the '
+        . 'Organization when nothing matches and linking to the closest existing one when there is '
+        . 'exactly one plausible candidate (flagged back as low-confidence, since that link is weaker '
+        . 'evidence than a normal match). Only a genuine tie between several similarly-plausible '
+        . 'candidates is left for manual resolution. Re-running with the same or an updated sheet only '
+        . 'touches vendors whose recorded approver actually differs. The sheet needs a "Vendor Name" '
+        . 'column and an "Approver Email" column (any other columns, e.g. "Approver Name", are ignored) '
+        . '— never guess column names, the sheet must have these exact headers somewhere in it. Use '
+        . 'this when the user attaches an updated vendor/approver list and asks to load it.';
 
     /**
      * @return array<int, ToolProperty>

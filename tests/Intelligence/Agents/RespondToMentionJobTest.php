@@ -12,11 +12,12 @@ use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
-use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
+use Kanvas\Intelligence\Agents\Neuron\Stores\ChannelMessageStore;
 use Kanvas\Intelligence\Notifications\AgentRepliedToMentionNotification;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\NervousSystem\Ledger\Models\Event;
@@ -33,6 +34,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\Enums\SourceType;
+use NeuronAI\Chat\History\ChatHistory;
 use NeuronAI\Chat\Messages\ContentBlocks\AudioContent;
 use NeuronAI\Chat\Messages\ContentBlocks\FileContent;
 use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
@@ -152,7 +154,7 @@ class RespondToMentionJobTest extends TestCase
         $channel->addMessage($this->makeMessage($agentUser, 'Heads up: 3 SKUs are low', fromIa: true), $agentUser);
         $channel->addMessage($this->makeMessage($human, 'thanks, which ones?'), $human);
 
-        $turns = new ChannelMessageHistory($channel)->getMessages();
+        $turns = KanvasHistoryTrimmer::fold(new ChannelMessageStore($channel)->loadActive('thread'));
 
         $this->assertNotEmpty($turns);
         $this->assertSame(MessageRole::USER->value, $turns[0]->getRole());
@@ -347,7 +349,7 @@ class RespondToMentionJobTest extends TestCase
         $channel->addMessage($this->makeMessage($bob, 'hi this is bob'), $bob);
 
         $text = '';
-        foreach (new ChannelMessageHistory($channel)->getMessages() as $turn) {
+        foreach (KanvasHistoryTrimmer::fold(new ChannelMessageStore($channel)->loadActive('thread')) as $turn) {
             $text .= (is_string($turn->getContent()) ? $turn->getContent() : '') . "\n";
         }
 
@@ -554,7 +556,7 @@ class RespondToMentionJobTest extends TestCase
 
     public function testChannelHistoryPreservesAPdfBlockWhenTheMentionCoalescesIntoThePriorTurn(): void
     {
-        // Regression: ChannelMessageHistory coalesces consecutive same-role turns via setContents(),
+        // Regression: KanvasHistoryTrimmer folds consecutive same-role turns via setContents(),
         // which resets the block list to text only. A PDF on the incoming @mention (a user turn folding
         // into the prior user turn) was silently dropped before reaching the model — so a capable model
         // that CAN read the PDF still answered "I can't see the file". The media block must survive.
@@ -563,7 +565,12 @@ class RespondToMentionJobTest extends TestCase
         // A prior human turn so the incoming mention (same USER role) coalesces into it.
         $channel->addMessage($this->makeMessage($human, 'here is some background on the deal'), $human);
 
-        $history = new ChannelMessageHistory($channel);
+        $history = new ChatHistory(
+            new ChannelMessageStore($channel),
+            'thread',
+            50_000,
+            KanvasHistoryTrimmer::make(),
+        );
 
         $mention = new UserMessage('please review the attached contract');
         $mention->addContent(

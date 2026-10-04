@@ -17,16 +17,12 @@ use Yasumi\Yasumi;
 #[AgentTool(name: 'Company Information', category: 'crm')]
 class CompanyInformationTool extends Tool
 {
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_company_information',
-            description: 'Get the full company profile (name, contact details, address, timezone, language, photo) '
-                . 'together with the work schedule: weekly hours, working days, observed holidays, '
-                . 'current open/closed status, next open time, and the holiday calendar for the current year '
-                . '(federal holidays + whether the company stays open on each).',
-        );
-    }
+    protected string $name = 'get_company_information';
+
+    protected ?string $description = 'Get the full company profile (name, contact details, address, timezone, language, photo) '
+        . 'together with the work schedule: weekly hours, working days, observed holidays, '
+        . 'current open/closed status, next open time, and the holiday calendar for the current year '
+        . '(federal holidays + whether the company stays open on each).';
 
     #[Override]
     protected function properties(): array

@@ -28,7 +28,6 @@ use Kanvas\Scribe\Bills\Exceptions\DuplicateBillNumberException;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -41,27 +40,23 @@ use Throwable;
 
 /** Creates an AP bill (one line, or several via lines) and, by default, auto-approves it and pushes it to Acumatica in one step. */
 #[AgentTool(name: 'Create AP Bill', category: 'accounting')]
-class CreateApBillTool extends Tool implements HasRunKey
+class CreateApBillTool extends Tool
 {
     use HasKanvasContext;
     use ReadsApprovalSourceFields;
     use StoresApprovalSourceFields;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_ap_bill',
-            description: 'Creates an AP bill — one line via amount/gl_account_number, or several via lines when '
-                . 'the invoice has more than one line item. By default also auto-approves it and pushes it to '
-                . 'Acumatica in one step, returning the Acumatica bill reference — bypassing the normal human '
-                . 'approval gate, so only do this when the user explicitly asks to create a bill this way, never '
-                . 'on a whim. Set push_to_acumatica to false to just create the bill and submit it for approval '
-                . '(status: pending_approval) without touching Acumatica — this is the default for the standard '
-                . 'automatic invoice-processing flow, where a human approves it later and the push happens '
-                . 'separately.',
-        );
-    }
+    protected string $name = 'create_ap_bill';
+
+    protected ?string $description = 'Creates an AP bill — one line via amount/gl_account_number, or several via lines when '
+        . 'the invoice has more than one line item. By default also auto-approves it and pushes it to '
+        . 'Acumatica in one step, returning the Acumatica bill reference — bypassing the normal human '
+        . 'approval gate, so only do this when the user explicitly asks to create a bill this way, never '
+        . 'on a whim. Set push_to_acumatica to false to just create the bill and submit it for approval '
+        . '(status: pending_approval) without touching Acumatica — this is the default for the standard '
+        . 'automatic invoice-processing flow, where a human approves it later and the push happens '
+        . 'separately.';
 
     /**
      * @return array<int, ToolPropertyInterface>

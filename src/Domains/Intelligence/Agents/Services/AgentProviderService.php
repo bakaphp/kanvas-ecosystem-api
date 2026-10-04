@@ -18,7 +18,7 @@ use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOllama;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAI;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAILike;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
-use NeuronAI\HttpClient\GuzzleHttpClient;
+use NeuronAI\HttpClient\Guzzle\GuzzleHttpClient;
 use NeuronAI\Providers\AIProviderInterface;
 
 class AgentProviderService

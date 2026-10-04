@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Services;
 
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
+use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
 use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\Messages\Message;
 
 /**
- * Reads through the agent's own history loader so a summary sees exactly what the agent saw —
+ * Reads through the agent's own store and fold so a summary sees exactly what the agent saw —
  * every channel for the lead, internal verbs (and earlier summaries) already filtered out.
  */
 class LeadConversationTranscriptService
@@ -26,7 +27,7 @@ class LeadConversationTranscriptService
             return [];
         }
 
-        $history = new SalesAssistKanvasMessageHistory(
+        $store = new EntityRollupMessageStore(
             app: $lead->app,
             company: $lead->company,
             user: $user,
@@ -45,7 +46,7 @@ class LeadConversationTranscriptService
                     ? "[Agent] {$content}"
                     : $content;
             },
-            $history->getMessages(),
+            KanvasHistoryTrimmer::fold($store->loadActive($lead->uuid)),
         )));
     }
 }

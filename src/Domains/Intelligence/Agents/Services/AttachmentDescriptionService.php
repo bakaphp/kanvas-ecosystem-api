@@ -227,7 +227,7 @@ class AttachmentDescriptionService
             $message->addContent($block);
 
             $response = $this->provider->chat($message);
-            $description = $this->normalize((string) ($response->getContent() ?? ''));
+            $description = $this->normalize((string) ($response->message()->getContent() ?? ''));
 
             if ($description === '') {
                 return '';

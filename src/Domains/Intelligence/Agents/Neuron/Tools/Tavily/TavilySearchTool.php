@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Tavily;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTavilyClientForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -19,23 +18,19 @@ use Throwable;
  * budget of 10 would abort the whole turn on the eleventh.
  */
 #[AgentTool(name: 'Tavily Search', category: 'knowledge')]
-class TavilySearchTool extends Tool implements HasRunKey
+class TavilySearchTool extends Tool
 {
     use ResolvesTavilyClientForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'tavily_search',
-            description: 'Search the live web and get back a short synthesized answer plus the sources it '
-                . 'came from. Use it for anything outside Kanvas data — company research, market and '
-                . 'competitor questions, news, prices, public facts, or checking something you are not '
-                . 'sure is still true. Write a specific query naming the company or subject and exactly '
-                . 'what you need, not a bare keyword. You get snippets per source, not whole pages — when '
-                . 'you need the complete text of a page, use the URL-reading tool instead.',
-        );
-    }
+    protected string $name = 'tavily_search';
+
+    protected ?string $description = 'Search the live web and get back a short synthesized answer plus the sources it '
+        . 'came from. Use it for anything outside Kanvas data — company research, market and '
+        . 'competitor questions, news, prices, public facts, or checking something you are not '
+        . 'sure is still true. Write a specific query naming the company or subject and exactly '
+        . 'what you need, not a bare keyword. You get snippets per source, not whole pages — when '
+        . 'you need the complete text of a page, use the URL-reading tool instead.';
 
     /**
      * @return array<int, ToolProperty>

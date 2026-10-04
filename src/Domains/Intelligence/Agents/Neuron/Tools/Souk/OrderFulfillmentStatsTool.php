@@ -19,17 +19,13 @@ class OrderFulfillmentStatsTool extends Tool
     use HasKanvasContext;
     use ParsesOrderTypesFilter;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'order_fulfillment_stats',
-            description: 'Operational pipeline health: order counts and amounts grouped by payment status and by '
-                . 'fulfillment status, plus two backlogs — orders already paid but not yet fulfilled, and open '
-                . 'orders that have not been collected. Use for "what do we owe customers", "how many orders are '
-                . 'waiting to ship", "how much money is uncollected", "are we behind on fulfillment". Backlogs '
-                . 'exclude draft, cancelled and failed orders; the two status breakdowns include every order.',
-        );
-    }
+    protected string $name = 'order_fulfillment_stats';
+
+    protected ?string $description = 'Operational pipeline health: order counts and amounts grouped by payment status and by '
+        . 'fulfillment status, plus two backlogs — orders already paid but not yet fulfilled, and open '
+        . 'orders that have not been collected. Use for "what do we owe customers", "how many orders are '
+        . 'waiting to ship", "how much money is uncollected", "are we behind on fulfillment". Backlogs '
+        . 'exclude draft, cancelled and failed orders; the two status breakdowns include every order.';
 
     /**
      * @return array<int, ToolProperty>

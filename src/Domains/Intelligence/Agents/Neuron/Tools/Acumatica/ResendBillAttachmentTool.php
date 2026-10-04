@@ -18,16 +18,12 @@ use Override;
 #[AgentTool(name: 'Resend Bill Attachment', category: 'accounting')]
 class ResendBillAttachmentTool extends AbstractResendApprovalAttachmentTool
 {
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'resend_bill_attachment',
-            description: 'Re-sends a pending bill\'s invoice PDF to its configured approver(s) on Slack. Use '
-                . 'this when an approver says they did not receive the attachment with their approval request. '
-                . 'Only works if an invoice PDF was captured when the bill was created — reports plainly when '
-                . 'there is nothing on file to resend, rather than failing silently.',
-        );
-    }
+    protected string $name = 'resend_bill_attachment';
+
+    protected ?string $description = 'Re-sends a pending bill\'s invoice PDF to its configured approver(s) on Slack. Use '
+        . 'this when an approver says they did not receive the attachment with their approval request. '
+        . 'Only works if an invoice PDF was captured when the bill was created — reports plainly when '
+        . 'there is nothing on file to resend, rather than failing silently.';
 
     /**
      * @return array<string, mixed>

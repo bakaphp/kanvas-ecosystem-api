@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Souk\Orders\Models\Order;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,24 +20,20 @@ use Override;
  * orders; reports found=false when the order isn't in Kanvas.
  */
 #[AgentTool(name: 'Find Sales Order', category: 'commerce')]
-class FindSalesOrderTool extends Tool implements HasRunKey
+class FindSalesOrderTool extends Tool
 {
     use FindsTenantRecordForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_sales_order',
-            description: 'Look up a single sales order (a CUSTOMER order — what a customer bought from us) by its '
-                . 'number: customer, status, fulfillment/payment status, total, line items (product, sku, '
-                . 'quantity ordered/fulfilled, unit price), and any affiliate commission recorded for the order '
-                . '(affiliate, commission amount/rate/type, status). Use this for a specific sales-order number, '
-                . 'including "does this order have an affiliate commission". An empty affiliate_commissions list '
-                . 'means the order truly has none. Returns found=false when it is not in the synced data.',
-        );
-    }
+    protected string $name = 'find_sales_order';
+
+    protected ?string $description = 'Look up a single sales order (a CUSTOMER order — what a customer bought from us) by its '
+        . 'number: customer, status, fulfillment/payment status, total, line items (product, sku, '
+        . 'quantity ordered/fulfilled, unit price), and any affiliate commission recorded for the order '
+        . '(affiliate, commission amount/rate/type, status). Use this for a specific sales-order number, '
+        . 'including "does this order have an affiliate commission". An empty affiliate_commissions list '
+        . 'means the order truly has none. Returns found=false when it is not in the synced data.';
 
     /**
      * @return array<int, ToolProperty>

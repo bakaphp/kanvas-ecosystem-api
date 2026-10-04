@@ -8,7 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\InventorySearchTool;
 use Laravel\Scout\Builder;
 use Mockery;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 
 final class NeuronInventorySearchToolTest extends TestCase
@@ -87,7 +87,7 @@ final class NeuronInventorySearchToolTest extends TestCase
     {
         $tool = new InventorySearchTool();
 
-        $this->assertInstanceOf(HasRunKey::class, $tool);
+        $this->assertContains(TrackByInputs::class, class_uses_recursive($tool));
 
         $tool->setInputs(['product_name' => 'BMW 760i']);
         $firstKey = $tool->getRunKey();

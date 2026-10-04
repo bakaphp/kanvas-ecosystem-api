@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Enums\ArtifactComponentEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,18 +23,17 @@ use Override;
  * per-name budget aborted the whole turn on the 11th (KANVAS-ECOSYSTEM-6H4).
  */
 #[AgentTool(name: 'Render Artifact', category: 'ecosystem')]
-class RenderArtifactTool extends Tool implements HasRunKey
+class RenderArtifactTool extends Tool
 {
     use DecodesJsonObjectParam;
     use ReportsToolOutcome;
     use TrackByInputs;
 
+    protected string $name = 'render_artifact';
+
     public function __construct()
     {
-        parent::__construct(
-            name: 'render_artifact',
-            description: self::describe(),
-        );
+        $this->description = self::describe();
     }
 
     #[Override]

@@ -24,20 +24,19 @@ class ListMyOrdersTool extends Tool
 {
     use ResolvesShopperOrdersForTool;
 
+    protected string $name = 'list_my_orders';
+
+    protected ?string $description = 'Lists the signed-in shopper\'s own orders, newest first, with status, fulfillment '
+        . 'status, date and total. Use it for "my orders", "my last order", "anything still on the '
+        . 'way". Only works when the shopper is signed in — for an anonymous shopper use '
+        . 'find_my_order with an order number and email instead.';
+
     private const int DEFAULT_LIMIT = 10;
     private const int MAX_LIMIT = 25;
 
     public function __construct(?Session $session = null)
     {
         $this->session = $session;
-
-        parent::__construct(
-            name: 'list_my_orders',
-            description: 'Lists the signed-in shopper\'s own orders, newest first, with status, fulfillment '
-                . 'status, date and total. Use it for "my orders", "my last order", "anything still on the '
-                . 'way". Only works when the shopper is signed in — for an anonymous shopper use '
-                . 'find_my_order with an order number and email instead.',
-        );
     }
 
     /**

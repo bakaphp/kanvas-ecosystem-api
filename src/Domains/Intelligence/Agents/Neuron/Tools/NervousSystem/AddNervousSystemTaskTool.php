@@ -11,7 +11,6 @@ use Kanvas\NervousSystem\Plan\Actions\AddTaskAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,20 +23,16 @@ use Override;
  * first-class task like any other.
  */
 #[AgentTool(name: 'Add Task', category: 'nervous_system')]
-class AddNervousSystemTaskTool extends Tool implements HasRunKey
+class AddNervousSystemTaskTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
     use ResolvesPlanForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'add_nervous_system_task',
-            description: 'Add a task to a Nervous System plan. Use this to break work down into concrete, '
-                . 'assignable steps under a plan.',
-        );
-    }
+    protected string $name = 'add_nervous_system_task';
+
+    protected ?string $description = 'Add a task to a Nervous System plan. Use this to break work down into concrete, '
+        . 'assignable steps under a plan.';
 
     /**
      * @return array<int, ToolProperty>

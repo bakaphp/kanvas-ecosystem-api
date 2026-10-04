@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\NervousSystem\Plan\Actions\DeleteTaskAction;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Models\Project;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,21 +21,17 @@ use Override;
  * via DeleteTaskAction and rolls the project's completion back up.
  */
 #[AgentTool(name: 'Delete Task', category: 'nervous_system')]
-class DeleteNervousSystemTaskTool extends Tool implements HasRunKey
+class DeleteNervousSystemTaskTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
     use ResolvesTaskForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'delete_nervous_system_task',
-            description: 'Remove a task that is no longer needed (superseded, duplicate, or created in error). '
-                . 'Prefer marking a task skipped/done over deleting when it actually happened; delete only when '
-                . 'the task should not exist.',
-        );
-    }
+    protected string $name = 'delete_nervous_system_task';
+
+    protected ?string $description = 'Remove a task that is no longer needed (superseded, duplicate, or created in error). '
+        . 'Prefer marking a task skipped/done over deleting when it actually happened; delete only when '
+        . 'the task should not exist.';
 
     /**
      * @return array<int, ToolProperty>

@@ -27,16 +27,12 @@ class ReassignDealOwnerTool extends Tool
     use HasKanvasContext;
     use ResolvesCompanyUserForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'reassign_deal_owner',
-            description: 'Assign a deal to another person (change the owner / assigned sales rep). Provide the deal_id '
-                . 'and the new owner\'s name or email. Use search_deals first to find the deal_id and confirm the '
-                . 'current owner. If the name matches several people the tool returns the candidates — ask which one, '
-                . 'then call again with their email. Only users of this company can be assigned.',
-        );
-    }
+    protected string $name = 'reassign_deal_owner';
+
+    protected ?string $description = 'Assign a deal to another person (change the owner / assigned sales rep). Provide the deal_id '
+        . 'and the new owner\'s name or email. Use search_deals first to find the deal_id and confirm the '
+        . 'current owner. If the name matches several people the tool returns the candidates — ask which one, '
+        . 'then call again with their email. Only users of this company can be assigned.';
 
     /**
      * @return array<int, ToolProperty>

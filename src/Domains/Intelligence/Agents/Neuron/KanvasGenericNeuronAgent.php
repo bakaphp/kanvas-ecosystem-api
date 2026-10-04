@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
+use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
-use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
-use NeuronAI\Chat\History\AbstractChatHistory;
-use NeuronAI\Chat\History\InMemoryChatHistory;
+use NeuronAI\Chat\History\MessageStoreInterface;
 use Override;
 
 #[AgentTypeDefinition(
@@ -24,34 +23,15 @@ class KanvasGenericNeuronAgent extends BaseKanvasAgent
     use MergesRegisteredTools;
 
     #[Override]
-    protected function chatHistory(): AbstractChatHistory
+    protected function messageStore(): MessageStoreInterface
     {
-        if ($this->user === null || $this->app === null || $this->company === null) {
-            return new InMemoryChatHistory();
-        }
-
-        return new KanvasMessageHistory(
-            app: $this->app,
-            company: $this->company,
-            user: $this->user,
-            agentClass: static::class,
-            // userChat sets threadId (=session uuid); the channel path leaves it null but carries a
-            // stable session — either way this keys the conversation to one thread per session.
-            sessionId: $this->threadId ?? $this->session?->uuid,
-            agent: $this->agent,
-            turnMedia: $this->turnMedia,
-            model: $this->resolvedModelName(),
-            privateUserTurn: $this->privateUserTurn,
-            contextWindow: $this->resolvedContextWindow(),
-            participant: KanvasConversationStore::participantFor($this->session, $this->user, $this->agent),
-        );
+        return $this->conversationStore();
     }
 
     /**
-     * KanvasMessageHistory already persists every turn (with usage + agent_id) to the conversation
-     * store, so RunNeuronChatAction must NOT also logTurn — that's what produced a duplicate
-     * conversation per chat. Agents whose history writes elsewhere (SalesAssist → Social messages)
-     * leave this false so logTurn stays their only usage record.
+     * ConversationMessageStore already persists every turn (with usage + agent_id), so RunNeuronChatAction
+     * must NOT also logTurn or every chat gets a duplicate conversation. Agents on the rollup store write
+     * to Social messages instead and leave this false so logTurn stays their only usage record.
      */
     #[Override]
     public function persistsTurnsToConversationStore(): bool

@@ -20,15 +20,15 @@ use Throwable;
 #[AgentTool(name: 'Send Slack DM', category: 'ecosystem')]
 class SendSlackDirectMessageTool extends Tool
 {
+    protected string $name = 'send_slack_direct_message';
+
+    protected ?string $description = 'Send a private direct message on Slack to a specific teammate, identified by their '
+        . 'email address. Use it only when someone explicitly asks you to DM / privately message a '
+        . 'named teammate on Slack. The recipient must be a member of this company — you cannot DM '
+        . 'arbitrary people. Still reply in the current conversation after sending.';
+
     public function __construct(private readonly ?Agent $agent = null)
     {
-        parent::__construct(
-            name: 'send_slack_direct_message',
-            description: 'Send a private direct message on Slack to a specific teammate, identified by their '
-                . 'email address. Use it only when someone explicitly asks you to DM / privately message a '
-                . 'named teammate on Slack. The recipient must be a member of this company — you cannot DM '
-                . 'arbitrary people. Still reply in the current conversation after sending.',
-        );
     }
 
     /**

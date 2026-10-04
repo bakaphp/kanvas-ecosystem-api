@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Actions\DeletePlanAction;
 use Kanvas\NervousSystem\Project\Models\Project;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,21 +21,17 @@ use Override;
  * Prefer status=done/cancelled via update_plan when the work actually happened or was decided against.
  */
 #[AgentTool(name: 'Delete Plan', category: 'nervous_system')]
-class DeleteNervousSystemPlanTool extends Tool implements HasRunKey
+class DeleteNervousSystemPlanTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
     use ResolvesPlanForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'delete_nervous_system_plan',
-            description: 'Remove a plan and its tasks (superseded or created in error). Prefer marking a '
-                . 'plan done or cancelled via update_nervous_system_plan; delete only when the plan should '
-                . 'not exist at all.',
-        );
-    }
+    protected string $name = 'delete_nervous_system_plan';
+
+    protected ?string $description = 'Remove a plan and its tasks (superseded or created in error). Prefer marking a '
+        . 'plan done or cancelled via update_nervous_system_plan; delete only when the plan should '
+        . 'not exist at all.';
 
     /**
      * @return array<int, ToolProperty>

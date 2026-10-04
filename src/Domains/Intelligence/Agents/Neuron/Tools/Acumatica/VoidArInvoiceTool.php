@@ -22,15 +22,11 @@ class VoidArInvoiceTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'void_ar_invoice',
-            description: 'Voids a previously-pushed AR invoice\'s cash receipt in Acumatica by creating and '
-                . 'releasing a Refund for the same amount, reversing the cash impact. Bypasses the normal human '
-                . 'approval gate — use only when the user explicitly asks to void an invoice this way.',
-        );
-    }
+    protected string $name = 'void_ar_invoice';
+
+    protected ?string $description = 'Voids a previously-pushed AR invoice\'s cash receipt in Acumatica by creating and '
+        . 'releasing a Refund for the same amount, reversing the cash impact. Bypasses the normal human '
+        . 'approval gate — use only when the user explicitly asks to void an invoice this way.';
 
     /**
      * @return array<int, ToolProperty>

@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ReadsActivityForEntity;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesOrganizationForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -15,21 +14,17 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Read Organization Activity', category: 'crm')]
-class ReadOrganizationActivityTool extends Tool implements HasRunKey
+class ReadOrganizationActivityTool extends Tool
 {
     use ReadsActivityForEntity;
     use ResolvesOrganizationForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'read_organization_activity',
-            description: 'Read an organization\'s (account\'s) Activity thread — the notes, logged calls, emails and system '
-                . 'events the team sees on that account, newest first. Use it before summarizing an account or preparing '
-                . 'a renewal or check-in. Identify the account by organization_id or organization_name.',
-        );
-    }
+    protected string $name = 'read_organization_activity';
+
+    protected ?string $description = 'Read an organization\'s (account\'s) Activity thread — the notes, logged calls, emails and system '
+        . 'events the team sees on that account, newest first. Use it before summarizing an account or preparing '
+        . 'a renewal or check-in. Identify the account by organization_id or organization_name.';
 
     /**
      * @return array<int, ToolProperty>

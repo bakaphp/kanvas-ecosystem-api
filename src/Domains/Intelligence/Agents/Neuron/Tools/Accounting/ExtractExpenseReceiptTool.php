@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
 use Kanvas\Scribe\PdfIngest\Exceptions\UnsupportedDocumentTypeException;
 use Kanvas\Scribe\PdfIngest\Traits\ResolvesPdfClassifierTrait;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -29,7 +28,7 @@ use Throwable;
  * / date / tax and says plainly when the document does not look like a receipt at all.
  */
 #[AgentTool(name: 'Extract Expense Receipt', category: 'accounting')]
-class ExtractExpenseReceiptTool extends Tool implements HasRunKey
+class ExtractExpenseReceiptTool extends Tool
 {
     use HasKanvasContext;
     use ReportsToolOutcome;
@@ -38,16 +37,12 @@ class ExtractExpenseReceiptTool extends Tool implements HasRunKey
     use ScalarCoercionTrait;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'extract_expense_receipt',
-            description: 'Reads a receipt already uploaded to Kanvas (a restaurant bill, hotel folio, taxi or fuel '
-                . 'slip, a SaaS charge) and returns the merchant, total, tax, date and currency. Read it before '
-                . 'filing the expense so the amount comes off the receipt itself rather than from what someone '
-                . 'remembers. For a vendor invoice the company still has to pay, use extract_invoice_data instead.',
-        );
-    }
+    protected string $name = 'extract_expense_receipt';
+
+    protected ?string $description = 'Reads a receipt already uploaded to Kanvas (a restaurant bill, hotel folio, taxi or fuel '
+        . 'slip, a SaaS charge) and returns the merchant, total, tax, date and currency. Read it before '
+        . 'filing the expense so the amount comes off the receipt itself rather than from what someone '
+        . 'remembers. For a vendor invoice the company still has to pay, use extract_invoice_data instead.';
 
     /**
      * @return array<int, ToolProperty>

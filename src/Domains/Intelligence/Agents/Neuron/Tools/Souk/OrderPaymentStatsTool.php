@@ -19,16 +19,12 @@ class OrderPaymentStatsTool extends Tool
     use HasKanvasContext;
     use ParsesOrderTypesFilter;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'order_payment_stats',
-            description: 'Paid-transaction money stats: total paid amount, paid-order count, average order value, '
-                . 'and the card-vs-other payment-method mix. Optional date range and order-type filter. Use for '
-                . '"how much did we collect", "recharge revenue this month", "card vs cash/transfer split". Amounts '
-                . 'are net of discounts. By default only orders with payment_status=paid are counted.',
-        );
-    }
+    protected string $name = 'order_payment_stats';
+
+    protected ?string $description = 'Paid-transaction money stats: total paid amount, paid-order count, average order value, '
+        . 'and the card-vs-other payment-method mix. Optional date range and order-type filter. Use for '
+        . '"how much did we collect", "recharge revenue this month", "card vs cash/transfer split". Amounts '
+        . 'are net of discounts. By default only orders with payment_status=paid are counted.';
 
     /**
      * @return array<int, ToolProperty>

@@ -12,8 +12,9 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
+use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Intelligence\Agents\Services\NativeChannelDeliveryService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
@@ -27,6 +28,7 @@ use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Chat\History\ChatHistory;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\UserMessage;
 use ReflectionMethod;
@@ -235,7 +237,7 @@ class ScheduledActionChannelDeliveryTest extends TestCase
 
         // privateUserTurn: true is how the kernel configures the handler for an injected wake — the user
         // turn lands as is_public=0 (the frontend hides it), the agent's reply stays visible.
-        $history = new KanvasMessageHistory(
+        $store = new ConversationMessageStore(
             app: $app,
             company: $company,
             user: $user,
@@ -244,11 +246,17 @@ class ScheduledActionChannelDeliveryTest extends TestCase
             agent: $agent,
             privateUserTurn: true,
         );
+        $history = new ChatHistory(
+            $store,
+            $sessionUuid,
+            1_000_000,
+            KanvasHistoryTrimmer::make(),
+        );
 
         $history->addMessage(new UserMessage('Check the support queue and follow up with anyone waiting'));
         $history->addMessage(new AssistantMessage('Followed up with 2 leads.'));
 
-        $conversationId = $history->getConversationId();
+        $conversationId = $store->conversationId($sessionUuid);
 
         $wakeRow = DB::connection('intelligence')->table('agent_conversation_messages')
             ->where('conversation_id', $conversationId)->where('role', 'user')->first();

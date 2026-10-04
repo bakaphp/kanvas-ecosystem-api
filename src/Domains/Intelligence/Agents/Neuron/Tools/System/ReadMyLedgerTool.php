@@ -19,17 +19,17 @@ use Override;
 #[AgentTool(name: 'Read My Ledger', category: 'ecosystem')]
 class ReadMyLedgerTool extends Tool
 {
+    protected string $name = 'read_my_ledger';
+
+    protected ?string $description = 'Recall your own recent actions from the nervous-system ledger for this company — both events you emitted directly and '
+        . 'the Kanvas records you created as your own user. Use it to avoid repeating work (e.g. do not re-contact someone you already '
+        . 'handled) and to ground yourself before acting.';
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'read_my_ledger',
-            description: 'Recall your own recent actions from the nervous-system ledger for this company — both events you emitted directly and '
-                . 'the Kanvas records you created as your own user. Use it to avoid repeating work (e.g. do not re-contact someone you already '
-                . 'handled) and to ground yourself before acting.',
-        );
     }
 
     #[Override]

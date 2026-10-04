@@ -26,19 +26,19 @@ use Throwable;
 #[AgentTool(name: 'Create Message', category: 'social')]
 class CreateMessageTool extends Tool
 {
+    protected string $name = 'create_message';
+
+    protected ?string $description = 'Persist a generated Social message without posting it to a channel or sending it externally. '
+        . 'The body can be plain text or a JSON object of named fields, and photos or documents can be '
+        . 'attached by public URL. Whatever the company has set up to run on this message type will pick '
+        . 'the message up on its own — use the verb the company actually uses for this kind of record. '
+        . 'Returns the message_id needed by add_message_to_channel.';
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Users $user,
     ) {
-        parent::__construct(
-            name: 'create_message',
-            description: 'Persist a generated Social message without posting it to a channel or sending it externally. '
-                . 'The body can be plain text or a JSON object of named fields, and photos or documents can be '
-                . 'attached by public URL. Whatever the company has set up to run on this message type will pick '
-                . 'the message up on its own — use the verb the company actually uses for this kind of record. '
-                . 'Returns the message_id needed by add_message_to_channel.',
-        );
     }
 
     #[Override]

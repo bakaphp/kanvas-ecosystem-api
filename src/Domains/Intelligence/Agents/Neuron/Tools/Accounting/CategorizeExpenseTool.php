@@ -13,7 +13,6 @@ use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
 use Kanvas\Scribe\Ledger\Enums\AccountTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -30,22 +29,18 @@ use Throwable;
  * not a field edit.
  */
 #[AgentTool(name: 'Categorize Expense', category: 'accounting')]
-class CategorizeExpenseTool extends Tool implements HasRunKey
+class CategorizeExpenseTool extends Tool
 {
     use HasKanvasContext;
     use ReportsToolOutcome;
     use ResolvesExpenseForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'categorize_expense',
-            description: 'Books a DRAFT expense against a different expense account — "this is software, not '
-                . 'travel". Pass the account by number or by name. It cannot change an expense that is already '
-                . 'approved, because the account is part of a posted journal entry by then.',
-        );
-    }
+    protected string $name = 'categorize_expense';
+
+    protected ?string $description = 'Books a DRAFT expense against a different expense account — "this is software, not '
+        . 'travel". Pass the account by number or by name. It cannot change an expense that is already '
+        . 'approved, because the account is part of a posted journal entry by then.';
 
     /**
      * @return array<int, ToolProperty>

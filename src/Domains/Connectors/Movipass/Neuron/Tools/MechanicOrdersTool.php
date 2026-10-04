@@ -8,7 +8,6 @@ use Kanvas\Connectors\Movipass\Repositories\MechanicOrdersRepository;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Souk\Orders\Models\Order;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -16,21 +15,17 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Mechanic Orders', category: 'commerce')]
-class MechanicOrdersTool extends Tool implements HasRunKey
+class MechanicOrdersTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'movipass_mechanic_orders',
-            description: 'Roadside-assistance cases attached to a mechanic — either the ones assigned to them or '
-                . 'the ones they were notified about. Use for "what is mechanic X working on", "how many cases did '
-                . 'this tow driver take", "which cases were offered to him". Resolve the mechanic id with '
-                . 'movipass_list_mechanics first. Omit mechanic_id to list every roadside case in the range.',
-        );
-    }
+    protected string $name = 'movipass_mechanic_orders';
+
+    protected ?string $description = 'Roadside-assistance cases attached to a mechanic — either the ones assigned to them or '
+        . 'the ones they were notified about. Use for "what is mechanic X working on", "how many cases did '
+        . 'this tow driver take", "which cases were offered to him". Resolve the mechanic id with '
+        . 'movipass_list_mechanics first. Omit mechanic_id to list every roadside case in the range.';
 
     /**
      * @return array<int, ToolProperty>

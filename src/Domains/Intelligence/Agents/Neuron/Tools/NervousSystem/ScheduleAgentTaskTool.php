@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Scheduling\DataTransferObject\ScheduledAction as ScheduledActionData;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
 use Kanvas\NervousSystem\Scheduling\Services\ScheduledActionTimezoneResolver;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,25 +21,25 @@ use Override;
 use Throwable;
 
 #[AgentTool(name: 'Schedule Agent Task', category: 'nervous_system')]
-class ScheduleAgentTaskTool extends Tool implements HasRunKey
+class ScheduleAgentTaskTool extends Tool
 {
     use CreatesScheduledActionFromTool;
     use HasKanvasContext;
     use ResolvesConversationHuman;
     use TrackByInputs;
 
+    protected string $name = 'schedule_agent_task';
+
+    protected ?string $description = 'Schedule yourself to do something at a future time — you will be woken with the '
+        . 'instruction and can use all your tools then. Call current_time FIRST, then pass run_at as '
+        . '"YYYY-MM-DD HH:MM" in the user\'s local time. For a repeating task pass recurrence_cron '
+        . '(standard 5-field cron, at most every 15 minutes) and omit run_at. Use schedule_reminder '
+        . 'instead if you only need to deliver a message.';
+
     public function __construct(
         private readonly ?Agent $agent = null,
         private readonly ?Session $session = null,
     ) {
-        parent::__construct(
-            name: 'schedule_agent_task',
-            description: 'Schedule yourself to do something at a future time — you will be woken with the '
-                . 'instruction and can use all your tools then. Call current_time FIRST, then pass run_at as '
-                . '"YYYY-MM-DD HH:MM" in the user\'s local time. For a repeating task pass recurrence_cron '
-                . '(standard 5-field cron, at most every 15 minutes) and omit run_at. Use schedule_reminder '
-                . 'instead if you only need to deliver a message.',
-        );
     }
 
     /**

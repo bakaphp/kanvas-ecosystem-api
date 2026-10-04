@@ -18,7 +18,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateSampleOrderAction;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -33,21 +32,17 @@ use Spatie\LaravelData\DataCollection;
  * must already be synced as a product.
  */
 #[AgentTool(name: 'Create Sample Order', category: 'commerce')]
-class CreateSampleOrderTool extends Tool implements HasRunKey
+class CreateSampleOrderTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_sample_order',
-            description: 'Create a $0 sample/giveaway sales order for a reviewer or contact. Provide the '
-                . 'customer email + name, the product SKU, and quantity. It is created as a DRAFT in Kanvas — '
-                . 'it is NOT sent to the ERP until a human approves it. Returns created=false with a reason if '
-                . 'the SKU is not synced.',
-        );
-    }
+    protected string $name = 'create_sample_order';
+
+    protected ?string $description = 'Create a $0 sample/giveaway sales order for a reviewer or contact. Provide the '
+        . 'customer email + name, the product SKU, and quantity. It is created as a DRAFT in Kanvas — '
+        . 'it is NOT sent to the ERP until a human approves it. Returns created=false with a reason if '
+        . 'the SKU is not synced.';
 
     /**
      * @return array<int, ToolProperty>

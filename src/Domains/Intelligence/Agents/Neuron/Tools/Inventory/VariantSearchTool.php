@@ -18,15 +18,15 @@ class VariantSearchTool extends Tool
     // The tenant comes from the agent context, never from LLM-supplied ids, which are prompt-injectable.
     use HasKanvasContext;
 
+    protected string $name = 'variant_search';
+
+    protected ?string $description = 'Search product variants through the configured search engine by name, SKU, EAN, or barcode. '
+        . 'Returns variant details including SKU, stock, and its parent product name. '
+        . 'Searches only within the company bound to the agent context. '
+        . 'Use this when the user asks about a specific SKU or variant name.';
+
     public function __construct(private readonly VariantSearchService $searchService = new VariantSearchService())
     {
-        parent::__construct(
-            name: 'variant_search',
-            description: 'Search product variants through the configured search engine by name, SKU, EAN, or barcode. '
-                . 'Returns variant details including SKU, stock, and its parent product name. '
-                . 'Searches only within the company bound to the agent context. '
-                . 'Use this when the user asks about a specific SKU or variant name.',
-        );
     }
 
     #[Override]

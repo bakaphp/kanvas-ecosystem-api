@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Helpers;
 
+use NeuronAI\Chat\Messages\Usage;
+
 /**
  * SQL for summing the per-turn `usage` JSON on agent_conversation_messages. Three writers spell the keys
  * differently: laravel/ai ≤ 0.11 (`prompt_tokens`/`completion_tokens`, cache tokens excluded from the
@@ -14,6 +16,32 @@ namespace Kanvas\Intelligence\Agents\Helpers;
  */
 final class ConversationUsageSqlHelper
 {
+    /**
+     * The Neuron spelling of one turn's usage. Neuron reports the whole prompt as `inputTokens`, the part
+     * served from the prompt cache included, and Anthropic adds its cache writes to that count too
+     * (`cacheWriteTokens` metadata). Both are priced on their own lines, so they come out of the input
+     * count here or a cached turn pays twice.
+     *
+     * @return array<string, int>
+     */
+    public static function neuronUsageRow(Usage $usage, int $cacheWriteTokens = 0): array
+    {
+        $row = [
+            'input_tokens' => max(0, $usage->inputTokens - $usage->cachedInputTokens - $cacheWriteTokens),
+            'output_tokens' => $usage->outputTokens,
+        ];
+
+        if ($usage->cachedInputTokens > 0) {
+            $row['cache_read'] = $usage->cachedInputTokens;
+        }
+
+        if ($cacheWriteTokens > 0) {
+            $row['cache_write'] = $cacheWriteTokens;
+        }
+
+        return $row;
+    }
+
     public static function inputTokens(string $alias = 'm'): string
     {
         $uncached = sprintf(

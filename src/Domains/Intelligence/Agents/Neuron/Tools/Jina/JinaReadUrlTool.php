@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Jina;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesJinaClientForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,23 +22,19 @@ use Throwable;
  * would buy nothing and only widen the blast radius of one slow page.
  */
 #[AgentTool(name: 'Jina Read URL', category: 'knowledge')]
-class JinaReadUrlTool extends Tool implements HasRunKey
+class JinaReadUrlTool extends Tool
 {
     use ResolvesJinaClientForTool;
     use TrackByInputs;
 
-    private const int MAX_CONTENT_LENGTH = 20000;
+    protected string $name = 'jina_read_url';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'jina_read_url',
-            description: 'Read one web page and get its text back as markdown. Reach for it when another '
-                . 'reader came back empty, truncated, or full of navigation instead of content — this one '
-                . 'renders the page the way a browser would first, so it handles sites that build their '
-                . 'content with JavaScript. It reads a page you name; it cannot find one.',
-        );
-    }
+    protected ?string $description = 'Read one web page and get its text back as markdown. Reach for it when another '
+        . 'reader came back empty, truncated, or full of navigation instead of content — this one '
+        . 'renders the page the way a browser would first, so it handles sites that build their '
+        . 'content with JavaScript. It reads a page you name; it cannot find one.';
+
+    private const int MAX_CONTENT_LENGTH = 20000;
 
     /**
      * @return array<int, ToolProperty>

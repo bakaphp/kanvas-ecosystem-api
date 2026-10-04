@@ -8,7 +8,6 @@ use Kanvas\Connectors\Gmail\Actions\ReadEmailDetailsAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -18,11 +17,17 @@ use Throwable;
 
 /** Reads one email's sender, date, subject, body, and attachment list, given the message id from list_emails. */
 #[AgentTool(name: 'Read Email Details', category: 'productivity')]
-class ReadEmailDetailsTool extends Tool implements HasRunKey
+class ReadEmailDetailsTool extends Tool
 {
     use GuardsRepeatCalls;
     use HasKanvasContext;
     use TrackByInputs;
+
+    protected string $name = 'read_email_details';
+
+    protected ?string $description = 'Reads one email\'s From, Date, Subject, body, and its attachments (filename + '
+        . 'attachment_id for each). Use download_attachment with an attachment_id from here to save one '
+        . 'to Kanvas. Read each message once — re-reading it this turn returns the same content.';
 
     /**
      * Keyed per message, so this bounds re-reads of ONE email, not how many an agent may triage in a
@@ -33,13 +38,6 @@ class ReadEmailDetailsTool extends Tool implements HasRunKey
 
     public function __construct()
     {
-        parent::__construct(
-            name: 'read_email_details',
-            description: 'Reads one email\'s From, Date, Subject, body, and its attachments (filename + '
-                . 'attachment_id for each). Use download_attachment with an attachment_id from here to save one '
-                . 'to Kanvas. Read each message once — re-reading it this turn returns the same content.',
-        );
-
         $this->initRepeatGuard();
         $this->setMaxRuns(self::MAX_RUNS);
     }

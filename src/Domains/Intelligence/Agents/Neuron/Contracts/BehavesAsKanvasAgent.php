@@ -21,7 +21,13 @@ interface BehavesAsKanvasAgent extends ProvidesToolDependencies
         ?Users $user = null,
     ): void;
 
-    public function setThreadId(string $threadId): void;
+    /**
+     * The conversation's address. Neuron refuses to run an unbound agent, so every entry point binds one:
+     * the session uuid in userChat, the entity uuid on a channel, a suffixed parent thread for a sub-agent.
+     */
+    public function setThreadId(string $threadId): static;
+
+    public function getThreadId(): ?string;
 
     public function setSession(?Session $session): void;
 

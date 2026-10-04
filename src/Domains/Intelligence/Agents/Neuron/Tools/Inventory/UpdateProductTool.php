@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogProducts;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -20,23 +19,19 @@ use Override;
  * price/stock to set_variant_stock — neither is reachable here.
  */
 #[AgentTool(name: 'Update Product', category: 'inventory')]
-class UpdateProductTool extends Tool implements HasRunKey
+class UpdateProductTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ManagesCatalogProducts;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_product',
-            description: 'Edit an existing product\'s details. Pass only the fields you want to change — anything '
-                . 'you omit is left alone. Use list_available_products or inventory_search to get the product_id '
-                . 'first. To publish or unpublish it use set_product_published; to change price or stock use '
-                . 'set_variant_stock. Only an administrator can do this.',
-        );
-    }
+    protected string $name = 'update_product';
+
+    protected ?string $description = 'Edit an existing product\'s details. Pass only the fields you want to change — anything '
+        . 'you omit is left alone. Use list_available_products or inventory_search to get the product_id '
+        . 'first. To publish or unpublish it use set_product_published; to change price or stock use '
+        . 'set_variant_stock. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

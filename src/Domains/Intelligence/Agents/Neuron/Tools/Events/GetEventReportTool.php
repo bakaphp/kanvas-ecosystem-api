@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEventVersionForTool;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -26,11 +25,18 @@ use Override;
  * dashboard uses. Company-scoped (the version is resolved tenant-scoped first).
  */
 #[AgentTool(name: 'Get Event Report', category: 'events')]
-class GetEventReportTool extends Tool implements HasRunKey
+class GetEventReportTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesEventVersionForTool;
     use TrackByInputs;
+
+    protected string $name = 'get_event_report';
+
+    protected ?string $description = 'Analytics for one event version. report is one of: "inscriptions_vs_objective" (enrollment '
+        . 'curve vs this event\'s goal), "inscriptions_vs_historical" (vs past editions), "inscription_track" '
+        . '(registrations broken down by participant type), "participant_concentration" (which organizations '
+        . 'dominate the attendee list). Use for "how is event X selling", "is it on track", "who\'s coming".';
 
     private const array REPORTS = [
         'inscriptions_vs_objective',
@@ -38,17 +44,6 @@ class GetEventReportTool extends Tool implements HasRunKey
         'inscription_track',
         'participant_concentration',
     ];
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_event_report',
-            description: 'Analytics for one event version. report is one of: "inscriptions_vs_objective" (enrollment '
-                . 'curve vs this event\'s goal), "inscriptions_vs_historical" (vs past editions), "inscription_track" '
-                . '(registrations broken down by participant type), "participant_concentration" (which organizations '
-                . 'dominate the attendee list). Use for "how is event X selling", "is it on track", "who\'s coming".',
-        );
-    }
 
     /**
      * @return array<int, ToolPropertyInterface>

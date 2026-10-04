@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\Reports\Repositories\DueToEmployeesRepository;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,24 +22,20 @@ use Override;
  * the caller's own position — query_due_to_employees is the everyone-else view, for finance.
  */
 #[AgentTool(name: 'What Does The Company Owe Me', category: 'accounting')]
-class WhatDoesTheCompanyOweMeTool extends Tool implements HasRunKey
+class WhatDoesTheCompanyOweMeTool extends Tool
 {
     use HasKanvasContext;
     use ReportsToolOutcome;
     use RequiresHumanCaller;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'what_does_the_company_owe_me',
-            description: 'Returns what the company still owes YOU for expenses you paid out of pocket and have not '
-                . 'been reimbursed for yet — the total, this month\'s share, a per-month breakdown, and how long the '
-                . 'oldest one has been waiting. Use this for "how much do I get reimbursed", "what does the company '
-                . 'owe me this month", or "am I still owed for that dinner". It always reads the position of the '
-                . 'person you are talking to — it takes no employee identifier.',
-        );
-    }
+    protected string $name = 'what_does_the_company_owe_me';
+
+    protected ?string $description = 'Returns what the company still owes YOU for expenses you paid out of pocket and have not '
+        . 'been reimbursed for yet — the total, this month\'s share, a per-month breakdown, and how long the '
+        . 'oldest one has been waiting. Use this for "how much do I get reimbursed", "what does the company '
+        . 'owe me this month", or "am I still owed for that dinner". It always reads the position of the '
+        . 'person you are talking to — it takes no employee identifier.';
 
     /**
      * @return array<int, ToolProperty>

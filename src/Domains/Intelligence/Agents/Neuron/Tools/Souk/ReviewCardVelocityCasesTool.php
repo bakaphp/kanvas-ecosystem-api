@@ -28,6 +28,17 @@ class ReviewCardVelocityCasesTool extends Tool
     use ReportsToolOutcome;
     use ResolvesReviewWindow;
 
+    protected string $name = 'review_card_velocity_cases';
+
+    protected ?string $description = 'Read-only review of card-testing abuse, cut over a date range in the '
+        . "tenant's own timezone (max " . self::MAX_RANGE_DAYS . ' days). Returns two lists: '
+        . '"blocked" is every user the card velocity limit already rejected, grouped with their '
+        . 'distinct cards, block count, whether they were banned and whether they are STILL banned '
+        . 'right now, whether the company is corporate, and what they got paid in the same window. '
+        . '"at_risk" is users nobody has blocked yet but who look like the same pattern: at least '
+        . 'min_declines failed or abandoned card attempts with a low share of them actually paid. This '
+        . 'tool never bans, unbans or changes any limit — it only reports for a human to decide.';
+
     private const int DEFAULT_MIN_DECLINES = 10;
 
     private const float DEFAULT_MAX_PAID_RATIO = 0.1;
@@ -40,18 +51,6 @@ class ReviewCardVelocityCasesTool extends Tool
 
     public function __construct()
     {
-        parent::__construct(
-            name: 'review_card_velocity_cases',
-            description: 'Read-only review of card-testing abuse, cut over a date range in the '
-                . "tenant's own timezone (max " . self::MAX_RANGE_DAYS . ' days). Returns two lists: '
-                . '"blocked" is every user the card velocity limit already rejected, grouped with their '
-                . 'distinct cards, block count, whether they were banned and whether they are STILL banned '
-                . 'right now, whether the company is corporate, and what they got paid in the same window. '
-                . '"at_risk" is users nobody has blocked yet but who look like the same pattern: at least '
-                . 'min_declines failed or abandoned card attempts with a low share of them actually paid. This '
-                . 'tool never bans, unbans or changes any limit — it only reports for a human to decide.',
-        );
-
         $this->initRepeatGuard();
     }
 

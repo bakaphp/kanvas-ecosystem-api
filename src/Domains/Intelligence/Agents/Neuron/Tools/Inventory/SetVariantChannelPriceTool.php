@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogVariants;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,25 +20,21 @@ use Override;
  * that decides what a storefront charges.
  */
 #[AgentTool(name: 'Set Variant Channel Price', category: 'inventory')]
-class SetVariantChannelPriceTool extends Tool implements HasRunKey
+class SetVariantChannelPriceTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ManagesCatalogVariants;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_variant_channel_price',
-            description: 'Set the selling price of a variant on a sales channel — this is the price a customer '
-                . 'actually pays at checkout, which is NOT the warehouse price set_variant_stock writes. Use '
-                . 'discounted_price for a sale price and leave price as the list price. Pass only what you want to '
-                . 'change. Use variant_detail to see current channel prices and list_channels to see the channels. '
-                . 'Publishing a channel price for the first time also publishes the parent product if it is still '
-                . 'a draft. Only an administrator can do this.',
-        );
-    }
+    protected string $name = 'set_variant_channel_price';
+
+    protected ?string $description = 'Set the selling price of a variant on a sales channel — this is the price a customer '
+        . 'actually pays at checkout, which is NOT the warehouse price set_variant_stock writes. Use '
+        . 'discounted_price for a sale price and leave price as the list price. Pass only what you want to '
+        . 'change. Use variant_detail to see current channel prices and list_channels to see the channels. '
+        . 'Publishing a channel price for the first time also publishes the parent product if it is still '
+        . 'a draft. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

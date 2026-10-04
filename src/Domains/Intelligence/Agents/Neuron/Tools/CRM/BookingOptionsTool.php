@@ -29,19 +29,15 @@ class BookingOptionsTool extends Tool
 {
     use ResolvesLeadForTool;
 
+    protected string $name = 'get_booking_options';
+
+    protected ?string $description = 'List what the business can book: the appointment/service types it offers and their default duration, '
+        . 'plus who the appointment is assigned to. Call this BEFORE proposing an appointment so you offer a real service type '
+        . 'and pass the right duration to get_user_availability and create_calendar_event. '
+        . 'Note: bookings are assigned to the lead owner; the staff list is context only.';
+
     private const DEFAULT_DURATION_MINUTES = 30;
     private const STAFF_LIMIT = 50;
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_booking_options',
-            description: 'List what the business can book: the appointment/service types it offers and their default duration, '
-                . 'plus who the appointment is assigned to. Call this BEFORE proposing an appointment so you offer a real service type '
-                . 'and pass the right duration to get_user_availability and create_calendar_event. '
-                . 'Note: bookings are assigned to the lead owner; the staff list is context only.',
-        );
-    }
 
     #[Override]
     protected function properties(): array

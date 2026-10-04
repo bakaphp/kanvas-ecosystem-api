@@ -21,6 +21,9 @@ use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
+use NeuronAI\Agent\AgentState;
+use NeuronAI\Chat\Messages\AssistantMessage;
+use NeuronAI\Providers\ProviderResponse;
 use RuntimeException;
 use Tests\TestCase;
 use Throwable;
@@ -82,7 +85,7 @@ final class DraftCustomerUpdateActionTest extends TestCase
             {
             }
 
-            public function chat(mixed $messages = []): mixed
+            public function chat(mixed $messages = []): AgentState
             {
                 $this->seen[] = self::describe($messages);
 
@@ -90,21 +93,7 @@ final class DraftCustomerUpdateActionTest extends TestCase
                     throw $this->reply;
                 }
 
-                return new class ($this->reply) {
-                    public function __construct(private readonly string $text)
-                    {
-                    }
-
-                    public function getContent(): string
-                    {
-                        return $this->text;
-                    }
-
-                    public function __toString(): string
-                    {
-                        return $this->text;
-                    }
-                };
+                return new AgentState()->setResponse(new ProviderResponse(message: new AssistantMessage($this->reply)));
             }
         };
     }

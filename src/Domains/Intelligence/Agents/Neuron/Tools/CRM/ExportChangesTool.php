@@ -25,23 +25,19 @@ class ExportChangesTool extends Tool
 {
     use HasKanvasContext;
 
+    protected string $name = 'export_changes';
+
+    protected ?string $description = 'Generates a downloadable CSV of people changes (company / title / email / promotion) with '
+        . 'before & after values. Returns a file URL and row count. Use when the user asks to "download", '
+        . '"export", "give me a CSV/file/list" of changes. Filter by change_types (company, title, email, '
+        . 'promotion) and an optional ISO date range.';
+
     private const array TYPE_LABEL = [
         'company' => 'Company',
         'title' => 'Title',
         'email' => 'Email',
         'promotion' => 'Promotion',
     ];
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'export_changes',
-            description: 'Generates a downloadable CSV of people changes (company / title / email / promotion) with '
-                . 'before & after values. Returns a file URL and row count. Use when the user asks to "download", '
-                . '"export", "give me a CSV/file/list" of changes. Filter by change_types (company, title, email, '
-                . 'promotion) and an optional ISO date range.',
-        );
-    }
 
     /**
      * @return array<int, ToolPropertyInterface>

@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesUpdatedWindow;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,27 +22,23 @@ use Override;
  * prospect must never be able to search other prospects' deals; see Agents/CLAUDE.md audience rule).
  */
 #[AgentTool(name: 'Search Deals', category: 'crm')]
-class SearchDealsTool extends Tool implements HasRunKey
+class SearchDealsTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesUpdatedWindow;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'search_deals',
-            description: 'Find deals for ONE contact by (partial) name, email, phone, or deal title. Use this whenever '
-                . 'you need to locate a deal but do not have its deal_id — e.g. "find the deal for Ana", "which deal '
-                . 'is this email on", "look up deals for Acme". Returns deal_id, title, contact, owner, pipeline stage '
-                . 'and status so you can act on the right one. Filter by status (open/closed/all) and by owner. '
-                . 'THIS IS ALSO THE TOOL FOR "which deals moved today": pass updated_since ("today", "yesterday", '
-                . '"last_7_days", or a YYYY-MM-DD date), on its own or with owner. Day boundaries are resolved in '
-                . 'the company timezone. '
-                . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_deals_bulk instead and '
-                . 'pass every name in a single call; do not call this tool once per row.',
-        );
-    }
+    protected string $name = 'search_deals';
+
+    protected ?string $description = 'Find deals for ONE contact by (partial) name, email, phone, or deal title. Use this whenever '
+        . 'you need to locate a deal but do not have its deal_id — e.g. "find the deal for Ana", "which deal '
+        . 'is this email on", "look up deals for Acme". Returns deal_id, title, contact, owner, pipeline stage '
+        . 'and status so you can act on the right one. Filter by status (open/closed/all) and by owner. '
+        . 'THIS IS ALSO THE TOOL FOR "which deals moved today": pass updated_since ("today", "yesterday", '
+        . '"last_7_days", or a YYYY-MM-DD date), on its own or with owner. Day boundaries are resolved in '
+        . 'the company timezone. '
+        . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_deals_bulk instead and '
+        . 'pass every name in a single call; do not call this tool once per row.';
 
     /**
      * @return array<int, ToolProperty>

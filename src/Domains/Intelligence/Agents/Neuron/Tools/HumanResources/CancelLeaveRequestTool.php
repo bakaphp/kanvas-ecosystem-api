@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,23 +23,19 @@ use Override;
  * booking does not quietly cost someone their balance for the year.
  */
 #[AgentTool(name: 'Cancel Leave Request', category: 'human_resources')]
-class CancelLeaveRequestTool extends Tool implements HasRunKey
+class CancelLeaveRequestTool extends Tool
 {
     use GuardsAdminForTool;
     use HandlesLeaveForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'cancel_leave',
-            description: 'Cancels a pending or approved time-off request and returns the days to the employee\'s '
-                . 'balance. Allowed for a company administrator or the employee whose leave it is. Get the '
-                . 'leave_request_id from list_leave_requests first. Returns updated=false with a reason if you are '
-                . 'not allowed, the id is unknown, or the request was already rejected or cancelled.',
-        );
-    }
+    protected string $name = 'cancel_leave';
+
+    protected ?string $description = 'Cancels a pending or approved time-off request and returns the days to the employee\'s '
+        . 'balance. Allowed for a company administrator or the employee whose leave it is. Get the '
+        . 'leave_request_id from list_leave_requests first. Returns updated=false with a reason if you are '
+        . 'not allowed, the id is unknown, or the request was already rejected or cancelled.';
 
     /**
      * @return array<int, ToolProperty>

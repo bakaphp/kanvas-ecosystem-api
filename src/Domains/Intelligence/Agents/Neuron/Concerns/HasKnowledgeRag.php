@@ -8,40 +8,23 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\KnowledgeRetrieval;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
-use NeuronAI\RAG\Nodes\InstructionsNode;
-use NeuronAI\RAG\Nodes\PostProcessNode;
-use NeuronAI\RAG\Nodes\PreProcessNode;
-use NeuronAI\RAG\Nodes\RetrievalNode;
 use NeuronAI\RAG\PostProcessor\AdaptiveThresholdPostProcessor;
 use NeuronAI\RAG\PreProcessor\QueryTransformationPreProcessor;
 use NeuronAI\RAG\PreProcessor\QueryTransformationType;
 use NeuronAI\RAG\Retrieval\RetrievalInterface;
 use NeuronAI\RAG\VectorStore\MemoryVectorStore;
 use NeuronAI\RAG\VectorStore\VectorStoreInterface;
-use NeuronAI\Workflow\Node;
 use Override;
 
 /**
  * RAG wiring for a Neuron agent. Retrieval pulls the agent's own uploaded docs
  * plus the record in scope this turn (resolveEntityForTurn() — a Lead for
  * SalesAgent, any registered-source entity for a future agent). Scoped per agent
- * so knowledge never leaks between agents.
+ * so knowledge never leaks between agents. The retrieval chain itself (pre-process,
+ * retrieve, post-process, inject) is Neuron's stock RAG entry chain built from these hooks.
  */
 trait HasKnowledgeRag
 {
-    /**
-     * @return list<Node>
-     */
-    protected function knowledgeRagNodes(): array
-    {
-        return [
-            new PreProcessNode($this->preProcessors()),
-            new RetrievalNode($this->resolveRetrieval()),
-            new PostProcessNode($this->postProcessors()),
-            new InstructionsNode($this->resolveInstructions(), $this->bootstrapTools()),
-        ];
-    }
-
     #[Override]
     protected function retrieval(): RetrievalInterface
     {
@@ -74,16 +57,18 @@ trait HasKnowledgeRag
         return new MemoryVectorStore();
     }
 
+    #[Override]
     protected function preProcessors(): array
     {
         return [
             new QueryTransformationPreProcessor(
-                provider: $this->resolveProvider(),
+                provider: $this->getProvider(),
                 transformation: QueryTransformationType::REWRITING,
             ),
         ];
     }
 
+    #[Override]
     protected function postProcessors(): array
     {
         return [
