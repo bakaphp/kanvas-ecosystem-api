@@ -9,7 +9,11 @@ conversation to a workflow rule; the agent answers from there.
 
 1. Session hijack override (`allow_session_hijack` + `overwrite_phone_number`) — test/demo only.
 2. People → Lead → `ProcessInboundConsentAction`. **The lead has to exist before consent runs**: a
-   stop is person-wide and every outbound guard reads the lead.
+   stop is person-wide and every outbound guard reads the lead. Several People can share the
+   inbound phone, so `resolvePeopleAndLead()` picks the lead whose channel carries the most recent
+   message (`LeadsRepository::getLeadWithMostRecentChannel`) and takes its People — active or not.
+   Only when no lead of theirs has a channel does it fall back to "whoever holds an active lead",
+   and only when nobody matches does it create a People and a lead.
 3. Channel (`twilio-{normalizedPhone}`), message filed under a deterministic slug so a Twilio retry
    updates rather than double-files.
 4. **Consent halt** — a real stop, a phrase-tier stop, or `HELP` returns here. No burst is armed, so
