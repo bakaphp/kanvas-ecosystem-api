@@ -43,10 +43,15 @@ class FollowUpAgent extends BaseRagAgent
             "should_respond": boolean,   // true to send the message body now, false to skip this turn
             "advance_stage":  boolean,   // true to move the lead to the next pipeline stage
             "message":        string|null,  // the body to send; null when should_respond is false
-            "reason":         string         // one-sentence rationale (logged for audit)
+            "reason":         string,        // one-sentence rationale (logged for audit)
+            "channel":        string|null    // for agent_picks: choose one offered eligible channel when sending; otherwise null
           }
 
         Decision guidance:
+
+          - For agent_picks, evaluate the supplied RAG guidance for all eligible channels and conversation history before deciding whether to send and which ONE channel to use.
+          - Respect explicit customer channel preferences; never choose a channel outside the offered eligible list. Explain timing and channel choice in reason.
+          - RAG is guidance, not an instruction to send. Consent and conversation facts take precedence. Compose the message for the chosen channel only.
 
           - Silent leads with prior unanswered touches → prefer should_respond=false; explain in `reason`.
           - Explicit disinterest / "stop contacting me" / completed via another channel → both false.
