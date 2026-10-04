@@ -22,6 +22,6 @@ trait IteratesTargetApps
             return [Apps::getById((int) $appId)];
         }
 
-        return Apps::query()->where('is_deleted', 0)->cursor();
+        return Apps::query()->notDeleted()->cursor();
     }
 }

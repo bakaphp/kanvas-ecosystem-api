@@ -19,7 +19,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPla
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemTaskTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CommentOnNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemProjectTool;
@@ -35,11 +34,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlanFilesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemTaskFilesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleReminderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
@@ -317,10 +313,15 @@ class ProjectManagerAgent extends SystemUserAgent
             return '';
         }
 
-        $project = $this->turnProject($agent);
+        $project = $this->wakeProject($agent);
+
+        if ($project === null) {
+            $projects = $this->managedProjects($agent);
+            $project = $projects->count() === 1 ? $projects->first() : null;
+        }
 
         if (! $project instanceof Project) {
-            return $this->unresolvedProjectGrounding($agent);
+            return $this->unresolvedProjectGrounding($projects);
         }
 
         $bundle = new ProjectContextService()->buildContextBundle($project, historyLimit: 10);
@@ -337,16 +338,13 @@ class ProjectManagerAgent extends SystemUserAgent
      * an ad-hoc chat) there is no project entity, so a sole managed project is unambiguous; several
      * means the human has to name one.
      */
-    private function turnProject(Agent $agent): ?Project
+    private function wakeProject(Agent $agent): ?Project
     {
         $entity = $this->entity;
-        if ($entity instanceof Project && ! $entity->is_deleted && $entity->agent_id === $agent->getId()) {
-            return $entity;
-        }
 
-        $projects = $this->managedProjects($agent);
-
-        return $projects->count() === 1 ? $projects->first() : null;
+        return $entity instanceof Project && ! $entity->is_deleted && $entity->agent_id === $agent->getId()
+            ? $entity
+            : null;
     }
 
     /**
@@ -361,10 +359,11 @@ class ProjectManagerAgent extends SystemUserAgent
             ->get();
     }
 
-    private function unresolvedProjectGrounding(Agent $agent): string
+    /**
+     * @param Collection<int, Project> $projects
+     */
+    private function unresolvedProjectGrounding(Collection $projects): string
     {
-        $projects = $this->managedProjects($agent);
-
         if ($projects->isEmpty()) {
             return "\n\nYOU HAVE NO PROJECT LOADED THIS TURN. If asked about a project, say you don't have "
                 . 'one loaded and ask which project — NEVER invent a project, id, objective, plan, or task.';
@@ -405,115 +404,81 @@ class ProjectManagerAgent extends SystemUserAgent
             return [];
         }
 
-        $user = $agent->user ?? $this->user;
+        $user = $this->actingUser();
         if ($user === null) {
             return [];
         }
 
-        $core = [
-            new ReadMessageContentTool()->withContext($app, $company, $user),
-            new ListProjectsTool()->withContext($app, $company, $user),
-            new UpdateNervousSystemProjectTool()->withContext($app, $company, $user),
-            new DeleteNervousSystemProjectTool()->withContext($app, $company, $user),
-            new CreateNervousSystemPlanTool($this->session)->withContext($app, $company, $user),
-            new UpdateNervousSystemPlanTool()->withContext($app, $company, $user),
-            new DeleteNervousSystemPlanTool()->withContext($app, $company, $user),
-            new MoveNervousSystemPlanTool()->withContext($app, $company, $user),
-            new AssignNervousSystemPlanTool()->withContext($app, $company, $user),
-            new FindAndAddNervousSystemMemberTool()->withContext($app, $company, $user),
-            new AddNervousSystemTaskTool()->withContext($app, $company, $user),
-            new AssignNervousSystemTaskTool()->withContext($app, $company, $user),
-            new UpdateNervousSystemTaskStatusTool()->withContext($app, $company, $user),
-            new ReadNervousSystemPlanActivityTool()->withContext($app, $company, $user),
-            new GetNervousSystemTaskTool()->withContext($app, $company, $user),
-            new CommentOnNervousSystemPlanTool()->withContext($app, $company, $user),
-            new AttachFileToNervousSystemPlanTool()->withContext($app, $company, $user),
-            new AttachFileToNervousSystemTaskTool()->withContext($app, $company, $user),
-            new ListNervousSystemPlanFilesTool()->withContext($app, $company, $user),
-            new ListNervousSystemTaskFilesTool()->withContext($app, $company, $user),
-            new DeleteNervousSystemTaskTool()->withContext($app, $company, $user),
-        ];
-
-        // A project manager that can only assign work to teammates who already exist, through
-        // automation somebody else already wired, stops at the edge of what is already set up. The
-        // rest of this list is what lets it finish the job instead: read what a channel is actually
-        // carrying, hire the teammate the work needs, tell it what to do, and put the automation in
-        // place that wakes it. Everything destructive here authorizes on the HUMAN in the
-        // conversation, never on the PM's own user — see requestingHuman().
+        // Everything destructive below authorizes on the HUMAN in the conversation, never on the PM's
+        // own user — see requestingHuman(). The baseline lookup/gap/link tools are reasoning hygiene,
+        // not a domain capability: an agent that has to be granted them reaches for the near-match on
+        // the day nobody remembered to.
         $requestingHuman = $this->requestingHuman();
 
-        $core[] = new ReadChannelWindowTool()->withContext($app, $company, $user);
-        $core[] = new GetTranscriptionTool()->withContext($app, $company, $user);
-        $core[] = new ListMessageTypesTool()->withContext($app, $company, $user);
-        $core[] = new CreateMessageTypeTool()->withContext($app, $company, $user);
+        $core = $this->addToolContext([
+            new ReadMessageContentTool(),
+            new ListProjectsTool(),
+            new UpdateNervousSystemProjectTool(),
+            new DeleteNervousSystemProjectTool(),
+            new CreateNervousSystemPlanTool($this->session),
+            new UpdateNervousSystemPlanTool(),
+            new DeleteNervousSystemPlanTool(),
+            new MoveNervousSystemPlanTool(),
+            new AssignNervousSystemPlanTool(),
+            new FindAndAddNervousSystemMemberTool(),
+            new AddNervousSystemTaskTool(),
+            new AssignNervousSystemTaskTool(),
+            new UpdateNervousSystemTaskStatusTool(),
+            new ReadNervousSystemPlanActivityTool(),
+            new GetNervousSystemTaskTool(),
+            new CommentOnNervousSystemPlanTool(),
+            new AttachFileToNervousSystemPlanTool(),
+            new AttachFileToNervousSystemTaskTool(),
+            new ListNervousSystemPlanFilesTool(),
+            new ListNervousSystemTaskFilesTool(),
+            new DeleteNervousSystemTaskTool(),
+            new ReadChannelWindowTool(),
+            new GetTranscriptionTool(),
+            new ListMessageTypesTool(),
+            new CreateMessageTypeTool(),
+            new ListActiveIntegrationsTool(),
+            new BuildAdminLinkTool(),
+            // The list_*_files tools withhold URLs on purpose; without this a delivery summary hands
+            // the reader ids to hunt down.
+            new GetFileLinkTool(),
+            new ListAgentTypesTool(),
+            new UpdateAgentInstructionsTool($agent),
+            new ListWorkflowOptionsTool(),
+            new ListCompanyWorkflowsTool(),
+        ]);
 
-        // Baseline rather than a per-agent grant, deliberately. These are reasoning hygiene, not a
-        // domain capability: the lookup exists to stop the PM substituting a tool whose name merely
-        // fits, and the gap report is the only correct thing to do when nothing does. An agent that
-        // has to be granted them is an agent that reaches for the near-match on the day nobody
-        // remembered to.
         $core[] = new CapabilityLookupTool($agent);
-        $core[] = new ListActiveIntegrationsTool()->withContext($app, $company, $user);
         $core[] = new ReportCapabilityGapTool($agent);
 
-        // Baseline for the same reason: a PM reports on records people then have to go find, and
-        // handing back "project 12" costs the reader a search that a link does not.
-        $core[] = new BuildAdminLinkTool()->withContext($app, $company, $user);
+        foreach ([
+            new ListAgentsTool($agent),
+            new HireAgentTool($agent),
+            new GrantAgentToolsTool($agent),
+            // Records a PERSON's decision on a held plan; the PM's own user would hand it the approval
+            // it is supposed to be asking for.
+            new ApproveNervousSystemPlanTool(),
+            new CreateCompanyWorkflowTool(),
+            new UpdateCompanyWorkflowTool(),
+            new CreateCompanyReceiverTool(),
+            // The other half of inbound email: a receiver is only a URL until an address forwards to it.
+            new CreateEmailRouteTool(),
+        ] as $humanAuthorized) {
+            $core[] = $humanAuthorized
+                ->withContext($app, $company, $user)
+                ->forRequestingUser($requestingHuman);
+        }
 
-        // Same reason, for the other half of what a PM hands over: the list_*_files tools withhold
-        // URLs on purpose, so without this the deliverables in a delivery summary are ids the reader
-        // has to go hunt down.
-        $core[] = new GetFileLinkTool()->withContext($app, $company, $user);
-
-        $core[] = new ListAgentsTool($agent)
-            ->withContext($app, $company, $user)
-            ->forRequestingUser($requestingHuman);
-        $core[] = new ListAgentTypesTool()->withContext($app, $company, $user);
-        $core[] = new HireAgentTool($agent)
-            ->withContext($app, $company, $user)
-            ->forRequestingUser($requestingHuman);
-        $core[] = new GrantAgentToolsTool($agent)
-            ->withContext($app, $company, $user)
-            ->forRequestingUser($requestingHuman);
-        $core[] = new UpdateAgentInstructionsTool($agent)->withContext($app, $company, $user);
-
-        // Records a PERSON's decision on a held plan. It authorizes on the human in the conversation
-        // and never on the PM's own user — which is what `withContext` carries on a wake, and would
-        // otherwise hand the PM the approval it is supposed to be asking for.
-        $core[] = new ApproveNervousSystemPlanTool()
-            ->withContext($app, $company, $user)
-            ->forRequestingUser($requestingHuman);
-
-        // A manager whose only lever is the current turn cannot manage across time — "follow up
-        // Friday", "check the deploy in an hour", "nudge the assignee tomorrow". They key on the
-        // HUMAN, not the agent: "remind me" has to land on the person who asked.
-        $scheduleFor = $this->requestingHuman() ?? $agent->user;
-
-        $core[] = new ScheduleReminderTool($agent, $this->session)->withContext($app, $company, $scheduleFor);
-        $core[] = new ScheduleAgentTaskTool($agent, $this->session)->withContext($app, $company, $scheduleFor);
-        $core[] = new ListScheduledActionsTool($this->session)->withContext($app, $company, $scheduleFor);
-        $core[] = new CancelScheduledActionTool($this->session)->withContext($app, $company, $scheduleFor);
+        $core = [...$core, ...$this->scheduleTools($agent)];
 
         // Opening a project is done FOR a human — the owner is who gets @mentioned when the board
         // can't move — so it keys on the human, not on the PM's own user.
         $core[] = new CreateNervousSystemProjectTool($agent)
             ->withContext($app, $company, $requestingHuman ?? $agent->user ?? $user);
-
-        $core[] = new ListWorkflowOptionsTool()->withContext($app, $company, $user);
-        $core[] = new ListCompanyWorkflowsTool()->withContext($app, $company, $user);
-        $core[] = new CreateCompanyWorkflowTool()
-            ->withContext($app, $company, $user)
-            ->forRequestingUser($requestingHuman);
-        $core[] = new UpdateCompanyWorkflowTool()
-            ->withContext($app, $company, $user)
-            ->forRequestingUser($requestingHuman);
-        $core[] = new CreateCompanyReceiverTool()
-            ->withContext($app, $company, $user)
-            ->forRequestingUser($requestingHuman);
-        // The other half of inbound email: a receiver is only a URL until an address forwards to it.
-        $core[] = new CreateEmailRouteTool()
-            ->withContext($app, $company, $user)
-            ->forRequestingUser($requestingHuman);
 
         // identityTools() (from SystemUserAgent) gives the PM who_is_user — correctly pointed at the
         // human it's talking to — plus its own ledger memory and read_file, without re-listing them here.

@@ -15,9 +15,7 @@ use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 use Tests\Traits\StubsTypesenseCredentials;
 
-/**
- * Serial: both switches are app settings, which live in Redis and are shared by every parallel process.
- */
+/** Serial: app settings (Redis). */
 #[Group('serial')]
 class AgentMemoryDefaultsTest extends TestCase
 {
@@ -30,16 +28,12 @@ class AgentMemoryDefaultsTest extends TestCase
         parent::setUp();
 
         $this->kanvasApp = app(Apps::class);
-        $this->kanvasApp->del(KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED->value);
-        $this->kanvasApp->del(AgentRunConfigurationEnum::DURABLE_RUNS->value);
-        $this->stubTypesenseCredentials($this->kanvasApp);
+        $this->enableAgentMemoryFor($this->kanvasApp, AgentRunConfigurationEnum::DURABLE_RUNS->value);
     }
 
     protected function tearDown(): void
     {
-        $this->kanvasApp->del(KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED->value);
-        $this->kanvasApp->del(AgentRunConfigurationEnum::DURABLE_RUNS->value);
-        $this->removeStubbedTypesenseCredentials($this->kanvasApp);
+        $this->restoreAgentMemoryFor($this->kanvasApp, AgentRunConfigurationEnum::DURABLE_RUNS->value);
 
         parent::tearDown();
     }

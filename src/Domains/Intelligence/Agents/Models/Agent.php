@@ -430,6 +430,22 @@ class Agent extends BaseModel
     }
 
     /**
+     * The persona prompt: soul, instructions and output format, each falling back per field to the
+     * AgentType so a type acts as the base persona. Empty when neither the agent nor its type says anything.
+     */
+    public function personaPrompt(): string
+    {
+        $type = $this->type;
+        $coalesce = static fn (?string $own, ?string $inherited): ?string => ($own !== null && $own !== '') ? $own : $inherited;
+
+        return implode("\n\n", array_filter([
+            $coalesce($this->soul, $type?->soul),
+            $coalesce($this->instructions, $type?->instructions),
+            $coalesce($this->output_format, $type?->output_format),
+        ]));
+    }
+
+    /**
      * Whether this agent is customer-facing — its handler implements ConversesWithCustomer.
      * The mirror of conversesWithUser: an external agent speaks to a prospect as a persona and
      * must stay prospect-isolated (no company-wide ledger recall on the customer surface).

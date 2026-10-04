@@ -6,6 +6,7 @@ namespace Tests\Traits;
 
 use Baka\Search\SearchEngineResolver;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 
 /**
  * Agent memory is on by default but only where the app has Typesense credentials, and CI has none.
@@ -16,6 +17,32 @@ use Kanvas\Apps\Models\Apps;
 trait StubsTypesenseCredentials
 {
     private bool $typesenseCredentialsStubbed = false;
+
+    /**
+     * Memory at its default (on) with somewhere to write; the extra keys are cleared so the test starts
+     * from the defaults.
+     */
+    protected function enableAgentMemoryFor(Apps $app, string ...$resetKeys): void
+    {
+        $app->del(KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED->value);
+
+        foreach ($resetKeys as $key) {
+            $app->del($key);
+        }
+
+        $this->stubTypesenseCredentials($app);
+    }
+
+    protected function restoreAgentMemoryFor(Apps $app, string ...$resetKeys): void
+    {
+        $app->del(KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED->value);
+
+        foreach ($resetKeys as $key) {
+            $app->del($key);
+        }
+
+        $this->removeStubbedTypesenseCredentials($app);
+    }
 
     protected function stubTypesenseCredentials(Apps $app): void
     {

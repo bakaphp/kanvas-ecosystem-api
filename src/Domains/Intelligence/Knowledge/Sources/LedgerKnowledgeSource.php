@@ -29,15 +29,18 @@ final class LedgerKnowledgeSource implements KnowledgeSource
 
     public const string OUTCOME_SOURCE_TYPE = 'ledger';
 
-    public const array OUTCOME_EVENTS = [
-        'plan.completed',
+    /**
+     * Exact names the ledger emits (ApprovePlanAction, UpdateTaskStatusAction, LeadObserver, the
+     * follow-up engine); a name that nothing emits is a silent gap in memory, not a safe default.
+     */
+    private const array OUTCOME_EVENTS = [
         'plan.approved',
-        'task.completed',
-        'lead.status.changed',
-        'message.sent',
+        'plan.task.completed',
+        'lead.stage.changed',
+        'lead.follow_up.sent',
     ];
 
-    public const array OUTCOME_PREFIXES = ['agent.decision.'];
+    private const array OUTCOME_PREFIXES = ['agent.decided'];
 
     private const array OUTCOME_TEXT_KEYS = ['summary', 'title', 'subject', 'name', 'message', 'content', 'description', 'reason'];
 

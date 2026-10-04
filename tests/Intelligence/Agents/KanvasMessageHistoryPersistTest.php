@@ -50,7 +50,6 @@ class KanvasMessageHistoryPersistTest extends TestCase
             participant: $user,
         );
 
-        // The working history the agent opens over the store: every add persists through it.
         $history = new ChatHistory(
             $store,
             $sessionUuid,

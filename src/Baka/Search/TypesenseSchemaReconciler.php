@@ -53,7 +53,7 @@ class TypesenseSchemaReconciler
     {
         $settings = SearchEngineResolver::typesenseSettings($app);
 
-        return new self($app, SearchEngineResolver::getTypesenseClient($settings), $settings);
+        return new self($app, SearchEngineResolver::typesenseClient($app), $settings);
     }
 
     /**

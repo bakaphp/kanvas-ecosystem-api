@@ -14,8 +14,9 @@ use Typesense\Exceptions\ObjectNotFound;
  * The one Typesense-backed knowledge store. Neutral (no NeuronAI, no laravel/ai)
  * — it speaks KnowledgeDocument + KnowledgeScope so both the entity-scoped Lead
  * RAG path and the tenant-scoped company-docs path share one collection shape.
- * Every read/delete is scoped through KnowledgeScope::filter(), which always
- * pins app + company (closing the cross-tenant leak). External agents add an
+ * Every read and delete is pinned to app + company, either through
+ * KnowledgeScope::filter() or through a compiled filter a caller built from the
+ * document schema; searchByFilter() refuses an empty one. External agents add an
  * entity boundary, tenant-document reads pin entity_id = 0, and explicitly
  * internal organization reads may search every entity inside that company.
  */
@@ -93,13 +94,7 @@ final class TypesenseKnowledgeStore
 
     public function deleteBySource(KnowledgeScope $scope, string $sourceType, string $sourceName): void
     {
-        if (! $this->collectionExists()) {
-            return;
-        }
-
-        $this->client->collections[$this->collection]->documents->delete([
-            'filter_by' => $this->sourceFilter($scope, $sourceType, $sourceName),
-        ]);
+        $this->deleteByFilter($scope->filter() . self::sourceSuffix($sourceType, $sourceName));
     }
 
     /**
@@ -112,15 +107,9 @@ final class TypesenseKnowledgeStore
         string $sourceType,
         string $sourceName
     ): void {
-        if (! $this->collectionExists()) {
-            return;
-        }
-
-        $filter = sprintf('apps_id:=%d && companies_id:=%d', $appId, $companyId)
-            . ' && sourceType:=' . KnowledgeScope::escapeFilterValue($sourceType)
-            . ' && sourceName:=' . KnowledgeScope::escapeFilterValue($sourceName);
-
-        $this->client->collections[$this->collection]->documents->delete(['filter_by' => $filter]);
+        $this->deleteByFilter(
+            sprintf('apps_id:=%d && companies_id:=%d', $appId, $companyId) . self::sourceSuffix($sourceType, $sourceName)
+        );
     }
 
     /**
@@ -152,21 +141,23 @@ final class TypesenseKnowledgeStore
             throw new RuntimeException('A knowledge search must be scoped: pass at least the tenant filters.');
         }
 
-        if (! $this->collectionExists()) {
+        // No existence pre-check: this runs on every recall of every tenant, and a collection that is not
+        // there yet answers as a search with no hits.
+        try {
+            $response = $this->client->multiSearch->perform([
+                'searches' => [[
+                    'collection' => $this->collection,
+                    'q' => '*',
+                    'vector_query' => 'embedding:(' . (string) json_encode($embedding) . ', k:' . $topK . ')',
+                    'filter_by' => $filterBy,
+                    'exclude_fields' => 'embedding',
+                    'per_page' => $topK,
+                    'num_candidates' => max(50, $topK * 4),
+                ]],
+            ]);
+        } catch (ObjectNotFound) {
             return [];
         }
-
-        $response = $this->client->multiSearch->perform([
-            'searches' => [[
-                'collection' => $this->collection,
-                'q' => '*',
-                'vector_query' => 'embedding:(' . (string) json_encode($embedding) . ', k:' . $topK . ')',
-                'filter_by' => $filterBy,
-                'exclude_fields' => 'embedding',
-                'per_page' => $topK,
-                'num_candidates' => max(50, $topK * 4),
-            ]],
-        ]);
 
         $hits = array_map(static function (array $hit): array {
             $document = $hit['document'];
@@ -285,7 +276,7 @@ final class TypesenseKnowledgeStore
             return [];
         }
 
-        $filter = $this->sourceFilter($scope, $sourceType, $sourceName);
+        $filter = $scope->filter() . self::sourceSuffix($sourceType, $sourceName);
         $ids = [];
         $page = 1;
 
@@ -307,13 +298,9 @@ final class TypesenseKnowledgeStore
         return $ids;
     }
 
-    private function sourceFilter(
-        KnowledgeScope $scope,
-        string $sourceType,
-        string $sourceName
-    ): string {
-        return $scope->filter()
-            . ' && sourceType:=' . KnowledgeScope::escapeFilterValue($sourceType)
+    private static function sourceSuffix(string $sourceType, string $sourceName): string
+    {
+        return ' && sourceType:=' . KnowledgeScope::escapeFilterValue($sourceType)
             . ' && sourceName:=' . KnowledgeScope::escapeFilterValue($sourceName);
     }
 }

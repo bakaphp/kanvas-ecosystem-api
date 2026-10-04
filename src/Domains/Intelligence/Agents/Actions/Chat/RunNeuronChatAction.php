@@ -27,6 +27,7 @@ use Kanvas\Intelligence\Agents\Services\NeuronResponderProviderFallback;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Agent\AgentInterface;
 use NeuronAI\Agent\AgentState;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
@@ -35,7 +36,6 @@ use NeuronAI\Chat\Messages\ToolCallMessage;
 use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Exceptions\ToolRunsExceededException;
-use NeuronAI\Tools\ToolCall;
 use Throwable;
 
 class RunNeuronChatAction
@@ -116,9 +116,7 @@ class RunNeuronChatAction
         $usage = [];
 
         try {
-            if (is_object($this->handler)
-                && method_exists($this->handler, 'getProvider')
-                && method_exists($this->handler, 'setAiProvider')) {
+            if ($this->handler instanceof AgentInterface) {
                 $this->handler->setAiProvider(
                     new NeuronResponderProviderFallback()->wrap(
                         $this->handler->getProvider(),
@@ -191,7 +189,7 @@ class RunNeuronChatAction
         if (! $selfRecords) {
             // Record the model the agent resolved to so the daily rollup can price the
             // turn — Neuron doesn't surface the model on the response itself.
-            if (is_object($this->handler) && method_exists($this->handler, 'resolvedModelName')) {
+            if ($this->handler instanceof BehavesAsKanvasAgent) {
                 $usage['model'] = $this->handler->resolvedModelName();
             }
 
@@ -366,13 +364,11 @@ class RunNeuronChatAction
         $accumulate = function (Message $m) use (&$toolCalls, &$toolResults, &$usage): void {
             if ($m instanceof ToolCallMessage) {
                 foreach ($m->getToolCalls() as $call) {
-                    /** @var ToolCall $call */
                     $toolCalls[] = $call->jsonSerialize();
                 }
             }
             if ($m instanceof ToolResultMessage) {
                 foreach ($m->getToolCalls() as $call) {
-                    /** @var ToolCall $call */
                     $toolResults[] = $call->jsonSerialize();
                 }
             }
@@ -382,9 +378,6 @@ class RunNeuronChatAction
         };
 
         foreach ($state->getSteps() as $step) {
-            if (! $step instanceof Message) {
-                continue;
-            }
             $accumulate($step);
             if ($step === $finalMessage) {
                 $seenFinal = true;

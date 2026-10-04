@@ -14,6 +14,7 @@ use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Enums\AgentMessageTypeEnum;
+use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -198,8 +199,10 @@ class EntityRollupMessageStore extends KanvasMessageStore
             $messageData['tool_results'] = $calls;
         }
 
-        if ($usage = $message->getUsage()) {
-            $messageData['usage'] = $usage->jsonSerialize();
+        $usage = ConversationUsageSqlHelper::neuronUsageRow($message);
+
+        if ($usage !== []) {
+            $messageData['usage'] = $usage;
         }
 
         $createMessageAction = new CreateMessageAction(
@@ -298,7 +301,7 @@ class EntityRollupMessageStore extends KanvasMessageStore
 
     private function buildLeadPrefix(?string $leadTitle): string
     {
-        if ($leadTitle === null || $leadTitle === '' || ! ($this->entity instanceof People)) {
+        if ($leadTitle === null || $leadTitle === '') {
             return '';
         }
 
@@ -320,19 +323,19 @@ class EntityRollupMessageStore extends KanvasMessageStore
         ));
 
         if ($descriptions !== []) {
-            return implode(' ', array_map(static fn (string $d): string => "[Attachment: {$d}]", $descriptions));
+            return implode(' ', array_map(self::marker(...), $descriptions));
         }
 
         $images = (array) ($stored['images'] ?? []);
 
         if ($images !== []) {
-            return trim(str_repeat('[Attachment] ', count($images)));
+            return implode(' ', array_fill(0, count($images), self::marker(null)));
         }
 
         if ($text === '' && $socialMessage->files->contains(
             fn (Filesystem $file): bool => AttachmentDescriptionService::isDescribableFile($file)
         )) {
-            return '[Attachment]';
+            return self::marker(null);
         }
 
         return '';

@@ -132,28 +132,6 @@ class KanvasConversationStore extends DatabaseConversationStore
     }
 
     /**
-     * The interface `storeConversation` has no slot for the Kanvas agent id; logTurn callers use this
-     * variant to set it so the `agentConversations` query can filter by agent.
-     */
-    public function storeConversationForAgent(
-        string|int|null $userId,
-        ?int $agentId,
-        string $title,
-        ?Model $participant = null,
-    ): string {
-        [$appsId, $companiesId] = $this->tenantFor($userId, $agentId);
-
-        return $this->insertConversation(
-            $userId,
-            $agentId,
-            $appsId,
-            $companiesId,
-            $title,
-            $participant,
-        );
-    }
-
-    /**
      * The one lookup that binds a session to its conversation — the agent's own history and logTurn both
      * come through here, so they cannot resolve one chat to two rows. Oldest first, because a session can
      * own several rows and the oldest is the thread a person is reading.
@@ -224,10 +202,6 @@ class KanvasConversationStore extends DatabaseConversationStore
         );
     }
 
-    /**
-     * storeConversation() runs before the agent is known; the assistant turn is the first call that
-     * carries the `KanvasLaravelAgent`, so the conversation's `agent_id` lands one reply after it opens.
-     */
     #[Override]
     public function storeAssistantMessage(
         string $conversationId,

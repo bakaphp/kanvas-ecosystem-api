@@ -109,7 +109,7 @@ class ProductDiscoveryStatusService
         $name = ProductDiscoveryResolver::collectionName($this->app);
 
         try {
-            $collection = SearchEngineResolver::getTypesenseClient(SearchEngineResolver::typesenseSettings($this->app))
+            $collection = SearchEngineResolver::typesenseClient($this->app)
                 ->collections[$name]
                 ->retrieve();
         } catch (Throwable) {

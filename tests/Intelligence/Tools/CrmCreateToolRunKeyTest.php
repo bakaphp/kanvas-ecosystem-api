@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateDealTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
-use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 use Tests\Traits\AssertsToolRunKeys;
 
@@ -36,8 +35,6 @@ class CrmCreateToolRunKeyTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must track runs by inputs.');
-
             $this->assertRunKeyFollowsInputs($tool);
         }
     }

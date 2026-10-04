@@ -65,6 +65,22 @@ final class UnknownToolCallRecoveryTest extends TestCase
         $this->assertStringContainsString('search_leads', $result['message']);
     }
 
+    public function testASecondUnknownCallNeverRecommendsTheFirstStub(): void
+    {
+        $provider = $this->provider();
+        $provider->setTools([$this->realTool()]);
+        $provider->findTool('get_lead_ref');
+
+        $second = $provider->findTool('update_lead_stage');
+        $second->setInputs([]);
+        $second->execute();
+
+        $message = json_decode((string) $second->getResult(), true)['message'];
+
+        $this->assertStringContainsString('search_leads', $message);
+        $this->assertStringNotContainsString('get_lead_ref', $message, 'The earlier stub is declared, not available');
+    }
+
     public function testKeepsTheStubDeclaredOnLaterRoundsSoTheProviderAcceptsTheResponse(): void
     {
         $provider = $this->provider();

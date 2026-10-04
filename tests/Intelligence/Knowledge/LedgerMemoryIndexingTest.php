@@ -17,9 +17,7 @@ use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 use Tests\Traits\StubsTypesenseCredentials;
 
-/**
- * Serial: it flips an app setting, which lives in Redis and is shared by every parallel process.
- */
+/** Serial: app settings (Redis). */
 #[Group('serial')]
 class LedgerMemoryIndexingTest extends TestCase
 {
@@ -35,14 +33,12 @@ class LedgerMemoryIndexingTest extends TestCase
         parent::setUp();
 
         $this->kanvasApp = app(Apps::class);
-        $this->kanvasApp->del(KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED->value);
-        $this->stubTypesenseCredentials($this->kanvasApp);
+        $this->enableAgentMemoryFor($this->kanvasApp);
     }
 
     protected function tearDown(): void
     {
-        $this->kanvasApp->del(KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED->value);
-        $this->removeStubbedTypesenseCredentials($this->kanvasApp);
+        $this->restoreAgentMemoryFor($this->kanvasApp);
 
         parent::tearDown();
     }

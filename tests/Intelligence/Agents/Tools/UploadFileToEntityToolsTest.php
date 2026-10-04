@@ -20,7 +20,6 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 use Tests\Traits\AssertsToolRunKeys;
 
@@ -208,8 +207,6 @@ final class UploadFileToEntityToolsTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must track runs by inputs.');
-
             $this->assertRunKeyFollowsInputs($tool);
         }
     }

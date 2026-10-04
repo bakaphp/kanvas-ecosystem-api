@@ -131,16 +131,17 @@ is the one predicate every reader uses), `agent_memory_ingest_min_chars` (80), `
 (4, on top of the knowledge limit), `agent_memory_retention_days` (365). Because memory is on everywhere,
 a Typesense or embedding outage must never fail a turn: `CompanyMemoryRetrieval` answers without recall
 and `ConversationMemoryNode` ends the turn without the write, both logged. Uploaded knowledge
-(`knowledge_enabled`) stays opt-in. Boolean app settings read through `HashTableTrait::getBool($key, default:)`.
+(`neuron_lead_rag_enabled`, `KnowledgeConfigurationEnum::ENABLED`) stays opt-in. Boolean app settings
+read through `HashTableTrait::getBool($key, default:)`.
 
 Two more kinds reach the same store through the ledger (`LedgerKnowledgeSource`, registered in
 `KnowledgeSourceRegistry`, dispatched from `AppendEventAction::maybeIndexMemory()` through the queued
 `IndexKnowledgeJob`): a `remember` tool call (`agent.knowledge.saved`) as `source_type = memory`, kept
-as the agent wrote it and never pruned, and an allowlisted outcome (`plan.approved`, `task.completed`,
-`lead.status.changed`, `message.sent`, `agent.decision.*`) as `source_type = ledger`, one line of what
-happened, pruned like a conversation. Each `KnowledgeSource` now owns its `find()` and `isEnabledFor()`:
-the ledger table has no `is_deleted` and memory has its own switch, which is why the registry no longer
-queries models itself. `agents:prune-memory` (03:30 daily) applies the retention; `agents:reindex-memory
+as the agent wrote it and never pruned, and an allowlisted outcome (the list in
+`LedgerKnowledgeSource::wants()`, which names only event types the ledger really emits) as
+`source_type = ledger`, one line of what happened, pruned like a conversation. Each `KnowledgeSource`
+owns its `find()` and `isEnabledFor()`: the ledger table has no `is_deleted` and memory has its own
+switch, so the registry never queries models itself. `agents:prune-memory` (03:30 daily) applies the retention; `agents:reindex-memory
 --since --app` writes a window of past turns and outcomes for a first rollout or after an embedding
 outage, keyed like the live path so a re-run upserts. A test swaps the store and embeddings through `companyMemoryStore()` /
 `companyMemoryEmbeddings()` (`RememberingSystemUserAgentStub`) instead of needing Typesense; the live
@@ -180,11 +181,12 @@ Registered once on `ToolNode::class`; `ParallelToolNode` extends it and matches 
 A model that calls a tool it was never given hits two different places, and both must answer or the
 turn dies with a `ProviderException` / `ToolException`:
 
-1. **Provider parse** — `RecoversUnknownToolCalls::findTool()` on `KanvasGemini` returns an
-   `UnknownToolStub` so the response loads and the stub stays declared on later rounds.
+1. **Provider parse** — `RecoversUnknownToolCalls::findTool()` on every Kanvas provider returns an
+   `UnknownToolStub` so the response loads and the stub stays declared on later rounds (and is never
+   offered back to the model as an available tool).
 2. **Registry miss** — `ToolNode` resolves against the agent's `ToolRegistry`, where no stub lives, and
    throws. `HasKanvasAgentBehavior::resolveToolErrorHandler()` answers that `ToolException` with the same
-   `UnknownToolStub::feedback()` text so the model can self-correct.
+   `UnknownToolStub::response()` payload so the model can self-correct.
 
 Coverage: `tests/Intelligence/Agents/Providers/UnknownToolCallRecoveryTest.php` has one test per half.
 

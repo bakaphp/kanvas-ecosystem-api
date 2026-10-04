@@ -17,7 +17,6 @@ class RealStateAgent extends BaseRagAgent
     #[Override]
     protected function tools(): array
     {
-        /** @psalm-suppress MixedReturnTypeCoercion */
         $baseUrl = $this->app?->get(ConfigurationEnum::BASE_URL->value);
         $apiKey = $this->app?->get(ConfigurationEnum::API_KEY->value);
         $senderPhone = PhoneHelper::formatPhoneNumber($this->getSenderPhone());
@@ -37,21 +36,10 @@ class RealStateAgent extends BaseRagAgent
 
     public function getSenderPhone(): string
     {
-        /** @var People|Lead $agent */
-        $agent = $this->entity;
+        /** @var People|Lead $entity */
+        $entity = $this->entity;
+        $person = $entity instanceof Lead ? $entity->people : $entity;
 
-        // Get agent's phone number (the person using the agent)
-        $agentPhones = $agent instanceof Lead ? $agent->people->getPhones()->pluck('value')->toArray() : $agent->getPhones()->pluck('value')->toArray();
-        $agentCellPhones = $agent instanceof Lead ? $agent->people->getCellPhones()->pluck('value')->toArray() : $agent->getCellPhones()->pluck('value')->toArray();
-        $allAgentPhones = array_unique(array_merge($agentPhones, $agentCellPhones));
-
-        if (empty($allAgentPhones)) {
-            return '';
-        }
-
-        // Use the first phone number found
-        $agentPhone = $allAgentPhones[0];
-
-        return $agentPhone;
+        return (string) ($person->getPhones()->merge($person->getCellPhones())->pluck('value')->unique()->first() ?? '');
     }
 }

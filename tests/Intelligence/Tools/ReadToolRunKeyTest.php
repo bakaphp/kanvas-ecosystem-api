@@ -14,7 +14,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListOrganizationPeopleTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListPeopleTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchDealsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
-use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 use Tests\Traits\AssertsToolRunKeys;
 
@@ -38,8 +37,6 @@ class ReadToolRunKeyTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must track runs by inputs.');
-
             $this->assertRunKeyFollowsInputs($tool);
         }
     }

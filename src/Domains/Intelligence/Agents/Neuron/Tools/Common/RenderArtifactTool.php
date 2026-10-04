@@ -22,7 +22,6 @@ use Override;
  * Budgeted per inputs: a rich reply (a quarterly report) renders more than 10 distinct blocks, and a
  * per-name budget aborted the whole turn on the 11th (KANVAS-ECOSYSTEM-6H4).
  */
-// The catalog reads descriptions by reflection; this one is built at runtime, so the attribute carries the summary.
 #[AgentTool(
     name: 'Render Artifact',
     description: 'Render structured data (a balance, a record, a list, a metric, a sequence) as a visual component block in the chat reply.',

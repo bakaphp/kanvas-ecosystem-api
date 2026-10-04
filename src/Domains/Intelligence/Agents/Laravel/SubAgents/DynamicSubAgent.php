@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 
-// The catalog reads descriptions by reflection; this one comes from the agent record, so the attribute carries the summary.
 #[AgentTool(
     name: 'Dynamic Sub Agent',
     description: 'Delegate a question to one of the company\'s own configured agents, described by that agent\'s record at runtime.',
@@ -47,16 +46,7 @@ class DynamicSubAgent extends KanvasAgentAsTool
 
     public function instructions(): string
     {
-        $type = $this->agentRecord->type;
-        $coalesce = static fn (?string $a, ?string $b): ?string => ($a !== null && $a !== '') ? $a : $b;
-
-        $parts = array_filter([
-            $coalesce($this->agentRecord->soul, $type?->soul),
-            $coalesce($this->agentRecord->instructions, $type?->instructions),
-            $coalesce($this->agentRecord->output_format, $type?->output_format),
-        ]);
-
-        return implode("\n\n", $parts);
+        return $this->agentRecord->personaPrompt();
     }
 
     public function agentTools(): iterable

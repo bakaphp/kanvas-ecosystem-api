@@ -25,7 +25,7 @@ class TypesenseCollectionInspector
             self::CACHE_TTL,
             function () use ($app, $collection): array {
                 try {
-                    $client = SearchEngineResolver::getTypesenseClient(SearchEngineResolver::typesenseSettings($app));
+                    $client = SearchEngineResolver::typesenseClient($app);
 
                     return $client->getCollections()->{$collection}->retrieve();
                 } catch (Throwable) {

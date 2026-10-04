@@ -48,7 +48,6 @@ use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrderLine;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\TrackByInputs;
 use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
 use Tests\Traits\AssertsToolRunKeys;
@@ -1220,8 +1219,6 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool->getName() . ' must key its run budget by inputs.');
-
             $this->assertRunKeyFollowsInputs($tool);
         }
     }

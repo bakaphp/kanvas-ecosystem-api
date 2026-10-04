@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
@@ -22,7 +24,7 @@ use Override;
 
 /**
  * Company memory: writing the turn that just ended and deciding what a turn may read back. Requires
- * the HasKanvasAgentBehavior properties and its requireApp()/requireAgent()/requestingHuman().
+ * the HasKanvasAgentBehavior properties and its requireAgent()/requestingHuman().
  */
 trait RemembersForCompany
 {
@@ -75,6 +77,15 @@ trait RemembersForCompany
         }
 
         return FilterGroup::or(...$records);
+    }
+
+    private function requireApp(): Apps
+    {
+        if ($this->app === null) {
+            throw new ValidationException('App not set. Call setConfiguration() before using company memory.');
+        }
+
+        return $this->app;
     }
 
     protected function companyMemoryEnabled(): bool

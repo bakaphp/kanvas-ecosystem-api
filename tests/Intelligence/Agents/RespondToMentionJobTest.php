@@ -438,10 +438,8 @@ class RespondToMentionJobTest extends TestCase
 
     public function testAFileAttachedToTheMentionIsForwardedToTheAgentAsAContentBlock(): void
     {
-        // Regression: the @mention job used to hardcode media: [] into RunNeuronChatAction, so a PDF a
-        // user attached to the comment never reached the model — the agent replied "I can't read the
-        // file." The job must now collect the message's files and hand them over as native content
-        // blocks (RunNeuronChatAction sniffs the bytes → FileContent for a PDF).
+        // A PDF attached to the comment has to reach the model as a native content block
+        // (RunNeuronChatAction sniffs the bytes → FileContent), or the agent answers "I can't read the file."
         CapturingNeuronProvider::$lastMessages = [];
 
         $human = auth()->user();

@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace Tests\Stubs\Intelligence;
 
 use Kanvas\Intelligence\Agents\Neuron\ProjectManagement\ProjectManagerAgent;
-use NeuronAI\Chat\History\InMemoryMessageStore;
-use NeuronAI\Chat\History\MessageStoreInterface;
 use NeuronAI\Providers\AIProviderInterface;
 use Override;
+use Tests\Stubs\Intelligence\Concerns\RunsOffline;
 
 /**
  * The real ProjectManagerAgent (real instructions, real project grounding) on a fake provider and
@@ -17,27 +16,14 @@ use Override;
  */
 class CapturingProjectManagerAgentStub extends ProjectManagerAgent
 {
+    use RunsOffline;
+
     public static string $lastInstructions = '';
 
     #[Override]
     protected function provider(): AIProviderInterface
     {
         return new FakeNeuronProvider('Hola PM');
-    }
-
-    #[Override]
-    protected function messageStore(): MessageStoreInterface
-    {
-        return new InMemoryMessageStore();
-    }
-
-    /**
-     * @return list<object>
-     */
-    #[Override]
-    protected function tools(): array
-    {
-        return [];
     }
 
     #[Override]

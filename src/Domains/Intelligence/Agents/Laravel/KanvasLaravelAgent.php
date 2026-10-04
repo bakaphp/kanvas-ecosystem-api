@@ -349,15 +349,8 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
      */
     protected function instructionsFromRecord(string $default = ''): string
     {
-        $type = $this->agentRecord?->type;
-        $coalesce = static fn (?string $a, ?string $b): ?string => ($a !== null && $a !== '') ? $a : $b;
+        $persona = $this->agentRecord?->personaPrompt() ?? '';
 
-        $parts = array_filter([
-            $coalesce($this->agentRecord?->soul, $type?->soul),
-            $coalesce($this->agentRecord?->instructions, $type?->instructions),
-            $coalesce($this->agentRecord?->output_format, $type?->output_format),
-        ]);
-
-        return $parts === [] ? $default : implode("\n\n", $parts);
+        return $persona === '' ? $default : $persona;
     }
 }

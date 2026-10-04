@@ -37,7 +37,6 @@ use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\TrackByInputs;
 use Tests\Scribe\ScribeTestCase;
 use Tests\Traits\AssertsToolRunKeys;
 
@@ -792,8 +791,6 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool->getName() . ' must key its run budget by inputs.');
-
             $this->assertRunKeyFollowsInputs($tool);
         }
     }

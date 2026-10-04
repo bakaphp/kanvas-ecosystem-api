@@ -56,7 +56,7 @@ class NameSearchResolver
         if ($engine instanceof TypesenseEngine) {
             try {
                 return new TypesenseNameSearch(
-                    SearchEngineResolver::getTypesenseClient(SearchEngineResolver::typesenseSettings($app)),
+                    SearchEngineResolver::typesenseClient($app),
                 );
             } catch (Throwable $e) {
                 report($e);

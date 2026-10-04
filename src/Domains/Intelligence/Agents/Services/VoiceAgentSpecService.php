@@ -131,23 +131,14 @@ class VoiceAgentSpecService
     }
 
     /**
-     * Same coalescing as HasKanvasAgentBehavior::instructions(): prefer the
-     * per-field prompt on the agent, fall back per-field to the AgentType so a
-     * type acts as the base persona, then legacy structured `role`.
+     * The agent's persona prompt, then the legacy structured `role` for records that predate it.
      */
     private function systemInstruction(): string
     {
-        $type = $this->agent->type;
-        $coalesce = static fn (?string $a, ?string $b): ?string => ($a !== null && $a !== '') ? $a : $b;
+        $persona = $this->agent->personaPrompt();
 
-        $parts = array_filter([
-            $coalesce($this->agent->soul, $type?->soul),
-            $coalesce($this->agent->instructions, $type?->instructions),
-            $coalesce($this->agent->output_format, $type?->output_format),
-        ]);
-
-        if ($parts !== []) {
-            return implode("\n\n", $parts);
+        if ($persona !== '') {
+            return $persona;
         }
 
         $role = $this->agent->role;

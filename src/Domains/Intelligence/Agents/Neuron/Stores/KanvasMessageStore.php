@@ -116,16 +116,18 @@ abstract class KanvasMessageStore implements MessageStoreInterface
         return $bare;
     }
 
-    /**
-     * A "[Attachment: <description>]" memory line from a stored attachment list. Falls back to a bare
-     * "[Attachment]" when an attachment exists but its description hasn't been backfilled yet, so an
-     * attachment turn is never silently dropped from history.
-     */
     protected static function withMarker(string $text, string $marker): string
     {
         return trim($text . ($marker !== '' ? "\n" . $marker : ''));
     }
 
+    /**
+     * A "[Attachment: <description>]" memory line from a stored attachment list. Falls back to a bare
+     * "[Attachment]" when an attachment exists but its description hasn't been backfilled yet, so an
+     * attachment turn is never silently dropped from history.
+     *
+     * @param list<mixed> $attachments
+     */
     protected static function attachmentMarker(array $attachments): string
     {
         $markers = [];
@@ -135,10 +137,16 @@ abstract class KanvasMessageStore implements MessageStoreInterface
                 continue;
             }
 
-            $caption = trim((string) ($attachment['caption'] ?? ''));
-            $markers[] = $caption !== '' ? "[Attachment: {$caption}]" : '[Attachment]';
+            $markers[] = self::marker($attachment['caption'] ?? null);
         }
 
         return implode(' ', $markers);
+    }
+
+    protected static function marker(mixed $caption): string
+    {
+        $caption = trim((string) $caption);
+
+        return $caption !== '' ? "[Attachment: {$caption}]" : '[Attachment]';
     }
 }

@@ -24,10 +24,16 @@ use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Agent\AgentState;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Providers\ProviderResponse;
+use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
 use Tests\TestCase;
 use Throwable;
 
+/**
+ * Serial: seedOrganization() writes app settings (the GitHub token and release-feed repositories),
+ * which live in Redis and are shared by every parallel process.
+ */
+#[Group('serial')]
 final class DraftCustomerUpdateActionTest extends TestCase
 {
     use DatabaseTransactions;

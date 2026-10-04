@@ -5,21 +5,20 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 
 use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasSummarization;
-use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 
 /**
  * The rolling summary an agent on the conversation store keeps instead of forgetting. Requires the
- * HasKanvasAgentBehavior properties and its requireAgent()/contextWindow()/messageStore().
+ * HasKanvasAgentBehavior properties.
  */
 trait SummarizesHistory
 {
     /**
-     * Only the conversation store archives, so only agents on it summarize: the rollup and channel
-     * stores hold Social rows other writers own and rebuild their window from the database each load.
+     * The rollup and channel stores hold Social rows other writers own and rebuild their window from
+     * the database each load, so they never summarize.
      */
     protected function summarizesHistory(): bool
     {
-        return $this->resolveMessageStore() instanceof ConversationMessageStore;
+        return $this->ownsTranscript();
     }
 
     protected function summarization(): KanvasSummarization

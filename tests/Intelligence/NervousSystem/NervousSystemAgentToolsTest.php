@@ -24,7 +24,6 @@ use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 use Tests\Traits\AssertsToolRunKeys;
 
@@ -56,8 +55,6 @@ class NervousSystemAgentToolsTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must key runs by inputs.');
-
             $this->assertRunKeyFollowsInputs($tool);
         }
     }

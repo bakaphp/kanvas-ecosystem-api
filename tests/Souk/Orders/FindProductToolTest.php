@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindSalesOrderTool;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
-use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 use Tests\Traits\AssertsToolRunKeys;
 
@@ -70,8 +69,6 @@ class FindProductToolTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool->getName() . ' must key its run budget by inputs.');
-
             $this->assertRunKeyFollowsInputs($tool);
         }
     }

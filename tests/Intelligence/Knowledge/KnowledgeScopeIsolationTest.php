@@ -48,7 +48,7 @@ class KnowledgeScopeIsolationTest extends TestCase
     protected function tearDown(): void
     {
         try {
-            SearchEngineResolver::getTypesenseClient($this->kanvasApp->get('typesense_search_settings') ?? [])
+            SearchEngineResolver::typesenseClient($this->kanvasApp)
                 ->collections[self::TEST_COLLECTION]->delete();
         } catch (Throwable) {
             // collection may not exist if the test bailed early
@@ -252,7 +252,7 @@ class KnowledgeScopeIsolationTest extends TestCase
     private function requireTypesense(): void
     {
         try {
-            SearchEngineResolver::getTypesenseClient($this->kanvasApp->get('typesense_search_settings') ?? [])
+            SearchEngineResolver::typesenseClient($this->kanvasApp)
                 ->collections[self::TEST_COLLECTION]->retrieve();
         } catch (ObjectNotFound) {
             // reachable, collection just doesn't exist yet — good to proceed

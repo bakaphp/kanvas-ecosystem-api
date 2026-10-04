@@ -22,20 +22,6 @@ final class UnknownToolStub extends Tool
     }
 
     /**
-     * @param list<string> $available
-     */
-    private static function feedback(string $name, array $available): string
-    {
-        return sprintf(
-            'There is no tool named "%s". Never call a tool that is not in your tool list. %s',
-            $name,
-            $available === []
-                ? 'You have no tools on this turn — answer from the conversation instead.'
-                : 'Use one of these instead, or answer from what you already know: ' . implode(', ', $available) . '.'
-        );
-    }
-
-    /**
      * The payload the model reads, whichever half of the recovery answers.
      *
      * @param list<string> $available
@@ -45,7 +31,13 @@ final class UnknownToolStub extends Tool
     {
         return [
             'status' => 'error',
-            'message' => self::feedback($name, $available),
+            'message' => sprintf(
+                'There is no tool named "%s". Never call a tool that is not in your tool list. %s',
+                $name,
+                $available === []
+                    ? 'You have no tools on this turn — answer from the conversation instead.'
+                    : 'Use one of these instead, or answer from what you already know: ' . implode(', ', $available) . '.'
+            ),
         ];
     }
 

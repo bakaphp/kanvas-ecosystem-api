@@ -288,10 +288,8 @@ class HumanResourcesAgentToolsTest extends TestCase
 
     public function testBulkCreateToolsBudgetRunsPerInputsNotPerToolName(): void
     {
-        // Regression (Sentry KANVAS-ECOSYSTEM-621): NeuronAI caps a tool at 10 executions per turn keyed on
-        // the tool NAME by default, so onboarding an org chart (11+ DISTINCT create_position/create_employee
-        // calls) threw ToolRunsExceededException. TrackByInputs keys the counter on the inputs instead: distinct
-        // arguments → distinct keys (own budget), identical arguments → same key (loop still capped).
+        // Onboarding an org chart is 11+ distinct create_position/create_employee calls in one turn
+        // (Sentry KANVAS-ECOSYSTEM-621); see AssertsToolRunKeys for the budget rule.
         $position = new CreatePositionTool();
         $this->assertContains(TrackByInputs::class, class_uses_recursive($position));
 
@@ -348,8 +346,6 @@ class HumanResourcesAgentToolsTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must key runs by inputs.');
-
             $this->assertRunKeyFollowsInputs($tool);
         }
     }

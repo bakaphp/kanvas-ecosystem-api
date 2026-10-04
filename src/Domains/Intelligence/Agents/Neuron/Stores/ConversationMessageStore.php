@@ -74,7 +74,7 @@ class ConversationMessageStore extends KanvasMessageStore
 
     public function conversationId(string $threadId): string
     {
-        return $this->conversations[$threadId] ??= new KanvasConversationStore()->conversationForSession(
+        return $this->conversations[$threadId] ??= $this->conversationStore()->conversationForSession(
             $this->user->getId(),
             $this->sessionId ?? $threadId,
             $this->agent?->getId(),
@@ -205,7 +205,7 @@ class ConversationMessageStore extends KanvasMessageStore
                 $toolResults,
             )),
             'status' => AgentConversationMessage::STATUS_COMPLETED,
-            'sequence' => $this->nextSequence($conversationId),
+            'sequence' => $this->conversationStore()->nextSequence($conversationId),
             'usage' => json_encode($usage),
             'meta' => json_encode($meta),
             'created_at' => now(),
@@ -238,16 +238,16 @@ class ConversationMessageStore extends KanvasMessageStore
 
         $rows->update([
             'archived_at' => null,
-            'sequence' => $this->nextSequence($conversationId),
+            'sequence' => $this->conversationStore()->nextSequence($conversationId),
             'updated_at' => now(),
         ]);
 
         return true;
     }
 
-    private function nextSequence(string $conversationId): int
+    private function conversationStore(): KanvasConversationStore
     {
-        return new KanvasConversationStore()->nextSequence($conversationId);
+        return $this->conversationStore ??= new KanvasConversationStore();
     }
 
     private function activeRows(string $threadId): Builder

@@ -235,6 +235,6 @@ class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
 
     private function client(): Client
     {
-        return $this->client ??= SearchEngineResolver::getTypesenseClient(SearchEngineResolver::typesenseSettings($this->app));
+        return $this->client ??= SearchEngineResolver::typesenseClient($this->app);
     }
 }

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Stubs\Intelligence\Concerns;
 
-use NeuronAI\Chat\History\InMemoryMessageStore;
-use NeuronAI\Chat\History\MessageStoreInterface;
 use NeuronAI\Chat\Messages\SystemMessage;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
@@ -22,6 +20,8 @@ use Tests\Stubs\Intelligence\SharedCompanyMemory;
  */
 trait RemembersInProcess
 {
+    use RunsOffline;
+
     /** @var list<string> */
     public array $systemPrompts = [];
 
@@ -69,20 +69,5 @@ trait RemembersInProcess
     protected function companyMemoryEmbeddings(): EmbeddingsProviderInterface
     {
         return new ConstantEmbeddingsProvider();
-    }
-
-    #[Override]
-    protected function messageStore(): MessageStoreInterface
-    {
-        return new InMemoryMessageStore();
-    }
-
-    /**
-     * @return list<object>
-     */
-    #[Override]
-    protected function tools(): array
-    {
-        return [];
     }
 }

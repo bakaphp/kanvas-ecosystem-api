@@ -28,12 +28,7 @@ use Throwable;
  */
 final class CompanyMemoryRetrieval extends SimilarityRetrieval
 {
-    public const array SOURCE_TYPES = [
-        ConversationMemoryNode::SOURCE_TYPE,
-        LedgerKnowledgeSource::MEMORY_SOURCE_TYPE,
-        LedgerKnowledgeSource::OUTCOME_SOURCE_TYPE,
-    ];
-
+    /** The memory document kinds, each with the label the model reads it under. */
     private const array LABELS = [
         ConversationMemoryNode::SOURCE_TYPE => 'Earlier conversation',
         LedgerKnowledgeSource::MEMORY_SOURCE_TYPE => 'Saved memory',
@@ -50,7 +45,7 @@ final class CompanyMemoryRetrieval extends SimilarityRetrieval
         $scope = [
             Filter::eq('apps_id', $appId),
             Filter::eq('companies_id', $companyId),
-            Filter::in('source_type', self::SOURCE_TYPES),
+            Filter::in('source_type', array_keys(self::LABELS)),
         ];
 
         if ($recallScope !== null) {
@@ -90,7 +85,7 @@ final class CompanyMemoryRetrieval extends SimilarityRetrieval
     {
         $metadata = $document->getMetadata();
         $kind = (string) ($metadata['source_type'] ?? $document->getSourceType());
-        $label = self::LABELS[$kind] ?? ucfirst($kind);
+        $label = self::LABELS[$kind];
         $createdAt = (int) ($metadata['created_at'] ?? 0);
         $when = $createdAt > 0 ? ', ' . date('Y-m-d', $createdAt) : '';
 

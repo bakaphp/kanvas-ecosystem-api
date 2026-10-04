@@ -64,7 +64,7 @@ class BoundToolResultsMiddleware extends AgentMiddleware
             return;
         }
 
-        if (self::MAX_CHARS_PER_TURN - $this->charsSpentThisTurn($resources->history) > 0) {
+        if (self::charsSpentThisTurn($resources->history) < self::MAX_CHARS_PER_TURN) {
             return;
         }
 
@@ -100,10 +100,10 @@ class BoundToolResultsMiddleware extends AgentMiddleware
             return;
         }
 
-        $remaining = self::MAX_CHARS_PER_TURN - $this->charsSpentThisTurn($resources->history);
+        $remaining = self::MAX_CHARS_PER_TURN - self::charsSpentThisTurn($resources->history);
 
         foreach ($last->getToolCalls() as $call) {
-            if (self::length($call) === 0 || $this->isRefused($call)) {
+            if (self::length($call) === 0 || self::isRefused($call)) {
                 continue;
             }
 
@@ -200,15 +200,9 @@ class BoundToolResultsMiddleware extends AgentMiddleware
         ]);
     }
 
-    private function charsSpentThisTurn(ChatHistory $history): int
+    private static function charsSpentThisTurn(ChatHistory $history): int
     {
-        $spent = 0;
-
-        foreach (self::toolResultsThisTurn($history) as $call) {
-            $spent += self::length($call);
-        }
-
-        return $spent;
+        return array_sum(array_map(self::length(...), self::toolResultsThisTurn($history)));
     }
 
     private static function isRefused(ToolCall $call): bool

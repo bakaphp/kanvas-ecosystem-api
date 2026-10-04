@@ -166,9 +166,8 @@ class SystemAgentToolsTest extends TestCase
     }
 
     /**
-     * Regression (Sentry KANVAS-ECOSYSTEM-621): NeuronAI caps a tool at 10 executions per turn keyed on
-     * the tool NAME by default, so resolving a handful of DISTINCT teammates in one turn (a thread naming
-     * several people) threw ToolRunsExceededException. TrackByInputs keys the counter on the inputs instead.
+     * A thread naming several people resolves each in one turn (Sentry KANVAS-ECOSYSTEM-621); see
+     * AssertsToolRunKeys for the budget rule.
      */
     public function testWhoIsUserBudgetsRunsPerInputsNotPerToolName(): void
     {

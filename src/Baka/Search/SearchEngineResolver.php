@@ -102,6 +102,11 @@ class SearchEngineResolver
         return (array) ($app->get('typesense_search_settings') ?? []);
     }
 
+    public static function typesenseClient(HashTableInterface $app): TypesenseClient
+    {
+        return self::getTypesenseClient(self::typesenseSettings($app));
+    }
+
     /**
      * Whether a client built from these settings could authenticate at all: the app's own key, else
      * the platform key. The client constructor throws on an empty key, so callers that can live

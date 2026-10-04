@@ -25,6 +25,7 @@ use Kanvas\Intelligence\Agents\Traits\HasTemporalContext;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use Kanvas\NervousSystem\Scheduling\Services\ScheduledActionTimezoneResolver;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\AgentResources;
 use NeuronAI\Agent\Nodes\ChatNode;
@@ -142,6 +143,15 @@ trait HasKanvasAgentBehavior
      */
     public function persistsTurnsToConversationStore(): bool
     {
+        return $this->ownsTranscript();
+    }
+
+    /**
+     * Whether the agent's own store is the transcript: it persists every turn and it is the one store
+     * that archives, so summarization applies there and nowhere else.
+     */
+    protected function ownsTranscript(): bool
+    {
         return $this->resolveMessageStore() instanceof ConversationMessageStore;
     }
 
@@ -197,20 +207,11 @@ trait HasKanvasAgentBehavior
     #[Override]
     public function getTools(): array
     {
-        $tools = parent::getTools();
-
-        foreach ($this->universalTools() as $universal) {
-            if (! $this->hasToolNamed($tools, $universal->getName())) {
-                $tools[] = $universal;
-            }
-        }
-
-        // A registry-granted tool (e.g. toggled on in the admin UI) can share its name with one
-        // a subclass hardcodes in tools() — the registry merge in MergesRegisteredTools can't see
-        // that hardcoded addition since it happens after parent::tools() returns. Keeping the LAST
-        // occurrence favors the hardcoded instance, which is always appended after the registry
-        // merge in this codebase's array_merge(parent::tools(), [...]) convention.
-        $tools = $this->dedupeByName($tools);
+        // Last occurrence wins: a registry-granted tool (toggled on in the admin UI) can share its name
+        // with one a subclass hardcodes in tools(), and the hardcoded instance is always appended after
+        // the registry merge, so it is the one kept. The universal baseline goes first for the same
+        // reason — any agent-supplied copy of it wins.
+        $tools = $this->dedupeByName([...$this->universalTools(), ...parent::getTools()]);
 
         if ($this->rendersArtifacts) {
             return $tools;
@@ -259,27 +260,15 @@ trait HasKanvasAgentBehavior
      */
     private function resolveTenantTimezone(): ?string
     {
+        $resolver = new ScheduledActionTimezoneResolver();
+
         foreach ([$this->company?->timezone, $this->user?->timezone] as $candidate) {
-            if (is_string($candidate) && $candidate !== '' && in_array($candidate, timezone_identifiers_list(), true)) {
+            if (is_string($candidate) && $resolver->isValidTimezone($candidate)) {
                 return $candidate;
             }
         }
 
         return null;
-    }
-
-    /**
-     * @param array<int, object> $tools
-     */
-    private function hasToolNamed(array $tools, string $name): bool
-    {
-        foreach ($tools as $tool) {
-            if ($tool instanceof ToolInterface && $tool->getName() === $name) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -421,15 +410,6 @@ trait HasKanvasAgentBehavior
         }
 
         return $middleware;
-    }
-
-    private function requireApp(): Apps
-    {
-        if ($this->app === null) {
-            throw new ValidationException('App not set. Call setConfiguration() before using company memory.');
-        }
-
-        return $this->app;
     }
 
     /**

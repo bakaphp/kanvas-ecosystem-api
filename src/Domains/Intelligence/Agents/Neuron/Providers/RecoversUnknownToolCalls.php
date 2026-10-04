@@ -67,10 +67,14 @@ trait RecoversUnknownToolCalls
      */
     private function availableToolNames(): array
     {
+        // A stub registered for an earlier hallucination stays declared, but it is not a tool to offer.
         return array_values(
             array_map(
                 fn (ToolInterface $tool): string => $tool->getName(),
-                array_filter($this->tools, fn (object $tool): bool => $tool instanceof ToolInterface)
+                array_filter(
+                    $this->tools,
+                    fn (object $tool): bool => $tool instanceof ToolInterface && ! $tool instanceof UnknownToolStub
+                )
             )
         );
     }

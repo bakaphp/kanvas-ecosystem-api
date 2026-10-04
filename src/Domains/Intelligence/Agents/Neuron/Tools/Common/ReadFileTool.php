@@ -25,7 +25,6 @@ use Throwable;
  * Every refusal is phrased as an instruction because a model with no way to read its input does not
  * stop, it guesses — plan 31241 reported a breakdown of 158 records from a file of 52.
  */
-// The catalog reads descriptions by reflection; this one is built at runtime, so the attribute carries the summary.
 #[AgentTool(
     name: 'Read File',
     description: 'Read the text of a file stored in Kanvas by filesystem_id or file_url (CSV, PDF, spreadsheets, JSON), in chunks for long files.',

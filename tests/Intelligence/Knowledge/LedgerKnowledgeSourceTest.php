@@ -54,8 +54,20 @@ class LedgerKnowledgeSourceTest extends TestCase
     {
         $this->assertSame([], new LedgerKnowledgeSource()->build($this->event('lead.viewed', ['title' => 'x'])));
         $this->assertFalse(LedgerKnowledgeSource::wants('lead.viewed'));
-        $this->assertTrue(LedgerKnowledgeSource::wants('agent.decision.escalate'));
+        $this->assertFalse(LedgerKnowledgeSource::wants('plan.task.created'));
+        $this->assertTrue(LedgerKnowledgeSource::wants('agent.decided.escalate'));
         $this->assertTrue(LedgerKnowledgeSource::wants('agent.knowledge.saved'));
+    }
+
+    /**
+     * The allowlist names what the ledger really emits: these are the literals in ApprovePlanAction,
+     * UpdateTaskStatusAction and LeadObserver.
+     */
+    public function testTheOutcomesTheLedgerEmitsAreWanted(): void
+    {
+        foreach (['plan.approved', 'plan.task.completed', 'lead.stage.changed', 'lead.follow_up.sent'] as $emitted) {
+            $this->assertTrue(LedgerKnowledgeSource::wants($emitted), $emitted);
+        }
     }
 
     public function testAnOutcomeWithoutAnyTextIsSkipped(): void

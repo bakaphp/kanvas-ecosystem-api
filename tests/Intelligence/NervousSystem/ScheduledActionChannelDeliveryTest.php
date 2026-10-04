@@ -277,8 +277,6 @@ class ScheduledActionChannelDeliveryTest extends TestCase
 
         // The session's canal_id carries the connector destination in ORIGINAL case; the channel slug is
         // lowercased and would 404 against the Slack API. `slack:{team}:{channel}:{thread_ts}`.
-        // The parsing moved to NativeChannelDeliveryService when the plan-outcome path needed the same
-        // push; the delivery action delegates to it now.
         [$slackChannelId, $threadTs] = new ReflectionMethod(
             NativeChannelDeliveryService::class,
             'slackTargetFromCanalId',

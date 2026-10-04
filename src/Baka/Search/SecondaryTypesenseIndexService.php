@@ -50,6 +50,6 @@ class SecondaryTypesenseIndexService implements SecondaryIndexServiceInterface
 
     private function buildClient(): Client
     {
-        return SearchEngineResolver::getTypesenseClient(SearchEngineResolver::typesenseSettings($this->app));
+        return SearchEngineResolver::typesenseClient($this->app);
     }
 }

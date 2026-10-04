@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace Tests\Stubs\Intelligence;
 
 use Kanvas\Intelligence\Agents\Neuron\KanvasGenericNeuronAgent;
-use NeuronAI\Chat\History\InMemoryMessageStore;
-use NeuronAI\Chat\History\MessageStoreInterface;
 use NeuronAI\Providers\AIProviderInterface;
 use Override;
+use Tests\Stubs\Intelligence\Concerns\RunsOffline;
 
 /**
  * Neuron agent wired to a CapturingNeuronProvider and an in-memory history so a test can drive a real
@@ -17,27 +16,14 @@ use Override;
  */
 class CapturingNeuronAgentStub extends KanvasGenericNeuronAgent
 {
+    use RunsOffline;
+
     public ?FakeNeuronProvider $capturedProvider = null;
 
     #[Override]
     protected function provider(): AIProviderInterface
     {
         return $this->capturedProvider ??= new CapturingNeuronProvider();
-    }
-
-    #[Override]
-    protected function messageStore(): MessageStoreInterface
-    {
-        return new InMemoryMessageStore();
-    }
-
-    /**
-     * @return list<object>
-     */
-    #[Override]
-    protected function tools(): array
-    {
-        return [];
     }
 
     #[Override]

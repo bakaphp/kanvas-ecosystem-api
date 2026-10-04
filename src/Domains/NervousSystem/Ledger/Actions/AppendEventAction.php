@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Ledger\Actions;
 
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
-use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\LedgerConfigurationEnum;
@@ -62,13 +60,7 @@ class AppendEventAction
         }
 
         try {
-            $app = $this->data->app instanceof Apps ? $this->data->app : $event->app;
-
-            if (! KnowledgeComponents::memoryEnabled($app)) {
-                return;
-            }
-
-            KnowledgeIndexRequested::dispatch(KnowledgeEntity::fromModel($event));
+            KnowledgeIndexRequested::dispatchIfEnabled($event);
         } catch (Throwable $e) {
             report($e);
         }
@@ -91,17 +83,14 @@ class AppendEventAction
         try {
             $app = $this->data->app;
 
-            $flag = $app->get(LedgerConfigurationEnum::BROADCAST_LEDGER_EVENTS->value);
-            // Default ON. Only suppress when the app explicitly stores a
-            // falsy value (false / 0 / "0" / ""). null / missing → broadcast.
-            if ($flag !== null && ! (bool) $flag) {
+            if (! $app->getBool(LedgerConfigurationEnum::BROADCAST_LEDGER_EVENTS->value, default: true)) {
                 return;
             }
 
             $allowlist = $app->get(LedgerConfigurationEnum::BROADCAST_LEDGER_EVENT_TYPES->value);
 
             // No allowlist set → broadcast everything. Allowlist set → only broadcast matching prefixes.
-            if (is_array($allowlist) && $allowlist !== [] && ! $this->matchesAllowlist($event->event_type, $allowlist)) {
+            if (is_array($allowlist) && $allowlist !== [] && ! Str::startsWith($event->event_type, array_filter($allowlist, is_string(...)))) {
                 return;
             }
 
@@ -109,23 +98,5 @@ class AppendEventAction
         } catch (Throwable) {
             // intentional: never let a broadcast failure roll back a ledger write
         }
-    }
-
-    /**
-     * @param array<array-key, mixed> $allowlist event-type prefixes (e.g. ["plan.", "schedule.fired"])
-     */
-    protected function matchesAllowlist(string $eventType, array $allowlist): bool
-    {
-        foreach ($allowlist as $prefix) {
-            if (! is_string($prefix)) {
-                continue;
-            }
-
-            if ($prefix === $eventType || str_starts_with($eventType, $prefix)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

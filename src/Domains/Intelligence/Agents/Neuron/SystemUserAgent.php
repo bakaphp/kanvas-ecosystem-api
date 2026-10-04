@@ -12,6 +12,7 @@ use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ChannelMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
@@ -263,15 +264,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
         }
 
         $core[] = new SendEmailToUserTool($agent);
-
-        // The schedule tools key on the human, not the agent: "remind me" must land on the person
-        // who asked. On an @mention surface $this->user IS the agent's own user, so an explicit
-        // conversation human (set by the caller) wins over it.
-        $contextUser = $this->conversationHuman ?? $this->user ?? $agent->user;
-        $core[] = new ScheduleReminderTool($agent, $this->session)->withContext($app, $company, $contextUser);
-        $core[] = new ScheduleAgentTaskTool($agent, $this->session)->withContext($app, $company, $contextUser);
-        $core[] = new ListScheduledActionsTool($this->session)->withContext($app, $company, $contextUser);
-        $core[] = new CancelScheduledActionTool($this->session)->withContext($app, $company, $contextUser);
+        $core = [...$core, ...$this->scheduleTools($agent)];
 
         if ((string) ($agent->get(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value) ?? '') !== '') {
             $core[] = new SendSlackDirectMessageTool($agent);
@@ -337,6 +330,25 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     protected function actingUser(): ?Users
     {
         return $this->agent?->user ?? $this->user;
+    }
+
+    /**
+     * The schedule tools key on the human, not the agent: "remind me" must land on the person who
+     * asked. On an @mention surface $this->user IS the agent's own user, so the conversation human
+     * (set by the caller) wins over it.
+     *
+     * @return list<object>
+     */
+    protected function scheduleTools(Agent $agent): array
+    {
+        $human = $this->requestingHuman() ?? $agent->user;
+
+        return [
+            new ScheduleReminderTool($agent, $this->session)->withContext($this->app, $this->company, $human),
+            new ScheduleAgentTaskTool($agent, $this->session)->withContext($this->app, $this->company, $human),
+            new ListScheduledActionsTool($this->session)->withContext($this->app, $this->company, $human),
+            new CancelScheduledActionTool($this->session)->withContext($this->app, $this->company, $human),
+        ];
     }
 
     /**
