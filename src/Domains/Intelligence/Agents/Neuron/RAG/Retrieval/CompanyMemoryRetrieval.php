@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval;
 
 use Illuminate\Support\Facades\Log;
 use Kanvas\Intelligence\Agents\Neuron\Memory\ConversationMemoryNode;
+use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
 use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\RAG\Document;
@@ -45,7 +46,7 @@ final class CompanyMemoryRetrieval extends SimilarityRetrieval
         $scope = [
             Filter::eq('apps_id', $appId),
             Filter::eq('companies_id', $companyId),
-            Filter::in('source_type', array_keys(self::LABELS)),
+            Filter::in('source_type', KnowledgeScope::MEMORY_SOURCE_TYPES),
         ];
 
         if ($recallScope !== null) {
@@ -85,7 +86,7 @@ final class CompanyMemoryRetrieval extends SimilarityRetrieval
     {
         $metadata = $document->getMetadata();
         $kind = (string) ($metadata['source_type'] ?? $document->getSourceType());
-        $label = self::LABELS[$kind];
+        $label = self::LABELS[$kind] ?? $kind;
         $createdAt = (int) ($metadata['created_at'] ?? 0);
         $when = $createdAt > 0 ? ', ' . date('Y-m-d', $createdAt) : '';
 

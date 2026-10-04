@@ -301,4 +301,60 @@ class AgentConversationsQueryTest extends TestCase
 
         $this->assertEqualsCanonicalizing(['Compacted later', 'Kept'], array_column($mine['messages']['data'], 'content'));
     }
+
+    public function testTheLastPageHoldsTheNewestTurnEvenWhenOlderRowsWereArchived(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $session = (string) Str::uuid();
+
+        foreach (['first', 'second', 'third'] as $minute => $turn) {
+            Carbon::setTestNow(Carbon::parse('2026-10-04 10:00:00')->addMinutes($minute));
+            new KanvasConversationStore()->logTurn(
+                userId: $user->getId(),
+                sessionId: $session,
+                agentClass: 'Test\\Stub\\Handler',
+                userMessage: "The {$turn} question",
+                assistantResponse: "The {$turn} answer",
+                agentId: $agent->getId(),
+            );
+        }
+        Carbon::setTestNow();
+
+        // A summary archived the first turn: unordered, the window index now lists it after every active row.
+        DB::connection('intelligence')
+            ->table('agent_conversation_messages')
+            ->where('content', 'like', 'The first %')
+            ->update(['archived_at' => Carbon::now()]);
+
+        $response = $this->graphQL('
+            query {
+                agentConversations(first: 25) {
+                    data {
+                        agent { id }
+                        messages(first: 2, page: 3) {
+                            paginatorInfo { lastPage }
+                            data { content }
+                        }
+                    }
+                }
+            }
+        ')->assertSuccessful();
+
+        $mine = collect($response->json('data.agentConversations.data'))
+            ->first(fn (array $conv): bool => (int) $conv['agent']['id'] === $agent->getId());
+
+        $this->assertSame(3, $mine['messages']['paginatorInfo']['lastPage']);
+        $this->assertEqualsCanonicalizing(
+            ['The third question', 'The third answer'],
+            array_column($mine['messages']['data'], 'content'),
+            'The admin transcript pages from the last page backwards; it showed the archived rows instead'
+        );
+    }
 }

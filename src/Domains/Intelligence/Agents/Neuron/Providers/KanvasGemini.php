@@ -11,6 +11,7 @@ use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
+use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Providers\Gemini\Gemini;
 use NeuronAI\Providers\ProviderResponse;
 use Override;
@@ -28,6 +29,16 @@ class KanvasGemini extends Gemini
     ];
 
     /**
+     * What the retry is told. A blind retry repeats the mistake: every malformed call seen so far was a
+     * STRING argument carrying a JSON object (`render_artifact.props`) emitted as a nested object, and
+     * the model emits it the same way twice. The nudge is sent to the provider only, never stored.
+     */
+    public const string MALFORMED_CALL_FEEDBACK = 'Your previous function call could not be parsed and was discarded; nothing ran. '
+        . 'Issue it again as a proper function call. Every argument must match its declared type: an '
+        . 'argument declared as a string that carries an object or a list (such as "props") must be passed '
+        . 'as one JSON-encoded string, never as a nested object. Do not describe the call in prose.';
+
+    /**
      * Retry malformed output once at the inference boundary, before any returned tools run.
      * Never salvage finishMessage as a reply: it can claim actions the rejected call never performed.
      */
@@ -41,7 +52,7 @@ class KanvasGemini extends Gemini
                 'model' => $this->model,
             ]);
 
-            return parent::chat(...$messages);
+            return parent::chat(...[...$messages, new UserMessage(self::MALFORMED_CALL_FEEDBACK)]);
         }
     }
 

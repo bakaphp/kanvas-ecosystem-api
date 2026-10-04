@@ -129,7 +129,13 @@ in scope on a customer surface means no recall at all. An internal agent recalls
 or a plan it approved, is the company's (`InternalAgentMemoryPrivacyTest`, Max's decision 2026-10-04).
 An internal turn with no human (a cron) recalls only the shared kinds. Hits reach the model labelled `[Earlier conversation, 2026-09-28]`,
 `[Saved memory, …]`, `[Ledger, …]` so it knows provenance and age. Uploaded knowledge stays the
-knowledge retrieval's job: memory only reads `source_type in (conversation, memory, ledger)`.
+knowledge retrieval's job: memory only reads `source_type in (conversation, memory, ledger)`. The
+reverse holds too: `TypesenseKnowledgeStore::search()` reads through `KnowledgeScope::knowledgeFilter()`,
+which leaves those kinds out, because an organization-wide knowledge read would otherwise return every
+user's turns in the company with no audience scope at all. A turn is written through
+`ConversationMemoryNode::transcript()`, live and from the reindex sweep alike, which drops a `NO_UPDATE`
+reply and strips `AgentTurnResponse::noOpGuidance()` from the human side: recalled with the guidance in
+it, a stored agent-to-agent turn told a later turn to answer a human with `NO_UPDATE`.
 
 Per-app switches (`KnowledgeConfigurationEnum`): `agent_memory_enabled` (**on by default**, a tenant
 sets `0` to opt out; it costs one embedding per qualifying turn on the app's key, and an app with no

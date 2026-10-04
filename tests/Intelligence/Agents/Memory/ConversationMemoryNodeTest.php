@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Agents\Memory;
 
 use Kanvas\Intelligence\Agents\Neuron\Memory\ConversationMemoryNode;
+use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use NeuronAI\Agent\AgentResources;
 use NeuronAI\Agent\AgentState;
 use NeuronAI\Agent\Events\AgentOutputEvent;
@@ -59,6 +60,28 @@ class ConversationMemoryNodeTest extends TestCase
         $store = SharedCompanyMemory::newStore();
 
         $this->remember($store, 'hi', new AssistantMessage('Hello!'));
+
+        $this->assertSame([], SharedCompanyMemory::all($store));
+    }
+
+    public function testTheAgentToAgentGuidanceIsNotRemembered(): void
+    {
+        $store = SharedCompanyMemory::newStore();
+        $mention = 'Task #10484 has been unblocked and marked as done.' . AgentTurnResponse::noOpGuidance();
+
+        $this->remember($store, $mention, new AssistantMessage('Noted, I will pick up the next task on the plan now.'));
+
+        $content = SharedCompanyMemory::all($store)[0]->getContent();
+
+        $this->assertStringStartsWith('User: Task #10484 has been unblocked and marked as done.', $content);
+        $this->assertStringNotContainsString('NO_UPDATE', $content, 'Recalled later, the instruction made an agent answer a human with NO_UPDATE');
+    }
+
+    public function testADeclinedTurnIsNotAMemory(): void
+    {
+        $store = SharedCompanyMemory::newStore();
+
+        $this->remember($store, 'Here is the 3-bullet summary of CRM metrics for Task #10486, all done.', new AssistantMessage('NO_UPDATE'));
 
         $this->assertSame([], SharedCompanyMemory::all($store));
     }

@@ -76,13 +76,17 @@ class AgentConversation extends ImmutableBaseModel
         return $this->morphTo('participant', 'participant_type', 'participant_id');
     }
 
+    /**
+     * Chronological, always: the admin transcript pages from the LAST page backwards on the promise
+     * that the newest turns are there. Unordered, MySQL walks conversation_window_index
+     * (conversation_id, archived_at, sequence), so the active rows come first and the last page
+     * holds whatever a summary archived most recently.
+     */
     public function messages(): HasMany
     {
-        return $this->hasMany(
-            AgentConversationMessage::class,
-            'conversation_id',
-            'id'
-        );
+        return $this->hasMany(AgentConversationMessage::class, 'conversation_id', 'id')
+            ->orderBy('created_at')
+            ->orderBy('id');
     }
 
     /**

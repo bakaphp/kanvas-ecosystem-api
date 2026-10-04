@@ -29,6 +29,22 @@ final class GeminiMalformedFunctionCallTest extends TestCase
         $this->assertSame(0, $mock->count());
     }
 
+    public function testTheRetryTellsTheModelWhatWasWrong(): void
+    {
+        $mock = new MockHandler([
+            $this->malformed(),
+            $this->answer('Rendered.'),
+        ]);
+
+        $this->provider($mock)->chat(new UserMessage('Render the scoring table'));
+
+        $retry = json_decode((string) $mock->getLastRequest()->getBody(), true);
+        $turns = array_map(static fn (array $content): string => $content['role'] . ': ' . ($content['parts'][0]['text'] ?? ''), $retry['contents']);
+
+        $this->assertSame('user: Render the scoring table', $turns[0]);
+        $this->assertSame('user: ' . KanvasGemini::MALFORMED_CALL_FEEDBACK, end($turns), 'A blind retry repeats the malformed call');
+    }
+
     public function testAMalformedCallThatPersistsFailsWithoutSalvagingTheNarratedAction(): void
     {
         $mock = new MockHandler([

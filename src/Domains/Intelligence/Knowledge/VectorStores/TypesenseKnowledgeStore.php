@@ -115,8 +115,9 @@ final class TypesenseKnowledgeStore
     }
 
     /**
-     * @param array<int, float> $embedding
-     * @param float|null $minScore drop hits below this similarity (score = 1 - distance); null keeps all
+     * A read of uploaded knowledge: memory kinds live in the same collection and are left out here,
+     * CompanyMemoryRetrieval reads them under its own audience scope through searchByFilter().
+|null $minScore drop hits below this similarity (score = 1 - distance); null keeps all
      * @return array<int, array{content: string, sourceType: string, sourceName: string, score: float, metadata: array<string, mixed>}>
      */
     public function search(
@@ -125,7 +126,7 @@ final class TypesenseKnowledgeStore
         int $topK = 8,
         ?float $minScore = null
     ): array {
-        return $this->searchByFilter($embedding, $scope->filter(), $topK, $minScore);
+        return $this->searchByFilter($embedding, $scope->knowledgeFilter(), $topK, $minScore);
     }
 
     /**

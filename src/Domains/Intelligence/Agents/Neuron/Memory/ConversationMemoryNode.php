@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Memory;
 
 use Illuminate\Support\Facades\Log;
+use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use NeuronAI\Agent\AgentResources;
 use NeuronAI\Agent\AgentState;
 use NeuronAI\Agent\Events\AgentOutputEvent;
@@ -124,12 +125,17 @@ final class ConversationMemoryNode extends Node implements AgentNodeInterface
         return $metadata;
     }
 
+    /**
+     * The live node and the reindex sweep both write through here, so the rules on what is a memory
+     * live here: a declined turn (NO_UPDATE) is the agent not speaking, and the guidance that invited
+     * it is prompt, not conversation.
+     */
     public static function transcript(string $question, string $answer): ?string
     {
-        $question = trim($question);
+        $question = AgentTurnResponse::stripNoOpGuidance($question);
         $answer = trim($answer);
 
-        if ($question === '' || $answer === '') {
+        if ($question === '' || $answer === '' || AgentTurnResponse::isNoOp($answer)) {
             return null;
         }
 
