@@ -115,13 +115,19 @@ class BackfillConversationStepsCommand extends Command
      * the Person. Only conversations an AI identity ran qualify — a staff user's session can also point at
      * a People record — so the acting user decides, exactly as `KanvasConversationStore::participantFor()`
      * does for new turns. A uuid can carry several session rows (one per agent, or a stale one from an
-     * earlier turn); the newest is the live one, the same choice `Session::scopeFromAgent()` makes.
+     * earlier turn); the newest is the live one, the same choice `Session::scopeFromAgent()` makes — picked
+     * through a one-pass derived table, because a per-row correlated subquery ran for over a minute per
+     * thousand conversations on prod before `sessions.uuid` was indexed.
      */
     private function backfillPeopleParticipants(): int
     {
+        $newestSessionPerUuid = DB::connection('intelligence')->table('sessions')
+            ->selectRaw('uuid, MAX(id) as id')
+            ->groupBy('uuid');
+
         return $this->conversations('c')
             ->join('sessions as s', 's.uuid', '=', 'c.title')
-            ->whereRaw('s.id = (SELECT MAX(id) FROM sessions WHERE uuid = c.title)')
+            ->joinSub($newestSessionPerUuid, 'newest', 'newest.id', '=', 's.id')
             ->whereNull('c.participant_type')
             ->where('s.entity_namespace', People::class)
             ->whereIn('c.user_id', $this->aiIdentityUserIds())
