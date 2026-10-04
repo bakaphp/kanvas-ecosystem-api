@@ -559,12 +559,29 @@ final class DraftCustomerUpdateActionTest extends TestCase
         $this->assertTrue($result->hasDraft());
     }
 
+    /** @var array<string, mixed> the real values of the settings seedOrganization() overwrites, put back in tearDown */
+    private array $previousSettings = [];
+
+    protected function tearDown(): void
+    {
+        $app = app(Apps::class);
+
+        foreach ($this->previousSettings as $key => $value) {
+            $value === null ? $app->del($key) : $app->set($key, $value);
+        }
+
+        parent::tearDown();
+    }
+
     private function seedOrganization(): Organization
     {
         $user = auth()->user();
         $app = app(Apps::class);
-        $app->set(ConfigurationEnum::TOKEN->value, 'test-token');
-        $app->set(KanvasReleaseFeedEnum::REPOSITORIES->value, 'acme/api');
+
+        foreach ([ConfigurationEnum::TOKEN->value => 'test-token', KanvasReleaseFeedEnum::REPOSITORIES->value => 'acme/api'] as $key => $value) {
+            $this->previousSettings[$key] ??= $app->get($key);
+            $app->set($key, $value);
+        }
 
         return Organization::create([
             'apps_id' => $app->getId(),

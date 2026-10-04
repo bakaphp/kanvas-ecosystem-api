@@ -10,26 +10,17 @@ use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Agent\AgentInterface;
 use NeuronAI\Agent\AgentState;
 use NeuronAI\Chat\Messages\Message;
-use NeuronAI\Providers\AIProviderInterface;
 
-interface BehavesAsKanvasAgent extends ProvidesToolDependencies
+/**
+ * Every entry point binds a thread (AgentInterface::setThreadId) before running: the session uuid in
+ * userChat, the entity uuid on a channel, a suffixed parent thread for a sub-agent.
+ */
+interface BehavesAsKanvasAgent extends AgentInterface, ProvidesToolDependencies
 {
-    public function setConfiguration(
-        Agent $agent,
-        ?Model $entity = null,
-        ?string $externalReferenceId = null,
-        ?Users $user = null,
-    ): void;
-
-    /**
-     * The conversation's address. Neuron refuses to run an unbound agent, so every entry point binds one:
-     * the session uuid in userChat, the entity uuid on a channel, a suffixed parent thread for a sub-agent.
-     */
-    public function setThreadId(string $threadId): static;
-
-    public function getThreadId(): ?string;
+    public function setConfiguration(Agent $agent, ?Model $entity = null, ?Users $user = null): void;
 
     public function setSession(?Session $session): void;
 
@@ -45,8 +36,6 @@ interface BehavesAsKanvasAgent extends ProvidesToolDependencies
     public function setRendersArtifacts(bool $renders): void;
 
     public function persistsTurnsToConversationStore(): bool;
-
-    public function getProvider(): AIProviderInterface;
 
     public function resolvedModelName(): string;
 

@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Knowledge\Workflows\IndexKnowledgeDocumentActivity;
 use Laravel\Ai\Embeddings;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 use Throwable;
 use Typesense\Exceptions\ObjectNotFound;
@@ -22,7 +23,9 @@ use Typesense\Exceptions\ObjectNotFound;
  * one collection, and a company-scoped search must never return the other
  * company's rows, nor any entity-scoped (entity_id>0) rows. Runs against a live
  * Typesense cluster (host `typesense`), mirroring the prior round-trip tests.
+ * Serial: app settings (Redis).
  */
+#[Group('serial')]
 class KnowledgeScopeIsolationTest extends TestCase
 {
     use DatabaseTransactions;

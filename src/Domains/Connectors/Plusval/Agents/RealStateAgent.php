@@ -34,6 +34,18 @@ class RealStateAgent extends BaseRagAgent
         ];
     }
 
+    /**
+     * A Plusval agent's persona lives on the agent record or its type (soul/instructions/output_format),
+     * not in the structured `role` the generic prompt is built from.
+     */
+    #[Override]
+    public function instructions(): string
+    {
+        $persona = $this->agent?->personaPrompt() ?? '';
+
+        return $persona === '' ? parent::instructions() : $persona . "\n\n" . $this->platformContextBlock();
+    }
+
     public function getSenderPhone(): string
     {
         /** @var People|Lead $entity */

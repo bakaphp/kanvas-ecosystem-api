@@ -141,22 +141,29 @@ final class TypesenseKnowledgeStore
             throw new RuntimeException('A knowledge search must be scoped: pass at least the tenant filters.');
         }
 
-        // No existence pre-check: this runs on every recall of every tenant, and a collection that is not
-        // there yet answers as a search with no hits.
-        try {
-            $response = $this->client->multiSearch->perform([
-                'searches' => [[
-                    'collection' => $this->collection,
-                    'q' => '*',
-                    'vector_query' => 'embedding:(' . (string) json_encode($embedding) . ', k:' . $topK . ')',
-                    'filter_by' => $filterBy,
-                    'exclude_fields' => 'embedding',
-                    'per_page' => $topK,
-                    'num_candidates' => max(50, $topK * 4),
-                ]],
-            ]);
-        } catch (ObjectNotFound) {
+        // No existence pre-check: this runs on every recall of every tenant. multi_search answers a
+        // missing collection as a per-search 404 inside the 200 body, which is the one error that means
+        // "nothing written yet"; any other per-search error is a real fault the caller must see.
+        $response = $this->client->multiSearch->perform([
+            'searches' => [[
+                'collection' => $this->collection,
+                'q' => '*',
+                'vector_query' => 'embedding:(' . (string) json_encode($embedding) . ', k:' . $topK . ')',
+                'filter_by' => $filterBy,
+                'exclude_fields' => 'embedding',
+                'per_page' => $topK,
+                'num_candidates' => max(50, $topK * 4),
+            ]],
+        ]);
+
+        $result = $response['results'][0] ?? [];
+
+        if (($result['code'] ?? 200) === 404) {
             return [];
+        }
+
+        if (isset($result['error'])) {
+            throw new RuntimeException('Typesense knowledge search failed: ' . (string) $result['error']);
         }
 
         $hits = array_map(static function (array $hit): array {

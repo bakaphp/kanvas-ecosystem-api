@@ -63,7 +63,7 @@ class KanvasAgentCommand extends Command
                 }
 
                 $this->newLine();
-                $this->info('Agent: ' . $this->answer($handler, $app, $entity, $question));
+                $this->info('Agent: ' . $this->answer($handler, $entity, $question));
                 $this->newLine();
             }
 
@@ -71,7 +71,7 @@ class KanvasAgentCommand extends Command
         }
 
         $question = (string) $this->ask('What would you like to ask the agent?');
-        $this->info($this->answer($handler, $app, $entity, $question));
+        $this->info($this->answer($handler, $entity, $question));
 
         return self::SUCCESS;
     }
@@ -103,11 +103,11 @@ class KanvasAgentCommand extends Command
         );
     }
 
-    private function answer(BehavesAsKanvasAgent|ADKAgent $handler, Apps $app, Model $entity, string $question): string
+    private function answer(BehavesAsKanvasAgent|ADKAgent $handler, Model $entity, string $question): string
     {
         if ($handler instanceof ADKAgent) {
             $response = $handler->chatSimple(
-                app: $app,
+                app: $entity->app,
                 company: $entity->company,
                 userId: (string) $entity->users_id,
                 sessionId: $entity->uuid,

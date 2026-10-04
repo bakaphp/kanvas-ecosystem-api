@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Knowledge\Contracts\KnowledgeSource;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
@@ -18,7 +19,7 @@ use Override;
 /**
  * Two kinds of ledger event become company memory. A saved memory (`agent.knowledge.saved`, written
  * by the `remember` tool) is kept as the agent wrote it, forever. An allowlisted outcome (a plan
- * approved, a task completed, a lead's status changed, a message sent) becomes a one-line record of
+ * approved, a task completed, a lead's stage changed, a follow-up sent) becomes a one-line record of
  * what was done, pruned by retention like a conversation. Ordinary telemetry is never embedded.
  */
 final class LedgerKnowledgeSource implements KnowledgeSource
@@ -40,6 +41,7 @@ final class LedgerKnowledgeSource implements KnowledgeSource
         'lead.follow_up.sent',
     ];
 
+    /** The name Event::category() reserves for an agent's recorded decisions; no emitter yet. */
     private const array OUTCOME_PREFIXES = ['agent.decided'];
 
     private const array OUTCOME_TEXT_KEYS = ['summary', 'title', 'subject', 'name', 'message', 'content', 'description', 'reason'];
@@ -105,7 +107,7 @@ final class LedgerKnowledgeSource implements KnowledgeSource
 
         $payload = is_array($entity->payload) ? $entity->payload : [];
         $isMemory = $entity->event_type === self::MEMORY_EVENT;
-        $content = $isMemory ? self::memoryText($payload) : self::outcomeText($entity->event_type, $payload);
+        $content = $isMemory ? self::memoryText($payload) : self::outcomeText($entity, $payload);
 
         if ($content === '') {
             return [];
@@ -144,24 +146,85 @@ final class LedgerKnowledgeSource implements KnowledgeSource
     }
 
     /**
-     * The subject and the first line only: an outcome is a fact about what happened, not the payload.
+     * One line: the event, the record it happened to, and the one detail worth keeping. The emitters'
+     * payloads carry ids, not text, so the subject is the source record's own title unless the payload
+     * names one.
      *
      * @param array<string, mixed> $payload
      */
-    private static function outcomeText(string $eventType, array $payload): string
+    private static function outcomeText(Event $event, array $payload): string
     {
-        foreach (self::OUTCOME_TEXT_KEYS as $key) {
+        $subject = self::payloadLine($payload, self::OUTCOME_TEXT_KEYS) ?? self::sourceLabel($event);
+
+        if ($subject === null) {
+            return '';
+        }
+
+        $detail = self::outcomeDetail($event->event_type, $payload);
+        $line = "{$event->event_type}: {$subject}" . ($detail === null ? '' : " ({$detail})");
+
+        return mb_substr($line, 0, self::OUTCOME_MAX_CHARS);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private static function outcomeDetail(string $eventType, array $payload): ?string
+    {
+        return match ($eventType) {
+            'lead.stage.changed' => self::stageName((int) ($payload['to_stage_id'] ?? 0)),
+            'lead.follow_up.sent' => self::payloadLine($payload, ['reason']),
+            default => null,
+        };
+    }
+
+    private static function stageName(int $stageId): ?string
+    {
+        $name = $stageId > 0 ? PipelineStage::query()->find($stageId)?->name : null;
+
+        return is_string($name) && trim($name) !== '' ? 'moved to ' . trim($name) : null;
+    }
+
+    private static function sourceLabel(Event $event): ?string
+    {
+        $class = (string) $event->source_entity_type;
+        $id = (int) $event->source_entity_id;
+
+        if ($id < 1 || ! is_a($class, Model::class, true)) {
+            return null;
+        }
+
+        $record = $class::query()->find($id);
+
+        foreach (['title', 'name'] as $attribute) {
+            $value = $record?->getAttribute($attribute);
+
+            if (is_string($value) && trim($value) !== '') {
+                return trim($value);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The first non-empty line of the first text key present.
+     *
+     * @param array<string, mixed> $payload
+     * @param list<string> $keys
+     */
+    private static function payloadLine(array $payload, array $keys): ?string
+    {
+        foreach ($keys as $key) {
             $value = $payload[$key] ?? null;
 
             if (! is_string($value) || trim($value) === '') {
                 continue;
             }
 
-            $line = trim(strtok(trim($value), "\n") ?: '');
-
-            return mb_substr("{$eventType}: {$line}", 0, self::OUTCOME_MAX_CHARS);
+            return trim(strtok(trim($value), "\n") ?: '');
         }
 
-        return '';
+        return null;
     }
 }

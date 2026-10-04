@@ -52,11 +52,20 @@ final class KnowledgeComponents
 
     public static function resultLimit(Apps $app): int
     {
-        return self::clampedInt($app, KnowledgeConfigurationEnum::RESULT_LIMIT, default: 8, max: 20);
+        return self::clampedInt(
+            $app,
+            KnowledgeConfigurationEnum::RESULT_LIMIT,
+            default: 8,
+            max: 20,
+        );
     }
 
-    private static function clampedInt(Apps $app, KnowledgeConfigurationEnum $key, int $default, int $max = PHP_INT_MAX): int
-    {
+    private static function clampedInt(
+        Apps $app,
+        KnowledgeConfigurationEnum $key,
+        int $default,
+        int $max = PHP_INT_MAX
+    ): int {
         return min(max((int) $app->get($key->value, $default), 1), $max);
     }
 
@@ -84,7 +93,12 @@ final class KnowledgeComponents
     /** On top of the knowledge result limit, never in its place. */
     public static function memoryResultLimit(Apps $app): int
     {
-        return self::clampedInt($app, KnowledgeConfigurationEnum::AGENT_MEMORY_RESULT_LIMIT, default: 4, max: 10);
+        return self::clampedInt(
+            $app,
+            KnowledgeConfigurationEnum::AGENT_MEMORY_RESULT_LIMIT,
+            default: 4,
+            max: 10,
+        );
     }
 
     public static function memoryIngestMinChars(Apps $app): int

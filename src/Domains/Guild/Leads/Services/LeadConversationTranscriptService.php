@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Leads\Services;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
+use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
 use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\Messages\Message;
 
@@ -46,7 +47,11 @@ class LeadConversationTranscriptService
                     ? "[Agent] {$content}"
                     : $content;
             },
-            KanvasHistoryTrimmer::fold($store->loadActive($lead->uuid)),
+            // The rollup has no cap of its own; a long-lived lead's whole history would otherwise go to the model.
+            KanvasHistoryTrimmer::make()->trim(
+                KanvasHistoryTrimmer::fold($store->loadActive($lead->uuid)),
+                ModelContextWindowService::MIN_HISTORY_TOKENS,
+            ),
         )));
     }
 }

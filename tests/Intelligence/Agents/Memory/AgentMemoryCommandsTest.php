@@ -73,6 +73,8 @@ class AgentMemoryCommandsTest extends TestCase
 
     public function testReindexWritesPastTurnsKeyedToTheRecord(): void
     {
+        // The sweep also queues every wanted ledger row in the window; none of them may reach a real worker.
+        Queue::fake();
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $agent = $this->rememberingAgent($user);

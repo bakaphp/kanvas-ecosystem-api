@@ -339,13 +339,8 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
     abstract public function agentTools(): iterable;
 
     /**
-     * Build instructions from the agent record, falling back to its AgentType
-     * template per field, then to a static default if nothing is set in the DB.
-     *
-     * An agent (or its type) that populates soul/instructions/output_format
-     * overrides the in-code prompt, so the same handler class can be re-skinned
-     * per type without a code change — mirrors the Neuron backend, which reads
-     * its persona from $agent->role.
+     * An agent (or its type) that populates soul/instructions/output_format overrides the in-code
+     * prompt, so the same handler class can be re-skinned per type without a code change.
      */
     protected function instructionsFromRecord(string $default = ''): string
     {

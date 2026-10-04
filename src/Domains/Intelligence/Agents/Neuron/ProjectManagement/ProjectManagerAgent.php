@@ -67,7 +67,8 @@ use Override;
 class ProjectManagerAgent extends SystemUserAgent
 {
     /**
-     * Always the conversation store: a project wake is never a mention and never rolls up on a record.
+     * Always the conversation store, even on an @mention: the PM answers from its own transcript, never
+     * from the channel window or a record's rollup.
      */
     #[Override]
     protected function messageStore(): MessageStoreInterface
@@ -315,13 +316,16 @@ class ProjectManagerAgent extends SystemUserAgent
 
         $project = $this->wakeProject($agent);
 
+        // Off the wake path (a DM, an ad-hoc chat) a sole managed project is unambiguous; several means
+        // the human has to name one.
         if ($project === null) {
             $projects = $this->managedProjects($agent);
-            $project = $projects->count() === 1 ? $projects->first() : null;
-        }
 
-        if (! $project instanceof Project) {
-            return $this->unresolvedProjectGrounding($projects);
+            if ($projects->count() !== 1) {
+                return $this->unresolvedProjectGrounding($projects);
+            }
+
+            $project = $projects->first();
         }
 
         $bundle = new ProjectContextService()->buildContextBundle($project, historyLimit: 10);
@@ -332,11 +336,9 @@ class ProjectManagerAgent extends SystemUserAgent
     }
 
     /**
-     * The project this turn is about. A wake runs the PM on a session whose entity IS the project it
-     * was woken for, so that project wins — an agent that PMs several projects would otherwise ground
-     * on an arbitrary row and contradict the very context it was woken with. Off the wake path (a DM,
-     * an ad-hoc chat) there is no project entity, so a sole managed project is unambiguous; several
-     * means the human has to name one.
+     * A wake runs the PM on a session whose entity IS the project it was woken for, so that project
+     * wins — an agent that PMs several projects would otherwise ground on an arbitrary row and
+     * contradict the very context it was woken with.
      */
     private function wakeProject(Agent $agent): ?Project
     {
@@ -478,7 +480,7 @@ class ProjectManagerAgent extends SystemUserAgent
         // Opening a project is done FOR a human — the owner is who gets @mentioned when the board
         // can't move — so it keys on the human, not on the PM's own user.
         $core[] = new CreateNervousSystemProjectTool($agent)
-            ->withContext($app, $company, $requestingHuman ?? $agent->user ?? $user);
+            ->withContext($app, $company, $requestingHuman ?? $user);
 
         // identityTools() (from SystemUserAgent) gives the PM who_is_user — correctly pointed at the
         // human it's talking to — plus its own ledger memory and read_file, without re-listing them here.

@@ -146,7 +146,7 @@ class LeadObserver
             }
         }
 
-        $this->queueKnowledgeIndex($lead);
+        KnowledgeIndexRequested::dispatchIfEnabled($lead);
         //$lead->clearLightHouseCacheJob();
     }
 
@@ -177,7 +177,7 @@ class LeadObserver
             'organization_id',
             'companies_id',
         ])) {
-            $this->queueKnowledgeIndex($lead);
+            KnowledgeIndexRequested::dispatchIfEnabled($lead);
         }
         //$lead->clearLightHouseCacheJob();
     }
@@ -209,11 +209,6 @@ class LeadObserver
         ]);
 
         new DeleteSessionAction($lead)->execute();
-    }
-
-    private function queueKnowledgeIndex(Lead $lead): void
-    {
-        KnowledgeIndexRequested::dispatchIfEnabled($lead);
     }
 
     /**

@@ -176,6 +176,15 @@ the model is told, truthfully, that the call did not happen. `afterAgentNode` bo
 derives "spent this turn" from the history, so a fresh instance per node sees the same budget.
 Registered once on `ToolNode::class`; `ParallelToolNode` extends it and matches by `instanceof`.
 
+## Two provider overrides v4 still needs
+
+- `KanvasGemini::createToolCallMessage()` re-indexes the function-call parts: upstream collects them
+  with a key-preserving `array_filter` and reads the thought signature off key 0, so a thinking model's
+  thought part ahead of the call loses the signature and Gemini rejects the next request.
+- `KanvasRouterProvider` (what `NeuronResponderProviderFallback` builds) keeps the agent's
+  `SystemMessage` as given; `neuron-core/router` 2.1.0 stores it in a `?string` and throws a TypeError
+  on the first turn of any tenant with a fallback LLM config. Drop it when the package fixes the type.
+
 ## Unknown tool calls have two halves
 
 A model that calls a tool it was never given hits two different places, and both must answer or the

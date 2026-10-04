@@ -23,7 +23,8 @@ use Tests\Traits\MakesAgents;
 
 /**
  * Four long turns against a 300-token budget, which is what makes the compaction run twice in a test
- * instead of needing 40K tokens of history. The turns run once in setUp; each test reads one concern.
+ * instead of needing 40K tokens of history. setUp replays the four turns for each test; each test reads
+ * one concern.
  */
 class SummarizationOnConversationStoreTest extends TestCase
 {

@@ -19,7 +19,6 @@ class NeuronAgentFactory
         Agent $agent,
         string $threadId,
         ?Model $entity = null,
-        ?string $externalReferenceId = null,
         ?Users $user = null,
     ): BehavesAsKanvasAgent {
         $handlerClass = $agent->type->handler;
@@ -32,12 +31,7 @@ class NeuronAgentFactory
 
         /** @var BehavesAsKanvasAgent $neuronAgent */
         $neuronAgent = new $handlerClass();
-        $neuronAgent->setConfiguration(
-            agent: $agent,
-            entity: $entity,
-            externalReferenceId: $externalReferenceId,
-            user: $user,
-        );
+        $neuronAgent->setConfiguration(agent: $agent, entity: $entity, user: $user);
 
         $neuronAgent->setThreadId($threadId);
 

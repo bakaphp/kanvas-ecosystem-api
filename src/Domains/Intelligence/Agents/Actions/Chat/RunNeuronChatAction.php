@@ -27,7 +27,6 @@ use Kanvas\Intelligence\Agents\Services\NeuronResponderProviderFallback;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Agent\AgentInterface;
 use NeuronAI\Agent\AgentState;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
@@ -116,7 +115,7 @@ class RunNeuronChatAction
         $usage = [];
 
         try {
-            if ($this->handler instanceof AgentInterface) {
+            if ($this->handler instanceof BehavesAsKanvasAgent) {
                 $this->handler->setAiProvider(
                     new NeuronResponderProviderFallback()->wrap(
                         $this->handler->getProvider(),

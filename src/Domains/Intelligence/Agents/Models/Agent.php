@@ -433,6 +433,15 @@ class Agent extends BaseModel
      * The persona prompt: soul, instructions and output format, each falling back per field to the
      * AgentType so a type acts as the base persona. Empty when neither the agent nor its type says anything.
      */
+    /**
+     * The one-line description of the agent for a catalog or a tool list: the soul when it has one, else
+     * the description, else the name.
+     */
+    public function summary(): string
+    {
+        return $this->soul ?? $this->description ?? $this->name;
+    }
+
     public function personaPrompt(): string
     {
         $type = $this->type;

@@ -6,6 +6,7 @@ namespace Kanvas\NervousSystem\Ledger\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
@@ -60,6 +61,10 @@ class AppendEventAction
         }
 
         try {
+            if ($this->data->app instanceof Apps) {
+                $event->setRelation('app', $this->data->app);
+            }
+
             KnowledgeIndexRequested::dispatchIfEnabled($event);
         } catch (Throwable $e) {
             report($e);
@@ -83,14 +88,18 @@ class AppendEventAction
         try {
             $app = $this->data->app;
 
+            // Only a stored value that parses as false suppresses; unset means broadcast.
             if (! $app->getBool(LedgerConfigurationEnum::BROADCAST_LEDGER_EVENTS->value, default: true)) {
                 return;
             }
 
-            $allowlist = $app->get(LedgerConfigurationEnum::BROADCAST_LEDGER_EVENT_TYPES->value);
+            // No allowlist (or only blank entries) → broadcast everything; otherwise only matching prefixes.
+            $prefixes = array_values(array_filter(
+                (array) $app->get(LedgerConfigurationEnum::BROADCAST_LEDGER_EVENT_TYPES->value, []),
+                static fn (mixed $prefix): bool => is_string($prefix) && $prefix !== '',
+            ));
 
-            // No allowlist set → broadcast everything. Allowlist set → only broadcast matching prefixes.
-            if (is_array($allowlist) && $allowlist !== [] && ! Str::startsWith($event->event_type, array_filter($allowlist, is_string(...)))) {
+            if ($prefixes !== [] && ! Str::startsWith($event->event_type, $prefixes)) {
                 return;
             }
 

@@ -50,6 +50,8 @@ class ConversationMessageStore extends KanvasMessageStore
     /** @var array<string, string> thread id => conversation id */
     private array $conversations = [];
 
+    private ?KanvasConversationStore $conversationStore = null;
+
     /**
      * @param string|null $sessionId Keys the conversation when set (one thread per session and agent);
      *                               the thread id is the key otherwise. userChat binds the session uuid

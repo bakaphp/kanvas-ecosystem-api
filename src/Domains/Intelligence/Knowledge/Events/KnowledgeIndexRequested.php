@@ -20,16 +20,14 @@ final class KnowledgeIndexRequested
     /**
      * The one gate every writer goes through: the entity's source decides whether its app indexes it.
      */
-    public static function dispatchIfEnabled(Model $entity, ?KnowledgeSourceRegistry $sources = null): bool
+    public static function dispatchIfEnabled(Model $entity, ?KnowledgeSourceRegistry $sources = null): void
     {
         $source = ($sources ?? new KnowledgeSourceRegistry())->for($entity::class);
 
         if ($source === null || ! $source->isEnabledFor($entity->app)) {
-            return false;
+            return;
         }
 
         self::dispatch(KnowledgeEntity::fromModel($entity));
-
-        return true;
     }
 }

@@ -19,10 +19,9 @@ use Throwable;
  * Compiles an Agent into the "voice agent spec" the external voice runtime
  * (Pipecat / Cloud Run) fetches at the start of each call.
  *
- * This is the read-only config-plane compilation: it assembles the same system
- * prompt the in-process NeuronAI agent uses (soul → instructions →
- * output_format, with AgentType fallback — see HasKanvasAgentBehavior), the
- * resolved model name, the per-agent voice_config, and the agent's telephony
+ * This is the read-only config-plane compilation: it assembles the agent's
+ * persona prompt (Agent::personaPrompt(), the legacy structured `role` as the
+ * fallback), the resolved model name, the per-agent voice_config, and the agent's telephony
  * number (per-agent, falling back to the company). It never returns credentials
  * — Twilio secrets stay out of this payload.
  */

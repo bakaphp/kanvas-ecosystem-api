@@ -56,7 +56,6 @@ trait HasKanvasAgentBehavior
     protected ?Apps $app = null;
     protected ?Companies $company = null;
     protected ?Model $entity = null;
-    protected ?string $externalReferenceId = null;
     protected ?Users $user = null;
     protected ?Session $session = null;
 
@@ -76,12 +75,8 @@ trait HasKanvasAgentBehavior
     protected bool $privateUserTurn = false;
     protected bool $rendersArtifacts = false;
 
-    public function setConfiguration(
-        Agent $agent,
-        ?Model $entity = null,
-        ?string $externalReferenceId = null,
-        ?Users $user = null,
-    ): void {
+    public function setConfiguration(Agent $agent, ?Model $entity = null, ?Users $user = null): void
+    {
         if ($user === null) {
             throw new ValidationException(
                 'A Users instance is required to configure a Neuron agent. '
@@ -95,7 +90,6 @@ trait HasKanvasAgentBehavior
         $this->entity = $entity;
         $this->app = $agent->app;
         $this->company = $agent->companyFor($user);
-        $this->externalReferenceId = $externalReferenceId;
         $this->user = $user;
     }
 
@@ -207,10 +201,9 @@ trait HasKanvasAgentBehavior
     #[Override]
     public function getTools(): array
     {
-        // Last occurrence wins: a registry-granted tool (toggled on in the admin UI) can share its name
-        // with one a subclass hardcodes in tools(), and the hardcoded instance is always appended after
-        // the registry merge, so it is the one kept. The universal baseline goes first for the same
-        // reason — any agent-supplied copy of it wins.
+        // Last occurrence wins, so the universal baseline goes first: any copy the agent supplies, by
+        // hardcoding or by registry grant, replaces it. Between a hardcoded and a registry tool of the same
+        // name, whichever the subclass's tools() lists last is kept.
         $tools = $this->dedupeByName([...$this->universalTools(), ...parent::getTools()]);
 
         if ($this->rendersArtifacts) {
@@ -258,17 +251,9 @@ trait HasKanvasAgentBehavior
      * The agent's local timezone for time-relative reasoning: company timezone, then user timezone, then
      * UTC. Each is validated as a real IANA zone so a blank/garbage tenant value falls through.
      */
-    private function resolveTenantTimezone(): ?string
+    private function resolveTenantTimezone(): string
     {
-        $resolver = new ScheduledActionTimezoneResolver();
-
-        foreach ([$this->company?->timezone, $this->user?->timezone] as $candidate) {
-            if (is_string($candidate) && $resolver->isValidTimezone($candidate)) {
-                return $candidate;
-            }
-        }
-
-        return null;
+        return new ScheduledActionTimezoneResolver()->resolve($this->company, $this->user);
     }
 
     /**

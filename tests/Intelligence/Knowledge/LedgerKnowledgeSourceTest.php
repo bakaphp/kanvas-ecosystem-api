@@ -4,14 +4,21 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Knowledge;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Tests\TestCase;
 
 class LedgerKnowledgeSourceTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'crm'];
+
     public function testASavedMemoryIsKeptAsTheAgentWroteIt(): void
     {
         $event = $this->event('agent.knowledge.saved', [
@@ -70,15 +77,37 @@ class LedgerKnowledgeSourceTest extends TestCase
         }
     }
 
-    public function testAnOutcomeWithoutAnyTextIsSkipped(): void
+    /**
+     * The real emitters' payloads carry ids, not text (`to_stage_id`, `status_to`, ...): the line comes
+     * from the record the event happened to.
+     */
+    public function testARealOutcomeIsDescribedFromItsRecord(): void
     {
-        $this->assertSame([], new LedgerKnowledgeSource()->build($this->event('task.completed', ['task_id' => 12])));
+        $app = app(Apps::class);
+        $lead = Lead::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId(auth()->user()->getCurrentCompany()->getId())
+            ->create(['title' => 'Acme renewal']);
+        $stage = PipelineStage::query()->findOrFail($lead->pipeline_stage_id);
+
+        $event = $this->event('lead.stage.changed', ['from_stage_id' => null, 'to_stage_id' => $stage->getId()], $lead);
+
+        $documents = new LedgerKnowledgeSource()->build($event);
+
+        $this->assertCount(1, $documents);
+        $this->assertSame("lead.stage.changed: Acme renewal (moved to {$stage->name})", $documents[0]->content);
+        $this->assertSame($lead->getId(), $documents[0]->metadata['entity_id']);
+    }
+
+    public function testAnOutcomeWhoseRecordIsGoneIsSkipped(): void
+    {
+        $this->assertSame([], new LedgerKnowledgeSource()->build($this->event('plan.task.completed', ['status_to' => 'done'], sourceId: 0)));
     }
 
     /**
      * @param array<string, mixed> $payload
      */
-    private function event(string $type, array $payload): Event
+    private function event(string $type, array $payload, ?Lead $lead = null, int $sourceId = 5): Event
     {
         $event = new Event();
         $event->id = 99;
@@ -89,7 +118,7 @@ class LedgerKnowledgeSourceTest extends TestCase
         $event->actor_type = 'Agent';
         $event->actor_id = 7;
         $event->source_entity_type = Lead::class;
-        $event->source_entity_id = 5;
+        $event->source_entity_id = $lead?->getId() ?? $sourceId;
         $event->occurred_at = Carbon::parse('2026-09-28 12:00:00');
 
         return $event;

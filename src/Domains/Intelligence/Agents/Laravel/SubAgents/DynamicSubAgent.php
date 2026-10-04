@@ -41,7 +41,7 @@ class DynamicSubAgent extends KanvasAgentAsTool
 
     public function description(): string
     {
-        return $this->agentRecord->soul ?? $this->agentRecord->description ?? $this->agentRecord->name;
+        return $this->agentRecord->summary();
     }
 
     public function instructions(): string
