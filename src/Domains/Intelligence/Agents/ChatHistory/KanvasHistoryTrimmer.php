@@ -26,12 +26,13 @@ use Override;
  * (the duplicate-email feedback loop). Keep the longer copy when one contains the other; only genuinely
  * different turns concatenate.
  *
- * ChatHistory::addMessage() archives `count(before) − count(after)` messages in the store after a trim;
- * a fold shortens that list, so the number is wrong for a real archive. Every Kanvas store's archive()
- * is a no-op, which is what makes this safe — see KanvasMessageStore.
+ * A fold shortens the list without dropping a turn, so a count-based archive would stamp the wrong rows;
+ * the survivor records the ids it absorbed and KanvasChatHistory archives by identity instead.
  */
 final class KanvasHistoryTrimmer extends HistoryTrimmer
 {
+    public const string FOLDED_IDS = '__folded';
+
     public static function make(): self
     {
         return new self(new KanvasTokenCounter());
@@ -96,6 +97,11 @@ final class KanvasHistoryTrimmer extends HistoryTrimmer
         $media = [...self::mediaBlocks($into), ...self::mediaBlocks($from)];
 
         $into->setContents(self::coalesce((string) $into->getContent(), (string) $from->getContent()));
+        $into->addMetadata(self::FOLDED_IDS, [
+            ...(array) ($into->getMetadata(self::FOLDED_IDS) ?? []),
+            $from->getId(),
+            ...(array) ($from->getMetadata(self::FOLDED_IDS) ?? []),
+        ]);
 
         foreach ($media as $block) {
             $into->addContent($block);

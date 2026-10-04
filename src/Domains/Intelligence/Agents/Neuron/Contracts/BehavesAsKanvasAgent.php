@@ -10,6 +10,8 @@ use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Agent\AgentState;
+use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Providers\AIProviderInterface;
 
 interface BehavesAsKanvasAgent extends ProvidesToolDependencies
@@ -47,4 +49,10 @@ interface BehavesAsKanvasAgent extends ProvidesToolDependencies
     public function captionProvider(): AIProviderInterface;
 
     public function resolvedModelName(): string;
+
+    /**
+     * The turn a dead worker left behind for this thread and this message, continued from its last
+     * committed step: tools that already ran are not run again. Null when there is nothing to recover.
+     */
+    public function recoverInterruptedRun(Message $inbound): ?AgentState;
 }

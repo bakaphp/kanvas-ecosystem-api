@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
@@ -26,11 +27,12 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\AgentResources;
+use NeuronAI\Agent\Nodes\ChatNode;
 use NeuronAI\Agent\Nodes\ToolNode;
 use NeuronAI\Agent\SystemPrompt;
-use NeuronAI\Chat\History\ChatHistory;
 use NeuronAI\Chat\History\InMemoryMessageStore;
 use NeuronAI\Chat\History\MessageStoreInterface;
+use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Exceptions\ToolException;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Tools\ToolCall;
@@ -43,6 +45,10 @@ use Throwable;
 
 trait HasKanvasAgentBehavior
 {
+    use RemembersForCompany;
+    use RunsDurably;
+    use SummarizesHistory;
+
     use HasTemporalContext;
 
     protected ?Agent $agent = null;
@@ -395,7 +401,7 @@ trait HasKanvasAgentBehavior
             array_values(array_filter($tools, static fn (mixed $tool): bool => $tool instanceof ToolInterface)),
         );
 
-        $history = new ChatHistory(
+        $history = new KanvasChatHistory(
             $this->resolveMessageStore(),
             $this->requireWorkflowId(),
             $this->contextWindow ?? $this->contextWindow(),
@@ -416,9 +422,24 @@ trait HasKanvasAgentBehavior
     #[Override]
     protected function middleware(): array
     {
-        return [
+        $middleware = [
             ToolNode::class => new BoundToolResultsMiddleware(),
         ];
+
+        if ($this->summarizesHistory()) {
+            $middleware[ChatNode::class] = $this->summarization();
+        }
+
+        return $middleware;
+    }
+
+    private function requireApp(): Apps
+    {
+        if ($this->app === null) {
+            throw new ValidationException('App not set. Call setConfiguration() before using company memory.');
+        }
+
+        return $this->app;
     }
 
     /**

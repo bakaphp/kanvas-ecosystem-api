@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Stores;
 
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Kanvas\Intelligence\Agents\Enums\AgentMessageTypeEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message as SocialMessage;
 use Kanvas\Users\Models\Users;
@@ -34,6 +35,7 @@ class ChannelMessageStore extends KanvasMessageStore
     public function loadActive(string $threadId): array
     {
         $messages = $this->channel->messages()
+            ->with('messageType')
             ->orderBy('messages.id', 'asc')
             ->get();
 
@@ -63,7 +65,8 @@ class ChannelMessageStore extends KanvasMessageStore
     {
         $content = trim($message->contentText());
 
-        if ($content === '') {
+        // The agent's own compaction note is for humans; replaying it would summarize the summary.
+        if ($content === '' || $message->messageType?->verb === AgentMessageTypeEnum::AGENT_SUMMARY->value) {
             return null;
         }
 

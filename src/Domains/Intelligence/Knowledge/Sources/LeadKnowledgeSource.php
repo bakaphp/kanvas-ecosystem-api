@@ -6,14 +6,17 @@ namespace Kanvas\Intelligence\Knowledge\Sources;
 
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadVariantInterestProjectionService;
 use Kanvas\Intelligence\Knowledge\Contracts\KnowledgeSource;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;
 use Kanvas\Intelligence\Knowledge\Enums\LeadRagConfigurationEnum;
+use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
+use Override;
 
 final class LeadKnowledgeSource implements KnowledgeSource
 {
@@ -25,6 +28,23 @@ final class LeadKnowledgeSource implements KnowledgeSource
     public function entityType(): string
     {
         return Lead::class;
+    }
+
+    #[Override]
+    public function find(int $entityId, int $appId, int $companyId): ?Model
+    {
+        return Lead::query()
+            ->whereKey($entityId)
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', 0)
+            ->first();
+    }
+
+    #[Override]
+    public function isEnabledFor(Apps $app): bool
+    {
+        return KnowledgeComponents::knowledgeEnabled($app);
     }
 
     public function build(Model $entity): array

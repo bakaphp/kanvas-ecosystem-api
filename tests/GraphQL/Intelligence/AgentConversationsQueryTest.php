@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Intelligence;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -14,6 +15,10 @@ use Tests\TestCase;
 
 class AgentConversationsQueryTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'intelligence'];
+
     public function testMessagesAreScopedToTheirOwnConversation(): void
     {
         $app = app(Apps::class);
@@ -253,5 +258,47 @@ class AgentConversationsQueryTest extends TestCase
         $contents = collect($convs[0]['messages']['data'])->pluck('content')->all();
         $this->assertContains('message from B', $contents);
         $this->assertNotContains('message from A', $contents);
+    }
+
+    public function testArchivedMessagesStayInTheTranscript(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+
+        new KanvasConversationStore()->logTurn(
+            userId: $user->getId(),
+            sessionId: (string) Str::uuid(),
+            agentClass: 'Test\\Stub\\Handler',
+            userMessage: 'Compacted later',
+            assistantResponse: 'Kept',
+            agentId: $agent->getId(),
+        );
+
+        DB::connection('intelligence')
+            ->table('agent_conversation_messages')
+            ->where('content', 'Compacted later')
+            ->update(['archived_at' => Carbon::now()]);
+
+        $response = $this->graphQL('
+            query {
+                agentConversations(first: 25) {
+                    data {
+                        agent { id }
+                        messages(first: 50) { data { content } }
+                    }
+                }
+            }
+        ')->assertSuccessful();
+
+        $mine = collect($response->json('data.agentConversations.data'))
+            ->first(fn (array $conv): bool => (int) $conv['agent']['id'] === $agent->getId());
+
+        $this->assertEqualsCanonicalizing(['Compacted later', 'Kept'], array_column($mine['messages']['data'], 'content'));
     }
 }
