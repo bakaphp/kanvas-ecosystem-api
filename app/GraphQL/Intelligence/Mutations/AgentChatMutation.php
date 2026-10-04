@@ -19,10 +19,12 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Enums\AgentChatStatusEnum;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
+use Kanvas\Intelligence\Agents\Exceptions\AgentTurnCancelledException;
 use Kanvas\Intelligence\Agents\Helpers\AgentChatBroadcastChannel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Jobs\ProcessAgentChatTurnJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\AgentTurnCancellationService;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateUserSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
@@ -49,12 +51,7 @@ class AgentChatMutation
             company: $company
         );
 
-        $sessionId = (string) $input['session_id'];
-        $session = Session::fromApp($app)
-            ->fromCompany($company)
-            ->fromAgent($agent)
-            ->where('uuid', $sessionId)
-            ->first();
+        $session = $this->sessionByUuid($app, $company, $agent, (string) $input['session_id']);
 
         [$mergedImages, $mergedFiles, $attachments] = $this->mergeUploadsWithUrls(
             $input,
@@ -214,6 +211,8 @@ class AgentChatMutation
             $response = $processor->execute();
         } catch (AgentReplySkippedException) {
             throw $this->deactivatedAgentError();
+        } catch (AgentTurnCancelledException) {
+            throw new ValidationException('This turn was cancelled; send the message again to retry.');
         }
 
         /** @var Message $reply userChat always supplies a Session, so persistence always runs and sets the reply (or throws). */
@@ -227,6 +226,50 @@ class AgentChatMutation
             'status' => AgentChatStatusEnum::COMPLETED->value,
             'broadcast_channel' => AgentChatBroadcastChannel::nameFor($agent, $session->uuid),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $req
+     */
+    public function cancel(mixed $rootValue, array $req): bool
+    {
+        /** @var array<string, mixed> $input */
+        $input = $req['input'];
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        /** @var Agent $agent */
+        $agent = Agent::getByIdWithGlobalFallback(
+            id: (int) $input['agent_id'],
+            app: $app,
+            company: $company
+        );
+
+        // userChat threads the turn by the session uuid (AgentChatKernel::threadId() with no source
+        // channel), so the session uuid is the key the running turn checks.
+        $session = $this->sessionByUuid($app, $company, $agent, (string) $input['session_id']);
+
+        if ($session === null) {
+            throw new ValidationException('Session not found.');
+        }
+
+        AgentTurnCancellationService::request($session->uuid);
+
+        return true;
+    }
+
+    private function sessionByUuid(
+        Apps $app,
+        Companies $company,
+        Agent $agent,
+        string $uuid
+    ): ?Session {
+        return Session::fromApp($app)
+            ->fromCompany($company)
+            ->fromAgent($agent)
+            ->where('uuid', $uuid)
+            ->first();
     }
 
     /**
@@ -270,11 +313,7 @@ class AgentChatMutation
         Companies $company,
     ): Session {
         if (! empty($input['session_id'])) {
-            $session = Session::fromApp($app)
-                ->fromCompany($company)
-                ->fromAgent($agent)
-                ->where('uuid', (string) $input['session_id'])
-                ->first();
+            $session = $this->sessionByUuid($app, $company, $agent, (string) $input['session_id']);
 
             if ($session !== null) {
                 return $session;

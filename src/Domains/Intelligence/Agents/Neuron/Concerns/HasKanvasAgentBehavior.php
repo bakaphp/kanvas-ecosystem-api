@@ -13,8 +13,10 @@ use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
+use Kanvas\Intelligence\Agents\Neuron\Middleware\CancelsOnRequestMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
+use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\CurrentTimeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\DynamicSubAgentTool;
@@ -128,6 +130,30 @@ trait HasKanvasAgentBehavior
     public function requestingHuman(): ?Users
     {
         return $this->conversationHuman ?? $this->user;
+    }
+
+    /**
+     * A cancelled turn leaves the person's message in the transcript but out of the model's window, so
+     * the resend is the only copy the agent answers; the durable run is abandoned so the thread takes it.
+     */
+    public function discardTurn(Message $message): void
+    {
+        $threadId = $this->getThreadId();
+        $store = $this->resolveMessageStore();
+
+        if ($threadId !== null && $store instanceof KanvasMessageStore) {
+            $store->archiveMessages($threadId, [KanvasMessageStore::bareId($message->getId())]);
+        }
+
+        if (! $this->durableRunsActive()) {
+            return;
+        }
+
+        try {
+            $this->abandon();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**
@@ -386,12 +412,14 @@ trait HasKanvasAgentBehavior
     #[Override]
     protected function middleware(): array
     {
+        $cancel = new CancelsOnRequestMiddleware();
         $middleware = [
-            ToolNode::class => new BoundToolResultsMiddleware(),
+            ToolNode::class => [new BoundToolResultsMiddleware(), $cancel],
+            ChatNode::class => [$cancel],
         ];
 
         if ($this->summarizesHistory()) {
-            $middleware[ChatNode::class] = $this->summarization();
+            $middleware[ChatNode::class][] = $this->summarization();
         }
 
         return $middleware;

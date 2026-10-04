@@ -69,6 +69,17 @@ class SummarizingNeuronAgentStub extends KanvasGenericNeuronAgent
     }
 
     /**
+     * Pinned so the trimmer never cuts what the summarizer is meant to keep: the real window is capped
+     * by AGENT_MAX_HISTORY_TOKENS, which a developer lowers to test compaction by hand, and at 1500 the
+     * cut archived the summary row and failed this suite.
+     */
+    #[Override]
+    protected function contextWindow(): int
+    {
+        return 50000;
+    }
+
+    /**
      * @return list<object>
      */
     #[Override]

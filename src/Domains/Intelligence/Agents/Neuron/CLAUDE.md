@@ -33,6 +33,9 @@ class SendEmailTool extends Tool
   future release stops cloning, the guard starts firing across turns.
 - A tool answers with a string, an array, or a `ToolOutput`. MCP tools answer `ToolOutput`; cast with
   `(string)` where a caller wants text, never `getResult()` straight into `json_decode`.
+- `ToolkitInterface` grew `add(ToolInterface ...$tools)` in 4.1.0. `RemoteMcpToolkit` implements the
+  interface by hand (composition, see its docblock), so every interface addition lands there too or the
+  class fatals at load; PHPStan level 0 is what catches it.
 
 ## Thread id: mandatory, and the kernel chooses it
 

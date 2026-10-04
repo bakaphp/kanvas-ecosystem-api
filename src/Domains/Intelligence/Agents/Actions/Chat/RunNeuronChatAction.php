@@ -13,12 +13,14 @@ use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
+use Kanvas\Intelligence\Agents\Exceptions\AgentTurnCancelledException;
 use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
+use Kanvas\Intelligence\Agents\Services\AgentTurnCancellationService;
 use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
 use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
@@ -83,6 +85,25 @@ class RunNeuronChatAction
         $allowStructuredText = ! $this->handler instanceof ConversesWithCustomer;
         $budget = new AttachmentBudgetService();
 
+        // A stop that arrives after the turn ends must not cancel the next one, so the flag is cleared
+        // on every exit; the thread is the key the cancel mutation and the middleware share.
+        $threadId = $this->handler instanceof BehavesAsKanvasAgent ? $this->handler->getThreadId() : null;
+
+        try {
+            return $this->runTurn($sessionId, $selfRecords, $allowStructuredText, $budget);
+        } finally {
+            if ($threadId !== null) {
+                AgentTurnCancellationService::clear($threadId);
+            }
+        }
+    }
+
+    private function runTurn(
+        string $sessionId,
+        bool $selfRecords,
+        bool $allowStructuredText,
+        AttachmentBudgetService $budget
+    ): string {
         $userMessage = new UserMessage($this->message);
         foreach ($this->media as $attachment) {
             $binary = AttachmentFetchService::fetch($attachment);
@@ -135,6 +156,20 @@ class RunNeuronChatAction
             [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
             $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
             $this->executedToolCalls = BoundToolResultsMiddleware::executedCalls($state);
+        } catch (AgentTurnCancelledException $e) {
+            // The person stopped it: no fallback, no report, no turn logged. The message row is kept
+            // for the transcript but leaves the model's window, so the resend is answered alone.
+            if ($this->handler instanceof BehavesAsKanvasAgent) {
+                $this->handler->discardTurn($userMessage);
+            }
+
+            Log::info('Neuron chat turn cancelled on request', [
+                'agent_id' => $this->agent->getId(),
+                'session_id' => $sessionId,
+                'thread_id' => $e->threadId,
+            ]);
+
+            throw $e;
         } catch (Throwable $e) {
             $fallback = $this->humanizedFallback($e);
 

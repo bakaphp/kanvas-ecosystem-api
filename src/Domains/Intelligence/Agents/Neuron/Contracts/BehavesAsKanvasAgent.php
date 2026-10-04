@@ -44,4 +44,7 @@ interface BehavesAsKanvasAgent extends AgentInterface, ProvidesToolDependencies
      * committed step: tools that already ran are not run again. Null when there is nothing to recover.
      */
     public function recoverInterruptedRun(Message $inbound): ?AgentState;
+
+    /** Drop a cancelled turn from the model's window and release the thread for the next message. */
+    public function discardTurn(Message $message): void;
 }

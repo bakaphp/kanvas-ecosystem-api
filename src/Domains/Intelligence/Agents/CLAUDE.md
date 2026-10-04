@@ -671,6 +671,21 @@ plus the per-domain equivalents in [`AccountsReceivableAgentToolsTest`](../../..
 [`EventToolsTest`](../../../../tests/Intelligence/Agents/Tools/EventToolsTest.php) and
 [`FindProductToolTest`](../../../../tests/Souk/Orders/FindProductToolTest.php).
 
+## Stopping a turn
+
+`aiAgentCancelChat(agent_id, session_id)` sets a Redis flag keyed by the thread
+(`AgentTurnCancellationService`, prefix `kanvas:agent-turn:cancel:`). `CancelsOnRequestMiddleware`, on
+`ChatNode` and `ToolNode`, reads it before every inference and every tool call and throws
+`AgentTurnCancelledException`; a request already at the provider and a tool already running finish
+first, so a stop never leaves a write half done. `RunNeuronChatAction` treats the exception as a stop,
+not a fault: no fallback prose, no `logTurn`, no `report()`; it calls `discardTurn()` on the handler
+(the message row leaves the model's window, the durable run is abandoned) and rethrows.
+`ProcessAgentChatTurnJob` broadcasts `agent.chat.cancelled`; the sync `userChat` fails with a
+validation error. The flag is cleared in `finally` on every exit, so a stop that lands after the
+reply cannot cancel the resend. The key is the thread, and userChat threads by session uuid, which
+is why the mutation takes a session: a channel turn (threaded by the entity) is out of its reach.
+Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
+
 ## Don't break
 
 - **`AgentChatKernel` is load-bearing for 4 call sites** — `userChat` (GraphQL), channel responders (×6), `WakeAgentForPlanJob`, `AgentReceiverJob`. Any change to its constructor or `execute()` contract ripples through all of them. Test both `userChat` and at least one channel responder end-to-end after touching it.

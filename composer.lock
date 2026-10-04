@@ -3813,16 +3813,16 @@
         },
         {
             "name": "intervention/image",
-            "version": "4.3.3",
+            "version": "4.3.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Intervention/image.git",
-                "reference": "b25085af6275b94173c4ba43cfc34ae42bd9e8d2"
+                "reference": "b70df03b4fcc1e4c24c9d474ac034541cbf5e2f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Intervention/image/zipball/b25085af6275b94173c4ba43cfc34ae42bd9e8d2",
-                "reference": "b25085af6275b94173c4ba43cfc34ae42bd9e8d2",
+                "url": "https://api.github.com/repos/Intervention/image/zipball/b70df03b4fcc1e4c24c9d474ac034541cbf5e2f9",
+                "reference": "b70df03b4fcc1e4c24c9d474ac034541cbf5e2f9",
                 "shasum": ""
             },
             "require": {
@@ -3868,7 +3868,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Intervention/image/issues",
-                "source": "https://github.com/Intervention/image/tree/4.3.3"
+                "source": "https://github.com/Intervention/image/tree/4.3.4"
             },
             "funding": [
                 {
@@ -3884,7 +3884,7 @@
                     "type": "ko_fi"
                 }
             ],
-            "time": "2026-09-26T06:48:23+00:00"
+            "time": "2026-10-04T09:36:33+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -4219,21 +4219,21 @@
         },
         {
             "name": "laravel-notification-channels/expo",
-            "version": "2.4.0",
+            "version": "2.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel-notification-channels/expo.git",
-                "reference": "1082e30df68aabb6b6b4a400969affe378c8e24f"
+                "reference": "4c74eeb74ad5cdd5af9dd204d29386cd6848c85f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel-notification-channels/expo/zipball/1082e30df68aabb6b6b4a400969affe378c8e24f",
-                "reference": "1082e30df68aabb6b6b4a400969affe378c8e24f",
+                "url": "https://api.github.com/repos/laravel-notification-channels/expo/zipball/4c74eeb74ad5cdd5af9dd204d29386cd6848c85f",
+                "reference": "4c74eeb74ad5cdd5af9dd204d29386cd6848c85f",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "guzzlehttp/guzzle": "^7.1",
+                "guzzlehttp/guzzle": "^7.1|^8.0",
                 "illuminate/contracts": "^12.0|^13.0",
                 "illuminate/notifications": "^12.0|^13.0",
                 "illuminate/support": "^12.0|^13.0",
@@ -4277,9 +4277,9 @@
             "homepage": "https://github.com/laravel-notification-channels/expo",
             "support": {
                 "issues": "https://github.com/laravel-notification-channels/expo/issues",
-                "source": "https://github.com/laravel-notification-channels/expo/tree/2.4.0"
+                "source": "https://github.com/laravel-notification-channels/expo/tree/2.5.0"
             },
-            "time": "2026-08-24T16:15:05+00:00"
+            "time": "2026-10-04T00:43:47+00:00"
         },
         {
             "name": "laravel/ai",
@@ -7599,16 +7599,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "4.0.3",
+            "version": "4.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "1f8c1066948b59904895c8a828d206243079101c"
+                "reference": "4fd297c5fe0e8a0f51305b4a45c8611c2718f583"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/1f8c1066948b59904895c8a828d206243079101c",
-                "reference": "1f8c1066948b59904895c8a828d206243079101c",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/4fd297c5fe0e8a0f51305b4a45c8611c2718f583",
+                "reference": "4fd297c5fe0e8a0f51305b4a45c8611c2718f583",
                 "shasum": ""
             },
             "require": {
@@ -7642,6 +7642,7 @@
                 "pusher/pusher-php-server": "^7.2.4",
                 "rector/rector": "^2.0",
                 "spatie/fork": "^1.2",
+                "symfony/mercure": "^0.7|^0.8",
                 "tomasvotruba/type-coverage": "^2.0",
                 "typesense/typesense-php": "^5.0.2",
                 "vlucas/phpdotenv": "^5.6"
@@ -7653,7 +7654,8 @@
                 "ext-sodium": "End-to-end encryption for Pusher streaming channels.",
                 "psr/log": "Logging observability events through LogListener.",
                 "pusher/pusher-php-server": "Pusher-compatible streaming channels, including encrypted channels (requires >=7.2.4 for HTTP timeout propagation).",
-                "spatie/fork": "Parallel evaluation runs via the --concurrency option (requires ext-pcntl and ext-posix)."
+                "spatie/fork": "Parallel evaluation runs via the --concurrency option (requires ext-pcntl and ext-posix).",
+                "symfony/mercure": "Mercure streaming channel (^0.8 for hubs speaking Mercure protocol 1.0)."
             },
             "bin": [
                 "bin/neuron"
@@ -7677,7 +7679,7 @@
             "description": "A unified layer for building AI-native applications in PHP.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/frontend-v0.2.0"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/frontend-0.3.0"
             },
             "funding": [
                 {
@@ -7685,7 +7687,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-03T18:42:55+00:00"
+            "time": "2026-10-04T19:00:47+00:00"
         },
         {
             "name": "neuron-core/router",
@@ -18817,16 +18819,16 @@
         },
         {
             "name": "laravel/agent-detector",
-            "version": "v2.0.2",
+            "version": "v2.0.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/agent-detector.git",
-                "reference": "90694b9256099591cf9e55d08c18ba7a00bf099f"
+                "reference": "a190dd6b0fbc097ee909fbd59d35039bf82b4b4d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/agent-detector/zipball/90694b9256099591cf9e55d08c18ba7a00bf099f",
-                "reference": "90694b9256099591cf9e55d08c18ba7a00bf099f",
+                "url": "https://api.github.com/repos/laravel/agent-detector/zipball/a190dd6b0fbc097ee909fbd59d35039bf82b4b4d",
+                "reference": "a190dd6b0fbc097ee909fbd59d35039bf82b4b4d",
                 "shasum": ""
             },
             "require": {
@@ -18875,7 +18877,7 @@
                 "issues": "https://github.com/laravel/agent-detector/issues",
                 "source": "https://github.com/laravel/agent-detector"
             },
-            "time": "2026-04-29T18:32:34+00:00"
+            "time": "2026-09-12T16:17:12+00:00"
         },
         {
             "name": "laravel/boost",
@@ -19573,11 +19575,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.2.16",
+            "version": "2.2.17",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/46a6d9060e5a7763adfcc21ebcb8b504ebdbcb92",
-                "reference": "46a6d9060e5a7763adfcc21ebcb8b504ebdbcb92",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/e676a49fa70cee9f5bf6ff4796186b928a08673f",
+                "reference": "e676a49fa70cee9f5bf6ff4796186b928a08673f",
                 "shasum": ""
             },
             "require": {
@@ -19633,7 +19635,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-09-25T09:31:51+00:00"
+            "time": "2026-10-04T19:40:09+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -20951,16 +20953,16 @@
         },
         {
             "name": "sebastian/version",
-            "version": "6.0.0",
+            "version": "6.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/version.git",
-                "reference": "3e6ccf7657d4f0a59200564b08cead899313b53c"
+                "reference": "9e935a16187e14f39b0e79910dabd614972cdb26"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/version/zipball/3e6ccf7657d4f0a59200564b08cead899313b53c",
-                "reference": "3e6ccf7657d4f0a59200564b08cead899313b53c",
+                "url": "https://api.github.com/repos/sebastianbergmann/version/zipball/9e935a16187e14f39b0e79910dabd614972cdb26",
+                "reference": "9e935a16187e14f39b0e79910dabd614972cdb26",
                 "shasum": ""
             },
             "require": {
@@ -20993,15 +20995,27 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/version/issues",
                 "security": "https://github.com/sebastianbergmann/version/security/policy",
-                "source": "https://github.com/sebastianbergmann/version/tree/6.0.0"
+                "source": "https://github.com/sebastianbergmann/version/tree/6.0.1"
             },
             "funding": [
                 {
                     "url": "https://github.com/sebastianbergmann",
                     "type": "github"
+                },
+                {
+                    "url": "https://liberapay.com/sebastianbergmann",
+                    "type": "liberapay"
+                },
+                {
+                    "url": "https://thanks.dev/u/gh/sebastianbergmann",
+                    "type": "thanks_dev"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/sebastian/version",
+                    "type": "tidelift"
                 }
             ],
-            "time": "2025-02-07T05:00:38+00:00"
+            "time": "2026-10-04T05:50:08+00:00"
         },
         {
             "name": "staabm/side-effects-detector",
