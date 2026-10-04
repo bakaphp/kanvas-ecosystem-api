@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Laravel\SubAgents;
 
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\KanvasAgentAsTool;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
@@ -21,9 +22,17 @@ class DynamicSubAgent extends KanvasAgentAsTool
     {
     }
 
+    /**
+     * The record name is free text typed by a tenant. Slugging drops accents and punctuation; a name that
+     * still is not a function name (it opens with a digit, or is empty) falls back to the record id.
+     */
     public function name(): string
     {
-        return Str::snake($this->agentRecord->name);
+        $slug = Str::substr(Str::slug($this->agentRecord->name, '_'), 0, 64);
+
+        return preg_match(KanvasToolInterface::FUNCTION_NAME_PATTERN, $slug) === 1
+            ? $slug
+            : 'sub_agent_' . $this->agentRecord->getId();
     }
 
     public function description(): string
