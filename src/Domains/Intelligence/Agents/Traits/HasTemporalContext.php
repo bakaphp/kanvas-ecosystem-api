@@ -35,6 +35,8 @@ trait HasTemporalContext
             "Current date: {$now->format('l, Y-m-d')} (use this as 'today'; "
                 . 'do not use dates from your training data).',
             "Current time: {$now->format('H:i')} {$tz}.",
+            'These two lines are the current date and time: do not call get_current_time to confirm '
+                . 'them. Call it only for the time in another timezone.',
             'When tools accept date ranges (from/to) and the user has not specified a window, '
                 . 'omit those parameters and let the tool default to a sensible recent window.',
         ];

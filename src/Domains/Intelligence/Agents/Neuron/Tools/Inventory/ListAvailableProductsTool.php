@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
@@ -17,6 +16,8 @@ use Override;
 #[AgentTool(name: 'List Available Products', category: 'inventory')]
 class ListAvailableProductsTool extends Tool
 {
+    use HasKanvasContext;
+
     protected string $name = 'list_available_products';
 
     protected ?string $description = 'List products from the inventory filtered by published status and stock availability. '
@@ -27,18 +28,6 @@ class ListAvailableProductsTool extends Tool
     protected function properties(): array
     {
         return [
-            new ToolProperty(
-                name: 'companies_id',
-                type: ToolsPropertyType::INTEGER,
-                description: 'The ID of the company to list products from.',
-                required: true,
-            ),
-            new ToolProperty(
-                name: 'apps_id',
-                type: ToolsPropertyType::INTEGER,
-                description: 'The ID of the app context.',
-                required: true,
-            ),
             new ToolProperty(
                 name: 'is_published',
                 type: ToolsPropertyType::BOOLEAN,
@@ -60,28 +49,25 @@ class ListAvailableProductsTool extends Tool
         ];
     }
 
-    public function __invoke(
-        int $companies_id,
-        int $apps_id,
-        ?bool $is_published = null,
-        ?bool $only_in_stock = null,
-        ?int $limit = null
-    ): array {
-        $app = Apps::getById($apps_id);
-        $company = Companies::getById($companies_id);
-        $is_published = $is_published ?? true;
-        $only_in_stock = $only_in_stock ?? false;
-        $limit = min($limit ?? 20, 50);
-        $allowCrossCompany = (bool) $app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+    public function __invoke(?bool $is_published = null, ?bool $only_in_stock = null, ?int $limit = null): array
+    {
+        if (! $this->hasTenantContext()) {
+            return $this->tenantContextMissingError('product listing');
+        }
 
-        $builder = Products::fromApp($app)
+        $is_published ??= true;
+        $only_in_stock ??= false;
+        $limit = min($limit ?? 20, 50);
+        $allowCrossCompany = (bool) $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+
+        $builder = Products::fromApp($this->app)
             ->notDeleted()
             ->where('is_published', $is_published ? 1 : 0)
             ->with('variants')
             ->limit($limit);
 
         if (! $allowCrossCompany) {
-            $builder->fromCompany($company);
+            $builder->fromCompany($this->company);
         }
 
         $products = $builder->get();

@@ -477,6 +477,7 @@ trait HasKanvasAgentBehavior
             background: [
                 ...explode("\n", $this->agent?->roleSection('background', "\n") ?? ''),
                 ...$this->temporalContextLines($this->resolveTenantTimezone()),
+                ...$this->memoryRecallLines(),
                 ...self::platformContext(),
             ],
             steps: explode("\n", $this->agent?->roleSection('steps', "\n") ?? ''),

@@ -56,6 +56,13 @@ KanvasHistoryTrimmer → fold, then cut   (never swapped)
 contextWindow() → model ceiling, capped by AGENT_MAX_HISTORY_TOKENS
 ```
 
+The window is a **history** budget and the trimmer measures the history by its content
+(`KanvasHistoryTrimmer::getCheckpoints()` returns none). The stock trimmer reads the provider's prompt
+count off the last assistant turn, which includes instructions and every tool schema: an agent with 35K
+tokens of tool schemas measured over a 50K window after one turn, lost its previous turn on every turn
+and summarized on every tool round (2026-10-04). `calculateTotalUsage()` therefore also reports history
+tokens, not request tokens.
+
 Stores extend `Stores/KanvasMessageStore`: `loadActive()` reads rows, `persist()` writes one,
 `append()` dedupes by message id, `clear()` archives the thread, and the count-based `archive()` is a
 final no-op (see "Archive and summarize" below). Nothing is ever deleted: Social messages and

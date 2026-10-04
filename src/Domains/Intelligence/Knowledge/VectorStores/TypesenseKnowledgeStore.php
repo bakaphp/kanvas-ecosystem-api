@@ -24,11 +24,13 @@ final class TypesenseKnowledgeStore
 {
     /**
      * Facets added after the collection shipped. Typesense adds a field to a live collection in place,
-     * so an existing index gains them on the next write with no re-index.
+     * so an existing index gains them on the next write with no re-index — but only as `optional`: a
+     * required field is refused while documents without it exist, and every document written before
+     * the field did is one of those.
      */
     private const array LATER_FIELDS = [
-        ['name' => 'agent_id', 'type' => 'int64', 'facet' => true],
-        ['name' => 'users_id', 'type' => 'int64', 'facet' => true],
+        ['name' => 'agent_id', 'type' => 'int64', 'facet' => true, 'optional' => true],
+        ['name' => 'users_id', 'type' => 'int64', 'facet' => true, 'optional' => true],
     ];
 
     public function __construct(

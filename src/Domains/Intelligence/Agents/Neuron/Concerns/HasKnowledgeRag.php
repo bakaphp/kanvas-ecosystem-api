@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\CompanyMemoryRetrieval;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\KnowledgeRetrieval;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
@@ -91,9 +92,18 @@ trait HasKnowledgeRag
         return new MemoryVectorStore();
     }
 
+    /**
+     * The rewrite is one more LLM call before every retrieval, 3-4 s on a thinking model, and it only
+     * sees the one message, so it cannot resolve a follow-up. It earns that on a prospect's terse
+     * "price?" and not on a teammate's explicit question, so only customer-facing agents keep it.
+     */
     #[Override]
     protected function preProcessors(): array
     {
+        if (! $this instanceof ConversesWithCustomer) {
+            return [];
+        }
+
         return [
             new QueryTransformationPreProcessor(
                 provider: $this->getProvider(),

@@ -38,6 +38,22 @@ final class KanvasHistoryTrimmer extends HistoryTrimmer
     }
 
     /**
+     * The window is a history budget (ModelContextWindowService reserves the prompt and the tool output
+     * on their own), so the history is measured by its content. The stock checkpoints read the
+     * provider's prompt count, which also carries the instructions and every tool schema: an agent with
+     * 35K tokens of tool schemas reads as over a 50K window after one short turn, so it trims every
+     * turn and summarizes every tool round.
+     *
+     * @param Message[] $messages
+     * @return array<int, array{index: int, tokens: int}>
+     */
+    #[Override]
+    protected function getCheckpoints(array $messages): array
+    {
+        return [];
+    }
+
+    /**
      * @param Message[] $messages
      * @return Message[]
      */

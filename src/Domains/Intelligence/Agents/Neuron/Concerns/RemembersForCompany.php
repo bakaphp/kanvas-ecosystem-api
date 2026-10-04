@@ -93,6 +93,26 @@ trait RemembersForCompany
         return $this->app !== null && KnowledgeComponents::memoryEnabled($this->app);
     }
 
+    /**
+     * Instruction lines for an agent that recalls: without them the model treats the recalled entries
+     * as hints and re-reads the ledger it was just handed, one full inference round per reflex.
+     *
+     * @return list<string>
+     */
+    protected function memoryRecallLines(): array
+    {
+        if (! $this->companyMemoryActive()) {
+            return [];
+        }
+
+        return [
+            'Recalled context reaches you in the EXTRA-CONTEXT block as "Earlier conversation", "Saved '
+                . 'memory" and "Ledger" entries, each dated. For a question about what was discussed, decided '
+                . 'or done before, answer from those entries; call read_my_ledger or search again only when '
+                . 'they do not cover it.',
+        ];
+    }
+
     protected function companyMemoryActive(): bool
     {
         return $this->remembersForCompany()

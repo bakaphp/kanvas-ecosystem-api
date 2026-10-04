@@ -242,4 +242,16 @@ class SystemUserAgentTest extends TestCase
         );
         $this->assertStringContainsString('do not use dates from your training data', $instructions);
     }
+
+    public function testInstructionsTellTheModelNotToCallGetCurrentTimeForTheDateItAlreadyHas(): void
+    {
+        $user = auth()->user();
+        $handler = new SystemUserAgent();
+        $handler->setConfiguration(agent: $this->makeAgent(), entity: $user, user: $user);
+
+        $instructions = $handler->instructions();
+
+        $this->assertStringContainsString('Current date: ', $instructions);
+        $this->assertStringContainsString('do not call get_current_time to confirm them', $instructions);
+    }
 }
