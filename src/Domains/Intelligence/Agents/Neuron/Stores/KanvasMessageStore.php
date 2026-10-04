@@ -120,8 +120,6 @@ abstract class KanvasMessageStore implements MessageStoreInterface
      * A "[Attachment: <description>]" memory line from a stored attachment list. Falls back to a bare
      * "[Attachment]" when an attachment exists but its description hasn't been backfilled yet, so an
      * attachment turn is never silently dropped from history.
-     *
-     * @param list<mixed> $attachments
      */
     protected static function withMarker(string $text, string $marker): string
     {
