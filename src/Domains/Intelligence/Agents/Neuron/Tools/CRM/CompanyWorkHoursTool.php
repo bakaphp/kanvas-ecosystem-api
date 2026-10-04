@@ -17,19 +17,14 @@ use Yasumi\Yasumi;
 #[AgentTool(name: 'Company Work Hours', category: 'crm')]
 class CompanyWorkHoursTool extends Tool
 {
+    protected string $name = 'get_company_work_hours';
+
+    protected ?string $description = 'Get the current company work hours status (work_hours or after_hours), schedule, current time based on company timezone, company timezone, and next open time.';
     protected Carbon $now;
     protected ?array $weeklyHours = null;
     protected ?array $simpleHours = null;
     protected ?array $workingDays = null;
     protected array $companyObservedHolidays = [];
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_company_work_hours',
-            description: 'Get the current company work hours status (work_hours or after_hours), schedule, current time based on company timezone, company timezone, and next open time.',
-        );
-    }
 
     #[Override]
     protected function properties(): array

@@ -7,7 +7,7 @@ namespace Tests\Intelligence\Tools;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddLeadNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetLeadStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateLeadTool;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 
 class LeadWriteToolRunKeyTest extends TestCase
@@ -21,7 +21,7 @@ class LeadWriteToolRunKeyTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool::class . ' must track runs by inputs.');
+            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must track runs by inputs.');
 
             $keyA = $tool->setInputs(['lead_id' => 754175])->getRunKey();
             $keyB = $tool->setInputs(['lead_id' => 753871])->getRunKey();

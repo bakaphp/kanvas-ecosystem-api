@@ -48,7 +48,7 @@ use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrderLine;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
 
@@ -1217,7 +1217,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool->getName() . ' must key its run budget by inputs.');
+            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool->getName() . ' must key its run budget by inputs.');
 
             $tool->setInputs(['name' => 'Globex Supply', 'vendor' => 'Globex Supply', 'bill_number' => 'B-1', 'order_number' => 'PO-1']);
             $keyOne = $tool->getRunKey();

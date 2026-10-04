@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,22 +22,18 @@ use Override;
  * synced data; if the PO isn't in Kanvas it reports that (it may not have been synced yet).
  */
 #[AgentTool(name: 'Find Purchase Order', category: 'accounting')]
-class FindPurchaseOrderTool extends Tool implements HasRunKey
+class FindPurchaseOrderTool extends Tool
 {
     use FindsTenantRecordForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_purchase_order',
-            description: 'Look up a single purchase order by its number and return the full detail: vendor, '
-                . 'status, total, and every line (sku, ordered/open/received quantity, unit cost, GL account + '
-                . 'subaccount). Use this when the user names a specific PO number. Returns found=false when the '
-                . 'PO is not in the synced data.',
-        );
-    }
+    protected string $name = 'find_purchase_order';
+
+    protected ?string $description = 'Look up a single purchase order by its number and return the full detail: vendor, '
+        . 'status, total, and every line (sku, ordered/open/received quantity, unit cost, GL account + '
+        . 'subaccount). Use this when the user names a specific PO number. Returns found=false when the '
+        . 'PO is not in the synced data.';
 
     /**
      * @return array<int, ToolProperty>

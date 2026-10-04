@@ -21,7 +21,7 @@ Two archetypes, split by **audience**:
 | Talks to | company **staff** | a **prospect / customer** |
 | Reached via | @mention, channel, DM, task assignment, ownership, follow | inbound connector channel (WhatsApp/email/SMS) on a lead |
 | Acts as | itself (its own user) | itself, as a consistent **persona** |
-| Conversation memory | per channel/entity | per prospect (`SalesAssistKanvasMessageHistory` rollup — continuity *within* a lead) |
+| Conversation memory | per channel/entity | per prospect (`EntityRollupMessageStore` rollup — continuity *within* a lead) |
 | Cross-entity memory | ✅ full — `read_my_ledger` is company-wide | ❌ none on the customer surface — prospect-isolated |
 
 ### The core rule: memory scope follows AUDIENCE, not agent type
@@ -191,9 +191,9 @@ new AgentChatKernel(
 
 **`sourceChannel` / `sourceMessage` (connector path AND any other rollup caller):**
 - ADK uses them to compute its remote `userId` exactly the way `ADKAgent::chat()` does today (preserves remote session identity — without this, ADK conversations silently fork to a different memory key).
-- Neuron uses `sourceChannel !== null` as the signal to **skip `setThreadId`** — channel agents thread by entity (Lead/People), not by per-channel session, so cross-channel rollup works (the design intent of `SalesAssistKanvasMessageHistory`).
+- Neuron 4 requires a thread id on every run, so the kernel always calls `setThreadId`; `sourceChannel !== null` decides **which** id (`AgentChatKernel::threadId()`). With a channel the thread is the session **entity's own uuid** (the Lead's / People's; `entity:<class>:<id>` for one without a uuid), so every channel and every session of that prospect share one thread and `EntityRollupMessageStore` loads the whole rollup. Without a channel the thread is the session uuid and the store filters to that session.
 
-**Pass `sourceChannel: $session->channel` from any cron/queue-driven caller that needs cross-session history.** Today: connector channel responders (×6) and `FollowUpLeadAction`. Omitting it triggers `setThreadId` which filters the agent's history to a single session uuid — typically zero useful messages for a cron-spawned agent that didn't originate the prior conversation. The bug surfaces as the agent producing literal-template-copy output because the LLM gets no meaningful prior turns. `WakeAgentForPlanJob` and `AgentReceiverJob` haven't been audited for this yet — check whether they need the same fix.
+**Pass `sourceChannel: $session->channel` from any cron/queue-driven caller that needs cross-session history.** Today: connector channel responders (×6) and `FollowUpLeadAction`. Omitting it threads by session uuid, which filters the agent's history to that one session — typically zero useful messages for a cron-spawned agent that didn't originate the prior conversation. The bug surfaces as the agent producing literal-template-copy output because the LLM gets no meaningful prior turns. `WakeAgentForPlanJob` and `AgentReceiverJob` haven't been audited for this yet — check whether they need the same fix.
 
 ## Connector contract (`BaseAgentChannelReplyAction` subclasses)
 
@@ -324,34 +324,36 @@ work silently never ran. Two independent things can push a turn over, and they n
 
 | Half | Grows via | Guard |
 |---|---|---|
-| **Stored history** replayed at the start of a turn | every past turn of the thread | `RebuildsTrimmedHistory::applyLoadedHistory()` |
+| **Stored history** replayed at the start of a turn | every past turn of the thread | `KanvasHistoryTrimmer`, wired by `HasKanvasAgentBehavior::resources()` |
 | **Tool output** added *inside* the turn in progress | a tool loop pulling diffs / whole files | `BoundToolResultsMiddleware` |
 
-**A chat-history loader must never assign `$this->history` directly.** `AbstractChatHistory` enforces
-`contextWindow` only inside `addMessage()`, and `InferenceNode::pendingConversation()` sends
-`getMessages() + inbound` to the provider *before* that first add runs — so the trim that follows the
-call is too late to matter and is thrown away with the request. A thread past the ceiling then failed
-on **every** further turn with no way back (KANVAS-ECOSYSTEM-6F1, a PR-review agent).
+**A message store only loads rows; it never trims.** Neuron 4's `ChatHistory` runs its trimmer on every
+`addMessage()`, and the first add of a turn happens *before* the provider call, so the loaded thread is
+cut before it is sent. The stock `HistoryTrimmer` only cuts; Kanvas rows also need the same-role fold
+(dual persistence writes some turns twice, and providers reject two consecutive assistant turns or a
+history that opens with one), so every Kanvas agent opens its history with
+[`KanvasHistoryTrimmer`](ChatHistory/KanvasHistoryTrimmer.php): `fold()` (merge consecutive same-role
+turns, re-attach media blocks, drop leading assistant turns) and **then** the stock cut.
+`HasKanvasAgentBehavior::resources()` is the one place that builds the `ChatHistory`; `getChatHistory()`
+is final in v4, so override `messageStore()` to pick the store and leave the trimmer alone.
 
-Run rows through [`RebuildsTrimmedHistory`](../ChatHistory/RebuildsTrimmedHistory.php) instead — it
-coalesces same-role turns, drops leading assistant turns (providers require a user-first history), and
-**then** trims.
-
-| History | Load path | Live-add path |
+| Store | Rows | Thread |
 |---|---|---|
-| `KanvasMessageHistory` | `applyLoadedHistory()` | `mergeOrAppend()` |
-| `SalesAssistKanvasMessageHistory` | `applyLoadedHistory()` | `mergeOrAppend()` |
-| `RedisAgentChatHistory` | `applyLoadedHistory()` | appends + trims; `sanitizeAlternation()` is what keeps it alternating |
-| `ChannelMessageHistory` | adds each row through `addMessage()`, so it was never exposed | its own merge, which also re-attaches media blocks |
+| `ConversationMessageStore` | `agent_conversation_messages`; writes every turn | session uuid (the conversation row's `title`) |
+| `EntityRollupMessageStore` | Social `messages` keyed by the entity (Lead / People); writes tool telemetry only | entity uuid; filters to one session only when the thread *is* a session uuid |
+| `ChannelMessageStore` | Social channel messages, read-only | the channel; persistence is the caller's |
 | Laravel agents (`KanvasLaravelAgent::messages()`, `RemembersConversationsWithinBudget`) | `LaravelHistoryBudgetTrimmer::trim()` to the same `ModelContextWindowService` budget | n/a — the package replays from the store each turn |
 
-`MAX_LOADED_ROWS` on `KanvasMessageHistory` caps hydration on top of that — a memory guard, not a
+Anything that replays rows outside an agent run (`LeadConversationTranscriptService`, the @mention
+responder) calls `KanvasHistoryTrimmer::fold()` on them itself.
+
+`MAX_LOADED_ROWS` on `ConversationMessageStore` caps hydration on top of that — a memory guard, not a
 context guard, because `content` is a longtext, and it sits far above what any window holds so the
 token trim is always what decides. Coverage: `tests/Intelligence/Agents/LoadedHistoryTrimTest.php`.
 
 The window itself is **sized to the model that will answer**, by
-[`ModelContextWindowService`](../Services/ModelContextWindowService.php), passed in at every
-`chatHistory()` site via `resolvedContextWindow()`. It reads `model_pricing.max_input_tokens` — filled
+[`ModelContextWindowService`](../Services/ModelContextWindowService.php), passed in by
+`HasKanvasAgentBehavior::resources()` via `resolvedContextWindow()`. It reads `model_pricing.max_input_tokens` — filled
 by the nightly `nervous-system:sync-model-pricing`, so a freshly migrated environment reads NULL and
 every agent silently falls back to the 50K floor until that runs.
 
@@ -407,13 +409,8 @@ class SendEmailTool extends Tool
 {
     use ResolvesLeadForTool;              // pull in the resolve-or-error trait(s) you need
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'send_email',           // snake_case — the id the LLM calls
-            description: '…',             // what it does, WHEN to use it, and hard limits ("you cannot choose the recipient")
-        );
-    }
+    protected string $name = 'send_email';   // snake_case — the id the LLM calls
+    protected string $description = '…';     // what it does, WHEN to use it, and hard limits ("you cannot choose the recipient")
 
     #[Override]
     protected function properties(): array
@@ -425,7 +422,9 @@ class SendEmailTool extends Tool
 }
 ```
 
-The attribute `name:` is the human label; the `parent::__construct(name:)` is the snake_case LLM id.
+The attribute `name:` is the human label; the `$name` property is the snake_case LLM id. Keep `$description` a
+literal property default: `AgentToolDiscoveryService` reads it through reflection for the catalog sync, and a
+description built in a constructor is invisible to it.
 `toolType` on the attribute defaults to `'system'`; `requiresPermission` maps to Bouncer abilities for the
 catalog. Register the tool on an agent's tool list — either via `withContext(...)` or constructor injection
 (both styles exist).
@@ -587,10 +586,9 @@ problem, 64Q was `find_customer` resolving names row-by-row out of a user's Exce
 that acts on a single record identified by its inputs — MUST key its budget by inputs:**
 
 ```php
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\TrackByInputs;
 
-class FindEmployeeTool extends Tool implements HasRunKey
+class FindEmployeeTool extends Tool
 {
     use TrackByInputs;   // getRunKey() = name . ':' . sha1(json(inputs))
     // ...
@@ -648,7 +646,7 @@ Coverage: `TemplateToolsTest::testUpdateNotOwnedTemplateIsFlaggedAsFailedNotSile
 
 ### A read whose answer can't change in a turn should answer the repeat, not re-run it
 
-`HasRunKey` bounds the waste; it never tells the model *why* it stopped, so a model with nothing else
+`TrackByInputs` bounds the waste; it never tells the model *why* it stopped, so a model with nothing else
 to try keeps calling until the cap kills the turn. For a **read** whose answer cannot change within one
 turn, add [`GuardsRepeatCalls`](Neuron/Tools/Traits/GuardsRepeatCalls.php) as well and wrap the body in
 `oncePerTurn($inputs, fn () => …)`: the second identical call gets the first call's own result back,
@@ -672,15 +670,16 @@ plus the per-domain equivalents in [`AccountsReceivableAgentToolsTest`](../../..
 ## Don't break
 
 - **`AgentChatKernel` is load-bearing for 4 call sites** — `userChat` (GraphQL), channel responders (×6), `WakeAgentForPlanJob`, `AgentReceiverJob`. Any change to its constructor or `execute()` contract ripples through all of them. Test both `userChat` and at least one channel responder end-to-end after touching it.
-- **Don't call `setThreadId` from the connector path.** Activating the per-thread filter on Neuron's history breaks cross-channel rollup — a prospect emails Monday, WhatsApps Tuesday, and the agent loses the prior conversation. The kernel's conditional (`if ($this->sourceChannel === null)`) is what protects this. If you wire a new code path to the kernel, pass `sourceChannel` when there's one.
+- **The connector path threads by entity, not by session.** `AgentChatKernel::threadId()` returns the session entity's uuid whenever `sourceChannel` is set, and that is what keeps cross-channel rollup working — a prospect emails Monday, WhatsApps Tuesday, and both land on one thread. Neuron 4 needs a thread on every run, so a new caller cannot skip it: pass `sourceChannel` when there is one and let the kernel pick the id. Never hand a session uuid to a channel agent.
 - **Don't pass `app` / `company` to the kernel.** They were removed deliberately. The agent IS the tenant.
 - **`persistConversation: false` requires the caller to persist.** If you omit `createMessage()` after the kernel call, the outbound reply never lands in `messages` and the next inbound turn won't see it in history. `BaseAgentChannelReplyAction::createMessage()` is the one true persistence path on the connector side.
 - **Don't instantiate agent handlers manually.** Pre-refactor, every connector did `new $this->agent->type->handler()` + `setConfiguration()` by hand. This bypassed the kernel and the four backends got out of sync. Always go through `new AgentChatKernel(...)->execute()`.
-- **`SalesAssistKanvasMessageHistory` rolls up cross-channel by design.** If you find yourself wanting to scope it to a specific channel, re-read its class docblock first — the rollup is the design intent for sales agents.
+- **`EntityRollupMessageStore` rolls up cross-channel by design.** If you find yourself wanting to scope it to a specific channel, re-read its class docblock first — the rollup is the design intent for sales agents.
 - **The email outreach anchors the thread subject on the lead.** `AgentReachOutOnChannelAction` persists the agent's email subject to the lead's `title_email_follow_up` custom field (first touch wins). The inbound Mailgun responder and the cron follow-up engine both **read** that field as the outbound subject so every email stays in one thread. Don't repurpose, overwrite, or stop writing `title_email_follow_up` from the outreach without updating both readers — see [FollowUp/CLAUDE.md → "Email follow-ups thread under the original outreach"](../FollowUp/CLAUDE.md).
-- **Never assign `$this->history` in a chat-history loader.** The context window is enforced in
-  `addMessage()`, which runs after the provider call — a direct assignment ships the whole stored
-  conversation. Use `RebuildsTrimmedHistory::applyLoadedHistory()`; see the section above.
+- **A message store loads rows; it never folds or trims them.** `KanvasHistoryTrimmer` runs inside the
+  `ChatHistory` that `resources()` builds. A store that pre-cuts hides rows from the fold and the two
+  diverge. New store = extend `KanvasMessageStore`, implement `loadActive()` + `persist()`, pick it in
+  `messageStore()`; see the section above.
 - **A `privateUserTurn` is not broadcast by the kernel.** Nobody typed it, so whatever drove the turn
   delivers the reply (see `ContinueAgentTurnJob`, `RunScheduledAgentActionJob`). A new private-turn caller
   that expects the kernel to push the reply to the live chat will show nothing.

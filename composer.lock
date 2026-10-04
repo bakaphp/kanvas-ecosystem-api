@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "82805ee074279c83dda8c259aad68254",
+    "content-hash": "482c6451ce0c23d1302f50199ac1a1ba",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -7599,43 +7599,61 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.17.1",
+            "version": "4.0.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "6dbeb2dbec94f584f770541a5604d56330b0bc54"
+                "reference": "1f8c1066948b59904895c8a828d206243079101c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/6dbeb2dbec94f584f770541a5604d56330b0bc54",
-                "reference": "6dbeb2dbec94f584f770541a5604d56330b0bc54",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/1f8c1066948b59904895c8a828d206243079101c",
+                "reference": "1f8c1066948b59904895c8a828d206243079101c",
                 "shasum": ""
             },
             "require": {
-                "guzzlehttp/guzzle": "^7.0 || ^8.0",
-                "inspector-apm/inspector-php": "^3.18",
+                "ext-curl": "*",
                 "php": "^8.1",
-                "psr/http-message": "^1.0|^2.0"
+                "psr/event-dispatcher": "^1.0"
             },
             "require-dev": {
                 "amphp/amp": "^3.1.1",
                 "amphp/http-client": "^5.3",
                 "aws/aws-sdk-php": "^3.209",
-                "elasticsearch/elasticsearch": "^8.0|^9.0",
+                "elasticsearch/elasticsearch": "^8.19|^9.0",
+                "ext-bcmath": "*",
+                "ext-mongodb": "*",
                 "ext-pdo": "*",
+                "ext-pdo_pgsql": "*",
+                "ext-redis": "*",
+                "ext-sodium": "*",
                 "friendsofphp/php-cs-fixer": "^3.75",
                 "google/auth": "^1.49",
+                "guzzlehttp/guzzle": "^7.0|^8.0",
                 "html2text/html2text": "^4.3",
-                "illuminate/database": "^10.0|^11.0|^12.0",
+                "illuminate/database": "^10.21|^11.0|^12.0",
                 "laudis/neo4j-php-client": "^3.4",
+                "mongodb/mongodb": "^2.3",
                 "opensearch-project/opensearch-php": "^2.5",
                 "phpstan/phpstan": "^2.1",
                 "phpunit/phpunit": "^10.0",
+                "psr/http-message": "^1.0|^2.0",
+                "psr/log": "^1.0|^2.0|^3.0",
+                "pusher/pusher-php-server": "^7.2.4",
                 "rector/rector": "^2.0",
                 "spatie/fork": "^1.2",
                 "tomasvotruba/type-coverage": "^2.0",
-                "typesense/typesense-php": "^5.0",
+                "typesense/typesense-php": "^5.0.2",
                 "vlucas/phpdotenv": "^5.6"
+            },
+            "suggest": {
+                "ext-bcmath": "Exact integer tools in the Calculator toolkit (factorial, combinations, gcd, mod_pow, primes).",
+                "ext-igbinary": "Smaller/faster durable-step serialization via IgbinarySerializer.",
+                "ext-redis": "Redis workflow persistence via RedisPersistence and Pub/Sub streaming via RedisChannel and RedisChannelReader.",
+                "ext-sodium": "End-to-end encryption for Pusher streaming channels.",
+                "psr/log": "Logging observability events through LogListener.",
+                "pusher/pusher-php-server": "Pusher-compatible streaming channels, including encrypted channels (requires >=7.2.4 for HTTP timeout propagation).",
+                "spatie/fork": "Parallel evaluation runs via the --concurrency option (requires ext-pcntl and ext-posix)."
             },
             "bin": [
                 "bin/neuron"
@@ -7656,10 +7674,10 @@
                     "email": "valerio@inspector.dev"
                 }
             ],
-            "description": "The PHP Agentic Framework.",
+            "description": "A unified layer for building AI-native applications in PHP.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.17.1"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/frontend-v0.2.0"
             },
             "funding": [
                 {
@@ -7667,24 +7685,24 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-01T13:20:01+00:00"
+            "time": "2026-10-03T18:42:55+00:00"
         },
         {
             "name": "neuron-core/router",
-            "version": "1.3.0",
+            "version": "2.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/router.git",
-                "reference": "d71c6a8e173cba9a0747cc32ec0a37914ff96f79"
+                "reference": "602b07a00a8b714267247cb7a9d4867b2bf81eb7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/router/zipball/d71c6a8e173cba9a0747cc32ec0a37914ff96f79",
-                "reference": "d71c6a8e173cba9a0747cc32ec0a37914ff96f79",
+                "url": "https://api.github.com/repos/neuron-core/router/zipball/602b07a00a8b714267247cb7a9d4867b2bf81eb7",
+                "reference": "602b07a00a8b714267247cb7a9d4867b2bf81eb7",
                 "shasum": ""
             },
             "require": {
-                "neuron-core/neuron-ai": "^3.0",
+                "neuron-core/neuron-ai": "^4.0",
                 "php": "^8.1"
             },
             "require-dev": {
@@ -7693,9 +7711,6 @@
                 "phpunit/phpunit": "^10.0",
                 "rector/rector": "^2.0",
                 "tomasvotruba/type-coverage": "^2.0"
-            },
-            "suggest": {
-                "neuron-core/classifier": "Required to use the DifficultyRule (difficulty-based routing)."
             },
             "type": "library",
             "autoload": {
@@ -7716,9 +7731,9 @@
             "description": "Route inference calls to different underlying providers based on a routing strategy you define.",
             "support": {
                 "issues": "https://github.com/neuron-core/router/issues",
-                "source": "https://github.com/neuron-core/router/tree/1.3.0"
+                "source": "https://github.com/neuron-core/router/tree/2.1.0"
             },
-            "time": "2026-10-02T10:48:21+00:00"
+            "time": "2026-10-02T11:11:41+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",

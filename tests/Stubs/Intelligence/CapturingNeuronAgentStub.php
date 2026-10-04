@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Stubs\Intelligence;
 
 use Kanvas\Intelligence\Agents\Neuron\KanvasGenericNeuronAgent;
-use NeuronAI\Chat\History\AbstractChatHistory;
-use NeuronAI\Chat\History\InMemoryChatHistory;
+use NeuronAI\Chat\History\InMemoryMessageStore;
+use NeuronAI\Chat\History\MessageStoreInterface;
 use NeuronAI\Providers\AIProviderInterface;
 use Override;
 
@@ -17,7 +17,7 @@ use Override;
  */
 class CapturingNeuronAgentStub extends KanvasGenericNeuronAgent
 {
-    public ?CapturingNeuronProvider $capturedProvider = null;
+    public ?FakeNeuronProvider $capturedProvider = null;
 
     #[Override]
     protected function provider(): AIProviderInterface
@@ -26,9 +26,9 @@ class CapturingNeuronAgentStub extends KanvasGenericNeuronAgent
     }
 
     #[Override]
-    protected function chatHistory(): AbstractChatHistory
+    protected function messageStore(): MessageStoreInterface
     {
-        return new InMemoryChatHistory();
+        return new InMemoryMessageStore();
     }
 
     /**

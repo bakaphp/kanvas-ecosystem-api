@@ -24,7 +24,7 @@ use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 
 class NervousSystemAgentToolsTest extends TestCase
@@ -53,11 +53,14 @@ class NervousSystemAgentToolsTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool::class . ' must key runs by inputs.');
+            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must key runs by inputs.');
 
-            $keyA = $tool->setInputs(['x' => 'a'])->getRunKey();
-            $keyB = $tool->setInputs(['x' => 'b'])->getRunKey();
-            $keyARepeat = $tool->setInputs(['x' => 'a'])->getRunKey();
+            // The key hashes declared inputs only, so an undeclared name would collapse every call to one key.
+            $input = $tool->getProperties()[0]->getName();
+
+            $keyA = $tool->setInputs([$input => 'a'])->getRunKey();
+            $keyB = $tool->setInputs([$input => 'b'])->getRunKey();
+            $keyARepeat = $tool->setInputs([$input => 'a'])->getRunKey();
             $this->assertNotEquals($keyA, $keyB, $tool::class . ': distinct inputs need distinct budgets.');
             $this->assertEquals($keyA, $keyARepeat, $tool::class . ': identical inputs must collapse to cap loops.');
         }

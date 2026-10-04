@@ -14,7 +14,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListOrganizationPeopleTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListPeopleTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchDealsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 
 class ReadToolRunKeyTest extends TestCase
@@ -35,11 +35,14 @@ class ReadToolRunKeyTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool::class . ' must track runs by inputs.');
+            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must track runs by inputs.');
 
-            $keyA = $tool->setInputs(['query' => 'grupofamilia'])->getRunKey();
-            $keyB = $tool->setInputs(['query' => 'essity'])->getRunKey();
-            $keyAAgain = $tool->setInputs(['query' => 'grupofamilia'])->getRunKey();
+            // The key hashes declared inputs only, so an undeclared name would collapse every call to one key.
+            $input = $tool->getProperties()[0]->getName();
+
+            $keyA = $tool->setInputs([$input => 'grupofamilia'])->getRunKey();
+            $keyB = $tool->setInputs([$input => 'essity'])->getRunKey();
+            $keyAAgain = $tool->setInputs([$input => 'grupofamilia'])->getRunKey();
 
             $this->assertNotEquals($keyA, $keyB, $tool::class . ': distinct queries must not share a run budget.');
             $this->assertEquals($keyA, $keyAAgain, $tool::class . ': identical calls must collapse to one key.');

@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Kanvas\Guild\Search\MatchesBulkNameTerms;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -26,7 +25,7 @@ use Override;
  * Company-wide read: an internal-teammate capability, never the customer-facing prospect surface
  * (see Agents/CLAUDE.md audience rule).
  */
-abstract class FindCrmRecordsBulkTool extends Tool implements HasRunKey
+abstract class FindCrmRecordsBulkTool extends Tool
 {
     use HasKanvasContext;
     use MatchesBulkNameTerms;

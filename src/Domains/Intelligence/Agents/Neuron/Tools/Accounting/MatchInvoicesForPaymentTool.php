@@ -9,7 +9,6 @@ use Kanvas\Guild\Organizations\Services\OrganizationNameNormalizerService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Invoices\Models\Invoice;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,22 +21,18 @@ use Override;
  * uses this to PROPOSE the cash application; a human confirms before anything posts. Read-only.
  */
 #[AgentTool(name: 'Match Invoices For Payment', category: 'accounting')]
-class MatchInvoicesForPaymentTool extends Tool implements HasRunKey
+class MatchInvoicesForPaymentTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    private const OPEN_EXCLUDED = ['draft', 'paid', 'voided'];
+    protected string $name = 'match_invoices_for_payment';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'match_invoices_for_payment',
-            description: 'Given a customer name and a payment amount, lists the customer\'s open (issued, unpaid) '
-                . 'invoices and flags an exact single-invoice match. Use this to propose how a received AR payment '
-                . 'applies to invoices before recording it. Read-only — proposes, does not apply.',
-        );
-    }
+    protected ?string $description = 'Given a customer name and a payment amount, lists the customer\'s open (issued, unpaid) '
+        . 'invoices and flags an exact single-invoice match. Use this to propose how a received AR payment '
+        . 'applies to invoices before recording it. Read-only — proposes, does not apply.';
+
+    private const OPEN_EXCLUDED = ['draft', 'paid', 'voided'];
 
     /**
      * @return array<int, ToolProperty>

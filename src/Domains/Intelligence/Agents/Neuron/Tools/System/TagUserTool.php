@@ -12,7 +12,6 @@ use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -26,22 +25,18 @@ use Throwable;
  * visible to this company.
  */
 #[AgentTool(name: 'Tag User', category: 'ecosystem')]
-class TagUserTool extends Tool implements HasRunKey
+class TagUserTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ReportsToolOutcome;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'tag_user',
-            description: 'Add or remove tags on a teammate (a user of this company, not a CRM contact). Pass user_id and a '
-                . 'list of tag names; set remove=true to detach them instead of attaching. Tags that do not exist yet are '
-                . 'created. Returns the user\'s current tags in this company.',
-        );
-    }
+    protected string $name = 'tag_user';
+
+    protected ?string $description = 'Add or remove tags on a teammate (a user of this company, not a CRM contact). Pass user_id and a '
+        . 'list of tag names; set remove=true to detach them instead of attaching. Tags that do not exist yet are '
+        . 'created. Returns the user\'s current tags in this company.';
 
     /**
      * @return array<int, ToolPropertyInterface>

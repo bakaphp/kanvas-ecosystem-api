@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\ProjectManagement;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\CapabilityLookupTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ListActiveIntegrationsTool;
@@ -56,12 +55,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateEmailRouteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\ListCompanyWorkflowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\ListWorkflowOptionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\UpdateCompanyWorkflowTool;
-use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Services\ProjectContextService;
-use NeuronAI\Chat\History\AbstractChatHistory;
-use NeuronAI\Chat\History\InMemoryChatHistory;
+use NeuronAI\Chat\History\MessageStoreInterface;
 use Override;
 
 #[AgentTypeDefinition(
@@ -74,25 +71,9 @@ use Override;
 class ProjectManagerAgent extends SystemUserAgent
 {
     #[Override]
-    protected function chatHistory(): AbstractChatHistory
+    protected function messageStore(): MessageStoreInterface
     {
-        if ($this->user === null || $this->app === null || $this->company === null) {
-            return new InMemoryChatHistory();
-        }
-
-        return new KanvasMessageHistory(
-            app: $this->app,
-            company: $this->company,
-            user: $this->user,
-            agentClass: static::class,
-            sessionId: $this->threadId ?? $this->session?->uuid,
-            agent: $this->agent,
-            turnMedia: $this->turnMedia,
-            model: $this->resolvedModelName(),
-            privateUserTurn: $this->privateUserTurn,
-            contextWindow: $this->resolvedContextWindow(),
-            participant: KanvasConversationStore::participantFor($this->session, $this->user, $this->agent),
-        );
+        return $this->conversationStore();
     }
 
     #[Override]

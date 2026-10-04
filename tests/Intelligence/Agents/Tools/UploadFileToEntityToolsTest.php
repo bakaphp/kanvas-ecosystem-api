@@ -20,7 +20,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 
 final class UploadFileToEntityToolsTest extends TestCase
@@ -205,7 +205,7 @@ final class UploadFileToEntityToolsTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool::class . ' must track runs by inputs.');
+            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must track runs by inputs.');
 
             $keyA = $tool->setInputs(['file_name' => 'a.md', 'content' => 'a'])->getRunKey();
             $keyB = $tool->setInputs(['file_name' => 'b.md', 'content' => 'b'])->getRunKey();

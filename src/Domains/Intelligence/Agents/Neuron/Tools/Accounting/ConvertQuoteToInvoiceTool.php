@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesScribeQuoteForTool;
 use Kanvas\Scribe\Quotes\Actions\ConvertQuoteToInvoiceAction;
 use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteTransitionException;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -18,21 +17,17 @@ use Override;
 
 /** Turns an ACCEPTED quote into a DRAFT invoice, carrying its lines over. Stops at draft — issuing is a separate, human step. */
 #[AgentTool(name: 'Convert Quote To Invoice', category: 'accounting')]
-class ConvertQuoteToInvoiceTool extends Tool implements HasRunKey
+class ConvertQuoteToInvoiceTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesScribeQuoteForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'convert_quote_to_invoice',
-            description: 'Turns a quote the customer ACCEPTED into a draft invoice with the same lines, prices '
-                . 'and taxes. The quote must already be accepted (answer_quote). The invoice stops at draft: no '
-                . 'accounting entry posts and nothing is pushed anywhere until a human issues it.',
-        );
-    }
+    protected string $name = 'convert_quote_to_invoice';
+
+    protected ?string $description = 'Turns a quote the customer ACCEPTED into a draft invoice with the same lines, prices '
+        . 'and taxes. The quote must already be accepted (answer_quote). The invoice stops at draft: no '
+        . 'accounting entry posts and nothing is pushed anywhere until a human issues it.';
 
     /**
      * @return array<int, ToolProperty>

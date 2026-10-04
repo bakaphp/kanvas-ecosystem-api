@@ -106,7 +106,7 @@ class CreateMessageFromEmailAction
 
         if ($channel !== null) {
             // Polymorphic People attach so People-keyed history loaders (Neuron's
-            // SalesAssistKanvasMessageHistory) find this turn. Harmless for ADK.
+            // EntityRollupMessageStore) find this turn. Harmless for ADK.
             if ($this->lead?->people !== null) {
                 $newMessage->addEntity($this->lead->people);
             }

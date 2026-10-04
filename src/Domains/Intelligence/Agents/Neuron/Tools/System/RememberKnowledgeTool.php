@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -20,22 +19,22 @@ use Override;
 use Throwable;
 
 #[AgentTool(name: 'Remember Knowledge', category: 'ecosystem')]
-class RememberKnowledgeTool extends Tool implements HasRunKey
+class RememberKnowledgeTool extends Tool
 {
     use TrackByInputs;
+
+    protected string $name = 'remember';
+
+    protected ?string $description = 'Save a durable fact, decision, or pattern to your long-term memory so you recall it in '
+        . 'future conversations. Use it for things worth keeping — a company preference, a recurring risk, a '
+        . 'decision and its rationale — NOT for one-off chit-chat. You recall saved knowledge later via '
+        . 'read_my_ledger.';
 
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'remember',
-            description: 'Save a durable fact, decision, or pattern to your long-term memory so you recall it in '
-                . 'future conversations. Use it for things worth keeping — a company preference, a recurring risk, a '
-                . 'decision and its rationale — NOT for one-off chit-chat. You recall saved knowledge later via '
-                . 'read_my_ledger.',
-        );
     }
 
     /**

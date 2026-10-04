@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesDealForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -17,23 +16,22 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Deal Reference', category: 'crm')]
-class GetDealRefTool extends Tool implements HasRunKey
+class GetDealRefTool extends Tool
 {
     use GuardsRepeatCalls;
     use HasKanvasContext;
     use ResolvesDealForTool;
     use TrackByInputs;
 
+    protected string $name = 'get_deal_ref';
+
+    protected ?string $description = 'Get the full detail of a deal by its deal_id: title, description, contact person, '
+        . 'organization, owner, pipeline + stage, status, notes and the lead it came from. Use this to '
+        . 'load a deal\'s context before acting on it. Load a deal once per turn — re-reading it returns '
+        . 'nothing new unless you changed it in between.';
+
     public function __construct()
     {
-        parent::__construct(
-            name: 'get_deal_ref',
-            description: 'Get the full detail of a deal by its deal_id: title, description, contact person, '
-                . 'organization, owner, pipeline + stage, status, notes and the lead it came from. Use this to '
-                . 'load a deal\'s context before acting on it. Load a deal once per turn — re-reading it returns '
-                . 'nothing new unless you changed it in between.',
-        );
-
         $this->initRepeatGuard();
     }
 

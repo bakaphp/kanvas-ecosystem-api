@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Connectors\Intras;
 
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\Tool;
+use NeuronAI\Tools\TrackByInputs;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -36,7 +36,7 @@ class IntrasToolRunBudgetTest extends TestCase
         foreach ($this->intrasTools() as $tool) {
             $checked++;
 
-            if (! $tool instanceof HasRunKey) {
+            if (! in_array(TrackByInputs::class, class_uses_recursive($tool), true)) {
                 $unkeyed[] = $tool->getName();
             }
         }
@@ -45,20 +45,29 @@ class IntrasToolRunBudgetTest extends TestCase
         $this->assertSame(
             [],
             $unkeyed,
-            'Add `implements HasRunKey` + `use TrackByInputs` to: ' . implode(', ', $unkeyed)
+            'Add `use TrackByInputs` to: ' . implode(', ', $unkeyed)
         );
     }
 
     public function testDistinctArgumentsGetDistinctBudgetsAndIdenticalOnesDoNot(): void
     {
         foreach ($this->intrasTools() as $tool) {
-            if (! $tool instanceof HasRunKey) {
+            if (! in_array(TrackByInputs::class, class_uses_recursive($tool), true)) {
                 continue;
             }
 
-            $first = $tool->setInputs(['desde' => '2025-01-01'])->getRunKey();
-            $second = $tool->setInputs(['desde' => '2024-01-01'])->getRunKey();
-            $repeat = $tool->setInputs(['desde' => '2025-01-01'])->getRunKey();
+            // The key hashes declared inputs only, so an undeclared name would collapse every call to one key.
+            $properties = $tool->getProperties();
+
+            if ($properties === []) {
+                continue;
+            }
+
+            $input = $properties[0]->getName();
+
+            $first = $tool->setInputs([$input => '2025-01-01'])->getRunKey();
+            $second = $tool->setInputs([$input => '2024-01-01'])->getRunKey();
+            $repeat = $tool->setInputs([$input => '2025-01-01'])->getRunKey();
 
             $this->assertNotSame($first, $second, $tool->getName() . ': two periods must not share a budget');
             $this->assertSame($repeat, $first, $tool->getName() . ': an identical call must still be capped');

@@ -9,22 +9,33 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
+use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
+use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\CurrentTimeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\DynamicSubAgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Fallback\UnknownToolStub;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
 use Kanvas\Intelligence\Agents\Traits\HasTemporalContext;
+use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Agent\AgentResources;
 use NeuronAI\Agent\Nodes\ToolNode;
 use NeuronAI\Agent\SystemPrompt;
-use NeuronAI\Exceptions\MissingCallbackParameter;
+use NeuronAI\Chat\History\ChatHistory;
+use NeuronAI\Chat\History\InMemoryMessageStore;
+use NeuronAI\Chat\History\MessageStoreInterface;
+use NeuronAI\Exceptions\ToolException;
 use NeuronAI\Providers\AIProviderInterface;
+use NeuronAI\Tools\ToolCall;
 use NeuronAI\Tools\ToolInterface;
+use NeuronAI\Tools\ToolRegistry;
 use NeuronAI\Workflow\Middleware\WorkflowMiddleware;
 use NeuronAI\Workflow\NodeInterface;
 use Override;
@@ -40,8 +51,10 @@ trait HasKanvasAgentBehavior
     protected ?Model $entity = null;
     protected ?string $externalReferenceId = null;
     protected ?Users $user = null;
-    protected ?string $threadId = null;
     protected ?Session $session = null;
+
+    /** @var list<string> */
+    private array $registeredToolNames = [];
     protected ?Lead $currentLead = null;
 
     /**
@@ -79,9 +92,16 @@ trait HasKanvasAgentBehavior
         $this->user = $user;
     }
 
-    public function setThreadId(string $threadId): void
+    /**
+     * The thread as the userChat surface binds it: the session uuid. A channel turn is bound to the
+     * entity uuid instead, and the stores that roll a record's history up across channels must not
+     * narrow their load to that, or every row written before the thread was bound disappears.
+     */
+    protected function sessionThreadId(): ?string
     {
-        $this->threadId = $threadId;
+        $threadId = $this->getThreadId();
+
+        return $threadId !== null && $threadId === $this->session?->uuid ? $threadId : null;
     }
 
     public function setSession(?Session $session): void
@@ -110,10 +130,9 @@ trait HasKanvasAgentBehavior
     }
 
     /**
-     * Whether this agent's chatHistory already writes each turn to the agent_conversation_messages
-     * store. When true, RunNeuronChatAction skips its own logTurn to avoid a duplicate conversation.
-     * Default false — SalesAssist-style histories write to Social messages, so logTurn is their only
-     * conversation-store record.
+     * Whether this agent's message store already writes each turn to agent_conversation_messages. When
+     * true, RunNeuronChatAction skips its own logTurn to avoid a duplicate conversation. Default false:
+     * the rollup store writes to Social messages, so logTurn is its only conversation-store record.
      */
     public function persistsTurnsToConversationStore(): bool
     {
@@ -152,7 +171,7 @@ trait HasKanvasAgentBehavior
      */
     public function captionProvider(): AIProviderInterface
     {
-        return $this->provider();
+        return $this->getProvider();
     }
 
     // The record this turn is about, entity-agnostic: the kernel-plumbed currentLead
@@ -311,7 +330,7 @@ trait HasKanvasAgentBehavior
             user: $this->user,
             session: $this->session,
             currentLead: $this->resolveLeadForTurn(),
-            threadId: $this->threadId,
+            threadId: $this->getThreadId(),
         );
     }
 
@@ -345,19 +364,50 @@ trait HasKanvasAgentBehavior
         return AgentProviderService::resolveModel($this->requireAgent());
     }
 
-    /**
-     * Pass this to every chat history this agent builds. Sized to the model that will answer, so an
-     * agent on a 1M-token model is not held to the budget of the smallest context we run.
-     */
-    protected function resolvedContextWindow(): int
-    {
-        return ModelContextWindowService::forAgent($this->agent);
-    }
-
     #[Override]
     protected function provider(): AIProviderInterface
     {
         return AgentProviderService::resolve($this->requireAgent());
+    }
+
+    /**
+     * Sized to the model that will answer, so an agent on a 1M-token model is not held to the budget of
+     * the smallest context we run.
+     */
+    #[Override]
+    protected function contextWindow(): int
+    {
+        return ModelContextWindowService::forAgent($this->agent);
+    }
+
+    /**
+     * Mirrors Agent::resources() with one difference: the working history is opened with our trimmer.
+     * getChatHistory() is final and builds the stock HistoryTrimmer, which would drop both the
+     * KanvasTokenCounter image guard (KANVAS-ECOSYSTEM-6HC) and the same-role fold that keeps a turn
+     * written by two writers from reaching the model twice. Re-check the parent body on a Neuron bump.
+     */
+    #[Override]
+    protected function resources(): AgentResources
+    {
+        [$instructions, $tools] = $this->resolveTools();
+        $this->registeredToolNames = array_map(
+            static fn (ToolInterface $tool): string => $tool->getName(),
+            array_values(array_filter($tools, static fn (mixed $tool): bool => $tool instanceof ToolInterface)),
+        );
+
+        $history = new ChatHistory(
+            $this->resolveMessageStore(),
+            $this->requireWorkflowId(),
+            $this->contextWindow ?? $this->contextWindow(),
+            KanvasHistoryTrimmer::make(),
+        );
+
+        return new AgentResources(
+            $this->getProvider(),
+            $history,
+            $instructions,
+            new ToolRegistry($tools),
+        );
     }
 
     /**
@@ -372,23 +422,67 @@ trait HasKanvasAgentBehavior
     }
 
     /**
-     * A tool call missing a required argument is the model's mistake, not a platform fault — Neuron
-     * rejects it before the tool runs, and unhandled it kills the whole turn (KANVAS-ECOSYSTEM-65P, a
-     * task-only call to a tool that needs `plan_id`). Handing it back as the tool result lets the model
-     * correct the call. Anything else still throws.
+     * A model that names a tool it was never given is a recoverable mistake, not a platform fault. The
+     * provider answers the parse with an UnknownToolStub (RecoversUnknownToolCalls) so the response
+     * loads, but ToolNode resolves the call against the agent's registry, where the stub is not, and
+     * throws. Answering that throw with the same feedback is what lets the next round self-correct
+     * (KANVAS-ECOSYSTEM-675). Anything else returns null, so it propagates.
      */
     #[Override]
     protected function resolveToolErrorHandler(): ?callable
     {
-        return $this->toolErrorHandler ?? function (Throwable $e, ToolInterface $tool): string {
-            if (! $e instanceof MissingCallbackParameter) {
-                throw $e;
+        return function (Throwable $e, ToolCall $call): ?string {
+            if (! $e instanceof ToolException) {
+                return null;
             }
 
-            return json_encode([
-                'error' => $e->getMessage() . '. Call ' . $tool->getName() . ' again with every required argument.',
-            ]);
+            if (in_array($call->getName(), $this->registeredToolNames, true)) {
+                return null;
+            }
+
+            return json_encode(UnknownToolStub::response($call->getName(), $this->registeredToolNames));
         };
+    }
+
+    protected function conversationStore(): MessageStoreInterface
+    {
+        if ($this->user === null || $this->app === null || $this->company === null) {
+            return new InMemoryMessageStore();
+        }
+
+        return new ConversationMessageStore(
+            app: $this->app,
+            company: $this->company,
+            user: $this->user,
+            agentClass: static::class,
+            sessionId: $this->session?->uuid,
+            agent: $this->agent,
+            turnMedia: $this->turnMedia,
+            model: $this->resolvedModelName(),
+            privateUserTurn: $this->privateUserTurn,
+            participant: KanvasConversationStore::participantFor($this->session, $this->user, $this->agent),
+        );
+    }
+
+    /**
+     * @param string|null $sessionThreadId Narrows the rollup to one session; null loads the record's whole
+     *                                     cross-channel history.
+     */
+    protected function entityRollupStore(?string $sessionThreadId, bool $includeInternal = false): MessageStoreInterface
+    {
+        if ($this->entity === null || $this->user === null || $this->app === null || $this->company === null) {
+            return new InMemoryMessageStore();
+        }
+
+        return new EntityRollupMessageStore(
+            app: $this->app,
+            company: $this->company,
+            user: $this->user,
+            entity: $this->entity,
+            sessionThreadId: $sessionThreadId,
+            includeInternal: $includeInternal,
+            currentLead: $this->currentLead,
+        );
     }
 
     private function requireAgent(): Agent

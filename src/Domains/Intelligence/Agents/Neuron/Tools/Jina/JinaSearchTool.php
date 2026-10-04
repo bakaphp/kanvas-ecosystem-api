@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Jina;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesJinaClientForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,23 +22,19 @@ use Throwable;
  * the turn for what is usually a "which of these is worth reading" decision.
  */
 #[AgentTool(name: 'Jina Search', category: 'knowledge')]
-class JinaSearchTool extends Tool implements HasRunKey
+class JinaSearchTool extends Tool
 {
     use ResolvesJinaClientForTool;
     use TrackByInputs;
 
-    private const int MAX_CONTENT_LENGTH = 4000;
+    protected string $name = 'jina_search';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'jina_search',
-            description: 'Search the web and get back the matching pages themselves rather than a summary. '
-                . 'Use it when you need to quote sources, compare what several pages say, or read the '
-                . 'results in full — set include_content true for that. Leave include_content off to just '
-                . 'see what is out there and pick a page to read properly afterwards.',
-        );
-    }
+    protected ?string $description = 'Search the web and get back the matching pages themselves rather than a summary. '
+        . 'Use it when you need to quote sources, compare what several pages say, or read the '
+        . 'results in full — set include_content true for that. Leave include_content off to just '
+        . 'see what is out there and pick a page to read properly afterwards.';
+
+    private const int MAX_CONTENT_LENGTH = 4000;
 
     /**
      * @return array<int, ToolProperty>

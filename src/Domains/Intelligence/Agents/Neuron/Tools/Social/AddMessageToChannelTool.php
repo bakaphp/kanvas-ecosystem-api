@@ -18,15 +18,15 @@ use Throwable;
 #[AgentTool(name: 'Add Message To Channel', category: 'social')]
 class AddMessageToChannelTool extends Tool
 {
+    protected string $name = 'add_message_to_channel';
+
+    protected ?string $description = 'Attach an existing Social message to an existing Social channel in the current company. '
+        . 'This does not create content and does not send SMS or email.';
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
     ) {
-        parent::__construct(
-            name: 'add_message_to_channel',
-            description: 'Attach an existing Social message to an existing Social channel in the current company. '
-                . 'This does not create content and does not send SMS or email.',
-        );
     }
 
     #[Override]

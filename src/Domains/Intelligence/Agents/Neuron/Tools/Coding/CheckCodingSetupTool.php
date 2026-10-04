@@ -19,19 +19,18 @@ use Throwable;
 #[AgentTool(name: 'Check Coding Setup', category: 'coding')]
 class CheckCodingSetupTool extends Tool
 {
+    protected string $name = 'check_coding_setup';
+
+    protected ?string $description = 'Check whether you are ready to dispatch coding tasks: that you have a GitHub token '
+        . 'and at least one allowed repository, that the pi.dev connector is configured for your '
+        . 'company, and that the pi.dev server is reachable and accepts the API token. Use this before '
+        . 'starting work, or when a user asks if you are set up to code.';
     private const string PROBE_JOB_ID = '00000000-0000-0000-0000-000000000000';
 
     public function __construct(
         private readonly Agent $agent,
         private readonly ?Client $client = null,
     ) {
-        parent::__construct(
-            name: 'check_coding_setup',
-            description: 'Check whether you are ready to dispatch coding tasks: that you have a GitHub token '
-                . 'and at least one allowed repository, that the pi.dev connector is configured for your '
-                . 'company, and that the pi.dev server is reachable and accepts the API token. Use this before '
-                . 'starting work, or when a user asks if you are set up to code.',
-        );
     }
 
     /**

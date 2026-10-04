@@ -13,7 +13,6 @@ use Kanvas\Scribe\Quotes\Actions\CreateQuoteAction;
 use Kanvas\Scribe\Quotes\DataTransferObject\Quote as QuoteData;
 use Kanvas\Scribe\Quotes\DataTransferObject\QuoteLine as QuoteLineData;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -25,23 +24,19 @@ use Spatie\LaravelData\DataCollection;
 
 /** Creates a DRAFT multi-line quote for a customer. Nothing leaves Kanvas and no JE posts — quotes are pre-economic-event. */
 #[AgentTool(name: 'Create Quote', category: 'accounting')]
-class CreateQuoteTool extends Tool implements HasRunKey
+class CreateQuoteTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesCustomerForTool;
     use ResolvesOrganizationContactForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_quote',
-            description: 'Creates a DRAFT quote (sales proposal) for a customer, with one or more priced lines. '
-                . 'It stops at draft: no quote number is assigned and nothing is sent until you call send_quote. '
-                . 'A quote never touches the books — use create_ar_invoice when the customer is being billed for '
-                . 'work already agreed, and this when you are still proposing.',
-        );
-    }
+    protected string $name = 'create_quote';
+
+    protected ?string $description = 'Creates a DRAFT quote (sales proposal) for a customer, with one or more priced lines. '
+        . 'It stops at draft: no quote number is assigned and nothing is sent until you call send_quote. '
+        . 'A quote never touches the books — use create_ar_invoice when the customer is being billed for '
+        . 'work already agreed, and this when you are still proposing.';
 
     /**
      * @return array<int, ToolPropertyInterface>

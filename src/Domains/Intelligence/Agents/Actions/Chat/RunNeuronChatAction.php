@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Actions\Chat;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -14,6 +15,7 @@ use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
+use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
@@ -25,15 +27,15 @@ use Kanvas\Intelligence\Agents\Services\NeuronResponderProviderFallback;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Agent\AgentHandler;
 use NeuronAI\Agent\AgentState;
+use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
 use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Exceptions\ToolRunsExceededException;
-use NeuronAI\Tools\ToolInterface;
+use NeuronAI\Tools\ToolCall;
 use Throwable;
 
 class RunNeuronChatAction
@@ -67,8 +69,15 @@ class RunNeuronChatAction
     {
         $sessionId = $this->session?->uuid ?? '';
 
-        // Agents whose chatHistory already records each turn (KanvasMessageHistory) must not also
-        // logTurn here — that writes a second, parallel conversation. SalesAssist-style agents write
+        // Neuron refuses to run an unbound agent. The kernel binds the thread itself; a caller that runs
+        // this action directly (RespondToMentionJob, DraftCustomerUpdateAction) gets the session as its
+        // address, the same choice the kernel makes when there is no source channel.
+        if ($this->handler instanceof BehavesAsKanvasAgent && $this->handler->getThreadId() === null) {
+            $this->handler->setThreadId($this->session?->uuid ?? Str::uuid()->toString());
+        }
+
+        // Agents whose chatHistory already records each turn (ConversationMessageStore) must not also
+        // logTurn here — that writes a second, parallel conversation. Agents on the rollup store write
         // their history to Social messages, so they keep logTurn as their only conversation record.
         $selfRecords = $this->handler instanceof BehavesAsKanvasAgent
             && $this->handler->persistsTurnsToConversationStore();
@@ -109,34 +118,23 @@ class RunNeuronChatAction
 
         try {
             if (is_object($this->handler)
-                && method_exists($this->handler, 'resolveProvider')
+                && method_exists($this->handler, 'getProvider')
                 && method_exists($this->handler, 'setAiProvider')) {
                 $this->handler->setAiProvider(
                     new NeuronResponderProviderFallback()->wrap(
-                        $this->handler->resolveProvider(),
+                        $this->handler->getProvider(),
                         $this->agent,
                     ),
                 );
             }
 
-            // chat() returns immediately with an AgentHandler; the actual LLM
-            // round-trip happens inside run() / getMessage(). Both must be
-            // inside the try block so provider errors (e.g. Gemini returning
-            // STOP with no `parts`) don't bubble as 500s.
-            $responseContent = $this->handler->chat($userMessage);
-
-            if ($responseContent instanceof AgentHandler) {
-                $state = $responseContent->run();
-                $responseMessage = $state->getMessage();
-                [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
-                $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
-                $this->executedToolCalls = BoundToolResultsMiddleware::executedCalls($state);
-            } else {
-                $responseMessage = $responseContent;
-                if ($responseMessage instanceof Message && ($u = $responseMessage->getUsage())) {
-                    $usage = $u->jsonSerialize();
-                }
-            }
+            // chat() runs the whole turn, so a provider error (e.g. Gemini blocking the content)
+            // surfaces here, inside the try, and never bubbles as a 500.
+            $state = $this->handler->chat($userMessage);
+            $responseMessage = $state->getMessage() ?? new AssistantMessage('');
+            [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
+            $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
+            $this->executedToolCalls = BoundToolResultsMiddleware::executedCalls($state);
         } catch (Throwable $e) {
             $fallback = $this->humanizedFallback($e);
 
@@ -208,7 +206,7 @@ class RunNeuronChatAction
             );
         }
 
-        // Idempotent backfill so SalesAssistKanvasMessageHistory (entity-keyed query)
+        // Idempotent backfill so EntityRollupMessageStore (entity-keyed query)
         // sees every channel message on the next turn.
         $this->backfillChannelMessagesToLead();
 
@@ -244,8 +242,8 @@ class RunNeuronChatAction
                 . 'like me to look into it or handle it a different way.';
         }
 
-        // Any tool can trip the run budget, not just the people lookups this copy used to name —
-        // a reporting tool looping on an empty date range hits it too (KANVAS-ECOSYSTEM-682).
+        // Any tool can trip the run budget, not just the people lookups — a reporting tool looping on an
+        // empty date range hits it too (KANVAS-ECOSYSTEM-682).
         if ($e instanceof ToolRunsExceededException) {
             return 'I kept retrying the same lookup without getting anywhere. Could you narrow it down for me — '
                 . 'an exact name, email, or date range — and ask again?';
@@ -359,26 +357,27 @@ class RunNeuronChatAction
     {
         $toolCalls = [];
         $toolResults = [];
-        $inputTokens = 0;
-        $outputTokens = 0;
+        $usage = ['input_tokens' => 0, 'output_tokens' => 0, 'cache_read' => 0, 'cache_write' => 0];
         $seenFinal = false;
 
-        $accumulate = function (Message $m) use (&$toolCalls, &$toolResults, &$inputTokens, &$outputTokens): void {
+        $accumulate = function (Message $m) use (&$toolCalls, &$toolResults, &$usage): void {
             if ($m instanceof ToolCallMessage) {
-                foreach ($m->getTools() as $tool) {
-                    /** @var ToolInterface $tool */
-                    $toolCalls[] = $tool->jsonSerialize();
+                foreach ($m->getToolCalls() as $call) {
+                    /** @var ToolCall $call */
+                    $toolCalls[] = $call->jsonSerialize();
                 }
             }
             if ($m instanceof ToolResultMessage) {
-                foreach ($m->getTools() as $tool) {
-                    /** @var ToolInterface $tool */
-                    $toolResults[] = $tool->jsonSerialize();
+                foreach ($m->getToolCalls() as $call) {
+                    /** @var ToolCall $call */
+                    $toolResults[] = $call->jsonSerialize();
                 }
             }
             if ($u = $m->getUsage()) {
-                $inputTokens += $u->inputTokens;
-                $outputTokens += $u->outputTokens;
+                $row = ConversationUsageSqlHelper::neuronUsageRow($u, (int) ($m->getMetadata('cacheWriteTokens') ?? 0));
+                foreach ($row as $key => $count) {
+                    $usage[$key] += $count;
+                }
             }
         };
 
@@ -399,9 +398,7 @@ class RunNeuronChatAction
         return [
             $toolCalls,
             $toolResults,
-            ($inputTokens > 0 || $outputTokens > 0)
-                ? ['input_tokens' => $inputTokens, 'output_tokens' => $outputTokens]
-                : [],
+            array_sum($usage) > 0 ? array_filter($usage, static fn (int $count): bool => $count > 0) : [],
         ];
     }
 }

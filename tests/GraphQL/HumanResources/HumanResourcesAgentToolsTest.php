@@ -29,7 +29,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\UpdateLeaveTypeTool;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 
 class HumanResourcesAgentToolsTest extends TestCase
@@ -287,10 +287,10 @@ class HumanResourcesAgentToolsTest extends TestCase
     {
         // Regression (Sentry KANVAS-ECOSYSTEM-621): NeuronAI caps a tool at 10 executions per turn keyed on
         // the tool NAME by default, so onboarding an org chart (11+ DISTINCT create_position/create_employee
-        // calls) threw ToolRunsExceededException. HasRunKey keys the counter on the inputs instead: distinct
+        // calls) threw ToolRunsExceededException. TrackByInputs keys the counter on the inputs instead: distinct
         // arguments → distinct keys (own budget), identical arguments → same key (loop still capped).
         $position = new CreatePositionTool();
-        $this->assertInstanceOf(HasRunKey::class, $position);
+        $this->assertContains(TrackByInputs::class, class_uses_recursive($position));
 
         $keyCeo = $position->setInputs(['title' => 'CEO'])->getRunKey();
         $keyCto = $position->setInputs(['title' => 'CTO'])->getRunKey();
@@ -300,7 +300,7 @@ class HumanResourcesAgentToolsTest extends TestCase
         $this->assertEquals($keyCeo, $keyCeoAgain, 'Identical calls must collapse to one key so a loop is capped.');
 
         $employee = new CreateEmployeeTool();
-        $this->assertInstanceOf(HasRunKey::class, $employee);
+        $this->assertContains(TrackByInputs::class, class_uses_recursive($employee));
 
         $keyOne = $employee->setInputs(['user_email' => 'a@x.com', 'position_title' => 'Dev'])->getRunKey();
         $keyTwo = $employee->setInputs(['user_email' => 'b@x.com', 'position_title' => 'Dev'])->getRunKey();
@@ -309,7 +309,7 @@ class HumanResourcesAgentToolsTest extends TestCase
         // find_employee is called once per CSV row during bulk onboarding — it must key by inputs too,
         // or looking up 11+ DISTINCT people in one turn trips the per-tool-name cap.
         $find = new FindEmployeeTool();
-        $this->assertInstanceOf(HasRunKey::class, $find);
+        $this->assertContains(TrackByInputs::class, class_uses_recursive($find));
 
         $keyAlice = $find->setInputs(['query' => 'alice@x.com'])->getRunKey();
         $keyBob = $find->setInputs(['query' => 'bob@x.com'])->getRunKey();
@@ -345,7 +345,7 @@ class HumanResourcesAgentToolsTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool::class . ' must key runs by inputs.');
+            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must key runs by inputs.');
 
             $keyA = $tool->setInputs(['x' => 'a'])->getRunKey();
             $keyB = $tool->setInputs(['x' => 'b'])->getRunKey();

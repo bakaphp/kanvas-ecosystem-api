@@ -12,7 +12,6 @@ use Kanvas\Connectors\Intras\Reporting\Scoring\IntrasScorecards;
 use Kanvas\Connectors\Intras\Reporting\Scoring\ScorecardMeasurementService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -35,26 +34,22 @@ use Throwable;
  * An evento has only the classification card; the sheets define no potencialidad for events.
  */
 #[AgentTool(name: 'Intras Scorecard', category: 'reporting')]
-class ScorecardTool extends Tool implements HasRunKey
+class ScorecardTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    private const array ENTITIES = ['ejecutivo', 'empresa', 'evento', 'definicion'];
+    protected string $name = 'intras_scorecard';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'intras_scorecard',
-            description: 'Calcula la clasificación y la potencialidad (A-E) de un ejecutivo o de una '
-                . 'empresa, y la clasificación de un evento, con las cinco hojas de puntuación de '
-                . 'INTRAS. Estas letras NO están '
-                . 'almacenadas en ningún campo: se calculan aquí a partir de la participación real, '
-                . 'las cotizaciones aprobadas y los planes. Usa entidad "definicion" para explicar '
-                . 'qué criterios y pesos componen cada hoja sin puntuar a nadie. Devuelve la letra, '
-                . 'el porcentaje, el desglose por criterio y la cobertura.',
-        );
-    }
+    protected ?string $description = 'Calcula la clasificación y la potencialidad (A-E) de un ejecutivo o de una '
+        . 'empresa, y la clasificación de un evento, con las cinco hojas de puntuación de '
+        . 'INTRAS. Estas letras NO están '
+        . 'almacenadas en ningún campo: se calculan aquí a partir de la participación real, '
+        . 'las cotizaciones aprobadas y los planes. Usa entidad "definicion" para explicar '
+        . 'qué criterios y pesos componen cada hoja sin puntuar a nadie. Devuelve la letra, '
+        . 'el porcentaje, el desglose por criterio y la cobertura.';
+
+    private const array ENTITIES = ['ejecutivo', 'empresa', 'evento', 'definicion'];
 
     /**
      * @return array<int, ToolProperty>

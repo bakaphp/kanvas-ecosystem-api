@@ -12,7 +12,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindSalesOrderTool;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 
 class FindProductToolTest extends TestCase
@@ -67,7 +67,7 @@ class FindProductToolTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool->getName() . ' must key its run budget by inputs.');
+            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool->getName() . ' must key its run budget by inputs.');
 
             $tool->setInputs(['query' => 'Kraken Elite', 'order_number' => 'SO-1', 'sku' => 'RL-KP336']);
             $keyOne = $tool->getRunKey();

@@ -22,15 +22,11 @@ class ListWarehousesTool extends Tool
     use HasKanvasContext;
     use ListsCatalogReferenceData;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_warehouses',
-            description: 'List the company\'s warehouses, default first. Stock, cost and warehouse price are held '
-                . 'per warehouse, so use this to get a warehouse_id before calling set_variant_stock for a '
-                . 'specific location. Omitting warehouse_id on those tools uses the default warehouse.',
-        );
-    }
+    protected string $name = 'list_warehouses';
+
+    protected ?string $description = 'List the company\'s warehouses, default first. Stock, cost and warehouse price are held '
+        . 'per warehouse, so use this to get a warehouse_id before calling set_variant_stock for a '
+        . 'specific location. Omitting warehouse_id on those tools uses the default warehouse.';
 
     /**
      * @return array<int, ToolProperty>

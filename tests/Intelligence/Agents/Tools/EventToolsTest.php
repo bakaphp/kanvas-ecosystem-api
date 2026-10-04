@@ -29,7 +29,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Events\ListEventParticipantsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Events\ListEventsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Events\ListParticipantTypesTool;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Spatie\LaravelData\DataCollection;
 use Tests\TestCase;
 
@@ -123,7 +123,7 @@ final class EventToolsTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool->getName() . ' must key its run budget by inputs.');
+            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool->getName() . ' must key its run budget by inputs.');
 
             $tool->setInputs(['event_id' => 1, 'version_id' => 1, 'report' => 'inscription_track']);
             $keyOne = $tool->getRunKey();

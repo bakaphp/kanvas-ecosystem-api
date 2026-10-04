@@ -17,13 +17,9 @@ class ArtifactsTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_lead_artifacts',
-            description: 'Retrieve CRM artifacts and vehicle information for the current lead, including status, stage, tags, forms, records, and ADF comments.',
-        );
-    }
+    protected string $name = 'get_lead_artifacts';
+
+    protected ?string $description = 'Retrieve CRM artifacts and vehicle information for the current lead, including status, stage, tags, forms, records, and ADF comments.';
 
     #[Override]
     protected function properties(): array

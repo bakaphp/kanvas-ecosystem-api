@@ -23,19 +23,15 @@ class TavilyMapTool extends Tool
 {
     use ResolvesTavilyClientForTool;
 
-    private const int MAX_LINKS = 200;
+    protected string $name = 'tavily_map_site';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'tavily_map_site',
-            description: 'List the pages of a website without reading any of them — you get URLs back, no '
-                . 'content. Use it to find out what a site contains before deciding what to read: "does '
-                . 'this company publish pricing", "find their careers page", "how is this documentation '
-                . 'organised". Much cheaper and faster than crawling, so prefer it whenever you need '
-                . 'to locate a page rather than read one.',
-        );
-    }
+    protected ?string $description = 'List the pages of a website without reading any of them — you get URLs back, no '
+        . 'content. Use it to find out what a site contains before deciding what to read: "does '
+        . 'this company publish pricing", "find their careers page", "how is this documentation '
+        . 'organised". Much cheaper and faster than crawling, so prefer it whenever you need '
+        . 'to locate a page rather than read one.';
+
+    private const int MAX_LINKS = 200;
 
     /**
      * @return array<int, ToolProperty>

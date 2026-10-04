@@ -9,7 +9,6 @@ use Kanvas\Connectors\Movipass\Neuron\Tools\Traits\ResolvesMovipassReportScope;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Souk\Orders\Actions\GetOrderPaymentStatsAction;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -17,25 +16,21 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Movipass Order Payment Stats', category: 'commerce')]
-class OrderPaymentStatsTool extends Tool implements HasRunKey
+class OrderPaymentStatsTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesMovipassReportScope;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'movipass_order_payment_stats',
-            description: 'Collected money for parking, Paso Rápido, impound or roadside orders: total amount, '
-                . 'transaction count, average ticket, the card-vs-transfer split, a breakdown per service or '
-                . 'variant sold, per provider, and the per-day/week/month series with its averages. Use for "how '
-                . 'much did we collect", "what was the average ticket", "how much came in by card", "revenue by '
-                . 'service", "recharges this month". This is the same calculation the payments dashboard shows, cut '
-                . 'in the tenant timezone — prefer it over the generic order_payment_stats tool for anything '
-                . 'Movipass. Look one tag or one order up with tag / order_number.',
-        );
-    }
+    protected string $name = 'movipass_order_payment_stats';
+
+    protected ?string $description = 'Collected money for parking, Paso Rápido, impound or roadside orders: total amount, '
+        . 'transaction count, average ticket, the card-vs-transfer split, a breakdown per service or '
+        . 'variant sold, per provider, and the per-day/week/month series with its averages. Use for "how '
+        . 'much did we collect", "what was the average ticket", "how much came in by card", "revenue by '
+        . 'service", "recharges this month". This is the same calculation the payments dashboard shows, cut '
+        . 'in the tenant timezone — prefer it over the generic order_payment_stats tool for anything '
+        . 'Movipass. Look one tag or one order up with tag / order_number.';
 
     /**
      * @return array<int, ToolProperty>

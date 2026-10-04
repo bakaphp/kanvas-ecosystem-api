@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesAddressesForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesOrganizationForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,22 +24,18 @@ use Override;
  * partial correction is overlaid on the stored row here first — otherwise fixing a zip blanks the street.
  */
 #[AgentTool(name: 'Set Organization Address', category: 'crm')]
-class SetOrganizationAddressTool extends Tool implements HasRunKey
+class SetOrganizationAddressTool extends Tool
 {
     use HandlesAddressesForTool;
     use ReportsToolOutcome;
     use ResolvesOrganizationForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_organization_address',
-            description: 'Add or correct a structured address on a customer organization. An organization has one '
-                . 'address per type (Billing, Shipping, Headquarters, ...): sending a type it already has updates that '
-                . 'address, and only the fields you pass change.',
-        );
-    }
+    protected string $name = 'set_organization_address';
+
+    protected ?string $description = 'Add or correct a structured address on a customer organization. An organization has one '
+        . 'address per type (Billing, Shipping, Headquarters, ...): sending a type it already has updates that '
+        . 'address, and only the fields you pass change.';
 
     /**
      * @return array<int, ToolProperty>

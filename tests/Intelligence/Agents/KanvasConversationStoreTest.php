@@ -467,7 +467,7 @@ class KanvasConversationStoreTest extends TestCase
     }
 
     /**
-     * After the SalesAssistKanvasMessageHistory double-write removal, the per-turn
+     * After the EntityRollupMessageStore double-write removal, the per-turn
      * usage + tool telemetry is no longer written as a visible social message — it
      * lives ONLY here, in agent_conversation_messages. Guard that it still lands.
      */

@@ -10,7 +10,6 @@ use Kanvas\Analytics\Reporting\Services\ReportQueryService;
 use Kanvas\Analytics\Reporting\Support\ReportRegistry;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -26,23 +25,19 @@ use Throwable;
  * available" wants both, and because neither is worth its own name in the tool list.
  */
 #[AgentTool(name: 'Intras Entitlements', category: 'reporting')]
-class EntitlementsTool extends Tool implements HasRunKey
+class EntitlementsTool extends Tool
 {
     use TrackByInputs;
     use HasKanvasContext;
 
-    private const array KINDS = ['planes', 'cortesias'];
+    protected string $name = 'intras_entitlements';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'intras_entitlements',
-            description: 'Consumo de planes y pases de cortesía por empresa. kind: "planes" '
-                . '(cupos contratados, usados y disponibles por plan) o "cortesias" (pases '
-                . 'emitidos, usados, vigentes y vencidos). Filtra por empresa, estado y si el '
-                . 'plan ya está consumido.',
-        );
-    }
+    protected ?string $description = 'Consumo de planes y pases de cortesía por empresa. kind: "planes" '
+        . '(cupos contratados, usados y disponibles por plan) o "cortesias" (pases '
+        . 'emitidos, usados, vigentes y vencidos). Filtra por empresa, estado y si el '
+        . 'plan ya está consumido.';
+
+    private const array KINDS = ['planes', 'cortesias'];
 
     /**
      * @return array<int, ToolProperty>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -237,20 +238,16 @@ class AgentChatKernel
             )->execute();
         }
 
+        $entity = $this->session?->entity();
+
         $handler->setConfiguration(
             agent: $this->agent,
-            entity: $this->session?->entity(),
+            entity: $entity,
             user: $this->user,
         );
 
         if ($handler instanceof BehavesAsKanvasAgent) {
-            // userChat (sourceChannel === null): scope history to this thread.
-            // Channel agents: thread by entity — Lead+People IS the conversation,
-            // not the per-channel session. Cross-channel rollup is the design
-            // intent of SalesAssistKanvasMessageHistory.
-            if ($this->sourceChannel === null) {
-                $handler->setThreadId($this->session?->uuid ?? Str::uuid()->toString());
-            }
+            $handler->setThreadId($this->threadId($entity));
             $handler->setSession($this->session);
             $handler->setCurrentLead($this->currentLead);
             // Plumb the turn's attachment URLs so the conversation history can persist a reference
@@ -276,6 +273,33 @@ class AgentChatKernel
         );
 
         return $this->neuronRun->execute();
+    }
+
+    /**
+     * Neuron refuses to run an unbound agent: the thread is the conversation's address, and later the
+     * key of its durable run. userChat (no source channel) keys it on the session, one per chat window.
+     * A channel turn keys it on the record the session is about, so a lead talked to over SMS, email
+     * and WhatsApp has one address — the cross-channel rollup is the design intent of
+     * EntityRollupMessageStore, and that store never narrows its load by this id. Every model that
+     * appears as a session entity carries a uuid; the class-and-id form is the fallback for one that
+     * does not.
+     */
+    protected function threadId(?Model $entity): string
+    {
+        if ($this->sourceChannel !== null && $entity !== null) {
+            return self::entityThreadId($entity);
+        }
+
+        return $this->session?->uuid ?? Str::uuid()->toString();
+    }
+
+    public static function entityThreadId(Model $entity): string
+    {
+        $uuid = $entity->getAttribute('uuid');
+
+        return is_string($uuid) && $uuid !== ''
+            ? $uuid
+            : 'entity:' . $entity::class . ':' . $entity->getKey();
     }
 
     protected function trackUsage(

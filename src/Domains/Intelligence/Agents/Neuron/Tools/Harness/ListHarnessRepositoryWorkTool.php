@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,21 +24,21 @@ use Override;
  * and collide, and the second only finds out at merge time.
  */
 #[AgentTool(name: 'List Coding Repository Open Work', category: 'coding')]
-class ListHarnessRepositoryWorkTool extends Tool implements HasRunKey, RequiresSystemAgent
+class ListHarnessRepositoryWorkTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use ResolvesCodingRepositoryForTool;
     use TrackByInputs;
 
+    protected string $name = 'list_coding_repository_open_work';
+
+    protected ?string $description = 'List the open pull requests on a repository you can work on — including ones '
+        . 'opened by other people. Check it before starting work that might overlap, and say so '
+        . 'if something related is already open rather than duplicating it.';
+
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'list_coding_repository_open_work',
-            description: 'List the open pull requests on a repository you can work on — including ones '
-                . 'opened by other people. Check it before starting work that might overlap, and say so '
-                . 'if something related is already open rather than duplicating it.',
-        );
     }
 
     /**

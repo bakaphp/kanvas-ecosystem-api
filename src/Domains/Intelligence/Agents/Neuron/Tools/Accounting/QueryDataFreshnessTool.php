@@ -16,16 +16,12 @@ class QueryDataFreshnessTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'query_data_freshness',
-            description: 'Returns when the books were last updated — most recent journal entry posted_at, most '
-                . 'recent invoice issued_date, most recent expense expense_date, and counts by document. Use this '
-                . 'BEFORE answering any financial question so you can tell the user "I\'m answering from N-day-stale '
-                . 'data" when the source isn\'t fresh. Critical for honest CFO advice.',
-        );
-    }
+    protected string $name = 'query_data_freshness';
+
+    protected ?string $description = 'Returns when the books were last updated — most recent journal entry posted_at, most '
+        . 'recent invoice issued_date, most recent expense expense_date, and counts by document. Use this '
+        . 'BEFORE answering any financial question so you can tell the user "I\'m answering from N-day-stale '
+        . 'data" when the source isn\'t fresh. Critical for honest CFO advice.';
 
     #[Override]
     protected function properties(): array

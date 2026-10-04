@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Tools\Traits\Guild\SetsOrganizationCustomFieldsTrait;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -17,7 +16,7 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Set Organization Custom Fields', category: 'crm')]
-class SetOrganizationCustomFieldsTool extends Tool implements HasRunKey
+class SetOrganizationCustomFieldsTool extends Tool
 {
     use DecodesJsonObjectParam;
     use HasKanvasContext;
@@ -25,15 +24,11 @@ class SetOrganizationCustomFieldsTool extends Tool implements HasRunKey
     use SetsOrganizationCustomFieldsTrait;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_organization_custom_fields',
-            description: 'Store custom fields on a customer organization (e.g. industry, sector, employee count, a '
-                . 'classification or score). Pass organization_id and a map of field name → value; only those keys '
-                . 'are written, the rest are left as-is. Use get_organization to read them back.',
-        );
-    }
+    protected string $name = 'set_organization_custom_fields';
+
+    protected ?string $description = 'Store custom fields on a customer organization (e.g. industry, sector, employee count, a '
+        . 'classification or score). Pass organization_id and a map of field name → value; only those keys '
+        . 'are written, the rest are left as-is. Use get_organization to read them back.';
 
     /**
      * @return array<int, ToolProperty>

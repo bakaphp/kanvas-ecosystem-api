@@ -19,13 +19,20 @@ class NeuronAgentFactory
         ?Model $entity = null,
         ?string $externalReferenceId = null,
         ?Users $user = null,
+        ?string $threadId = null,
     ): BehavesAsKanvasAgent {
         $agent = Agent::where('name', $name)
             ->where('apps_id', $app->getId())
             ->where('is_deleted', 0)
             ->firstOrFail();
 
-        return self::fromAgent($agent, $entity, $externalReferenceId, $user);
+        return self::fromAgent(
+            $agent,
+            $entity,
+            $externalReferenceId,
+            $user,
+            $threadId,
+        );
     }
 
     public static function fromSlug(
@@ -34,20 +41,32 @@ class NeuronAgentFactory
         ?Model $entity = null,
         ?string $externalReferenceId = null,
         ?Users $user = null,
+        ?string $threadId = null,
     ): BehavesAsKanvasAgent {
         $agent = Agent::where('slug', $slug)
             ->where('apps_id', $app->getId())
             ->where('is_deleted', 0)
             ->firstOrFail();
 
-        return self::fromAgent($agent, $entity, $externalReferenceId, $user);
+        return self::fromAgent(
+            $agent,
+            $entity,
+            $externalReferenceId,
+            $user,
+            $threadId,
+        );
     }
 
+    /**
+     * @param string|null $threadId The conversation's address. Neuron refuses to run an unbound agent, so a
+     *                              caller that chats without going through AgentChatKernel binds one here.
+     */
     public static function fromAgent(
         Agent $agent,
         ?Model $entity = null,
         ?string $externalReferenceId = null,
         ?Users $user = null,
+        ?string $threadId = null,
     ): BehavesAsKanvasAgent {
         $handlerClass = $agent->type->handler;
 
@@ -65,6 +84,10 @@ class NeuronAgentFactory
             externalReferenceId: $externalReferenceId,
             user: $user,
         );
+
+        if ($threadId !== null) {
+            $neuronAgent->setThreadId($threadId);
+        }
 
         return $neuronAgent;
     }

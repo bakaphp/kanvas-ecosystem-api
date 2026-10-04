@@ -10,7 +10,6 @@ use Kanvas\Guild\Customers\Enums\ConsentMatchEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,21 +22,17 @@ use Override;
  * src/Domains/Guild/Customers/CLAUDE.md.
  */
 #[AgentTool(name: 'Mark Person Do Not Contact', category: 'crm')]
-class MarkPersonDoNotContactTool extends Tool implements HasRunKey
+class MarkPersonDoNotContactTool extends Tool
 {
     use ReportsToolOutcome;
     use ResolvesPersonForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'mark_person_do_not_contact',
-            description: 'Mark a person as do-not-contact: every email and phone they have is opted out across SMS, '
-                . 'WhatsApp and email, automated replies are turned off on all of their leads, and a note is logged. '
-                . 'Use when a teammate tells you this person must not be contacted. This cannot be undone from here.',
-        );
-    }
+    protected string $name = 'mark_person_do_not_contact';
+
+    protected ?string $description = 'Mark a person as do-not-contact: every email and phone they have is opted out across SMS, '
+        . 'WhatsApp and email, automated replies are turned off on all of their leads, and a note is logged. '
+        . 'Use when a teammate tells you this person must not be contacted. This cannot be undone from here.';
 
     /**
      * @return array<int, ToolProperty>

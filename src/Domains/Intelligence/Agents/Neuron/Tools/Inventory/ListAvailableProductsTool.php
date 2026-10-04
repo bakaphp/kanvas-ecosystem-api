@@ -17,15 +17,11 @@ use Override;
 #[AgentTool(name: 'List Available Products', category: 'inventory')]
 class ListAvailableProductsTool extends Tool
 {
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_available_products',
-            description: 'List products from the inventory filtered by published status and stock availability. '
-                . 'Use is_published=true for published products, is_published=false for unpublished/draft products. '
-                . 'Use only_in_stock=true to filter only products with stock available.',
-        );
-    }
+    protected string $name = 'list_available_products';
+
+    protected ?string $description = 'List products from the inventory filtered by published status and stock availability. '
+        . 'Use is_published=true for published products, is_published=false for unpublished/draft products. '
+        . 'Use only_in_stock=true to filter only products with stock available.';
 
     #[Override]
     protected function properties(): array

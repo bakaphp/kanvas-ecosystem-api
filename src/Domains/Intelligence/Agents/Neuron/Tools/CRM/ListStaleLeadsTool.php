@@ -28,17 +28,13 @@ class ListStaleLeadsTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_stale_leads',
-            description: 'Lists open leads with little recent movement (no record update in the last N days) so you '
-                . 'can summarize who needs a follow-up. Returns each lead\'s contact, owner, pipeline stage, days '
-                . 'since last update, follow-up count and last follow-up date, and whether it was handed off to a '
-                . 'human. Use this for "which leads are cold", "who should I follow up with", or "open leads with '
-                . 'no movement". Filter by owner name/email to scope to one rep\'s pipeline.',
-        );
-    }
+    protected string $name = 'list_stale_leads';
+
+    protected ?string $description = 'Lists open leads with little recent movement (no record update in the last N days) so you '
+        . 'can summarize who needs a follow-up. Returns each lead\'s contact, owner, pipeline stage, days '
+        . 'since last update, follow-up count and last follow-up date, and whether it was handed off to a '
+        . 'human. Use this for "which leads are cold", "who should I follow up with", or "open leads with '
+        . 'no movement". Filter by owner name/email to scope to one rep\'s pipeline.';
 
     /**
      * @return array<int, ToolProperty>

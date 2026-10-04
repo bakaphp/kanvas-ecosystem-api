@@ -19,16 +19,12 @@ class MarkEmailAsReadTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'mark_email_as_read',
-            description: 'Marks an email as read so a future "has:attachment is:unread" search won\'t find it '
-                . 'again. Call this after an invoice email has been fully processed (logged to the sheet, and '
-                . 'the bill/invoice created) — never before, so a failed or interrupted run can still be found '
-                . 'and retried.',
-        );
-    }
+    protected string $name = 'mark_email_as_read';
+
+    protected ?string $description = 'Marks an email as read so a future "has:attachment is:unread" search won\'t find it '
+        . 'again. Call this after an invoice email has been fully processed (logged to the sheet, and '
+        . 'the bill/invoice created) — never before, so a failed or interrupted run can still be found '
+        . 'and retried.';
 
     /**
      * @return array<int, ToolProperty>

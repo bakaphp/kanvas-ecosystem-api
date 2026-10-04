@@ -21,7 +21,7 @@ use Throwable;
  *
  * This is the read-only config-plane compilation: it assembles the same system
  * prompt the in-process NeuronAI agent uses (soul → instructions →
- * output_format, with AgentType fallback — see Agents\Types\BaseAgent), the
+ * output_format, with AgentType fallback — see HasKanvasAgentBehavior), the
  * resolved model name, the per-agent voice_config, and the agent's telephony
  * number (per-agent, falling back to the company). It never returns credentials
  * — Twilio secrets stay out of this payload.
@@ -131,7 +131,7 @@ class VoiceAgentSpecService
     }
 
     /**
-     * Same coalescing as Agents\Types\BaseAgent::instructions(): prefer the
+     * Same coalescing as HasKanvasAgentBehavior::instructions(): prefer the
      * per-field prompt on the agent, fall back per-field to the AgentType so a
      * type acts as the base persona, then legacy structured `role`.
      */

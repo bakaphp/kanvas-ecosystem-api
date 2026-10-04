@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -28,23 +27,19 @@ use Override;
  * pending to used on the balance and rejecting releases them, identically to the UI.
  */
 #[AgentTool(name: 'Decide Leave Request', category: 'human_resources')]
-class DecideLeaveRequestTool extends Tool implements HasRunKey
+class DecideLeaveRequestTool extends Tool
 {
     use GuardsAdminForTool;
     use HandlesLeaveForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'decide_leave',
-            description: 'Approves or rejects a PENDING time-off request. Allowed for a company administrator or the '
-                . 'employee\'s own manager. Get the leave_request_id from list_leave_requests first. Approving moves '
-                . 'the days from pending to used; rejecting gives them back. Returns updated=false with a reason if '
-                . 'you are not allowed, the id is unknown, or the request was already decided.',
-        );
-    }
+    protected string $name = 'decide_leave';
+
+    protected ?string $description = 'Approves or rejects a PENDING time-off request. Allowed for a company administrator or the '
+        . 'employee\'s own manager. Get the leave_request_id from list_leave_requests first. Approving moves '
+        . 'the days from pending to used; rejecting gives them back. Returns updated=false with a reason if '
+        . 'you are not allowed, the id is unknown, or the request was already decided.';
 
     /**
      * @return array<int, ToolProperty>

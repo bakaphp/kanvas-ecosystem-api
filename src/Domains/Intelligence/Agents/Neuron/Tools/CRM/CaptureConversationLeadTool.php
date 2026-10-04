@@ -39,19 +39,19 @@ class CaptureConversationLeadTool extends Tool
 {
     use CreatesLeadTrait;
 
+    protected string $name = 'create_lead';
+
+    protected ?string $description = 'Register a new CRM lead for a prospect. Use this when no lead is in scope AND the conversation has revealed '
+        . 'enough information to register a real prospect (at minimum: prospect name + email OR phone). '
+        . 'DO NOT call this on a single hello message. Returns the lead_id that subsequent lead-scoped tools '
+        . '(get_user_availability, create_calendar_event, get_lead_intent, etc.) require.';
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Users $user,
         private readonly ?Session $session = null,
     ) {
-        parent::__construct(
-            name: 'create_lead',
-            description: 'Register a new CRM lead for a prospect. Use this when no lead is in scope AND the conversation has revealed '
-                . 'enough information to register a real prospect (at minimum: prospect name + email OR phone). '
-                . 'DO NOT call this on a single hello message. Returns the lead_id that subsequent lead-scoped tools '
-                . '(get_user_availability, create_calendar_event, get_lead_intent, etc.) require.',
-        );
     }
 
     #[Override]

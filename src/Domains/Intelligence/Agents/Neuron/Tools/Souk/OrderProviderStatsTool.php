@@ -19,17 +19,13 @@ class OrderProviderStatsTool extends Tool
     use HasKanvasContext;
     use ParsesOrderTypesFilter;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'order_provider_stats',
-            description: 'Marketplace split per provider company: orders, net revenue, commission we earned and '
-                . 'payout owed to that provider, ranked by revenue. Use for "what do we owe each provider", "which '
-                . 'provider brings the most volume", "commission by provider". Also returns how many orders in the '
-                . 'range have no provider attached at all. Providers come from the order-provider link, not from '
-                . 'the customer email. For a single company-wide total use order_commission_stats.',
-        );
-    }
+    protected string $name = 'order_provider_stats';
+
+    protected ?string $description = 'Marketplace split per provider company: orders, net revenue, commission we earned and '
+        . 'payout owed to that provider, ranked by revenue. Use for "what do we owe each provider", "which '
+        . 'provider brings the most volume", "commission by provider". Also returns how many orders in the '
+        . 'range have no provider attached at all. Providers come from the order-provider link, not from '
+        . 'the customer email. For a single company-wide total use order_commission_stats.';
 
     /**
      * @return array<int, ToolProperty>

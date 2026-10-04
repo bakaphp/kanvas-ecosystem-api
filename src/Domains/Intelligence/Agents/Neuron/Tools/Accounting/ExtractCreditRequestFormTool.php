@@ -21,17 +21,13 @@ class ExtractCreditRequestFormTool extends Tool
     use HasKanvasContext;
     use ResolvesFilesystemForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'extract_credit_request_form',
-            description: 'Reads a Credit Request Form (CNR) Excel file already stored in Kanvas (e.g. the '
-                . 'filesystem_id returned by download_attachment) and parses it into customer_name, '
-                . 'request_reference_no, region, tenant, and one or more lines (control_account_number, '
-                . 'description, amount) — ready to pass straight into create_ar_credit_memo. One email can carry '
-                . 'more than one form (one per credit memo) — call this once per attached form.',
-        );
-    }
+    protected string $name = 'extract_credit_request_form';
+
+    protected ?string $description = 'Reads a Credit Request Form (CNR) Excel file already stored in Kanvas (e.g. the '
+        . 'filesystem_id returned by download_attachment) and parses it into customer_name, '
+        . 'request_reference_no, region, tenant, and one or more lines (control_account_number, '
+        . 'description, amount) — ready to pass straight into create_ar_credit_memo. One email can carry '
+        . 'more than one form (one per credit memo) — call this once per attached form.';
 
     /**
      * @return array<int, ToolProperty>

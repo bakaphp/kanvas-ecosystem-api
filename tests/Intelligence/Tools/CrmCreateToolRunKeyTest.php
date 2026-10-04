@@ -9,7 +9,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateDealTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 
 class CrmCreateToolRunKeyTest extends TestCase
@@ -33,7 +33,7 @@ class CrmCreateToolRunKeyTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool::class . ' must track runs by inputs.');
+            $this->assertContains(TrackByInputs::class, class_uses_recursive($tool), $tool::class . ' must track runs by inputs.');
 
             $keyA = $tool->setInputs(['title' => 'Caribetrans', 'firstname' => 'Claudia', 'name' => 'Caribetrans'])->getRunKey();
             $keyB = $tool->setInputs(['title' => 'Ryder', 'firstname' => 'Marcos', 'name' => 'Ryder'])->getRunKey();

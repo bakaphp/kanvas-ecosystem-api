@@ -33,17 +33,17 @@ class UpdateAgentInstructionsTool extends Tool
 {
     use HasKanvasContext;
 
+    protected string $name = 'update_agent_instructions';
+
+    protected ?string $description = 'Change what one of your teammate agents is told to do — its instructions, its '
+        . 'persona, or the shape of its output. Use it when someone tells you an agent is getting '
+        . 'something wrong: reword the part that is wrong and leave the rest alone. It does NOT '
+        . 'change which tools that agent has. The previous wording is kept, so a bad edit can be '
+        . 'undone. You cannot edit yourself.';
+
     public function __construct(
         private readonly ?Agent $editor = null,
     ) {
-        parent::__construct(
-            name: 'update_agent_instructions',
-            description: 'Change what one of your teammate agents is told to do — its instructions, its '
-                . 'persona, or the shape of its output. Use it when someone tells you an agent is getting '
-                . 'something wrong: reword the part that is wrong and leave the rest alone. It does NOT '
-                . 'change which tools that agent has. The previous wording is kept, so a bad edit can be '
-                . 'undone. You cannot edit yourself.',
-        );
     }
 
     /**
