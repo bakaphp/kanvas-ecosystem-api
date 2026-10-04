@@ -18,7 +18,8 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
  * verticals, not one mutation per insurer operation.
  *
  * Capabilities beyond quoting are opt-in — see InspectionProviderInterface,
- * PaymentLinkProviderInterface, PolicyProviderInterface, CatalogProviderInterface.
+ * PaymentLinkProviderInterface, PolicyEmissionProviderInterface,
+ * PolicySyncProviderInterface, CatalogProviderInterface.
  */
 interface InsuranceProviderInterface
 {
