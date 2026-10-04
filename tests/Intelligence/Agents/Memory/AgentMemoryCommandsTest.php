@@ -30,6 +30,7 @@ use NeuronAI\RAG\VectorStore\VectorStoreInterface;
 use NeuronAI\Tools\ToolCall;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\Stubs\Intelligence\ConstantEmbeddingsProvider;
+use Tests\Stubs\Intelligence\RememberingCustomerAgentStub;
 use Tests\Stubs\Intelligence\SharedCompanyMemory;
 use Tests\TestCase;
 use Tests\Traits\MakesAgents;
@@ -95,6 +96,31 @@ class AgentMemoryCommandsTest extends TestCase
         $this->assertSame($company->getId(), $documents[0]->getMetadata()['companies_id']);
         $this->assertSame(People::class, $documents[0]->getMetadata()['entity_type'], 'Tagged with the record so a customer-facing agent can recall it');
         $this->assertSame($prospect->getId(), $documents[0]->getMetadata()['entity_id']);
+    }
+
+    public function testReindexLeavesCustomerFacingAgentsToTheirLiveWrites(): void
+    {
+        Queue::fake();
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $type = AgentType::factory()->withAppId($this->kanvasApp->getId())->create([
+            'provider' => 'neuron',
+            'handler' => RememberingCustomerAgentStub::class,
+        ]);
+        $agent = $this->makeAgentFor($user, $type);
+        $prospect = People::factory()->withAppId($this->kanvasApp->getId())->withCompanyId($company->getId())->create();
+        $thread = $this->seedToolUsingThread($agent, $prospect);
+
+        $this->reindexSinceYesterday();
+
+        $this->assertSame(
+            [],
+            array_filter(
+                SharedCompanyMemory::all($this->memory),
+                static fn (Document $document): bool => $document->getSourceName() === $thread,
+            ),
+            'A sweep would duplicate what the live node already wrote under another id'
+        );
     }
 
     public function testReindexQueuesLedgerOutcomes(): void
@@ -181,6 +207,9 @@ class AgentMemoryCommandsTest extends TestCase
             $this->document('old-outcome', 'ledger', $old),
             $this->document('old-saved-memory', 'memory', $old),
         ]));
+
+        // Retention holds for an app that opted out of writing memory: what it wrote still ages out.
+        $this->kanvasApp->set(KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED->value, 0);
 
         $this->artisan('agents:prune-memory', ['--app' => $this->kanvasApp->getId()])->assertSuccessful();
 

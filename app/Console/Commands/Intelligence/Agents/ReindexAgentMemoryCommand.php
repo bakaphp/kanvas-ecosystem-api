@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\Memory\ConversationMemoryNode;
@@ -239,13 +240,20 @@ class ReindexAgentMemoryCommand extends Command
     /**
      * The handler class decides, exactly as it does on a live turn; the decision is a constant per
      * class, so a bare instance answers it without the agent's configuration.
+     *
+     * A customer-facing agent remembers live but is left out of the sweep: its rows are written by
+     * logTurn under their own ids, not the message ids the live node keys by, so a sweep would write
+     * every one of its turns a second time. Its history lives on the record it talks to anyway.
      */
     private function agentRemembers(int $agentId): bool
     {
         return $this->remembering[$agentId] ??= (function () use ($agentId): bool {
             $handler = (string) Agent::query()->whereKey($agentId)->with('type')->first()?->type?->handler;
 
-            if ($handler === '' || ! class_exists($handler) || ! is_a($handler, BehavesAsKanvasAgent::class, true)) {
+            if ($handler === ''
+                || ! class_exists($handler)
+                || ! is_a($handler, BehavesAsKanvasAgent::class, true)
+                || is_a($handler, ConversesWithCustomer::class, true)) {
                 return false;
             }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Intelligence\Agents;
 
 use App\Console\Commands\Concerns\IteratesTargetApps;
+use Baka\Search\SearchEngineResolver;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Intelligence\Agents\Neuron\Memory\ConversationMemoryNode;
@@ -36,7 +37,9 @@ class PruneAgentMemoryCommand extends Command
     public function handle(): int
     {
         foreach ($this->targetApps() as $app) {
-            if (! KnowledgeComponents::memoryEnabled($app)) {
+            // Retention applies whether or not the app still writes memory: an app that opted out keeps
+            // what it wrote until it ages out, not forever. Only an app with no store is skipped.
+            if (! SearchEngineResolver::hasTypesenseCredentials(SearchEngineResolver::typesenseSettings($app))) {
                 continue;
             }
 
