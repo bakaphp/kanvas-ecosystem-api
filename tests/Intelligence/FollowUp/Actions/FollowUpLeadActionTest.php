@@ -21,7 +21,6 @@ use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpOutcomeKindEnum;
-use Kanvas\Intelligence\FollowUp\Services\FollowUpKnowledgeRetriever;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Notifications\Templates\Blank;
@@ -709,22 +708,21 @@ class FollowUpLeadActionTest extends TestCase
         ];
         $lead = $this->seedLeadWithStageConfig($cfg);
         $this->seedSessionAndChannel($lead, 'email');
-        $retriever = Mockery::mock(FollowUpKnowledgeRetriever::class);
-        foreach (['email', 'sms'] as $channel) {
-            $retriever->shouldReceive('retrieve')->once()->withArgs(fn ($agent, $stage, $type) => $type === $channel)
-                ->andReturn(['source' => 'campaign', 'sheet' => $channel, 'row' => 1, 'content' => "guidance-for-{$channel}"]);
-        }
+        FollowUpAgentStub::$knowledgeDocuments = [
+            new \NeuronAI\RAG\Document('guidance-for-email: detailed information. guidance-for-sms: brief check-in.'),
+        ];
         FollowUpAgentStub::$cannedResponse = json_encode([
             'should_respond' => true, 'advance_stage' => false,
             'channel' => 'sms', 'message' => 'A short contextual SMS.', 'reason' => 'Customer prefers SMS.',
         ]);
-        $outcome = new FollowUpLeadAction($this->testApp, $this->company, $lead, $this->seedFollowUpAgent(), knowledgeRetriever: $retriever)->execute();
+        $outcome = new FollowUpLeadAction($this->testApp, $this->company, $lead, $this->seedFollowUpAgent())->execute();
         $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
         $lead->refresh();
         $this->assertSame(1, $lead->getFollowUpStateCount());
         $this->assertSame(['sms'], $lead->getFollowUpChannelsUsed());
-        $this->assertStringContainsString('guidance-for-email', FollowUpAgentStub::lastPromptText());
-        $this->assertStringContainsString('guidance-for-sms', FollowUpAgentStub::lastPromptText());
+        $this->assertStringContainsString('guidance-for-email', FollowUpAgentStub::$lastSystemPrompt);
+        $this->assertStringContainsString('guidance-for-sms', FollowUpAgentStub::$lastSystemPrompt);
+        $this->assertSame(1, FollowUpAgentStub::$retrievalCalls);
     }
 
     public function testAgentPicksRejectsMissingDisabledAndOptedOutChannels(): void
@@ -1083,22 +1081,15 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertStringContainsString('reiterate that offer CONCRETELY', $prompt);
     }
 
-    public function testPromptIncludesRetrievedFollowUpKnowledgeWithProvenance(): void
+    public function testNativeRagKnowledgeReachesFollowUpDecisionWithoutNamedAttachment(): void
     {
         $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
         $lead->stage->update(['name' => 'Day 4']);
         $this->seedSessionAndChannel($lead, 'sms');
 
-        $retriever = Mockery::mock(FollowUpKnowledgeRetriever::class);
-        $retriever->shouldReceive('retrieve')
-            ->once()
-            ->with(Mockery::type(Agent::class), 'Day 4', 'sms')
-            ->andReturn([
-                'source' => 'Follow-up Workflow.ods',
-                'sheet' => 'SMS Follow-up',
-                'row' => 7,
-                'content' => 'Message guidance: Ask whether the customer reviewed the options.',
-            ]);
+        FollowUpAgentStub::$knowledgeDocuments = [
+            new \NeuronAI\RAG\Document('Ask whether the customer reviewed the options.'),
+        ];
 
         FollowUpAgentStub::configure(
             shouldRespond: false,
@@ -1112,14 +1103,12 @@ class FollowUpLeadActionTest extends TestCase
             company: $this->company,
             lead: $lead,
             agent: $this->seedFollowUpAgent(),
-            knowledgeRetriever: $retriever,
         )->execute();
 
         $prompt = FollowUpAgentStub::lastPromptText();
-        $this->assertStringContainsString('Retrieved follow-up knowledge:', $prompt);
-        $this->assertStringContainsString('Source: Follow-up Workflow.ods', $prompt);
-        $this->assertStringContainsString('Location: SMS Follow-up!row 7', $prompt);
-        $this->assertStringContainsString('Ask whether the customer reviewed the options.', $prompt);
+        $this->assertSame(1, FollowUpAgentStub::$retrievalCalls);
+        $this->assertStringContainsString('Ask whether the customer reviewed the options.', FollowUpAgentStub::$lastSystemPrompt);
+        $this->assertStringNotContainsString('Ask whether the customer reviewed the options.', $prompt);
     }
 
     public function testStaticTemplateDispatchesAgentMessageDirectlyAndAgentMessageSlotTemplateWraps(): void

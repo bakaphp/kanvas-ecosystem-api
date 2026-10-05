@@ -64,12 +64,21 @@ class FollowUpAgentStub extends FollowUpAgent
      */
     public static bool $setThreadIdWasCalled = false;
 
+    /** @var list<\NeuronAI\RAG\Document> */
+    public static array $knowledgeDocuments = [];
+
+    public static int $retrievalCalls = 0;
+    public static ?string $lastSystemPrompt = null;
+
     public static function reset(): void
     {
         self::$cannedResponse = '{"should_respond": false, "advance_stage": false, "message": null, "reason": "stub-default"}';
         self::$lastReceivedMessages = [];
         self::$throwOnChat = null;
         self::$setThreadIdWasCalled = false;
+        self::$knowledgeDocuments = [];
+        self::$retrievalCalls = 0;
+        self::$lastSystemPrompt = null;
     }
 
     public static function lastPromptText(): string
@@ -109,6 +118,8 @@ class FollowUpAgentStub extends FollowUpAgent
 
             public function systemPrompt(?string $prompt): AIProviderInterface
             {
+                FollowUpAgentStub::$lastSystemPrompt = $prompt;
+
                 return $this;
             }
 
@@ -175,7 +186,9 @@ class FollowUpAgentStub extends FollowUpAgent
         return new class () implements \NeuronAI\RAG\Retrieval\RetrievalInterface {
             public function retrieve(Message $query): array
             {
-                return [];
+                FollowUpAgentStub::$retrievalCalls++;
+
+                return FollowUpAgentStub::$knowledgeDocuments;
             }
         };
     }

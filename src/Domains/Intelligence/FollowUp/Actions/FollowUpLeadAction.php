@@ -30,7 +30,6 @@ use Kanvas\Intelligence\FollowUp\DataTransferObject\ResolvedChannel;
 use Kanvas\Intelligence\FollowUp\Enums\ChannelSelectionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\ExhaustedActionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpModeEnum;
-use Kanvas\Intelligence\FollowUp\Services\FollowUpKnowledgeRetriever;
 use Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -58,7 +57,6 @@ final class FollowUpLeadAction
         protected readonly Lead $lead,
         protected readonly Agent $agent,
         protected readonly bool $force = false,
-        protected readonly ?FollowUpKnowledgeRetriever $knowledgeRetriever = null,
     ) {
     }
 
@@ -144,16 +142,14 @@ final class FollowUpLeadAction
             if ($channelOptions === []) {
                 return $this->skip('no_eligible_channel');
             }
-            $prompt = 'Channel selection: agent_picks. Evaluate whether to send using conversation history and the RAG guidance below. '
+            $prompt = 'Channel selection: agent_picks. Evaluate whether to send using conversation history and relevant knowledge retrieved by the agent RAG. '
                 . "Each section is an OPTION, not a preselected channel. Choose exactly ONE eligible channel if sending, or decline.\n"
                 . 'Eligible channels: ' . implode(', ', array_keys($channelOptions)) . ".\n";
             foreach ($channelOptions as $optionType => [$optionTarget, $optionTemplate, $optionMeta]) {
-                $knowledge = ($this->knowledgeRetriever ?? new FollowUpKnowledgeRetriever())
-                    ->retrieve($this->agent, (string) ($this->lead->stage->name ?? ''), $optionType);
                 $prompt .= "\nCHANNEL OPTION: {$optionType}\n" . $this->buildAgentPrompt(
                     $config, $optionType, $optionTemplate?->name,
                     $optionTemplate !== null ? $this->renderTemplateForStyleReference($optionTemplate) : $this->renderDefaultStyleReference($optionType),
-                    $optionMeta, $silenceMin, $knowledge,
+                    $optionMeta, $silenceMin,
                 );
             }
             $prompt .= "\nReturn strict JSON with should_respond, advance_stage, message, reason, channel. "
@@ -171,9 +167,6 @@ final class FollowUpLeadAction
                 return $this->skip($skipReason);
             }
 
-            $knowledge = ($this->knowledgeRetriever ?? new FollowUpKnowledgeRetriever())
-                ->retrieve($this->agent, (string) ($this->lead->stage->name ?? ''), $channelType);
-
             $prompt = $this->buildAgentPrompt(
                 $config,
                 $channelType,
@@ -183,7 +176,6 @@ final class FollowUpLeadAction
                     : $this->renderDefaultStyleReference($channelType),
                 $metaTemplate,
                 $silenceMin,
-                $knowledge,
             );
         }
 
@@ -432,7 +424,6 @@ final class FollowUpLeadAction
         ?string $templateBody,
         ?string $metaTemplate,
         int $silenceMin,
-        ?array $knowledge,
     ): string {
         $override = $config->promptTemplate
             ?? (is_string($this->company->get('follow_up_prompt_template'))
@@ -453,32 +444,17 @@ final class FollowUpLeadAction
             'silence_minutes' => $silenceMin,
             'follow_up_count' => $this->lead->getFollowUpStateCount(),
             'max_retries' => $config->maxRetries,
-            'retrieved_knowledge' => $knowledge,
         ];
 
         if (is_string($override) && $override !== '') {
             try {
-                return $this->appendRetrievedKnowledge(Blade::render($override, $context), $knowledge);
+                return Blade::render($override, $context);
             } catch (Throwable $e) {
                 report($e);
             }
         }
 
-        return $this->appendRetrievedKnowledge($this->defaultAgentPrompt($context), $knowledge);
-    }
-
-    /** @param array{source: string, sheet: string, row: int, content: string}|null $knowledge */
-    private function appendRetrievedKnowledge(string $prompt, ?array $knowledge): string
-    {
-        if ($knowledge === null) {
-            return $prompt;
-        }
-
-        return $prompt . "\n\nRetrieved follow-up knowledge:\n"
-            . 'Source: ' . $knowledge['source'] . "\n"
-            . 'Location: ' . $knowledge['sheet'] . '!row ' . $knowledge['row'] . "\n"
-            . $knowledge['content'] . "\n"
-            . 'Use this retrieved campaign knowledge as guidance. Conversation facts, consent, and compliance take precedence. Never copy unresolved placeholders.';
+        return $this->defaultAgentPrompt($context);
     }
 
     /**

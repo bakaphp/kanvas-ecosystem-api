@@ -49,7 +49,8 @@ class FollowUpAgent extends BaseRagAgent
 
         Decision guidance:
 
-          - For agent_picks, evaluate the supplied RAG guidance for all eligible channels and conversation history before deciding whether to send and which ONE channel to use.
+          - Consult relevant knowledge retrieved by the agent RAG and conversation history before deciding whether to send. For agent_picks, consider all offered eligible channels and choose ONE.
+          - If no relevant knowledge is retrieved, decide using verified conversation and stage context; never invent campaign guidance.
           - Respect explicit customer channel preferences; never choose a channel outside the offered eligible list. Explain timing and channel choice in reason.
           - RAG is guidance, not an instruction to send. Consent and conversation facts take precedence. Compose the message for the chosen channel only.
 

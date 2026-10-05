@@ -91,6 +91,19 @@ Without this hint, the kernel would call `setThreadId($session->uuid)` and the h
 
 Bug surfaced 2026-06-08 on lead 25628: agent had 46 People-keyed message rows available but only 16 passed the thread filter (today's cron prompts/responses). The actual 3-day-old customer conversation with the "ping me back Sunday" reply was in the 27 messages with `null` thread_id (legacy inbound, never tagged) — all filtered out. After the fix, the agent sees the full conversation regardless of which session originated the message.
 
+## Knowledge retrieval
+
+`FollowUpAgent` inherits `BaseRagAgent`: the kernel turn runs the existing
+`KnowledgeRetrieval` pipeline with the app, company, agent, and current lead.
+The follow-up action supplies stage context and eligible channels; it does not
+download or parse a campaign file. No specially named attachment, worksheet,
+column layout, or `Day N` stage naming is required.
+
+When native retrieval returns no relevant documents (including when knowledge is
+disabled), the agent uses verified conversation and stage context without
+inventing campaign guidance. Retrieval errors retain the existing agent/kernel
+failure handling. Channel validation and delivery remain unchanged.
+
 ## The agent never terminally exhausts a lead
 
 `should_respond: false` + `advance_stage: false` from the LLM is treated as a **transient SKIP**, not a terminal exhaustion. The next cron tick re-evaluates the lead. The skip emits `lead.follow_up.skipped` with `reason: 'agent: <text>'` for ledger visibility — no `exhausted_at` set, no operator reset required.
@@ -245,7 +258,7 @@ Within each type, ordered by `weight DESC`, then `id DESC`. Opt-outs (`is_opt_ou
 |---|---|
 | `priority_only` | One channel per touch — always `candidates[0]`. |
 | `sticky_then_priority` (default) | Uses the lead's persisted `guild_agent_communication_channel`, which inbound connectors update from the customer's channel. Falls back to the first reachable configured channel. |
-| `agent_picks` | Retrieves campaign RAG and template guidance for every eligible channel before the agent decides whether to send and returns one `channel`. Only that channel is sent. Missing/invalid choices skip without consuming a retry; no fallback to priority. |
+| `agent_picks` | Supplies eligible channels and their template guidance in one turn. The agent uses its native RAG and conversation history to decide whether to send and returns one `channel`. Only that channel is sent. Missing/invalid choices skip without consuming a retry; no fallback to priority. |
 | `fan_out_all` | **All reachable channels per touch.** Same agent message dispatched to every candidate. One touch = one bump (does NOT consume N retry slots for N channels). Same template + same body across channels — if you need per-channel templates, use a pick-one strategy instead. Reserved for high-urgency stages (demo reminder, deal closing). Tenants opt in per stage; default stays pick-one to avoid accidental cross-channel spam / TCPA-class compliance exposure. |
 
 **Skip reasons:** `no_session` (no Session row for the person), `no_reachable_channel` (no stage-enabled channel has a matching non-opted-out contact). The old `channel_not_configured` skip is dead — was a session-driven false positive.
@@ -254,7 +267,7 @@ Within each type, ordered by `weight DESC`, then `id DESC`. Opt-outs (`is_opt_ou
 
 ### Open v1.5 work — channel routing intelligence
 
-1. **Per-channel decision history.** `AGENT_PICKS` now uses conversation history and channel-specific RAG. Persisting and consulting prior per-channel decline decisions remains future work; no per-channel sub-state is currently stored.
+1. **Per-channel decision history.** `AGENT_PICKS` uses conversation history and the agent's native RAG. Persisting and consulting prior per-channel decline decisions remains future work; no per-channel sub-state is currently stored.
 2. **Touch-number rotation.** Add `ChannelSelectionEnum::ROTATE_BY_TOUCH` — `$candidates[$lead->getFollowUpStateCount() % count($candidates)]`. Deterministic "email first, sms second, whatsapp third, wrap" pattern. No sticky/priority signal consulted.
 
 Both can ship independently — enum case + branch in `selectTargets` + test. Don't pre-build before a tenant actually needs it.
