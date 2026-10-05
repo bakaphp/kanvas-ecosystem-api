@@ -5,19 +5,23 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Souk;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
 use Kanvas\Souk\Orders\Services\OrderReportService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Order Commission Stats', category: 'commerce')]
 class OrderCommissionStatsTool extends Tool
 {
+    use GuardsRepeatCalls;
     use HasKanvasContext;
     use ParsesOrderTypesFilter;
+    use TrackByInputs;
 
     protected string $name = 'order_commission_stats';
 
@@ -25,6 +29,11 @@ class OrderCommissionStatsTool extends Tool
         . 'provider payout owed, plus the order count. Optional date range and order-type filter. Use for '
         . '"how much commission did we earn", "what do we owe provider X", marketplace take-rate questions. '
         . 'Counts only orders with a commission configured, anchored on order creation date.';
+
+    public function __construct()
+    {
+        $this->initRepeatGuard();
+    }
 
     /**
      * @return array<int, ToolProperty>
@@ -47,7 +56,14 @@ class OrderCommissionStatsTool extends Tool
         ?string $since = null,
         ?string $until = null,
     ): array {
-        return new OrderReportService($this->app, $this->company)
-            ->commissionStats($this->parseOrderTypes($order_types), $since, $until);
+        return $this->oncePerTurn(
+            [
+                'order_types' => $order_types,
+                'since' => $since,
+                'until' => $until,
+            ],
+            fn (): array => new OrderReportService($this->app, $this->company)
+                ->commissionStats($this->parseOrderTypes($order_types), $since, $until),
+        );
     }
 }
