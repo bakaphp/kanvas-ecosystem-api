@@ -130,6 +130,14 @@ tokens of tool schemas measured over a 50K window after one turn, lost its previ
 and summarized on every tool round (2026-10-04). `calculateTotalUsage()` therefore also reports history
 tokens, not request tokens.
 
+The load is trimmed too, by `KanvasChatHistory::getMessages()`. The stock history trims only inside
+`addMessage()`, and in v4 the inbound turn is added only **after** the provider answers
+(`InferenceNode::pendingConversation()` sends `getMessages()` plus the inbound as loaded), so the first
+inference of every turn carried the stored thread whole; the rollup and channel stores load every row
+of the entity or channel and never archive, so a Lead past the model's input limit failed on every turn
+(Gemini 400 at 1,048,576, KANVAS-ECOSYSTEM-6F1, back after the v4 upgrade dropped the v3
+`RebuildsTrimmedHistory` cut). `KanvasChatHistoryTest` covers the load.
+
 Stores extend `Stores/KanvasMessageStore`: `loadActive()` reads rows, `persist()` writes one,
 `append()` dedupes by message id, `clear()` archives the thread, and the count-based `archive()` is a
 final no-op (see "Archive and summarize" below). Nothing is ever deleted: Social messages and

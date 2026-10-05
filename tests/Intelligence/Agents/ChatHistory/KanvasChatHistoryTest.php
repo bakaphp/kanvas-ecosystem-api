@@ -15,10 +15,57 @@ use Tests\TestCase;
 
 /**
  * The stock history archives `count(before) − count(after)` oldest rows; a fold shortens the list
- * without dropping a turn, so the Kanvas history archives the ids a trim actually dropped.
+ * without dropping a turn, so the Kanvas history archives the ids a trim actually dropped. It also
+ * trims what the store loads: since Neuron 4 the inbound turn is added only after the provider
+ * answers, so getMessages() is what the first inference of a turn sends (KANVAS-ECOSYSTEM-6F1).
  */
 class KanvasChatHistoryTest extends TestCase
 {
+    public function testAStoredThreadPastTheWindowIsCutOnLoad(): void
+    {
+        $store = $this->store([
+            new UserMessage(str_repeat('a', 400))->setId('u1'),
+            new AssistantMessage(str_repeat('b', 400))->setId('a1'),
+            new UserMessage(str_repeat('c', 400))->setId('u2'),
+            new AssistantMessage(str_repeat('d', 400))->setId('a2'),
+        ]);
+        $history = $this->history($store, contextWindow: 260);
+
+        $this->assertSame(['u2', 'a2'], array_map(fn (Message $m): string => $m->getId(), $history->getMessages()));
+        $this->assertSame(['u1', 'a1'], $store->archived);
+        $this->assertSame([], $store->persisted, 'A load writes nothing');
+        $this->assertLessThanOrEqual(260, $history->calculateTotalUsage());
+    }
+
+    public function testAStoredThreadInsideTheWindowLoadsWhole(): void
+    {
+        $store = $this->store([
+            new UserMessage('hello')->setId('u1'),
+            new AssistantMessage('hi')->setId('a1'),
+        ]);
+        $history = $this->history($store, contextWindow: 50_000);
+
+        $this->assertCount(2, $history->getMessages());
+        $this->assertSame([], $store->archived);
+    }
+
+    public function testTheLoadIsTrimmedOnceNotOnEveryRead(): void
+    {
+        $store = $this->store([
+            new UserMessage(str_repeat('a', 400))->setId('u1'),
+            new AssistantMessage(str_repeat('b', 400))->setId('a1'),
+            new UserMessage(str_repeat('c', 400))->setId('u2'),
+            new AssistantMessage(str_repeat('d', 400))->setId('a2'),
+        ]);
+        $history = $this->history($store, contextWindow: 260);
+
+        $history->getMessages();
+        $history->getMessages();
+
+        $this->assertSame(1, $store->loads);
+        $this->assertSame(['u1', 'a1'], $store->archived);
+    }
+
     public function testATrimArchivesExactlyTheDroppedIds(): void
     {
         $store = $this->store([
@@ -79,6 +126,8 @@ class KanvasChatHistoryTest extends TestCase
 
             public int $cleared = 0;
 
+            public int $loads = 0;
+
             /**
              * @param list<Message> $loaded
              */
@@ -89,6 +138,8 @@ class KanvasChatHistoryTest extends TestCase
             #[Override]
             public function loadActive(string $threadId): array
             {
+                $this->loads++;
+
                 return $this->loaded;
             }
 

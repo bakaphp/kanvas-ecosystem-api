@@ -27,9 +27,10 @@ use Tests\TestCase;
 /**
  * Guards KANVAS-ECOSYSTEM-6F1: a stored conversation that outgrows the model's input limit must be cut
  * before it is replayed, or the thread fails on every further turn (Gemini 400, "input token count
- * exceeds the maximum number of tokens allowed 1048576"). ChatHistory trims on every add, and
- * KanvasHistoryTrimmer is the trimmer every Kanvas agent opens its history with: fold first, then the
- * stock cut.
+ * exceeds the maximum number of tokens allowed 1048576"). KanvasChatHistory trims on load and on every
+ * add (the first inference of a turn sends the loaded history before any add, see
+ * KanvasChatHistoryTest), and KanvasHistoryTrimmer is the trimmer every Kanvas agent opens its history
+ * with: fold first, then the stock cut.
  */
 class LoadedHistoryTrimTest extends TestCase
 {

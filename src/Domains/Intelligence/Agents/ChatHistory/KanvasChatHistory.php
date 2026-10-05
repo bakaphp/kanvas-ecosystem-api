@@ -12,12 +12,33 @@ use Override;
 use const PHP_INT_MAX;
 
 /**
- * Archives by identity instead of by count: KanvasHistoryTrimmer folds same-role turns, which shortens
- * the list without dropping anything, so the stock count would stamp the wrong rows. A mirror of the
- * vendor addMessage() apart from that; re-check it on a Neuron bump.
+ * Two departures from the vendor history; re-check both against it on a Neuron bump.
+ *
+ * It trims what the store loads. The stock history trims only inside addMessage(), and since Neuron 4
+ * the turn's inbound message is added only after the provider call succeeds: InferenceNode's
+ * pendingConversation() sends getMessages() plus the inbound as loaded. So the first inference of
+ * every turn carried the whole stored thread, and the trim that followed went out with the request:
+ * a Lead or channel that outgrew the model's input limit failed on every further turn (Gemini 400,
+ * "input token count exceeds the maximum number of tokens allowed (1048576)", KANVAS-ECOSYSTEM-6F1).
+ * The rollup and channel stores never archive, so for them the load is the only cut there is.
+ *
+ * It archives by identity instead of by count: KanvasHistoryTrimmer folds same-role turns, which
+ * shortens the list without dropping anything, so the stock count would stamp the wrong rows.
  */
 class KanvasChatHistory extends ChatHistory
 {
+    #[Override]
+    public function getMessages(): array
+    {
+        if ($this->messages === null) {
+            $loaded = $this->store->loadActive($this->threadId);
+            $this->messages = $this->trimmer->trim($loaded, $this->contextWindow);
+            $this->archiveDropped($loaded, $this->messages);
+        }
+
+        return $this->messages;
+    }
+
     #[Override]
     public function addMessage(Message $message): self
     {
@@ -33,19 +54,7 @@ class KanvasChatHistory extends ChatHistory
         $trimmed = $this->trimmer->trim($messages, $this->contextWindow);
 
         $this->store->append($this->threadId, $message);
-
-        // Compared as row ids: the store strips Neuron's prefix when it persists, and the fold recorded
-        // the prefixed one, so a folded-in message would otherwise read as dropped and lose its row.
-        $dropped = array_values(array_diff(
-            array_map(static fn (Message $m): string => KanvasMessageStore::bareId($m->getId()), $messages),
-            self::survivingIds($trimmed),
-        ));
-
-        if ($dropped !== [] && $this->store instanceof KanvasMessageStore) {
-            $this->store->archiveMessages($this->threadId, $dropped);
-        } elseif ($dropped !== []) {
-            $this->store->archive($this->threadId, count($dropped));
-        }
+        $this->archiveDropped($messages, $trimmed);
 
         $this->messages = $trimmed;
 
@@ -61,6 +70,32 @@ class KanvasChatHistory extends ChatHistory
         $this->trimmer->trim(array_map(static fn (Message $message): Message => clone $message, $messages), PHP_INT_MAX);
 
         return $this->trimmer->getTotalTokens();
+    }
+
+    /**
+     * @param list<Message> $before
+     * @param list<Message> $after
+     */
+    private function archiveDropped(array $before, array $after): void
+    {
+        // Compared as row ids: the store strips Neuron's prefix when it persists, and the fold recorded
+        // the prefixed one, so a folded-in message would otherwise read as dropped and lose its row.
+        $dropped = array_values(array_diff(
+            array_map(static fn (Message $m): string => KanvasMessageStore::bareId($m->getId()), $before),
+            self::survivingIds($after),
+        ));
+
+        if ($dropped === []) {
+            return;
+        }
+
+        if ($this->store instanceof KanvasMessageStore) {
+            $this->store->archiveMessages($this->threadId, $dropped);
+
+            return;
+        }
+
+        $this->store->archive($this->threadId, count($dropped));
     }
 
     /**
