@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateDealTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindDealsBulkTool;
@@ -156,6 +157,28 @@ final class FindLeadsAndDealsBulkToolTest extends TestCase
 
         $this->assertFalse($result['results'][1]['found']);
         $this->assertContains('Nadie' . $this->tag . ' Aqui' . $this->tag, $result['not_found']);
+    }
+
+    public function test_deals_report_the_named_status_and_filter_on_it(): void
+    {
+        $people = People::factory()
+            ->withAppId($this->currentApp->getId())
+            ->withCompanyId($this->currentCompany->getId())
+            ->create(['firstname' => 'Perdida' . $this->tag, 'lastname' => 'Causa' . $this->tag]);
+        $created = new CreateDealTool($this->currentApp, $this->currentCompany, $this->actingUser)
+            ->__invoke(title: 'Perdida' . $this->tag, people_id: $people->getId());
+        $deal = Deal::getByIdFromCompanyApp((int) $created['deal_id'], $this->currentCompany, $this->currentApp);
+        $deal->status_id = self::lostLeadStatusId();
+        $deal->saveOrFail();
+        $name = 'Perdida' . $this->tag . ' Causa' . $this->tag;
+
+        $byDefault = $this->dealTool()->__invoke(names: $name);
+        $this->assertTrue($byDefault['results'][0]['found']);
+        $this->assertSame('Lost', $byDefault['results'][0]['matches'][0]['status']);
+        $this->assertFalse($byDefault['results'][0]['matches'][0]['is_open']);
+
+        $openOnly = $this->dealTool()->__invoke(names: $name, status: 'open');
+        $this->assertFalse($openOnly['results'][0]['found'], 'status=open must exclude the lost deal');
     }
 
     public function test_deals_blank_input_returns_an_actionable_error(): void

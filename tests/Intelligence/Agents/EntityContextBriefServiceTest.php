@@ -7,8 +7,10 @@ namespace Tests\Intelligence\Agents;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateDealTool;
 use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
 use Tests\TestCase;
 use Tests\Traits\MakesLeadStatuses;
@@ -50,6 +52,22 @@ class EntityContextBriefServiceTest extends TestCase
         $this->assertSame('closed', $brief['state']);
         $this->assertStringContainsString('status: Lost', $text);
         $this->assertStringContainsString('state: closed', $text);
+    }
+
+    public function testADealBriefCarriesItsNamedStatusAndWhetherItIsOpen(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $created = new CreateDealTool($app, $company, auth()->user())->__invoke(title: 'Cinedot renewal');
+        $deal = Deal::getByIdFromCompanyApp((int) $created['deal_id'], $company, $app);
+        $deal->status_id = self::lostLeadStatusId();
+        $deal->saveOrFail();
+
+        $brief = new EntityContextBriefService()->brief($deal);
+
+        $this->assertSame('Deal', $brief['type']);
+        $this->assertSame('Lost', $brief['status']);
+        $this->assertSame('closed', $brief['state']);
     }
 
     public function testGenericBriefFromModelAttributes(): void
