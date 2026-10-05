@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Kanvas\Guild\Search\MatchesBulkNameTerms;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -26,7 +25,7 @@ use Override;
  * Company-wide read: an internal-teammate capability, never the customer-facing prospect surface
  * (see Agents/CLAUDE.md audience rule).
  */
-abstract class FindCrmRecordsBulkTool extends Tool implements HasRunKey
+abstract class FindCrmRecordsBulkTool extends Tool
 {
     use HasKanvasContext;
     use MatchesBulkNameTerms;
@@ -119,10 +118,7 @@ abstract class FindCrmRecordsBulkTool extends Tool implements HasRunKey
         return $owner ? trim($owner->firstname . ' ' . $owner->lastname) : null;
     }
 
-    protected function isOpen(Model $record): bool
-    {
-        return $record->status === null || $record->status < 2;
-    }
+    abstract protected function isOpen(Model $record): bool;
 
     /** Overridable so the engine branch — and the tenant re-scope in hydrate() — can be driven in tests. */
     protected function nameSearch(Model $model): ?NameSearchInterface
@@ -157,10 +153,10 @@ abstract class FindCrmRecordsBulkTool extends Tool implements HasRunKey
     }
 
     /**
-     * Status stays out of the index: "open" is `status IS NULL OR status < 2`, which every engine
-     * expresses differently and none expresses well. The engine answers "which records match these
-     * names"; this narrows that to the ones the caller asked for, and re-applies the tenant scopes
-     * from baseQuery() so a stale document can never surface another company's record.
+     * Status stays out of the index: "open" is a per-company set of status ids (applyStatus()), which
+     * every engine expresses differently and none expresses well. The engine answers "which records
+     * match these names"; this narrows that to the ones the caller asked for, and re-applies the tenant
+     * scopes from baseQuery() so a stale document can never surface another company's record.
      *
      * @param list<string> $ids
      *
@@ -214,12 +210,5 @@ abstract class FindCrmRecordsBulkTool extends Tool implements HasRunKey
             ->get();
     }
 
-    private function applyStatus(Builder $query, string $status): Builder
-    {
-        return $query
-            ->when($status === 'open', fn ($q) => $q->where(
-                fn ($s) => $s->whereNull('status')->orWhere('status', '<', 2),
-            ))
-            ->when($status === 'closed', fn ($q) => $q->where('status', '>=', 2));
-    }
+    abstract protected function applyStatus(Builder $query, string $status): Builder;
 }

@@ -16,7 +16,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExposesCustomFields;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesAddressesForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -29,7 +28,7 @@ use Override;
  * fields. Company-wide read — an internal-teammate capability, NOT the customer-facing surface.
  */
 #[AgentTool(name: 'Get Person', category: 'crm')]
-class GetPersonTool extends Tool implements HasRunKey
+class GetPersonTool extends Tool
 {
     use ExposesCustomFields;
     use HasKanvasContext;
@@ -37,16 +36,12 @@ class GetPersonTool extends Tool implements HasRunKey
     use ResolvesPersonForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_person',
-            description: 'Returns the full profile of one person/contact by person_id: emails & phones (with '
-                . 'deliverability and opt-out state), title, people type, LinkedIn, do-not-contact flag, '
-                . 'organizations, tags, addresses, employment history, the '
-                . 'leads they are linked to, and their business custom fields. Use find_person first to get the id.',
-        );
-    }
+    protected string $name = 'get_person';
+
+    protected ?string $description = 'Returns the full profile of one person/contact by person_id: emails & phones (with '
+        . 'deliverability and opt-out state), title, people type, LinkedIn, do-not-contact flag, '
+        . 'organizations, tags, addresses, employment history, the '
+        . 'leads they are linked to, and their business custom fields. Use find_person first to get the id.';
 
     /**
      * @return array<int, ToolProperty>
@@ -82,7 +77,7 @@ class GetPersonTool extends Tool implements HasRunKey
             'peopleType',
             'organizations' => fn ($q) => $q->select('organizations.id', 'name'),
             'employmentHistory',
-            'leads',
+            'leads.status',
         ]);
 
         return [
@@ -134,7 +129,8 @@ class GetPersonTool extends Tool implements HasRunKey
                 ->map(fn (Lead $lead): array => [
                     'lead_id' => $lead->getId(),
                     'title' => $lead->title,
-                    'is_open' => $lead->isOpen(),
+                    'status' => $lead->statusName(),
+                    'is_open' => $lead->hasOpenLeadStatus(),
                 ])->all(),
             'custom_fields' => $this->relevantCustomFields($person),
         ];

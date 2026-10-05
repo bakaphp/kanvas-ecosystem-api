@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Zoho\Services;
 
+use Baka\Support\Arr;
 use Carbon\Carbon;
 use Throwable;
 
@@ -75,7 +76,7 @@ final class ZohoFieldTypeService
         $changed = false;
 
         foreach (self::invalidTypeFields($body) as $apiName => $expectedType) {
-            $key = self::resolveKey($data, $apiName);
+            $key = Arr::keyIgnoringCase($data, $apiName);
 
             if ($key === null) {
                 continue;
@@ -125,21 +126,6 @@ final class ZohoFieldTypeService
         }
 
         return $fields;
-    }
-
-    private static function resolveKey(array $data, string $apiName): ?string
-    {
-        if (array_key_exists($apiName, $data)) {
-            return $apiName;
-        }
-
-        foreach (array_keys($data) as $key) {
-            if (strcasecmp((string) $key, $apiName) === 0) {
-                return (string) $key;
-            }
-        }
-
-        return null;
     }
 
     private static function toNumber(string $value): ?float

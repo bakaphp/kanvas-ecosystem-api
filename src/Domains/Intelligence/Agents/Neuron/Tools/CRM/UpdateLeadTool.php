@@ -14,7 +14,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesOrganizationForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,12 +21,28 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Update Lead', category: 'crm')]
-class UpdateLeadTool extends Tool implements HasRunKey
+class UpdateLeadTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesLeadForTool;
     use ResolvesOrganizationForTool;
     use TrackByInputs;
+
+    protected string $name = 'update_lead';
+
+    protected ?string $description = 'Save what you learned about the prospect onto their CRM record so the business owner sees it. '
+        . 'Three things you can update: (1) the CONTACT details (real first/last name, email, phone) when the prospect '
+        . 'gives them and they were missing or wrong; (2) the QUALIFICATION answers (budget, what service they need, '
+        . 'urgency, timeline, address) plus your disposition of the lead; (3) the RECORD fields — the lead title, '
+        . 'the organization (company/account) it belongs to, its lead type and its source. '
+        . 'Use this AFTER the prospect shares details or answers your qualifying questions. '
+        . 'Only pass the fields the prospect actually gave you — omit the rest. '
+        . 'Set disposition to "qualified", "unqualified", or "spam" once you can tell. Disposition is your '
+        . 'qualification judgment, NOT the lead\'s status — it does not close a lead and does not change '
+        . 'what the lead UI shows. To close, reopen, or otherwise change a lead\'s status, use set_lead_status. '
+        . 'For any other custom field, use set_lead_custom_fields. '
+        . 'To move the lead through its pipeline: pass pipeline_stage with the stage name when you know where '
+        . 'it should land, or advance_stage=true to step it to the next one. Never both.';
 
     /**
      * Qualification answers persisted as lead custom fields (only when the LLM supplies them).
@@ -41,26 +56,6 @@ class UpdateLeadTool extends Tool implements HasRunKey
     ];
 
     private const DISPOSITIONS = ['qualified', 'unqualified', 'spam'];
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_lead',
-            description: 'Save what you learned about the prospect onto their CRM record so the business owner sees it. '
-                . 'Three things you can update: (1) the CONTACT details (real first/last name, email, phone) when the prospect '
-                . 'gives them and they were missing or wrong; (2) the QUALIFICATION answers (budget, what service they need, '
-                . 'urgency, timeline, address) plus your disposition of the lead; (3) the RECORD fields — the lead title, '
-                . 'the organization (company/account) it belongs to, its lead type and its source. '
-                . 'Use this AFTER the prospect shares details or answers your qualifying questions. '
-                . 'Only pass the fields the prospect actually gave you — omit the rest. '
-                . 'Set disposition to "qualified", "unqualified", or "spam" once you can tell. Disposition is your '
-                . 'qualification judgment, NOT the lead\'s status — it does not close a lead and does not change '
-                . 'what the lead UI shows. To close, reopen, or otherwise change a lead\'s status, use set_lead_status. '
-                . 'For any other custom field, use set_lead_custom_fields. '
-                . 'To move the lead through its pipeline: pass pipeline_stage with the stage name when you know where '
-                . 'it should land, or advance_stage=true to step it to the next one. Never both.',
-        );
-    }
 
     #[Override]
     protected function properties(): array

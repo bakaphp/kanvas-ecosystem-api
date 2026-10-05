@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,20 +23,16 @@ use Override;
  * Read-only.
  */
 #[AgentTool(name: 'Match Bills For Payment', category: 'accounting')]
-class MatchBillsForPaymentTool extends Tool implements HasRunKey
+class MatchBillsForPaymentTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'match_bills_for_payment',
-            description: 'Given a vendor name and a payment amount, lists the vendor\'s open (received, unpaid) '
-                . 'bills and flags an exact single-bill match. Use this to propose how a cleared AP payment '
-                . 'applies to bills before recording it. Read-only — proposes, does not apply.',
-        );
-    }
+    protected string $name = 'match_bills_for_payment';
+
+    protected ?string $description = 'Given a vendor name and a payment amount, lists the vendor\'s open (received, unpaid) '
+        . 'bills and flags an exact single-bill match. Use this to propose how a cleared AP payment '
+        . 'applies to bills before recording it. Read-only — proposes, does not apply.';
 
     /**
      * @return array<int, ToolProperty>

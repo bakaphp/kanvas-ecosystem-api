@@ -27,16 +27,12 @@ class SetProductPublishedTool extends Tool
     use HasKanvasContext;
     use ResolvesProductForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_product_published',
-            description: 'Publish or unpublish a product. Provide the product_id and published=false to take the '
-                . 'product off the storefront (unpublish / make it a draft, removed from search), or published=true '
-                . 'to publish it again. Use list_available_products first to find the product_id. Only an '
-                . 'administrator can do this.',
-        );
-    }
+    protected string $name = 'set_product_published';
+
+    protected ?string $description = 'Publish or unpublish a product. Provide the product_id and published=false to take the '
+        . 'product off the storefront (unpublish / make it a draft, removed from search), or published=true '
+        . 'to publish it again. Use list_available_products first to find the product_id. Only an '
+        . 'administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

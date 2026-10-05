@@ -9,7 +9,6 @@ use Kanvas\Connectors\Movipass\Neuron\Tools\Traits\ResolvesMovipassReportScope;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Souk\Orders\Actions\GetOrderStatsAction;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -17,25 +16,21 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Movipass Order Turnover', category: 'commerce')]
-class OrderTurnoverTool extends Tool implements HasRunKey
+class OrderTurnoverTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesMovipassReportScope;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'movipass_order_turnover',
-            description: 'Entries, exits and how many orders are still open right now, measured off status '
-                . 'transitions rather than order creation. Use for "how many cars came in today", "how many left", '
-                . '"how many are still parked", "how many vehicles are in the lot right now", "what was our busiest '
-                . 'day", and average dwell time. This is the report the operations dashboard draws: an order counts '
-                . 'as an entry when it reaches the opening status and as an exit when it reaches the closing one, so '
-                . 'the same order can enter on Monday and exit on Thursday. Opening and closing statuses default to '
-                . 'the right ones for the chosen order type — override them only when asked for a specific status.',
-        );
-    }
+    protected string $name = 'movipass_order_turnover';
+
+    protected ?string $description = 'Entries, exits and how many orders are still open right now, measured off status '
+        . 'transitions rather than order creation. Use for "how many cars came in today", "how many left", '
+        . '"how many are still parked", "how many vehicles are in the lot right now", "what was our busiest '
+        . 'day", and average dwell time. This is the report the operations dashboard draws: an order counts '
+        . 'as an entry when it reaches the opening status and as an exit when it reaches the closing one, so '
+        . 'the same order can enter on Monday and exit on Thursday. Opening and closing statuses default to '
+        . 'the right ones for the chosen order type — override them only when asked for a specific status.';
 
     /**
      * @return array<int, ToolProperty>

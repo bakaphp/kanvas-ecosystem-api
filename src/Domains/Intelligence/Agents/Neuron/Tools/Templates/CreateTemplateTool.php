@@ -18,18 +18,14 @@ class CreateTemplateTool extends Tool
     use HasKanvasContext;
     use ManagesTemplatesTrait;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_template',
-            description: 'Create a reusable HTML template (Blade syntax allowed, e.g. {{ $entity->name }}) that can '
-                . 'later be rendered to a PDF and attached to a record with generate_template_pdf. Give it a unique '
-                . 'name you will reuse. The template belongs to you — only you can update or delete it afterwards. '
-                . 'THIS is where the HTML goes: put the full markup in the `html` argument and never repeat it in '
-                . 'your reply. Once it is stored, report what you built and name the template — that is the '
-                . 'deliverable. If the name already exists, revise it with update_template instead of renaming.',
-        );
-    }
+    protected string $name = 'create_template';
+
+    protected ?string $description = 'Create a reusable HTML template (Blade syntax allowed, e.g. {{ $entity->name }}) that can '
+        . 'later be rendered to a PDF and attached to a record with generate_template_pdf. Give it a unique '
+        . 'name you will reuse. The template belongs to you — only you can update or delete it afterwards. '
+        . 'THIS is where the HTML goes: put the full markup in the `html` argument and never repeat it in '
+        . 'your reply. Once it is stored, report what you built and name the template — that is the '
+        . 'deliverable. If the name already exists, revise it with update_template instead of renaming.';
 
     /**
      * @return array<int, ToolProperty>

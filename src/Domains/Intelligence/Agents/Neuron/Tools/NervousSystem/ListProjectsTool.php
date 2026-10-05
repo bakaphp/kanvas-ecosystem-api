@@ -25,16 +25,12 @@ class ListProjectsTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_projects',
-            description: 'List the company\'s projects with status, completion %, priority, deadline, owner and PM '
-                . 'agent, and an at_risk flag. Defaults to open projects (draft/active/on_hold/blocked). Use for '
-                . '"what projects are running?", "which projects are at risk or blocked?", "project health". '
-                . 'Reporting only.',
-        );
-    }
+    protected string $name = 'list_projects';
+
+    protected ?string $description = 'List the company\'s projects with status, completion %, priority, deadline, owner and PM '
+        . 'agent, and an at_risk flag. Defaults to open projects (draft/active/on_hold/blocked). Use for '
+        . '"what projects are running?", "which projects are at risk or blocked?", "project health". '
+        . 'Reporting only.';
 
     /**
      * @return array<int, ToolProperty>

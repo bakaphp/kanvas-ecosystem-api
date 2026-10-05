@@ -18,14 +18,10 @@ class VehicleInterestTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_vehicle_interest',
-            description: 'Get detailed information about the lead\'s vehicle of interest'
-                . '  , including condition, year, make, model, VIN, stock number, price, and inventory status.',
-        );
-    }
+    protected string $name = 'get_vehicle_interest';
+
+    protected ?string $description = 'Get detailed information about the lead\'s vehicle of interest'
+        . '  , including condition, year, make, model, VIN, stock number, price, and inventory status.';
 
     #[Override]
     protected function properties(): array

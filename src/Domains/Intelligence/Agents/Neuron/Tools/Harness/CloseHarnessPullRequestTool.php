@@ -34,17 +34,17 @@ class CloseHarnessPullRequestTool extends Tool implements RequiresSystemAgent
     use ReportsToolOutcome;
     use ResolvesCodingRepositoryForTool;
 
+    protected string $name = 'close_coding_pull_request';
+
+    protected ?string $description = 'Close a pull request one of your jobs opened, when the work has moved somewhere '
+        . 'else or been redone and the pull request is now stale. The reason is posted on the '
+        . 'thread first and must say where the work went, because a pull request that shuts with '
+        . 'no explanation reads as abandoned. Refused on anything a person has already reviewed — '
+        . 'that is their call. You can NEVER merge; that is always a human decision.';
+
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'close_coding_pull_request',
-            description: 'Close a pull request one of your jobs opened, when the work has moved somewhere '
-                . 'else or been redone and the pull request is now stale. The reason is posted on the '
-                . 'thread first and must say where the work went, because a pull request that shuts with '
-                . 'no explanation reads as abandoned. Refused on anything a person has already reviewed — '
-                . 'that is their call. You can NEVER merge; that is always a human decision.',
-        );
     }
 
     /**

@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesAddressesForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,22 +24,18 @@ use Override;
  * that row in place — otherwise "fix the zip" would leave the wrong address behind as a second row.
  */
 #[AgentTool(name: 'Set Person Address', category: 'crm')]
-class SetPersonAddressTool extends Tool implements HasRunKey
+class SetPersonAddressTool extends Tool
 {
     use HandlesAddressesForTool;
     use ReportsToolOutcome;
     use ResolvesPersonForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_person_address',
-            description: 'Add or correct a postal address on a person. To fix an existing address pass its address_id '
-                . '(from get_person) and only the fields that change; without address_id a new address is added. '
-                . 'Set is_default=true to make it the person\'s current address.',
-        );
-    }
+    protected string $name = 'set_person_address';
+
+    protected ?string $description = 'Add or correct a postal address on a person. To fix an existing address pass its address_id '
+        . '(from get_person) and only the fields that change; without address_id a new address is added. '
+        . 'Set is_default=true to make it the person\'s current address.';
 
     /**
      * @return array<int, ToolProperty>

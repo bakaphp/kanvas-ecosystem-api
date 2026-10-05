@@ -20,15 +20,11 @@ class QueryCashPositionTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'query_cash_position',
-            description: 'Returns the company\'s liquid cash position — every Cash-class GL account with current '
-                . 'balance + grand total. Use this when the user asks "how much cash do we have", "what\'s in the '
-                . 'bank", or wants to know if there\'s enough liquidity to make a payment / hire / payroll.',
-        );
-    }
+    protected string $name = 'query_cash_position';
+
+    protected ?string $description = 'Returns the company\'s liquid cash position — every Cash-class GL account with current '
+        . 'balance + grand total. Use this when the user asks "how much cash do we have", "what\'s in the '
+        . 'bank", or wants to know if there\'s enough liquidity to make a payment / hire / payroll.';
 
     #[Override]
     protected function properties(): array

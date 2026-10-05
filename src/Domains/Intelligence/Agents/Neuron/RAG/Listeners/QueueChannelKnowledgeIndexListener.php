@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\RAG\Listeners;
 
-use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
-use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeSourceRegistry;
 use Kanvas\Social\Channels\Events\ChannelMessageAttachedEvent;
@@ -31,8 +29,8 @@ final class QueueChannelKnowledgeIndexListener
             (int) $event->channel->companies_id,
         );
 
-        if ($entity !== null && RagComponents::isEnabled($entity)) {
-            KnowledgeIndexRequested::dispatch(KnowledgeEntity::fromModel($entity));
+        if ($entity !== null) {
+            KnowledgeIndexRequested::dispatchIfEnabled($entity, $this->sources);
         }
     }
 }

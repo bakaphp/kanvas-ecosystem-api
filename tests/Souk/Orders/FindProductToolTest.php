@@ -12,11 +12,13 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindSalesOrderTool;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
-use NeuronAI\Tools\HasRunKey;
 use Tests\TestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 class FindProductToolTest extends TestCase
 {
+    use AssertsToolRunKeys;
+
     use DatabaseTransactions;
 
     protected array $connectionsToTransact = ['mysql', 'commerce', 'inventory', 'crm'];
@@ -67,19 +69,7 @@ class FindProductToolTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool->getName() . ' must key its run budget by inputs.');
-
-            $tool->setInputs(['query' => 'Kraken Elite', 'order_number' => 'SO-1', 'sku' => 'RL-KP336']);
-            $keyOne = $tool->getRunKey();
-
-            $tool->setInputs(['query' => 'Kraken Mini', 'order_number' => 'SO-2', 'sku' => 'RL-KP337']);
-            $keyTwo = $tool->getRunKey();
-
-            $tool->setInputs(['query' => 'Kraken Elite', 'order_number' => 'SO-1', 'sku' => 'RL-KP336']);
-            $keyOneAgain = $tool->getRunKey();
-
-            $this->assertNotEquals($keyOne, $keyTwo, $tool->getName() . ': distinct records must not share a run budget.');
-            $this->assertEquals($keyOneAgain, $keyOne, $tool->getName() . ': identical calls must collapse so a loop is still capped.');
+            $this->assertRunKeyFollowsInputs($tool);
         }
     }
 }

@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Knowledge\Services;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Intelligence\Knowledge\Contracts\KnowledgeSource;
 use Kanvas\Intelligence\Knowledge\Sources\LeadKnowledgeSource;
+use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
 
 final class KnowledgeSourceRegistry
 {
@@ -19,7 +20,7 @@ final class KnowledgeSourceRegistry
     /** @param iterable<KnowledgeSource>|null $sources */
     public function __construct(?iterable $sources = null)
     {
-        foreach ($sources ?? [new LeadKnowledgeSource()] as $source) {
+        foreach ($sources ?? [new LeadKnowledgeSource(), new LedgerKnowledgeSource()] as $source) {
             $this->sources[$source->entityType()] = $source;
             $this->aliases[strtolower(class_basename($source->entityType()))] = $source->entityType();
         }
@@ -62,18 +63,6 @@ final class KnowledgeSourceRegistry
         int $appId,
         int $companyId
     ): ?Model {
-        $source = $this->for($entityType);
-        if ($source === null) {
-            return null;
-        }
-
-        $model = $source->entityType();
-
-        return $model::query()
-            ->whereKey($entityId)
-            ->where('apps_id', $appId)
-            ->where('companies_id', $companyId)
-            ->where('is_deleted', 0)
-            ->first();
+        return $this->for($entityType)?->find($entityId, $appId, $companyId);
     }
 }

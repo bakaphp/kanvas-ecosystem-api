@@ -9,7 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
 use Kanvas\Social\Messages\Models\Message;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 
 final class AddOrganizationNoteToolTest extends TestCase
@@ -91,7 +91,7 @@ final class AddOrganizationNoteToolTest extends TestCase
     {
         $tool = new AddOrganizationNoteTool();
 
-        $this->assertInstanceOf(HasRunKey::class, $tool);
+        $this->assertContains(TrackByInputs::class, class_uses_recursive($tool));
 
         $keyA = $tool->setInputs(['organization_id' => 88121])->getRunKey();
         $keyB = $tool->setInputs(['organization_id' => 88122])->getRunKey();

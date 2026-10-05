@@ -2,6 +2,8 @@
 
 namespace Kanvas\Connectors\Movipass\Enums;
 
+use Kanvas\Souk\Orders\DataTransferObject\OrderReceipt;
+
 enum OrderTypeEnum: string
 {
     case MOVIPASS = 'movipass';
@@ -59,6 +61,19 @@ enum OrderTypeEnum: string
                 ],
             ],
             self::PASO_RAPIDO => null,
+        };
+    }
+
+    public function pdfReceipt(): ?OrderReceipt
+    {
+        return match ($this) {
+            self::IMPOUND_LOT => new OrderReceipt(
+                template: 'order-release-voucher',
+                filenamePattern: '{order_number}_{order_type}_{vehiclePlate}_{vehicleBrand}',
+                activityLog: 'COMPROBANTE_DESPACHO_GENERADO',
+                urlCustomField: 'voucher_url',
+            ),
+            default => null,
         };
     }
 

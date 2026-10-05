@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,24 +20,20 @@ use Override;
  * are touched.
  */
 #[AgentTool(name: 'Set Lead Custom Fields', category: 'crm')]
-class SetLeadCustomFieldsTool extends Tool implements HasRunKey
+class SetLeadCustomFieldsTool extends Tool
 {
     use DecodesJsonObjectParam;
     use ResolvesLeadForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_lead_custom_fields',
-            description: 'Store or remove custom fields on a lead — anything structured worth keeping that is not '
-                . 'one of the standard fields (a score, a classification, an external reference, a tenant-specific '
-                . 'attribute). Pass custom_fields as a map of field name → value to write, and/or remove as a '
-                . 'comma-separated list of field names to delete. Only the keys you name are touched; everything '
-                . 'else on the lead is left alone. For the prospect\'s contact details, title, organization, type, '
-                . 'source or qualification answers use update_lead instead.',
-        );
-    }
+    protected string $name = 'set_lead_custom_fields';
+
+    protected ?string $description = 'Store or remove custom fields on a lead — anything structured worth keeping that is not '
+        . 'one of the standard fields (a score, a classification, an external reference, a tenant-specific '
+        . 'attribute). Pass custom_fields as a map of field name → value to write, and/or remove as a '
+        . 'comma-separated list of field names to delete. Only the keys you name are touched; everything '
+        . 'else on the lead is left alone. For the prospect\'s contact details, title, organization, type, '
+        . 'source or qualification answers use update_lead instead.';
 
     /**
      * @return array<int, ToolProperty>

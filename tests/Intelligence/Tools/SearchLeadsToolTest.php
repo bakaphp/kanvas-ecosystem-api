@@ -12,9 +12,12 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use Tests\TestCase;
+use Tests\Traits\MakesLeadStatuses;
 
 class SearchLeadsToolTest extends TestCase
 {
+    use MakesLeadStatuses;
+
     public function testFindsLeadByContactName(): void
     {
         $app = app(Apps::class);
@@ -58,7 +61,7 @@ class SearchLeadsToolTest extends TestCase
         ]);
         $closedLead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create([
             'title' => $token . ' closed',
-            'status' => 2,
+            'leads_status_id' => self::lostLeadStatusId(),
         ]);
 
         $openOnly = new SearchLeadsTool()
@@ -67,6 +70,13 @@ class SearchLeadsToolTest extends TestCase
         $openIds = array_column($openOnly['leads'], 'lead_id');
         $this->assertContains($openLead->getId(), $openIds);
         $this->assertNotContains($closedLead->getId(), $openIds);
+
+        $closedOnly = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(query: $token, status: 'closed', limit: 100);
+        $this->assertSame([$closedLead->getId()], array_column($closedOnly['leads'], 'lead_id'), 'closed is the named status, not the unused integer column');
+        $this->assertSame('Lost', $closedOnly['leads'][0]['status'], 'The CRM status is reported by name so a lost lead is never described as active');
+        $this->assertFalse($closedOnly['leads'][0]['is_open']);
 
         $all = new SearchLeadsTool()
             ->withContext($app, $company, $user)

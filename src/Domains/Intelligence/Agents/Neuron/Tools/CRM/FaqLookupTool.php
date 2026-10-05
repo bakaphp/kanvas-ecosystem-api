@@ -25,19 +25,18 @@ use Override;
 #[AgentTool(name: 'Company FAQ', category: 'crm')]
 class FaqLookupTool extends Tool
 {
+    protected string $name = 'get_company_faqs';
+
+    protected ?string $description = 'Answer the prospect from the business\'s FAQ knowledge base — hours, pricing, location, services, policies, '
+        . 'and anything else the business has documented. Call this FIRST whenever the prospect asks a question about the business. '
+        . 'Pass the prospect\'s question as `query` to narrow the results; omit it to get the full FAQ list. '
+        . 'If it returns nothing, the business has not documented that yet — do not invent an answer.';
     private const FAQ_VERB = 'faq';
 
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
     ) {
-        parent::__construct(
-            name: 'get_company_faqs',
-            description: 'Answer the prospect from the business\'s FAQ knowledge base — hours, pricing, location, services, policies, '
-                . 'and anything else the business has documented. Call this FIRST whenever the prospect asks a question about the business. '
-                . 'Pass the prospect\'s question as `query` to narrow the results; omit it to get the full FAQ list. '
-                . 'If it returns nothing, the business has not documented that yet — do not invent an answer.',
-        );
     }
 
     #[Override]

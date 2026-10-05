@@ -14,11 +14,13 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListOrganizationPeopleTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListPeopleTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchDealsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
-use NeuronAI\Tools\HasRunKey;
 use Tests\TestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 class ReadToolRunKeyTest extends TestCase
 {
+    use AssertsToolRunKeys;
+
     public function testReadLookupToolsKeyRunsPerInputsNotPerToolName(): void
     {
         $tools = [
@@ -35,14 +37,7 @@ class ReadToolRunKeyTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool::class . ' must track runs by inputs.');
-
-            $keyA = $tool->setInputs(['query' => 'grupofamilia'])->getRunKey();
-            $keyB = $tool->setInputs(['query' => 'essity'])->getRunKey();
-            $keyAAgain = $tool->setInputs(['query' => 'grupofamilia'])->getRunKey();
-
-            $this->assertNotEquals($keyA, $keyB, $tool::class . ': distinct queries must not share a run budget.');
-            $this->assertEquals($keyA, $keyAAgain, $tool::class . ': identical calls must collapse to one key.');
+            $this->assertRunKeyFollowsInputs($tool);
         }
     }
 }

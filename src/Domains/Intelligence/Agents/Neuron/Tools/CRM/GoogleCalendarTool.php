@@ -20,15 +20,11 @@ class GoogleCalendarTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_google_calendar_meeting',
-            description: 'Create a Google Calendar event with a Google Meet link and invite the given attendee emails. '
-                . 'Use this when the lead agrees to schedule a meeting and you have the date, time and the list '
-                . 'of participant emails.',
-        );
-    }
+    protected string $name = 'create_google_calendar_meeting';
+
+    protected ?string $description = 'Create a Google Calendar event with a Google Meet link and invite the given attendee emails. '
+        . 'Use this when the lead agrees to schedule a meeting and you have the date, time and the list '
+        . 'of participant emails.';
 
     #[Override]
     protected function properties(): array

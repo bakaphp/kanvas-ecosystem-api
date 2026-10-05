@@ -24,7 +24,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPositionAndDepartmentForTool;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -39,23 +38,19 @@ use Throwable;
  * the same CreateEmployeeAction as the mutation (so the one-employee-per-user guard still holds).
  */
 #[AgentTool(name: 'Create Employee', category: 'human_resources')]
-class CreateEmployeeTool extends Tool implements HasRunKey
+class CreateEmployeeTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ResolvesPositionAndDepartmentForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_employee',
-            description: 'Onboards an existing platform user (by their login email) as an HR employee: links their '
-                . 'position (by title) and optional department (by name) and hire date. Admin only. Returns '
-                . 'created=false with a reason when you are not an admin, the user does not exist, the position is '
-                . 'unknown, or the user is already an employee.',
-        );
-    }
+    protected string $name = 'create_employee';
+
+    protected ?string $description = 'Onboards an existing platform user (by their login email) as an HR employee: links their '
+        . 'position (by title) and optional department (by name) and hire date. Admin only. Returns '
+        . 'created=false with a reason when you are not an admin, the user does not exist, the position is '
+        . 'unknown, or the user is already an employee.';
 
     /**
      * @return array<int, ToolProperty>

@@ -8,6 +8,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
+use Kanvas\Connectors\Movipass\Enums\RoadsideServiceTypeEnum;
+use Kanvas\Connectors\Movipass\Support\RoadsideIntakeQuestionnaire;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Models\Users;
@@ -38,6 +40,8 @@ class PrepareRoadsideAssistanceCaseAction
         }
 
         $photos = $this->normalizePhotos($assistanceCase['photos'] ?? []);
+        $serviceType = $this->resolveServiceType($assistanceCase, $service);
+        $intake = $this->resolveIntake($assistanceCase, $serviceType, $photos);
 
         $caseData = [
             'case_id' => $assistanceCase['case_id'] ?? (string) Str::uuid(),
@@ -49,6 +53,8 @@ class PrepareRoadsideAssistanceCaseAction
                 'email' => $user->email,
             ],
             'service' => $service,
+            'service_type' => $serviceType?->value,
+            'intake' => $intake,
             'location' => $location,
             'notes' => $assistanceCase['notes'] ?? null,
             'provider_id' => $providerId,
@@ -65,6 +71,62 @@ class PrepareRoadsideAssistanceCaseAction
                 'assistance_case' => $caseData,
             ],
         ];
+    }
+
+    /**
+     * `service` stays the free-text label an operator dictated; `service_type` is the catalog entry
+     * it resolves to. An explicit service_type that does not resolve is an error, but an
+     * unresolvable free-text label is not — cases predate the catalog and must keep working.
+     */
+    protected function resolveServiceType(array $assistanceCase, string $service): ?RoadsideServiceTypeEnum
+    {
+        $explicit = trim((string) ($assistanceCase['service_type'] ?? ''));
+
+        if ($explicit !== '') {
+            $resolved = RoadsideServiceTypeEnum::tryFromLabel($explicit);
+
+            if ($resolved === null) {
+                throw new ValidationException(sprintf(
+                    'Unknown roadside assistance service type "%s". Expected one of: %s',
+                    $explicit,
+                    implode(', ', array_column(RoadsideServiceTypeEnum::cases(), 'value')),
+                ));
+            }
+
+            return $resolved;
+        }
+
+        return RoadsideServiceTypeEnum::tryFromLabel($service);
+    }
+
+    /**
+     * Intake answers are only validated when the client sends an `intake` block, which is how a
+     * caller opts into the questionnaire; callers that send none are not rejected.
+     */
+    protected function resolveIntake(array $assistanceCase, ?RoadsideServiceTypeEnum $serviceType, array $photos): ?array
+    {
+        $intake = $assistanceCase['intake'] ?? null;
+
+        if (! is_array($intake) || $intake === []) {
+            return null;
+        }
+
+        if ($serviceType === null) {
+            throw new ValidationException(
+                'Roadside assistance intake answers require a recognised service_type',
+            );
+        }
+
+        $answers = new ValidateRoadsideIntakeAction($serviceType, $intake)->execute();
+
+        if ($photos === [] && RoadsideIntakeQuestionnaire::requiresPhotos($serviceType)) {
+            throw new ValidationException(sprintf(
+                'The "%s" service requires at least one photo of the case',
+                $serviceType->label(),
+            ));
+        }
+
+        return $answers;
     }
 
     protected function resolveMechanic(array $assistanceCase): ?array

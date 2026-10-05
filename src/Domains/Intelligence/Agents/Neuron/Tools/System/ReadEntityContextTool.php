@@ -13,13 +13,13 @@ use Override;
 #[AgentTool(name: 'Read Entity Context', category: 'ecosystem')]
 class ReadEntityContextTool extends Tool
 {
+    protected string $name = 'read_entity_context';
+
+    protected ?string $description = 'Get a structured brief of the record you are currently working on (the lead, order, invoice, etc.) — its key facts and current status.';
+
     public function __construct(
         private readonly ?Model $subject = null,
     ) {
-        parent::__construct(
-            name: 'read_entity_context',
-            description: 'Get a structured brief of the record you are currently working on (the lead, order, invoice, etc.) — its key facts and current status.',
-        );
     }
 
     #[Override]

@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -31,23 +30,23 @@ use Throwable;
  * design — an agent may not mint a git token or a provider key.
  */
 #[AgentTool(name: 'Check Self-Hosted Coding Setup', category: 'coding')]
-class CheckHarnessCodingSetupTool extends Tool implements HasRunKey, RequiresSystemAgent
+class CheckHarnessCodingSetupTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;
+
+    protected string $name = 'check_self_hosted_coding_setup';
+
+    protected ?string $description = 'Check whether you can actually run coding jobs, and what is missing if you '
+        . 'cannot: the git token, the machine, the runtime image, the provider and model, and '
+        . 'the API key. Use it before the first job on a new setup, whenever a job fails for a '
+        . 'reason that sounds like configuration, and whenever someone asks if you are ready to '
+        . 'code. Report what it names verbatim — each item says which setting and who sets it.';
 
     public function __construct(
         private readonly Agent $agent,
         private readonly ?CodingRuntimeReadinessService $readiness = null,
     ) {
-        parent::__construct(
-            name: 'check_self_hosted_coding_setup',
-            description: 'Check whether you can actually run coding jobs, and what is missing if you '
-                . 'cannot: the git token, the machine, the runtime image, the provider and model, and '
-                . 'the API key. Use it before the first job on a new setup, whenever a job fails for a '
-                . 'reason that sounds like configuration, and whenever someone asks if you are ready to '
-                . 'code. Report what it names verbatim — each item says which setting and who sets it.',
-        );
     }
 
     /**

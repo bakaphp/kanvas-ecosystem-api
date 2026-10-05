@@ -73,10 +73,9 @@ class ProductDiscoveryStatusService
 
     private function credentialsCheck(): array
     {
-        $settings = (array) ($this->app->get('typesense_search_settings') ?? []);
-        $hasKey = ($settings['typesense_api_key'] ?? config('scout.typesense.api_key')) !== '';
+        $settings = SearchEngineResolver::typesenseSettings($this->app);
 
-        if (! $hasKey) {
+        if (! SearchEngineResolver::hasTypesenseCredentials($settings)) {
             return $this->check('typesense_credentials', false, 'no api key', 'set typesense_search_settings.typesense_api_key');
         }
 
@@ -110,9 +109,9 @@ class ProductDiscoveryStatusService
         $name = ProductDiscoveryResolver::collectionName($this->app);
 
         try {
-            $collection = SearchEngineResolver::getTypesenseClient(
-                (array) ($this->app->get('typesense_search_settings') ?? []),
-            )->collections[$name]->retrieve();
+            $collection = SearchEngineResolver::typesenseClient($this->app)
+                ->collections[$name]
+                ->retrieve();
         } catch (Throwable) {
             return $this->check('collection', false, "'{$name}' does not exist", 'run the reindex command to create it');
         }

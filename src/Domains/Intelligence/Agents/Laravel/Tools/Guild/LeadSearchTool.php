@@ -7,8 +7,8 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\Guild;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Laravel\Concerns\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
-use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
@@ -17,6 +17,14 @@ use Stringable;
 class LeadSearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;
+
+    /**
+     * What `CheckLeadDuplicateSubAgent` and the Neuron CRM tools call it; the label would give `lead_search`.
+     */
+    public function name(): string
+    {
+        return 'search_leads';
+    }
 
     #[Override]
     public function description(): Stringable|string

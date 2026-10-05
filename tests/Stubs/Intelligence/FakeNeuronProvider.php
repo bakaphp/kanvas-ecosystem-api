@@ -7,19 +7,30 @@ namespace Tests\Stubs\Intelligence;
 use Generator;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\Stream\Chunks\TextChunk;
+use NeuronAI\Chat\Messages\SystemMessage;
 use NeuronAI\HttpClient\HttpClientInterface;
 use NeuronAI\Providers\AIProviderInterface;
-use NeuronAI\Providers\MessageMapperInterface;
-use NeuronAI\Providers\ToolMapperInterface;
+use NeuronAI\Providers\ProviderResponse;
+use NeuronAI\Tools\ToolInterface;
 
+/**
+ * The smallest provider that satisfies AIProviderInterface: every verb answers with one fixed assistant
+ * message and nothing leaves the process. Subclasses override chat() to script a turn.
+ */
 class FakeNeuronProvider implements AIProviderInterface
 {
     public function __construct(
-        private readonly string $response = 'Hola Mundo',
+        protected readonly string $response = 'Hola Mundo',
     ) {
     }
 
-    public function systemPrompt(?string $prompt): AIProviderInterface
+    public function getModel(): string
+    {
+        return 'fake-model';
+    }
+
+    public function systemPrompt(SystemMessage|string|null $prompt): AIProviderInterface
     {
         return $this;
     }
@@ -29,45 +40,37 @@ class FakeNeuronProvider implements AIProviderInterface
         return $this;
     }
 
-    public function messageMapper(): MessageMapperInterface
+    public function chat(Message ...$messages): ProviderResponse
     {
-        return new class () implements MessageMapperInterface {
-            public function map(array $messages): array
-            {
-                return [];
-            }
-        };
-    }
-
-    public function toolPayloadMapper(): ToolMapperInterface
-    {
-        return new class () implements ToolMapperInterface {
-            public function map(array $tools): array
-            {
-                return [];
-            }
-        };
-    }
-
-    public function chat(Message ...$messages): Message
-    {
-        return new AssistantMessage($this->response);
+        return $this->respond(new AssistantMessage($this->response));
     }
 
     public function stream(Message ...$messages): Generator
     {
-        yield new AssistantMessage($this->response);
+        $response = $this->chat(...$messages);
 
-        return new AssistantMessage($this->response);
+        yield new TextChunk($response->message()->getId(), (string) $response->message()->getContent());
+
+        return $response;
     }
 
-    public function structured(array|Message $messages, string $class, array $response_schema): Message
+    public function structured(array|Message $messages, string $class, array $response_schema): ProviderResponse
     {
-        return new AssistantMessage($this->response);
+        return $this->respond(new AssistantMessage($this->response));
     }
 
     public function setHttpClient(HttpClientInterface $client): AIProviderInterface
     {
         return $this;
+    }
+
+    protected function respond(Message $message): ProviderResponse
+    {
+        return new ProviderResponse(message: $message);
+    }
+
+    protected static function toolName(ToolInterface|string $tool): string
+    {
+        return $tool instanceof ToolInterface ? $tool->getName() : $tool;
     }
 }

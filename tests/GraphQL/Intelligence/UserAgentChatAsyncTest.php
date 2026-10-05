@@ -19,10 +19,18 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Stubs\Intelligence\FakeAgentHandler;
 use Tests\TestCase;
 
-/** Async exists because an inline turn is capped at 120s and a fan-out turn 504s through it. */
+/**
+ * Async exists because an inline turn is capped at 120s and a fan-out turn 504s through it.
+ *
+ * Serial: enableAppWideAsync() writes an app setting, which lives in Redis and is shared by every
+ * paratest process. tearDown() clears it for the next test here, but a sibling worker running
+ * UserAgentChatTest in that window takes the queue path and gets an empty response.
+ */
+#[Group('serial')]
 class UserAgentChatAsyncTest extends TestCase
 {
     use DatabaseTransactions;

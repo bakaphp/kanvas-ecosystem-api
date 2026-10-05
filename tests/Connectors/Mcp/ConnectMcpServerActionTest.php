@@ -205,6 +205,10 @@ final class ConnectMcpServerActionTest extends McpTestCase
                 return [];
             }
 
+            public function setProtocolVersion(string $version): void
+            {
+            }
+
             public function disconnect(): void
             {
             }

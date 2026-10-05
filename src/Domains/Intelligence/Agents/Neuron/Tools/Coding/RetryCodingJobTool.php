@@ -22,20 +22,20 @@ class RetryCodingJobTool extends Tool
 {
     use ResolvesTaskForTool;
 
+    protected string $name = 'retry_coding_job';
+
+    protected ?string $description = 'Re-run a coding job that failed for a reason outside the work itself — the coding '
+        . 'service was rate limited, hit a provider outage, or was interrupted. It re-sends the exact same '
+        . 'task under the same job id, so the original plan continues instead of a duplicate being created. '
+        . 'Use this instead of dispatch_coding_task when a job you already sent came back blocked and the '
+        . 'reason looks temporary. Do NOT use it when the job failed because the task was wrong, impossible, '
+        . 'or ambiguous — re-running would only repeat it; fix the description and dispatch a new task instead.';
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'retry_coding_job',
-            description: 'Re-run a coding job that failed for a reason outside the work itself — the coding '
-                . 'service was rate limited, hit a provider outage, or was interrupted. It re-sends the exact same '
-                . 'task under the same job id, so the original plan continues instead of a duplicate being created. '
-                . 'Use this instead of dispatch_coding_task when a job you already sent came back blocked and the '
-                . 'reason looks temporary. Do NOT use it when the job failed because the task was wrong, impossible, '
-                . 'or ambiguous — re-running would only repeat it; fix the description and dispatch a new task instead.',
-        );
     }
 
     /**

@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Connectors\Intras;
 
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\Tool;
+use NeuronAI\Tools\TrackByInputs;
 use PHPUnit\Framework\TestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 /**
  * Every INTRAS tool budgets its runs per arguments, not per tool name.
@@ -28,6 +29,8 @@ use PHPUnit\Framework\TestCase;
  */
 class IntrasToolRunBudgetTest extends TestCase
 {
+    use AssertsToolRunKeys;
+
     public function testEveryIntrasToolKeysItsRunBudgetByInputs(): void
     {
         $unkeyed = [];
@@ -36,7 +39,7 @@ class IntrasToolRunBudgetTest extends TestCase
         foreach ($this->intrasTools() as $tool) {
             $checked++;
 
-            if (! $tool instanceof HasRunKey) {
+            if (! in_array(TrackByInputs::class, class_uses_recursive($tool), true)) {
                 $unkeyed[] = $tool->getName();
             }
         }
@@ -45,23 +48,18 @@ class IntrasToolRunBudgetTest extends TestCase
         $this->assertSame(
             [],
             $unkeyed,
-            'Add `implements HasRunKey` + `use TrackByInputs` to: ' . implode(', ', $unkeyed)
+            'Add `use TrackByInputs` to: ' . implode(', ', $unkeyed)
         );
     }
 
     public function testDistinctArgumentsGetDistinctBudgetsAndIdenticalOnesDoNot(): void
     {
         foreach ($this->intrasTools() as $tool) {
-            if (! $tool instanceof HasRunKey) {
+            if (! in_array(TrackByInputs::class, class_uses_recursive($tool), true)) {
                 continue;
             }
 
-            $first = $tool->setInputs(['desde' => '2025-01-01'])->getRunKey();
-            $second = $tool->setInputs(['desde' => '2024-01-01'])->getRunKey();
-            $repeat = $tool->setInputs(['desde' => '2025-01-01'])->getRunKey();
-
-            $this->assertNotSame($first, $second, $tool->getName() . ': two periods must not share a budget');
-            $this->assertSame($repeat, $first, $tool->getName() . ': an identical call must still be capped');
+            $this->assertRunKeyFollowsInputs($tool);
         }
     }
 

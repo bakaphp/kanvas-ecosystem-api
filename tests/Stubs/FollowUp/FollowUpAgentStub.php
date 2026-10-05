@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace Tests\Stubs\FollowUp;
 
-use Generator;
 use Kanvas\Intelligence\Agents\Neuron\CRM\FollowUpAgent;
-use NeuronAI\Chat\History\AbstractChatHistory;
-use NeuronAI\Chat\History\InMemoryChatHistory;
+use NeuronAI\Chat\History\InMemoryMessageStore;
+use NeuronAI\Chat\History\MessageStoreInterface;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
-use NeuronAI\HttpClient\HttpClientInterface;
+use NeuronAI\Chat\Messages\SystemMessage;
 use NeuronAI\Providers\AIProviderInterface;
-use NeuronAI\Providers\MessageMapperInterface;
-use NeuronAI\Providers\ToolMapperInterface;
+use NeuronAI\Providers\ProviderResponse;
+use NeuronAI\RAG\Document;
+use NeuronAI\RAG\Retrieval\RetrievalInterface;
+use NeuronAI\RAG\VectorStore\Filter\FilterExpression;
 use Override;
+use Tests\Stubs\Intelligence\FakeNeuronProvider;
 
 /**
  * Test double for the real FollowUpAgent. Returns a canned JSON response
@@ -26,7 +28,7 @@ use Override;
  * routes through the standard Neuron path; the only difference is the
  * provider, which returns the canned string instead of hitting an LLM.
  *
- * Chat history is short-circuited to InMemoryChatHistory so tests don't
+ * The message store is short-circuited to InMemoryMessageStore so tests don't
  * need to seed messages just to exercise the agent decision.
  */
 class FollowUpAgentStub extends FollowUpAgent
@@ -58,13 +60,12 @@ class FollowUpAgentStub extends FollowUpAgent
     public static ?\Throwable $throwOnChat = null;
 
     /**
-     * Captures whether the kernel called setThreadId on this handler.
-     * Tests use this to assert the rollup vs thread-scoped path.
-     * False = cross-session history (rollup), True = thread-filtered.
+     * The thread the kernel bound. Its shape answers the rollup-vs-session question: the entity uuid on a
+     * channel turn, the session uuid in userChat.
      */
-    public static bool $setThreadIdWasCalled = false;
+    public static ?string $lastThreadId = null;
 
-    /** @var list<\NeuronAI\RAG\Document> */
+    /** @var list<Document> */
     public static array $knowledgeDocuments = [];
 
     public static int $retrievalCalls = 0;
@@ -75,10 +76,10 @@ class FollowUpAgentStub extends FollowUpAgent
         self::$cannedResponse = '{"should_respond": false, "advance_stage": false, "message": null, "reason": "stub-default"}';
         self::$lastReceivedMessages = [];
         self::$throwOnChat = null;
-        self::$setThreadIdWasCalled = false;
         self::$knowledgeDocuments = [];
         self::$retrievalCalls = 0;
         self::$lastSystemPrompt = null;
+        self::$lastThreadId = null;
     }
 
     public static function lastPromptText(): string
@@ -111,80 +112,43 @@ class FollowUpAgentStub extends FollowUpAgent
     #[Override]
     protected function provider(): AIProviderInterface
     {
-        return new class (self::$cannedResponse) implements AIProviderInterface {
-            public function __construct(private readonly string $response)
+        return new class (self::$cannedResponse) extends FakeNeuronProvider {
+            #[Override]
+            public function systemPrompt(SystemMessage|string|null $prompt): AIProviderInterface
             {
-            }
-
-            public function systemPrompt(?string $prompt): AIProviderInterface
-            {
-                FollowUpAgentStub::$lastSystemPrompt = $prompt;
+                FollowUpAgentStub::$lastSystemPrompt = $prompt instanceof SystemMessage
+                    ? (string) $prompt->getContent()
+                    : $prompt;
 
                 return $this;
             }
 
-            public function setTools(array $tools): AIProviderInterface
-            {
-                return $this;
-            }
-
-            public function messageMapper(): MessageMapperInterface
-            {
-                return new class () implements MessageMapperInterface {
-                    public function map(array $messages): array
-                    {
-                        return [];
-                    }
-                };
-            }
-
-            public function toolPayloadMapper(): ToolMapperInterface
-            {
-                return new class () implements ToolMapperInterface {
-                    public function map(array $tools): array
-                    {
-                        return [];
-                    }
-                };
-            }
-
-            public function chat(Message ...$messages): Message
+            #[Override]
+            public function chat(Message ...$messages): ProviderResponse
             {
                 FollowUpAgentStub::$lastReceivedMessages = $messages;
                 if (FollowUpAgentStub::$throwOnChat !== null) {
                     throw FollowUpAgentStub::$throwOnChat;
                 }
 
-                return new AssistantMessage($this->response);
+                return $this->respond(new AssistantMessage($this->response));
             }
 
-            public function stream(Message ...$messages): Generator
-            {
-                FollowUpAgentStub::$lastReceivedMessages = $messages;
-                yield new AssistantMessage($this->response);
-
-                return new AssistantMessage($this->response);
-            }
-
-            public function structured(array|Message $messages, string $class, array $response_schema): Message
+            #[Override]
+            public function structured(array|Message $messages, string $class, array $response_schema): ProviderResponse
             {
                 FollowUpAgentStub::$lastReceivedMessages = is_array($messages) ? $messages : [$messages];
 
-                return new AssistantMessage($this->response);
-            }
-
-            public function setHttpClient(HttpClientInterface $client): AIProviderInterface
-            {
-                return $this;
+                return $this->respond(new AssistantMessage($this->response));
             }
         };
     }
 
     #[Override]
-    protected function retrieval(): \NeuronAI\RAG\Retrieval\RetrievalInterface
+    protected function retrieval(): RetrievalInterface
     {
-        return new class () implements \NeuronAI\RAG\Retrieval\RetrievalInterface {
-            public function retrieve(Message $query): array
+        return new class () implements RetrievalInterface {
+            public function retrieve(Message $query, ?FilterExpression $filters = null): array
             {
                 FollowUpAgentStub::$retrievalCalls++;
 
@@ -194,16 +158,17 @@ class FollowUpAgentStub extends FollowUpAgent
     }
 
     #[Override]
-    protected function chatHistory(): AbstractChatHistory
+    protected function messageStore(): MessageStoreInterface
     {
-        return new InMemoryChatHistory();
+        return new InMemoryMessageStore();
     }
 
     #[Override]
-    public function setThreadId(string $threadId): void
+    public function setThreadId(string $threadId): static
     {
-        self::$setThreadIdWasCalled = true;
-        parent::setThreadId($threadId);
+        self::$lastThreadId = $threadId;
+
+        return parent::setThreadId($threadId);
     }
 
     #[Override]

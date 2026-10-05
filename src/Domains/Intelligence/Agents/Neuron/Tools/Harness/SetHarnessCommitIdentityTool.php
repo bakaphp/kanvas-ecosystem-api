@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -29,25 +28,25 @@ use Override;
  * email is `kanvas:coding:git-identity`, which an admin runs.
  */
 #[AgentTool(name: 'Set Self-Hosted Coding Commit Identity', category: 'coding')]
-class SetHarnessCommitIdentityTool extends Tool implements HasRunKey, RequiresSystemAgent
+class SetHarnessCommitIdentityTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;
+
+    protected string $name = 'set_coding_commit_identity';
+
+    protected ?string $description = 'Change who your coding commits are authored by. "me" makes your commits carry '
+        . 'the name and email of the person you are talking to — use it when they ask you to '
+        . 'commit as them, typically because Vercel or another deploy platform blocked a '
+        . 'deployment for an unrecognised commit author. "default" goes back to your own name and '
+        . GitIdentity::DEFAULT_EMAIL . '. You cannot set any other email; if someone needs one, '
+        . 'tell them an admin must run kanvas:coding:git-identity. Affects the next push, not '
+        . 'commits already pushed.';
 
     public function __construct(
         private readonly Agent $agent,
         private readonly ?Users $requestingHuman = null,
     ) {
-        parent::__construct(
-            name: 'set_coding_commit_identity',
-            description: 'Change who your coding commits are authored by. "me" makes your commits carry '
-                . 'the name and email of the person you are talking to — use it when they ask you to '
-                . 'commit as them, typically because Vercel or another deploy platform blocked a '
-                . 'deployment for an unrecognised commit author. "default" goes back to your own name and '
-                . GitIdentity::DEFAULT_EMAIL . '. You cannot set any other email; if someone needs one, '
-                . 'tell them an admin must run kanvas:coding:git-identity. Affects the next push, not '
-                . 'commits already pushed.',
-        );
     }
 
     /**

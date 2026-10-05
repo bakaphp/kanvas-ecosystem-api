@@ -18,7 +18,6 @@ use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleType;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -38,24 +37,20 @@ use Throwable;
  *    requireRequestingAdminOrError().
  */
 #[AgentTool(name: 'Create Company Workflow', category: 'workflow')]
-class CreateCompanyWorkflowTool extends Tool implements HasRunKey
+class CreateCompanyWorkflowTool extends Tool
 {
     use AssemblesWorkflowRuleForTool;
     use GuardsAdminForTool;
     use ResolvesWorkflowCatalogForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_company_workflow',
-            description: 'Creates an automation workflow for THIS company: when <trigger> happens on <entity>, '
-                . 'run <actions> — optionally only when conditions match. Admin only: the person you are talking to '
-                . 'must be a company administrator. The workflow always belongs to the current company; you cannot '
-                . 'create a global/platform-wide workflow for other companies. Call list_workflow_options first to '
-                . 'get the valid trigger, entity and action names — never invent them.',
-        );
-    }
+    protected string $name = 'create_company_workflow';
+
+    protected ?string $description = 'Creates an automation workflow for THIS company: when <trigger> happens on <entity>, '
+        . 'run <actions> — optionally only when conditions match. Admin only: the person you are talking to '
+        . 'must be a company administrator. The workflow always belongs to the current company; you cannot '
+        . 'create a global/platform-wide workflow for other companies. Call list_workflow_options first to '
+        . 'get the valid trigger, entity and action names — never invent them.';
 
     /**
      * @return array<int, ToolProperty>

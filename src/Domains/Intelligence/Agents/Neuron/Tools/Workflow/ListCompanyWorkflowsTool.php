@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesWorkflowCatalogForTool;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,21 +24,17 @@ use Override;
  * symptom is an absence — which is indistinguishable from "no message qualified".
  */
 #[AgentTool(name: 'List Company Workflows', category: 'workflow')]
-class ListCompanyWorkflowsTool extends Tool implements HasRunKey
+class ListCompanyWorkflowsTool extends Tool
 {
     use ResolvesWorkflowCatalogForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_company_workflows',
-            description: 'Lists the automation this company already has, with what each one watches, the '
-                . 'conditions it requires, the settings it passes and whether it can actually run. Call this '
-                . 'before creating a workflow — if one already does the job, change it with '
-                . 'update_company_workflow instead of adding a second that duplicates the work.',
-        );
-    }
+    protected string $name = 'list_company_workflows';
+
+    protected ?string $description = 'Lists the automation this company already has, with what each one watches, the '
+        . 'conditions it requires, the settings it passes and whether it can actually run. Call this '
+        . 'before creating a workflow — if one already does the job, change it with '
+        . 'update_company_workflow instead of adding a second that duplicates the work.';
 
     /**
      * @return array<int, ToolProperty>

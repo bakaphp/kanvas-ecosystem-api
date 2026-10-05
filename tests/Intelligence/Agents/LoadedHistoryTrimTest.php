@@ -8,23 +8,28 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
+use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Enums\MessageRole;
+use NeuronAI\Chat\Enums\SourceType;
+use NeuronAI\Chat\History\ChatHistory;
+use NeuronAI\Chat\History\InMemoryMessageStore;
 use NeuronAI\Chat\History\TokenCounter;
 use NeuronAI\Chat\Messages\AssistantMessage;
+use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\UserMessage;
 use ReflectionClass;
-use Tests\Stubs\Intelligence\LoadedChatHistoryStub;
 use Tests\TestCase;
 
 /**
- * Guards KANVAS-ECOSYSTEM-6F1: a stored conversation that outgrew the model's input limit used to be
- * replayed whole on every further turn, so the thread failed permanently (Gemini 400, "input token
- * count exceeds the maximum number of tokens allowed 1048576"). The window is only enforced inside
- * addMessage(), which runs *after* the provider call — so the loader has to enforce it itself.
+ * Guards KANVAS-ECOSYSTEM-6F1: a stored conversation that outgrows the model's input limit must be cut
+ * before it is replayed, or the thread fails on every further turn (Gemini 400, "input token count
+ * exceeds the maximum number of tokens allowed 1048576"). ChatHistory trims on every add, and
+ * KanvasHistoryTrimmer is the trimmer every Kanvas agent opens its history with: fold first, then the
+ * stock cut.
  */
 class LoadedHistoryTrimTest extends TestCase
 {
@@ -61,15 +66,34 @@ class LoadedHistoryTrimTest extends TestCase
         );
     }
 
+    /**
+     * The history as an agent opens it: a store that already holds the thread, the Kanvas trimmer, and
+     * one live add — the first add is what runs the trim.
+     *
+     * @param list<Message> $loaded
+     */
+    private function history(array $loaded, int $contextWindow): ChatHistory
+    {
+        $store = new InMemoryMessageStore();
+
+        foreach ($loaded as $message) {
+            $store->append('thread', $message);
+        }
+
+        return new ChatHistory(
+            $store,
+            'thread',
+            $contextWindow,
+            KanvasHistoryTrimmer::make(),
+        );
+    }
+
     public function testLoadedHistoryIsCutToTheContextWindow(): void
     {
         $messages = $this->conversation(100);
         $this->assertGreaterThan(50_000, $this->estimate($messages), 'Fixture must overflow the window.');
 
-        $history = new LoadedChatHistoryStub(contextWindow: 5_000);
-        $history->load($messages);
-
-        $kept = $history->getMessages();
+        $kept = KanvasHistoryTrimmer::make()->trim($messages, 5_000);
 
         $this->assertLessThan(200, count($kept), 'The whole conversation must not reach the provider.');
         // One message of slack: adjustTrimIndex may step back a turn to land on a user message.
@@ -83,10 +107,7 @@ class LoadedHistoryTrimTest extends TestCase
     {
         $messages = $this->conversation(100);
 
-        $history = new LoadedChatHistoryStub(contextWindow: 5_000);
-        $history->load($messages);
-
-        $kept = $history->getMessages();
+        $kept = KanvasHistoryTrimmer::make()->trim($messages, 5_000);
         $last = $kept[array_key_last($kept)];
 
         $this->assertStringStartsWith('a99 ', (string) $last->getContent());
@@ -95,33 +116,24 @@ class LoadedHistoryTrimTest extends TestCase
 
     public function testTrimmedHistoryStillStartsWithAUserTurn(): void
     {
-        $history = new LoadedChatHistoryStub(contextWindow: 5_000);
-        $history->load($this->conversation(100));
+        $kept = KanvasHistoryTrimmer::make()->trim($this->conversation(100), 5_000);
 
-        $this->assertSame(MessageRole::USER->value, $history->getMessages()[0]->getRole());
+        $this->assertSame(MessageRole::USER->value, $kept[0]->getRole());
     }
 
     public function testAConversationInsideTheWindowKeepsEveryTurn(): void
     {
-        $messages = $this->conversation(3, 100);
-
-        $history = new LoadedChatHistoryStub(contextWindow: 50_000);
-        $history->load($messages);
-
-        $this->assertCount(6, $history->getMessages());
+        $this->assertCount(6, KanvasHistoryTrimmer::make()->trim($this->conversation(3, 100), 50_000));
     }
 
     public function testLeadingAssistantTurnsAreDroppedAndSameRoleTurnsMerge(): void
     {
-        $history = new LoadedChatHistoryStub(contextWindow: 50_000);
-        $history->load([
+        $kept = KanvasHistoryTrimmer::make()->trim([
             new AssistantMessage('I opened this thread'),
             new UserMessage('first'),
             new UserMessage('second'),
             new AssistantMessage('answer'),
-        ]);
-
-        $kept = $history->getMessages();
+        ], 50_000);
 
         $this->assertCount(2, $kept);
         $this->assertSame("first\n\nsecond", (string) $kept[0]->getContent());
@@ -129,27 +141,25 @@ class LoadedHistoryTrimTest extends TestCase
 
     public function testDuplicateTurnsDoNotConcatenateOnRebuild(): void
     {
-        $history = new LoadedChatHistoryStub(contextWindow: 50_000);
-        $history->load([
+        $kept = KanvasHistoryTrimmer::make()->trim([
             new UserMessage('quote me the Civic'),
             new AssistantMessage('Here is the quote.'),
             new AssistantMessage('Here is the quote.'),
-        ]);
+        ], 50_000);
 
-        $this->assertSame('Here is the quote.', (string) $history->getMessages()[1]->getContent());
+        $this->assertSame('Here is the quote.', (string) $kept[1]->getContent());
     }
 
     /**
-     * The rebuild and the live-add path share one coalescer, so a turn persisted twice against the same
+     * The rebuild and the live-add path share one fold, so a turn persisted twice against the same
      * entity collapses whether it arrives from storage or mid-turn.
      */
     public function testALiveTurnFoldsIntoTheTrailingTurnWithoutDuplicating(): void
     {
-        $history = new LoadedChatHistoryStub(contextWindow: 50_000);
-        $history->load([
+        $history = $this->history([
             new UserMessage('quote me the Civic'),
             new AssistantMessage('Here is the quote.'),
-        ]);
+        ], 50_000);
 
         $history->addMessage(new AssistantMessage('Here is the quote.'));
         $history->addMessage(new AssistantMessage('Shall I send it?'));
@@ -161,9 +171,28 @@ class LoadedHistoryTrimTest extends TestCase
     }
 
     /**
+     * setContents() resets the block list, so an attachment on the folded-in turn (a PDF on an incoming
+     * @mention) would be silently dropped and the model would answer "I can't see the file".
+     */
+    public function testMediaBlocksSurviveAFold(): void
+    {
+        $withImage = new UserMessage('here is the photo');
+        $withImage->addContent(new ImageContent('data:image/png;base64,aGVsbG8=', SourceType::BASE64, 'image/png'));
+
+        $kept = KanvasHistoryTrimmer::fold([
+            new UserMessage('first'),
+            $withImage,
+        ]);
+
+        $this->assertCount(1, $kept);
+        $this->assertSame("first\n\nhere is the photo", (string) $kept[0]->getContent());
+        $this->assertInstanceOf(ImageContent::class, $kept[0]->getImage());
+    }
+
+    /**
      * The row cap bounds memory, not context — so it has to sit far above whatever the token trim keeps.
      */
-    public function testKanvasMessageHistoryOnlyHydratesTheNewestRows(): void
+    public function testConversationStoreOnlyHydratesTheNewestRows(): void
     {
         /** @var Apps $app */
         $app = app(Apps::class);
@@ -190,7 +219,7 @@ class LoadedHistoryTrimTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $cap = (int) new ReflectionClass(KanvasMessageHistory::class)
+        $cap = (int) new ReflectionClass(ConversationMessageStore::class)
             ->getConstant('MAX_LOADED_ROWS');
         $total = $cap + 100;
 
@@ -205,8 +234,7 @@ class LoadedHistoryTrimTest extends TestCase
                 'is_public' => 1,
                 'content' => "turn {$i}",
                 'attachments' => '[]',
-                'tool_calls' => '[]',
-                'tool_results' => '[]',
+                'steps' => '[]',
                 'usage' => '[]',
                 'meta' => '[]',
                 'created_at' => now()->addSeconds($i),
@@ -215,7 +243,7 @@ class LoadedHistoryTrimTest extends TestCase
         }
         DB::connection('intelligence')->table('agent_conversation_messages')->insert($rows);
 
-        $history = new KanvasMessageHistory(
+        $store = new ConversationMessageStore(
             app: $app,
             company: $company,
             user: $user,
@@ -224,9 +252,9 @@ class LoadedHistoryTrimTest extends TestCase
             agent: $agent,
         );
 
-        $loaded = $history->getMessages();
+        $loaded = $store->loadActive($sessionUuid);
 
-        // Strictly alternating one-word turns, so nothing coalesces and the token window never binds:
+        // Strictly alternating one-word turns, so nothing folds and the token window never binds:
         // exactly the newest $cap rows survive, oldest-first from row 100.
         $this->assertCount($cap, $loaded);
         $this->assertSame('turn ' . ($total - $cap), (string) $loaded[0]->getContent());

@@ -9,7 +9,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Tools\Traits\Guild\CreatesLeadTrait;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -26,21 +25,21 @@ use Override;
  * (KANVAS-ECOSYSTEM-6A1). Repeating the *same* lead still trips the loop guard.
  */
 #[AgentTool(name: 'Create Lead', category: 'crm')]
-class CreateLeadTool extends Tool implements HasRunKey
+class CreateLeadTool extends Tool
 {
     use CreatesLeadTrait;
     use TrackByInputs;
+
+    protected string $name = 'create_lead';
+
+    protected ?string $description = 'Register a new CRM lead for a person. Provide at minimum a name + email OR phone. '
+        . 'Creates a distinct lead each call and returns its lead_id for subsequent lead-scoped tools.';
 
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Users $user,
     ) {
-        parent::__construct(
-            name: 'create_lead',
-            description: 'Register a new CRM lead for a person. Provide at minimum a name + email OR phone. '
-                . 'Creates a distinct lead each call and returns its lead_id for subsequent lead-scoped tools.',
-        );
     }
 
     #[Override]

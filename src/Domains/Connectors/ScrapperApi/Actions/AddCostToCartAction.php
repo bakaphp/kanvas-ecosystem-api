@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\ScrapperApi\Actions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ScrapperApi\Enums\ShippingCostEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
 use Wearepixel\Cart\Cart;
 use Wearepixel\Cart\CartCondition;
 
@@ -99,11 +100,11 @@ class AddCostToCartAction
         $totalTasaAduanal = $fee->sum('customTaxInfo.tasaAduanal');
         $totalIsc = $fee->sum('customTaxInfo.isc');
 
-        $this->cart->removeCartCondition('Shipping');
+        $this->cart->removeCartCondition(ShippingConditionEnum::NAME->value);
         $condition = new CartCondition([
-            'name' => 'Shipping',
-            'type' => 'shipping',
-            'target' => 'subtotal',
+            'name' => ShippingConditionEnum::NAME->value,
+            'type' => ShippingConditionEnum::TYPE->value,
+            'target' => ShippingConditionEnum::TARGET->value,
             'value' => '+' . ($total + $customTaxTotal),
             'attributes' => [
                 'Shipping Cost' => $shippingCost,

@@ -27,16 +27,12 @@ class DeleteVariantTool extends Tool
     use HasKanvasContext;
     use ManagesCatalogVariants;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'delete_variant',
-            description: 'Delete one variant (one SKU) from a product. Refuses when it is the product\'s only '
-                . 'variant — use delete_product for that. Prefer update_variant with is_published=false when the '
-                . 'intent is only to stop selling it. Use variant_search or variant_detail to get the variant_id '
-                . 'first, and confirm with the user before calling this. Only an administrator can do this.',
-        );
-    }
+    protected string $name = 'delete_variant';
+
+    protected ?string $description = 'Delete one variant (one SKU) from a product. Refuses when it is the product\'s only '
+        . 'variant — use delete_product for that. Prefer update_variant with is_published=false when the '
+        . 'intent is only to stop selling it. Use variant_search or variant_detail to get the variant_id '
+        . 'first, and confirm with the user before calling this. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

@@ -8,8 +8,8 @@ use Baka\Support\DateHelper;
 use Carbon\Carbon;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Laravel\Concerns\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
-use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
@@ -18,6 +18,14 @@ use Stringable;
 class CurrentTimeTool implements KanvasToolInterface
 {
     use HasKanvasContext;
+
+    /**
+     * The name the souls and the Neuron twin use; the label-derived default would be `current_time`.
+     */
+    public function name(): string
+    {
+        return 'get_current_time';
+    }
 
     #[Override]
     public function description(): Stringable|string

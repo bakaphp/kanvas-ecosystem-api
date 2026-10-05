@@ -34,6 +34,7 @@ use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Traits\HasFollowUpState;
@@ -82,7 +83,7 @@ use Throwable;
  * @property int|null $merged_into_leads_id
  * @property bool $is_deleted
  */
-class Lead extends BaseModel implements EventResourceInterface
+class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentContext
 {
     use HasAdminLink;
     use UuidTrait;
@@ -379,6 +380,55 @@ class Lead extends BaseModel implements EventResourceInterface
     public function scopeHasOpenLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
     {
         return $query->whereIn('leads_status_id', self::openLeadsStatusIds($company));
+    }
+
+    public function scopeHasClosedLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
+    {
+        return $query->whereNotIn('leads_status_id', self::openLeadsStatusIds($company));
+    }
+
+    /**
+     * The "open" (default), "closed" or "all" switch every lead-listing tool exposes, in one place.
+     */
+    public function scopeHavingLeadState(Builder $query, string $state, ?CompanyInterface $company = null): Builder
+    {
+        return match ($state) {
+            'closed' => $query->hasClosedLeadStatus($company),
+            'all' => $query,
+            default => $query->hasOpenLeadStatus($company),
+        };
+    }
+
+    /**
+     * `status` is a column as well as a relation, and the column wins on attribute access, so the
+     * named status has to be read off the relation explicitly.
+     */
+    public function statusName(): ?string
+    {
+        $status = $this->relationLoaded('status') ? $this->getRelation('status') : $this->status()->first();
+
+        return $status?->name;
+    }
+
+    /**
+     * What an agent dropped on this lead reads first. `status` is the CRM status by name and `state`
+     * whether that status counts as open for this company; an agent that only saw the stage reported a
+     * lost deal as an active negotiation.
+     *
+     * @return array<string, mixed>
+     */
+    public function agentContextBrief(): array
+    {
+        return array_filter([
+            'type' => 'Lead',
+            'id' => $this->getId(),
+            'title' => $this->title,
+            'contact' => $this->people?->getName(),
+            'status' => $this->statusName(),
+            'state' => $this->hasOpenLeadStatus() ? 'open' : 'closed',
+            'stage' => $this->stage?->name,
+            'owner' => $this->owner?->fullName(),
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
     }
 
     public function isActive(): bool

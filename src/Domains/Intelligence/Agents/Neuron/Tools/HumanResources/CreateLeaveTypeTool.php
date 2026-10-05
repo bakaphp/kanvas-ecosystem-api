@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,22 +22,18 @@ use Override;
  * duplicated, so the agent can call this before assign_leave_policy whenever it is unsure.
  */
 #[AgentTool(name: 'Create Leave Type', category: 'human_resources')]
-class CreateLeaveTypeTool extends Tool implements HasRunKey
+class CreateLeaveTypeTool extends Tool
 {
     use GuardsAdminForTool;
     use HandlesLeaveForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_leave_type',
-            description: 'Creates a leave type (leave policy) for the company — its name, annual entitlement, '
-                . 'carryover cap, paid flag and whether requests need approval. Admin only. Returns created=false '
-                . 'with already_exists=true if the name is taken; use update_leave_type to change that one instead.',
-        );
-    }
+    protected string $name = 'create_leave_type';
+
+    protected ?string $description = 'Creates a leave type (leave policy) for the company — its name, annual entitlement, '
+        . 'carryover cap, paid flag and whether requests need approval. Admin only. Returns created=false '
+        . 'with already_exists=true if the name is taken; use update_leave_type to change that one instead.';
 
     /**
      * @return array<int, ToolProperty>

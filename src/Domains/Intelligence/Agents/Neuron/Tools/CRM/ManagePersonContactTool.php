@@ -10,7 +10,6 @@ use Kanvas\Guild\Customers\Models\ContactType;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,26 +21,22 @@ use Override;
  * mark_person_do_not_contact, which goes through ApplyDoNotContactAction so every guard sees it.
  */
 #[AgentTool(name: 'Manage Person Contact', category: 'crm')]
-class ManagePersonContactTool extends Tool implements HasRunKey
+class ManagePersonContactTool extends Tool
 {
     use ReportsToolOutcome;
     use ResolvesPersonForTool;
     use TrackByInputs;
 
-    private const array ACTIONS = ['save', 'remove', 'mark_valid', 'mark_invalid'];
+    protected string $name = 'manage_person_contact';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'manage_person_contact',
-            description: 'Add, correct, remove or verify one email, phone or LinkedIn profile on a person. action '
-                . '"save" (default) adds the value or, if it already exists, updates its opt-out flag — it never '
-                . 'duplicates. "remove" deletes a wrong one. "mark_valid" / "mark_invalid" record whether an email or '
-                . 'phone is deliverable (invalid ones are skipped by every send). To correct a value, save the new one '
-                . 'and remove the old one. kind is one of: email, secondary_email, phone, cellphone, work_phone, '
-                . 'linkedin (profile URL). To stop contacting the person entirely use mark_person_do_not_contact.',
-        );
-    }
+    protected ?string $description = 'Add, correct, remove or verify one email, phone or LinkedIn profile on a person. action '
+        . '"save" (default) adds the value or, if it already exists, updates its opt-out flag — it never '
+        . 'duplicates. "remove" deletes a wrong one. "mark_valid" / "mark_invalid" record whether an email or '
+        . 'phone is deliverable (invalid ones are skipped by every send). To correct a value, save the new one '
+        . 'and remove the old one. kind is one of: email, secondary_email, phone, cellphone, work_phone, '
+        . 'linkedin (profile URL). To stop contacting the person entirely use mark_person_do_not_contact.';
+
+    private const array ACTIONS = ['save', 'remove', 'mark_valid', 'mark_invalid'];
 
     /**
      * @return array<int, ToolProperty>

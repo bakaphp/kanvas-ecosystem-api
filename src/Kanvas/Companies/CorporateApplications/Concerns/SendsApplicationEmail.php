@@ -6,8 +6,9 @@ namespace Kanvas\Companies\CorporateApplications\Concerns;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification as LaravelNotification;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationEmailEnum;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Templates\Blank;
 use Throwable;
 
@@ -15,11 +16,10 @@ trait SendsApplicationEmail
 {
     protected function sendApplicationEmail(
         AppInterface $app,
-        string $templateName,
-        string $subject,
+        CorporateApplicationEmailEnum $email,
         array $data,
         string|array $to,
-        Model $entity
+        Lead $application
     ): bool {
         $recipients = array_values(array_filter(array_map(Str::trimToNull(...), (array) $to)));
 
@@ -28,12 +28,11 @@ trait SendsApplicationEmail
         }
 
         $notification = new Blank(
-            $templateName,
+            $email->templateFor($application->receiver, $app),
             ['app' => $app] + $data,
             ['mail'],
-            $entity
+            $application
         );
-        $notification->setSubject($subject);
 
         try {
             LaravelNotification::route('mail', $recipients)->notify($notification);

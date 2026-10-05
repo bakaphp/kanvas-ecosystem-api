@@ -21,6 +21,15 @@ class KnowledgeScopeTest extends TestCase
         $this->assertSame('apps_id:=11 && companies_id:=22 && entity_id:=0', $scope->filter());
     }
 
+    public function testAKnowledgeReadLeavesTheMemoryKindsOut(): void
+    {
+        $this->assertSame(
+            'apps_id:=11 && companies_id:=22 && source_type:!=[`conversation`, `memory`, `ledger`]',
+            KnowledgeScope::forOrganization(11, 22)->knowledgeFilter(),
+            'An organization-wide read otherwise sees every user of the company'
+        );
+    }
+
     public function testEntityScopePinsTypeAndId(): void
     {
         $scope = new KnowledgeScope(

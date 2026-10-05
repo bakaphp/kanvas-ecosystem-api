@@ -33,20 +33,16 @@ class CalendarEventTool extends Tool
     use GuardsOwnerCalendarForTool;
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_calendar_event',
-            description: 'Create a NEW internal calendar event (appointment / demo) for the lead owner in the Kanvas Event domain. '
-                . 'Call get_event_configuration first and pass all six company-scoped configuration IDs returned by it. '
-                . 'Use this once the prospect has agreed on a specific date and time. '
-                . 'A time that overlaps the owner\'s calendar is refused, so check get_user_availability first. '
-                . 'When the result has lead_notified: true the lead was already emailed a confirmation — do not send your own. '
-                . 'IMPORTANT: if the lead ALREADY has an upcoming appointment (see get_lead_ref appointments.upcoming), '
-                . 'do NOT call this to move it — use reschedule_calendar_event (to change the time) or '
-                . 'cancel_calendar_event (to cancel). Calling create for an existing meeting double-books the lead.',
-        );
-    }
+    protected string $name = 'create_calendar_event';
+
+    protected ?string $description = 'Create a NEW internal calendar event (appointment / demo) for the lead owner in the Kanvas Event domain. '
+        . 'Call get_event_configuration first and pass all six company-scoped configuration IDs returned by it. '
+        . 'Use this once the prospect has agreed on a specific date and time. '
+        . 'A time that overlaps the owner\'s calendar is refused, so check get_user_availability first. '
+        . 'When the result has lead_notified: true the lead was already emailed a confirmation — do not send your own. '
+        . 'IMPORTANT: if the lead ALREADY has an upcoming appointment (see get_lead_ref appointments.upcoming), '
+        . 'do NOT call this to move it — use reschedule_calendar_event (to change the time) or '
+        . 'cancel_calendar_event (to cancel). Calling create for an existing meeting double-books the lead.';
 
     #[Override]
     protected function properties(): array

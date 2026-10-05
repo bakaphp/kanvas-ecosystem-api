@@ -20,16 +20,14 @@ use function Laravel\Ai\agent;
 #[AgentTool(name: 'Contact Checker', category: 'crm')]
 class ContactCheckerTool extends Tool
 {
+    protected string $name = 'check_contact_status';
+
+    protected ?string $description = 'Analyze if the lead has already been contacted based on a note or message, returning contact status and confidence.';
     protected Agent $agent;
     protected Model $lead;
 
     public function __construct(protected Message $message)
     {
-        parent::__construct(
-            name: 'check_contact_status',
-            description: 'Analyze if the lead has already been contacted based on a note or message, returning contact status and confidence.',
-        );
-
         $this->lead = $this->getLeadFromMessage($message);
         $agentName = 'ContactCheckerAgent';
         $this->agent = Agent::fromApp($this->lead->app)

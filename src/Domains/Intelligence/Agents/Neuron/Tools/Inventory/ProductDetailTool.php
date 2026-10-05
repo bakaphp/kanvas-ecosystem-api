@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogProducts;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -19,22 +18,18 @@ use Override;
  * attributes and a product type; this is what reads them back.
  */
 #[AgentTool(name: 'Product Detail', category: 'inventory')]
-class ProductDetailTool extends Tool implements HasRunKey
+class ProductDetailTool extends Tool
 {
     use HasKanvasContext;
     use ManagesCatalogProducts;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'product_detail',
-            description: 'Get the full record of one product: description, product type, categories, attributes, '
-                . 'media, and every variant with its stock per warehouse and its selling price per channel. Use '
-                . 'this after inventory_search or list_available_products when you need the whole picture, and '
-                . 'before editing a product so you know what it already has.',
-        );
-    }
+    protected string $name = 'product_detail';
+
+    protected ?string $description = 'Get the full record of one product: description, product type, categories, attributes, '
+        . 'media, and every variant with its stock per warehouse and its selling price per channel. Use '
+        . 'this after inventory_search or list_available_products when you need the whole picture, and '
+        . 'before editing a product so you know what it already has.';
 
     /**
      * @return array<int, ToolProperty>

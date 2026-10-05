@@ -186,13 +186,9 @@ final class FollowUpLeadAction
                 message: $prompt,
                 user: $this->company->getAiAgentUserOrFail(),
                 currentLead: $this->lead,
-                // sourceChannel: $session->channel opts OUT of per-thread filtering
-                // so the agent sees the full cross-session conversation history
-                // for the lead's person — same pattern as channel responders.
-                // Without this, the kernel's setThreadId() drops every prior
-                // message whose thread_id doesn't match the cron's session uuid
-                // (typically every customer-inbound message and every message
-                // from earlier sessions), and the agent runs effectively blind.
+                // With a source channel the kernel threads the run by the session entity (the lead's
+                // person), so the rollup store loads the person's whole cross-session history instead
+                // of this cron session's few messages — the same pattern as channel responders.
                 sourceChannel: $session->channel,
                 persistConversation: false,
             )->execute();

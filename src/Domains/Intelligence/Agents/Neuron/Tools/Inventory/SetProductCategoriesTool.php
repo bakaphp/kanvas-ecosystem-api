@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogProducts;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,23 +22,19 @@ use Override;
  * every category a merchant put it in.
  */
 #[AgentTool(name: 'Set Product Categories', category: 'inventory')]
-class SetProductCategoriesTool extends Tool implements HasRunKey
+class SetProductCategoriesTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ManagesCatalogProducts;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_product_categories',
-            description: 'File a product under one or more categories. By default the categories you pass are '
-                . 'added to whatever the product already has; pass replace=true only when you mean to discard its '
-                . 'current categories. Use category_search to find the ids first — never guess them. Only an '
-                . 'administrator can do this.',
-        );
-    }
+    protected string $name = 'set_product_categories';
+
+    protected ?string $description = 'File a product under one or more categories. By default the categories you pass are '
+        . 'added to whatever the product already has; pass replace=true only when you mean to discard its '
+        . 'current categories. Use category_search to find the ids first — never guess them. Only an '
+        . 'administrator can do this.';
 
     /**
      * @return array<int, ToolPropertyInterface>

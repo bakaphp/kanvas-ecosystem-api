@@ -27,15 +27,11 @@ class TagLeadTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'tag_lead',
-            description: 'Add or remove tags on a lead. Pass lead_id and a list of tag names; set remove=true to '
-                . 'detach them instead of attaching. Tags that do not exist yet are created. Dealer/rooftop tags '
-                . 'are assigned automatically and cannot be changed here. Returns the lead\'s current tags.',
-        );
-    }
+    protected string $name = 'tag_lead';
+
+    protected ?string $description = 'Add or remove tags on a lead. Pass lead_id and a list of tag names; set remove=true to '
+        . 'detach them instead of attaching. Tags that do not exist yet are created. Dealer/rooftop tags '
+        . 'are assigned automatically and cannot be changed here. Returns the lead\'s current tags.';
 
     /**
      * @return array<int, ToolPropertyInterface>

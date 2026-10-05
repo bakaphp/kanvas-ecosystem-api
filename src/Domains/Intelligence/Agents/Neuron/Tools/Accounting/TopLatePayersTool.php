@@ -18,15 +18,11 @@ class TopLatePayersTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'top_late_payers',
-            description: 'Returns the N customers with the highest TOTAL overdue balance (any bucket from 1-30 '
-                . 'through 90+). Use this when the user asks "who are our biggest late payers", wants a customer '
-                . 'collection priority list, or asks "which customer do we need to chase first".',
-        );
-    }
+    protected string $name = 'top_late_payers';
+
+    protected ?string $description = 'Returns the N customers with the highest TOTAL overdue balance (any bucket from 1-30 '
+        . 'through 90+). Use this when the user asks "who are our biggest late payers", wants a customer '
+        . 'collection priority list, or asks "which customer do we need to chase first".';
 
     #[Override]
     protected function properties(): array

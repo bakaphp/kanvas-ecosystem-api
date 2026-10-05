@@ -6,13 +6,13 @@ namespace Kanvas\Connectors\Microsoft\Actions;
 
 use Kanvas\Connectors\Microsoft\Client as MicrosoftClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
+use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
-use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Social\Messages\Models\Message;
-use NeuronAI\Chat\Messages\UserMessage;
 use Override;
 
 /**
@@ -89,31 +89,25 @@ class MicrosoftAgentChannelResponderAction extends BaseAgentChannelReplyAction
         return $this->hijackMessagePhone($fromEmail);
     }
 
-    /**
-     * Initialize the AI agent and generate a response to the inbound email.
-     */
     private function generateAgentResponse(): string
     {
-        $currentAgent = new $this->agent->type->handler();
-        $currentAgent->setConfiguration(
+        $entity = $this->session?->entity() ?? $this->message->entity();
+
+        $responseContent = new AgentChatKernel(
             agent: $this->agent,
-            entity: $this->message->entity()->people,
+            session: $this->session,
+            message: (string) $this->message->message['content'],
             user: $this->message->company->getAiAgentUserOrFail(),
-        );
+            currentLead: $entity instanceof Lead ? $entity : null,
+            sourceChannel: $this->channel,
+            sourceMessage: $this->message,
+            persistConversation: false,
+            // The fallback copy is written for staff; an outside sender must never be emailed it
+            // (KANVAS-ECOSYSTEM-6GW). A failed turn sends nothing and fails the webhook call instead.
+            fallbackOnFailure: false,
+        )->execute();
 
-        $messageConversation = $this->message->message['content'];
-
-        $question = $currentAgent instanceof ADKAgent
-            ? $currentAgent->chat(
-                $this->channel,
-                $this->message,
-                $messageConversation,
-                null,
-                $this->session
-            )
-            : $currentAgent->chat(new UserMessage($messageConversation));
-
-        return ChatHelper::extractTextFromResponse($question->getContent());
+        return ChatHelper::extractTextFromResponse($responseContent);
     }
 
     /**
