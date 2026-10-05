@@ -128,10 +128,7 @@ class SearchDealsTool extends Tool
             ->fromApp($this->app)
             ->fromCompany($this->company)
             ->notDeleted()
-            ->when($status === 'open', fn ($q) => $q->where(
-                fn ($s) => $s->whereNull('status')->orWhere('status', '<', 2),
-            ))
-            ->when($status === 'closed', fn ($q) => $q->where('status', '>=', 2))
+            ->havingDealState($status, $this->company)
             ->when($query !== '', function ($q) use ($like): void {
                 $q->where(function ($inner) use ($like): void {
                     $inner->where('title', 'like', $like)
@@ -164,7 +161,7 @@ class SearchDealsTool extends Tool
 
                 $q->whereIn('owner_id', $ownerIds);
             })
-            ->with(['owner', 'people', 'pipelineStage'])
+            ->with(['owner', 'people', 'pipelineStage', 'leadStatus'])
             ->orderByDesc('updated_at')
             ->limit($limit)
             ->get();
@@ -177,11 +174,10 @@ class SearchDealsTool extends Tool
                 'deal_id' => $deal->getId(),
                 'title' => $deal->title,
                 'contact' => $deal->people?->getName(),
-                'owner' => $deal->owner
-                    ? trim($deal->owner->firstname . ' ' . $deal->owner->lastname)
-                    : null,
+                'owner' => $deal->owner?->fullName(),
                 'stage' => $deal->pipelineStage?->name,
-                'is_open' => $deal->status === null || $deal->status < 2,
+                'status' => $deal->statusName(),
+                'is_open' => $deal->hasOpenStatus(),
                 'last_updated' => $deal->updated_at?->copy()->setTimezone($window['timezone'])->toDateString(),
                 'last_updated_at' => $deal->updated_at?->copy()->setTimezone($window['timezone'])->toIso8601String(),
             ])->all(),

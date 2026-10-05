@@ -13,6 +13,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\ThrottlesExceptions;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
+use Kanvas\Intelligence\Knowledge\Exceptions\CollectionUpdateInProgressException;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeSourceRegistry;
 use Laravel\Ai\Exceptions\RateLimitedException;
@@ -28,6 +29,9 @@ class IndexKnowledgeJob implements ShouldBeUnique, ShouldQueue
     public int $maxExceptions = 3;
     public int $timeout = 120;
     public int $uniqueFor = 60;
+
+    /** A schema alter on a large collection takes minutes; a released job must not land inside it again. */
+    private const int SCHEMA_UPDATE_RETRY_SECONDS = 90;
 
     public function __construct(
         public readonly KnowledgeEntity $entity
@@ -64,7 +68,11 @@ class IndexKnowledgeJob implements ShouldBeUnique, ShouldQueue
 
         $this->overwriteAppService($entity->app);
 
-        KnowledgeComponents::indexer($entity->app)->indexEntity($source, $entity);
+        try {
+            KnowledgeComponents::indexer($entity->app)->indexEntity($source, $entity);
+        } catch (CollectionUpdateInProgressException) {
+            $this->release(self::SCHEMA_UPDATE_RETRY_SECONDS);
+        }
     }
 
     public function uniqueId(): string

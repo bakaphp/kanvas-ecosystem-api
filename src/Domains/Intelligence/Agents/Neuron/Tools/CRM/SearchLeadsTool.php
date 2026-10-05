@@ -179,7 +179,7 @@ class SearchLeadsTool extends Tool
         $total = (clone $base)->count();
 
         $leads = $base
-            ->with(['owner', 'people.contacts', 'stage'])
+            ->with(['owner', 'people.contacts', 'stage', 'status'])
             ->orderByDesc('updated_at')
             ->limit($limit)
             ->get();
@@ -210,10 +210,7 @@ class SearchLeadsTool extends Tool
             ->fromApp($this->app)
             ->fromCompany($this->company)
             ->notDeleted()
-            ->when($status === 'open', fn (Builder $q): Builder => $q->where(
-                fn (Builder $s): Builder => $s->whereNull('status')->orWhere('status', '<', 2),
-            ))
-            ->when($status === 'closed', fn (Builder $q): Builder => $q->where('status', '>=', 2))
+            ->havingLeadState($status, $this->company)
             ->when($query !== '', fn (Builder $q): Builder => $q->where(
                 fn (Builder $inner): Builder => $inner
                     ->where('title', 'like', '%' . $query . '%')
@@ -318,11 +315,10 @@ class SearchLeadsTool extends Tool
             'contact' => $lead->people?->getName(),
             'email' => $this->firstContactValue($contacts, Contact::EMAIL_TYPES),
             'phone' => $this->firstContactValue($contacts, Contact::PHONE_TYPES),
-            'owner' => $owner !== null
-                ? trim((string) $owner->firstname . ' ' . (string) $owner->lastname)
-                : null,
+            'owner' => $owner?->fullName(),
             'stage' => $lead->stage?->name,
-            'is_open' => $lead->isOpen(),
+            'status' => $lead->statusName(),
+            'is_open' => $lead->hasOpenLeadStatus(),
             'last_updated' => $lead->updated_at?->copy()->setTimezone($this->companyTimezone())->toDateString(),
             'last_updated_at' => $lead->updated_at?->copy()->setTimezone($this->companyTimezone())->toIso8601String(),
         ];

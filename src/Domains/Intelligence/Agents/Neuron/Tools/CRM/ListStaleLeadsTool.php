@@ -77,7 +77,7 @@ class ListStaleLeadsTool extends Tool
             ->fromApp($this->app)
             ->fromCompany($this->company)
             ->notDeleted()
-            ->where(fn ($q) => $q->whereNull('status')->orWhere('status', '<', 2))
+            ->hasOpenLeadStatus($this->company)
             ->where('updated_at', '<=', $cutoff)
             ->when($owner !== null && $owner !== '', function ($q) use ($owner): void {
                 // owner is a Users relation on the `ecosystem` connection — resolve ids first
