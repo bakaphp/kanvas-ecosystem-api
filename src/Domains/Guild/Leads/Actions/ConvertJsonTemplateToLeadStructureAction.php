@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
+use Baka\Support\Arr;
 use Baka\Support\Str;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -254,15 +255,18 @@ class ConvertJsonTemplateToLeadStructureAction
         $tempArray = $array;
 
         foreach ($keys as $key) {
-            $key = trim($key); // Remove any unnecessary spaces
-            if (isset($tempArray[$key])) {
-                $tempArray = $tempArray[$key];
-            } else {
-                return ''; // Return an empty string if the key does not exist
+            if (! is_array($tempArray)) {
+                return '';
             }
+
+            $matchedKey = Arr::keyIgnoringCase($tempArray, trim($key));
+            if ($matchedKey === null) {
+                return '';
+            }
+
+            $tempArray = $tempArray[$matchedKey];
         }
 
-        // Ensure the value is a string or numeric
         return is_string($tempArray) || is_numeric($tempArray) ? (string) $tempArray : '';
     }
 
