@@ -82,7 +82,9 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $lead = Mockery::mock(Lead::class);
         $lead->shouldReceive('get')->andReturn(null);
         $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
-        $lead->shouldReceive('getAttribute')->with('company')->andReturn(new Companies(['name' => 'Test Company']));
+        $company = new Companies();
+        $company->name = 'Test Company';
+        $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
         $lead->shouldReceive('getAttribute')->with('app')->andReturn(new Apps());
         $lead->shouldReceive('getAttribute')->with('user')->andReturn(new Users());
         $lead->shouldReceive('getAttribute')->with('uuid')->andReturn('test-lead');
