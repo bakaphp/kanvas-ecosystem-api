@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Mail;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Social\Tags\Models\TagEntity;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 use Tests\TestCase;
 
 class UserTest extends TestCase
@@ -257,6 +259,46 @@ class UserTest extends TestCase
         $addressesDuplicate = collect($response->json('data.updateUser.addresses'));
         $addressIdDuplicate = $addressesDuplicate->firstWhere('address', $address['address'])['id'];
         $this->assertEquals($addressId, $addressIdDuplicate);
+    }
+
+    /**
+     * Tags land on the user's membership in the current company (the same row TagUserTool writes),
+     * so User.tags reads them back and another company never sees them.
+     */
+    public function testUpdateUserTags(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $tags = ['tag-' . fake()->unique()->word(), 'tag-' . fake()->unique()->word()];
+
+        $this->graphQL(/** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data) {
+                    tags {
+                        data {
+                            name
+                        }
+                    }
+                }
+            }',
+            [
+                'id' => 0,
+                'data' => [
+                    'tags' => array_map(fn (string $name): array => ['name' => $name], $tags),
+                ],
+            ]
+        )->assertSuccessful()
+            ->assertJsonCount(2, 'data.updateUser.tags.data')
+            ->assertJsonFragment(['name' => $tags[0]])
+            ->assertJsonFragment(['name' => $tags[1]]);
+
+        $membership = UsersRepository::belongsToThisApp($user, $app, $user->getCurrentCompany());
+
+        $this->assertEqualsCanonicalizing($tags, $membership->tags()->pluck('name')->all());
+        $this->assertFalse(
+            TagEntity::query()->where('taggable_type', Users::class)->where('entity_id', $user->getId())->exists()
+        );
     }
 
     public function testUpdateAddress(): void

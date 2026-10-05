@@ -28,7 +28,7 @@ trait HasTagsTrait
     /**
      * The key tags_entities.entity_id holds — not getId(), which a composite-key model overrides.
      */
-    protected function taggableKey(): mixed
+    public function taggableKey(): mixed
     {
         return $this->{$this->tags()->getParentKeyName()};
     }
@@ -117,10 +117,14 @@ trait HasTagsTrait
         }
     }
 
-    public function syncTags(array $tags): void
-    {
+    public function syncTags(
+        array $tags,
+        ?AppInterface $app = null,
+        ?UserInterface $user = null,
+        ?CompanyInterface $company = null
+    ): void {
         $this->deleteTagEntities();
-        $this->addTags(ModelsTag::normalizeNames($tags));
+        $this->addTags(ModelsTag::normalizeNames($tags), $app, $user, $company);
     }
 
     /**
