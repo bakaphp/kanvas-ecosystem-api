@@ -10,12 +10,14 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use Tests\TestCase;
+use Tests\Traits\MakesLeadStatuses;
 
 class SearchLeadsToolTest extends TestCase
 {
+    use MakesLeadStatuses;
+
     public function testFindsLeadByContactName(): void
     {
         $app = app(Apps::class);
@@ -59,7 +61,7 @@ class SearchLeadsToolTest extends TestCase
         ]);
         $closedLead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create([
             'title' => $token . ' closed',
-            'leads_status_id' => self::lostStatusId(),
+            'leads_status_id' => self::lostLeadStatusId(),
         ]);
 
         $openOnly = new SearchLeadsTool()
@@ -82,14 +84,6 @@ class SearchLeadsToolTest extends TestCase
         $allIds = array_column($all['leads'], 'lead_id');
         $this->assertContains($openLead->getId(), $allIds);
         $this->assertContains($closedLead->getId(), $allIds);
-    }
-
-    private static function lostStatusId(): int
-    {
-        return LeadStatus::query()->where('name', 'Lost')->where('apps_id', 0)->firstOrCreate(
-            ['name' => 'Lost', 'apps_id' => 0, 'companies_id' => 0],
-            ['is_default' => 0]
-        )->getId();
     }
 
     /**

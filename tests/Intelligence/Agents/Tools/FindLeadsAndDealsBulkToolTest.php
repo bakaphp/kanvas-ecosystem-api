@@ -11,16 +11,17 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateDealTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindDealsBulkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindLeadsBulkTool;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
+use Tests\Traits\MakesLeadStatuses;
 
 final class FindLeadsAndDealsBulkToolTest extends TestCase
 {
     use DatabaseTransactions;
+    use MakesLeadStatuses;
 
     protected array $connectionsToTransact = ['mysql', 'crm'];
 
@@ -82,7 +83,7 @@ final class FindLeadsAndDealsBulkToolTest extends TestCase
     public function test_leads_include_closed_by_default_and_are_filterable(): void
     {
         $closed = $this->makeLead('Cerrada' . $this->tag, 'Historica' . $this->tag);
-        $closed->leads_status_id = LeadStatus::query()->where('name', 'Lost')->where('apps_id', 0)->firstOrFail()->getId();
+        $closed->leads_status_id = self::lostLeadStatusId();
         $closed->saveOrFail();
 
         $name = 'Cerrada' . $this->tag . ' Historica' . $this->tag;
