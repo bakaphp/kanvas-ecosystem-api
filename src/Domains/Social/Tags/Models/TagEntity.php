@@ -8,6 +8,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphPivot;
 use Kanvas\SystemModules\Models\SystemModules;
 
+/**
+ * @property int $id
+ * @property int $tags_id
+ * @property int $entity_id
+ * @property string|null $taggable_type
+ * @property int $users_id
+ */
 class TagEntity extends MorphPivot
 {
     protected $table = 'tags_entities';
@@ -32,8 +39,19 @@ class TagEntity extends MorphPivot
         return $this->morphTo(null, 'taggable_type', 'entity_id');
     }
 
+    public function tag(): BelongsTo
+    {
+        return $this->belongsTo(Tag::class, 'tags_id');
+    }
+
     public function systemModule(): BelongsTo
     {
-        return $this->belongsTo(SystemModules::class, 'taggable_type', 'model_name')->where('apps_id', $this->apps_id);
+        return $this->belongsTo(SystemModules::class, 'taggable_type', 'model_name')
+            ->where('apps_id', $this->tag?->apps_id);
+    }
+
+    public function getSystemModuleNameAttribute(): ?string
+    {
+        return $this->systemModule?->name;
     }
 }

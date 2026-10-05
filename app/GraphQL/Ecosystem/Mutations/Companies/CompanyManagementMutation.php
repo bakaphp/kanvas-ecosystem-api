@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
+use App\GraphQL\Concerns\SyncsEntityRelatedInput;
 use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Auth;
@@ -31,6 +32,7 @@ use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 class CompanyManagementMutation
 {
     use HasMutationUploadFiles;
+    use SyncsEntityRelatedInput;
 
     /**
      * createCompany
@@ -61,6 +63,14 @@ class CompanyManagementMutation
 
         new AddAdminsToCompanyAction($app, $authUser, $company, $branch)->execute();
 
+        self::syncTags(
+            $company,
+            $request['input'],
+            $app,
+            $authUser,
+            $company
+        );
+
         return $company;
     }
 
@@ -82,9 +92,17 @@ class CompanyManagementMutation
         }
 
         $dto = Company::viaRequest($request['input'], $user);
-        $action = new UpdateCompaniesAction($company, $user, $dto);
+        $company = new UpdateCompaniesAction($company, $user, $dto)->execute();
 
-        return $action->execute();
+        self::syncTags(
+            $company,
+            $request['input'],
+            app(Apps::class),
+            auth()->user(),
+            $company
+        );
+
+        return $company;
     }
 
     public function attachFileToCompany(mixed $root, array $request): Companies
