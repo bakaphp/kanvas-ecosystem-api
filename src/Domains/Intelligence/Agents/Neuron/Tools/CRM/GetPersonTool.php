@@ -77,7 +77,7 @@ class GetPersonTool extends Tool
             'peopleType',
             'organizations' => fn ($q) => $q->select('organizations.id', 'name'),
             'employmentHistory',
-            'leads',
+            'leads.status',
         ]);
 
         return [
@@ -129,7 +129,8 @@ class GetPersonTool extends Tool
                 ->map(fn (Lead $lead): array => [
                     'lead_id' => $lead->getId(),
                     'title' => $lead->title,
-                    'is_open' => $lead->isOpen(),
+                    'status' => $lead->statusName(),
+                    'is_open' => $lead->hasOpenLeadStatus(),
                 ])->all(),
             'custom_fields' => $this->relevantCustomFields($person),
         ];

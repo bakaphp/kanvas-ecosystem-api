@@ -238,7 +238,12 @@ audience scope is non-null): same store, same `CompanyMemoryRetrieval::scopeFor(
 `since`/`until` window on `created_at` and a limit up to 25, for the questions the automatic 4-hit
 recall cannot answer ("what did we agree in September"). `agents:prune-memory` (03:30 daily) applies the retention; `agents:reindex-memory
 --since --app` writes a window of past turns and outcomes for a first rollout or after an embedding
-outage, keyed like the live path so a re-run upserts. A test swaps the store and embeddings through `companyMemoryStore()` /
+outage, keyed like the live path so a re-run upserts. Adding a field to the collection (`TypesenseKnowledgeStore::LATER_FIELDS`)
+is done by the first write after the deploy, and Typesense accepts one schema alter at a time: every
+other worker gets a 422 that `TypesenseKnowledgeStore` turns into `CollectionUpdateInProgressException`,
+which `IndexKnowledgeJob` releases for 90 s and `ConversationMemoryNode` logs without reporting
+(KANVAS-ECOSYSTEM-6J9, 314 failed index jobs in two minutes). A worker checks the schema once per
+process, so a schema change needs the worker restart the deploy already does. A test swaps the store and embeddings through `companyMemoryStore()` /
 `companyMemoryEmbeddings()` (`RememberingSystemUserAgentStub`) instead of needing Typesense; the live
 round trip is `KnowledgeVectorStoreTest`, skipped when no cluster is reachable.
 

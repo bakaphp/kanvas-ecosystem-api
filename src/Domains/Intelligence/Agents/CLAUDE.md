@@ -497,6 +497,17 @@ A tool constructed outside that path (a test, a one-off script) must call `withC
 - Honor the audience/memory-scope rule from the top of this file: a customer-facing tool must be
   entity-scoped, never company-wide `read_my_ledger`.
 
+### A lead's open state is its named status, never `Lead::isOpen()`
+
+`Lead::isOpen()` reads the integer `status` column, which nothing in the app writes, so it is `true`
+for every lead; marking a lead Lost writes `leads_status_id` only. A tool that reported `is_open` from
+it told an agent a lost deal was an active negotiation. In a tool, report `status` as
+`$lead->statusName()` and `is_open` as `$lead->hasOpenLeadStatus()`, and filter with the
+`hasOpenLeadStatus()` / `hasClosedLeadStatus()` scopes, which honour the company's
+`guild_open_leads_status_ids`. `search_leads`, `find_leads_bulk`, `LeadBaseFilter`, `list_stale_leads`
+and `get_person` are the references; the follow-up and outreach gates still use `isOpen()` and are a
+known, separate decision.
+
 ### Destination safety — the recipient is never a free LLM param
 
 **Any tool that sends something outward (email, SMS, WhatsApp, notification, hand-off) resolves the
