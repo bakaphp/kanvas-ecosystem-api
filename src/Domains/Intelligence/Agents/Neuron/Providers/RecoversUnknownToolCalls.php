@@ -25,10 +25,24 @@ trait RecoversUnknownToolCalls
     /** @var array<string, UnknownToolStub> */
     private array $unknownToolStubs = [];
 
+    /**
+     * A stub stays declared only while no real tool carries its name: a pooled tool the model called
+     * before searching for it arrives on a later round, and Gemini rejects a name declared twice.
+     */
     #[Override]
     public function setTools(array $tools): AIProviderInterface
     {
-        return parent::setTools([...$tools, ...array_values($this->unknownToolStubs)]);
+        $declared = [];
+        foreach ($tools as $tool) {
+            $declared[(string) $tool->getName()] = true;
+        }
+
+        $stubs = array_filter(
+            $this->unknownToolStubs,
+            static fn (UnknownToolStub $stub): bool => ! isset($declared[$stub->getName()]),
+        );
+
+        return parent::setTools([...$tools, ...array_values($stubs)]);
     }
 
     #[Override]

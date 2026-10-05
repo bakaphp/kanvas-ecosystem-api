@@ -81,6 +81,21 @@ final class UnknownToolCallRecoveryTest extends TestCase
         $this->assertStringNotContainsString('get_lead_ref', $message, 'The earlier stub is declared, not available');
     }
 
+    public function testAStubGivesWayWhenTheRealToolArrives(): void
+    {
+        $provider = $this->provider();
+        $provider->setTools([$this->realTool()]);
+        $provider->findTool('find_person');
+
+        $provider->setTools([$this->realTool(), new CallbackTool('find_person', 'Find one person.', fn (): string => 'ok')]);
+
+        $this->assertSame(
+            ['search_leads', 'find_person'],
+            $this->declaredToolNames($provider),
+            'Gemini rejects a function declared twice, so the stub drops out once the real tool is declared'
+        );
+    }
+
     public function testKeepsTheStubDeclaredOnLaterRoundsSoTheProviderAcceptsTheResponse(): void
     {
         $provider = $this->provider();

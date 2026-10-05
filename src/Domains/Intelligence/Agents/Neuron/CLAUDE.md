@@ -23,6 +23,7 @@ the one company setting is `$company->set()`; unset means the default.
 | `agent_max_history_tokens` | app | `AgentRunConfigurationEnum::MAX_HISTORY_TOKENS` | platform `AGENT_MAX_HISTORY_TOKENS` (50K) | a wider history window for one app, still under the model ceiling |
 | `agent_summary_llm_model` (+ `agent_summary_llm_provider`) | app | `AgentRunConfigurationEnum::SUMMARY_MODEL` / `SUMMARY_PROVIDER` | none (agent's own provider) | a cheaper model writes history summaries, with the app's key |
 | `agent_summary_llm_config_id` | **company** | `AgentRunConfigurationEnum::SUMMARY_LLM_CONFIG` | none | one of the company's LLM configs writes summaries; wins over the two app settings |
+| `agent_tool_search_enabled` | app | `AgentRunConfigurationEnum::TOOL_SEARCH` | **on** | `0` sends every granted tool and MCP toolkit on every round again; see "Tool search" below |
 
 Add a row here whenever a new `*ConfigurationEnum` case lands.
 
@@ -56,6 +57,49 @@ class SendEmailTool extends Tool
 - `ToolkitInterface` grew `add(ToolInterface ...$tools)` in 4.1.0. `RemoteMcpToolkit` implements the
   interface by hand (composition, see its docblock), so every interface addition lands there too or the
   class fatals at load; PHPStan level 0 is what catches it.
+
+## Tool search: granted tools are found, not carried
+
+Carrying every tool schema on every round costs ~35K tokens on an admin agent, 29K of them the Kernel
+MCP toolkit it never calls. `resources()` splits the resolved tools in two
+(`HasKanvasAgentBehavior::splitForToolSearch()`):
+
+- **Always on**: the identity set (`ALWAYS_ON_TOOLS`: time, memory, ledger, `who_is_user`, links,
+  artifacts) and whatever the handler class hardcodes in `tools()`. These are the ones the prompt
+  refers to by name, so they must be callable without a search.
+- **Pool**: everything `MergesRegisteredTools` resolved from the capability registry (catalog grants
+  and MCP toolkits, expanded to their tools; `registryToolNames` records them). Neuron's
+  `ToolSearchMiddleware`, returned from `globalMiddleware()`, adds `tool_search` to every node and
+  re-adds whatever this turn's `tool_search` results matched, so a found tool is callable on the next
+  round and gone on the next user message.
+
+The split only happens when the pool has at least `TOOL_SEARCH_MIN_POOL` (6) tools; below that the
+search tool and its prompt block cost as much as the schemas they would hide. Per app:
+`agent_tool_search_enabled = 0` disables it. Agent 12323 measured: 52 tools became 13 always-on
+(2.8K tokens) plus 39 pooled (32K); the same turn went 7.4 s to 4.0 s.
+
+The middleware is `KanvasToolSearchMiddleware`, Neuron's with the search tool swapped for
+`KanvasToolSearchTool`. The stock tool answers a miss with "No tools found matching 'x'", which the
+model reads as "try another word": a request for a WhatsApp message on an agent with no such tool ran
+nine searches and then re-did the previous turn's action. The Kanvas tool answers a miss with the full,
+sorted list of pooled names (an MCP toolkit as one line with its count, because 29 `kernel__*` names
+read as a menu and the model probed them as a workaround), says the list is complete and tells the model
+to answer the user instead of probing, and after `MAX_SEARCHES_PER_TURN` (4) it
+stops searching and answers the same way. The count is read off the turn's `ToolResultMessage`s by
+distinct call id, because the registry keeps the first `tool_search` it is given (the middleware
+removes and re-adds it on every node) and a durable-run resume rebuilds the middleware.
+
+A pooled tool called by name without a search is a correct call, not a hallucination: the miss reply
+names every pooled tool, so the model will do exactly that. The middleware loads it on the `ToolNode`
+from the `ToolCallEvent`. The provider has already registered an `UnknownToolStub` for the name while
+parsing the response, so `RecoversUnknownToolCalls::setTools()` drops a stub whose name a real tool now
+carries; Gemini rejects "Duplicate function declaration" otherwise (seen live 2026-10-05). The error
+handler's "not loaded on this round" answer is the fallback for a name in `poolToolNames` that still
+misses. And the search is lexical
+(`ToolSearchTool::search()`: name and description words, levenshtein), so a catalog tool with a vague
+description is unfindable; the class `$description` is what the model searches, not the catalog row.
+`ToolSearchOnAgentTest` covers the split, the next-round call, the blind call and the switch;
+`ToolSearchMissTest` the miss reply, the cap and the per-turn reset.
 
 ## Thread id: mandatory, and the kernel chooses it
 

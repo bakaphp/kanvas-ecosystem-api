@@ -11,9 +11,11 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
+use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\CancelsOnRequestMiddleware;
+use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasToolSearchMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
@@ -38,6 +40,7 @@ use NeuronAI\Chat\History\MessageStoreInterface;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Exceptions\ToolException;
 use NeuronAI\Providers\AIProviderInterface;
+use NeuronAI\Tools\ProviderToolInterface;
 use NeuronAI\Tools\ToolCall;
 use NeuronAI\Tools\ToolInterface;
 use NeuronAI\Tools\ToolRegistry;
@@ -54,6 +57,29 @@ trait HasKanvasAgentBehavior
 
     use HasTemporalContext;
 
+    /**
+     * Below this many searchable tools there is nothing to save: the search tool and its prompt block
+     * cost about as much as the schemas they would hide.
+     */
+    private const int TOOL_SEARCH_MIN_POOL = 6;
+
+    /**
+     * Tools that stay on every round whatever the switch says: the identity set the prompt already
+     * refers to by name, and the search tool itself.
+     */
+    private const array ALWAYS_ON_TOOLS = [
+        'get_current_time',
+        'search_memory',
+        'remember',
+        'who_is_user',
+        'read_my_ledger',
+        'get_file_link',
+        'render_artifact',
+        'build_admin_link',
+        'capability_lookup',
+        'tool_search',
+    ];
+
     protected ?Agent $agent = null;
     protected ?Apps $app = null;
     protected ?Companies $company = null;
@@ -63,6 +89,14 @@ trait HasKanvasAgentBehavior
 
     /** @var list<string> */
     private array $registeredToolNames = [];
+
+    /**
+     * Tools the model reaches through `tool_search` instead of carrying on every round.
+     *
+     * @var list<ToolInterface>
+     */
+    private array $toolSearchPool = [];
+
     protected ?Lead $currentLead = null;
 
     /**
@@ -387,10 +421,8 @@ trait HasKanvasAgentBehavior
     protected function resources(): AgentResources
     {
         [$instructions, $tools] = $this->resolveTools();
-        $this->registeredToolNames = array_map(
-            static fn (ToolInterface $tool): string => $tool->getName(),
-            array_values(array_filter($tools, static fn (mixed $tool): bool => $tool instanceof ToolInterface)),
-        );
+        [$tools, $this->toolSearchPool] = $this->splitForToolSearch($tools);
+        $this->registeredToolNames = self::toolNames($tools);
 
         $history = new KanvasChatHistory(
             $this->resolveMessageStore(),
@@ -405,6 +437,76 @@ trait HasKanvasAgentBehavior
             $instructions,
             new ToolRegistry($tools),
         );
+    }
+
+    /**
+     * The granted catalog tools and MCP toolkits move out of the prompt into a pool the model searches
+     * (Neuron's ToolSearchMiddleware); the identity set and a handler's hardcoded tools stay. One MCP
+     * toolkit alone was 29K tokens on every round, three quarters of the prompt, for an agent that
+     * never called it.
+     *
+     * @param list<ToolInterface|ProviderToolInterface> $tools
+     * @return array{0: list<ToolInterface|ProviderToolInterface>, 1: list<ToolInterface>}
+     */
+    protected function splitForToolSearch(array $tools): array
+    {
+        if (! $this->toolSearchActive()) {
+            return [$tools, []];
+        }
+
+        $searchable = array_diff($this->searchableToolNames(), self::ALWAYS_ON_TOOLS);
+        $pooled = static fn (mixed $tool): bool => $tool instanceof ToolInterface && in_array($tool->getName(), $searchable, true);
+        $pool = array_values(array_filter($tools, $pooled));
+
+        if (count($pool) < self::TOOL_SEARCH_MIN_POOL) {
+            return [$tools, []];
+        }
+
+        return [
+            array_values(array_filter($tools, static fn (mixed $tool): bool => ! $pooled($tool))),
+            $pool,
+        ];
+    }
+
+    /**
+     * @param list<ToolInterface|ProviderToolInterface> $tools
+     * @return list<string>
+     */
+    private static function toolNames(array $tools): array
+    {
+        $names = [];
+        foreach ($tools as $tool) {
+            if ($tool instanceof ToolInterface) {
+                $names[] = $tool->getName();
+            }
+        }
+
+        return $names;
+    }
+
+    protected function toolSearchActive(): bool
+    {
+        return $this->app?->getBool(AgentRunConfigurationEnum::TOOL_SEARCH->value, default: true) ?? false;
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function searchableToolNames(): array
+    {
+        return property_exists($this, 'registryToolNames') ? $this->registryToolNames : [];
+    }
+
+    /**
+     * Depends on resources() having run first: the Graph constructor resolves resources before it reads
+     * the global middleware, which is what fills the pool. Re-check that order on a Neuron bump.
+     *
+     * @return WorkflowMiddleware[]
+     */
+    #[Override]
+    protected function globalMiddleware(): array
+    {
+        return $this->toolSearchPool === [] ? [] : [new KanvasToolSearchMiddleware($this->toolSearchPool)];
     }
 
     /**
@@ -443,6 +545,17 @@ trait HasKanvasAgentBehavior
 
             if (in_array($call->getName(), $this->registeredToolNames, true)) {
                 return null;
+            }
+
+            if (in_array($call->getName(), self::toolNames($this->toolSearchPool), true)) {
+                return json_encode([
+                    'status' => 'error',
+                    'message' => sprintf(
+                        'The tool "%s" exists but is not loaded on this round. Call tool_search with the query "%s" first, then call it.',
+                        $call->getName(),
+                        $call->getName()
+                    ),
+                ]);
             }
 
             return json_encode(UnknownToolStub::response($call->getName(), $this->registeredToolNames));

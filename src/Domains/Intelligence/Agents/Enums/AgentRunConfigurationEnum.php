@@ -28,4 +28,10 @@ enum AgentRunConfigurationEnum: string
      * settings above. Company-level because LLM configs are company rows.
      */
     case SUMMARY_LLM_CONFIG = 'agent_summary_llm_config_id';
+
+    /**
+     * Dynamic tool selection: granted catalog tools and MCP toolkits start a turn out of the prompt and
+     * the model finds them through `tool_search`. On by default; `0` sends every tool on every round.
+     */
+    case TOOL_SEARCH = 'agent_tool_search_enabled';
 }
