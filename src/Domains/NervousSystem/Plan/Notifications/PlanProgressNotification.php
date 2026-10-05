@@ -7,6 +7,7 @@ namespace Kanvas\NervousSystem\Plan\Notifications;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\Notifications\Concerns\PushesTitleAndMessageFromData;
 use Kanvas\Notifications\Notification;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Override;
@@ -19,6 +20,8 @@ use Override;
  */
 class PlanProgressNotification extends Notification
 {
+    use PushesTitleAndMessageFromData;
+
     /**
      * @param array<string, mixed> $metadata
      * @param list<string> $via
@@ -51,26 +54,6 @@ class PlanProgressNotification extends Notification
         }
 
         $this->channels = $via;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    #[Override]
-    public function toOneSignal(UserInterface|AnonymousNotifiable $notifiable): array
-    {
-        if (! $notifiable instanceof UserInterface) {
-            return [];
-        }
-
-        return [
-            'user_id' => $notifiable->getId(),
-            'title' => $this->data['title'] ?? '',
-            'message' => $this->data['message'] ?? '',
-            'subtitle' => '',
-            'apps_id' => $this->app->getId(),
-            'data' => $this->getData(),
-        ];
     }
 
     /**

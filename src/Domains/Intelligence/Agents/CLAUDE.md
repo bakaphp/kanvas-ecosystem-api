@@ -327,9 +327,10 @@ work silently never ran. Two independent things can push a turn over, and they n
 | **Stored history** replayed at the start of a turn | every past turn of the thread | `KanvasHistoryTrimmer`, wired by `HasKanvasAgentBehavior::resources()` |
 | **Tool output** added *inside* the turn in progress | a tool loop pulling diffs / whole files | `BoundToolResultsMiddleware` |
 
-**A message store only loads rows; it never trims.** Neuron 4's `ChatHistory` runs its trimmer on every
-`addMessage()`, and the first add of a turn happens *before* the provider call, so the loaded thread is
-cut before it is sent. The stock `HistoryTrimmer` only cuts; Kanvas rows also need the same-role fold
+**A message store only loads rows; it never trims.** `KanvasChatHistory` runs the trimmer when the
+thread is loaded and again on every `addMessage()`. The load-time cut matters: since Neuron 4.1 the
+chat node sends the loaded history plus the inbound turn and adds to the history only afterwards, so
+without it the first request of every turn carried the thread whole (KANVAS-ECOSYSTEM-6HP). The stock `HistoryTrimmer` only cuts; Kanvas rows also need the same-role fold
 (dual persistence writes some turns twice, and providers reject two consecutive assistant turns or a
 history that opens with one), so every Kanvas agent opens its history with
 [`KanvasHistoryTrimmer`](ChatHistory/KanvasHistoryTrimmer.php): `fold()` (merge consecutive same-role
