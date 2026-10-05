@@ -5,19 +5,23 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Souk;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
 use Kanvas\Souk\Orders\Services\OrderReportService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Order Payment Stats', category: 'commerce')]
 class OrderPaymentStatsTool extends Tool
 {
+    use GuardsRepeatCalls;
     use HasKanvasContext;
     use ParsesOrderTypesFilter;
+    use TrackByInputs;
 
     protected string $name = 'order_payment_stats';
 
@@ -25,6 +29,11 @@ class OrderPaymentStatsTool extends Tool
         . 'and the card-vs-other payment-method mix. Optional date range and order-type filter. Use for '
         . '"how much did we collect", "recharge revenue this month", "card vs cash/transfer split". Amounts '
         . 'are net of discounts. By default only orders with payment_status=paid are counted.';
+
+    public function __construct()
+    {
+        $this->initRepeatGuard();
+    }
 
     /**
      * @return array<int, ToolProperty>
@@ -49,7 +58,19 @@ class OrderPaymentStatsTool extends Tool
         ?string $until = null,
         ?bool $paid_only = null,
     ): array {
-        return new OrderReportService($this->app, $this->company)
-            ->paymentStats($this->parseOrderTypes($order_types), $since, $until, $paid_only ?? true);
+        return $this->oncePerTurn(
+            [
+                'order_types' => $order_types,
+                'since' => $since,
+                'until' => $until,
+                'paid_only' => $paid_only,
+            ],
+            fn (): array => new OrderReportService($this->app, $this->company)->paymentStats(
+                $this->parseOrderTypes($order_types),
+                $since,
+                $until,
+                $paid_only ?? true,
+            ),
+        );
     }
 }

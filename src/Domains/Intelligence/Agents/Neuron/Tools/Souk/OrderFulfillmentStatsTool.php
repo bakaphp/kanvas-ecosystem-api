@@ -5,19 +5,23 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Souk;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
 use Kanvas\Souk\Orders\Services\OrderReportService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Order Fulfillment Stats', category: 'commerce')]
 class OrderFulfillmentStatsTool extends Tool
 {
+    use GuardsRepeatCalls;
     use HasKanvasContext;
     use ParsesOrderTypesFilter;
+    use TrackByInputs;
 
     protected string $name = 'order_fulfillment_stats';
 
@@ -26,6 +30,11 @@ class OrderFulfillmentStatsTool extends Tool
         . 'orders that have not been collected. Use for "what do we owe customers", "how many orders are '
         . 'waiting to ship", "how much money is uncollected", "are we behind on fulfillment". Backlogs '
         . 'exclude draft, cancelled and failed orders; the two status breakdowns include every order.';
+
+    public function __construct()
+    {
+        $this->initRepeatGuard();
+    }
 
     /**
      * @return array<int, ToolProperty>
@@ -48,7 +57,14 @@ class OrderFulfillmentStatsTool extends Tool
         ?string $since = null,
         ?string $until = null,
     ): array {
-        return new OrderReportService($this->app, $this->company)
-            ->fulfillmentStats($this->parseOrderTypes($order_types), $since, $until);
+        return $this->oncePerTurn(
+            [
+                'order_types' => $order_types,
+                'since' => $since,
+                'until' => $until,
+            ],
+            fn (): array => new OrderReportService($this->app, $this->company)
+                ->fulfillmentStats($this->parseOrderTypes($order_types), $since, $until),
+        );
     }
 }
