@@ -11,6 +11,7 @@ use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
+use Kanvas\Notifications\Support\UserEmailSignature;
 
 /**
  * Ships one email from an agent's own address through Mailgun's API.
@@ -38,6 +39,7 @@ class SendAsAgentMailboxAction
         private readonly array $cc = [],
         private readonly array $headers = [],
         private readonly array $attachmentUrls = [],
+        private readonly ?UserEmailSignature $signature = null,
     ) {
     }
 
@@ -63,8 +65,8 @@ class SendAsAgentMailboxAction
             from: $this->agent->name . ' <' . $address . '>',
             to: $this->to,
             subject: $this->subject,
-            text: $this->markdownBody,
-            html: MarkdownEmailRenderer::toEmailHtml($this->markdownBody),
+            text: $this->markdownBody . ($this->signature !== null ? "\n\nBest Regards,\n" . $this->signature->text : ''),
+            html: MarkdownEmailRenderer::toEmailHtml($this->markdownBody) . ($this->signature?->toHtml() ?? ''),
             // Reply-To is not caller-overridable: an answer that lands anywhere but the agent's own
             // inbox never reaches the agent, which is the entire point of giving it an address.
             headers: array_merge($this->headers, ['Reply-To' => $address]),

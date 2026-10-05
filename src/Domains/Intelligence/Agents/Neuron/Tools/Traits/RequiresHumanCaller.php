@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
 
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\HasConversationHuman;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -31,22 +32,7 @@ use Throwable;
  */
 trait RequiresHumanCaller
 {
-    protected ?Users $conversationHuman = null;
-
-    /**
-     * The identified person in the conversation, which is NOT the tool's context user.
-     *
-     * MergesRegisteredTools fills this from `requestingHuman()`, the same way it feeds an
-     * admin-guarded tool — because `withContext()` carries `actingUser()`, i.e. the agent's own
-     * user, on every surface. Without it a self-service tool granted to an agent from the catalog
-     * would see a bot as the caller and refuse a real person standing right there.
-     */
-    public function forConversationHuman(?Users $user): static
-    {
-        $this->conversationHuman = $user;
-
-        return $this;
-    }
+    use HasConversationHuman;
 
     /**
      * The person this turn is for: the identified human when the host knew one, else whoever the
