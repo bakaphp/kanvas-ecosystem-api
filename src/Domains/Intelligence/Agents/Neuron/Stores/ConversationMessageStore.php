@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Stores;
 use Baka\Traits\ScalarCoercionTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -87,7 +88,8 @@ class ConversationMessageStore extends KanvasMessageStore
     }
 
     /**
-     * Text-only on purpose: steps, meta and usage are longtext on every row and the model never sees them.
+     * Text-only on purpose: steps and usage are longtext on every row and the model never sees them.
+     * `meta` is read for its `__meta` flags (the summary row's), which the trimmer needs on a reload.
      *
      * @return list<Message>
      */
@@ -99,7 +101,7 @@ class ConversationMessageStore extends KanvasMessageStore
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->limit(self::MAX_LOADED_ROWS)
-            ->get(['id', 'role', 'content', 'attachments'])
+            ->get(['id', 'role', 'content', 'attachments', 'meta'])
             ->reverse()
             ->map(function (object $row): ?Message {
                 $content = (string) ($row->content ?? '');
@@ -114,6 +116,13 @@ class ConversationMessageStore extends KanvasMessageStore
                 $message = $row->role === MessageRole::ASSISTANT->value
                     ? new AssistantMessage($content)
                     : new UserMessage($content);
+
+                // Decoded here, not through decodeJsonArray(): that helper re-indexes to a list and the flags are keyed.
+                $meta = is_string($row->meta ?? null) ? json_decode($row->meta, true) : null;
+
+                foreach ((array) ($meta['__meta'] ?? []) as $key => $value) {
+                    $message->addMetadata((string) $key, $value);
+                }
 
                 return $message->setId((string) $row->id);
             })
@@ -250,6 +259,14 @@ class ConversationMessageStore extends KanvasMessageStore
     private function conversationStore(): KanvasConversationStore
     {
         return $this->conversationStore ??= new KanvasConversationStore();
+    }
+
+    #[Override]
+    public function activeWindowStartedAt(string $threadId): ?int
+    {
+        $oldest = $this->activeRows($threadId)->min('created_at');
+
+        return $oldest === null ? null : Carbon::parse((string) $oldest)->getTimestamp();
     }
 
     private function activeRows(string $threadId): Builder

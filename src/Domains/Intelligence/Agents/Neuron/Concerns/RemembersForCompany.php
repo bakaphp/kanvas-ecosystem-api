@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Neuron\Memory\ConversationMemoryNode;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\SearchMemoryTool;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
 use NeuronAI\Agent\Nodes\AgentEndNode;
@@ -111,6 +112,33 @@ trait RemembersForCompany
                 . 'or done before, answer from those entries; call read_my_ledger or search again only when '
                 . 'they do not cover it.',
         ];
+    }
+
+    /**
+     * The on-demand half of memory, offered only when there is something to search and a scope to
+     * search it under; a customer-facing agent with no record in scope gets no tool, like no recall.
+     *
+     * @return list<object>
+     */
+    protected function memoryTools(): array
+    {
+        if (! $this->companyMemoryActive()) {
+            return [];
+        }
+
+        $recallScope = $this->recallMemoryScope();
+
+        if ($recallScope === null) {
+            return [];
+        }
+
+        return [new SearchMemoryTool(
+            store: $this->companyMemoryStore(),
+            embeddings: $this->companyMemoryEmbeddings(),
+            appId: $this->requireApp()->getId(),
+            companyId: (int) $this->company?->getId(),
+            recallScope: $recallScope,
+        )];
     }
 
     protected function companyMemoryActive(): bool

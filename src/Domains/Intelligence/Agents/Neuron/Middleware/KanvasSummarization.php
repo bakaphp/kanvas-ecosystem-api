@@ -45,8 +45,9 @@ class KanvasSummarization extends Summarization
         private readonly string $model,
         int $maxTokens,
         int $messagesToKeep,
+        ?AIProviderInterface $provider = null,
     ) {
-        parent::__construct(maxTokens: $maxTokens, messagesToKeep: $messagesToKeep);
+        parent::__construct(provider: $provider, maxTokens: $maxTokens, messagesToKeep: $messagesToKeep);
     }
 
     /**

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
+use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasAnthropic;
@@ -139,6 +141,39 @@ class AgentProviderService
     }
 
     /**
+     * The provider that writes this agent's history summaries, or null to use the agent's own. A company
+     * names one of its LLM configs (AgentRunConfigurationEnum::SUMMARY_LLM_CONFIG); failing that the app
+     * names a model (SUMMARY_MODEL, optionally SUMMARY_PROVIDER). A config that no longer resolves falls
+     * through rather than failing every summary of the tenant.
+     */
+    public static function summaryProvider(Agent $agent): ?AIProviderInterface
+    {
+        $configId = (int) ($agent->company?->get(AgentRunConfigurationEnum::SUMMARY_LLM_CONFIG->value) ?? 0);
+        $config = $configId > 0 ? self::activeConfig($agent, $configId, includeGlobal: true) : null;
+
+        if ($config !== null) {
+            return self::resolveConfig($agent, $config);
+        }
+
+        $model = Str::trimToNull((string) ($agent->app->get(AgentRunConfigurationEnum::SUMMARY_MODEL->value) ?? ''));
+
+        if ($model === null) {
+            return null;
+        }
+
+        $provider = Str::trimToNull((string) ($agent->app->get(AgentRunConfigurationEnum::SUMMARY_PROVIDER->value) ?? ''))
+            ?? self::resolveProviderEnum($agent)->value;
+
+        return self::makeProvider($agent, [
+            'provider' => $provider,
+            'base_uri' => null,
+            'key' => null,
+            'model' => $model,
+            'parameters' => [],
+        ]);
+    }
+
+    /**
      * The concrete model name the agent will call, following the same precedence as resolve().
      * Exposed so the chat path records the same model for usage/cost rollups.
      */
@@ -211,10 +246,17 @@ class AgentProviderService
             return null;
         }
 
+        return self::activeConfig($agent, (int) $agent->agent_llm_config_id, includeGlobal: false);
+    }
+
+    private static function activeConfig(Agent $agent, int $configId, bool $includeGlobal): ?AgentLlmConfig
+    {
+        $companies = $includeGlobal ? [0, $agent->companies_id] : [$agent->companies_id];
+
         return AgentLlmConfig::query()
-            ->where('id', $agent->agent_llm_config_id)
+            ->where('id', $configId)
             ->where('apps_id', $agent->apps_id)
-            ->where('companies_id', $agent->companies_id)
+            ->whereIn('companies_id', $companies)
             ->where('is_deleted', 0)
             ->where('is_active', 1)
             ->first();

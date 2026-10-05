@@ -62,6 +62,15 @@ abstract class KanvasMessageStore implements MessageStoreInterface
     }
 
     /**
+     * When the oldest row still in the model's window was written, as a unix timestamp, or null for a
+     * store that cannot say. Memory recall uses it to leave out what the model is already reading.
+     */
+    public function activeWindowStartedAt(string $threadId): ?int
+    {
+        return null;
+    }
+
+    /**
      * Summarization flushes the thread and re-appends the summary plus the kept tail, so the ids seen
      * so far are forgotten with it or the kept tail would be skipped as already written.
      */

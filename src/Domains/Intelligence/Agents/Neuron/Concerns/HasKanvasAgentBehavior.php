@@ -270,6 +270,7 @@ trait HasKanvasAgentBehavior
         // a customer-facing agent talked into a filesystem_id would read another prospect's quote.
         return [
             new CurrentTimeTool($this->resolveTenantTimezone()),
+            ...$this->memoryTools(),
         ];
     }
 

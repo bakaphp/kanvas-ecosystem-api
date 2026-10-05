@@ -6,6 +6,26 @@ framework seams underneath, the ones that are easy to get wrong because the v3 s
 muscle memory. Verify framework behaviour against `vendor/neuron-core/neuron-ai/src`, not the docs
 site: the two have disagreed before.
 
+## Tenant settings at a glance
+
+Every switch a tenant can flip, so none is forgotten when a tenant asks. App settings are `$app->set()`,
+the one company setting is `$company->set()`; unset means the default.
+
+| Setting | Scope | Enum | Default | What it does |
+|---|---|---|---|---|
+| `agent_chat_async` | app | `AppSettingsEnums::AGENT_CHAT_ASYNC` | off | every `userChat` turn runs on the `agent-chat` queue and answers `pending` |
+| `agent_memory_enabled` | app | `KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED` | **on** (needs Typesense creds) | `0` stops writing and recalling company memory; prune keeps running |
+| `agent_memory_ingest_min_chars` | app | `…::AGENT_MEMORY_INGEST_MIN_CHARS` | 80 | a turn shorter than this is not remembered |
+| `agent_memory_result_limit` | app | `…::AGENT_MEMORY_RESULT_LIMIT` | 4 | memory hits injected per turn, on top of the knowledge limit |
+| `agent_memory_retention_days` | app | `…::AGENT_MEMORY_RETENTION_DAYS` | 365 | `agents:prune-memory` drops conversation + ledger memory older than this; saved memories never |
+| `neuron_lead_rag_enabled` + `_collection` / `_result_limit` / `_min_score` / embedding keys | app | `KnowledgeConfigurationEnum::ENABLED`… | off | uploaded-knowledge retrieval (documents), opt-in |
+| `agent_durable_runs_enabled` | app | `AgentRunConfigurationEnum::DURABLE_RUNS` | **on** | `0` turns off Redis-persisted runs and resume-on-redelivery |
+| `agent_max_history_tokens` | app | `AgentRunConfigurationEnum::MAX_HISTORY_TOKENS` | platform `AGENT_MAX_HISTORY_TOKENS` (50K) | a wider history window for one app, still under the model ceiling |
+| `agent_summary_llm_model` (+ `agent_summary_llm_provider`) | app | `AgentRunConfigurationEnum::SUMMARY_MODEL` / `SUMMARY_PROVIDER` | none (agent's own provider) | a cheaper model writes history summaries, with the app's key |
+| `agent_summary_llm_config_id` | **company** | `AgentRunConfigurationEnum::SUMMARY_LLM_CONFIG` | none | one of the company's LLM configs writes summaries; wins over the two app settings |
+
+Add a row here whenever a new `*ConfigurationEnum` case lands.
+
 ## Tools: identity is a property default, not a constructor
 
 ```php
@@ -56,7 +76,7 @@ a session uuid, which is how `EntityRollupMessageStore` knows whether to filter 
 ```
 messageStore()  → which rows            (override per agent)
 KanvasHistoryTrimmer → fold, then cut   (never swapped)
-contextWindow() → model ceiling, capped by AGENT_MAX_HISTORY_TOKENS
+contextWindow() → model ceiling, capped by AGENT_MAX_HISTORY_TOKENS (or the app's agent_max_history_tokens)
 ```
 
 The window is a **history** budget and the trimmer measures the history by its content
@@ -105,7 +125,13 @@ real hook, and only `ConversationMessageStore` implements it (`archived_at`).
 - `EntityRollupMessageStore` lists `agent_summary` among its internal verbs and `ChannelMessageStore`
   skips it, so a customer-facing agent never replays the agent's own compaction note.
 
-Thresholds are the `summarizationMaxTokens()` / `summarizationMessagesToKeep()` hooks; a test lowers
+The summary is written by the agent's own provider unless a cheaper one is configured: a COMPANY setting
+`agent_summary_llm_config_id` naming one of the admin's LLM configs (its key and base URI travel with it) wins,
+then the app settings `agent_summary_llm_model` + optional `agent_summary_llm_provider`
+(`AgentProviderService::summaryProvider()`); the Social note records the model that wrote it.
+The hard cut never drops the summary row: `KanvasHistoryTrimmer::trim()` puts it back ahead of the kept
+tail (folded into the first kept turn) when a cut took it, which needs the `summary` flag on reloaded rows,
+so `ConversationMessageStore::loadActive()` restores `meta.__meta` onto each message. Thresholds are the `summarizationMaxTokens()` / `summarizationMessagesToKeep()` hooks; a test lowers
 them (`SummarizingNeuronAgentStub`) instead of generating 40K tokens of history.
 
 ## Company memory: the tenant pair is the key, the thread is a filter
@@ -130,7 +156,12 @@ in scope on a customer surface means no recall at all. An internal agent recalls
 **its own human** had with any agent, plus everything the company kept on purpose: saved memories
 (`remember`) and ledger outcomes. What Jenn told agent B is hers; a fact she asked an agent to remember,
 or a plan it approved, is the company's (`InternalAgentMemoryPrivacyTest`, Max's decision 2026-10-04).
-An internal turn with no human (a cron) recalls only the shared kinds. Hits reach the model labelled `[Earlier conversation, 2026-09-28]`,
+An internal turn with no human (a cron) recalls only the shared kinds. Recall also
+leaves out the turns the model is already reading: `CompanyMemoryRetrieval` takes the current thread and
+`KanvasMessageStore::activeWindowStartedAt()`, and skips that thread's documents written since then,
+while older turns of the same thread (archived by a trim or a summary) stay recallable. Neuron's own
+`SemanticMemoryRetrieval` is keyed by a list of thread ids and is not used here: it cannot express the
+audience scope above, and its `ConversationIngestionNode` writes no tenant metadata. Hits reach the model labelled `[Earlier conversation, 2026-09-28]`,
 `[Saved memory, …]`, `[Ledger, …]` so it knows provenance and age. Uploaded knowledge stays the
 knowledge retrieval's job: memory only reads `source_type in (conversation, memory, ledger)`. The
 reverse holds too: `TypesenseKnowledgeStore::search()` reads through `KnowledgeScope::knowledgeFilter()`,
@@ -157,7 +188,11 @@ as the agent wrote it and never pruned, and an allowlisted outcome (the list in
 `LedgerKnowledgeSource::wants()`, which names only event types the ledger really emits) as
 `source_type = ledger`, one line of what happened, pruned like a conversation. Each `KnowledgeSource`
 owns its `find()` and `isEnabledFor()`: the ledger table has no `is_deleted` and memory has its own
-switch, so the registry never queries models itself. `agents:prune-memory` (03:30 daily) applies the retention; `agents:reindex-memory
+switch, so the registry never queries models itself. On-demand recall is the `search_memory` tool
+(`RemembersForCompany::memoryTools()`, universal on every agent whose memory is active and whose
+audience scope is non-null): same store, same `CompanyMemoryRetrieval::scopeFor()` filter, plus a
+`since`/`until` window on `created_at` and a limit up to 25, for the questions the automatic 4-hit
+recall cannot answer ("what did we agree in September"). `agents:prune-memory` (03:30 daily) applies the retention; `agents:reindex-memory
 --since --app` writes a window of past turns and outcomes for a first rollout or after an embedding
 outage, keyed like the live path so a re-run upserts. A test swaps the store and embeddings through `companyMemoryStore()` /
 `companyMemoryEmbeddings()` (`RememberingSystemUserAgentStub`) instead of needing Typesense; the live

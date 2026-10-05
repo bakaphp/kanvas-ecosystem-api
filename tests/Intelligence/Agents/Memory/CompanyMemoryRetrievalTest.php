@@ -72,6 +72,35 @@ class CompanyMemoryRetrievalTest extends TestCase
         $this->assertCount(2, $contents, 'Uploaded knowledge is the knowledge retrieval\'s job, not memory\'s');
     }
 
+    public function testTurnsStillInTheModelsWindowAreNotRecalled(): void
+    {
+        $windowStart = 1_700_000_000;
+        $store = $this->storeWith(
+            $this->memory("User: What is the Q4 launch date?\nAssistant: November 12.", self::COMPANY_A, $windowStart - 3600, thread: 'thread-current'),
+            $this->memory("User: What is the Q4 launch date?\nAssistant: Still November 12.", self::COMPANY_A, $windowStart + 60, thread: 'thread-current'),
+            $this->memory("User: What is the Q4 launch date?\nAssistant: November 12, confirmed.", self::COMPANY_A, $windowStart + 60, thread: 'thread-other'),
+        );
+
+        $retrieval = new CompanyMemoryRetrieval(
+            store: $store,
+            embeddings: new ConstantEmbeddingsProvider(),
+            appId: self::APP,
+            companyId: self::COMPANY_A,
+            inContextThreadId: 'thread-current',
+            inContextSince: $windowStart,
+        );
+
+        $answers = array_map(
+            static fn (Document $document): string => $document->getContent(),
+            $retrieval->retrieve(new UserMessage('When is the Q4 launch?')),
+        );
+
+        $this->assertCount(2, $answers);
+        $this->assertStringContainsString('Assistant: November 12.', implode(' ', $answers), 'An archived turn of the current thread is still memory');
+        $this->assertStringContainsString('confirmed', implode(' ', $answers), 'Another thread is untouched');
+        $this->assertStringNotContainsString('Still November 12', implode(' ', $answers), 'A turn the model is already reading is not recalled on top');
+    }
+
     public function testAnEmptyQuestionRetrievesNothing(): void
     {
         $store = $this->storeWith($this->memory("User: x\nAssistant: y", self::COMPANY_A));

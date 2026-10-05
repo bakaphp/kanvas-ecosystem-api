@@ -42,7 +42,30 @@ final class CompanyMemoryRetrieval extends SimilarityRetrieval
         int $appId,
         int $companyId,
         ?FilterExpression $recallScope = null,
+        ?string $inContextThreadId = null,
+        ?int $inContextSince = null,
     ) {
+        $scope = [self::scopeFor($appId, $companyId, $recallScope)];
+
+        // The turns still in the model's window are already in the prompt; recalling them again costs
+        // tokens and repeats them. Older turns of the same thread, archived by a trim or a summary, are
+        // exactly what memory is for, so the cut is by time inside the thread, not by thread.
+        if ($inContextThreadId !== null && $inContextSince !== null) {
+            $scope[] = FilterGroup::or(
+                Filter::neq('sourceName', $inContextThreadId),
+                Filter::lt('created_at', $inContextSince),
+            );
+        }
+
+        parent::__construct($store, $embeddings, FilterGroup::and(...$scope));
+    }
+
+    /**
+     * The memory kinds of one tenant, narrowed by audience: what every read of company memory pins,
+     * whether the automatic recall or the search_memory tool.
+     */
+    public static function scopeFor(int $appId, int $companyId, ?FilterExpression $recallScope): FilterExpression
+    {
         $scope = [
             Filter::eq('apps_id', $appId),
             Filter::eq('companies_id', $companyId),
@@ -53,7 +76,7 @@ final class CompanyMemoryRetrieval extends SimilarityRetrieval
             $scope[] = $recallScope;
         }
 
-        parent::__construct($store, $embeddings, FilterGroup::and(...$scope));
+        return FilterGroup::and(...$scope);
     }
 
     /**
@@ -79,10 +102,10 @@ final class CompanyMemoryRetrieval extends SimilarityRetrieval
             return [];
         }
 
-        return array_map(self::labelled(...), $documents);
+        return array_map(self::label(...), $documents);
     }
 
-    private static function labelled(Document $document): Document
+    public static function label(Document $document): Document
     {
         $metadata = $document->getMetadata();
         $kind = (string) ($metadata['source_type'] ?? $document->getSourceType());

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 
 use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasSummarization;
+use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 
 /**
  * The rolling summary an agent on the conversation store keeps instead of forgetting. Requires the
@@ -23,13 +24,17 @@ trait SummarizesHistory
 
     protected function summarization(): KanvasSummarization
     {
+        $agent = $this->requireAgent();
+        $summaryProvider = AgentProviderService::summaryProvider($agent);
+
         return new KanvasSummarization(
-            agent: $this->requireAgent(),
+            agent: $agent,
             session: $this->session,
             fallbackAuthor: $this->user,
-            model: $this->resolvedModelName(),
+            model: $summaryProvider?->getModel() ?? $this->resolvedModelName(),
             maxTokens: $this->summarizationMaxTokens(),
             messagesToKeep: $this->summarizationMessagesToKeep(),
+            provider: $summaryProvider,
         );
     }
 

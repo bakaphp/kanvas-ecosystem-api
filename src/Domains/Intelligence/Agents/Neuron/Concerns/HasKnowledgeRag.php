@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\CompanyMemoryRetrieval;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\KnowledgeRetrieval;
+use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
 use NeuronAI\RAG\PostProcessor\AdaptiveThresholdPostProcessor;
 use NeuronAI\RAG\PreProcessor\QueryTransformationPreProcessor;
@@ -49,6 +50,9 @@ trait HasKnowledgeRag
             return $knowledge;
         }
 
+        $threadId = $this->getThreadId();
+        $store = $this->resolveMessageStore();
+
         return new CompositeRetrieval([
             $knowledge,
             new CompanyMemoryRetrieval(
@@ -57,6 +61,10 @@ trait HasKnowledgeRag
                 appId: $this->app->getId(),
                 companyId: $this->company->getId(),
                 recallScope: $recallScope,
+                inContextThreadId: $threadId,
+                inContextSince: $threadId !== null && $store instanceof KanvasMessageStore
+                    ? $store->activeWindowStartedAt($threadId)
+                    : null,
             ),
         ]);
     }

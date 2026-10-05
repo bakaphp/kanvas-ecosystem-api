@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\ChatHistory;
 
+use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasSummarization;
 use NeuronAI\Chat\History\HistoryTrimmer;
 use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
 use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
@@ -60,7 +61,34 @@ final class KanvasHistoryTrimmer extends HistoryTrimmer
     #[Override]
     public function trim(array $messages, int $contextWindow): array
     {
-        return parent::trim(self::fold(array_values($messages)), $contextWindow);
+        $folded = self::fold(array_values($messages));
+        $trimmed = parent::trim($folded, $contextWindow);
+        $summary = self::summaryIn($folded);
+
+        if ($summary === null || self::summaryIn($trimmed) !== null) {
+            return $trimmed;
+        }
+
+        // The cut takes the oldest rows, and the summary is the oldest row: the compressed past. Losing
+        // it to make room is losing the one thing the trim was meant to keep, so it rides on top of the
+        // cut, folded into the first kept turn; the overshoot is one summary, well inside the reserves.
+        $this->totalTokens += $this->tokenCounter->count($summary);
+
+        return self::fold([$summary, ...$trimmed]);
+    }
+
+    /**
+     * @param list<Message> $messages
+     */
+    private static function summaryIn(array $messages): ?Message
+    {
+        foreach ($messages as $message) {
+            if ($message->getMetadata(KanvasSummarization::SUMMARY_FLAG) === true) {
+                return $message;
+            }
+        }
+
+        return null;
     }
 
     /**
