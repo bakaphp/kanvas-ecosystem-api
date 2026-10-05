@@ -21,17 +21,13 @@ class SalesByProductTool extends Tool
 {
     use HasKanvasContext;
 
-    private const EXCLUDED_STATUSES = ['draft', 'canceled', 'cancelled', 'failed'];
+    protected string $name = 'sales_by_product';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'sales_by_product',
-            description: 'Ranks products/SKUs by revenue and units sold over booked orders (draft/canceled '
-                . 'excluded). Optionally bounded by since/until dates. Use for "best sellers", "top products this '
-                . 'month", "how many units of SKU X did we sell".',
-        );
-    }
+    protected ?string $description = 'Ranks products/SKUs by revenue and units sold over booked orders (draft/canceled '
+        . 'excluded). Optionally bounded by since/until dates. Use for "best sellers", "top products this '
+        . 'month", "how many units of SKU X did we sell".';
+
+    private const EXCLUDED_STATUSES = ['draft', 'canceled', 'cancelled', 'failed'];
 
     /**
      * @return array<int, ToolProperty>

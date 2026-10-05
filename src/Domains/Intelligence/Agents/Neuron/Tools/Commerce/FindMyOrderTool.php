@@ -24,18 +24,17 @@ class FindMyOrderTool extends Tool
 {
     use ResolvesShopperOrdersForTool;
 
+    protected string $name = 'find_my_order';
+
+    protected ?string $description = 'Looks up ONE of the shopper\'s own orders by order number: status, payment and '
+        . 'fulfillment status, shipped date, total and line items. Use it for "where is my order", '
+        . '"did my order ship", "what did I order". A signed-in shopper only needs the order number. '
+        . 'An anonymous shopper must also give the email used on the order — ask for it, never guess '
+        . 'it. It only ever returns the shopper\'s own orders.';
+
     public function __construct(?Session $session = null)
     {
         $this->session = $session;
-
-        parent::__construct(
-            name: 'find_my_order',
-            description: 'Looks up ONE of the shopper\'s own orders by order number: status, payment and '
-                . 'fulfillment status, shipped date, total and line items. Use it for "where is my order", '
-                . '"did my order ship", "what did I order". A signed-in shopper only needs the order number. '
-                . 'An anonymous shopper must also give the email used on the order — ask for it, never guess '
-                . 'it. It only ever returns the shopper\'s own orders.',
-        );
     }
 
     /**

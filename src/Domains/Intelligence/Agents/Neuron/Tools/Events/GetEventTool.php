@@ -10,7 +10,6 @@ use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\EventVersionDate;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,20 +22,16 @@ use Throwable;
  * their dates, price and capacity. Company-scoped. Use get_event_version for one edition's full detail.
  */
 #[AgentTool(name: 'Get Event', category: 'events')]
-class GetEventTool extends Tool implements HasRunKey
+class GetEventTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_event',
-            description: 'Full detail of one event by event_id: description, type/category/class/status, theme, tags, '
-                . 'and its versions (editions) with dates, price and total attendees. Use once the user has picked or '
-                . 'named a specific event (from list_events).',
-        );
-    }
+    protected string $name = 'get_event';
+
+    protected ?string $description = 'Full detail of one event by event_id: description, type/category/class/status, theme, tags, '
+        . 'and its versions (editions) with dates, price and total attendees. Use once the user has picked or '
+        . 'named a specific event (from list_events).';
 
     /**
      * @return array<int, ToolProperty>

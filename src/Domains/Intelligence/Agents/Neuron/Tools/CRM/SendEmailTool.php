@@ -26,6 +26,18 @@ class SendEmailTool extends Tool
 {
     use ResolvesLeadForTool;
 
+    protected string $name = 'send_email';
+
+    protected ?string $description = 'Send an email to the prospect/customer on this lead, at the email address already on file. '
+        . 'Use it when they ask you to email them something (a quote, a summary, confirmation details, links, next steps) '
+        . 'or when what they need is too long to send over chat/SMS. '
+        . 'You cannot choose the primary recipient — the email always goes to the address on the lead. '
+        . 'You may optionally cc other people who are ALREADY contacts on this lead, its participants '
+        . '(co-buyers, spouses, referrers) or its organization (e.g. a second decision-maker); '
+        . 'addresses that are not on file are ignored. '
+        . 'This is NOT for internal messages to staff (use take_message) and NOT a way to keep chatting: '
+        . 'still answer the person in the conversation after sending.';
+
     /** Lead custom field the Mailgun responder and the follow-up engine read as the email thread subject. */
     private const string THREAD_SUBJECT_ANCHOR = 'title_email_follow_up';
 
@@ -38,22 +50,6 @@ class SendEmailTool extends Tool
         ContactTypeEnum::EMAIL->value,
         ContactTypeEnum::SECONDARY_EMAIL->value,
     ];
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'send_email',
-            description: 'Send an email to the prospect/customer on this lead, at the email address already on file. '
-                . 'Use it when they ask you to email them something (a quote, a summary, confirmation details, links, next steps) '
-                . 'or when what they need is too long to send over chat/SMS. '
-                . 'You cannot choose the primary recipient — the email always goes to the address on the lead. '
-                . 'You may optionally cc other people who are ALREADY contacts on this lead, its participants '
-                . '(co-buyers, spouses, referrers) or its organization (e.g. a second decision-maker); '
-                . 'addresses that are not on file are ignored. '
-                . 'This is NOT for internal messages to staff (use take_message) and NOT a way to keep chatting: '
-                . 'still answer the person in the conversation after sending.',
-        );
-    }
 
     #[Override]
     protected function properties(): array

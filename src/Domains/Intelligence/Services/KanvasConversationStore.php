@@ -132,28 +132,6 @@ class KanvasConversationStore extends DatabaseConversationStore
     }
 
     /**
-     * The interface `storeConversation` has no slot for the Kanvas agent id; logTurn callers use this
-     * variant to set it so the `agentConversations` query can filter by agent.
-     */
-    public function storeConversationForAgent(
-        string|int|null $userId,
-        ?int $agentId,
-        string $title,
-        ?Model $participant = null,
-    ): string {
-        [$appsId, $companiesId] = $this->tenantFor($userId, $agentId);
-
-        return $this->insertConversation(
-            $userId,
-            $agentId,
-            $appsId,
-            $companiesId,
-            $title,
-            $participant,
-        );
-    }
-
-    /**
      * The one lookup that binds a session to its conversation — the agent's own history and logTurn both
      * come through here, so they cannot resolve one chat to two rows. Oldest first, because a session can
      * own several rows and the oldest is the thread a person is reading.
@@ -224,10 +202,6 @@ class KanvasConversationStore extends DatabaseConversationStore
         );
     }
 
-    /**
-     * storeConversation() runs before the agent is known; the assistant turn is the first call that
-     * carries the `KanvasLaravelAgent`, so the conversation's `agent_id` lands one reply after it opens.
-     */
     #[Override]
     public function storeAssistantMessage(
         string $conversationId,
@@ -490,6 +464,7 @@ class KanvasConversationStore extends DatabaseConversationStore
                 $toolResults,
             )),
             'status' => AgentConversationMessage::STATUS_COMPLETED,
+            'sequence' => $this->nextSequence($conversationId),
             'usage' => json_encode($usage),
             'meta' => '[]',
             'created_at' => now(),
@@ -497,6 +472,18 @@ class KanvasConversationStore extends DatabaseConversationStore
         ]);
 
         return $messageId;
+    }
+
+    /**
+     * The active window is ordered by this, so every writer of a row stamps one: a reply appended by a
+     * scheduled action lands after the chat it joins, not ahead of it. Rows older than the column carry
+     * null and sort first.
+     */
+    public function nextSequence(string $conversationId): int
+    {
+        return (int) $this->table($this->messagesTable())
+            ->where('conversation_id', $conversationId)
+            ->max('sequence') + 1;
     }
 
     protected function insertConversationRow(

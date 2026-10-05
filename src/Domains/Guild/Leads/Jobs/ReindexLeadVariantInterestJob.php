@@ -11,7 +11,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 
@@ -59,9 +58,7 @@ final class ReindexLeadVariantInterestJob implements ShouldBeUnique, ShouldQueue
         $this->overwriteAppService($lead->app);
         $lead->searchable();
 
-        if (RagComponents::isEnabled($lead)) {
-            KnowledgeIndexRequested::dispatch(KnowledgeEntity::fromModel($lead));
-        }
+        KnowledgeIndexRequested::dispatchIfEnabled($lead);
     }
 
     public function uniqueId(): string

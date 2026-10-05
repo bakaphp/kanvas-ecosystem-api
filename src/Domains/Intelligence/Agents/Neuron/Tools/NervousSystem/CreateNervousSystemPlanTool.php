@@ -12,7 +12,6 @@ use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,20 +24,20 @@ use Override;
  * project's open-work rollup; the project's completion is recomputed.
  */
 #[AgentTool(name: 'Create Plan', category: 'nervous_system')]
-class CreateNervousSystemPlanTool extends Tool implements HasRunKey
+class CreateNervousSystemPlanTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesProjectForTool;
     use TrackByInputs;
 
+    protected string $name = 'create_nervous_system_plan';
+
+    protected ?string $description = 'Create a plan (a group of tasks / an epic) under a project. Use this to turn the '
+        . 'project objective or a new request into a concrete stream of work you can then add tasks to.';
+
     public function __construct(
         private readonly ?Session $session = null,
     ) {
-        parent::__construct(
-            name: 'create_nervous_system_plan',
-            description: 'Create a plan (a group of tasks / an epic) under a project. Use this to turn the '
-                . 'project objective or a new request into a concrete stream of work you can then add tasks to.',
-        );
     }
 
     /**

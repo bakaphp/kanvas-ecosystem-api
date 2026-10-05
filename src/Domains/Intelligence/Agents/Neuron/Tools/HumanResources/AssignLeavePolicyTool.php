@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEmployeeForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,7 +24,7 @@ use Override;
  * agent can call this defensively without silently wiping days someone already used.
  */
 #[AgentTool(name: 'Assign Leave Policy', category: 'human_resources')]
-class AssignLeavePolicyTool extends Tool implements HasRunKey
+class AssignLeavePolicyTool extends Tool
 {
     use GuardsAdminForTool;
     use HandlesLeaveForTool;
@@ -33,16 +32,12 @@ class AssignLeavePolicyTool extends Tool implements HasRunKey
     use ResolvesEmployeeForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'assign_leave_policy',
-            description: 'Gives an employee a leave type for a year, granting them the policy\'s annual entitlement so '
-                . 'they can actually request that leave. Admin only. Use this when request_leave fails for lack of '
-                . 'balance, or right after onboarding someone. Safe to repeat: an existing grant comes back unchanged '
-                . '(assigned=false) instead of being reset — use set_employee_leave_balance to change days.',
-        );
-    }
+    protected string $name = 'assign_leave_policy';
+
+    protected ?string $description = 'Gives an employee a leave type for a year, granting them the policy\'s annual entitlement so '
+        . 'they can actually request that leave. Admin only. Use this when request_leave fails for lack of '
+        . 'balance, or right after onboarding someone. Safe to repeat: an existing grant comes back unchanged '
+        . '(assigned=false) instead of being reset — use set_employee_leave_balance to change days.';
 
     /**
      * @return array<int, ToolProperty>

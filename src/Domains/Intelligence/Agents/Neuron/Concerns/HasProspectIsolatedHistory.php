@@ -4,32 +4,29 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 
-use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
-use NeuronAI\Chat\History\AbstractChatHistory;
-use NeuronAI\Chat\History\InMemoryChatHistory;
+use NeuronAI\Chat\History\MessageStoreInterface;
 use Override;
 
 /**
  * The memory surface of a ConversesWithCustomer agent: one timeline per prospect, rolled up across
- * every channel, and nothing beyond it. Requires the HasKanvasAgentBehavior properties.
+ * every channel and remembered across sessions, and nothing beyond it. Requires the
+ * HasKanvasAgentBehavior properties.
  */
 trait HasProspectIsolatedHistory
 {
     #[Override]
-    protected function chatHistory(): AbstractChatHistory
+    protected function messageStore(): MessageStoreInterface
     {
-        if ($this->entity === null || $this->user === null) {
-            return new InMemoryChatHistory();
-        }
+        return $this->entityRollupStore($this->sessionThreadId());
+    }
 
-        return new SalesAssistKanvasMessageHistory(
-            app: $this->app,
-            company: $this->company,
-            user: $this->user,
-            entity: $this->entity,
-            threadId: $this->threadId,
-            currentLead: $this->currentLead,
-            contextWindow: $this->resolvedContextWindow(),
-        );
+    /**
+     * The agent remembers and improves with the customer: every turn is written to memory tagged with
+     * the record, and recall is limited to that record by recordMemoryScope().
+     */
+    #[Override]
+    protected function remembersForCompany(): bool
+    {
+        return true;
     }
 }

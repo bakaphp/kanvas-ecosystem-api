@@ -17,18 +17,14 @@ class RoadsideAssistanceMetricsTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'movipass_roadside_metrics',
-            description: 'Service-level metrics for roadside-assistance cases: total cases, resolved, completed '
-                . 'without resolution, cancelled, plus the average response time (case opened to mechanic on site) '
-                . 'and average resolution time (case opened to service completed). Use for "how fast do we respond", '
-                . '"how many assistance cases last month", "what is our resolution rate", SLA reporting. Defaults '
-                . 'to the last 30 days when no dates are given. Times are reported in both seconds and hours; a '
-                . 'null average means no case in the range reached that stage.',
-        );
-    }
+    protected string $name = 'movipass_roadside_metrics';
+
+    protected ?string $description = 'Service-level metrics for roadside-assistance cases: total cases, resolved, completed '
+        . 'without resolution, cancelled, plus the average response time (case opened to mechanic on site) '
+        . 'and average resolution time (case opened to service completed). Use for "how fast do we respond", '
+        . '"how many assistance cases last month", "what is our resolution rate", SLA reporting. Defaults '
+        . 'to the last 30 days when no dates are given. Times are reported in both seconds and hours; a '
+        . 'null average means no case in the range reached that stage.';
 
     /**
      * @return array<int, ToolProperty>

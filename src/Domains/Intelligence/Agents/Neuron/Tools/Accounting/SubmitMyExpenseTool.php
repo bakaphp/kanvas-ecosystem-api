@@ -16,7 +16,6 @@ use Kanvas\Scribe\Expenses\Actions\CreateExpenseAction;
 use Kanvas\Scribe\Expenses\Actions\SubmitExpenseForApprovalAction;
 use Kanvas\Scribe\Expenses\DataTransferObject\Expense as ExpenseData;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -35,7 +34,7 @@ use Throwable;
  * record_company_card_expense — a different credit, so a different tool rather than an argument.
  */
 #[AgentTool(name: 'Submit My Expense', category: 'accounting')]
-class SubmitMyExpenseTool extends Tool implements HasRunKey
+class SubmitMyExpenseTool extends Tool
 {
     use FilesExpenseForTool;
     use HasKanvasContext;
@@ -44,18 +43,14 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
     use ResolvesFilesystemForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'submit_my_expense',
-            description: 'Files an expense YOU paid out of pocket and submits it for approval — a client dinner, a '
-                . 'taxi, a hotel, anything you covered personally and want reimbursed. Always files it as paid by '
-                . 'the person you are talking to, so never call it on behalf of someone else, and not for a '
-                . 'charge the company already paid on its own card — that is record_company_card_expense. Read '
-                . 'the receipt with extract_expense_receipt first when there is one, and confirm the amount with '
-                . 'the person before filing.',
-        );
-    }
+    protected string $name = 'submit_my_expense';
+
+    protected ?string $description = 'Files an expense YOU paid out of pocket and submits it for approval — a client dinner, a '
+        . 'taxi, a hotel, anything you covered personally and want reimbursed. Always files it as paid by '
+        . 'the person you are talking to, so never call it on behalf of someone else, and not for a '
+        . 'charge the company already paid on its own card — that is record_company_card_expense. Read '
+        . 'the receipt with extract_expense_receipt first when there is one, and confirm the amount with '
+        . 'the person before filing.';
 
     /**
      * @return array<int, ToolProperty>

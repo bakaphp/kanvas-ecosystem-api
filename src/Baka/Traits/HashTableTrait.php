@@ -284,6 +284,11 @@ trait HashTableTrait
         return $value === null ? $defaultValue : $this->decodeSettingValue($value);
     }
 
+    public function getBool(string $key, bool $default = false): bool
+    {
+        return filter_var($this->get($key, $default), FILTER_VALIDATE_BOOL);
+    }
+
     private function getRawValue(string $key): mixed
     {
         $redisKey = $this->getSettingsRedisPrimaryKey();

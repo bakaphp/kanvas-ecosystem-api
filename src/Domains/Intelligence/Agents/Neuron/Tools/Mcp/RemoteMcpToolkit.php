@@ -29,6 +29,9 @@ class RemoteMcpToolkit implements ToolkitInterface
     /** @var list<ToolInterface>|null */
     private ?array $resolved = null;
 
+    /** @var list<ToolInterface> */
+    private array $added = [];
+
     private ?CachedMcpConnector $connector = null;
 
     private ?McpToolCacheService $cache = null;
@@ -52,7 +55,21 @@ class RemoteMcpToolkit implements ToolkitInterface
     #[Override]
     public function tools(): array
     {
-        return $this->resolved ??= $this->resolve();
+        $this->resolved ??= $this->resolve();
+
+        return [...$this->resolved, ...$this->added];
+    }
+
+    /**
+     * Tools a caller adds at runtime sit beside the server's own, as on Neuron's AbstractToolkit; the
+     * platform denylist does not apply to them, since it filters what the server offered.
+     */
+    #[Override]
+    public function add(ToolInterface ...$tools): ToolkitInterface
+    {
+        $this->added = [...$this->added, ...array_values($tools)];
+
+        return $this;
     }
 
     /**

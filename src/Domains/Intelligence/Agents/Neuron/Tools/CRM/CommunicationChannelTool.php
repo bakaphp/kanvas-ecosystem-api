@@ -17,13 +17,9 @@ class CommunicationChannelTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct(
-    ) {
-        parent::__construct(
-            name: 'get_communication_channel',
-            description: 'Get the selected communication channel and contact information (email, phone) for the lead.',
-        );
-    }
+    protected string $name = 'get_communication_channel';
+
+    protected ?string $description = 'Get the selected communication channel and contact information (email, phone) for the lead.';
 
     #[Override]
     protected function properties(): array

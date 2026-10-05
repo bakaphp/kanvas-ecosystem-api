@@ -25,15 +25,11 @@ class TagPersonTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'tag_person',
-            description: 'Add or remove tags on a person. Pass person_id and a list of tag names; set remove=true to '
-                . 'detach them instead of attaching. Tags that do not exist yet are created. Returns the person\'s '
-                . 'current tags.',
-        );
-    }
+    protected string $name = 'tag_person';
+
+    protected ?string $description = 'Add or remove tags on a person. Pass person_id and a list of tag names; set remove=true to '
+        . 'detach them instead of attaching. Tags that do not exist yet are created. Returns the person\'s '
+        . 'current tags.';
 
     /**
      * @return array<int, ToolPropertyInterface>

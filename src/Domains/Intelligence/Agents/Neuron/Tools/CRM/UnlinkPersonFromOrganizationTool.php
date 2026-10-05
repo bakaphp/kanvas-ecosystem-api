@@ -28,16 +28,12 @@ class UnlinkPersonFromOrganizationTool extends Tool
     use HasKanvasContext;
     use ResolvesOrganizationForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'unlink_person_from_organization',
-            description: 'Remove a person\'s association with a customer organization (i.e. they no longer work / '
-                . 'belong there). Pass person_id plus organization_id (preferred) or organization_name. Since a person '
-                . 'can belong to several organizations, this only removes the one you name — the others stay. Resolves '
-                . 'ambiguous org names to candidates. Use list_organization_people to read the remaining links back.',
-        );
-    }
+    protected string $name = 'unlink_person_from_organization';
+
+    protected ?string $description = 'Remove a person\'s association with a customer organization (i.e. they no longer work / '
+        . 'belong there). Pass person_id plus organization_id (preferred) or organization_name. Since a person '
+        . 'can belong to several organizations, this only removes the one you name — the others stay. Resolves '
+        . 'ambiguous org names to candidates. Use list_organization_people to read the remaining links back.';
 
     /**
      * @return array<int, ToolProperty>

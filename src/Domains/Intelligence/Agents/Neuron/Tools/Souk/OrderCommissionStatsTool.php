@@ -19,16 +19,12 @@ class OrderCommissionStatsTool extends Tool
     use HasKanvasContext;
     use ParsesOrderTypesFilter;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'order_commission_stats',
-            description: 'Revenue split for commissioned orders: gross revenue, platform commission earned, and '
-                . 'provider payout owed, plus the order count. Optional date range and order-type filter. Use for '
-                . '"how much commission did we earn", "what do we owe provider X", marketplace take-rate questions. '
-                . 'Counts only orders with a commission configured, anchored on order creation date.',
-        );
-    }
+    protected string $name = 'order_commission_stats';
+
+    protected ?string $description = 'Revenue split for commissioned orders: gross revenue, platform commission earned, and '
+        . 'provider payout owed, plus the order count. Optional date range and order-type filter. Use for '
+        . '"how much commission did we earn", "what do we owe provider X", marketplace take-rate questions. '
+        . 'Counts only orders with a commission configured, anchored on order creation date.';
 
     /**
      * @return array<int, ToolProperty>

@@ -8,19 +8,19 @@ use Kanvas\Connectors\Plusval\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Plusval\Helpers\PhoneHelper;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Types\BaseAgent;
+use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
 use NeuronAI\MCP\McpConnector;
 use Override;
 
-class RealStateAgent extends BaseAgent
+class RealStateAgent extends BaseRagAgent
 {
     #[Override]
     protected function tools(): array
     {
-        /** @psalm-suppress MixedReturnTypeCoercion */
-        $baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
-        $apiKey = $this->app->get(ConfigurationEnum::API_KEY->value);
+        $baseUrl = $this->app?->get(ConfigurationEnum::BASE_URL->value);
+        $apiKey = $this->app?->get(ConfigurationEnum::API_KEY->value);
         $senderPhone = PhoneHelper::formatPhoneNumber($this->getSenderPhone());
+
         return [
             ...McpConnector::make([
                 'url' => $baseUrl . '/mcp/plusval',
@@ -28,29 +28,30 @@ class RealStateAgent extends BaseAgent
                 'timeout' => 30,
                 'headers' => [
                     'x-api-key' => $apiKey,
-                    'x-sender-phone' => $senderPhone
-                ]
+                    'x-sender-phone' => $senderPhone,
+                ],
             ])->tools(),
         ];
     }
 
+    /**
+     * A Plusval agent's persona lives on the agent record or its type (soul/instructions/output_format),
+     * not in the structured `role` the generic prompt is built from.
+     */
+    #[Override]
+    public function instructions(): string
+    {
+        $persona = $this->agent?->personaPrompt() ?? '';
+
+        return $persona === '' ? parent::instructions() : $persona . "\n\n" . $this->platformContextBlock();
+    }
+
     public function getSenderPhone(): string
     {
-        /** @var People|Lead $agent */
-        $agent = $this->entity;
+        /** @var People|Lead $entity */
+        $entity = $this->entity;
+        $person = $entity instanceof Lead ? $entity->people : $entity;
 
-        // Get agent's phone number (the person using the agent)
-        $agentPhones = $agent instanceof Lead ? $agent->people->getPhones()->pluck('value')->toArray() : $agent->getPhones()->pluck('value')->toArray();
-        $agentCellPhones = $agent instanceof Lead ? $agent->people->getCellPhones()->pluck('value')->toArray() : $agent->getCellPhones()->pluck('value')->toArray();
-        $allAgentPhones = array_unique(array_merge($agentPhones, $agentCellPhones));
-
-        if (empty($allAgentPhones)) {
-            return '';
-        }
-
-        // Use the first phone number found
-        $agentPhone = $allAgentPhones[0];
-
-        return $agentPhone;
+        return (string) ($person->getPhones()->merge($person->getCellPhones())->pluck('value')->unique()->first() ?? '');
     }
 }

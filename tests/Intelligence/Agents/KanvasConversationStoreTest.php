@@ -467,9 +467,7 @@ class KanvasConversationStoreTest extends TestCase
     }
 
     /**
-     * After the SalesAssistKanvasMessageHistory double-write removal, the per-turn
-     * usage + tool telemetry is no longer written as a visible social message — it
-     * lives ONLY here, in agent_conversation_messages. Guard that it still lands.
+     * Per-turn usage and tool telemetry live only in agent_conversation_messages, never in a Social message.
      */
     public function testLogTurnPersistsUsageAndToolTelemetryOnAssistantMessage(): void
     {

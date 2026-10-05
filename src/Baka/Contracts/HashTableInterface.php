@@ -14,6 +14,8 @@ interface HashTableInterface
 
     public function get(string $key): mixed;
 
+    public function getBool(string $key, bool $default = false): bool;
+
     public function getAll(bool $onlyPublicSettings = false, bool $publicFormat = false, bool $fromRedis = true): array;
 
     public function isSecret(string $key): bool;

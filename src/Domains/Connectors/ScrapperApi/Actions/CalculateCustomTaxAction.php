@@ -155,11 +155,7 @@ class CalculateCustomTaxAction
 
     protected function includesFreight(AppInterface $app): bool
     {
-        $configured = $app->get(CustomTaxEnum::INCLUDE_FREIGHT_IN_CIF->value);
-
-        return $configured === null
-            ? true
-            : filter_var($configured, FILTER_VALIDATE_BOOL);
+        return $app->getBool(CustomTaxEnum::INCLUDE_FREIGHT_IN_CIF->value, default: true);
     }
 
     protected function component(float $amount, float $exchangeRate, float $rate, string $description): array

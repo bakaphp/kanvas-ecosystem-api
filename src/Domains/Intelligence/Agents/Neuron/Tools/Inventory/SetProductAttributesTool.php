@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogProducts;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,7 +22,7 @@ use Override;
  * and created when new, so the model never needs an attribute id.
  */
 #[AgentTool(name: 'Set Product Attributes', category: 'inventory')]
-class SetProductAttributesTool extends Tool implements HasRunKey
+class SetProductAttributesTool extends Tool
 {
     use DecodesJsonObjectParam;
     use GuardsAdminForTool;
@@ -31,18 +30,14 @@ class SetProductAttributesTool extends Tool implements HasRunKey
     use ManagesCatalogProducts;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_product_attributes',
-            description: 'Set spec attributes on a product — the facts shared by every variant, e.g. Material, '
-                . 'Brand or Warranty. Pass a JSON object of name to value. An attribute that does not exist yet is '
-                . 'created. Attributes you do not mention are left alone. Check attribute_search first so you '
-                . 'reuse the company\'s existing attribute names instead of creating near-duplicates. For a fact '
-                . 'that differs per SKU (size, colour) use set_variant_attributes instead. Only an administrator '
-                . 'can do this.',
-        );
-    }
+    protected string $name = 'set_product_attributes';
+
+    protected ?string $description = 'Set spec attributes on a product — the facts shared by every variant, e.g. Material, '
+        . 'Brand or Warranty. Pass a JSON object of name to value. An attribute that does not exist yet is '
+        . 'created. Attributes you do not mention are left alone. Check attribute_search first so you '
+        . 'reuse the company\'s existing attribute names instead of creating near-duplicates. For a fact '
+        . 'that differs per SKU (size, colour) use set_variant_attributes instead. Only an administrator '
+        . 'can do this.';
 
     /**
      * @return array<int, ToolPropertyInterface>

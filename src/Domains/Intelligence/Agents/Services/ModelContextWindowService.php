@@ -6,7 +6,9 @@ namespace Kanvas\Intelligence\Agents\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
+use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Throwable;
@@ -81,6 +83,7 @@ class ModelContextWindowService
             return self::forModel(
                 AgentProviderService::resolveProviderEnum($agent)->value,
                 AgentProviderService::resolveModel($agent),
+                $agent->app,
             );
         } catch (Throwable) {
             // Provider resolution needs app configuration that an unconfigured agent may not have.
@@ -89,7 +92,7 @@ class ModelContextWindowService
         }
     }
 
-    public static function forModel(string $provider, string $model): int
+    public static function forModel(string $provider, string $model, ?Apps $app = null): int
     {
         $ceiling = self::maxInputTokens($provider, $model) ?? self::ASSUMED_INPUT_TOKENS;
 
@@ -100,16 +103,23 @@ class ModelContextWindowService
         $reserve = self::toolOutputReserveTokens() + self::PROMPT_RESERVE_TOKENS;
         $budget = (int) (($ceiling - $reserve) / self::ESTIMATE_OPTIMISM);
 
-        return min(max(self::MIN_HISTORY_TOKENS, $budget), self::costCapTokens());
+        return min(max(self::MIN_HISTORY_TOKENS, $budget), self::costCapTokens($app));
     }
 
     /**
      * The model ceiling is what a request may hold, not what it should cost. Sizing Gemini to ~655K
      * took the September Gemini spend from ~$600/day to ~$1,500/day overnight, because the history
      * rides along on every tool-loop step — so the cap wins over both the ceiling and the floor.
+     * The platform value is the default; an app that pays for a wider window sets its own cap.
      */
-    private static function costCapTokens(): int
+    private static function costCapTokens(?Apps $app): int
     {
+        $override = (int) ($app?->get(AgentRunConfigurationEnum::MAX_HISTORY_TOKENS->value) ?? 0);
+
+        if ($override > 0) {
+            return $override;
+        }
+
         return max(1, (int) config('kanvas.agents.max_history_tokens', self::MIN_HISTORY_TOKENS));
     }
 

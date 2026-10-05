@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExposesCustomFields;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesAddressesForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesOrganizationForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -17,22 +16,18 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Get Organization', category: 'crm')]
-class GetOrganizationTool extends Tool implements HasRunKey
+class GetOrganizationTool extends Tool
 {
     use ExposesCustomFields;
     use HandlesAddressesForTool;
     use ResolvesOrganizationForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_organization',
-            description: 'Returns the full profile of one customer organization: name, email, phone, type, addresses, '
-                . 'tags, how many people are linked to it, and its business custom fields. Identify it by '
-                . 'organization_id, or by organization_name when you do not have the id.',
-        );
-    }
+    protected string $name = 'get_organization';
+
+    protected ?string $description = 'Returns the full profile of one customer organization: name, email, phone, type, addresses, '
+        . 'tags, how many people are linked to it, and its business custom fields. Identify it by '
+        . 'organization_id, or by organization_name when you do not have the id.';
 
     /**
      * @return array<int, ToolProperty>

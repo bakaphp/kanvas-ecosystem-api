@@ -18,15 +18,11 @@ class ListProductTypesTool extends Tool
     use HasKanvasContext;
     use ListsCatalogReferenceData;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_product_types',
-            description: 'List the product types available to this company, including the app-wide ones. A product '
-                . 'type groups products that share a set of attributes; use this to get a product_type_id for '
-                . 'create_product or update_product.',
-        );
-    }
+    protected string $name = 'list_product_types';
+
+    protected ?string $description = 'List the product types available to this company, including the app-wide ones. A product '
+        . 'type groups products that share a set of attributes; use this to get a product_type_id for '
+        . 'create_product or update_product.';
 
     /**
      * @return array<int, ToolProperty>

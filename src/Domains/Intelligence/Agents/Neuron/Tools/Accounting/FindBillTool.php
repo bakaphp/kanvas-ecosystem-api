@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,22 +22,18 @@ use Override;
  * Reads synced data; reports found=false when the bill isn't in Kanvas.
  */
 #[AgentTool(name: 'Find Bill', category: 'accounting')]
-class FindBillTool extends Tool implements HasRunKey
+class FindBillTool extends Tool
 {
     use FindsTenantRecordForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_bill',
-            description: 'Look up a single bill by its number and return the full detail: vendor, document status '
-                . '(draft/pending_approval/received/paid/voided), total, amount paid, balance due, dates and every '
-                . 'line with GL account + subaccount. Use this when the user names a specific bill number. Returns '
-                . 'found=false when the bill is not in the synced data.',
-        );
-    }
+    protected string $name = 'find_bill';
+
+    protected ?string $description = 'Look up a single bill by its number and return the full detail: vendor, document status '
+        . '(draft/pending_approval/received/paid/voided), total, amount paid, balance due, dates and every '
+        . 'line with GL account + subaccount. Use this when the user names a specific bill number. Returns '
+        . 'found=false when the bill is not in the synced data.';
 
     /**
      * @return array<int, ToolProperty>

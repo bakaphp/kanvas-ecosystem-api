@@ -24,15 +24,15 @@ class SendSmsTool extends Tool
 {
     use ResolvesLeadForTool;
 
+    protected string $name = 'send_sms';
+
+    protected ?string $description = 'Send one SMS to the phone already stored on a lead. '
+        . 'Use this only after the complete customer-facing message is ready. Call it at most once per message. '
+        . 'The recipient cannot be supplied or changed. For email, use send_email.';
+
     public function __construct(
         private readonly ?Closure $sender = null,
     ) {
-        parent::__construct(
-            name: 'send_sms',
-            description: 'Send one SMS to the phone already stored on a lead. '
-                . 'Use this only after the complete customer-facing message is ready. Call it at most once per message. '
-                . 'The recipient cannot be supplied or changed. For email, use send_email.',
-        );
     }
 
     #[Override]

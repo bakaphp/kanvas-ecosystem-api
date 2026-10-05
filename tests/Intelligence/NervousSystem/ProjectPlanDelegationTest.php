@@ -434,7 +434,7 @@ class ProjectPlanDelegationTest extends TestCase
         $agent = $this->makeAgent($app, $company, $user);
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $user);
+        $pm->setConfiguration($agent, user: $user);
 
         $method = new ReflectionMethod($pm, 'tools');
         /** @var array<int, object> $tools */

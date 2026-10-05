@@ -24,15 +24,11 @@ class GetBatchHistoryTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_batch_history',
-            description: 'Review batch outreach campaigns. With no arguments, lists recent campaigns with their '
-                . 'channel, status, and sent/failed/skipped counts. Pass campaign_id to get that campaign\'s detail '
-                . 'plus a sample of recipients that failed or were skipped, with reasons.',
-        );
-    }
+    protected string $name = 'get_batch_history';
+
+    protected ?string $description = 'Review batch outreach campaigns. With no arguments, lists recent campaigns with their '
+        . 'channel, status, and sent/failed/skipped counts. Pass campaign_id to get that campaign\'s detail '
+        . 'plus a sample of recipients that failed or were skipped, with reasons.';
 
     /**
      * @return array<int, ToolProperty>

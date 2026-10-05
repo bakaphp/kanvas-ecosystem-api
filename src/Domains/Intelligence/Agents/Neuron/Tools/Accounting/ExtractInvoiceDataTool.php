@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
 use Kanvas\Scribe\PdfIngest\Traits\ResolvesPdfClassifierTrait;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -18,23 +17,19 @@ use Throwable;
 
 /** Reads a PDF already saved in Kanvas (e.g. via download_attachment) and extracts vendor/total/dates/line items with AI — the real invoice numbers don't live in an email body. */
 #[AgentTool(name: 'Extract Invoice Data', category: 'accounting')]
-class ExtractInvoiceDataTool extends Tool implements HasRunKey
+class ExtractInvoiceDataTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesFilesystemForTool;
     use ResolvesPdfClassifierTrait;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'extract_invoice_data',
-            description: 'Reads a PDF already stored in Kanvas (e.g. the filesystem_id returned by '
-                . 'download_attachment) and uses AI to classify it and extract vendor name, total, currency, '
-                . 'dates, and line items. Use this before writing an invoice\'s amount anywhere — never guess a '
-                . 'total from an email\'s subject/body text alone; the real figures are inside the PDF.',
-        );
-    }
+    protected string $name = 'extract_invoice_data';
+
+    protected ?string $description = 'Reads a PDF already stored in Kanvas (e.g. the filesystem_id returned by '
+        . 'download_attachment) and uses AI to classify it and extract vendor name, total, currency, '
+        . 'dates, and line items. Use this before writing an invoice\'s amount anywhere — never guess a '
+        . 'total from an email\'s subject/body text alone; the real figures are inside the PDF.';
 
     /**
      * @return array<int, ToolProperty>

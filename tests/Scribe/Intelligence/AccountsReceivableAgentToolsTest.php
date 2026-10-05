@@ -37,11 +37,13 @@ use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use Tests\Scribe\ScribeTestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 class AccountsReceivableAgentToolsTest extends ScribeTestCase
 {
+    use AssertsToolRunKeys;
+
     public function test_find_customer_tool_returns_acumatica_code(): void
     {
         $customer = $this->seedTestOrganization('Acme Corporation');
@@ -789,19 +791,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool->getName() . ' must key its run budget by inputs.');
-
-            $tool->setInputs(['name' => 'Industrias San Miguel', 'customer' => 'Industrias San Miguel', 'invoice_number' => 'INV-1']);
-            $keyOne = $tool->getRunKey();
-
-            $tool->setInputs(['name' => 'Acme Corporation', 'customer' => 'Acme Corporation', 'invoice_number' => 'INV-2']);
-            $keyTwo = $tool->getRunKey();
-
-            $tool->setInputs(['name' => 'Industrias San Miguel', 'customer' => 'Industrias San Miguel', 'invoice_number' => 'INV-1']);
-            $keyOneAgain = $tool->getRunKey();
-
-            $this->assertNotEquals($keyOne, $keyTwo, $tool->getName() . ': distinct records must not share a run budget.');
-            $this->assertEquals($keyOneAgain, $keyOne, $tool->getName() . ': identical calls must collapse so a loop is still capped.');
+            $this->assertRunKeyFollowsInputs($tool);
         }
     }
 }

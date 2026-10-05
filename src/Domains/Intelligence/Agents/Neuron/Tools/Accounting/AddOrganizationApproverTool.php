@@ -26,16 +26,12 @@ class AddOrganizationApproverTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'add_organization_approver',
-            description: 'Adds (or reuses) a Kanvas User as an approver for a vendor/customer organization — '
-                . 'that person can then approve pending bills/invoices for it and gets notified when a new one '
-                . 'comes in. Resolve the organization_id first with find_vendor or find_customer. Only call when '
-                . 'the user explicitly asks to add/assign an approver, never on your own initiative.',
-        );
-    }
+    protected string $name = 'add_organization_approver';
+
+    protected ?string $description = 'Adds (or reuses) a Kanvas User as an approver for a vendor/customer organization — '
+        . 'that person can then approve pending bills/invoices for it and gets notified when a new one '
+        . 'comes in. Resolve the organization_id first with find_vendor or find_customer. Only call when '
+        . 'the user explicitly asks to add/assign an approver, never on your own initiative.';
 
     /**
      * @return array<int, ToolProperty>

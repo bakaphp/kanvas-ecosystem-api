@@ -10,7 +10,7 @@ use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddPersonNoteTool;
 use Kanvas\Social\Messages\Models\Message;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 
 final class AddPersonNoteToolTest extends TestCase
@@ -95,7 +95,7 @@ final class AddPersonNoteToolTest extends TestCase
     {
         $tool = new AddPersonNoteTool();
 
-        $this->assertInstanceOf(HasRunKey::class, $tool);
+        $this->assertContains(TrackByInputs::class, class_uses_recursive($tool));
 
         $keyA = $tool->setInputs(['person_id' => 4211])->getRunKey();
         $keyB = $tool->setInputs(['person_id' => 4212])->getRunKey();

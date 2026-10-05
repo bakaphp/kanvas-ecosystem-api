@@ -28,18 +28,14 @@ class RescheduleCalendarEventTool extends Tool
     use GuardsOwnerCalendarForTool;
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'reschedule_calendar_event',
-            description: 'Move an EXISTING appointment to a new date/time. Use this — NOT create_calendar_event — '
-                . 'whenever the prospect wants to change a meeting that is already on the calendar. '
-                . 'Pass the event_uuid from get_lead_ref appointments.upcoming[].uuid. The previous slot is '
-                . 'freed automatically (the appointment is moved in place, not duplicated). '
-                . 'Check get_user_availability first so the new time is real. '
-                . 'When the result has lead_notified: true the lead was already emailed the new time — do not send your own.',
-        );
-    }
+    protected string $name = 'reschedule_calendar_event';
+
+    protected ?string $description = 'Move an EXISTING appointment to a new date/time. Use this — NOT create_calendar_event — '
+        . 'whenever the prospect wants to change a meeting that is already on the calendar. '
+        . 'Pass the event_uuid from get_lead_ref appointments.upcoming[].uuid. The previous slot is '
+        . 'freed automatically (the appointment is moved in place, not duplicated). '
+        . 'Check get_user_availability first so the new time is real. '
+        . 'When the result has lead_notified: true the lead was already emailed the new time — do not send your own.';
 
     #[Override]
     protected function properties(): array

@@ -12,7 +12,6 @@ use Kanvas\Workflow\Actions\CreateReceiverWebhookAction;
 use Kanvas\Workflow\DataTransferObject\ReceiverWebhook as ReceiverWebhookData;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -30,24 +29,20 @@ use Throwable;
  * authenticated, so creating one is closer to handing out a credential than to changing a setting.
  */
 #[AgentTool(name: 'Create Company Receiver', category: 'workflow')]
-class CreateCompanyReceiverTool extends Tool implements HasRunKey
+class CreateCompanyReceiverTool extends Tool
 {
     use GuardsAdminForTool;
     use ResolvesWorkflowCatalogForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_company_receiver',
-            description: 'Create an inbound endpoint for THIS company: a URL an outside system can POST to, '
-                . 'which then runs the receiver you name — turning a landing-page form, a partner feed or an '
-                . 'external system into records in Kanvas. Admin only. Call list_workflow_options with '
-                . 'kind "receivers" first to see what this app can receive and use a name from there '
-                . 'verbatim. Returns the URL, which the person you are talking to has to give to whoever '
-                . 'sends the data.',
-        );
-    }
+    protected string $name = 'create_company_receiver';
+
+    protected ?string $description = 'Create an inbound endpoint for THIS company: a URL an outside system can POST to, '
+        . 'which then runs the receiver you name — turning a landing-page form, a partner feed or an '
+        . 'external system into records in Kanvas. Admin only. Call list_workflow_options with '
+        . 'kind "receivers" first to see what this app can receive and use a name from there '
+        . 'verbatim. Returns the URL, which the person you are talking to has to give to whoever '
+        . 'sends the data.';
 
     /**
      * @return array<int, ToolProperty>

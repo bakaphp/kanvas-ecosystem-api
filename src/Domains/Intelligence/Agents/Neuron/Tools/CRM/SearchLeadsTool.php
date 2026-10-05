@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesUpdatedWindow;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -30,30 +29,26 @@ use Override;
  * and paging 2,000 rows to count them is not an answer.
  */
 #[AgentTool(name: 'Search Leads', category: 'crm')]
-class SearchLeadsTool extends Tool implements HasRunKey
+class SearchLeadsTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesUpdatedWindow;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'search_leads',
-            description: 'Find leads by (partial) name, email, phone, or lead title — or audit the whole book. '
-                . 'Use it whenever you need a lead_id you do not have ("find the lead for Ana", "which lead has '
-                . 'this email"), and also to answer questions about contact data quality: pass missing_contact '
-                . '("email", "phone", "either" or "both") to get every lead whose contact is missing that, with '
-                . 'no query needed. The reply carries total_matching — the FULL count, not capped by limit — so '
-                . 'you can answer "how many" in one call without paging. Returns lead_id, contact name, email, '
-                . 'phone, owner, stage and status. Filter by status (open/closed/all) and by owner name/email. '
-                . 'THIS IS ALSO THE TOOL FOR "what changed today": pass updated_since ("today", "yesterday", '
-                . '"last_7_days", or a YYYY-MM-DD date) — on its own, or with owner, to answer "which leads did '
-                . '<rep> touch today". Day boundaries are resolved in the company timezone. '
-                . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_leads_bulk instead '
-                . 'and pass every name in a single call; do not call this tool once per row.',
-        );
-    }
+    protected string $name = 'search_leads';
+
+    protected ?string $description = 'Find leads by (partial) name, email, phone, or lead title — or audit the whole book. '
+        . 'Use it whenever you need a lead_id you do not have ("find the lead for Ana", "which lead has '
+        . 'this email"), and also to answer questions about contact data quality: pass missing_contact '
+        . '("email", "phone", "either" or "both") to get every lead whose contact is missing that, with '
+        . 'no query needed. The reply carries total_matching — the FULL count, not capped by limit — so '
+        . 'you can answer "how many" in one call without paging. Returns lead_id, contact name, email, '
+        . 'phone, owner, stage and status. Filter by status (open/closed/all) and by owner name/email. '
+        . 'THIS IS ALSO THE TOOL FOR "what changed today": pass updated_since ("today", "yesterday", '
+        . '"last_7_days", or a YYYY-MM-DD date) — on its own, or with owner, to answer "which leads did '
+        . '<rep> touch today". Day boundaries are resolved in the company timezone. '
+        . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_leads_bulk instead '
+        . 'and pass every name in a single call; do not call this tool once per row.';
 
     /**
      * @return array<int, ToolProperty>

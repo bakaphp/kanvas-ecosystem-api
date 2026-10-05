@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Capability;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\NervousSystem\Capability\Services\ActiveIntegrationsService;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
@@ -24,22 +23,18 @@ use Override;
  * change here.
  */
 #[AgentTool(name: 'List Active Integrations', category: 'nervous_system')]
-class ListActiveIntegrationsTool extends Tool implements HasRunKey
+class ListActiveIntegrationsTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_active_integrations',
-            description: 'List the external services this company has connected and switched on — the '
-                . 'CRMs, coding agents, publishing targets and data providers it can actually reach. Use '
-                . 'it before telling anyone that something cannot be integrated, reached or automated: '
-                . 'an integration missing from this list is not set up HERE, which is a different answer '
-                . 'from "the platform cannot do it" and needs a different reply. Takes no arguments.',
-        );
-    }
+    protected string $name = 'list_active_integrations';
+
+    protected ?string $description = 'List the external services this company has connected and switched on — the '
+        . 'CRMs, coding agents, publishing targets and data providers it can actually reach. Use '
+        . 'it before telling anyone that something cannot be integrated, reached or automated: '
+        . 'an integration missing from this list is not set up HERE, which is a different answer '
+        . 'from "the platform cannot do it" and needs a different reply. Takes no arguments.';
 
     /**
      * @return array<int, ToolProperty>

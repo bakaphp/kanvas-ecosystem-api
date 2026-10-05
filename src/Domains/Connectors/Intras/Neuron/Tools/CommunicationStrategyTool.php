@@ -15,7 +15,6 @@ use Kanvas\Event\Reports\Repositories\OpenEventsTrackingRepository;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEventVersionForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -34,11 +33,20 @@ use Throwable;
  * It only reads. Sending the campaign is a separate, human-approved step.
  */
 #[AgentTool(name: 'Intras Communication Strategy', category: 'reporting')]
-class CommunicationStrategyTool extends Tool implements HasRunKey
+class CommunicationStrategyTool extends Tool
 {
     use TrackByInputs;
     use HasKanvasContext;
     use ResolvesEventVersionForTool;
+
+    protected string $name = 'intras_communication_strategy';
+
+    protected ?string $description = 'Estrategias de comunicación de INTRAS para seminarios abiertos. '
+        . 'mode="audiencia": lista de invitados (Plan A) para una versión — exparticipantes '
+        . 'del mismo seminario en los últimos 24 meses, con estatus activo, de la ciudad y de '
+        . 'empresas con plan AXIS, excluyendo a los ya inscritos. mode="planes": seminarios '
+        . 'abiertos de los próximos 14 días que califican para Plan B (menos de 18 inscritos '
+        . 'firmes a 2 semanas) o Plan C (menos de 15 a 10 días). Sólo consulta: no envía nada.';
 
     private const array MODES = ['audiencia', 'planes'];
 
@@ -48,19 +56,6 @@ class CommunicationStrategyTool extends Tool implements HasRunKey
     private const array DEFAULT_STATUSES = ['ACTIVO', 'ACTIVO EMAIL'];
 
     private const array CONTACT_COLUMNS = ['peoples_id', 'nombre_completo', 'email', 'posicion', 'empresa', 'ciudad', 'estatus'];
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'intras_communication_strategy',
-            description: 'Estrategias de comunicación de INTRAS para seminarios abiertos. '
-                . 'mode="audiencia": lista de invitados (Plan A) para una versión — exparticipantes '
-                . 'del mismo seminario en los últimos 24 meses, con estatus activo, de la ciudad y de '
-                . 'empresas con plan AXIS, excluyendo a los ya inscritos. mode="planes": seminarios '
-                . 'abiertos de los próximos 14 días que califican para Plan B (menos de 18 inscritos '
-                . 'firmes a 2 semanas) o Plan C (menos de 15 a 10 días). Sólo consulta: no envía nada.',
-        );
-    }
 
     /**
      * @return array<int, ToolProperty>

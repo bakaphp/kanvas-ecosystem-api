@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesOrganizationForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Social\Tags\Models\Tag;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -18,21 +17,17 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Tag Organization', category: 'crm')]
-class TagOrganizationTool extends Tool implements HasRunKey
+class TagOrganizationTool extends Tool
 {
     use ReportsToolOutcome;
     use ResolvesOrganizationForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'tag_organization',
-            description: 'Add or remove tags on a customer organization. Pass organization_id and a list of tag names; '
-                . 'set remove=true to detach them instead of attaching. Tags that do not exist yet are created. '
-                . 'Returns the organization\'s current tags.',
-        );
-    }
+    protected string $name = 'tag_organization';
+
+    protected ?string $description = 'Add or remove tags on a customer organization. Pass organization_id and a list of tag names; '
+        . 'set remove=true to detach them instead of attaching. Tags that do not exist yet are created. '
+        . 'Returns the organization\'s current tags.';
 
     /**
      * @return array<int, ToolPropertyInterface>

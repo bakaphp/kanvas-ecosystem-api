@@ -30,21 +30,17 @@ class ExportTableTool extends Tool
     use DecodesJsonObjectParam;
     use HasKanvasContext;
 
+    protected string $name = 'export_table';
+
+    protected ?string $description = 'Write a table you already have into a downloadable CSV and return its file URL + row '
+        . 'count. Use it when the rows come from the user (a pasted list, a table built during this '
+        . 'conversation) and they want it as a file with their own columns. It performs NO lookup — it '
+        . 'only writes down what you pass it, so never use it to answer whether a record exists. For a '
+        . 'list that has to be read out of Kanvas (people, orders, products, employees, …) use '
+        . 'export_records instead.';
+
     public const int MAX_ROWS = 5000;
     public const int MAX_COLUMNS = 60;
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'export_table',
-            description: 'Write a table you already have into a downloadable CSV and return its file URL + row '
-                . 'count. Use it when the rows come from the user (a pasted list, a table built during this '
-                . 'conversation) and they want it as a file with their own columns. It performs NO lookup — it '
-                . 'only writes down what you pass it, so never use it to answer whether a record exists. For a '
-                . 'list that has to be read out of Kanvas (people, orders, products, employees, …) use '
-                . 'export_records instead.',
-        );
-    }
 
     /**
      * @return array<int, ToolProperty>

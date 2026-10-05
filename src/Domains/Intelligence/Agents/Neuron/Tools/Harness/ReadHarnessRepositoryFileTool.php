@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -29,23 +28,23 @@ use Override;
  * Truncated on purpose — this is for orienting, not for pulling a codebase into the context window.
  */
 #[AgentTool(name: 'Read Coding Repository File', category: 'coding')]
-class ReadHarnessRepositoryFileTool extends Tool implements HasRunKey, RequiresSystemAgent
+class ReadHarnessRepositoryFileTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use ResolvesCodingRepositoryForTool;
     use TrackByInputs;
+
+    protected string $name = 'read_coding_repository_file';
+
+    protected ?string $description = 'Read a file from a repository you can work on, without starting a job. Use it '
+        . 'to check what the code actually does before writing a task — the conventions in use, '
+        . 'whether a helper already exists, what a file is called. Long files are truncated.';
 
     private const int MAX_CHARS = 20000;
 
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'read_coding_repository_file',
-            description: 'Read a file from a repository you can work on, without starting a job. Use it '
-                . 'to check what the code actually does before writing a task — the conventions in use, '
-                . 'whether a helper already exists, what a file is called. Long files are truncated.',
-        );
     }
 
     /**

@@ -13,7 +13,11 @@ use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 
-#[AgentTool(name: 'Dynamic Sub Agent', category: 'crm')]
+#[AgentTool(
+    name: 'Dynamic Sub Agent',
+    description: 'Delegate a question to one of the company\'s own configured agents, described by that agent\'s record at runtime.',
+    category: 'crm',
+)]
 class DynamicSubAgent extends KanvasAgentAsTool
 {
     use MergesRegisteredTools;
@@ -37,21 +41,12 @@ class DynamicSubAgent extends KanvasAgentAsTool
 
     public function description(): string
     {
-        return $this->agentRecord->soul ?? $this->agentRecord->description ?? $this->agentRecord->name;
+        return $this->agentRecord->summary();
     }
 
     public function instructions(): string
     {
-        $type = $this->agentRecord->type;
-        $coalesce = static fn (?string $a, ?string $b): ?string => ($a !== null && $a !== '') ? $a : $b;
-
-        $parts = array_filter([
-            $coalesce($this->agentRecord->soul, $type?->soul),
-            $coalesce($this->agentRecord->instructions, $type?->instructions),
-            $coalesce($this->agentRecord->output_format, $type?->output_format),
-        ]);
-
-        return implode("\n\n", $parts);
+        return $this->agentRecord->personaPrompt();
     }
 
     public function agentTools(): iterable

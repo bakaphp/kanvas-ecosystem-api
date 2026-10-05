@@ -12,7 +12,6 @@ use Kanvas\Analytics\Reporting\Support\ReportRegistry;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -37,25 +36,21 @@ use Throwable;
  * read.
  */
 #[AgentTool(name: 'Run Report', category: 'reporting')]
-class RunReportTool extends Tool implements HasRunKey
+class RunReportTool extends Tool
 {
     use TrackByInputs;
     use HasKanvasContext;
 
-    private const int DEFAULT_GROUP_LIMIT = 200;
+    protected string $name = 'run_report';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'run_report',
-            description: 'Query a reporting model with filters and get back rows plus counts. '
-                . 'Call describe_report_model first to get the column names. Filters are ANDed. '
-                . 'On a person-per-event model, set distinct_column to count people rather than '
-                . 'registrations. Set group_by to get a breakdown for a chart instead of rows; it '
-                . 'takes several columns and date periods ("fecha_inicio:month"). Add aggregates '
-                . 'to sum, average, min or max a column (revenue, satisfaction) per group.',
-        );
-    }
+    protected ?string $description = 'Query a reporting model with filters and get back rows plus counts. '
+        . 'Call describe_report_model first to get the column names. Filters are ANDed. '
+        . 'On a person-per-event model, set distinct_column to count people rather than '
+        . 'registrations. Set group_by to get a breakdown for a chart instead of rows; it '
+        . 'takes several columns and date periods ("fecha_inicio:month"). Add aggregates '
+        . 'to sum, average, min or max a column (revenue, satisfaction) per group.';
+
+    private const int DEFAULT_GROUP_LIMIT = 200;
 
     /**
      * @return array<int, ToolProperty>

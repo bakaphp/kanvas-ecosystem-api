@@ -18,8 +18,6 @@ enum ConfigurationEnum: string
      */
     public static function emailsEnabled(Apps $app): bool
     {
-        $configured = $app->get(self::SEND_EMAILS->value);
-
-        return $configured === null || filter_var($configured, FILTER_VALIDATE_BOOL);
+        return $app->getBool(self::SEND_EMAILS->value, default: true);
     }
 }

@@ -13,7 +13,6 @@ use Kanvas\Event\Reports\Repositories\OpenEventsTrackingRepository;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEventVersionForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -39,27 +38,23 @@ use Throwable;
  * now" — and leaves `Kanvas\Event` untouched for every other tenant.
  */
 #[AgentTool(name: 'Intras Event Tracking', category: 'reporting')]
-class EventTrackingTool extends Tool implements HasRunKey
+class EventTrackingTool extends Tool
 {
     use TrackByInputs;
     use HasKanvasContext;
     use ResolvesEventVersionForTool;
 
-    private const array MODES = ['seguimiento', 'version', 'historico'];
+    protected string $name = 'intras_event_tracking';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'intras_event_tracking',
-            description: 'Cómo va la inscripción de los eventos según las reglas de INTRAS. '
-                . 'mode="seguimiento": próximos eventos con inscritos, meta, % de avance y '
-                . 'estado (verde/rojo). mode="version": la curva semanal de una versión contra '
-                . 'su objetivo. mode="historico": la misma curva contra el promedio de las versiones '
-                . 'anteriores del mismo evento, en total y por tipo de inscripción. El total es la asistencia esperada ponderada '
-                . '(0.95 confirmado/plan/programa/intercambio/crédito, 0.6 reservado/interesado), '
-                . 'no un conteo bruto, y la curva es la de 5 semanas 25/45/75/90/100.',
-        );
-    }
+    protected ?string $description = 'Cómo va la inscripción de los eventos según las reglas de INTRAS. '
+        . 'mode="seguimiento": próximos eventos con inscritos, meta, % de avance y '
+        . 'estado (verde/rojo). mode="version": la curva semanal de una versión contra '
+        . 'su objetivo. mode="historico": la misma curva contra el promedio de las versiones '
+        . 'anteriores del mismo evento, en total y por tipo de inscripción. El total es la asistencia esperada ponderada '
+        . '(0.95 confirmado/plan/programa/intercambio/crédito, 0.6 reservado/interesado), '
+        . 'no un conteo bruto, y la curva es la de 5 semanas 25/45/75/90/100.';
+
+    private const array MODES = ['seguimiento', 'version', 'historico'];
 
     /**
      * @return array<int, ToolProperty>

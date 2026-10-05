@@ -15,7 +15,6 @@ use Kanvas\NervousSystem\Project\Actions\AddProjectMemberAction;
 use Kanvas\NervousSystem\Project\Enums\ProjectMemberRoleEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -31,7 +30,7 @@ use Throwable;
  * than assign to the wrong person. Agents are preferred over humans (they can execute).
  */
 #[AgentTool(name: 'Find And Add Member', category: 'nervous_system')]
-class FindAndAddNervousSystemMemberTool extends Tool implements HasRunKey
+class FindAndAddNervousSystemMemberTool extends Tool
 {
     use HasKanvasContext;
     use MatchesNameTerms;
@@ -39,17 +38,13 @@ class FindAndAddNervousSystemMemberTool extends Tool implements HasRunKey
     use ResolvesProjectForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_and_add_nervous_system_member',
-            description: 'Find a person or agent by NAME in this company and add them to the project as a '
-                . 'member — use when the content names who should own/do something but they are not yet a '
-                . 'member. Pass the full name as written ("Roberlina Vega"); add email to disambiguate when '
-                . 'several people share a name. Returns whether it was found and whether that member can '
-                . 'execute board work. If not found, create the work unassigned and escalate to a human.',
-        );
-    }
+    protected string $name = 'find_and_add_nervous_system_member';
+
+    protected ?string $description = 'Find a person or agent by NAME in this company and add them to the project as a '
+        . 'member — use when the content names who should own/do something but they are not yet a '
+        . 'member. Pass the full name as written ("Roberlina Vega"); add email to disambiguate when '
+        . 'several people share a name. Returns whether it was found and whether that member can '
+        . 'execute board work. If not found, create the work unassigned and escalate to a human.';
 
     /**
      * @return array<int, ToolProperty>
