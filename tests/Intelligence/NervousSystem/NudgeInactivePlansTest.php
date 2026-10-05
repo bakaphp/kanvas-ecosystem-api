@@ -18,9 +18,11 @@ use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
+use Kanvas\NervousSystem\Project\Actions\NotifyProjectInactivePlansAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
 use Kanvas\NervousSystem\Project\Models\Project;
+use Kanvas\NervousSystem\Project\Notifications\ProjectInactivePlansNotification;
 use Kanvas\NervousSystem\Project\Services\StalePlanNudgeService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
@@ -65,8 +67,13 @@ class NudgeInactivePlansTest extends TestCase
      *
      * @param array<string, mixed> $attrs
      */
-    private function stalePlan(Project $project, Apps $app, Companies $company, Users $user, array $attrs = []): Plan
-    {
+    private function stalePlan(
+        Project $project,
+        Apps $app,
+        Companies $company,
+        Users $user,
+        array $attrs = [],
+    ): Plan {
         $plan = new CreatePlanAction(
             new PlanData(
                 app: $app,
@@ -120,7 +127,7 @@ class NudgeInactivePlansTest extends TestCase
         $this->assertNotContains((int) $fresh->id, array_map('intval', $ids));
     }
 
-    public function testHumanAssignedPlanIsPingedAndOwnerNotified(): void
+    public function testHumanAssignedPlanIsPingedWithoutPerPlanEmail(): void
     {
         Notification::fake();
 
@@ -128,7 +135,13 @@ class NudgeInactivePlansTest extends TestCase
         $project = $this->makeProject($app, $company, $user);
 
         $assignee = Users::factory()->create();
-        $plan = $this->stalePlan($project, $app, $company, $user, ['assigned_users_id' => $assignee->getId()]);
+        $plan = $this->stalePlan(
+            $project,
+            $app,
+            $company,
+            $user,
+            ['assigned_users_id' => $assignee->getId()],
+        );
 
         $result = new NudgeInactivePlanAction($plan, 24)->execute();
 
@@ -142,12 +155,8 @@ class NudgeInactivePlansTest extends TestCase
         $this->assertNotNull($posted);
         $this->assertStringContainsString('no activity', (string) ($posted->message['content'] ?? ''));
 
-        // The human PM (project owner) is notified — owner differs from the assignee here.
-        Notification::assertSentTo(
-            $user,
-            PlanProgressNotification::class,
-            fn (PlanProgressNotification $n): bool => ($n->getData()['metadata']['change_type'] ?? null) === 'stale',
-        );
+        // The owner's heads-up is the per-project digest the sweep sends, never a per-plan mail.
+        Notification::assertNotSentTo($user, PlanProgressNotification::class);
 
         $this->assertDatabaseHas('nervous_system_events', [
             'source_entity_type' => Plan::class,
@@ -166,7 +175,13 @@ class NudgeInactivePlansTest extends TestCase
         $worker = Agent::factory()->withAppId($app->getId())->withCompanyId($company->getId())
             ->create(['user_id' => Users::factory()->create()->getId(), 'is_active' => true]);
 
-        $plan = $this->stalePlan($project, $app, $company, $user, ['agent_id' => $worker->getId()]);
+        $plan = $this->stalePlan(
+            $project,
+            $app,
+            $company,
+            $user,
+            ['agent_id' => $worker->getId()],
+        );
 
         // First pass: the agent went silent → re-wake it (no human ping yet).
         $first = new NudgeInactivePlanAction($plan, 24)->execute();
@@ -188,7 +203,13 @@ class NudgeInactivePlansTest extends TestCase
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
         $assignee = Users::factory()->create();
-        $plan = $this->stalePlan($project, $app, $company, $user, ['assigned_users_id' => $assignee->getId()]);
+        $plan = $this->stalePlan(
+            $project,
+            $app,
+            $company,
+            $user,
+            ['assigned_users_id' => $assignee->getId()],
+        );
 
         $this->assertSame(NudgeInactivePlanAction::RESULT_PINGED_HUMAN, new NudgeInactivePlanAction($plan, 24)->execute());
 
@@ -199,26 +220,71 @@ class NudgeInactivePlansTest extends TestCase
         );
     }
 
-    public function testCommandNudgesStaleProjectPlansWithConfigurableHours(): void
+    public function testCommandSendsOneProjectDigestForAllStalePlans(): void
     {
         Notification::fake();
 
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
         $assignee = Users::factory()->create();
-        $plan = $this->stalePlan($project, $app, $company, $user, ['assigned_users_id' => $assignee->getId()]);
+        $first = $this->stalePlan(
+            $project,
+            $app,
+            $company,
+            $user,
+            ['assigned_users_id' => $assignee->getId()],
+        );
+        $second = $this->stalePlan(
+            $project,
+            $app,
+            $company,
+            $user,
+            ['assigned_users_id' => $assignee->getId()],
+        );
 
         Artisan::call('kanvas:nervous-system:nudge-inactive-plans', [
             '--hours' => 24,
             '--project' => $project->id,
         ]);
 
-        $this->assertDatabaseHas('nervous_system_events', [
-            'source_entity_type' => Plan::class,
-            'source_entity_id' => $plan->id,
-            'event_type' => 'plan.staleness.detected',
-        ], 'intelligence');
+        foreach ([$first, $second] as $plan) {
+            $this->assertDatabaseHas('nervous_system_events', [
+                'source_entity_type' => Plan::class,
+                'source_entity_id' => $plan->id,
+                'event_type' => 'plan.staleness.detected',
+            ], 'intelligence');
+        }
 
-        Notification::assertSentTo($user, PlanProgressNotification::class);
+        Notification::assertNotSentTo($user, PlanProgressNotification::class);
+        Notification::assertSentToTimes($user, ProjectInactivePlansNotification::class, 1);
+        Notification::assertSentTo(
+            $user,
+            ProjectInactivePlansNotification::class,
+            function (ProjectInactivePlansNotification $n) use ($first, $second): bool {
+                $data = $n->getData();
+                $ids = array_map('intval', $data['metadata']['plan_ids'] ?? []);
+                $expected = [(int) $first->id, (int) $second->id];
+                sort($ids);
+                sort($expected);
+                $html = $n->getEmailContent();
+
+                return $ids === $expected
+                    && count($data['plans']) === 2
+                    && $data['metadata']['change_type'] === 'stale'
+                    && str_contains($html, $first->title)
+                    && str_contains($html, $second->title);
+            },
+        );
+    }
+
+    public function testProjectDigestIsSkippedWhenNothingWasNudged(): void
+    {
+        Notification::fake();
+
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        $this->assertFalse(new NotifyProjectInactivePlansAction($project, [], 24)->execute());
+        Notification::assertNothingSent();
     }
 }

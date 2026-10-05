@@ -35,6 +35,26 @@ class KanvasChatHistoryTest extends TestCase
         $this->assertSame(['u2', 'a2', 'u3'], array_map(fn (Message $m): string => $m->getId(), $history->getMessages()));
     }
 
+    /**
+     * KANVAS-ECOSYSTEM-6HP: the chat node sends getMessages() plus the inbound turn and adds to the history
+     * afterwards, so a history that is only trimmed on add reaches the provider whole on the first call.
+     */
+    public function testTheLoadedHistoryIsAlreadyCutBeforeAnythingIsAdded(): void
+    {
+        $store = $this->store([
+            new UserMessage(str_repeat('a', 400))->setId('u1'),
+            new AssistantMessage(str_repeat('b', 400))->setId('a1'),
+            new UserMessage(str_repeat('c', 400))->setId('u2'),
+            new AssistantMessage(str_repeat('d', 400))->setId('a2'),
+        ]);
+        $history = $this->history($store, contextWindow: 260);
+
+        $messages = $history->getMessages();
+
+        $this->assertSame(['u2', 'a2'], array_map(fn (Message $m): string => $m->getId(), $messages));
+        $this->assertSame(['u1', 'a1'], $store->archived, 'What the load dropped is archived, as an add would');
+    }
+
     public function testAFoldedTurnIsNotArchived(): void
     {
         $store = $this->store([
