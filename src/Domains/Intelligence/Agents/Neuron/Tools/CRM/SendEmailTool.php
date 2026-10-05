@@ -14,7 +14,9 @@ use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Outreach\PersistToolOutboundMessageAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\HasConversationHuman;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,6 +26,7 @@ use Throwable;
 #[AgentTool(name: 'Send Email', category: 'crm')]
 class SendEmailTool extends Tool
 {
+    use HasConversationHuman;
     use ResolvesLeadForTool;
 
     /** Lead custom field the Mailgun responder and the follow-up engine read as the email thread subject. */
@@ -76,7 +79,8 @@ class SendEmailTool extends Tool
                 type: PropertyType::STRING,
                 description: 'The email body, written to the prospect in the first person on behalf of the business. '
                     . 'Markdown is supported (headings, bold, lists, links) and is rendered to HTML. '
-                    . 'Do not add a greeting header image, a signature, or "Sent by AI" — the template adds the branding and signature.',
+                    . 'Do not add a greeting header image, a signature, or "Sent by AI" — the template handles branding. '
+                    . 'For internal assistants, the sender’s enabled email signature is added automatically, never the customer-facing agent’s signature.',
                 required: true,
             ),
             new ToolProperty(
@@ -135,7 +139,7 @@ class SendEmailTool extends Tool
         $ccResult = $this->resolveCcRecipients($lead, $cc, $contact->value);
 
         try {
-            $sent = new SendMessageToLeadAction($lead)->execute(
+            $sent = new SendMessageToLeadAction($lead)->withSignatureOwner($this->signatureOwner())->execute(
                 channel: LeadCommunicationChannelEnum::EMAIL->value,
                 message: $body,
                 title: $subject,
@@ -200,6 +204,16 @@ class SendEmailTool extends Tool
             'attachments_count' => $sent['attachments_count'] ?? 0,
             'note' => $note,
         ];
+    }
+
+    protected function signatureOwner(): ?Users
+    {
+        if (! ($this->contextAgent()?->conversesWithUser() ?? false)) {
+            return null;
+        }
+
+        // Never infer the sender from the lead owner or the shared bot context user.
+        return $this->conversationHuman;
     }
 
     /**
