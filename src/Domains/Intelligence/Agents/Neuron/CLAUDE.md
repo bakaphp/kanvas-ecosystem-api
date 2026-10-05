@@ -123,6 +123,10 @@ KanvasHistoryTrimmer → fold, then cut   (never swapped)
 contextWindow() → model ceiling, capped by AGENT_MAX_HISTORY_TOKENS (or the app's agent_max_history_tokens)
 ```
 
+`KanvasChatHistory` trims on load as well as on add: since 4.1 the chat node sends `getMessages()`
+plus the inbound turn and adds to the history afterwards, so an add-only trim runs after the first
+request of every turn (KANVAS-ECOSYSTEM-6HP, a 1,962-email rollup sent whole).
+
 The window is a **history** budget and the trimmer measures the history by its content
 (`KanvasHistoryTrimmer::getCheckpoints()` returns none). The stock trimmer reads the provider's prompt
 count off the last assistant turn, which includes instructions and every tool schema: an agent with 35K
