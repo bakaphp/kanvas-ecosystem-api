@@ -33,6 +33,9 @@ final class KanvasHistoryTrimmer extends HistoryTrimmer
 {
     public const string FOLDED_IDS = '__folded';
 
+    /** TokenCounter's default; the fold cap is expressed in the window's own unit. */
+    private const int CHARS_PER_TOKEN = 4;
+
     public static function make(): self
     {
         return new self(new KanvasTokenCounter());
@@ -61,7 +64,9 @@ final class KanvasHistoryTrimmer extends HistoryTrimmer
     #[Override]
     public function trim(array $messages, int $contextWindow): array
     {
-        $folded = self::fold(array_values($messages));
+        // tokensOf() measures with PHP_INT_MAX, where the product would overflow to a float.
+        $windowOverflows = $contextWindow > PHP_INT_MAX / self::CHARS_PER_TOKEN;
+        $folded = self::fold(array_values($messages), $windowOverflows ? null : $contextWindow * self::CHARS_PER_TOKEN);
         $trimmed = parent::trim($folded, $contextWindow);
         $summary = self::summaryIn($folded);
 
@@ -92,10 +97,16 @@ final class KanvasHistoryTrimmer extends HistoryTrimmer
     }
 
     /**
+     * A user turn the provider never answered leaves its row behind, and the next turn folds onto it.
+     * The cut never touches the live turn, so with no cap a project heartbeat whose prompt is a whole
+     * context bundle grew by one bundle per failed wake until Gemini refused the request
+     * (KANVAS-ECOSYSTEM-6JD). Past `$maxMergedChars` the newer turn replaces the older one instead,
+     * and the older row, absent from the survivors, is archived by the history.
+     *
      * @param list<Message> $messages
      * @return list<Message>
      */
-    public static function fold(array $messages): array
+    public static function fold(array $messages, ?int $maxMergedChars = null): array
     {
         $folded = [];
 
@@ -103,7 +114,11 @@ final class KanvasHistoryTrimmer extends HistoryTrimmer
             $last = end($folded) ?: null;
 
             if ($last !== null && self::foldable($last, $message) && $last->getRole() === $message->getRole()) {
-                self::merge($last, $message);
+                if (self::fitsTogether($last, $message, $maxMergedChars)) {
+                    self::merge($last, $message);
+                } else {
+                    $folded[array_key_last($folded)] = $message;
+                }
 
                 continue;
             }
@@ -116,6 +131,12 @@ final class KanvasHistoryTrimmer extends HistoryTrimmer
         }
 
         return array_values($folded);
+    }
+
+    private static function fitsTogether(Message $into, Message $from, ?int $maxMergedChars): bool
+    {
+        return $maxMergedChars === null
+            || mb_strlen((string) $into->getContent()) + mb_strlen((string) $from->getContent()) <= $maxMergedChars;
     }
 
     private static function foldable(Message $a, Message $b): bool

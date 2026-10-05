@@ -51,6 +51,9 @@ class ReindexAgentMemoryCommand extends Command
     /** @var array<int, bool> */
     private array $remembering = [];
 
+    /** @var array<string, int> */
+    private array $skipped = [];
+
     public function __construct(
         private readonly ?VectorStoreInterface $memoryStore = null,
         private readonly ?EmbeddingsProviderInterface $memoryEmbeddings = null,
@@ -64,6 +67,8 @@ class ReindexAgentMemoryCommand extends Command
 
         foreach ($this->targetApps() as $app) {
             if (! KnowledgeComponents::memoryEnabled($app)) {
+                $this->warn("App {$app->getId()}: memory is off (no Typesense credentials, or agent_memory_enabled = 0), skipped");
+
                 continue;
             }
 
@@ -73,6 +78,7 @@ class ReindexAgentMemoryCommand extends Command
             $turns = $this->reindexConversations($app, $since);
 
             $this->info("App {$app->getId()}: queued {$events} ledger events, wrote {$turns} conversation turns since {$since->toDateString()}");
+            $this->reportSkipped();
         }
 
         return self::SUCCESS;
@@ -175,13 +181,23 @@ class ReindexAgentMemoryCommand extends Command
             $question = $pendingQuestion[$row->conversation_id];
             unset($pendingQuestion[$row->conversation_id]);
 
-            if ($question === null || ! $this->agentRemembers((int) $row->agent_id)) {
+            if ($question === null) {
+                $this->skip('private turn');
+
+                continue;
+            }
+
+            if (! $this->agentRemembers((int) $row->agent_id)) {
+                $this->skip('agent does not remember (not a SystemUserAgent, or customer-facing)');
+
                 continue;
             }
 
             $content = ConversationMemoryNode::transcript($question, (string) $row->content);
 
             if ($content === null || mb_strlen($content) < $minChars) {
+                $this->skip("shorter than {$minChars} chars or a no-op reply");
+
                 continue;
             }
 
@@ -214,6 +230,23 @@ class ReindexAgentMemoryCommand extends Command
             entityType: $recordParticipant ? (Relation::getMorphedModel($row->participant_type) ?? $row->participant_type) : null,
             entityId: $recordParticipant ? (int) $row->participant_id : null,
         );
+    }
+
+    private function skip(string $reason): void
+    {
+        $this->skipped[$reason] = ($this->skipped[$reason] ?? 0) + 1;
+    }
+
+    /**
+     * A zero with no reason sends people looking at Typesense; the usual cause is the agent type.
+     */
+    private function reportSkipped(): void
+    {
+        foreach ($this->skipped as $reason => $count) {
+            $this->line("  skipped {$count} turns: {$reason}");
+        }
+
+        $this->skipped = [];
     }
 
     /**
