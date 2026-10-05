@@ -130,6 +130,11 @@ tokens of tool schemas measured over a 50K window after one turn, lost its previ
 and summarized on every tool round (2026-10-04). `calculateTotalUsage()` therefore also reports history
 tokens, not request tokens.
 
+The fold is capped at the window: a user turn the provider refused stays as an unanswered row, the
+next turn folds onto it, and the cut never touches the live turn, so a project heartbeat whose prompt is
+a whole context bundle grew by one bundle per failed wake until Gemini refused it
+(KANVAS-ECOSYSTEM-6JD). Past the cap the newer turn replaces the older one and the orphan row is archived.
+
 Stores extend `Stores/KanvasMessageStore`: `loadActive()` reads rows, `persist()` writes one,
 `append()` dedupes by message id, `clear()` archives the thread, and the count-based `archive()` is a
 final no-op (see "Archive and summarize" below). Nothing is ever deleted: Social messages and
@@ -262,6 +267,11 @@ only when the dead run was started by that same message, continues it by run id
 (`ExecutionRequest::start(..., runId, recoverFailed: true)`), replaying memoized tool results instead of
 running them. `RunNeuronChatAction` tries that before `chat()`, so a redelivered job never repeats a
 write (`DurableAgentRunTest`). A different message is a new turn.
+
+A second inbound on a thread whose run still holds its lease, two emails minutes apart on one AP
+mailbox, is refused with `RunInFlightException`. `RunNeuronChatAction::chatOnceTheThreadSettles()`
+waits for it, polling every 5 s for up to 150 s, and only then lets the exception through
+(KANVAS-ECOSYSTEM-6JE: 17 unanswered emails in an hour, each later redelivered by Mailgun's retry).
 
 Neuron tool approvals leave a run Suspended; nothing here uses them, and a suspended durable run would
 refuse new chats on its thread until `abandon()`. Renaming a tool strands any run suspended on it.

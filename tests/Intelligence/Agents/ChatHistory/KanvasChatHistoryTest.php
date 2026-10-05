@@ -52,6 +52,35 @@ class KanvasChatHistoryTest extends TestCase
         $this->assertSame(['a2'], $history->getMessages()[1]->getMetadata(KanvasHistoryTrimmer::FOLDED_IDS));
     }
 
+    /**
+     * KANVAS-ECOSYSTEM-6JD: a wake prompt the provider refused stays as an unanswered user row, and the
+     * next wake folds onto it. The live turn is never cut, so each failure made the next request bigger.
+     */
+    public function testAnUnansweredTurnTooBigToFoldIsReplacedAndArchived(): void
+    {
+        $store = $this->store([
+            new UserMessage(str_repeat('old wake ', 2_000))->setId('u1'),
+        ]);
+        $history = $this->history($store, contextWindow: 2_000);
+
+        $history->addMessage(new UserMessage(str_repeat('new wake ', 2_000))->setId('u2'));
+
+        $this->assertSame(['u1'], $store->archived, 'The orphan row leaves the active window');
+        $this->assertSame(['u2'], array_map(fn (Message $m): string => $m->getId(), $history->getMessages()));
+        $this->assertStringStartsWith('new wake', (string) $history->getMessages()[0]->getContent());
+    }
+
+    public function testTwoShortUnansweredTurnsStillFoldIntoOne(): void
+    {
+        $store = $this->store([new UserMessage('first question')->setId('u1')]);
+        $history = $this->history($store, contextWindow: 2_000);
+
+        $history->addMessage(new UserMessage('second question')->setId('u2'));
+
+        $this->assertSame([], $store->archived);
+        $this->assertSame("first question\n\nsecond question", (string) $history->getMessages()[0]->getContent());
+    }
+
     public function testClearForgetsTheDedupeSetSoAKeptTailCanBeReappended(): void
     {
         $store = $this->store([]);

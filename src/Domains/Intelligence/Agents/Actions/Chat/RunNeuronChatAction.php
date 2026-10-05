@@ -36,11 +36,20 @@ use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
 use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Exceptions\RunInFlightException;
 use NeuronAI\Exceptions\ToolRunsExceededException;
 use Throwable;
 
 class RunNeuronChatAction
 {
+    /**
+     * How long a turn waits for a lease held by another run on its thread. An inbound turn typically
+     * settles in well under this; the lease itself runs 600 s, far too long to hold a worker for.
+     */
+    private const int THREAD_BUSY_WAIT_SECONDS = 150;
+
+    private const int THREAD_BUSY_POLL_SECONDS = 5;
+
     private bool $endedOnToolBudget = false;
 
     /** @var list<string> */
@@ -151,7 +160,7 @@ class RunNeuronChatAction
             $state = $this->handler instanceof BehavesAsKanvasAgent
                 ? $this->handler->recoverInterruptedRun($userMessage)
                 : null;
-            $state ??= $this->handler->chat($userMessage);
+            $state ??= $this->chatOnceTheThreadSettles($userMessage);
             $responseMessage = $state->getMessage() ?? new AssistantMessage('');
             [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
             $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
@@ -262,6 +271,44 @@ class RunNeuronChatAction
     public function executedToolCalls(): array
     {
         return $this->executedToolCalls;
+    }
+
+    /**
+     * A durable run holds a lease on its thread while it executes, and a second inbound on the same
+     * thread, two emails minutes apart on one AP mailbox, arrives while the first is still answering.
+     * Neuron refuses the second with RunInFlightException (KANVAS-ECOSYSTEM-6JE). The lease is not a
+     * fault: the turn waits for the thread to settle and runs then, so the second message is answered
+     * with the first reply in its history instead of failing the webhook.
+     */
+    private function chatOnceTheThreadSettles(UserMessage $userMessage): AgentState
+    {
+        $waited = 0;
+
+        while (true) {
+            try {
+                return $this->handler->chat($userMessage);
+            } catch (RunInFlightException $e) {
+                if ($waited >= self::THREAD_BUSY_WAIT_SECONDS) {
+                    throw $e;
+                }
+
+                if ($waited === 0) {
+                    Log::info('Agent thread busy; waiting for the running turn to settle', [
+                        'agent_id' => $this->agent->getId(),
+                        'thread_id' => $e->workflowId,
+                        'run_id' => $e->runId,
+                    ]);
+                }
+
+                $this->pause(self::THREAD_BUSY_POLL_SECONDS);
+                $waited += self::THREAD_BUSY_POLL_SECONDS;
+            }
+        }
+    }
+
+    protected function pause(int $seconds): void
+    {
+        sleep($seconds);
     }
 
     private function humanizedFallback(Throwable $e): string
