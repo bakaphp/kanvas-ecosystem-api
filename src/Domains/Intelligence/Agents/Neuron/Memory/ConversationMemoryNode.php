@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Memory;
 
 use Illuminate\Support\Facades\Log;
 use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
+use Kanvas\Intelligence\Knowledge\Exceptions\CollectionUpdateInProgressException;
 use NeuronAI\Agent\AgentResources;
 use NeuronAI\Agent\AgentState;
 use NeuronAI\Agent\Events\AgentOutputEvent;
@@ -150,7 +151,10 @@ final class ConversationMemoryNode extends Node implements AgentNodeInterface
             $this->store->getSchema()->validate($document);
             $this->store->addDocument($this->embeddings->embedDocument($document));
         } catch (Throwable $e) {
-            report($e);
+            if (! $e instanceof CollectionUpdateInProgressException) {
+                report($e);
+            }
+
             Log::warning('Company memory ingest failed; the turn is answered, the memory is not written', [
                 'thread_id' => $threadId,
                 'message_id' => $messageId,

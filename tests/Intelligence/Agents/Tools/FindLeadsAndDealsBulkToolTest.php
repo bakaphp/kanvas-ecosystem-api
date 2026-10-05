@@ -11,6 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateDealTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindDealsBulkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindLeadsBulkTool;
@@ -81,7 +82,7 @@ final class FindLeadsAndDealsBulkToolTest extends TestCase
     public function test_leads_include_closed_by_default_and_are_filterable(): void
     {
         $closed = $this->makeLead('Cerrada' . $this->tag, 'Historica' . $this->tag);
-        $closed->status = 2;
+        $closed->leads_status_id = LeadStatus::query()->where('name', 'Lost')->where('apps_id', 0)->firstOrFail()->getId();
         $closed->saveOrFail();
 
         $name = 'Cerrada' . $this->tag . ' Historica' . $this->tag;
@@ -89,6 +90,7 @@ final class FindLeadsAndDealsBulkToolTest extends TestCase
         $byDefault = $this->leadTool()->__invoke(names: $name);
         $this->assertTrue($byDefault['results'][0]['found'], 'A closed lead still counts as found by default');
         $this->assertFalse($byDefault['results'][0]['matches'][0]['is_open']);
+        $this->assertSame('Lost', $byDefault['results'][0]['matches'][0]['status'], 'The named CRM status travels with the match');
 
         $openOnly = $this->leadTool()->__invoke(names: $name, status: 'open');
         $this->assertFalse($openOnly['results'][0]['found'], 'status=open must exclude the closed lead');

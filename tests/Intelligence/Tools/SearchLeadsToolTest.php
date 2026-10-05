@@ -10,6 +10,7 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use Tests\TestCase;
 
@@ -58,7 +59,7 @@ class SearchLeadsToolTest extends TestCase
         ]);
         $closedLead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create([
             'title' => $token . ' closed',
-            'status' => 2,
+            'leads_status_id' => self::lostStatusId(),
         ]);
 
         $openOnly = new SearchLeadsTool()
@@ -68,12 +69,27 @@ class SearchLeadsToolTest extends TestCase
         $this->assertContains($openLead->getId(), $openIds);
         $this->assertNotContains($closedLead->getId(), $openIds);
 
+        $closedOnly = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(query: $token, status: 'closed', limit: 100);
+        $this->assertSame([$closedLead->getId()], array_column($closedOnly['leads'], 'lead_id'), 'closed is the named status, not the unused integer column');
+        $this->assertSame('Lost', $closedOnly['leads'][0]['status'], 'The CRM status is reported by name so a lost lead is never described as active');
+        $this->assertFalse($closedOnly['leads'][0]['is_open']);
+
         $all = new SearchLeadsTool()
             ->withContext($app, $company, $user)
             ->__invoke(query: $token, status: 'all', limit: 100);
         $allIds = array_column($all['leads'], 'lead_id');
         $this->assertContains($openLead->getId(), $allIds);
         $this->assertContains($closedLead->getId(), $allIds);
+    }
+
+    private static function lostStatusId(): int
+    {
+        return LeadStatus::query()->where('name', 'Lost')->where('apps_id', 0)->firstOrCreate(
+            ['name' => 'Lost', 'apps_id' => 0, 'companies_id' => 0],
+            ['is_default' => 0]
+        )->getId();
     }
 
     /**

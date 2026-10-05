@@ -6,9 +6,11 @@ namespace Kanvas\Intelligence\Knowledge\VectorStores;
 
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
+use Kanvas\Intelligence\Knowledge\Exceptions\CollectionUpdateInProgressException;
 use RuntimeException;
 use Typesense\Client;
 use Typesense\Exceptions\ObjectNotFound;
+use Typesense\Exceptions\ObjectUnprocessable;
 
 /**
  * The one Typesense-backed knowledge store. Neutral (no NeuronAI, no laravel/ai)
@@ -32,6 +34,14 @@ final class TypesenseKnowledgeStore
         ['name' => 'agent_id', 'type' => 'int64', 'facet' => true, 'optional' => true],
         ['name' => 'users_id', 'type' => 'int64', 'facet' => true, 'optional' => true],
     ];
+
+    /**
+     * Collections this process has already verified, so a worker checks the schema once rather than
+     * on every write. A schema change needs a new deploy, which restarts the workers.
+     *
+     * @var array<string, true>
+     */
+    private static array $ensured = [];
 
     public function __construct(
         private readonly Client $client,
@@ -222,6 +232,10 @@ final class TypesenseKnowledgeStore
 
     private function ensureCollection(): void
     {
+        if (isset(self::$ensured[$this->collection])) {
+            return;
+        }
+
         try {
             $schema = $this->client->collections[$this->collection]->retrieve();
             $embedding = collect($schema['fields'] ?? [])->firstWhere('name', 'embedding');
@@ -241,7 +255,7 @@ final class TypesenseKnowledgeStore
             ));
 
             if ($missing !== []) {
-                $this->client->collections[$this->collection]->update(['fields' => $missing]);
+                $this->addFields($missing);
             }
         } catch (ObjectNotFound) {
             $this->client->collections->create([
@@ -262,6 +276,27 @@ final class TypesenseKnowledgeStore
                     ['name' => 'created_at', 'type' => 'int64', 'sort' => true],
                 ],
             ]);
+        }
+
+        self::$ensured[$this->collection] = true;
+    }
+
+    /**
+     * Every worker that writes during the deploy that introduced a field sees it missing at once, and
+     * Typesense accepts one alter at a time: the first wins, the rest get a 422 that means "wait".
+     *
+     * @param list<array<string, mixed>> $fields
+     */
+    private function addFields(array $fields): void
+    {
+        try {
+            $this->client->collections[$this->collection]->update(['fields' => $fields]);
+        } catch (ObjectUnprocessable $e) {
+            if (! str_contains($e->getMessage(), 'update operation is in progress')) {
+                throw $e;
+            }
+
+            throw new CollectionUpdateInProgressException($this->collection);
         }
     }
 

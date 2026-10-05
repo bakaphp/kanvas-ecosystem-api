@@ -36,7 +36,7 @@ class FindLeadsBulkTool extends FindCrmRecordsBulkTool
             ->fromApp($this->app)
             ->fromCompany($this->company)
             ->notDeleted()
-            ->with(['owner', 'people', 'stage']);
+            ->with(['owner', 'people', 'stage', 'status']);
     }
 
     /**
@@ -52,9 +52,27 @@ class FindLeadsBulkTool extends FindCrmRecordsBulkTool
             'contact' => $record->people?->getName(),
             'owner' => $this->ownerName($record),
             'stage' => $record->stage?->name,
-            'is_open' => $record->isOpen(),
+            'status' => $record->statusName(),
+            'is_open' => $this->isOpen($record),
             'last_updated' => $record->updated_at?->toDateString(),
             'matched_tokens' => $score,
         ];
+    }
+
+    /**
+     * A lead's open/closed state is its named status, not the integer `status` column the base rule
+     * reads, which nothing writes.
+     */
+    #[Override]
+    protected function isOpen(Model $record): bool
+    {
+        /** @var Lead $record */
+        return $record->hasOpenLeadStatus();
+    }
+
+    #[Override]
+    protected function applyStatus(Builder $query, string $status): Builder
+    {
+        return $query->havingLeadState($status, $this->company);
     }
 }

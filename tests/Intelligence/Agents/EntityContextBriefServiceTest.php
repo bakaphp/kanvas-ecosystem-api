@@ -7,6 +7,8 @@ namespace Tests\Intelligence\Agents;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
 use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
 use Tests\TestCase;
@@ -23,6 +25,30 @@ class EntityContextBriefServiceTest extends TestCase
             'companies_id' => $company->getId(),
             ...$attributes,
         ]);
+    }
+
+    /**
+     * The agent reported a lost lead as an active negotiation because the generic brief copied the
+     * integer `status` column, which nothing writes, and never the named status.
+     */
+    public function testALeadBriefCarriesItsNamedStatusAndWhetherItIsOpen(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $lost = LeadStatus::query()->where('name', 'Lost')->where('apps_id', 0)->firstOrFail();
+        $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create([
+            'title' => 'Cinedot WhatsApp agent',
+            'leads_status_id' => $lost->getId(),
+        ]);
+
+        $brief = new EntityContextBriefService()->brief($lead);
+        $text = new EntityContextBriefService()->renderText($lead);
+
+        $this->assertSame('Lead', $brief['type']);
+        $this->assertSame('Lost', $brief['status']);
+        $this->assertSame('closed', $brief['state']);
+        $this->assertStringContainsString('status: Lost', $text);
+        $this->assertStringContainsString('state: closed', $text);
     }
 
     public function testGenericBriefFromModelAttributes(): void

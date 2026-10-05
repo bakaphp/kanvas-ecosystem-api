@@ -7,6 +7,7 @@ namespace Tests\Intelligence\Tools;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListStaleLeadsTool;
 use Tests\TestCase;
 
@@ -31,7 +32,7 @@ class ListStaleLeadsToolTest extends TestCase
 
         $closed = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create([
             'title' => 'Closed stale lead ' . uniqid(),
-            'status' => 2,
+            'leads_status_id' => LeadStatus::query()->where('name', 'Lost')->where('apps_id', 0)->firstOrFail()->getId(),
         ]);
         $this->backdate($closed, 30);
 

@@ -213,7 +213,7 @@ abstract class FindCrmRecordsBulkTool extends Tool
             ->get();
     }
 
-    private function applyStatus(Builder $query, string $status): Builder
+    protected function applyStatus(Builder $query, string $status): Builder
     {
         return $query
             ->when($status === 'open', fn ($q) => $q->where(
