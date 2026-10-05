@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
+use App\GraphQL\Concerns\SyncsEntityRelatedInput;
 use Exception;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\AccessControlList\Enums\AbilityEnum;
@@ -40,6 +42,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 class UserManagementMutation
 {
     use HasMutationUploadFiles;
+    use SyncsEntityRelatedInput;
 
     /**
      * changePassword.
@@ -72,7 +75,11 @@ class UserManagementMutation
         }
 
         $userManagement = new UserManagementService($userToEdit, $app, $user);
-        $userToEdit = $userManagement->update($request['data']);
+        $userToEdit = $userManagement->update(Arr::except($request['data'], 'tags'));
+
+        if (array_key_exists('tags', $request['data'])) {
+            self::syncTags(UsersRepository::belongsToThisApp($userToEdit, $app, $company), $request['data']);
+        }
 
         $user->fireWorkflow(
             WorkflowEnum::UPDATE_USER_PROFILE->value,
