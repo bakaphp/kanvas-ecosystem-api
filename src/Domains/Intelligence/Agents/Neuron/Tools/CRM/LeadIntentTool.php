@@ -17,13 +17,9 @@ class LeadIntentTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_lead_intent',
-            description: 'Determine the lead intent and completion status based on source and subsource mapping from ADF sources configuration.',
-        );
-    }
+    protected string $name = 'get_lead_intent';
+
+    protected ?string $description = 'Determine the lead intent and completion status based on source and subsource mapping from ADF sources configuration.';
 
     #[Override]
     protected function properties(): array

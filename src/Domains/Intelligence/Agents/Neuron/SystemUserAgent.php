@@ -12,7 +12,8 @@ use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
-use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Stores\ChannelMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
@@ -27,12 +28,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendSlackDirectMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\WhoIsUserTool;
 use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
-use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Chat\History\AbstractChatHistory;
-use NeuronAI\Chat\History\InMemoryChatHistory;
+use NeuronAI\Chat\History\MessageStoreInterface;
 use Override;
 
 /**
@@ -67,6 +66,18 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
         return true;
     }
 
+    #[Override]
+    protected function remembersForCompany(): bool
+    {
+        return true;
+    }
+
+    #[Override]
+    protected function durableRuns(): bool
+    {
+        return true;
+    }
+
     /**
      * Answering an @mention: read the WHOLE channel this turn, not the per-session store.
      */
@@ -76,64 +87,26 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     }
 
     #[Override]
-    protected function chatHistory(): AbstractChatHistory
+    protected function messageStore(): MessageStoreInterface
     {
         if ($this->mentionChannel !== null) {
-            return new ChannelMessageHistory($this->mentionChannel);
+            return new ChannelMessageStore($this->mentionChannel);
         }
 
-        $app = $this->app;
-        $company = $this->company;
-        $user = $this->user;
-
-        if ($app === null || $company === null || $user === null) {
-            return new InMemoryChatHistory();
+        if ($this->usesEntityRollup()) {
+            return $this->entityRollupStore(sessionThreadId: null, includeInternal: true);
         }
 
-        if ($this->usesEntityRollup() && $this->entity !== null) {
-            return new SalesAssistKanvasMessageHistory(
-                app: $app,
-                company: $company,
-                user: $user,
-                entity: $this->entity,
-                includeInternal: true,
-                currentLead: $this->currentLead,
-                contextWindow: $this->resolvedContextWindow(),
-            );
-        }
-
-        return new KanvasMessageHistory(
-            app: $app,
-            company: $company,
-            user: $user,
-            agentClass: static::class,
-            sessionId: $this->threadId ?? $this->session?->uuid,
-            agent: $this->agent,
-            turnMedia: $this->turnMedia,
-            model: $this->resolvedModelName(),
-            privateUserTurn: $this->privateUserTurn,
-            contextWindow: $this->resolvedContextWindow(),
-            participant: KanvasConversationStore::participantFor($this->session, $user, $this->agent),
-        );
+        return $this->conversationStore();
     }
 
     /**
-     * KanvasMessageHistory self-persists each turn, so RunNeuronChatAction must skip
-     * logTurn there. The SalesAssist rollup writes to Social and leaves logTurn as its
-     * usage record — mirror that per branch.
+     * A mention reply is stored as a child message by the responder, so logTurn is skipped there too.
      */
     #[Override]
     public function persistsTurnsToConversationStore(): bool
     {
-        // Mention replies are stored as a child message by the responder — skip logTurn.
-        if ($this->mentionChannel !== null) {
-            return true;
-        }
-
-        return $this->app !== null
-            && $this->company !== null
-            && $this->user !== null
-            && ! $this->usesEntityRollup();
+        return $this->mentionChannel !== null || parent::persistsTurnsToConversationStore();
     }
 
     /**
@@ -291,15 +264,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
         }
 
         $core[] = new SendEmailToUserTool($agent);
-
-        // The schedule tools key on the human, not the agent: "remind me" must land on the person
-        // who asked. On an @mention surface $this->user IS the agent's own user, so an explicit
-        // conversation human (set by the caller) wins over it.
-        $contextUser = $this->conversationHuman ?? $this->user ?? $agent->user;
-        $core[] = new ScheduleReminderTool($agent, $this->session)->withContext($app, $company, $contextUser);
-        $core[] = new ScheduleAgentTaskTool($agent, $this->session)->withContext($app, $company, $contextUser);
-        $core[] = new ListScheduledActionsTool($this->session)->withContext($app, $company, $contextUser);
-        $core[] = new CancelScheduledActionTool($this->session)->withContext($app, $company, $contextUser);
+        $core = [...$core, ...$this->scheduleTools($agent)];
 
         if ((string) ($agent->get(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value) ?? '') !== '') {
             $core[] = new SendSlackDirectMessageTool($agent);
@@ -365,6 +330,25 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     protected function actingUser(): ?Users
     {
         return $this->agent?->user ?? $this->user;
+    }
+
+    /**
+     * The schedule tools key on the human, not the agent: "remind me" must land on the person who
+     * asked. On an @mention surface $this->user IS the agent's own user, so the conversation human
+     * (set by the caller) wins over it.
+     *
+     * @return list<object>
+     */
+    protected function scheduleTools(Agent $agent): array
+    {
+        $human = $this->requestingHuman() ?? $agent->user;
+
+        return [
+            new ScheduleReminderTool($agent, $this->session)->withContext($this->app, $this->company, $human),
+            new ScheduleAgentTaskTool($agent, $this->session)->withContext($this->app, $this->company, $human),
+            new ListScheduledActionsTool($this->session)->withContext($this->app, $this->company, $human),
+            new CancelScheduledActionTool($this->session)->withContext($this->app, $this->company, $human),
+        ];
     }
 
     /**

@@ -11,7 +11,9 @@ use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
+use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Providers\Gemini\Gemini;
+use NeuronAI\Providers\ProviderResponse;
 use Override;
 
 class KanvasGemini extends Gemini
@@ -27,11 +29,21 @@ class KanvasGemini extends Gemini
     ];
 
     /**
+     * What the retry is told. A blind retry repeats the mistake: every malformed call seen so far was a
+     * STRING argument carrying a JSON object (`render_artifact.props`) emitted as a nested object, and
+     * the model emits it the same way twice. The nudge is sent to the provider only, never stored.
+     */
+    public const string MALFORMED_CALL_FEEDBACK = 'Your previous function call could not be parsed and was discarded; nothing ran. '
+        . 'Issue it again as a proper function call. Every argument must match its declared type: an '
+        . 'argument declared as a string that carries an object or a list (such as "props") must be passed '
+        . 'as one JSON-encoded string, never as a nested object. Do not describe the call in prose.';
+
+    /**
      * Retry malformed output once at the inference boundary, before any returned tools run.
      * Never salvage finishMessage as a reply: it can claim actions the rejected call never performed.
      */
     #[Override]
-    public function chat(Message ...$messages): Message
+    public function chat(Message ...$messages): ProviderResponse
     {
         try {
             return parent::chat(...$messages);
@@ -40,15 +52,14 @@ class KanvasGemini extends Gemini
                 'model' => $this->model,
             ]);
 
-            return parent::chat(...$messages);
+            return parent::chat(...[...$messages, new UserMessage(self::MALFORMED_CALL_FEEDBACK)]);
         }
     }
 
     /**
-     * Gemini can finish a candidate with `content` but no `parts` — an empty STOP, usually on a long
-     * prompt it chose not to answer. Neuron only guards MAX_TOKENS and otherwise dies on
-     * `Undefined array key "parts"` (KANVAS-ECOSYSTEM-691). Treat it as the empty answer it is, so
-     * callers take their existing empty-reply path instead of failing the turn.
+     * Neuron treats a candidate with no `parts` as an empty answer; what it still reports as a generic
+     * "no candidates" failure is a safety block, and what it never checks is a malformed function call.
+     * Both are asserted here before the parent reads the result.
      */
     #[Override]
     protected function processChatResult(array $result): AssistantMessage
@@ -56,20 +67,11 @@ class KanvasGemini extends Gemini
         $this->assertNotBlocked($result);
         $this->assertToolCallWellFormed($result);
 
-        if (isset($result['candidates'][0]['content']) && ! isset($result['candidates'][0]['content']['parts'])) {
-            Log::warning('Gemini returned a candidate with no parts; treating it as an empty reply.', [
-                'model' => $this->model,
-                'finish_reason' => $result['candidates'][0]['finishReason'] ?? 'UNKNOWN',
-            ]);
-
-            $result['candidates'][0]['content']['parts'] = [];
-        }
-
         return parent::processChatResult($this->withPromptTokenCount($result));
     }
 
     /**
-     * Gemini can omit `promptTokenCount` from `usageMetadata`, and Neuron reads it unguarded
+     * Gemini can omit `promptTokenCount` from `usageMetadata`, which Neuron reads as zero
      * (KANVAS-ECOSYSTEM-6HD). Derive it from the total so usage and cost stay accurate.
      */
     private function withPromptTokenCount(array $result): array
@@ -90,9 +92,9 @@ class KanvasGemini extends Gemini
 
     /**
      * A Gemini 3 thinking model signs each `functionCall` and rejects the next request without it.
-     * Upstream reads the signature off `$toolCalls[0]`, but collects them with `array_filter`, which
-     * preserves keys — and a thinking model emits its thought part first, so the call is at index 1
-     * and the lookup finds nothing. Re-indexing is the fix.
+     * Upstream reads the signature off `$toolCalls[0]`, but collects the calls with `array_filter`,
+     * which keeps the parts' keys — a thinking model emits its thought part first, so the call sits
+     * at key 1 and the lookup finds nothing. Re-indexing is the fix.
      *
      * @param ContentBlockInterface[] $blocks
      * @param array<int, array> $toolCalls

@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,23 +23,19 @@ use Override;
  * — which what_does_the_company_owe_me cannot, because that one only counts approved-and-unpaid.
  */
 #[AgentTool(name: 'List My Expenses', category: 'accounting')]
-class ListMyExpensesTool extends Tool implements HasRunKey
+class ListMyExpensesTool extends Tool
 {
     use HasKanvasContext;
     use ReportsToolOutcome;
     use RequiresHumanCaller;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_my_expenses',
-            description: 'Lists expenses YOU filed, in any state — draft, waiting on approval, approved, rejected '
-                . 'or already reimbursed. Use it for "what did I submit this month", "did my dinner expense get '
-                . 'approved", or "was that taxi ever paid back". It always reads the expenses of the person you '
-                . 'are talking to and takes no employee identifier.',
-        );
-    }
+    protected string $name = 'list_my_expenses';
+
+    protected ?string $description = 'Lists expenses YOU filed, in any state — draft, waiting on approval, approved, rejected '
+        . 'or already reimbursed. Use it for "what did I submit this month", "did my dinner expense get '
+        . 'approved", or "was that taxi ever paid back". It always reads the expenses of the person you '
+        . 'are talking to and takes no employee identifier.';
 
     /**
      * @return array<int, ToolProperty>

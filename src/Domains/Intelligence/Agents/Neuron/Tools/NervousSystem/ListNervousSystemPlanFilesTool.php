@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\PresentsEntityFiles;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Models\Task;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,23 +23,19 @@ use Override;
  * claims?" answerable from evidence rather than from prose.
  */
 #[AgentTool(name: 'List Plan Files', category: 'nervous_system')]
-class ListNervousSystemPlanFilesTool extends Tool implements HasRunKey
+class ListNervousSystemPlanFilesTool extends Tool
 {
     use HasKanvasContext;
     use PresentsEntityFiles;
     use ResolvesPlanForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_plan_files',
-            description: 'List every document on a plan — the briefs attached to the plan itself and the '
-                . 'artifacts its tasks produced. Use it to find the input a plan references, and to check what '
-                . 'was actually delivered before closing or verifying. Then read_file the ones you need; a file '
-                . 'you have not read is not evidence.',
-        );
-    }
+    protected string $name = 'list_plan_files';
+
+    protected ?string $description = 'List every document on a plan — the briefs attached to the plan itself and the '
+        . 'artifacts its tasks produced. Use it to find the input a plan references, and to check what '
+        . 'was actually delivered before closing or verifying. Then read_file the ones you need; a file '
+        . 'you have not read is not evidence.';
 
     /**
      * @return array<int, ToolProperty>

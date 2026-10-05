@@ -22,18 +22,12 @@ class LeadRefTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            'get_lead_ref',
-            'Get the full reference data of the lead including personal info (age), owner, tags,
-             company, contacts (emails, phones), address, photo, and whether this is a new or a
-             returning customer (use get_past_opportunities for the details of a returning one).
-             Call this once at the start of the conversation to know who you are talking to. Do not call it again.',
-        );
+    protected string $name = 'get_lead_ref';
 
-        // $this->setMaxRuns(1);
-    }
+    protected ?string $description = 'Get the full reference data of the lead including personal info (age), owner, tags,
+        company, contacts (emails, phones), address, photo, and whether this is a new or a
+        returning customer (use get_past_opportunities for the details of a returning one).
+        Call this once at the start of the conversation to know who you are talking to. Do not call it again.';
 
     #[Override]
     protected function properties(): array

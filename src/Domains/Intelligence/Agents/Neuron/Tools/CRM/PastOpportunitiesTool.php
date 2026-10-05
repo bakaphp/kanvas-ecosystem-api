@@ -23,20 +23,16 @@ class PastOpportunitiesTool extends Tool
 {
     use ResolvesLeadForTool;
 
+    protected string $name = 'get_past_opportunities';
+
+    protected ?string $description = 'Get the previous opportunities (earlier leads) of the person behind this lead: title, '
+        . 'description, status, stage, whether it is still open, vehicle of interest, owner, date, and a '
+        . 'summary of what was discussed (or the last few messages when no summary exists yet). '
+        . 'Only call it when get_lead_ref says customer_type is "returning" and the past history matters '
+        . 'for your reply (e.g. they mention a previous visit, purchase, or vehicle).';
+
     private const int LIMIT = 10;
     private const int RECENT_MESSAGES = 3;
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_past_opportunities',
-            description: 'Get the previous opportunities (earlier leads) of the person behind this lead: title, '
-                . 'description, status, stage, whether it is still open, vehicle of interest, owner, date, and a '
-                . 'summary of what was discussed (or the last few messages when no summary exists yet). '
-                . 'Only call it when get_lead_ref says customer_type is "returning" and the past history matters '
-                . 'for your reply (e.g. they mention a previous visit, purchase, or vehicle).',
-        );
-    }
 
     #[Override]
     protected function properties(): array

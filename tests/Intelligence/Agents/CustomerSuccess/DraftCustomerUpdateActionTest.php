@@ -21,10 +21,19 @@ use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
+use NeuronAI\Agent\AgentState;
+use NeuronAI\Chat\Messages\AssistantMessage;
+use NeuronAI\Providers\ProviderResponse;
+use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
 use Tests\TestCase;
 use Throwable;
 
+/**
+ * Serial: seedOrganization() writes app settings (the GitHub token and release-feed repositories),
+ * which live in Redis and are shared by every parallel process.
+ */
+#[Group('serial')]
 final class DraftCustomerUpdateActionTest extends TestCase
 {
     use DatabaseTransactions;
@@ -82,7 +91,7 @@ final class DraftCustomerUpdateActionTest extends TestCase
             {
             }
 
-            public function chat(mixed $messages = []): mixed
+            public function chat(mixed $messages = []): AgentState
             {
                 $this->seen[] = self::describe($messages);
 
@@ -90,21 +99,7 @@ final class DraftCustomerUpdateActionTest extends TestCase
                     throw $this->reply;
                 }
 
-                return new class ($this->reply) {
-                    public function __construct(private readonly string $text)
-                    {
-                    }
-
-                    public function getContent(): string
-                    {
-                        return $this->text;
-                    }
-
-                    public function __toString(): string
-                    {
-                        return $this->text;
-                    }
-                };
+                return new AgentState()->setResponse(new ProviderResponse(message: new AssistantMessage($this->reply)));
             }
         };
     }
@@ -564,12 +559,29 @@ final class DraftCustomerUpdateActionTest extends TestCase
         $this->assertTrue($result->hasDraft());
     }
 
+    /** @var array<string, mixed> the real values of the settings seedOrganization() overwrites, put back in tearDown */
+    private array $previousSettings = [];
+
+    protected function tearDown(): void
+    {
+        $app = app(Apps::class);
+
+        foreach ($this->previousSettings as $key => $value) {
+            $value === null ? $app->del($key) : $app->set($key, $value);
+        }
+
+        parent::tearDown();
+    }
+
     private function seedOrganization(): Organization
     {
         $user = auth()->user();
         $app = app(Apps::class);
-        $app->set(ConfigurationEnum::TOKEN->value, 'test-token');
-        $app->set(KanvasReleaseFeedEnum::REPOSITORIES->value, 'acme/api');
+
+        foreach ([ConfigurationEnum::TOKEN->value => 'test-token', KanvasReleaseFeedEnum::REPOSITORIES->value => 'acme/api'] as $key => $value) {
+            $this->previousSettings[$key] ??= $app->get($key);
+            $app->set($key, $value);
+        }
 
         return Organization::create([
             'apps_id' => $app->getId(),

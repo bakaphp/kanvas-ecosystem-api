@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\Movipass\Neuron\Tools;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Stats\Repositories\ProductStatsRepository;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -15,23 +14,19 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Movipass Parking Capacity', category: 'commerce')]
-class ParkingCapacityTool extends Tool implements HasRunKey
+class ParkingCapacityTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'movipass_parking_capacity',
-            description: 'Live occupancy of the parking lots: total spaces, how many are free right now, how many '
-                . 'are taken, and the occupancy percentage. Use for "is the lot full", "how many spaces are left", '
-                . '"what is our occupancy today", capacity planning and overflow decisions. This is a live snapshot '
-                . 'read off the warehouse stock, not a historical series — for entries and exits over time use '
-                . 'movipass_order_turnover. Omit every argument to get the whole company; narrow with '
-                . 'product_type_slug (e.g. "parking") or a specific lot.',
-        );
-    }
+    protected string $name = 'movipass_parking_capacity';
+
+    protected ?string $description = 'Live occupancy of the parking lots: total spaces, how many are free right now, how many '
+        . 'are taken, and the occupancy percentage. Use for "is the lot full", "how many spaces are left", '
+        . '"what is our occupancy today", capacity planning and overflow decisions. This is a live snapshot '
+        . 'read off the warehouse stock, not a historical series — for entries and exits over time use '
+        . 'movipass_order_turnover. Omit every argument to get the whole company; narrow with '
+        . 'product_type_slug (e.g. "parking") or a specific lot.';
 
     /**
      * @return array<int, ToolProperty>

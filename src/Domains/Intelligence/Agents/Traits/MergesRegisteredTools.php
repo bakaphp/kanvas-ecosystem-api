@@ -48,6 +48,14 @@ use ReflectionParameter;
 trait MergesRegisteredTools
 {
     /**
+     * Names of the tools the registry resolved for this agent (an MCP toolkit counts as each tool it
+     * expands to), as opposed to the ones the handler hardcodes. Tool search pools exactly these.
+     *
+     * @var list<string>
+     */
+    protected array $registryToolNames = [];
+
+    /**
      * @return list<object>
      */
     protected function resolveRegisteredTools(
@@ -97,6 +105,7 @@ trait MergesRegisteredTools
             }
 
             $baseline[] = $instance;
+            $this->recordRegistryToolNames($instance);
 
             if ($registered->handler !== null) {
                 $seenHandlers[$registered->handler] = true;
@@ -104,6 +113,32 @@ trait MergesRegisteredTools
         }
 
         return $this->applyWorkerBoundary(array_values($baseline));
+    }
+
+    private function recordRegistryToolNames(object $instance): void
+    {
+        foreach ($this->expandToolkits([$instance]) as $tool) {
+            $name = self::toolName($tool);
+
+            if ($name !== null) {
+                $this->registryToolNames[] = $name;
+            }
+        }
+    }
+
+    /**
+     * The two tool trees name themselves differently (Neuron `getName()`, Laravel `name()`); a toolkit
+     * answers to neither.
+     */
+    private static function toolName(object $tool): ?string
+    {
+        $name = match (true) {
+            method_exists($tool, 'getName') => $tool->getName(),
+            method_exists($tool, 'name') => $tool->name(),
+            default => null,
+        };
+
+        return is_string($name) ? $name : null;
     }
 
     /**
@@ -133,17 +168,13 @@ trait MergesRegisteredTools
         return array_values(array_filter(
             $tools,
             static function (object $tool) use ($verifying): bool {
-                // The two tool trees name themselves differently; a tool that answers to neither is
-                // kept under the worker policy — silently dropping something unidentifiable is the
-                // worse failure there. Under the verifier it is dropped, because an unidentifiable
-                // tool cannot be shown to be read-only and the allow-list must fail closed.
-                $name = match (true) {
-                    method_exists($tool, 'getName') => $tool->getName(),
-                    method_exists($tool, 'name') => $tool->name(),
-                    default => null,
-                };
+                // A tool that answers to neither name is kept under the worker policy — silently
+                // dropping something unidentifiable is the worse failure there. Under the verifier it
+                // is dropped, because an unidentifiable tool cannot be shown to be read-only and the
+                // allow-list must fail closed.
+                $name = self::toolName($tool);
 
-                if (! is_string($name)) {
+                if ($name === null) {
                     return ! $verifying;
                 }
 

@@ -80,7 +80,7 @@ class CreateMessageFromAgentInboxAction
         )->execute();
 
         if ($this->sender instanceof Lead && $this->sender->people !== null) {
-            // People-keyed history loaders (SalesAssistKanvasMessageHistory) find the turn only
+            // People-keyed history loaders (EntityRollupMessageStore) find the turn only
             // through this attachment.
             $message->addEntity($this->sender->people);
         }

@@ -8,7 +8,6 @@ use Kanvas\Event\Events\Models\EventVersionDate;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEventVersionForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,21 +20,17 @@ use Override;
  * calendar, or a report.
  */
 #[AgentTool(name: 'Get Event Version', category: 'events')]
-class GetEventVersionTool extends Tool implements HasRunKey
+class GetEventVersionTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesEventVersionForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_event_version',
-            description: 'Full detail of one event version (edition) by version_id: dates, price per ticket, capacity, '
-                . 'attendee count, agenda, status and the parent event. Use for "details of this edition" or when a '
-                . 'report/calendar gave you a version id.',
-        );
-    }
+    protected string $name = 'get_event_version';
+
+    protected ?string $description = 'Full detail of one event version (edition) by version_id: dates, price per ticket, capacity, '
+        . 'attendee count, agenda, status and the parent event. Use for "details of this edition" or when a '
+        . 'report/calendar gave you a version id.';
 
     /**
      * @return array<int, ToolProperty>

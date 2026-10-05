@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Services;
 
 use Baka\Discovery\AttributeClassDiscovery;
-use Illuminate\Support\Str;
+use Baka\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\KanvasAgentAsTool;
@@ -138,94 +138,26 @@ class AgentToolDiscoveryService extends AttributeClassDiscovery
     /**
      * Read the tool's own description when the attribute omits one.
      *
-     * Instantiation only works for parameterless tools, and the ones that matter most take an agent:
-     * `DispatchCodingTaskTool` requires one, so it reached the catalog with a NULL description — and
-     * `capability_lookup` scores on name plus description, so the tool that clones a repo and opens a
-     * pull request was invisible to a search for "open a pull request". The orchestrator then told
-     * someone the platform had no such capability, correctly reasoning from a blind index.
-     *
-     * So instantiation is the fast path and the source is the fallback: the description is a literal
-     * in the `parent::__construct()` call, which can be read without building anything.
+     * A Neuron tool declares its description as a property default, so it is readable for every tool,
+     * including the ones whose constructor needs an agent (`DispatchCodingTaskTool`) and cannot be
+     * instantiated here. `capability_lookup` scores on name plus description, so a NULL description makes
+     * the tool that opens a pull request invisible to a search for "open a pull request". Laravel tools
+     * expose it as a method, which needs an instance; that path keeps the instantiation fallback.
      */
     private function resolveDescription(ReflectionClass $reflection): ?string
     {
-        $constructor = $reflection->getConstructor();
+        if ($reflection->isSubclassOf(NeuronTool::class)) {
+            $default = $reflection->getDefaultProperties()['description'] ?? null;
 
-        if ($constructor !== null && $constructor->getNumberOfRequiredParameters() > 0) {
-            return $this->descriptionFromSource($reflection);
+            return Str::trimToNull(is_string($default) ? $default : null);
         }
 
         try {
             $instance = $reflection->newInstance();
 
-            if (method_exists($instance, 'description')) {
-                $value = (string) $instance->description();
-
-                return $value !== '' ? $value : null;
-            }
-
-            if (method_exists($instance, 'getDescription')) {
-                $value = (string) $instance->getDescription();
-
-                return $value !== '' ? $value : null;
-            }
+            return method_exists($instance, 'description') ? Str::trimToNull((string) $instance->description()) : null;
         } catch (Throwable) {
-            return $this->descriptionFromSource($reflection);
-        }
-
-        return $this->descriptionFromSource($reflection);
-    }
-
-    /**
-     * The `description:` argument of the tool's own `parent::__construct()` call, read from source.
-     *
-     * Tokenised rather than matched with a pattern because these descriptions are written as several
-     * concatenated lines, and a regex over that is the kind of thing that silently returns half a
-     * sentence. Returns null on anything it does not recognise — a missing description is recoverable,
-     * a wrong one is not.
-     */
-    private function descriptionFromSource(ReflectionClass $reflection): ?string
-    {
-        $file = $reflection->getFileName();
-
-        if ($file === false || ! is_readable($file)) {
             return null;
         }
-
-        $tokens = token_get_all((string) file_get_contents($file));
-        $inDescription = false;
-        $parts = [];
-
-        foreach ($tokens as $index => $token) {
-            if (is_array($token) && $token[0] === T_STRING && $token[1] === 'description') {
-                // Only the named argument, never a method or property that happens to share the name.
-                $next = $tokens[$index + 1] ?? null;
-                $inDescription = $next === ':';
-
-                continue;
-            }
-
-            if (! $inDescription) {
-                continue;
-            }
-
-            if (is_array($token) && $token[0] === T_CONSTANT_ENCAPSED_STRING) {
-                $parts[] = substr($token[1], 1, -1);
-
-                continue;
-            }
-
-            // The ':' of the named argument, whitespace, and the concatenation operator that holds a
-            // multi-line description together. Anything else ends it.
-            if ($token === ':' || $token === '.' || (is_array($token) && $token[0] === T_WHITESPACE)) {
-                continue;
-            }
-
-            break;
-        }
-
-        $description = trim(str_replace(["\\'", '\\"'], ["'", '"'], implode('', $parts)));
-
-        return $description !== '' ? $description : null;
     }
 }

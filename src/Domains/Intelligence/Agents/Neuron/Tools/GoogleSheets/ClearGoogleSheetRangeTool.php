@@ -23,17 +23,13 @@ class ClearGoogleSheetRangeTool extends Tool
     use ResolvesGoogleSheetsServiceForTool;
     use ResolvesSpreadsheetIdForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'clear_google_sheet_range',
-            description: 'Wipes the contents of a cell, row, or range on a Google Sheet the user shared a link to '
-                . '— e.g. clearing out a cancelled invoice row. This does NOT delete the row itself, only its '
-                . 'values; the row stays in place and other rows are never shifted. Clears any sheet the Google '
-                . 'account this agent is connected to can open; where the app uses a shared service account '
-                . 'instead, the sheet must be shared with that account as an Editor.',
-        );
-    }
+    protected string $name = 'clear_google_sheet_range';
+
+    protected ?string $description = 'Wipes the contents of a cell, row, or range on a Google Sheet the user shared a link to '
+        . '— e.g. clearing out a cancelled invoice row. This does NOT delete the row itself, only its '
+        . 'values; the row stays in place and other rows are never shifted. Clears any sheet the Google '
+        . 'account this agent is connected to can open; where the app uses a shared service account '
+        . 'instead, the sheet must be shared with that account as an Editor.';
 
     /**
      * @return array<int, ToolProperty>

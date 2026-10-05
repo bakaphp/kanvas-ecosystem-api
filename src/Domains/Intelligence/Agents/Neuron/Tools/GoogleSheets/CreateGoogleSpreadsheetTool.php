@@ -26,15 +26,11 @@ class CreateGoogleSpreadsheetTool extends Tool
     use HasKanvasContext;
     use ResolvesGoogleSheetsServiceForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_google_spreadsheet',
-            description: 'Creates a NEW, empty Google Sheets document in the Google account this agent is '
-                . 'connected to, and returns its id and URL. Use create_google_sheet_tab instead to add a tab '
-                . 'to a document that already exists, and write_google_sheet to fill the new document with rows.',
-        );
-    }
+    protected string $name = 'create_google_spreadsheet';
+
+    protected ?string $description = 'Creates a NEW, empty Google Sheets document in the Google account this agent is '
+        . 'connected to, and returns its id and URL. Use create_google_sheet_tab instead to add a tab '
+        . 'to a document that already exists, and write_google_sheet to fill the new document with rows.';
 
     /**
      * @return array<int, ToolProperty>

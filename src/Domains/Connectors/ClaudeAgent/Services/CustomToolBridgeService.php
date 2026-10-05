@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ClaudeAgent\Services;
 
 use Kanvas\Intelligence\Agents\Models\Agent;
 use NeuronAI\Tools\ToolInterface;
+use NeuronAI\Tools\ToolOutput;
 use NeuronAI\Tools\ToolPropertyInterface;
 use Throwable;
 
@@ -131,7 +132,14 @@ class CustomToolBridgeService
             $invocation->setInputs($input);
             $invocation->execute();
 
-            return ['content' => $invocation->getResult(), 'isError' => false];
+            // A rejected input never reaches __invoke(): Neuron settles it as an error output with the
+            // correction for the model, which is exactly what `is_error` is for.
+            $result = $invocation->getResult();
+
+            return [
+                'content' => (string) $result,
+                'isError' => $result instanceof ToolOutput && $result->isError(),
+            ];
         } catch (Throwable $e) {
             return ['content' => $e->getMessage(), 'isError' => true];
         }

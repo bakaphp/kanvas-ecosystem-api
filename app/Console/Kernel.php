@@ -19,6 +19,7 @@ use App\Console\Commands\Ecosystem\Users\DetectSignupAnomalyCommand;
 use App\Console\Commands\Event\GenerateUpcomingTimeSlotsCommand;
 use App\Console\Commands\Guild\GuildDailyLeadsDigestCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
+use App\Console\Commands\Intelligence\Agents\PruneAgentMemoryCommand;
 use App\Console\Commands\Lead\Schedules\LeadFollowUpSchedule;
 use App\Console\Commands\NervousSystem\Agents\Coding\ReapCodingAgentRuntimeCommand;
 use App\Console\Commands\NervousSystem\Agents\Coding\SweepCodingSessionsCommand;
@@ -89,6 +90,7 @@ class Kernel extends ConsoleKernel
 
         // Guild daily lead summaries are opt-in per active app/company pair.
         $schedule->command(GuildDailyLeadsDigestCommand::class)->dailyAt('08:00')->withoutOverlapping()->onOneServer();
+        $schedule->command(PruneAgentMemoryCommand::class)->dailyAt('03:30')->withoutOverlapping()->onOneServer();
 
         // Scheduled imports (FTP/SFTP → mapper → importer). Each source has its own cron + timezone;
         // this tick only queues the ones that are due.

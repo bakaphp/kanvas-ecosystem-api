@@ -21,15 +21,11 @@ class CancelCalendarEventTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'cancel_calendar_event',
-            description: 'Cancel an EXISTING appointment for good (the prospect can no longer attend and is not '
-                . 'rebooking right now). Pass the event_uuid from get_lead_ref appointments.upcoming[].uuid. '
-                . 'This frees the time slot. To MOVE a meeting to another time, use reschedule_calendar_event instead.',
-        );
-    }
+    protected string $name = 'cancel_calendar_event';
+
+    protected ?string $description = 'Cancel an EXISTING appointment for good (the prospect can no longer attend and is not '
+        . 'rebooking right now). Pass the event_uuid from get_lead_ref appointments.upcoming[].uuid. '
+        . 'This frees the time slot. To MOVE a meeting to another time, use reschedule_calendar_event instead.';
 
     #[Override]
     protected function properties(): array

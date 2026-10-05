@@ -80,6 +80,7 @@ class AgentConversationMessage extends ImmutableBaseModel
             'steps' => Json::class,
             'usage' => Json::class,
             'meta' => Json::class,
+            'archived_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];

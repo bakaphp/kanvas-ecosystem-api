@@ -18,15 +18,11 @@ use Override;
 #[AgentTool(name: 'Apply AR Payment', category: 'accounting')]
 class ApplyArPaymentTool extends AbstractApplyAcumaticaPaymentTool
 {
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'apply_ar_payment',
-            description: 'Applies a cash receipt to an existing AR invoice (partial or full) and pushes the '
-                . 'payment to Acumatica. Only call when the user explicitly asks to record a real customer '
-                . 'payment against an invoice — never on a whim.',
-        );
-    }
+    protected string $name = 'apply_ar_payment';
+
+    protected ?string $description = 'Applies a cash receipt to an existing AR invoice (partial or full) and pushes the '
+        . 'payment to Acumatica. Only call when the user explicitly asks to record a real customer '
+        . 'payment against an invoice — never on a whim.';
 
     /**
      * @return array<string, mixed>

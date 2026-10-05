@@ -20,16 +20,12 @@ class GetKanvasReleaseUpdatesTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_kanvas_release_updates',
-            description: 'What KANVAS itself has shipped since a given date, oldest first, with the release notes verbatim. '
-                . 'Pass the date this customer was last written to so you only see what they have not been told about '
-                . 'yet. These notes are the ONLY thing you may describe as shipped — never infer a capability that is '
-                . 'not written here.',
-        );
-    }
+    protected string $name = 'get_kanvas_release_updates';
+
+    protected ?string $description = 'What KANVAS itself has shipped since a given date, oldest first, with the release notes verbatim. '
+        . 'Pass the date this customer was last written to so you only see what they have not been told about '
+        . 'yet. These notes are the ONLY thing you may describe as shipped — never infer a capability that is '
+        . 'not written here.';
 
     /**
      * @return array<int, ToolProperty>

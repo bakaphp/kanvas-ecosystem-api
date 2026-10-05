@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEmployeeForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,24 +24,20 @@ use Override;
  * again.
  */
 #[AgentTool(name: 'List Leave Requests', category: 'human_resources')]
-class ListLeaveRequestsTool extends Tool implements HasRunKey
+class ListLeaveRequestsTool extends Tool
 {
     use HandlesLeaveForTool;
     use HasKanvasContext;
     use ResolvesEmployeeForTool;
     use TrackByInputs;
 
-    private const int MAX_RESULTS = 50;
+    protected string $name = 'list_leave_requests';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_leave_requests',
-            description: 'Lists time-off requests with their ids, employee, dates, days and status. Filter by status '
-                . '(pending/approved/rejected/cancelled) and/or a single employee. Call this to answer "who has leave '
-                . 'pending?" and to get the leave_request_id before calling decide_leave or cancel_leave.',
-        );
-    }
+    protected ?string $description = 'Lists time-off requests with their ids, employee, dates, days and status. Filter by status '
+        . '(pending/approved/rejected/cancelled) and/or a single employee. Call this to answer "who has leave '
+        . 'pending?" and to get the leave_request_id before calling decide_leave or cancel_leave.';
+
+    private const int MAX_RESULTS = 50;
 
     /**
      * @return array<int, ToolProperty>

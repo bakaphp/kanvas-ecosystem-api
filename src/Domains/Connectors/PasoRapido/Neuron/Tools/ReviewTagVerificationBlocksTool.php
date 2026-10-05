@@ -26,6 +26,19 @@ class ReviewTagVerificationBlocksTool extends Tool
     use ReportsToolOutcome;
     use ResolvesReviewWindow;
 
+    protected string $name = 'review_tag_verification_blocks';
+
+    protected ?string $description = 'Read-only review of PasoRapido tag-verification abuse, cut over a date range in the '
+        . "tenant's own timezone (max " . self::MAX_RANGE_DAYS . ' days). Returns "by_user": every user '
+        . 'with at least one blocked verification attempt, with a count per block reason, the number of '
+        . 'distinct tags and IPs they tried, whether they are STILL banned right now, whether the company '
+        . 'is corporate, and when the first and last block happened. Distinct tags is a LOWER BOUND — '
+        . 'repeat hits of the same reason within an hour are deduplicated to one log row, so a user '
+        . 'probing many tags may show fewer than they actually tried. "by_ip" is the same rows grouped by '
+        . 'IP instead, including blocks with no known user, with the number of distinct users seen from '
+        . 'that IP. "success_count" is how many verifications succeeded in the same range, for context. '
+        . 'This tool never bans, unbans or changes any limit — it only reports for a human to decide.';
+
     private const int DEFAULT_LIMIT = 20;
 
     private const int MAX_LIMIT = 50;
@@ -34,20 +47,6 @@ class ReviewTagVerificationBlocksTool extends Tool
 
     public function __construct()
     {
-        parent::__construct(
-            name: 'review_tag_verification_blocks',
-            description: 'Read-only review of PasoRapido tag-verification abuse, cut over a date range in the '
-                . "tenant's own timezone (max " . self::MAX_RANGE_DAYS . ' days). Returns "by_user": every user '
-                . 'with at least one blocked verification attempt, with a count per block reason, the number of '
-                . 'distinct tags and IPs they tried, whether they are STILL banned right now, whether the company '
-                . 'is corporate, and when the first and last block happened. Distinct tags is a LOWER BOUND — '
-                . 'repeat hits of the same reason within an hour are deduplicated to one log row, so a user '
-                . 'probing many tags may show fewer than they actually tried. "by_ip" is the same rows grouped by '
-                . 'IP instead, including blocks with no known user, with the number of distinct users seen from '
-                . 'that IP. "success_count" is how many verifications succeeded in the same range, for context. '
-                . 'This tool never bans, unbans or changes any limit — it only reports for a human to decide.',
-        );
-
         $this->initRepeatGuard();
     }
 

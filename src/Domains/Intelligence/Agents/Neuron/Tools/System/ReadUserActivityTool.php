@@ -11,7 +11,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,21 +23,21 @@ use Override;
  * record you're both looking at, not surveil their whole activity across the company.
  */
 #[AgentTool(name: 'Read User Activity', category: 'ecosystem')]
-class ReadUserActivityTool extends Tool implements HasRunKey
+class ReadUserActivityTool extends Tool
 {
     use TrackByInputs;
+
+    protected string $name = 'read_user_activity';
+
+    protected ?string $description = 'See what a specific teammate has done ON THE RECORD you are currently working on (this lead/order/etc.), '
+        . 'from the nervous-system ledger — scoped to this record only. Identify them by user_id or @handle. '
+        . 'Use it to answer "what has <teammate> done on this?".';
 
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly ?Model $subject = null,
     ) {
-        parent::__construct(
-            name: 'read_user_activity',
-            description: 'See what a specific teammate has done ON THE RECORD you are currently working on (this lead/order/etc.), '
-                . 'from the nervous-system ledger — scoped to this record only. Identify them by user_id or @handle. '
-                . 'Use it to answer "what has <teammate> done on this?".',
-        );
     }
 
     #[Override]

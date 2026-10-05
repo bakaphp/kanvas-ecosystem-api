@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasTokenCounter;
 use NeuronAI\Chat\Enums\SourceType;
 use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
@@ -58,7 +59,7 @@ final class KanvasTokenCounterTest extends TestCase
 
     public function testTrimmerUsesTheGuardedCounter(): void
     {
-        $trimmer = KanvasTokenCounter::trimmer();
+        $trimmer = KanvasHistoryTrimmer::make();
         $messages = [$this->imageMessage(base64_encode('junk'), SourceType::BASE64)];
 
         $this->assertCount(1, $trimmer->trim($messages, 50_000));

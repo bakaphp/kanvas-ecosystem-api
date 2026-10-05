@@ -10,7 +10,6 @@ use Kanvas\Analytics\Reporting\Support\ReportRegistry;
 use Kanvas\Connectors\Intras\Reporting\Concerns\BuildsIntrasFilters;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -28,26 +27,22 @@ use Throwable;
  * from here.
  */
 #[AgentTool(name: 'Intras Participation Stats', category: 'reporting')]
-class ParticipationStatsTool extends Tool implements HasRunKey
+class ParticipationStatsTool extends Tool
 {
     use TrackByInputs;
     use BuildsIntrasFilters;
     use HasKanvasContext;
 
-    private const array COUNT_BY = ['ejecutivos', 'empresas', 'inscripciones'];
+    protected string $name = 'intras_participation_stats';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'intras_participation_stats',
-            description: 'Cuántos ejecutivos, empresas o inscripciones participaron en eventos, '
-                . 'filtrando por tipo (ABIERTO/IN-HOUSE), clase (SEMINARIO, EVENTO GRANDE, ...), '
-                . 'categoría, línea temática y rango de fechas. Aplica automáticamente la '
-                . 'definición de INTRAS de "participó" (CONFIRMADO, CONFIRMADO PLAN, PROGRAMA) y '
-                . 'excluye versiones canceladas. Usa breakdown_by para desglosar (por ejemplo '
-                . '"sexo", "empresa", "clase", "sector").',
-        );
-    }
+    protected ?string $description = 'Cuántos ejecutivos, empresas o inscripciones participaron en eventos, '
+        . 'filtrando por tipo (ABIERTO/IN-HOUSE), clase (SEMINARIO, EVENTO GRANDE, ...), '
+        . 'categoría, línea temática y rango de fechas. Aplica automáticamente la '
+        . 'definición de INTRAS de "participó" (CONFIRMADO, CONFIRMADO PLAN, PROGRAMA) y '
+        . 'excluye versiones canceladas. Usa breakdown_by para desglosar (por ejemplo '
+        . '"sexo", "empresa", "clase", "sector").';
+
+    private const array COUNT_BY = ['ejecutivos', 'empresas', 'inscripciones'];
 
     /**
      * @return array<int, ToolProperty>

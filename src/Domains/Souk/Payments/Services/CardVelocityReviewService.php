@@ -307,7 +307,7 @@ class CardVelocityReviewService
 
         $userIds = array_map('intval', array_keys($rows));
         $profiles = UsersAssociatedApps::profilesForApp($this->app, $userIds);
-        $isCorporate = filter_var($this->company->get('is_corporate'), FILTER_VALIDATE_BOOLEAN);
+        $isCorporate = $this->company->getBool('is_corporate');
 
         $result = [];
         foreach ($rows as $usersId => $row) {

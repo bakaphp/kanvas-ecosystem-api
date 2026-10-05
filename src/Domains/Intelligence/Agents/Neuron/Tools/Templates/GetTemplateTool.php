@@ -18,15 +18,11 @@ class GetTemplateTool extends Tool
     use HasKanvasContext;
     use ManagesTemplatesTrait;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_template',
-            description: 'Get a single template by id, including its full HTML body — use this to inspect the current '
-                . 'markup before fixing it with update_template. Returns an "owned" flag: when it is false you '
-                . 'CANNOT edit or delete that template, so check it before telling the user you will change it.',
-        );
-    }
+    protected string $name = 'get_template';
+
+    protected ?string $description = 'Get a single template by id, including its full HTML body — use this to inspect the current '
+        . 'markup before fixing it with update_template. Returns an "owned" flag: when it is false you '
+        . 'CANNOT edit or delete that template, so check it before telling the user you will change it.';
 
     /**
      * @return array<int, ToolProperty>

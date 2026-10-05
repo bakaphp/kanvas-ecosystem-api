@@ -16,9 +16,9 @@ use Kanvas\Connectors\ClaudeAgent\Services\CustomToolBridgeService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use NeuronAI\Tools\PropertyType;
-use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Tests\Connectors\Traits\HasClaudeAgentConfiguration;
+use Tests\Stubs\Intelligence\Tools\CallbackTool;
 use Tests\TestCase;
 
 /**
@@ -68,16 +68,19 @@ final class RunSessionTurnActionTest extends TestCase
         ]);
     }
 
-    private function leadTool(): Tool
+    private function leadTool(): CallbackTool
     {
-        return Tool::make('get_lead_status', 'Look up a lead status by id.')
-            ->addProperty(new ToolProperty(
+        return new CallbackTool(
+            'get_lead_status',
+            'Look up a lead status by id.',
+            static fn (int $lead_id): array => ['lead_id' => $lead_id, 'status' => 'won'],
+            [new ToolProperty(
                 name: 'lead_id',
                 type: PropertyType::INTEGER,
                 description: 'Kanvas lead id.',
                 required: true,
-            ))
-            ->setCallable(static fn (int $lead_id): array => ['lead_id' => $lead_id, 'status' => 'won']);
+            )],
+        );
     }
 
     private function runTurn(Agent $agent, ?Session $session, array $responses, array $tools = []): string

@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesProjectForTool;
 use Kanvas\NervousSystem\Project\Actions\UpdateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,22 +23,18 @@ use Throwable;
  * but never record the objective or close the project.
  */
 #[AgentTool(name: 'Update Project', category: 'nervous_system')]
-class UpdateNervousSystemProjectTool extends Tool implements HasRunKey
+class UpdateNervousSystemProjectTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesProjectForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_nervous_system_project',
-            description: 'Update the project itself. Use this to SET or refine the objective once you know '
-                . 'it, retitle/rescope the project, move its status (active, on_hold, blocked, done, '
-                . 'cancelled, archived), or change its deadline and priority. Set status=done only when the '
-                . 'objective has actually been reached. Only pass the fields you want to change.',
-        );
-    }
+    protected string $name = 'update_nervous_system_project';
+
+    protected ?string $description = 'Update the project itself. Use this to SET or refine the objective once you know '
+        . 'it, retitle/rescope the project, move its status (active, on_hold, blocked, done, '
+        . 'cancelled, archived), or change its deadline and priority. Set status=done only when the '
+        . 'objective has actually been reached. Only pass the fields you want to change.';
 
     /**
      * @return array<int, ToolProperty>

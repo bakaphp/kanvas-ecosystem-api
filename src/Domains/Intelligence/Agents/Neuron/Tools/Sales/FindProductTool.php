@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Sales;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Variants\Models\Variants;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -20,20 +19,16 @@ use Override;
  * candidates to disambiguate rather than a single guess.
  */
 #[AgentTool(name: 'Find Product', category: 'commerce')]
-class FindProductTool extends Tool implements HasRunKey
+class FindProductTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_product',
-            description: 'Finds products/variants matching a name or partial SKU, each with its exact SKU. Use this '
-                . 'to resolve a product the user named ("the Kraken Elite") into a SKU before create_sample_order. '
-                . 'Returns candidates — confirm the right one if there is more than one.',
-        );
-    }
+    protected string $name = 'find_product';
+
+    protected ?string $description = 'Finds products/variants matching a name or partial SKU, each with its exact SKU. Use this '
+        . 'to resolve a product the user named ("the Kraken Elite") into a SKU before create_sample_order. '
+        . 'Returns candidates — confirm the right one if there is more than one.';
 
     /**
      * @return array<int, ToolProperty>

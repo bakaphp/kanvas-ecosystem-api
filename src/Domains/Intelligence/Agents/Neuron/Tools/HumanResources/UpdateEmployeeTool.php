@@ -17,7 +17,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEmployeeForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPositionAndDepartmentForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -31,7 +30,7 @@ use Override;
  * not on the platform user. Only the fields passed are changed.
  */
 #[AgentTool(name: 'Update Employee', category: 'human_resources')]
-class UpdateEmployeeTool extends Tool implements HasRunKey
+class UpdateEmployeeTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
@@ -39,19 +38,15 @@ class UpdateEmployeeTool extends Tool implements HasRunKey
     use ResolvesPositionAndDepartmentForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_employee',
-            description: 'Updates an existing employee. HR fields: description, status (onboarding/active/on_leave/'
-                . 'suspended/departed), employment_type (employee/contractor/shared), position (by title), department '
-                . '(by name), manager (by email), employee_number, hire date. Profile fields (on the People record): '
-                . 'first_name/last_name/middle_name, birthday, phone, address/city/state/zip. Admin only. Only the '
-                . 'fields you pass are changed; the linked LOGIN user account is NEVER changed — name/contact/address '
-                . 'edits land on the People record. Identify the employee by email or employee_id (call find_employee '
-                . 'for a name). Returns updated=false on any problem.',
-        );
-    }
+    protected string $name = 'update_employee';
+
+    protected ?string $description = 'Updates an existing employee. HR fields: description, status (onboarding/active/on_leave/'
+        . 'suspended/departed), employment_type (employee/contractor/shared), position (by title), department '
+        . '(by name), manager (by email), employee_number, hire date. Profile fields (on the People record): '
+        . 'first_name/last_name/middle_name, birthday, phone, address/city/state/zip. Admin only. Only the '
+        . 'fields you pass are changed; the linked LOGIN user account is NEVER changed — name/contact/address '
+        . 'edits land on the People record. Identify the employee by email or employee_id (call find_employee '
+        . 'for a name). Returns updated=false on any problem.';
 
     /**
      * @return array<int, ToolProperty>

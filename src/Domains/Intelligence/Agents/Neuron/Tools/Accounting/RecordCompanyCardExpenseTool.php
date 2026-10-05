@@ -16,7 +16,6 @@ use Kanvas\Scribe\Expenses\Actions\CreateExpenseAction;
 use Kanvas\Scribe\Expenses\Actions\SubmitExpenseForApprovalAction;
 use Kanvas\Scribe\Expenses\DataTransferObject\Expense as ExpenseData;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -44,7 +43,7 @@ use Throwable;
  * card expense that never gets approved is one the Mercury feed will happily book a second time.
  */
 #[AgentTool(name: 'Record Company Card Expense', category: 'accounting')]
-class RecordCompanyCardExpenseTool extends Tool implements HasRunKey
+class RecordCompanyCardExpenseTool extends Tool
 {
     use FilesExpenseForTool;
     use HasKanvasContext;
@@ -53,17 +52,13 @@ class RecordCompanyCardExpenseTool extends Tool implements HasRunKey
     use ResolvesFilesystemForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'record_company_card_expense',
-            description: 'Files a purchase paid on a COMPANY card — a card the business issued, where the money '
-                . 'has already left the company and nobody is owed anything back. Not for money somebody paid '
-                . 'out of their own pocket and wants back — that is a reimbursement claim, a different entry on '
-                . 'the books — so ask whose card it was when the receipt does not say. Read the receipt with '
-                . 'extract_expense_receipt first when there is one.',
-        );
-    }
+    protected string $name = 'record_company_card_expense';
+
+    protected ?string $description = 'Files a purchase paid on a COMPANY card — a card the business issued, where the money '
+        . 'has already left the company and nobody is owed anything back. Not for money somebody paid '
+        . 'out of their own pocket and wants back — that is a reimbursement claim, a different entry on '
+        . 'the books — so ask whose card it was when the receipt does not say. Read the receipt with '
+        . 'extract_expense_receipt first when there is one.';
 
     /**
      * @return array<int, ToolProperty>

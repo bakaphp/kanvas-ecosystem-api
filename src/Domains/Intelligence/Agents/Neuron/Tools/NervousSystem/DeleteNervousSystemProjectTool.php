@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesProjectForTool;
 use Kanvas\NervousSystem\Project\Actions\DeleteProjectAction;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -26,22 +25,18 @@ use Throwable;
  * says so because the model, not a caller, is what picks between them.
  */
 #[AgentTool(name: 'Delete Project', category: 'nervous_system')]
-class DeleteNervousSystemProjectTool extends Tool implements HasRunKey
+class DeleteNervousSystemProjectTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesProjectForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'delete_nervous_system_project',
-            description: 'Delete a project along with its plans, tasks, sub-projects and members. Use ONLY '
-                . 'for a project that should not exist — a duplicate, or one opened by mistake. For work '
-                . 'that is finished, abandoned or paused, use update_nervous_system_project with '
-                . 'status=done, cancelled, archived or on_hold instead — never delete it.',
-        );
-    }
+    protected string $name = 'delete_nervous_system_project';
+
+    protected ?string $description = 'Delete a project along with its plans, tasks, sub-projects and members. Use ONLY '
+        . 'for a project that should not exist — a duplicate, or one opened by mistake. For work '
+        . 'that is finished, abandoned or paused, use update_nervous_system_project with '
+        . 'status=done, cancelled, archived or on_hold instead — never delete it.';
 
     /**
      * @return array<int, ToolProperty>

@@ -33,16 +33,16 @@ class CreateEngagementPageTool extends Tool
     use DecodesJsonObjectParam;
     use HasKanvasContext;
 
+    protected string $name = 'create_engagement_page';
+
+    protected ?string $description = 'Create one tracked Sales App (Action Page) for a lead and return its action URL. '
+        . 'Use a slug returned by list_sales_apps, such as view-vehicle, get-docs, credit-app or add-trade; '
+        . 'inactive Sales Apps are rejected. This tool does not contact the customer: when you are chatting '
+        . 'with the customer, include the returned action_link in your reply; otherwise pass it to '
+        . 'send_sms or send_email.';
+
     public function __construct(private readonly Agent $agent)
     {
-        parent::__construct(
-            name: 'create_engagement_page',
-            description: 'Create one tracked Sales App (Action Page) for a lead and return its action URL. '
-                . 'Use a slug returned by list_sales_apps, such as view-vehicle, get-docs, credit-app or add-trade; '
-                . 'inactive Sales Apps are rejected. This tool does not contact the customer: when you are chatting '
-                . 'with the customer, include the returned action_link in your reply; otherwise pass it to '
-                . 'send_sms or send_email.',
-        );
     }
 
     /**

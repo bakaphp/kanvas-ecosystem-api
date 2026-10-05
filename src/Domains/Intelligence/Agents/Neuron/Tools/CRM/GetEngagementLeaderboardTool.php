@@ -26,20 +26,16 @@ class GetEngagementLeaderboardTool extends Tool
     use HasKanvasContext;
     use ResolvesAnalyticsTimeframe;
 
-    private const array SORTS = ['total', 'ai', 'rep', 'replies', 'resp', 'appts'];
+    protected string $name = 'get_engagement_leaderboard';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_engagement_leaderboard',
-            description: 'Per-salesperson Engage usage ranking over a timeframe: messages sent, how many the AI '
-                . 'sent vs the rep, customer replies and reply rate, median rep response time, and appointments '
-                . 'booked — plus a team total row. Use for "who sent the most last week?", "rank the reps by '
-                . 'response time", "regenerate the weekly engage usage report", "which rep books the most '
-                . 'appointments?". For company-wide totals with no per-rep breakdown use get_message_usage_report '
-                . 'instead. This is reporting only — it never sends anything.',
-        );
-    }
+    protected ?string $description = 'Per-salesperson Engage usage ranking over a timeframe: messages sent, how many the AI '
+        . 'sent vs the rep, customer replies and reply rate, median rep response time, and appointments '
+        . 'booked — plus a team total row. Use for "who sent the most last week?", "rank the reps by '
+        . 'response time", "regenerate the weekly engage usage report", "which rep books the most '
+        . 'appointments?". For company-wide totals with no per-rep breakdown use get_message_usage_report '
+        . 'instead. This is reporting only — it never sends anything.';
+
+    private const array SORTS = ['total', 'ai', 'rep', 'replies', 'resp', 'appts'];
 
     /**
      * @return array<int, ToolProperty>

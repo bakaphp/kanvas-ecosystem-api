@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -27,21 +26,17 @@ use Override;
  * cutover.
  */
 #[AgentTool(name: 'Check Approval Status', category: 'approvals')]
-class CheckApprovalStatusTool extends Tool implements HasRunKey
+class CheckApprovalStatusTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'check_approval_status',
-            description: 'Check whether a record is approved, still waiting, rejected, expired or was never '
-                . 'gated at all — and when it is waiting, who it is waiting on and at which step. Use this to '
-                . 'answer "is bill 1072 approved?", "who still has to sign off on invoice 88?" or before telling '
-                . 'someone an item is done. Read-only: it never approves anything.',
-        );
-    }
+    protected string $name = 'check_approval_status';
+
+    protected ?string $description = 'Check whether a record is approved, still waiting, rejected, expired or was never '
+        . 'gated at all — and when it is waiting, who it is waiting on and at which step. Use this to '
+        . 'answer "is bill 1072 approved?", "who still has to sign off on invoice 88?" or before telling '
+        . 'someone an item is done. Read-only: it never approves anything.';
 
     /**
      * @return array<int, ToolProperty>

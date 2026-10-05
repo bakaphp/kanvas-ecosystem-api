@@ -21,7 +21,6 @@ use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -34,22 +33,18 @@ use Throwable;
 
 /** Issues a standalone AR credit memo (e.g. a back-end rebate) not tied to any specific invoice, and pushes it to Acumatica. */
 #[AgentTool(name: 'Create AR Credit Memo', category: 'accounting')]
-class CreateArCreditMemoTool extends Tool implements HasRunKey
+class CreateArCreditMemoTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesCustomerForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_ar_credit_memo',
-            description: 'Issues a standalone AR credit memo for a customer — e.g. a back-end rebate/sell-out '
-                . 'allowance from a Credit Request Form — and pushes it to Acumatica as a Credit Memo. It is not '
-                . 'tied to any specific invoice. Only call when the user explicitly asks to issue a credit, never '
-                . 'on a whim.',
-        );
-    }
+    protected string $name = 'create_ar_credit_memo';
+
+    protected ?string $description = 'Issues a standalone AR credit memo for a customer — e.g. a back-end rebate/sell-out '
+        . 'allowance from a Credit Request Form — and pushes it to Acumatica as a Credit Memo. It is not '
+        . 'tied to any specific invoice. Only call when the user explicitly asks to issue a credit, never '
+        . 'on a whim.';
 
     /**
      * @return array<int, ToolPropertyInterface>

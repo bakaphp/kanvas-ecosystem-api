@@ -28,15 +28,11 @@ class LinkPersonToOrganizationTool extends Tool
     use HasKanvasContext;
     use ResolvesOrganizationForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'link_person_to_organization',
-            description: 'Associate a person with a customer organization (i.e. record where they work). Pass '
-                . 'person_id plus organization_id (preferred) or organization_name, and optionally a title. Resolves '
-                . 'ambiguous org names to candidates. Use list_organization_people to read the links back.',
-        );
-    }
+    protected string $name = 'link_person_to_organization';
+
+    protected ?string $description = 'Associate a person with a customer organization (i.e. record where they work). Pass '
+        . 'person_id plus organization_id (preferred) or organization_name, and optionally a title. Resolves '
+        . 'ambiguous org names to candidates. Use list_organization_people to read the links back.';
 
     /**
      * @return array<int, ToolProperty>

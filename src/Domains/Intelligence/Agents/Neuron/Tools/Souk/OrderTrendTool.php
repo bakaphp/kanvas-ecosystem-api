@@ -19,17 +19,13 @@ class OrderTrendTool extends Tool
     use HasKanvasContext;
     use ParsesOrderTypesFilter;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'order_trend',
-            description: 'Order count and revenue over time, bucketed by day, week or month, with the per-period '
-                . 'averages plus the busiest and slowest period in the range. Use for "how are orders trending", '
-                . '"revenue month by month", "which week was our best", "is volume going up or down". Returns one '
-                . 'row per period that actually has orders — periods with none are omitted, not zero-filled. For a '
-                . 'single total instead of a series use sales_revenue or order_payment_stats.',
-        );
-    }
+    protected string $name = 'order_trend';
+
+    protected ?string $description = 'Order count and revenue over time, bucketed by day, week or month, with the per-period '
+        . 'averages plus the busiest and slowest period in the range. Use for "how are orders trending", '
+        . '"revenue month by month", "which week was our best", "is volume going up or down". Returns one '
+        . 'row per period that actually has orders — periods with none are omitted, not zero-filled. For a '
+        . 'single total instead of a series use sales_revenue or order_payment_stats.';
 
     /**
      * @return array<int, ToolProperty>

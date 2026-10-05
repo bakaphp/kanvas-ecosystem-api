@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,23 +24,23 @@ use Override;
  * LLM invents produces a task about a file that is not there, and the coding agent has no way to ask.
  */
 #[AgentTool(name: 'List Coding Repository Files', category: 'coding')]
-class ListHarnessRepositoryFilesTool extends Tool implements HasRunKey, RequiresSystemAgent
+class ListHarnessRepositoryFilesTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use ResolvesCodingRepositoryForTool;
     use TrackByInputs;
+
+    protected string $name = 'list_coding_repository_files';
+
+    protected ?string $description = 'List the files in a repository you can work on, without starting a job. Filter '
+        . 'with a path prefix or a fragment to find where something lives. Use it before writing '
+        . 'a task so the brief names paths that actually exist.';
 
     private const int MAX_PATHS = 300;
 
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'list_coding_repository_files',
-            description: 'List the files in a repository you can work on, without starting a job. Filter '
-                . 'with a path prefix or a fragment to find where something lives. Use it before writing '
-                . 'a task so the brief names paths that actually exist.',
-        );
     }
 
     /**

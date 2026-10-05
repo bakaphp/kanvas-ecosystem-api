@@ -29,16 +29,12 @@ class UpdatePersonTool extends Tool
     use ReportsToolOutcome;
     use ResolvesPersonForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_person',
-            description: 'Update a contact\'s core fields: firstname, lastname, middlename, date of birth, title or '
-                . 'people type (e.g. participant, facilitator). '
-                . 'Only the fields you pass are changed; emails/phones are left untouched (use manage_person_contact '
-                . 'for those). Identify the person by person_id (use find_person to get it).',
-        );
-    }
+    protected string $name = 'update_person';
+
+    protected ?string $description = 'Update a contact\'s core fields: firstname, lastname, middlename, date of birth, title or '
+        . 'people type (e.g. participant, facilitator). '
+        . 'Only the fields you pass are changed; emails/phones are left untouched (use manage_person_contact '
+        . 'for those). Identify the person by person_id (use find_person to get it).';
 
     /**
      * @return array<int, ToolProperty>

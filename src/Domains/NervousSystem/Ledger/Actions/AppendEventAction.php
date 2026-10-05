@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Ledger\Actions;
 
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
+use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\LedgerConfigurationEnum;
 use Kanvas\NervousSystem\Ledger\Events\LedgerEventBroadcast;
@@ -41,8 +45,30 @@ class AppendEventAction
         $event->saveOrFail();
 
         $this->maybeBroadcast($event);
+        $this->maybeIndexMemory($event);
 
         return $event;
+    }
+
+    /**
+     * A saved memory or an allowlisted outcome becomes a company-memory document, queued so the embed
+     * never sits on the ledger write. Swallowed like the broadcast: the row is already persisted.
+     */
+    protected function maybeIndexMemory(Event $event): void
+    {
+        if ($event->companies_id < 1 || ! LedgerKnowledgeSource::wants($event->event_type)) {
+            return;
+        }
+
+        try {
+            if ($this->data->app instanceof Apps) {
+                $event->setRelation('app', $this->data->app);
+            }
+
+            KnowledgeIndexRequested::dispatchIfEnabled($event);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**
@@ -62,17 +88,18 @@ class AppendEventAction
         try {
             $app = $this->data->app;
 
-            $flag = $app->get(LedgerConfigurationEnum::BROADCAST_LEDGER_EVENTS->value);
-            // Default ON. Only suppress when the app explicitly stores a
-            // falsy value (false / 0 / "0" / ""). null / missing → broadcast.
-            if ($flag !== null && ! (bool) $flag) {
+            // Only a stored value that parses as false suppresses; unset means broadcast.
+            if (! $app->getBool(LedgerConfigurationEnum::BROADCAST_LEDGER_EVENTS->value, default: true)) {
                 return;
             }
 
-            $allowlist = $app->get(LedgerConfigurationEnum::BROADCAST_LEDGER_EVENT_TYPES->value);
+            // No allowlist (or only blank entries) → broadcast everything; otherwise only matching prefixes.
+            $prefixes = array_values(array_filter(
+                (array) $app->get(LedgerConfigurationEnum::BROADCAST_LEDGER_EVENT_TYPES->value, []),
+                static fn (mixed $prefix): bool => is_string($prefix) && $prefix !== '',
+            ));
 
-            // No allowlist set → broadcast everything. Allowlist set → only broadcast matching prefixes.
-            if (is_array($allowlist) && $allowlist !== [] && ! $this->matchesAllowlist($event->event_type, $allowlist)) {
+            if ($prefixes !== [] && ! Str::startsWith($event->event_type, $prefixes)) {
                 return;
             }
 
@@ -80,23 +107,5 @@ class AppendEventAction
         } catch (Throwable) {
             // intentional: never let a broadcast failure roll back a ledger write
         }
-    }
-
-    /**
-     * @param array<array-key, mixed> $allowlist event-type prefixes (e.g. ["plan.", "schedule.fired"])
-     */
-    protected function matchesAllowlist(string $eventType, array $allowlist): bool
-    {
-        foreach ($allowlist as $prefix) {
-            if (! is_string($prefix)) {
-                continue;
-            }
-
-            if ($prefix === $eventType || str_starts_with($eventType, $prefix)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

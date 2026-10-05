@@ -18,16 +18,12 @@ class UpdateTemplateTool extends Tool
     use HasKanvasContext;
     use ManagesTemplatesTrait;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_template',
-            description: 'Change the HTML (or subject/title) of a template you previously created — use this when a '
-                . 'rendered PDF does not look right and you want to fix the markup. Only templates you created can '
-                . 'be updated: on any other one the call is refused and NOTHING changes, so report it as blocked '
-                . 'rather than as updated. Pass the template_id returned by create_template.',
-        );
-    }
+    protected string $name = 'update_template';
+
+    protected ?string $description = 'Change the HTML (or subject/title) of a template you previously created — use this when a '
+        . 'rendered PDF does not look right and you want to fix the markup. Only templates you created can '
+        . 'be updated: on any other one the call is refused and NOTHING changes, so report it as blocked '
+        . 'rather than as updated. Pass the template_id returned by create_template.';
 
     /**
      * @return array<int, ToolProperty>

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\ChatHistory;
 
 use NeuronAI\Chat\Enums\SourceType;
-use NeuronAI\Chat\History\HistoryTrimmer;
 use NeuronAI\Chat\History\TokenCounter;
 use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
 use Override;
@@ -18,11 +17,6 @@ use Override;
 class KanvasTokenCounter extends TokenCounter
 {
     private const int ESTIMATED_IMAGE_SIDE = 1024;
-
-    public static function trimmer(): HistoryTrimmer
-    {
-        return new HistoryTrimmer(new self());
-    }
 
     #[Override]
     protected function handleImageBlock(ImageContent $block): int

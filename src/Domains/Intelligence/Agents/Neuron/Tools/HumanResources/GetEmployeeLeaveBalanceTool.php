@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEmployeeForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,22 +20,18 @@ use Override;
  * resolved by email or employee id.
  */
 #[AgentTool(name: 'Get Employee Leave Balance', category: 'human_resources')]
-class GetEmployeeLeaveBalanceTool extends Tool implements HasRunKey
+class GetEmployeeLeaveBalanceTool extends Tool
 {
     use HandlesLeaveForTool;
     use HasKanvasContext;
     use ResolvesEmployeeForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_employee_leave_balance',
-            description: 'Returns an employee\'s leave balances (available, pending, used and entitled days per leave '
-                . 'type) for a year. Use this to answer "how many vacation days do I / does <person> have left?". '
-                . 'Identify the employee by email or employee_id — call find_employee first if you only have a name.',
-        );
-    }
+    protected string $name = 'get_employee_leave_balance';
+
+    protected ?string $description = 'Returns an employee\'s leave balances (available, pending, used and entitled days per leave '
+        . 'type) for a year. Use this to answer "how many vacation days do I / does <person> have left?". '
+        . 'Identify the employee by email or employee_id — call find_employee first if you only have a name.';
 
     /**
      * @return array<int, ToolProperty>

@@ -9,7 +9,7 @@ use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Messages\ToolResultMessage;
 
 /**
- * The Laravel-path counterpart of `RebuildsTrimmedHistory`: a replayed history is cut to the same token
+ * The Laravel-path counterpart of `KanvasHistoryTrimmer`: a replayed history is cut to the same token
  * budget `ModelContextWindowService` gives the Neuron histories, so both backends forget at the same
  * point and neither ships a model its whole stored conversation. Oldest turns go first, and the cut
  * lands on a human turn — providers reject a history that opens on an assistant message or on a tool

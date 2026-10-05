@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Mcp\Support;
 
 use JsonException;
+use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
+use NeuronAI\Tools\ToolOutput;
 
 /**
- * Reads the `content` list a `tools/call` answers with — `[{type: text, text: "..."}, ...]`.
+ * Reads what a `tools/call` answers with: a `ToolOutput` from the connector, or the raw
+ * `content` list `[{type: text, text: "..."}, ...]` a transport hands back directly.
  */
 final class McpToolResult
 {
@@ -16,6 +19,13 @@ final class McpToolResult
      */
     public static function texts(mixed $content): array
     {
+        if ($content instanceof ToolOutput) {
+            return array_values(array_map(
+                static fn (TextContent $block): string => (string) $block->getContent(),
+                array_filter($content->getBlocks(), static fn (mixed $block): bool => $block instanceof TextContent),
+            ));
+        }
+
         return array_values(array_filter(array_map(
             fn (mixed $item): ?string => is_array($item) && is_string($item['text'] ?? null) ? $item['text'] : null,
             is_array($content) ? $content : []
