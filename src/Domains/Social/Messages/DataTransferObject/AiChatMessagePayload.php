@@ -29,6 +29,7 @@ class AiChatMessagePayload extends Data
         public readonly ?string $chat_jid = null,
         public readonly array $images = [],
         public readonly array $attachment_descriptions = [],
+        public readonly ?string $verb = null,
     ) {
     }
 
