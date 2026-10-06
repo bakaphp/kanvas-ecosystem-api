@@ -122,15 +122,15 @@ class CreateCompanyWorkflowToolTest extends TestCase
         $this->assertSame(1, $rule->workflowActivities()->count());
     }
 
-    public function testWorkflowHasNoCompanyParameterSoItCannotTargetAnotherCompany(): void
+    public function testWorkflowExposesOnlyTheGuardedCompanyUuidParameter(): void
     {
-        // The guarantee is structural: if a company argument ever appears, an admin of company A
-        // could write automation that runs for company B (or for every tenant, via companies_id 0).
+        // Only the explicitly authorized global configuration agent can use company_uuid.
         $properties = array_map(
             fn (ToolPropertyInterface $property): string => $property->getName(),
             new CreateCompanyWorkflowTool()->getProperties()
         );
 
+        $this->assertContains('company_uuid', $properties);
         $this->assertNotContains('company', $properties);
         $this->assertNotContains('company_id', $properties);
         $this->assertNotContains('companies_id', $properties);

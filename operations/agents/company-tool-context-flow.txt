@@ -1,0 +1,68 @@
+FLUJO PARA REVISIÓN — COMPANY POR PARÁMETRO EN LAS TOOLS EXISTENTES
+
+TIPO AUTORIZADO
+Company Configuration Administrator
+Handler: Kanvas\Intelligence\Agents\Neuron\CompanyConfigurationAgent
+Instancia de agente: apps_id = app actual, companies_id = 0.
+Requiere un administrador identificado de esa app.
+Otros tipos, incluso globales, no pueden utilizar company_uuid. La comprobación
+se hace por handler exacto del tipo, no por nombre editable ni texto del prompt.
+
+TOOLS ADAPTADAS
+list_agents, list_agent_types, get_agent_configuration, hire_agent,
+update_agent_instructions, grant_agent_tools, manage_company_setting.
+Todas reciben company_uuid opcional. Omitirlo conserva el comportamiento habitual.
+Las tools de workflows y creación de receivers también admiten company_uuid.
+Las tools de recursos de compañía lo requieren: templates de email, pipelines,
+stages, lead types y copy_company_receiver (list/get/copy).
+Las copias devuelven mapas de IDs para adaptar las referencias del destino.
+
+EJEMPLO: COPIAR UN AGENTE
+1. list_agents(company_uuid: SOURCE_COMPANY_UUID, search: "Sally")
+2. get_agent_configuration(agent_id: SOURCE_AGENT_ID, company_uuid: SOURCE_COMPANY_UUID)
+3. list_agents(company_uuid: TARGET_COMPANY_UUID, search: "Sally")
+4. list_agent_types(company_uuid: TARGET_COMPANY_UUID)
+5. hire_agent(name: "Sally", role: "Sales assistant", instructions: PROMPT_ADAPTADO,
+              agent_type: TIPO_VALIDADO, company_uuid: TARGET_COMPANY_UUID)
+6. get_agent_configuration(agent_id: NUEVO_ID, company_uuid: TARGET_COMPANY_UUID)
+
+Para un subagente en destino:
+hire_agent(..., is_sub_agent: true, parent_agent_id: ID_PADRE_DESTINO,
+           company_uuid: TARGET_COMPANY_UUID)
+El padre debe pertenecer a la app y compañía destino. Se devuelve el ID de la
+tool privada generada; su asignación no es automática.
+
+Settings:
+manage_company_setting(operation: "get", key: "business_hours", company_uuid: SOURCE_COMPANY_UUID)
+manage_company_setting(operation: "set", key: "business_hours",
+    value_json: "{\"opens\":\"09:00\"}", company_uuid: TARGET_COMPANY_UUID)
+manage_company_setting(operation: "get", key: "business_hours", company_uuid: TARGET_COMPANY_UUID)
+
+EJECUCIÓN INTERNA
+1. La tool recibe company_uuid.
+2. RunsInExplicitCompany delega la autorización a AppCompanyToolExecutor.
+3. Comprueba tipo exacto, agente global de la app, humano y permiso Admin/Owner
+   en el scope ACL de la app, más pertenencia activa de la compañía a esa app.
+4. Clona la tool y cambia su propiedad company SOLO para esa llamada.
+5. Ejecuta el cuerpo habitual con ese contexto. Las consultas usan app + company.
+   Las tools de actualización/asignación permiten al administrador de app operar
+   sobre el destino autorizado aunque no comparta un proyecto con el agente.
+   La prohibición de autoedición/autoconcesión se conserva.
+6. Devuelve company_uuid y company_name del recurso operado.
+7. Restaura el scope ACL al finalizar, incluso ante error.
+
+No cambia default_company, compañía activa del usuario, registro del agente,
+sesión ni otras instancias de tools. Cada llamada declara su propia compañía.
+No existe un destino persistente que una lectura pueda cambiar accidentalmente.
+
+LÍMITES
+- get_agent_configuration exporta campos funcionales y referencias de tools, no
+  credenciales, config de proveedores ni estado operativo. Declara los campos excluidos.
+- hire_agent no recibe todos los campos del origen: sigue sin controlar is_active.
+- No hay importador transaccional ni remapeo automático de todas las dependencias.
+- ManageAppCompanySettingTool queda como entrada compatible del primer prototipo;
+  el nuevo tipo utiliza directamente ManageCompanySettingTool con company_uuid.
+- El kernel, las notificaciones y la sumarización resuelven la compañía del humano
+  para las conversaciones con el agente global. Esto no cambia el destino de las tools.
+- Los receivers copiados generan un endpoint nuevo y quedan inactivos por defecto;
+  los proveedores externos no se reconfiguran automáticamente.

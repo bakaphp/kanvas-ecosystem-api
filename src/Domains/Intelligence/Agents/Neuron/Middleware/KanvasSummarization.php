@@ -110,7 +110,12 @@ class KanvasSummarization extends Summarization
             $tokensBefore = $chatHistory->calculateTotalUsage();
             $tokensAfter = $chatHistory instanceof KanvasChatHistory ? $chatHistory->tokensOf($kept) : null;
             $app = $this->agent->app;
-            $company = $this->agent->company;
+            $company = $this->fallbackAuthor !== null
+                ? $this->agent->companyFor($this->fallbackAuthor)
+                : $this->agent->company;
+            if ($company === null) {
+                return null;
+            }
             $author = $this->agent->user ?? $company->getAiAgentUser() ?? $this->fallbackAuthor;
 
             if ($author === null) {

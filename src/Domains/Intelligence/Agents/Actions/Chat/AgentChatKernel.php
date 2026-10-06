@@ -27,7 +27,7 @@ use Throwable;
 /**
  * Single in-process entry point for "agent answers a message." Routes on $agent
  * to Runtime (OpenClaw / Hermes), Laravel, ADK, or Neuron (default). Tenant
- * (app + company) comes from $agent — agents are bound to one tenant.
+ * comes from the agent; app-scoped agents use the requesting human's company.
  *
  * Connector callers pass sourceChannel + sourceMessage + persistConversation=false
  * so ADK keeps its remote identity, Neuron threads by entity (cross-channel
@@ -164,7 +164,7 @@ class AgentChatKernel
             session: $this->session,
             agent: $this->agent,
             app: $this->agent->app,
-            company: $this->agent->company,
+            company: $this->agent->companyFor($this->user),
             user: $this->user,
             userMessage: $this->message,
             assistantResponse: $response,
@@ -210,7 +210,7 @@ class AgentChatKernel
                 agent: $this->agent,
                 entity: $this->session?->entity(),
                 app: $this->agent->app,
-                company: $this->agent->company,
+                company: $this->agent->companyFor($this->user),
             );
 
             return new RunLaravelAgentChatAction(
@@ -218,7 +218,7 @@ class AgentChatKernel
                 session: $this->session,
                 message: $this->message,
                 app: $this->agent->app,
-                company: $this->agent->company,
+                company: $this->agent->companyFor($this->user),
                 user: $this->user,
                 handler: $handler,
                 media: $this->nativeMedia(),
@@ -308,7 +308,7 @@ class AgentChatKernel
         new TrackAgentUsageAction(
             agent: $this->agent,
             app: $this->agent->app,
-            company: $this->agent->company,
+            company: $this->agent->companyFor($this->user),
             message: $this->message,
             response: $response,
             durationMs: $durationMs,

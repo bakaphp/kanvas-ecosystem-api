@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsInExplicitCompany;
 use Kanvas\NervousSystem\Capability\Enums\AgentAbilityEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool as CapabilityTool;
 use Kanvas\NervousSystem\Capability\Services\ActiveIntegrationsService;
@@ -39,6 +40,7 @@ class HireAgentTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
+    use RunsInExplicitCompany;
 
     protected string $name = 'hire_agent';
 
@@ -52,7 +54,8 @@ class HireAgentTool extends Tool
         . 'it complete instructions describing its job. It gets its '
         . 'own identity, so its work is attributed to it and not to you, and you can retune it later. '
         . 'Call list_agents FIRST: if an agent already does this job, assign the work to it — a '
-        . 'duplicate hire splits one job across two teammates that then drift.';
+        . 'duplicate hire splits one job across two teammates that then drift. Set is_sub_agent=true '
+        . 'to create a callable sub-agent with a parent in the destination company.';
 
     private const int MAX_AGENTS_PER_COMPANY = 50;
 
@@ -114,6 +117,27 @@ class HireAgentTool extends Tool
                 description: 'Optional persona — who it is and how it carries itself.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'is_sub_agent',
+                type: PropertyType::BOOLEAN,
+                description: 'Optional, defaults to false. True creates a sub-agent whose parent is the hiring '
+                    . 'agent (or parent_agent_id), with its own local callable tool. Does not automatically grant that tool to anyone.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'company_uuid',
+                type: PropertyType::STRING,
+                description: 'Optional company UUID for this call only. Requires the Company Configuration Administrator at app scope '
+                    . 'and an identified app administrator. Omit to use the current company.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'parent_agent_id',
+                type: PropertyType::INTEGER,
+                description: 'For a sub-agent: parent agent ID in the destination company. Required when '
+                    . 'the hiring agent is global. Omit to use the hiring agent as parent.',
+                required: false,
+            ),
         ];
     }
 
@@ -127,7 +151,23 @@ class HireAgentTool extends Tool
         ?string $tools = null,
         ?string $agent_type = null,
         ?string $soul = null,
+        ?bool $is_sub_agent = null,
+        ?int $parent_agent_id = null,
+        ?string $company_uuid = null,
     ): array {
+        if ($company_uuid !== null) {
+            return $this->inExplicitCompany($company_uuid, $this->hiringAgent, fn (self $tool): array => $tool(
+                $name,
+                $role,
+                $instructions,
+                $tools,
+                $agent_type,
+                $soul,
+                $is_sub_agent,
+                $parent_agent_id,
+            ));
+        }
+
         // The shared guard answers in create/update shape; this tool's callers read `hired`, and a
         // missing key reads as "no answer" rather than "refused".
         if ($denied = $this->requireRequestingAdminOrError()) {
@@ -141,6 +181,18 @@ class HireAgentTool extends Tool
         if ($this->hiringAgent === null) {
             return $this->error('This tool does not know which agent is calling it, so the hire could not '
                 . 'be linked back to a hirer.');
+        }
+
+        $parent = null;
+        if ($parent_agent_id !== null) {
+            if (! ($is_sub_agent ?? false)) {
+                return $this->error('parent_agent_id is only valid with is_sub_agent=true.');
+            }
+            $parent = Agent::query()->fromApp($this->app)->fromCompany($this->company)->notDeleted()
+                ->whereKey($parent_agent_id)->first();
+            if ($parent === null) {
+                return $this->error('The parent agent must belong to the destination app and company.');
+            }
         }
 
         $headcount = Agent::query()
@@ -212,25 +264,37 @@ class HireAgentTool extends Tool
                 instructions: $instructions,
                 tools: $grants['tools'],
                 soul: $soul !== null && trim($soul) !== '' ? trim($soul) : null,
+                isSubAgent: $is_sub_agent ?? false,
+                parentAgent: $parent,
             )->execute();
         } catch (Throwable $e) {
             return $this->error($e->getMessage());
         }
 
         $requires = $types->requirementsOf($agentType);
+        $subAgentTool = $hired->is_sub_agent
+            ? CapabilityTool::query()->where('apps_id', $this->app->getId())->where('agents_id', $hired->getId())->first()
+            : null;
 
         return [
             'hired' => true,
             'agent_id' => $hired->getId(),
             'name' => $hired->name,
+            'is_sub_agent' => (bool) $hired->is_sub_agent,
+            'parent_id' => $hired->parent_id,
+            'sub_agent_tool_id' => $subAgentTool?->getId(),
+            'sub_agent_tool_name' => $subAgentTool?->name,
             // The form an @mention must take — its display name reaches nobody.
             'handle' => MentionHandle::forUser($hired->user, $this->app),
             'agent_type' => $agentType->name,
             'tools' => array_map(fn (CapabilityTool $tool): string => $tool->name, $grants['tools']),
             'needs_from_an_admin' => $requires,
-            'message' => 'Hired, with its own identity so its work is attributed to it rather than to you. '
+            'message' => ($hired->is_sub_agent
+                ? 'Created a sub-agent with its own identity and local callable tool. An administrator must '
+                    . 'assign that tool to its caller before use.'
+                : 'Hired, with its own identity so its work is attributed to it rather than to you. '
                 . 'It does nothing until something reaches it — assign it a task, or point a workflow at it '
-                . 'with its agent_id.'
+                . 'with its agent_id.')
                 . ($requires === []
                     ? ''
                     : ' IT IS NOT READY YET: this type needs things only a human can set, listed in '

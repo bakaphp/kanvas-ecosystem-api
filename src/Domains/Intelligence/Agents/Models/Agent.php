@@ -14,6 +14,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -30,8 +31,10 @@ use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
+use Kanvas\Intelligence\Agents\Neuron\CompanyConfigurationAgent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
+use Kanvas\Intelligence\Agents\Services\AppCompanyToolExecutor;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\NervousSystem\Capability\Models\Tool;
@@ -273,6 +276,26 @@ class Agent extends BaseModel
             ->latestOfMany('cycle_date');
     }
 
+    public function scopeFromCompanyOrConfigurationAgent(Builder $query): Builder
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        if (! new AppCompanyToolExecutor()->canAdministerApp($app, $user instanceof Users ? $user : null)) {
+            return $query->fromCompany();
+        }
+
+        return $query->where(function (Builder $visible) use ($app): void {
+            $visible->fromCompany()->orWhere(function (Builder $global) use ($app): void {
+                $global->fromApp($app)
+                    ->where('companies_id', 0)
+                    ->whereHas('type', fn (Builder $type) => $type
+                        ->where('handler', CompanyConfigurationAgent::class)
+                        ->where('is_active', true)
+                        ->notDeleted());
+            });
+        });
+    }
+
     public static function getModel(): Model
     {
         return new Agent();
@@ -306,7 +329,12 @@ class Agent extends BaseModel
             ->orderByRaw('(apps_id = 0) ASC, (companies_id = 0) ASC')
             ->first();
 
-        if (! $agent) {
+        $caller = auth()->user();
+        $configurationAgentDenied = $agent?->type?->handler === CompanyConfigurationAgent::class
+            && (int) $agent->companies_id === 0
+            && ! new AppCompanyToolExecutor()->canAdministerApp($app, $caller instanceof Users ? $caller : null);
+
+        if (! $agent || $configurationAgentDenied) {
             throw new ModelNotFoundException(
                 sprintf('No Agent record found with ID %s for this app/company or globally', $id)
             );

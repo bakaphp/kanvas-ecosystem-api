@@ -184,6 +184,29 @@ class RunNeuronChatErrorHandlingTest extends TestCase
         $this->assertSame([5, 5], $action->pauses, 'One poll per refusal, none after the answer');
     }
 
+    public function testRecoveryWaitsForTheLeaseAndDoesNotStartAnotherTurn(): void
+    {
+        $handler = Mockery::mock(\Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent::class);
+        $handler->shouldReceive('getThreadId')->andReturn('thread-1');
+        $handler->shouldReceive('persistsTurnsToConversationStore')->andReturn(true);
+        $handler->shouldReceive('getProvider')->andReturn(new \Tests\Stubs\Intelligence\FakeNeuronProvider());
+        $handler->shouldReceive('setAiProvider')->once();
+        $handler->shouldReceive('recoverInterruptedRun')->once()->andThrow(new RunInFlightException(
+            workflowId: 'thread-1', runId: 'run-1',
+            status: \NeuronAI\Workflow\WorkflowStatus::Running,
+            executionAttempt: 1, leaseExpiresAt: time() + 600,
+        ));
+        $handler->shouldReceive('recoverInterruptedRun')->once()->andReturn(
+            new \NeuronAI\Agent\AgentState()->setResponse(new \NeuronAI\Providers\ProviderResponse(
+                message: new \NeuronAI\Chat\Messages\AssistantMessage('Recovered'),
+            )),
+        );
+        $handler->shouldNotReceive('chat');
+        $action = $this->actionWithHandler($handler, fallbackOnFailure: false);
+        $this->assertSame('Recovered', $action->execute());
+        $this->assertSame([5], $action->pauses);
+    }
+
     public function testAThreadStillBusyPastTheWaitFailsAsBefore(): void
     {
         $handler = new BusyThenAnsweringNeuronHandlerStub(busyCalls: 1_000);

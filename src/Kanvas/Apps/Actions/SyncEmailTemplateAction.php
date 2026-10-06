@@ -149,6 +149,9 @@ class SyncEmailTemplateAction
             // HTML email parent corrupts the payload (invalid push JSON, HTML-polluted db content).
             $noParentTemplates = [
                 PushNotificationTemplateEnum::DEFAULT->value,
+                NotificationTemplateEnum::PUSH_NEW_FOLLOWER->value,
+                EnumsNotificationTemplateEnum::PUSH_NEW_MESSAGE->value,
+                EnumsNotificationTemplateEnum::PUSH_NEW_INTERACTION_MESSAGE->value,
                 'user-email-update',
                 EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED->value,
                 EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED_DATABASE->value,

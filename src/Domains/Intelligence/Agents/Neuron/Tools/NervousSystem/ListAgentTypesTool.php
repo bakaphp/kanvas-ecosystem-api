@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsInExplicitCompany;
 use Kanvas\NervousSystem\Capability\Services\ActiveIntegrationsService;
 use Kanvas\NervousSystem\Capability\Services\AgentTypeResolver;
+use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
@@ -26,6 +29,8 @@ use Override;
 class ListAgentTypesTool extends Tool
 {
     use HasKanvasContext;
+    use GuardsAdminForTool;
+    use RunsInExplicitCompany;
     use TrackByInputs;
 
     protected string $name = 'list_agent_types';
@@ -37,7 +42,7 @@ class ListAgentTypesTool extends Tool
         . 'agent_type. It also tells you what each type still needs from a human after hiring — a '
         . 'coding agent is not usable until an admin gives it a GitHub token and the repositories '
         . 'it may touch. Do not answer that the platform cannot do something technical without '
-        . 'checking this first. Takes no arguments.';
+        . 'checking this first. Omit company_uuid to use the current company.';
 
     /**
      * @return array<int, ToolProperty>
@@ -45,14 +50,22 @@ class ListAgentTypesTool extends Tool
     #[Override]
     protected function properties(): array
     {
-        return [];
+        return [new ToolProperty(
+            name: 'company_uuid',
+            type: PropertyType::STRING,
+            description: 'Optional company for this lookup; only the Company Configuration Administrator may select it.',
+            required: false,
+        )];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(): array
+    public function __invoke(?string $company_uuid = null): array
     {
+        if ($company_uuid !== null) {
+            return $this->inExplicitCompany($company_uuid, $this->contextAgent(), fn (self $tool): array => $tool());
+        }
         if (! $this->hasTenantContext()) {
             return [
                 'count' => 0,

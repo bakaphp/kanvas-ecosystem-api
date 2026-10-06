@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsInExplicitCompany;
 use Kanvas\NervousSystem\Capability\Enums\AgentAbilityEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool as CapabilityTool;
 use Kanvas\NervousSystem\Capability\Services\ToolGrantResolver;
@@ -35,6 +36,7 @@ class GrantAgentToolsTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
+    use RunsInExplicitCompany;
 
     protected string $name = 'grant_agent_tools';
 
@@ -70,14 +72,25 @@ class GrantAgentToolsTool extends Tool
                     . 'exact names capability_lookup reports.',
                 required: true,
             ),
+            new ToolProperty(
+                name: 'company_uuid',
+                type: PropertyType::STRING,
+                description: 'Optional company UUID for this call only. Requires the Company Configuration Administrator at app scope '
+                    . 'and an identified app administrator. Omit to use the current company.',
+                required: false,
+            ),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $agent_id, string $tools): array
+    public function __invoke(int $agent_id, string $tools, ?string $company_uuid = null): array
     {
+        if ($company_uuid !== null) {
+            return $this->inExplicitCompany($company_uuid, $this->granter, fn (self $tool): array => $tool($agent_id, $tools));
+        }
+
         if ($denied = $this->requireRequestingAdminOrError()) {
             return $this->error((string) $denied['message']);
         }
@@ -106,7 +119,7 @@ class GrantAgentToolsTool extends Tool
             return $this->error('Agent ' . $agent_id . ' is not in this company.');
         }
 
-        if (! $this->mayEquip($this->granter, $target)) {
+        if (! $this->explicitCompanyAuthorized && ! $this->mayEquip($this->granter, $target)) {
             return $this->error(
                 'Agent ' . $target->name . ' is not on any project you are on, so you cannot change what '
                 . 'it can do. Add it to the project first, or hire an agent for this work.'

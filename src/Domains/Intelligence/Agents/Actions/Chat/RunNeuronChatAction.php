@@ -157,10 +157,7 @@ class RunNeuronChatAction
             // chat() runs the whole turn, so a provider error (e.g. Gemini blocking the content)
             // surfaces here, inside the try, and never bubbles as a 500. A redelivered turn whose first
             // attempt died with its worker is continued, not restarted, so no write runs twice.
-            $state = $this->handler instanceof BehavesAsKanvasAgent
-                ? $this->handler->recoverInterruptedRun($userMessage)
-                : null;
-            $state ??= $this->chatOnceTheThreadSettles($userMessage);
+            $state = $this->chatOnceTheThreadSettles($userMessage);
             $responseMessage = $state->getMessage() ?? new AssistantMessage('');
             [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
             $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
@@ -286,7 +283,11 @@ class RunNeuronChatAction
 
         while (true) {
             try {
-                return $this->handler->chat($userMessage);
+                $recovered = $this->handler instanceof BehavesAsKanvasAgent
+                    ? $this->handler->recoverInterruptedRun($userMessage)
+                    : null;
+
+                return $recovered ?? $this->handler->chat($userMessage);
             } catch (RunInFlightException $e) {
                 if ($waited >= self::THREAD_BUSY_WAIT_SECONDS) {
                     throw $e;
@@ -318,6 +319,7 @@ class RunNeuronChatAction
         if ($this->agent->conversesWithCustomer()) {
             return 'What do you mean?';
         }
+        Log::error($e->getMessage(), [$e]);
 
         if ($this->isDuplicateEntryError($e)) {
             return "It looks like that already exists — I didn't create a duplicate. Let me know if you'd "

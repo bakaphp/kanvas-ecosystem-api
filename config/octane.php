@@ -231,5 +231,5 @@ return [
     |
     */
 
-    'max_execution_time' => 120,
+    'max_execution_time' => (int) env('OCTANE_MAX_EXECUTION_TIME', 120),
 ];

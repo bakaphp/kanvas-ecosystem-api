@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\AssemblesWorkflowRuleForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesWorkflowCatalogForTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsInExplicitCompany;
 use Kanvas\NervousSystem\Capability\Enums\AgentAbilityEnum;
 use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
 use Kanvas\Workflow\Rules\Models\Action;
@@ -41,6 +42,7 @@ class UpdateCompanyWorkflowTool extends Tool
     use AssemblesWorkflowRuleForTool;
     use GuardsAdminForTool;
     use ResolvesWorkflowCatalogForTool;
+    use RunsInExplicitCompany;
     use TrackByInputs;
 
     protected string $name = 'update_company_workflow';
@@ -59,6 +61,12 @@ class UpdateCompanyWorkflowTool extends Tool
     protected function properties(): array
     {
         return [
+            new ToolProperty(
+                name: 'company_uuid',
+                type: PropertyType::STRING,
+                description: 'Company for this call only. Selecting a company requires the app-scoped Company Configuration Administrator and an identified app administrator. Omit to use the current company.',
+                required: false,
+            ),
             new ToolProperty(
                 name: 'workflow_id',
                 type: PropertyType::INTEGER,
@@ -115,7 +123,12 @@ class UpdateCompanyWorkflowTool extends Tool
         ?string $actions = null,
         ?string $name = null,
         ?bool $is_active = null,
+        ?string $company_uuid = null,
     ): array {
+        if ($company_uuid !== null) {
+            return $this->inExplicitCompany($company_uuid, $this->contextAgent(), fn (self $tool): array => $tool($workflow_id, $conditions, $params, $actions, $name, $is_active));
+        }
+
         if ($denied = $this->requireRequestingAdminOrError()) {
             return $denied;
         }

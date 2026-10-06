@@ -7,7 +7,9 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentInstructionsAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsInExplicitCompany;
 use Kanvas\NervousSystem\Project\Models\ProjectMember;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -31,7 +33,9 @@ use Throwable;
 #[AgentTool(name: 'Update Agent Instructions', category: 'nervous_system')]
 class UpdateAgentInstructionsTool extends Tool
 {
+    use GuardsAdminForTool;
     use HasKanvasContext;
+    use RunsInExplicitCompany;
 
     protected string $name = 'update_agent_instructions';
 
@@ -87,6 +91,13 @@ class UpdateAgentInstructionsTool extends Tool
                     . 'leave it unchanged.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'company_uuid',
+                type: PropertyType::STRING,
+                description: 'Optional company UUID for this call only. Requires the Company Configuration Administrator at app scope '
+                    . 'and an identified app administrator. Omit to use the current company.',
+                required: false,
+            ),
         ];
     }
 
@@ -99,7 +110,18 @@ class UpdateAgentInstructionsTool extends Tool
         ?string $instructions = null,
         ?string $soul = null,
         ?string $output_format = null,
+        ?string $company_uuid = null,
     ): array {
+        if ($company_uuid !== null) {
+            return $this->inExplicitCompany($company_uuid, $this->editor, fn (self $tool): array => $tool(
+                $agent_id,
+                $reason,
+                $instructions,
+                $soul,
+                $output_format,
+            ));
+        }
+
         if (! $this->hasTenantContext()) {
             return $this->error('This tool has no company context, so it cannot change an agent.');
         }
@@ -124,7 +146,7 @@ class UpdateAgentInstructionsTool extends Tool
             return $this->error('Agent ' . $agent_id . ' is not in this company.');
         }
 
-        if (! $this->mayRetune($target)) {
+        if (! $this->explicitCompanyAuthorized && ! $this->mayRetune($target)) {
             return $this->error(
                 'Agent ' . $target->name . ' is not on any project you are on, so you cannot retune it. '
                 . 'Ask a person, or add it to the project first.'

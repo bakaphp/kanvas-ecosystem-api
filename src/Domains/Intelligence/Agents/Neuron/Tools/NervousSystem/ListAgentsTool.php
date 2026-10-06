@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsInExplicitCompany;
 use Kanvas\NervousSystem\Capability\Enums\AgentAbilityEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool as CapabilityTool;
 use Kanvas\NervousSystem\Plan\Support\MentionHandle;
@@ -38,6 +39,7 @@ class ListAgentsTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
+    use RunsInExplicitCompany;
     use TrackByInputs;
 
     protected string $name = 'list_agents';
@@ -100,6 +102,13 @@ class ListAgentsTool extends Tool
                 description: 'How many to return, up to ' . self::MAX_LIMIT . ' (default ' . self::DEFAULT_LIMIT . ').',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'company_uuid',
+                type: PropertyType::STRING,
+                description: 'Optional company UUID for this call only. Requires the Company Configuration Administrator at app scope '
+                    . 'and an identified app administrator. Omit to use the current company.',
+                required: false,
+            ),
         ];
     }
 
@@ -111,7 +120,17 @@ class ListAgentsTool extends Tool
         ?string $search = null,
         ?bool $executors_only = null,
         ?int $limit = null,
+        ?string $company_uuid = null,
     ): array {
+        if ($company_uuid !== null) {
+            return $this->inExplicitCompany($company_uuid, $this->callingAgent ?? $this->contextAgent(), fn (self $tool): array => $tool(
+                $capability,
+                $search,
+                $executors_only,
+                $limit,
+            ));
+        }
+
         // Answered in the roster's own shape, never the guard's — a refusal that came back without
         // `agents` would read as "this company has no agents", which is the one wrong conclusion
         // here: it sends the caller straight to hire_agent to duplicate someone it was not shown.
