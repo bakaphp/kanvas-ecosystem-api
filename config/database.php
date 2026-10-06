@@ -524,7 +524,6 @@ return [
             'port' => env('REDIS_PORT', '6379'),
             'database' => 3,
             'options' => [
-                'prefix' => env('REDIS_QUEUE_PREFIX', env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_database_')),
                 'serializer' => 0,
                 'compression' => 0,
             ],
