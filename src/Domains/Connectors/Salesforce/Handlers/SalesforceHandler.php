@@ -52,4 +52,16 @@ class SalesforceHandler extends BaseIntegration
 
         return isset($response['sobjects']);
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::CLIENT_ID->value,
+            ConfigurationEnum::CLIENT_SECRET->value,
+            ConfigurationEnum::GRANT_TYPE->value,
+            ConfigurationEnum::REFRESH_TOKEN->value,
+            ConfigurationEnum::LOGIN_URL->value,
+        ];
+    }
 }
