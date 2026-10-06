@@ -162,9 +162,9 @@ class SearchLeadsTool extends Tool
 
         if ($missing !== '' && ! in_array($missing, ['email', 'phone', 'either', 'both'], true)) {
             return self::miss(sprintf(
-                    'missing_contact must be "email", "phone", "either" or "both" — got "%s".',
-                    $missing,
-                ));
+                'missing_contact must be "email", "phone", "either" or "both" — got "%s".',
+                $missing,
+            ));
         }
 
         $limit = max(1, min(100, $limit ?? 25));
