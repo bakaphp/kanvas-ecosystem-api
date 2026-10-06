@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Services;
 
+use DateTimeZone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Souk\Orders\Actions\GetOrderPaymentStatsAction;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
@@ -73,26 +77,49 @@ class OrderReportService
      *
      * @return array<string, mixed>
      */
-    public function paymentStats(?array $orderTypeNames, ?string $since, ?string $until, bool $paidOnly): array
-    {
-        $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
-        $base = fn (): Builder => $this->baseQuery($typeIds, $since, $until)
-            ->when($paidOnly, fn ($q) => $q->where('orders.payment_status', PaymentStatusEnum::PAID->value));
+    public function paymentStats(
+        ?array $orderTypeNames,
+        ?string $since,
+        ?string $until,
+        ?string $timezone,
+        ?string $periodBreakdown
+    ): array {
+        $timezone = $this->validTimezone($timezone);
+        $since = $since !== null && $since !== '' ? $since : $this->firstOrderDate($timezone);
+        $until = $until !== null && $until !== '' ? $until : Carbon::now($timezone)->toDateString();
+        $breakdown = strtoupper(trim($periodBreakdown ?? 'MONTH'));
+        $breakdown = in_array($breakdown, ['DAY', 'WEEK', 'MONTH', 'YEAR'], true) ? $breakdown : 'MONTH';
 
-        $count = $base()->count();
-        $total = round((float) $base()->sum('total_net_amount'), 2);
-        $cardCount = $base()->whereExists($this->cardPaymentExists())->count();
-        $cardAmount = round((float) $base()->whereExists($this->cardPaymentExists())->sum('total_net_amount'), 2);
+        $stats = new GetOrderPaymentStatsAction(
+            app: $this->app,
+            orderTypeNames: array_values(array_filter($orderTypeNames ?? [])),
+            company: $this->company,
+        )->execute(
+            startDate: $since,
+            endDate: $until,
+            timezone: $timezone,
+            groupPeriods: [],
+            periodBreakdown: $breakdown,
+        );
+
+        $orders = (int) $stats['ordersInPeriod']['count'];
+        $total = round((float) $stats['ordersInPeriod']['totalAmount'], 2);
+        $byTransaction = $stats['ordersInPeriod']['byTransaction'];
 
         return [
-            'paid_only' => $paidOnly,
-            'orders' => $count,
+            'date_anchor' => 'payment',
+            'timezone' => $timezone,
+            'period' => $stats['period'],
+            'orders' => $orders,
             'total_amount' => $total,
-            'average_order_amount' => $count > 0 ? round($total / $count, 2) : 0.0,
+            'average_order_amount' => $orders > 0 ? round($total / $orders, 2) : 0.0,
             'by_payment_method' => [
-                'card' => ['orders' => $cardCount, 'amount' => $cardAmount],
-                'other' => ['orders' => $count - $cardCount, 'amount' => round($total - $cardAmount, 2)],
+                'card' => ['orders' => (int) $byTransaction['card'], 'amount' => round((float) $byTransaction['cardAmount'], 2)],
+                'other' => ['orders' => (int) $byTransaction['transfer'], 'amount' => round((float) $byTransaction['transferAmount'], 2)],
             ],
+            'by_service' => $stats['ordersInPeriod']['byServices'],
+            'period_breakdown' => $breakdown,
+            'by_period' => $stats['byPeriod'],
         ];
     }
 
@@ -276,6 +303,30 @@ class OrderReportService
             ->when($until !== null && $until !== '', fn ($q) => $q->whereDate('orders.created_at', '<=', $until));
     }
 
+    private function validTimezone(?string $timezone): string
+    {
+        $timezone = trim((string) $timezone);
+
+        if ($timezone === '') {
+            return 'UTC';
+        }
+
+        if (! in_array($timezone, DateTimeZone::listIdentifiers(), true)) {
+            throw new InvalidArgumentException('Unknown timezone "' . $timezone . '". Use an IANA name such as America/Santo_Domingo.');
+        }
+
+        return $timezone;
+    }
+
+    private function firstOrderDate(string $timezone): string
+    {
+        $first = $this->baseQuery(null, null, null)->min('orders.created_at');
+
+        return $first !== null
+            ? Carbon::parse($first)->timezone($timezone)->toDateString()
+            : Carbon::now($timezone)->toDateString();
+    }
+
     private function resolveOrderTypeIds(?array $names): ?array
     {
         $names = array_filter(array_map('trim', $names ?? []), fn (string $name): bool => $name !== '');
@@ -367,21 +418,5 @@ class OrderReportService
             'orders' => (int) ($row->orders ?? 0),
             'amount' => round((float) ($row->amount ?? 0), 2),
         ];
-    }
-
-    /**
-     * Card-payment existence kept as a correlated subquery so it never multiplies the amount sums the
-     * way a direct join to the 1:many payments table would.
-     */
-    private function cardPaymentExists(): callable
-    {
-        return function (QueryBuilder $query): void {
-            $query->select(DB::raw(1))
-                ->from('payments')
-                ->whereColumn('payments.payable_id', 'orders.id')
-                ->where('payments.payable_type', Order::class)
-                ->where('payments.is_deleted', 0)
-                ->where('payments.payment_method', 'card');
-        };
     }
 }

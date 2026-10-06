@@ -21,10 +21,12 @@ class OrderPaymentStatsTool implements KanvasToolInterface
     #[Override]
     public function description(): Stringable|string
     {
-        return 'Paid-transaction money stats: total paid amount, paid-order count, average order value, and the '
-            . 'card-vs-other payment-method mix. Optional date range and order-type filter. Use for "how much did '
-            . 'we collect", "recharge revenue this month", "card vs cash/transfer split". Amounts are net of '
-            . 'discounts. By default only orders with payment_status=paid are counted.';
+        return 'Collected money for the orders of this company: paid-order count, total paid amount, average order '
+            . 'value, card-vs-other mix, a per-service breakdown and a per-period series. Each order counts on the '
+            . 'date it was paid (first transition into "paid", else its first paid payment), not the date it was '
+            . 'created, so this matches the payments dashboard. Use for "how much did we collect", "recharge revenue '
+            . 'this month", "card vs cash/transfer split". Amounts are net of discounts. For every order in a range '
+            . 'whether paid or not, use order_trend or order_breakdown instead.';
     }
 
     #[Override]
@@ -34,10 +36,11 @@ class OrderPaymentStatsTool implements KanvasToolInterface
 
         return json_encode(
             new OrderReportService($this->app, $this->company)->paymentStats(
-                $orderTypes,
-                $request->string('since') ? (string) $request->string('since') : null,
-                $request->string('until') ? (string) $request->string('until') : null,
-                $request->boolean('paid_only', true),
+                orderTypeNames: $orderTypes,
+                since: $request->string('since') ? (string) $request->string('since') : null,
+                until: $request->string('until') ? (string) $request->string('until') : null,
+                timezone: $request->string('timezone') ? (string) $request->string('timezone') : null,
+                periodBreakdown: $request->string('period_breakdown') ? (string) $request->string('period_breakdown') : null,
             ),
             JSON_PRETTY_PRINT
         );
@@ -48,9 +51,10 @@ class OrderPaymentStatsTool implements KanvasToolInterface
     {
         return [
             'order_types' => $schema->array()->items($schema->string())->description('Optional order-type names to restrict to (see list_order_types). Omit for all types.'),
-            'since' => $schema->string()->description('Lower-bound order date, ISO YYYY-MM-DD. Omit for all-time.'),
-            'until' => $schema->string()->description('Upper-bound order date, ISO YYYY-MM-DD. Omit for open-ended.'),
-            'paid_only' => $schema->boolean()->description('Count only orders with payment_status=paid. Default true. Set false to include every order in the range.'),
+            'since' => $schema->string()->description('First payment date to include, ISO YYYY-MM-DD. Omit to start at the first order on record.'),
+            'until' => $schema->string()->description('Last payment date to include, ISO YYYY-MM-DD. Omit for today.'),
+            'timezone' => $schema->string()->description('IANA timezone the days are cut in, e.g. "America/Santo_Domingo". Defaults to UTC.'),
+            'period_breakdown' => $schema->string()->enum(['DAY', 'WEEK', 'MONTH', 'YEAR'])->description('Bucket size for the by_period series. Defaults to MONTH.'),
         ];
     }
 }

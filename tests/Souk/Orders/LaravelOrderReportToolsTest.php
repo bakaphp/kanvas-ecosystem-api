@@ -72,7 +72,7 @@ class LaravelOrderReportToolsTest extends TestCase
                 'provider_amount' => 90.0,
             ]);
 
-        Order::factory()
+        $orderB = Order::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
             ->withUserId($user->getId())
@@ -98,20 +98,22 @@ class LaravelOrderReportToolsTest extends TestCase
                 'total_net_amount' => 30.0,
             ]);
 
-        $payment = new Payments();
-        $payment->apps_id = $app->getId();
-        $payment->companies_id = $company->getId();
-        $payment->users_id = $user->getId();
-        $payment->payment_methods_id = 1;
-        $payment->payable_id = $orderA->getId();
-        $payment->payable_type = Order::class;
-        $payment->payment_date = now()->toDateString();
-        $payment->payment_method = 'card';
-        $payment->amount = 100.0;
-        $payment->currency = 'USD';
-        $payment->status = 'paid';
-        $payment->is_deleted = false;
-        $payment->saveOrFail();
+        foreach ([[$orderA, 'card'], [$orderB, 'cash']] as [$paidOrder, $method]) {
+            $payment = new Payments();
+            $payment->apps_id = $app->getId();
+            $payment->companies_id = $company->getId();
+            $payment->users_id = $user->getId();
+            $payment->payment_methods_id = 1;
+            $payment->payable_id = $paidOrder->getId();
+            $payment->payable_type = Order::class;
+            $payment->payment_date = now()->toDateString();
+            $payment->payment_method = $method;
+            $payment->amount = 100.0;
+            $payment->currency = 'USD';
+            $payment->status = 'paid';
+            $payment->is_deleted = false;
+            $payment->saveOrFail();
+        }
 
         return [$app, $company];
     }
