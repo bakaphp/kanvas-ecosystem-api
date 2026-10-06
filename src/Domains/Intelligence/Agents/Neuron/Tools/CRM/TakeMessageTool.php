@@ -21,17 +21,13 @@ class TakeMessageTool extends Tool
     use ResolvesLeadForTool;
     use TakesMessageForEntity;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'take_message',
-            description: 'Take a message for the business / a staff member and make sure they get it. '
-                . 'Use this when the prospect wants to leave a message, ask someone to call them back, or pass something along '
-                . '("tell John I called", "have someone reach me about my invoice"). '
-                . 'The message is saved as a note on the lead and the assigned owner is notified. '
-                . 'This does NOT transfer the conversation — use handoff_lead for that.',
-        );
-    }
+    protected string $name = 'take_message';
+
+    protected ?string $description = 'Take a message for the business / a staff member and make sure they get it. '
+        . 'Use this when the prospect wants to leave a message, ask someone to call them back, or pass something along '
+        . '("tell John I called", "have someone reach me about my invoice"). '
+        . 'The message is saved as a note on the lead and the assigned owner is notified. '
+        . 'This does NOT transfer the conversation — use handoff_lead for that.';
 
     #[Override]
     protected function properties(): array

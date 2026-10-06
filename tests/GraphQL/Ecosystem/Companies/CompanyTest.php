@@ -79,6 +79,29 @@ class CompanyTest extends TestCase
         ->assertSee('zip', $companyData['zip']);
     }
 
+    public function testCreateCompanyTags(): void
+    {
+        $tag = 'tag-' . fake()->unique()->word();
+        $companyData = $this->companyInputData();
+        $companyData['tags'] = [['name' => $tag]];
+
+        $this->graphQL(/** @lang GraphQL */
+            '
+            mutation createCompany($input: CompanyInput!) {
+                createCompany(input: $input) {
+                    id
+                    tags {
+                        data {
+                            name
+                        }
+                    }
+                }
+            }',
+            ['input' => $companyData]
+        )->assertSuccessful()
+            ->assertJsonPath('data.createCompany.tags.data.0.name', $tag);
+    }
+
     public function testUpdateCompany(): void
     {
         $companyData = $this->companyInputData();
@@ -111,6 +134,37 @@ class CompanyTest extends TestCase
         ->assertSee('email', $companyData['email'])
         ->assertSee('language', $companyData['language'])
         ->assertSee('timezone', $companyData['timezone']);
+    }
+
+    public function testUpdateCompanyTags(): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $tags = ['tag-' . fake()->unique()->word(), 'tag-' . fake()->unique()->word()];
+        $companyData = $this->companyInputData();
+        $companyData['tags'] = array_map(fn (string $name): array => ['name' => $name], $tags);
+
+        $this->graphQL(/** @lang GraphQL */
+            '
+            mutation updateCompany($id: ID!, $input: CompanyInput!) {
+                updateCompany(id: $id, input: $input) {
+                    id
+                    tags {
+                        data {
+                            name
+                        }
+                    }
+                }
+            }',
+            [
+                'id' => $company->getId(),
+                'input' => $companyData,
+            ]
+        )->assertSuccessful()
+            ->assertJsonCount(2, 'data.updateCompany.tags.data')
+            ->assertJsonFragment(['name' => $tags[0]])
+            ->assertJsonFragment(['name' => $tags[1]]);
+
+        $this->assertEqualsCanonicalizing($tags, $company->tags()->pluck('name')->all());
     }
 
     public function testUnactivateCompany(): void

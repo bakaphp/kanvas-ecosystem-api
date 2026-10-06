@@ -16,7 +16,7 @@ use stdClass;
  * result again, labelled, so the model can read what it already had.
  *
  * The mechanism is the one `ReadMessageContentTool` documents: NeuronAI hands each call a shallow
- * `clone` of the registered tool (`clone $tool` in `HandleWithTools::findTool`), so an object
+ * `clone` of the registered tool (`clone $tool` in `ToolNode::resolveTool`), so an object
  * property is shared by every call of the turn while staying scoped to this agent instance.
  *
  * That shallow clone is also why {@see self::initRepeatGuard()} must run in the using tool's

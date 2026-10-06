@@ -30,17 +30,17 @@ class UpdateDealTool extends Tool
 {
     use ResolvesDealForTool;
 
+    protected string $name = 'update_deal';
+
+    protected ?string $description = 'Update an existing deal. Use this after the opportunity progresses: change the title or '
+        . 'description, reassign the owner, move it to a pipeline/stage, or set advance_stage=true to push '
+        . 'it one stage forward. Set status to close it (2 = won/closed). Only pass the fields that changed.';
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Users $user,
     ) {
-        parent::__construct(
-            name: 'update_deal',
-            description: 'Update an existing deal. Use this after the opportunity progresses: change the title or '
-                . 'description, reassign the owner, move it to a pipeline/stage, or set advance_stage=true to push '
-                . 'it one stage forward. Set status to close it (2 = won/closed). Only pass the fields that changed.',
-        );
     }
 
     /**

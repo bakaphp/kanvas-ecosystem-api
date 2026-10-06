@@ -18,7 +18,7 @@ type Tag {
     is_feature: Int
     created_at: String
     updated_at: String
-    taggables: [TagEntity!]! @hasMany(method: "taggables")
+    taggables: [TagEntity!]! @hasMany(relation: "taggables")
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -34,8 +34,8 @@ type TagEntity {
     id: ID!
     entity_id: ID!
     tags_id: ID!
-    system_module_name: String!
-    system_module: SystemModule! @belongsTo(method: "systemModule")
+    system_module_name: String
+    system_module: SystemModule @belongsTo(relation: "systemModule")
     created_at: String
     updated_at: String
 }

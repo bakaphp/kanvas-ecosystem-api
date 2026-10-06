@@ -85,9 +85,9 @@ V1 ships Lead-only, WhatsApp-only, `time_based` mode only. See the [v1 spec](../
 
 ## Follow-up agent runs in rollup mode (cross-session history)
 
-`FollowUpLeadAction` calls the kernel with `sourceChannel: $session->channel` — the same hint connector channel responders use. This makes the kernel SKIP `setThreadId`, which means `SalesAssistKanvasMessageHistory` returns the full cross-session history for the lead's person (not filtered to one session uuid).
+`FollowUpLeadAction` calls the kernel with `sourceChannel: $session->channel` — the same hint connector channel responders use. With it, `AgentChatKernel::threadId()` threads the run by the **session entity's uuid** (the lead's person) instead of the session uuid, and `EntityRollupMessageStore` filters by session only when the thread *is* a session uuid — so the agent sees the full cross-session history for the lead's person.
 
-Without this hint, the kernel would call `setThreadId($session->uuid)` and the history loader's `if ($this->threadId !== null && $messageThreadId !== $this->threadId) return null` would drop every message that lives under a different session — typically every inbound customer message and every message from earlier conversation threads. The agent then runs with effectively no history and produces literal-template-copy bland follow-ups.
+Without this hint, the thread would be `$session->uuid` and the store would drop every message that lives under a different session — typically every inbound customer message and every message from earlier conversation threads. The agent then runs with effectively no history and produces literal-template-copy bland follow-ups.
 
 Bug surfaced 2026-06-08 on lead 25628: agent had 46 People-keyed message rows available but only 16 passed the thread filter (today's cron prompts/responses). The actual 3-day-old customer conversation with the "ping me back Sunday" reply was in the 27 messages with `null` thread_id (legacy inbound, never tagged) — all filtered out. After the fix, the agent sees the full conversation regardless of which session originated the message.
 

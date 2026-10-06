@@ -40,25 +40,25 @@ class HireAgentTool extends Tool
     use GuardsAdminForTool;
     use HasKanvasContext;
 
+    protected string $name = 'hire_agent';
+
+    protected ?string $description = 'Create a new teammate agent for this company when the work needs someone who does '
+        . 'not exist yet — a writer, a researcher, someone to run an import. Admin only. This is how '
+        . 'you get work done that YOUR OWN tools cannot do: you can grant the hire ANY tool in the '
+        . 'catalog, including ones you do not hold yourself, so a capability you lack is a reason to '
+        . 'hire rather than a reason to stop. Look the tools up with capability_lookup first and pass '
+        . 'their exact names, and pick the KIND of agent with agent_type — list_agent_types shows what '
+        . 'exists, including coding agents that work in a sandbox and open pull requests. You must give '
+        . 'it complete instructions describing its job. It gets its '
+        . 'own identity, so its work is attributed to it and not to you, and you can retune it later. '
+        . 'Call list_agents FIRST: if an agent already does this job, assign the work to it — a '
+        . 'duplicate hire splits one job across two teammates that then drift.';
+
     private const int MAX_AGENTS_PER_COMPANY = 50;
 
     public function __construct(
         private readonly ?Agent $hiringAgent = null,
     ) {
-        parent::__construct(
-            name: 'hire_agent',
-            description: 'Create a new teammate agent for this company when the work needs someone who does '
-                . 'not exist yet — a writer, a researcher, someone to run an import. Admin only. This is how '
-                . 'you get work done that YOUR OWN tools cannot do: you can grant the hire ANY tool in the '
-                . 'catalog, including ones you do not hold yourself, so a capability you lack is a reason to '
-                . 'hire rather than a reason to stop. Look the tools up with capability_lookup first and pass '
-                . 'their exact names, and pick the KIND of agent with agent_type — list_agent_types shows what '
-                . 'exists, including coding agents that work in a sandbox and open pull requests. You must give '
-                . 'it complete instructions describing its job. It gets its '
-                . 'own identity, so its work is attributed to it and not to you, and you can retune it later. '
-                . 'Call list_agents FIRST: if an agent already does this job, assign the work to it — a '
-                . 'duplicate hire splits one job across two teammates that then drift.',
-        );
     }
 
     /**

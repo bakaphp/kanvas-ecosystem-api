@@ -17,7 +17,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\AttachesFileToEntity;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -43,12 +42,20 @@ use Throwable;
  *    transfer nobody asked for.
  */
 #[AgentTool(name: 'Fetch Coding Job Artifact', category: 'coding')]
-class FetchHarnessCodingArtifactTool extends Tool implements HasRunKey, RequiresSystemAgent
+class FetchHarnessCodingArtifactTool extends Tool implements RequiresSystemAgent
 {
     use AttachesFileToEntity;
     use HasKanvasContext;
     use ReportsToolOutcome;
     use TrackByInputs;
+
+    protected string $name = 'fetch_coding_job_artifact';
+
+    protected ?string $description = 'Bring a file a coding job produced — a report, chart, spreadsheet, PDF or '
+        . 'image — out of its workspace and attach it to the job\'s task, so the person can '
+        . 'open it. Use it when the job made something that is NOT code; code arrives by pull '
+        . 'request instead. The file must still exist, so fetch it soon after the job ends: '
+        . 'workspaces are deleted a day later. Scripts, archives, audio and video are refused.';
 
     private const int MAX_BYTES = 100 * 1024 * 1024;
 
@@ -69,14 +76,6 @@ class FetchHarnessCodingArtifactTool extends Tool implements HasRunKey, Requires
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'fetch_coding_job_artifact',
-            description: 'Bring a file a coding job produced — a report, chart, spreadsheet, PDF or '
-                . 'image — out of its workspace and attach it to the job\'s task, so the person can '
-                . 'open it. Use it when the job made something that is NOT code; code arrives by pull '
-                . 'request instead. The file must still exist, so fetch it soon after the job ends: '
-                . 'workspaces are deleted a day later. Scripts, archives, audio and video are refused.',
-        );
     }
 
     /**

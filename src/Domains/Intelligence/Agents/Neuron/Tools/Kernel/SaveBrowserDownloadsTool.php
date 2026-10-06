@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresMcpConnection;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -17,26 +16,26 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Save Browser Downloads', category: 'kernel')]
-class SaveBrowserDownloadsTool extends Tool implements HasRunKey, RequiresMcpConnection
+class SaveBrowserDownloadsTool extends Tool implements RequiresMcpConnection
 {
     use HasKanvasContext;
     use SavesKernelBrowserFiles;
     use TrackByInputs;
+
+    protected string $name = 'save_browser_downloads';
+
+    protected ?string $description = 'Copy everything a Kernel browser session produced in the last few hours — whatever it '
+        . 'downloaded plus files it wrote to /tmp — into Kanvas, attached to one plan. Use this after a '
+        . 'portal export rather than save_browser_file when you do not know the file name the site '
+        . 'chose (they are often random). CALL IT BEFORE CLOSING THE SESSION: Kernel deletes the '
+        . 'filesystem when the session ends. Returns what was saved and what was skipped, and puts '
+        . 'nothing into this conversation.';
 
     /** $files is a test seam; an agent's toolset is built with the agent alone. */
     public function __construct(
         private readonly ?Agent $agent = null,
         private readonly ?BrowserFiles $files = null,
     ) {
-        parent::__construct(
-            name: 'save_browser_downloads',
-            description: 'Copy everything a Kernel browser session produced in the last few hours — whatever it '
-                . 'downloaded plus files it wrote to /tmp — into Kanvas, attached to one plan. Use this after a '
-                . 'portal export rather than save_browser_file when you do not know the file name the site '
-                . 'chose (they are often random). CALL IT BEFORE CLOSING THE SESSION: Kernel deletes the '
-                . 'filesystem when the session ends. Returns what was saved and what was skipped, and puts '
-                . 'nothing into this conversation.',
-        );
     }
 
     /**

@@ -74,6 +74,7 @@ final class IntrasScorecards
             self::ejecutivoPotencialidad(),
             self::empresaClasificacion(),
             self::empresaPotencialidad(),
+            self::eventoClasificacion(),
         ];
     }
 
@@ -390,6 +391,49 @@ final class IntrasScorecards
                     label: 'Tamaño de la empresa',
                     weight: 0.15,
                     matches: ['GRANDE' => 40.0, 'MEDIANA' => 30.0, 'PEQUEÑA' => 20.0, 'PEQUENA' => 20.0],
+                ),
+            ],
+        );
+    }
+
+    /**
+     * Weights: 60 + 40 = 100%. Source: "EVENTOS - CLASIFICACIÓN INTERNA".
+     *
+     * The sheet's ranges overlap at their edges ("23-25" and "19-23", "12-18" and "0-12") and
+     * leave gaps ("4.7-4.8" then "4.9-5"). Read as floors, a shared edge goes to the higher band
+     * and a gap falls to the band below, which is the only reading that gives every value one
+     * band. ">25" is a strict floor, so it starts at 25.1 against an average rounded to one
+     * decimal.
+     */
+    public static function eventoClasificacion(): Scorecard
+    {
+        return new Scorecard(
+            key: 'evento_clasificacion',
+            label: 'Eventos — Clasificación Interna',
+            criteria: [
+                new Criterion(
+                    key: 'promedio_participantes',
+                    label: 'Promedio de participantes histórico por versión (confirmado, confirmado plan, programa)',
+                    weight: 0.60,
+                    bands: [
+                        ['min' => 25.1, 'value' => 40.0],
+                        ['min' => 23.0, 'value' => 30.0],
+                        ['min' => 19.0, 'value' => 20.0],
+                        ['min' => 12.0, 'value' => 10.0],
+                        ['min' => null, 'value' => 0.0],
+                    ],
+                ),
+                new Criterion(
+                    key: 'satisfaccion',
+                    label: 'Satisfacción promedio de los participantes',
+                    weight: 0.40,
+                    bands: [
+                        ['min' => 4.9, 'value' => 40.0],
+                        ['min' => 4.7, 'value' => 30.0],
+                        ['min' => 4.5, 'value' => 20.0],
+                        ['min' => 4.1, 'value' => 10.0],
+                        ['min' => null, 'value' => 0.0],
+                    ],
                 ),
             ],
         );

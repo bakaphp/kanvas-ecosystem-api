@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Souk\Orders\DataTransferObject\OrderReceipt;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
 use Kanvas\Souk\Orders\Models\OrderTypes;
@@ -46,6 +47,7 @@ class SetupImpoundLotCommand extends Command
                 MovipassOrderStatusEnum::DELIVERED->value,
                 MovipassOrderStatusEnum::PAID->value,
             ]),
+            OrderReceipt::CONFIG_KEY => OrderTypeEnum::IMPOUND_LOT->pdfReceipt()->toConfig(),
         ]);
         $orderType->save();
 

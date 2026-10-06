@@ -13,9 +13,9 @@ use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\Workflow\Models\Integrations;
-use NeuronAI\MCP\CallableMcpTool;
 use NeuronAI\MCP\McpConnector;
 use NeuronAI\Tools\ToolInterface;
+use NeuronAI\Tools\ToolOutput;
 use Override;
 use Throwable;
 
@@ -152,7 +152,7 @@ class CachedMcpConnector extends McpConnector
      *
      * @param array<string, mixed> $arguments
      */
-    public function callRemoteTool(string $remoteName, array $arguments): mixed
+    public function callRemoteTool(string $remoteName, array $arguments): ToolOutput
     {
         return parent::invokeTool(['name' => $remoteName], $arguments);
     }
@@ -205,11 +205,13 @@ class CachedMcpConnector extends McpConnector
     #[Override]
     protected function createTool(array $item): ToolInterface
     {
-        $tool = McpTool::make(
+        $tool = new McpTool(
             name: $item['name'],
             description: $item['description'] ?? null,
             annotations: $item['annotations'] ?? [],
-        )->setCallable(new CallableMcpTool(connector: $this, item: $item));
+            connector: $this,
+            item: $item,
+        );
 
         foreach (new McpToolSchema()->properties((array) ($item['inputSchema'] ?? [])) as $property) {
             $tool->addProperty($property);
@@ -223,12 +225,12 @@ class CachedMcpConnector extends McpConnector
      * only to its own name and expects the objects.
      */
     #[Override]
-    public function invokeTool(array $item, array $arguments): mixed
+    public function invokeTool(array $item, array $arguments): ToolOutput
     {
         if ($this->budgetSpent()) {
-            // Refusing by return value rather than by removing the tool: Neuron exposes no way to
-            // withdraw a tool mid-turn, and the model reads this and answers with what it has.
-            return 'MCP budget exhausted for this turn — no further external calls. Answer with what you have.';
+            // Refusing by return value rather than by removing the tool: the model reads this and
+            // answers with what it has.
+            return ToolOutput::text('MCP budget exhausted for this turn — no further external calls. Answer with what you have.');
         }
 
         $publicName = (string) ($item['name'] ?? '');
@@ -252,7 +254,7 @@ class CachedMcpConnector extends McpConnector
      * minutes) would otherwise have the model poll its status tool until the per-turn run cap kills the
      * turn. Once the job is recorded the model is told to stop; the poll resumes it with the result.
      */
-    protected function handOffIfAsync(string $remoteName, mixed $result): mixed
+    protected function handOffIfAsync(string $remoteName, ToolOutput $result): ToolOutput
     {
         if ($this->integrationId === null || $this->agentId === null || ! in_array($remoteName, $this->asyncTools, true)) {
             return $result;
@@ -284,7 +286,7 @@ class CachedMcpConnector extends McpConnector
             return $result;
         }
 
-        return (string) json_encode([
+        return ToolOutput::text((string) json_encode([
             'status' => 'running_in_background',
             'job_id' => $job->external_id,
             'live_url' => $job->live_url,
@@ -292,7 +294,7 @@ class CachedMcpConnector extends McpConnector
                 . 'browser link into this conversation as soon as there is one, and will wake you here with '
                 . 'the result when the job ends. Do not call the status tool to check on it. Tell the user '
                 . 'it has started and end your turn.',
-        ], JSON_UNESCAPED_SLASHES);
+        ], JSON_UNESCAPED_SLASHES));
     }
 
     /**

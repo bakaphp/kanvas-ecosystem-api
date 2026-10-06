@@ -173,6 +173,11 @@ input AgentSessionInput {
     lead_id: ID!
 }
 
+input CancelAgentChatInput {
+    agent_id: ID!
+    session_id: String!
+}
+
 input UserChatInput {
     agent_id: ID!
     message: String!
@@ -240,6 +245,10 @@ extend type Mutation @guard {
     aiAgentUserChat(input: UserChatInput!): UserChatResponse!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@userChat"
+        )
+    aiAgentCancelChat(input: CancelAgentChatInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@cancel"
         )
     setAgentIntegrationConfig(input: SetAgentIntegrationConfigInput!): AgentAi!
         @field(

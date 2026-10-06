@@ -30,17 +30,13 @@ class DeleteLeadTool extends Tool
     use GuardsAdminForTool;
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'delete_lead',
-            description: 'Soft-delete a lead by its lead_id, removing it from the pipeline. The lead is recoverable '
-                . 'by an admin afterwards. Use search_leads first to confirm you have the right lead, and confirm '
-                . 'with the user before calling. If the lead is a duplicate of another one, use merge_lead instead — '
-                . 'that keeps the history. Only do this when the user explicitly asks to delete/remove a lead. Only '
-                . 'an administrator can do this.',
-        );
-    }
+    protected string $name = 'delete_lead';
+
+    protected ?string $description = 'Soft-delete a lead by its lead_id, removing it from the pipeline. The lead is recoverable '
+        . 'by an admin afterwards. Use search_leads first to confirm you have the right lead, and confirm '
+        . 'with the user before calling. If the lead is a duplicate of another one, use merge_lead instead — '
+        . 'that keeps the history. Only do this when the user explicitly asks to delete/remove a lead. Only '
+        . 'an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

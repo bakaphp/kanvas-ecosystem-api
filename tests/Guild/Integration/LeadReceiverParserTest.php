@@ -615,6 +615,89 @@ final class LeadReceiverParserTest extends TestCase
         $this->assertSame('Acme | West | ', $result['custom_fields']['agent_notes']);
     }
 
+    public function testTemplatePlaceholderMatchesPayloadKeyIgnoringCase(): void
+    {
+        $result = new ConvertJsonTemplateToLeadStructureAction(
+            [
+                'Agent Notes' => [
+                    'name' => 'agent_notes',
+                    'type' => 'template',
+                    'template' => 'Best Time to Contact: {Best Time to Contact} | Owner: {OWNER.title}',
+                ],
+            ],
+            [
+                'Best Time To Contact' => 'Morning (6 AM-12 PM EST)',
+                'owner' => ['Title' => 'CEO'],
+            ]
+        )->execute();
+
+        $this->assertSame(
+            'Best Time to Contact: Morning (6 AM-12 PM EST) | Owner: CEO',
+            $result['custom_fields']['agent_notes']
+        );
+    }
+
+    public function testMappingKeyMatchesPayloadKeyIgnoringCase(): void
+    {
+        $result = new ConvertJsonTemplateToLeadStructureAction(
+            [
+                'business name' => [
+                    'name' => 'Company',
+                    'type' => 'customField',
+                ],
+                'EMAIL' => [
+                    'name' => 'email',
+                    'type' => 'string',
+                ],
+            ],
+            [
+                'Business Name' => 'Tile18llc',
+                'Email' => 'jane@acme.test',
+            ]
+        )->execute();
+
+        $this->assertSame('Tile18llc', $result['custom_fields']['Company']);
+        $this->assertSame(
+            [['contacts_types_id' => ContactTypeEnum::EMAIL->value, 'value' => 'jane@acme.test']],
+            $result['people']['contacts']
+        );
+    }
+
+    public function testExactCaseKeyWinsOverCaseInsensitiveSibling(): void
+    {
+        $result = new ConvertJsonTemplateToLeadStructureAction(
+            [
+                'notes' => [
+                    'name' => 'agent_notes',
+                    'type' => 'template',
+                    'template' => '{Case}',
+                ],
+            ],
+            [
+                'case' => 'lower',
+                'Case' => 'exact',
+            ]
+        )->execute();
+
+        $this->assertSame('exact', $result['custom_fields']['agent_notes']);
+    }
+
+    public function testTemplatePlaceholderDescendingIntoScalarIsEmpty(): void
+    {
+        $result = new ConvertJsonTemplateToLeadStructureAction(
+            [
+                'notes' => [
+                    'name' => 'agent_notes',
+                    'type' => 'template',
+                    'template' => '[{owner.title}]',
+                ],
+            ],
+            ['owner' => 'CEO']
+        )->execute();
+
+        $this->assertSame('[]', $result['custom_fields']['agent_notes']);
+    }
+
     public function testTargetOverridesTheInferredDestination(): void
     {
         $result = new ConvertJsonTemplateToLeadStructureAction(

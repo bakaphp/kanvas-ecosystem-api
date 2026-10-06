@@ -22,7 +22,7 @@ class RenderPriceDisclosureAction
      * Approved default copy, used when the dealer has not uploaded its own template for the
      * channel and language. The wording is legal copy: change it only with an approved revision.
      */
-    public const string DEFAULT_TEMPLATE = 'The vehicle total price before rebates or incentives is ${{ $ca_cars_total_price }}. '
+    public const string DEFAULT_TEMPLATE = 'For stock number {{ $stock_number }}, the vehicle total price before rebates or incentives is ${{ $ca_cars_total_price }}. '
         . 'Including the ${{ $documentation_fee }} documentation fee and ${{ $electronic_filing_charge }} electronic filing charge, '
         . 'the selling price is ${{ $pre_rebate_selling_price }}. '
         . 'The current advertised sale price is ${{ $ftc_actual_price }}, before government-required taxes and registration charges.';
@@ -93,7 +93,7 @@ class RenderPriceDisclosureAction
             'first_name' => $this->lead->people->firstname ?: $this->lead->people->name,
             'dealership' => $this->lead->company->name,
             'year_make_model' => trim(implode(' ', array_filter([(string) $year, (string) $make, (string) $model]))),
-            'stock_number' => (string) $variant->sku,
+            'stock_number' => $this->price->stockNumber,
             'vin' => (string) ($vehicleInterest['vin'] ?? $variant->sku),
             'ca_cars_total_price' => self::money($this->price->caCarsTotalPrice),
             'pre_rebate_selling_price' => self::money($this->price->preRebateSellingPrice),

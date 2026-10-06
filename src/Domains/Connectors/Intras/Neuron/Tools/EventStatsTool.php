@@ -12,7 +12,6 @@ use Kanvas\Connectors\Intras\Reporting\Concerns\BuildsIntrasFilters;
 use Kanvas\Connectors\Intras\Reporting\IntrasGoalPolicy;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -32,24 +31,20 @@ use Throwable;
  * more than one version inside the window, which is a HAVING over a grouping.
  */
 #[AgentTool(name: 'Intras Event Stats', category: 'reporting')]
-class EventStatsTool extends Tool implements HasRunKey
+class EventStatsTool extends Tool
 {
     use TrackByInputs;
     use BuildsIntrasFilters;
     use HasKanvasContext;
 
-    private const array MODES = ['realizados', 'cancelados', 'repetidos'];
+    protected string $name = 'intras_event_stats';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'intras_event_stats',
-            description: 'Cuántos eventos (versiones) se hicieron, se cancelaron, o se repitieron '
-                . 'en un periodo, por tipo (ABIERTO/IN-HOUSE), clase y categoría. mode: '
-                . '"realizados" (por defecto), "cancelados" o "repetidos" (mismo evento con más '
-                . 'de una versión en el periodo).',
-        );
-    }
+    protected ?string $description = 'Cuántos eventos (versiones) se hicieron, se cancelaron, o se repitieron '
+        . 'en un periodo, por tipo (ABIERTO/IN-HOUSE), clase y categoría. mode: '
+        . '"realizados" (por defecto), "cancelados" o "repetidos" (mismo evento con más '
+        . 'de una versión en el periodo).';
+
+    private const array MODES = ['realizados', 'cancelados', 'repetidos'];
 
     /**
      * @return array<int, ToolProperty>

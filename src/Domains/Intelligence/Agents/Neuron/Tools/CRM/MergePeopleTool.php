@@ -24,16 +24,12 @@ class MergePeopleTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'merge_people',
-            description: 'Merge a duplicate contact into another. source_person_id is the duplicate (soft-deleted '
-                . 'after), target_person_id is the survivor that keeps everything. All leads, contacts, addresses, '
-                . 'organizations and custom fields move to the target. This is irreversible — confirm the two ids '
-                . 'with the user first (use find_person / get_person to verify they are the same person).',
-        );
-    }
+    protected string $name = 'merge_people';
+
+    protected ?string $description = 'Merge a duplicate contact into another. source_person_id is the duplicate (soft-deleted '
+        . 'after), target_person_id is the survivor that keeps everything. All leads, contacts, addresses, '
+        . 'organizations and custom fields move to the target. This is irreversible — confirm the two ids '
+        . 'with the user first (use find_person / get_person to verify they are the same person).';
 
     /**
      * @return array<int, ToolProperty>

@@ -23,14 +23,10 @@ class AddBillNoteTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'add_bill_note',
-            description: 'Appends a note to an AP bill that has already been pushed to Acumatica — records it '
-                . 'both in Kanvas and on the Acumatica document\'s Notes field.',
-        );
-    }
+    protected string $name = 'add_bill_note';
+
+    protected ?string $description = 'Appends a note to an AP bill that has already been pushed to Acumatica — records it '
+        . 'both in Kanvas and on the Acumatica document\'s Notes field.';
 
     /**
      * @return array<int, ToolProperty>

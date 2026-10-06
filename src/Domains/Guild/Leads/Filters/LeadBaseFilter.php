@@ -17,9 +17,7 @@ class LeadBaseFilter
     public function apply(Builder $query, Companies $company, array $filters): array
     {
         $status = Str::lowerTrim($filters['status'] ?? null) ?: 'open';
-        $query
-            ->when($status === 'open', fn ($q) => $q->where(fn ($scope) => $scope->whereNull('status')->orWhere('status', '<', 2)))
-            ->when($status === 'closed', fn ($q) => $q->where('status', '>=', 2));
+        $query->havingLeadState($status, $company);
         $criteria = ['status' => $status];
 
         if (($source = Str::trimToNull($filters['source'] ?? null)) !== null) {

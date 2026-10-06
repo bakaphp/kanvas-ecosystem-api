@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,20 +21,16 @@ use Override;
  * assigned agent becomes the task's executor (Task.agent_id).
  */
 #[AgentTool(name: 'Assign Task', category: 'nervous_system')]
-class AssignNervousSystemTaskTool extends Tool implements HasRunKey
+class AssignNervousSystemTaskTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
     use ResolvesTaskForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'assign_nervous_system_task',
-            description: 'Assign a task to an agent so that agent owns and executes it. Use this to delegate '
-                . 'a task to the best-fit member agent.',
-        );
-    }
+    protected string $name = 'assign_nervous_system_task';
+
+    protected ?string $description = 'Assign a task to an agent so that agent owns and executes it. Use this to delegate '
+        . 'a task to the best-fit member agent.';
 
     /**
      * @return array<int, ToolProperty>

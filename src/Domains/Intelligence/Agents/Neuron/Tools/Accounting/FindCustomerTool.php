@@ -10,7 +10,6 @@ use Kanvas\Guild\Organizations\Services\OrganizationNameNormalizerService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,21 +23,17 @@ use Override;
  * returns candidates to disambiguate rather than a single guess.
  */
 #[AgentTool(name: 'Find Customer', category: 'accounting')]
-class FindCustomerTool extends Tool implements HasRunKey
+class FindCustomerTool extends Tool
 {
     use HasKanvasContext;
     use ReportsToolOutcome;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_customer',
-            description: 'Finds customer organizations matching a name, each with its Acumatica customer code (when '
-                . 'synced). Use this to resolve who a customer is before looking up their invoices or sales orders. '
-                . 'Returns candidates — confirm the right one with the user if there is more than one.',
-        );
-    }
+    protected string $name = 'find_customer';
+
+    protected ?string $description = 'Finds customer organizations matching a name, each with its Acumatica customer code (when '
+        . 'synced). Use this to resolve who a customer is before looking up their invoices or sales orders. '
+        . 'Returns candidates — confirm the right one with the user if there is more than one.';
 
     /**
      * @return array<int, ToolProperty>

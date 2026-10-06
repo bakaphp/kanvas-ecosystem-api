@@ -23,15 +23,11 @@ class QueryApAgingTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'query_ap_aging',
-            description: 'Returns AP aging as of a date — open bills grouped by vendor and bucketed by days past '
-                . 'due (current/not-yet-due, 1-30, 31-60, 61-90, 90+). Use this when the user asks what we owe, '
-                . 'how much is overdue to vendors, or wants a per-vendor payables breakdown to prioritise payment.',
-        );
-    }
+    protected string $name = 'query_ap_aging';
+
+    protected ?string $description = 'Returns AP aging as of a date — open bills grouped by vendor and bucketed by days past '
+        . 'due (current/not-yet-due, 1-30, 31-60, 61-90, 90+). Use this when the user asks what we owe, '
+        . 'how much is overdue to vendors, or wants a per-vendor payables breakdown to prioritise payment.';
 
     /**
      * @return array<int, ToolProperty>

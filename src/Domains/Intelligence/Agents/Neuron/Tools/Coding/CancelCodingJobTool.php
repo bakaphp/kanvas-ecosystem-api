@@ -21,17 +21,17 @@ class CancelCodingJobTool extends Tool
 {
     use ResolvesTaskForTool;
 
+    protected string $name = 'cancel_coding_job';
+
+    protected ?string $description = 'Signal cancellation of a coding task you dispatched, using its job id. Cancellation is '
+        . 'best-effort and asynchronous — anything the coding agent already pushed stays pushed. Check the '
+        . 'job status afterwards to confirm it stopped.';
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'cancel_coding_job',
-            description: 'Signal cancellation of a coding task you dispatched, using its job id. Cancellation is '
-                . 'best-effort and asynchronous — anything the coding agent already pushed stays pushed. Check the '
-                . 'job status afterwards to confirm it stopped.',
-        );
     }
 
     /**

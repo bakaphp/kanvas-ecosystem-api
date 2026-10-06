@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\Expenses\Actions\RecordExpenseReimbursementAction;
 use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
 use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -27,23 +26,19 @@ use Throwable;
  * never to promise one. Same posture as apply_ap_payment: only on an explicit human instruction.
  */
 #[AgentTool(name: 'Record Expense Reimbursement', category: 'accounting')]
-class RecordExpenseReimbursementTool extends Tool implements HasRunKey
+class RecordExpenseReimbursementTool extends Tool
 {
     use HasKanvasContext;
     use ReportsToolOutcome;
     use ResolvesExpenseForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'record_expense_reimbursement',
-            description: 'Records that an employee has been paid back for an expense they covered personally, '
-                . 'clearing the liability and posting the cash journal entry. It does NOT send any money — it '
-                . 'records a transfer that has already happened. Only call it when someone explicitly tells you '
-                . 'the reimbursement was paid; never on your own initiative, and never to promise a payment.',
-        );
-    }
+    protected string $name = 'record_expense_reimbursement';
+
+    protected ?string $description = 'Records that an employee has been paid back for an expense they covered personally, '
+        . 'clearing the liability and posting the cash journal entry. It does NOT send any money — it '
+        . 'records a transfer that has already happened. Only call it when someone explicitly tells you '
+        . 'the reimbursement was paid; never on your own initiative, and never to promise a payment.';
 
     /**
      * @return array<int, ToolProperty>

@@ -37,6 +37,10 @@ final class PasoRapidoCompanyLimitsTest extends TestCase
     {
         parent::setUp();
 
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('PasoRapido tests require external API credentials and are skipped in CI.');
+        }
+
         $this->kanvasApp = app(Apps::class);
         $this->userId = auth()->user()->getId();
         $this->company = Companies::factory()->create(['users_id' => $this->userId]);
@@ -50,6 +54,12 @@ final class PasoRapidoCompanyLimitsTest extends TestCase
 
     protected function tearDown(): void
     {
+        if (! isset($this->company)) {
+            parent::tearDown();
+
+            return;
+        }
+
         foreach ($this->originalAppSettings as $key => $value) {
             $value === null ? $this->kanvasApp->del($key) : $this->kanvasApp->set($key, $value);
         }

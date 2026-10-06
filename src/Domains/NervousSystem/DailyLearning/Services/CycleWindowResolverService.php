@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\DailyLearning\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Validations\Date;
 use Illuminate\Support\Carbon;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ValidationException;
 
 // One source for daily-learning's "what counts as yesterday" window.
 // Anchors the cycle date *in* the tenant tz — never `setTimezone()`-shifts
@@ -55,5 +57,33 @@ final class CycleWindowResolverService
         }
 
         return (string) AppEnums::DEFAULT_TIMEZONE->getValue();
+    }
+
+    public static function resolveRange(
+        AppInterface $app,
+        Companies $company,
+        ?string $since,
+        ?string $until,
+    ): array {
+        $timezone = self::resolveTimezone($app, $company);
+        $sinceLabel = $since ?? Carbon::yesterday($timezone)->toDateString();
+        $untilLabel = $until ?? $sinceLabel;
+
+        return [
+            'timezone' => $timezone,
+            'sinceLabel' => $sinceLabel,
+            'untilLabel' => $untilLabel,
+            'since' => self::parseStrictDate($sinceLabel, $timezone)->startOfDay()->utc(),
+            'until' => self::parseStrictDate($untilLabel, $timezone)->endOfDay()->utc(),
+        ];
+    }
+
+    private static function parseStrictDate(string $label, string $timezone): Carbon
+    {
+        if (! Date::isValid($label, 'Y-m-d')) {
+            throw new ValidationException("Invalid date \"{$label}\", expected YYYY-MM-DD.");
+        }
+
+        return Carbon::createFromFormat('!Y-m-d', $label, $timezone);
     }
 }

@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Tavily;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTavilyClientForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -19,24 +18,20 @@ use Throwable;
  * fifth of what five calls cost and leaves the per-turn run budget intact.
  */
 #[AgentTool(name: 'Tavily Read URL', category: 'knowledge')]
-class TavilyExtractTool extends Tool implements HasRunKey
+class TavilyExtractTool extends Tool
 {
     use ResolvesTavilyClientForTool;
     use TrackByInputs;
 
+    protected string $name = 'tavily_read_url';
+
+    protected ?string $description = 'Read the full content of one or more web pages you already have URLs for, '
+        . 'returned as markdown. Use it after a web search when the snippets are not enough, or '
+        . 'whenever the user gives you a link and asks what it says. Pass every URL you need in a '
+        . 'single call — it costs the same as one. It cannot find pages, only read ones you name.';
+
     private const int MAX_URLS = 20;
     private const int MAX_CONTENT_LENGTH = 20000;
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'tavily_read_url',
-            description: 'Read the full content of one or more web pages you already have URLs for, '
-                . 'returned as markdown. Use it after a web search when the snippets are not enough, or '
-                . 'whenever the user gives you a link and asks what it says. Pass every URL you need in a '
-                . 'single call — it costs the same as one. It cannot find pages, only read ones you name.',
-        );
-    }
 
     /**
      * @return array<int, ToolProperty>

@@ -6,9 +6,9 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\Templates;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Laravel\Concerns\HandlesToolRequest;
+use Kanvas\Intelligence\Agents\Laravel\Concerns\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
-use Kanvas\Intelligence\Agents\Laravel\Traits\HandlesToolRequest;
-use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Tools\Traits\Templates\ManagesTemplatesTrait;
 use Laravel\Ai\Tools\Request;
 use Override;

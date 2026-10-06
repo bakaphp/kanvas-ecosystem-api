@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Intras\Enums\PeopleIntrasSyncApprovalTypeEnum;
 use Kanvas\Connectors\Salesforce\Enums\PeopleSalesforceSyncApprovalTypeEnum;
 use Kanvas\Guild\Customers\Enums\PeopleApprovalTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
@@ -60,6 +61,32 @@ final class SeedPeopleApprovalPolicyCommandTest extends TestCase
         $this->artisan(self::COMMAND, ['apps_id' => $app->getId(), 'company_id' => $company->getId()])->assertSuccessful();
 
         $this->assertSame('none', $policy->refresh()->notify);
+    }
+
+    public function testIntrasConnectorSeedsTheSipgoGateInsteadOfSalesforce(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+
+        $this->artisan(self::COMMAND, [
+            'apps_id' => $app->getId(),
+            'company_id' => $company->getId(),
+            '--connector' => 'intras',
+        ])->assertSuccessful();
+
+        $this->assertSame(
+            PeopleIntrasSyncApprovalTypeEnum::UPDATE->value,
+            $this->policy($app, $company, PeopleIntrasSyncApprovalTypeEnum::UPDATE->value)->approval_type
+        );
+    }
+
+    public function testUnknownConnectorFails(): void
+    {
+        $this->artisan(self::COMMAND, [
+            'apps_id' => app(Apps::class)->getId(),
+            'company_id' => static::$cachedUser->getCurrentCompany()->getId(),
+            '--connector' => 'hubspot',
+        ])->assertFailed();
     }
 
     private function policy(Apps $app, $company, string $approvalType): ApprovalPolicy

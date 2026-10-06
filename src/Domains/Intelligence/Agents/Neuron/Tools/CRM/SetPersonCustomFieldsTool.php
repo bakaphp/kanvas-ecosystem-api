@@ -25,15 +25,11 @@ class SetPersonCustomFieldsTool extends Tool
     use HasKanvasContext;
     use ResolvesPersonForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_person_custom_fields',
-            description: 'Store custom fields on a person (e.g. seniority, department, source, a computed score). '
-                . 'Pass person_id and a map of field name → value; only those keys are written. Use get_person to '
-                . 'read them back.',
-        );
-    }
+    protected string $name = 'set_person_custom_fields';
+
+    protected ?string $description = 'Store custom fields on a person (e.g. seniority, department, source, a computed score). '
+        . 'Pass person_id and a map of field name → value; only those keys are written. Use get_person to '
+        . 'read them back.';
 
     /**
      * @return array<int, ToolProperty>

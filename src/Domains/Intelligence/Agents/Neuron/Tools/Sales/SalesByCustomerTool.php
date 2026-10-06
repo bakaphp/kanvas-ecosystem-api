@@ -22,17 +22,13 @@ class SalesByCustomerTool extends Tool
 {
     use HasKanvasContext;
 
-    private const EXCLUDED_STATUSES = ['draft', 'canceled', 'cancelled', 'failed'];
+    protected string $name = 'sales_by_customer';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'sales_by_customer',
-            description: 'Ranks customers by total revenue over their booked orders (draft/canceled excluded). '
-                . 'Optionally bounded by since/until dates. Use for "who are our biggest customers", "top buyers '
-                . 'this quarter", "how much has customer X spent".',
-        );
-    }
+    protected ?string $description = 'Ranks customers by total revenue over their booked orders (draft/canceled excluded). '
+        . 'Optionally bounded by since/until dates. Use for "who are our biggest customers", "top buyers '
+        . 'this quarter", "how much has customer X spent".';
+
+    private const EXCLUDED_STATUSES = ['draft', 'canceled', 'cancelled', 'failed'];
 
     /**
      * @return array<int, ToolProperty>

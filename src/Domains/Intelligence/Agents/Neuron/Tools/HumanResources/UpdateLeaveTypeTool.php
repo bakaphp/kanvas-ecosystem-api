@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -27,23 +26,19 @@ use Override;
  * set_employee_leave_balance per employee, not this.
  */
 #[AgentTool(name: 'Update Leave Type', category: 'human_resources')]
-class UpdateLeaveTypeTool extends Tool implements HasRunKey
+class UpdateLeaveTypeTool extends Tool
 {
     use GuardsAdminForTool;
     use HandlesLeaveForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_leave_type',
-            description: 'Changes an existing leave type (leave policy): its annual entitlement, carryover cap, paid '
-                . 'flag, accrual method, approval rule, name, or whether it is still active. Admin only. Only the '
-                . 'fields you pass change. This affects FUTURE assignments only — balances already granted keep their '
-                . 'days, so use set_employee_leave_balance to change what someone already has.',
-        );
-    }
+    protected string $name = 'update_leave_type';
+
+    protected ?string $description = 'Changes an existing leave type (leave policy): its annual entitlement, carryover cap, paid '
+        . 'flag, accrual method, approval rule, name, or whether it is still active. Admin only. Only the '
+        . 'fields you pass change. This affects FUTURE assignments only — balances already granted keep their '
+        . 'days, so use set_employee_leave_balance to change what someone already has.';
 
     /**
      * @return array<int, ToolProperty>

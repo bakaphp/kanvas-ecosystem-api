@@ -1,0 +1,33 @@
+input ShippingDestinationInput {
+    country: String!
+    city: String
+    postal_code: String
+}
+
+type ShippingQuote {
+    provider: String!
+    service_code: String!
+    service_name: String!
+    amount: Float!
+    currency: String!
+    transit_min_days: Int
+    transit_max_days: Int
+}
+
+extend type Query @guardByKanvasIdentifier {
+    shippingQuotes(destination: ShippingDestinationInput!): [ShippingQuote!]!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\ShippingQuery@quotes"
+        )
+}
+
+extend type Mutation @guardByKanvasIdentifier {
+    applyShippingQuote(
+        provider: String!
+        service: String!
+        destination: ShippingDestinationInput!
+    ): Cart!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\ShippingMutation@apply"
+        )
+}

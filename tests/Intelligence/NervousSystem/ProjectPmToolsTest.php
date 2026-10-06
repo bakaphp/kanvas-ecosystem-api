@@ -547,7 +547,7 @@ class ProjectPmToolsTest extends TestCase
         $agent = $this->makeAgent($app, $company, $user);
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $user);
+        $pm->setConfiguration($agent, user: $user);
 
         $method = new ReflectionMethod($pm, 'tools');
         /** @var array<int, object> $tools */
@@ -585,7 +585,7 @@ class ProjectPmToolsTest extends TestCase
         $agent = $this->makeAgent($app, $company, $user);
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $user);
+        $pm->setConfiguration($agent, user: $user);
 
         $names = array_map(
             fn (object $tool): string => (string) $tool->getName(),
@@ -605,7 +605,7 @@ class ProjectPmToolsTest extends TestCase
         $agent = $this->makeAgent($app, $company, $user);
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $user);
+        $pm->setConfiguration($agent, user: $user);
 
         $names = array_map(
             fn (object $tool): string => (string) $tool->getName(),
@@ -697,7 +697,7 @@ class ProjectPmToolsTest extends TestCase
         $agent = $this->makeAgent($app, $company, $agentUser);
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $agentUser);
+        $pm->setConfiguration($agent, user: $agentUser);
 
         $this->assertSame(
             $agentUser->getId(),
@@ -738,7 +738,7 @@ class ProjectPmToolsTest extends TestCase
         )->execute();
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $user);
+        $pm->setConfiguration($agent, user: $user);
 
         $instructions = $pm->instructions();
 
@@ -757,7 +757,7 @@ class ProjectPmToolsTest extends TestCase
         $second = $this->projectFor($agent, $app, $company, $user, 'Second board');
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, $second, null, $user);
+        $pm->setConfiguration($agent, $second, $user);
 
         $instructions = $pm->instructions();
 
@@ -774,7 +774,7 @@ class ProjectPmToolsTest extends TestCase
         $second = $this->projectFor($agent, $app, $company, $user, 'Ambiguous board B');
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $user);
+        $pm->setConfiguration($agent, user: $user);
 
         $instructions = $pm->instructions();
 
@@ -829,7 +829,7 @@ class ProjectPmToolsTest extends TestCase
         $agent = $this->makeAgent($app, $company, $user);
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $user);
+        $pm->setConfiguration($agent, user: $user);
 
         $instructions = $pm->instructions();
 

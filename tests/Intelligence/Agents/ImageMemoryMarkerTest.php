@@ -6,8 +6,9 @@ namespace Tests\Intelligence\Agents;
 
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Kanvas\Filesystem\Models\Filesystem;
-use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
-use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
+use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
+use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
+use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Social\Messages\Models\Message as SocialMessage;
 use ReflectionClass;
@@ -15,7 +16,7 @@ use ReflectionMethod;
 use Tests\TestCase;
 
 /**
- * Guards the "agent remembers attachments" fix: both Neuron histories rebuild from text only, so an
+ * Guards the "agent remembers attachments" fix: both Neuron stores rebuild from text only, so an
  * attachment turn (image / audio / PDF) must be re-materialized as a "[Attachment: <desc>]" memory
  * line (and never dropped when it has no text). Pure marker logic — no DB or LLM — via reflection.
  */
@@ -23,18 +24,28 @@ class ImageMemoryMarkerTest extends TestCase
 {
     private function salesMarker(array $stored, ?SocialMessage $message = null): string
     {
-        $history = new ReflectionClass(SalesAssistKanvasMessageHistory::class)->newInstanceWithoutConstructor();
+        $store = new ReflectionClass(EntityRollupMessageStore::class)->newInstanceWithoutConstructor();
 
-        return new ReflectionMethod(SalesAssistKanvasMessageHistory::class, 'buildAttachmentMarker')
-            ->invoke($history, $stored, $message ?? new SocialMessage());
+        return new ReflectionMethod(EntityRollupMessageStore::class, 'buildAttachmentMarker')
+            ->invoke(
+                $store,
+                $stored,
+                (string) ($stored['content'] ?? $stored['text'] ?? ''),
+                $message ?? new SocialMessage(),
+            );
     }
 
     private function conversationMarker(?string $attachmentsJson): string
     {
-        $history = new ReflectionClass(KanvasMessageHistory::class)->newInstanceWithoutConstructor();
+        $attachments = new ReflectionMethod(ConversationMessageStore::class, 'decodeJsonArray')
+            ->invoke($this->conversationStore(), $attachmentsJson) ?? [];
 
-        return new ReflectionMethod(KanvasMessageHistory::class, 'buildAttachmentMarker')
-            ->invoke($history, $attachmentsJson);
+        return new ReflectionMethod(KanvasMessageStore::class, 'attachmentMarker')->invoke(null, $attachments);
+    }
+
+    private function conversationStore(): ConversationMessageStore
+    {
+        return new ReflectionClass(ConversationMessageStore::class)->newInstanceWithoutConstructor();
     }
 
     public function testSalesDescriptionsBecomeMemoryLines(): void

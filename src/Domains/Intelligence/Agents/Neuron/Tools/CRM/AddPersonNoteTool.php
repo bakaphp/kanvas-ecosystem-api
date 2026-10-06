@@ -8,7 +8,6 @@ use Kanvas\Guild\Customers\Actions\RecordPeopleNoteAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\WritesNoteForEntity;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -16,24 +15,20 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Add Person Note', category: 'crm')]
-class AddPersonNoteTool extends Tool implements HasRunKey
+class AddPersonNoteTool extends Tool
 {
     use ResolvesPersonForTool;
     use TrackByInputs;
     use WritesNoteForEntity;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'add_person_note',
-            description: 'Write a note on a contact (person) so the team sees it in that contact\'s notes thread. '
-                . 'Use this to record what a contact asked for, what you did for them, or why something changed — '
-                . 'anything that belongs on the person rather than on a single lead or deal. '
-                . 'Use find_person to get the person_id first. '
-                . 'A note about one opportunity belongs on that lead instead, and a note about the whole '
-                . 'account belongs on the organization.',
-        );
-    }
+    protected string $name = 'add_person_note';
+
+    protected ?string $description = 'Write a note on a contact (person) so the team sees it in that contact\'s notes thread. '
+        . 'Use this to record what a contact asked for, what you did for them, or why something changed — '
+        . 'anything that belongs on the person rather than on a single lead or deal. '
+        . 'Use find_person to get the person_id first. '
+        . 'A note about one opportunity belongs on that lead instead, and a note about the whole '
+        . 'account belongs on the organization.';
 
     /**
      * @return array<int, ToolProperty>

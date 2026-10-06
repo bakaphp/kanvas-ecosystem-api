@@ -37,20 +37,19 @@ class ReplyToHarnessPullRequestTool extends Tool implements RequiresSystemAgent
     use ReportsToolOutcome;
     use ResolvesCodingRepositoryForTool;
 
+    protected string $name = 'reply_to_coding_pull_request';
+
+    protected ?string $description = 'Post ONE comment on the pull request a coding job produced — to say what you '
+        . 'changed in response to a review, to answer a question, or to flag something you could '
+        . 'not do. Write it for the reviewer reading the PR, not as a summary for this chat. '
+        . 'Every call notifies a human, so say everything you have to say in a single comment: '
+        . 'do not post an acknowledgement, a status update, or a follow-up confirming the same '
+        . 'round. If you have nothing to report beyond having read the review, post nothing.';
+
     public function __construct(
         private readonly Agent $agent,
     ) {
         $this->initRepeatGuard();
-
-        parent::__construct(
-            name: 'reply_to_coding_pull_request',
-            description: 'Post ONE comment on the pull request a coding job produced — to say what you '
-                . 'changed in response to a review, to answer a question, or to flag something you could '
-                . 'not do. Write it for the reviewer reading the PR, not as a summary for this chat. '
-                . 'Every call notifies a human, so say everything you have to say in a single comment: '
-                . 'do not post an acknowledgement, a status update, or a follow-up confirming the same '
-                . 'round. If you have nothing to report beyond having read the review, post nothing.',
-        );
     }
 
     /**

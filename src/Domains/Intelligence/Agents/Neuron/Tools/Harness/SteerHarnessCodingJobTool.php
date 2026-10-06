@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -29,23 +28,23 @@ use Throwable;
  * A steer does NOT undo work already done. For a change of direction, cancel and dispatch again.
  */
 #[AgentTool(name: 'Steer Self-Hosted Coding Job', category: 'coding')]
-class SteerHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSystemAgent
+class SteerHarnessCodingJobTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;
+
+    protected string $name = 'steer_self_hosted_coding_job';
+
+    protected ?string $description = 'Send a correction to a coding job while it is still running — "also update the '
+        . 'tests", "use the existing helper instead". Work already finished is NOT undone. If you are '
+        . 'passing on what a human just told you, set relaying_human_instruction to true; if this is '
+        . 'your own judgement, leave it false and note you have a small budget of these per job.';
 
     private const int MAX_AGENT_INITIATED_STEERS = 3;
 
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'steer_self_hosted_coding_job',
-            description: 'Send a correction to a coding job while it is still running — "also update the '
-                . 'tests", "use the existing helper instead". Work already finished is NOT undone. If you are '
-                . 'passing on what a human just told you, set relaying_human_instruction to true; if this is '
-                . 'your own judgement, leave it false and note you have a small budget of these per job.',
-        );
     }
 
     /**

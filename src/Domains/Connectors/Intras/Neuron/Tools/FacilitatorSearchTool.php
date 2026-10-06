@@ -11,7 +11,6 @@ use Kanvas\Analytics\Reporting\Support\ReportRegistry;
 use Kanvas\Connectors\Intras\Reporting\IntrasGoalPolicy;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -26,21 +25,17 @@ use Throwable;
  * rather than a LIKE over a concatenated string.
  */
 #[AgentTool(name: 'Intras Facilitator Search', category: 'reporting')]
-class FacilitatorSearchTool extends Tool implements HasRunKey
+class FacilitatorSearchTool extends Tool
 {
     use TrackByInputs;
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'intras_facilitator_search',
-            description: 'Busca facilitadores por tema, idioma, país o aliado, y devuelve su '
-                . 'historial de versiones impartidas. Responde "¿qué facilitador podría impartir '
-                . 'un seminario del tema X?". Con historial=true incluye las versiones asignadas '
-                . 'y su satisfacción.',
-        );
-    }
+    protected string $name = 'intras_facilitator_search';
+
+    protected ?string $description = 'Busca facilitadores por tema, idioma, país o aliado, y devuelve su '
+        . 'historial de versiones impartidas. Responde "¿qué facilitador podría impartir '
+        . 'un seminario del tema X?". Con historial=true incluye las versiones asignadas '
+        . 'y su satisfacción.';
 
     /**
      * @return array<int, ToolProperty>

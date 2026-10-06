@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\Intras\Neuron\Tools;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -36,26 +35,22 @@ use Throwable;
  *   ("it was cancelled"), and a registration-grain search can only return silence.
  */
 #[AgentTool(name: 'Intras Event Search', category: 'reporting')]
-class EventSearchTool extends Tool implements HasRunKey
+class EventSearchTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
+    protected string $name = 'intras_event_search';
+
+    protected ?string $description = 'Busca versiones de eventos por nombre parcial, código de SIPGO (p. ej. '
+        . '"EV3230" o "5911"), o rango de fechas, y devuelve el version_id que necesitan '
+        . 'las demás herramientas. Úsala SIEMPRE primero cuando te den el nombre o el '
+        . 'código de un evento en vez de un version_id. Tolera nombres con o sin espacios '
+        . '("HELLO WELLNESS" encuentra "HELLOWELLNESS"). Incluye versiones canceladas y '
+        . 'sin inscritos, porque a menudo esa es la respuesta.';
+
     private const int DEFAULT_LIMIT = 15;
     private const int MAX_LIMIT = 50;
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'intras_event_search',
-            description: 'Busca versiones de eventos por nombre parcial, código de SIPGO (p. ej. '
-                . '"EV3230" o "5911"), o rango de fechas, y devuelve el version_id que necesitan '
-                . 'las demás herramientas. Úsala SIEMPRE primero cuando te den el nombre o el '
-                . 'código de un evento en vez de un version_id. Tolera nombres con o sin espacios '
-                . '("HELLO WELLNESS" encuentra "HELLOWELLNESS"). Incluye versiones canceladas y '
-                . 'sin inscritos, porque a menudo esa es la respuesta.',
-        );
-    }
 
     /**
      * @return array<int, ToolProperty>

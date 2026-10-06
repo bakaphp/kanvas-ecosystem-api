@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -31,22 +30,22 @@ use Throwable;
  * when a human said so. The tool enforces that rather than trusting the model to remember it.
  */
 #[AgentTool(name: 'Answer Self-Hosted Coding Permission', category: 'coding')]
-class AnswerHarnessCodingPermissionTool extends Tool implements HasRunKey, RequiresSystemAgent
+class AnswerHarnessCodingPermissionTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;
 
+    protected string $name = 'answer_self_hosted_coding_permission';
+
+    protected ?string $description = 'Answer a coding job that is waiting on a permission — it wants to run something '
+        . 'its rules do not already allow. check_self_hosted_coding_job reports the request and its '
+        . 'id. Decisions: "once" allows just this, "reject" refuses it, "always" allows anything '
+        . 'like it for the rest of the job. Use "always" ONLY when a human in this conversation '
+        . 'said so; otherwise ask them, or answer "once".';
+
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'answer_self_hosted_coding_permission',
-            description: 'Answer a coding job that is waiting on a permission — it wants to run something '
-                . 'its rules do not already allow. check_self_hosted_coding_job reports the request and its '
-                . 'id. Decisions: "once" allows just this, "reject" refuses it, "always" allows anything '
-                . 'like it for the rest of the job. Use "always" ONLY when a human in this conversation '
-                . 'said so; otherwise ask them, or answer "once".',
-        );
     }
 
     /**

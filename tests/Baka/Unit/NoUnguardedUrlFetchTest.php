@@ -65,6 +65,11 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         // Reads the local PHP source of a reflected tool class (ReflectionClass::getFileName()) to
         // tokenise its description argument, gated by is_readable().
         'src/Domains/Intelligence/Agents/Services/AgentToolDiscoveryService.php',
+        // CLI: reads local PEM files from the --cert/--key/--ca options, gated by file_exists().
+        'app/Console/Commands/Connectors/Azul/ImportAzulCertificateCommand.php',
+        // Legacy AZUL_*_PATH fallback: relative paths are forced under base_path(), the file must
+        // exist and must contain PEM material — never a URL.
+        'src/Domains/Connectors/Azul/Services/AzulCertificate.php',
     ];
 
     public function testNoUnguardedRemoteUrlFetch(): void

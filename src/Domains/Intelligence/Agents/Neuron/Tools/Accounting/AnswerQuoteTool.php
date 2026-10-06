@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesScribeQuoteForTool;
 use Kanvas\Scribe\Quotes\Actions\AcceptQuoteAction;
 use Kanvas\Scribe\Quotes\Actions\RejectQuoteAction;
 use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteTransitionException;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -19,22 +18,18 @@ use Override;
 
 /** Records the customer's answer to a sent quote — accepted (the only path to an invoice) or rejected. */
 #[AgentTool(name: 'Answer Quote', category: 'accounting')]
-class AnswerQuoteTool extends Tool implements HasRunKey
+class AnswerQuoteTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesScribeQuoteForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'answer_quote',
-            description: 'Records what the CUSTOMER decided about a quote you already sent: accepted or '
-                . 'rejected. Only call it when someone tells you the customer actually answered — this is '
-                . 'their decision, never yours to assume. Accepting is what unlocks '
-                . 'convert_quote_to_invoice; rejecting closes the quote for good.',
-        );
-    }
+    protected string $name = 'answer_quote';
+
+    protected ?string $description = 'Records what the CUSTOMER decided about a quote you already sent: accepted or '
+        . 'rejected. Only call it when someone tells you the customer actually answered — this is '
+        . 'their decision, never yours to assume. Accepting is what unlocks '
+        . 'convert_quote_to_invoice; rejecting closes the quote for good.';
 
     /**
      * @return array<int, ToolProperty>

@@ -17,13 +17,9 @@ class VehicleTradeInTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_vehicle_trade_in',
-            description: 'Get vehicle trade-in information from the lead, including mileage, colors, year, make, model, trim, and VIN.',
-        );
-    }
+    protected string $name = 'get_vehicle_trade_in';
+
+    protected ?string $description = 'Get vehicle trade-in information from the lead, including mileage, colors, year, make, model, trim, and VIN.';
 
     #[Override]
     protected function properties(): array

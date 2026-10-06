@@ -107,8 +107,8 @@ class PasoRapidoCompanyLimitsCommand extends Command
 
     private function report(Apps $app, Companies $company): void
     {
-        $isCorporate = filter_var($company->get('is_corporate'), FILTER_VALIDATE_BOOLEAN);
-        $blocked = filter_var($company->get(CompanySettingsEnum::VERIFY_BLOCKED->value), FILTER_VALIDATE_BOOLEAN);
+        $isCorporate = $company->getBool('is_corporate');
+        $blocked = $company->getBool(CompanySettingsEnum::VERIFY_BLOCKED->value);
 
         $rows = [
             ['corporate', $isCorporate ? 'yes' : 'no', $isCorporate ? 'corporate defaults' : 'retail defaults'],

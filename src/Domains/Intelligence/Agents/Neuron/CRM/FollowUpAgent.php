@@ -7,10 +7,8 @@ namespace Kanvas\Intelligence\Agents\Neuron\CRM;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
-use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use NeuronAI\Agent\SystemPrompt;
-use NeuronAI\Chat\History\AbstractChatHistory;
-use NeuronAI\Chat\History\InMemoryChatHistory;
+use NeuronAI\Chat\History\MessageStoreInterface;
 use Override;
 
 /**
@@ -57,21 +55,9 @@ class FollowUpAgent extends BaseRagAgent
         CONTRACT;
 
     #[Override]
-    protected function chatHistory(): AbstractChatHistory
+    protected function messageStore(): MessageStoreInterface
     {
-        if ($this->entity === null || $this->user === null) {
-            return new InMemoryChatHistory();
-        }
-
-        return new SalesAssistKanvasMessageHistory(
-            app: $this->app,
-            company: $this->company,
-            user: $this->user,
-            entity: $this->entity,
-            threadId: $this->threadId,
-            currentLead: $this->currentLead,
-            contextWindow: $this->resolvedContextWindow(),
-        );
+        return $this->entityRollupStore($this->sessionThreadId());
     }
 
     #[Override]

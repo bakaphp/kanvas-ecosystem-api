@@ -23,16 +23,12 @@ class AppendGoogleSheetRowsTool extends Tool
     use ResolvesGoogleSheetsServiceForTool;
     use ResolvesSpreadsheetIdForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'write_google_sheet',
-            description: 'Appends one or more new rows to the end of a Google Sheet the user shared a link to. '
-                . 'Never overwrites existing rows — use update_google_sheet_cell for that. Writes to any sheet the '
-                . 'Google account this agent is connected to can open; where the app uses a shared service account '
-                . 'instead, the sheet must be shared with that account as an Editor.',
-        );
-    }
+    protected string $name = 'write_google_sheet';
+
+    protected ?string $description = 'Appends one or more new rows to the end of a Google Sheet the user shared a link to. '
+        . 'Never overwrites existing rows — use update_google_sheet_cell for that. Writes to any sheet the '
+        . 'Google account this agent is connected to can open; where the app uses a shared service account '
+        . 'instead, the sheet must be shared with that account as an Editor.';
 
     /**
      * @return array<int, ToolProperty>

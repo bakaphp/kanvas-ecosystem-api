@@ -19,15 +19,11 @@ class QueryRecentExpensesTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'query_recent_expenses',
-            description: 'Lists recent expenses (any status — draft/pending/approved/rejected/voided) with their '
-                . 'amount, paid_by, status, vendor, and expense_date. Use this when the user asks "what did we '
-                . 'spend on lately", wants to investigate a recent purchase, or asks about pending approvals.',
-        );
-    }
+    protected string $name = 'query_recent_expenses';
+
+    protected ?string $description = 'Lists recent expenses (any status — draft/pending/approved/rejected/voided) with their '
+        . 'amount, paid_by, status, vendor, and expense_date. Use this when the user asks "what did we '
+        . 'spend on lately", wants to investigate a recent purchase, or asks about pending approvals.';
 
     #[Override]
     protected function properties(): array

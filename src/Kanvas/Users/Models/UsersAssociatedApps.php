@@ -5,16 +5,21 @@ declare(strict_types=1);
 namespace Kanvas\Users\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Users\Contracts\UserAppInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Auth\Contracts\Authenticatable;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Models\BaseModel;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Users\Models\Concerns\HasDisplayLabel;
 use Kanvas\Users\Observers\UsersAssociatedAppsObserver;
 use Override;
 
@@ -53,6 +58,10 @@ use Override;
 #[ObservedBy([UsersAssociatedAppsObserver::class])]
 class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppInterface
 {
+    use HasDisplayLabel;
+    // Users are shared across companies; tagging the per-company membership keeps one company's
+    // tags on a user invisible to every other company that user belongs to.
+    use HasTagsTrait;
     // use SoftDeletesTrait;
     // public const DELETED_AT = 'is_deleted';
 
@@ -156,6 +165,30 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     public function isBanned(): bool
     {
         return in_array($this->banned, [1, '1', 'Y'], true);
+    }
+
+    public static function profilesForApp(AppInterface $app, array $userIds): Collection
+    {
+        if ($userIds === []) {
+            return new Collection();
+        }
+
+        return static::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->whereIn('users_id', $userIds)
+            ->get(['users_id', 'firstname', 'lastname', 'displayname', 'email', 'banned'])
+            ->keyBy('users_id');
+    }
+
+    public static function reviewPayload(int $userId, ?self $profile): array
+    {
+        return [
+            'id' => $userId,
+            'name' => $profile?->displayLabel(),
+            'email' => $profile?->email,
+            'still_banned' => (bool) $profile?->isBanned(),
+        ];
     }
 
     public function getTwoStepPhoneNumber(): string

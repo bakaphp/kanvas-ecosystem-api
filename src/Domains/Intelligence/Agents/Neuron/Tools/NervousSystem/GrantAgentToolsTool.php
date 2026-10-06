@@ -36,18 +36,18 @@ class GrantAgentToolsTool extends Tool
     use GuardsAdminForTool;
     use HasKanvasContext;
 
+    protected string $name = 'grant_agent_tools';
+
+    protected ?string $description = 'Give one of your teammate agents additional tools from the catalog, so it can do '
+        . 'work it is currently missing a capability for. Admin only. Use it when an agent is the '
+        . 'right one for a job but lacks a tool — that is a grant, not a reason to hire a second '
+        . 'agent or to report a capability gap. Look the names up with capability_lookup first. '
+        . 'Tools already held are left alone, and nothing is ever removed. You cannot grant tools '
+        . 'to yourself.';
+
     public function __construct(
         private readonly ?Agent $granter = null,
     ) {
-        parent::__construct(
-            name: 'grant_agent_tools',
-            description: 'Give one of your teammate agents additional tools from the catalog, so it can do '
-                . 'work it is currently missing a capability for. Admin only. Use it when an agent is the '
-                . 'right one for a job but lacks a tool — that is a grant, not a reason to hire a second '
-                . 'agent or to report a capability gap. Look the names up with capability_lookup first. '
-                . 'Tools already held are left alone, and nothing is ever removed. You cannot grant tools '
-                . 'to yourself.',
-        );
     }
 
     /**

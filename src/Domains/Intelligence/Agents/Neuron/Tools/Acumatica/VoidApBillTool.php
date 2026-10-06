@@ -22,15 +22,11 @@ class VoidApBillTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'void_ap_bill',
-            description: 'Voids a previously-pushed AP bill in Acumatica by creating and releasing a Debit '
-                . 'Adjustment against its full outstanding balance, closing both documents. Bypasses the normal '
-                . 'human approval gate — use only when the user explicitly asks to void a bill this way.',
-        );
-    }
+    protected string $name = 'void_ap_bill';
+
+    protected ?string $description = 'Voids a previously-pushed AP bill in Acumatica by creating and releasing a Debit '
+        . 'Adjustment against its full outstanding balance, closing both documents. Bypasses the normal '
+        . 'human approval gate — use only when the user explicitly asks to void a bill this way.';
 
     /**
      * @return array<int, ToolProperty>

@@ -33,6 +33,16 @@ class AgentTurnResponse
      * Only ever given when the counterpart is another AGENT. A person who asks a question and gets
      * silence has been ignored; an agent that acknowledges an acknowledgement is a loop.
      */
+    /**
+     * The guidance is appended to the message the model reads, so anything that keeps that message as a
+     * record (company memory) strips it first, or the instruction is recalled into a later turn and a
+     * human gets NO_UPDATE for a statement.
+     */
+    public static function stripNoOpGuidance(string $text): string
+    {
+        return trim(str_replace(self::noOpGuidance(), '', $text));
+    }
+
     public static function noOpGuidance(): string
     {
         return "\n\n---\nIf you have nothing to add — the other agent is acknowledging you, confirming "

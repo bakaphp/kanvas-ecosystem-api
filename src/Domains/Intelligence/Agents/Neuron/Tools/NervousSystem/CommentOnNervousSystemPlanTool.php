@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Models\Plan as PlanModel;
 use Kanvas\Social\Messages\Models\Message;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,32 +23,28 @@ use Throwable;
  * The PM and humans read these to follow along.
  */
 #[AgentTool(name: 'Comment On Plan', category: 'nervous_system')]
-class CommentOnNervousSystemPlanTool extends Tool implements HasRunKey
+class CommentOnNervousSystemPlanTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
     use ResolvesPlanForTool;
 
+    protected string $name = 'comment_on_nervous_system_plan';
+
+    protected ?string $description = 'Leave a progress comment or note on a plan: what you did, what you found, a '
+        . 'decision, a blocker, or a status update someone asked for. It does not change task '
+        . 'status. This writes to the PLAN\'s own Activities channel, which is where the record '
+        . 'belongs — anyone who opens the plan sees it, and it stays with the work instead of '
+        . 'being buried in one conversation. A comment is a NOTE and wakes nobody — to get an '
+        . 'answer, @mention the agent or person you want it from inside the comment text. When '
+        . 'you are CONTINUING an exchange — answering someone, or following up on something '
+        . 'you already asked — pass reply_to_message_id so it lands in that thread instead of '
+        . 'starting a new one.';
+
     private const int DEDUP_LOOKBACK = 15;
 
     /** How far back a reply target may live — a thread older than this is a new conversation. */
     private const int REPLY_LOOKBACK = 40;
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'comment_on_nervous_system_plan',
-            description: 'Leave a progress comment or note on a plan: what you did, what you found, a '
-                . 'decision, a blocker, or a status update someone asked for. It does not change task '
-                . 'status. This writes to the PLAN\'s own Activities channel, which is where the record '
-                . 'belongs — anyone who opens the plan sees it, and it stays with the work instead of '
-                . 'being buried in one conversation. A comment is a NOTE and wakes nobody — to get an '
-                . 'answer, @mention the agent or person you want it from inside the comment text. When '
-                . 'you are CONTINUING an exchange — answering someone, or following up on something '
-                . 'you already asked — pass reply_to_message_id so it lands in that thread instead of '
-                . 'starting a new one.',
-        );
-    }
 
     /**
      * @return array<int, ToolProperty>

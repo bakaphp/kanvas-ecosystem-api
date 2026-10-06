@@ -1,0 +1,99 @@
+enum ReportAggregateFunction {
+    COUNT @enum(value: "COUNT")
+    COUNT_DISTINCT @enum(value: "COUNT_DISTINCT")
+    SUM @enum(value: "SUM")
+    AVG @enum(value: "AVG")
+    MIN @enum(value: "MIN")
+    MAX @enum(value: "MAX")
+}
+
+enum ReportFilterOperator {
+    EQ @enum(value: "=")
+    NEQ @enum(value: "!=")
+    GT @enum(value: ">")
+    GTE @enum(value: ">=")
+    LT @enum(value: "<")
+    LTE @enum(value: "<=")
+    LIKE @enum(value: "LIKE")
+    IN @enum(value: "IN")
+    NOT_IN @enum(value: "NOT IN")
+    BETWEEN @enum(value: "BETWEEN")
+    IS_NULL @enum(value: "IS NULL")
+    IS_NOT_NULL @enum(value: "IS NOT NULL")
+    MEMBER_OF @enum(value: "MEMBER OF")
+}
+
+type ReportModelColumn {
+    name: String!
+    "MySQL column type as declared, e.g. `varchar(64)`, `date`, `decimal(12,2)`. `date` and `datetime` columns accept a `:day`, `:month`, `:quarter` or `:year` bucket in `group_by`."
+    type: String!
+    label: String!
+    indexed: Boolean!
+    "A JSON array column; filter it with `MEMBER_OF`."
+    multi_valued: Boolean!
+}
+
+type ReportModel {
+    model: String!
+    label: String!
+    "What one row is: person, company, registration, event version..."
+    grain: String!
+    primary_key: String!
+    columns: [ReportModelColumn!]!
+}
+
+input ReportFilterInput {
+    column: String!
+    operator: ReportFilterOperator! = EQ
+    "A list for `IN`, `NOT_IN` and `BETWEEN` (two values); omitted for `IS_NULL` / `IS_NOT_NULL`."
+    value: Mixed
+}
+
+input ReportAggregateInput {
+    function: ReportAggregateFunction!
+    "Required for everything but `COUNT`."
+    column: String
+    "Key of this value in each result row. Lowercase letters, digits and underscores."
+    alias: String
+}
+
+type ReportRowsResult {
+    total: Int!
+    rows: [Mixed!]!
+}
+
+type ReportAggregateResult {
+    "Keys of each row, in select order: the groupings, then the aggregate aliases. A date bucket `fecha_inicio:month` comes back as `fecha_inicio_month`."
+    columns: [String!]!
+    rows: [Mixed!]!
+}
+
+extend type Query @guard {
+    "The report models this app has, with their columns. Empty when no connector provides reporting."
+    reportModels: [ReportModel!]!
+        @field(resolver: "App\\GraphQL\\Analytics\\Queries\\ReportQuery@models")
+
+    reportRows(
+        model: String!
+        filters: [ReportFilterInput!]
+        select: [String!]
+        order_by: String
+        descending: Boolean = false
+        first: Int = 50
+        page: Int = 1
+    ): ReportRowsResult!
+        @field(resolver: "App\\GraphQL\\Analytics\\Queries\\ReportQuery@rows")
+
+    reportAggregate(
+        model: String!
+        filters: [ReportFilterInput!]
+        "Columns, or `column:bucket` for a date (`fecha_inicio:month`)."
+        group_by: [String!]
+        aggregates: [ReportAggregateInput!]!
+        "An aggregate alias, a grouping, or a column. A date-bucketed result with no order is sorted by the bucket ascending."
+        order_by: String
+        descending: Boolean = true
+        limit: Int = 50
+    ): ReportAggregateResult!
+        @field(resolver: "App\\GraphQL\\Analytics\\Queries\\ReportQuery@aggregate")
+}

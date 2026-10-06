@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogVariants;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -20,22 +19,18 @@ use Override;
  * to set_variant_stock rather than here.
  */
 #[AgentTool(name: 'Update Variant', category: 'inventory')]
-class UpdateVariantTool extends Tool implements HasRunKey
+class UpdateVariantTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ManagesCatalogVariants;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_variant',
-            description: 'Edit an existing variant. Pass only the fields you want to change — anything you omit is '
-                . 'left alone. Use variant_search or variant_detail to get the variant_id first. To change price, '
-                . 'cost or stock use set_variant_stock instead. Only an administrator can do this.',
-        );
-    }
+    protected string $name = 'update_variant';
+
+    protected ?string $description = 'Edit an existing variant. Pass only the fields you want to change — anything you omit is '
+        . 'left alone. Use variant_search or variant_detail to get the variant_id first. To change price, '
+        . 'cost or stock use set_variant_stock instead. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

@@ -85,7 +85,7 @@ class GuardsRepeatCallsTest extends TestCase
 
     /**
      * The whole guard hangs on this. NeuronAI never invokes the registered tool — it hands each call a
-     * shallow `clone` (`HandleWithTools::findTool`), which shares the ledger OBJECT but would copy a
+     * shallow `clone` (`ToolNode::resolveTool`), which shares the ledger OBJECT but would copy a
      * null. A ledger built lazily is therefore built on the clone, every call gets its own empty one,
      * and the guard silently never fires. That is how it shipped, unused, before KANVAS-ECOSYSTEM-6A1.
      */

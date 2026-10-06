@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\SplitsReferenceSlugs;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -32,25 +31,25 @@ use Throwable;
  * that makes this a teammate rather than a one-shot generator: propose, get told, adjust, in one review.
  */
 #[AgentTool(name: 'Continue Self-Hosted Coding Job', category: 'coding')]
-class ContinueHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSystemAgent
+class ContinueHarnessCodingJobTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use SplitsReferenceSlugs;
     use TrackByInputs;
+
+    protected string $name = 'continue_self_hosted_coding_job';
+
+    protected ?string $description = 'Do more work on a job that already finished, on the SAME branch and the same '
+        . 'pull request. Use this for review feedback, a follow-up fix, or anything building on '
+        . 'work already pushed — never dispatch a fresh task for that, because a fresh task '
+        . 'starts from the base branch and would undo it. Describe only the new change; the '
+        . 'earlier work is already there.';
 
     public function __construct(
         private readonly Agent $agent,
         private readonly ?Session $session = null,
         private readonly ?Users $requestedBy = null,
     ) {
-        parent::__construct(
-            name: 'continue_self_hosted_coding_job',
-            description: 'Do more work on a job that already finished, on the SAME branch and the same '
-                . 'pull request. Use this for review feedback, a follow-up fix, or anything building on '
-                . 'work already pushed — never dispatch a fresh task for that, because a fresh task '
-                . 'starts from the base branch and would undo it. Describe only the new change; the '
-                . 'earlier work is already there.',
-        );
     }
 
     /**

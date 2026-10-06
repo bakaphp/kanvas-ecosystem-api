@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Connectors\ProductEnrichment;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ProductEnrichment\Actions\EnrichProductAction;
 use Kanvas\Connectors\ProductEnrichment\Agents\ProductEnrichmentAgent;
@@ -14,21 +13,16 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SemanticProfileStrategyEnum;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
-use Kanvas\Social\Tags\Models\Tag;
 use Tests\TestCase;
 
 class EnrichProductActionTest extends TestCase
 {
     use DatabaseTransactions;
 
-    // NOT 'social': tags write to social.tags_entities THROUGH the inventory
-    // connection, so the inventory transaction already rolls it back. Transacting
-    // social separately deadlocks the two connections (lock wait timeout).
-    protected array $connectionsToTransact = ['mysql', 'intelligence', 'inventory'];
+    protected array $connectionsToTransact = ['mysql', 'intelligence', 'inventory', 'social'];
 
     private mixed $originalStrategy = null;
 
@@ -94,28 +88,8 @@ class EnrichProductActionTest extends TestCase
         );
         $this->assertNotNull($product->get(CustomFieldEnum::ENRICHMENT_HASH->value));
 
-        // The pivot row is written into social.tags_entities THROUGH the inventory
-        // connection (the pivot inherits the parent model's connection), so read the
-        // tags_id back on inventory with useWritePdo() to see the in-transaction write.
-        // The Tag rows themselves live on the social connection — resolve their names
-        // there rather than cross-schema joining them via the inventory PDO, which is
-        // not reliably visible across connections in CI. 'not-a-real-tag' must have
-        // been dropped by clean().
-        $tagIds = DB::connection('inventory')
-            ->table('social.tags_entities')
-            ->where('entity_id', $product->getId())
-            ->where('taggable_type', Products::class)
-            ->where('is_deleted', 0)
-            ->useWritePdo()
-            ->pluck('tags_id')
-            ->all();
-
-        $tagNames = Tag::query()
-            ->whereIn('id', $tagIds)
-            ->pluck('name')
-            ->sort()
-            ->values()
-            ->all();
+        // 'not-a-real-tag' must have been dropped by clean().
+        $tagNames = $product->tags()->pluck('name')->sort()->values()->all();
 
         $this->assertSame(['elegant'], $tagNames);
 
@@ -153,8 +127,6 @@ class EnrichProductActionTest extends TestCase
             $user,
         )->execute();
 
-        // No tags on either pass: a tag written through the inventory connection and
-        // then deleted through the social one deadlocks the two transactions.
         ProductEnrichmentAgent::fake([[
             'audience' => ['female'],
             'occasion' => [],

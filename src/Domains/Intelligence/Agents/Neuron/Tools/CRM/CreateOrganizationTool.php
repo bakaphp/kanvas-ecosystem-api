@@ -9,7 +9,6 @@ use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationDa
 use Kanvas\Guild\Organizations\Models\OrganizationType;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,21 +22,17 @@ use Throwable;
  * existing one. Company-wide write — an internal-teammate capability.
  */
 #[AgentTool(name: 'Create Organization', category: 'crm')]
-class CreateOrganizationTool extends Tool implements HasRunKey
+class CreateOrganizationTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_organization',
-            description: 'Create a customer organization (company / account) in the CRM. name is required; add '
-                . 'email, phone, address, state and organization_type_id as known. If an organization with the same '
-                . 'name already exists it is returned rather than duplicated (created will be false). Returns the '
-                . 'organization_id. Use update_organization to change an organization you already have the id for.',
-        );
-    }
+    protected string $name = 'create_organization';
+
+    protected ?string $description = 'Create a customer organization (company / account) in the CRM. name is required; add '
+        . 'email, phone, address, state and organization_type_id as known. If an organization with the same '
+        . 'name already exists it is returned rather than duplicated (created will be false). Returns the '
+        . 'organization_id. Use update_organization to change an organization you already have the id for.';
 
     /**
      * @return array<int, ToolProperty>

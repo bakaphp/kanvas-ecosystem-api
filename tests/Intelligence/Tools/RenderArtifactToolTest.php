@@ -6,7 +6,7 @@ namespace Tests\Intelligence\Tools;
 
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
 use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 
 final class RenderArtifactToolTest extends TestCase
@@ -35,7 +35,7 @@ final class RenderArtifactToolTest extends TestCase
     public function testDistinctBlocksDoNotShareARunBudget(): void
     {
         $tool = new RenderArtifactTool();
-        $this->assertInstanceOf(HasRunKey::class, $tool);
+        $this->assertContains(TrackByInputs::class, class_uses_recursive($tool));
 
         $stats = [
             'component' => 'stats',

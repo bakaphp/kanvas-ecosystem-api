@@ -116,6 +116,21 @@ class Str extends IlluminateStr
     }
 
     /**
+     * Splits a comma-separated value into trimmed parts, dropping blanks — `"a, ,b"` → `['a', 'b']`.
+     * The shape agent tools take for lists, since a tool schema can't safely declare an array of
+     * scalars for every provider.
+     *
+     * @return list<string>
+     */
+    public static function commaList(?string $value): array
+    {
+        return array_values(array_filter(
+            array_map(trim(...), explode(',', (string) $value)),
+            static fn (string $part): bool => $part !== ''
+        ));
+    }
+
+    /**
      * Drops a leading UTF-8 byte-order mark, which Excel writes into CSV exports and which otherwise
      * sticks to the first header name ("\xEF\xBB\xBFVIN" never matches "VIN").
      */

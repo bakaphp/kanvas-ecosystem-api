@@ -22,15 +22,15 @@ use Throwable;
 #[AgentTool(name: 'Email Teammate', category: 'ecosystem')]
 class SendEmailToUserTool extends Tool
 {
+    protected string $name = 'send_email_to_user';
+
+    protected ?string $description = 'Send an email to an internal teammate — a Kanvas user in this company — identified by '
+        . 'their email address. Use it when someone asks you to email a colleague / staff member. The '
+        . 'recipient must be a member of this company; you cannot email arbitrary outside addresses. This '
+        . 'is NOT for emailing a prospect/customer on a lead (use send_email for that).';
+
     public function __construct(private readonly ?Agent $agent = null)
     {
-        parent::__construct(
-            name: 'send_email_to_user',
-            description: 'Send an email to an internal teammate — a Kanvas user in this company — identified by '
-                . 'their email address. Use it when someone asks you to email a colleague / staff member. The '
-                . 'recipient must be a member of this company; you cannot email arbitrary outside addresses. This '
-                . 'is NOT for emailing a prospect/customer on a lead (use send_email for that).',
-        );
     }
 
     /**

@@ -26,16 +26,12 @@ class DescribeReportModelTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'describe_report_model',
-            description: 'List the reporting models available for this company, or describe one '
-                . "model's columns, grain and filterable fields. Call this BEFORE run_report so "
-                . 'you use real column names instead of guessing. The grain tells you whether '
-                . 'counting rows answers the question or whether you need a distinct count.',
-        );
-    }
+    protected string $name = 'describe_report_model';
+
+    protected ?string $description = 'List the reporting models available for this company, or describe one '
+        . "model's columns, grain and filterable fields. Call this BEFORE run_report so "
+        . 'you use real column names instead of guessing. The grain tells you whether '
+        . 'counting rows answers the question or whether you need a distinct count.';
 
     /**
      * @return array<int, ToolProperty>

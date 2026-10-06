@@ -21,17 +21,17 @@ class CheckCodingJobStatusTool extends Tool
 {
     use ResolvesTaskForTool;
 
+    protected string $name = 'check_coding_job_status';
+
+    protected ?string $description = 'Check the progress of a coding task you dispatched, using the job id returned by '
+        . 'dispatch_coding_task. Tells you whether it is queued, running, or finished, and — when done — '
+        . 'the result summary and the pull-request URL if one was opened.';
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'check_coding_job_status',
-            description: 'Check the progress of a coding task you dispatched, using the job id returned by '
-                . 'dispatch_coding_task. Tells you whether it is queued, running, or finished, and — when done — '
-                . 'the result summary and the pull-request URL if one was opened.',
-        );
     }
 
     /**

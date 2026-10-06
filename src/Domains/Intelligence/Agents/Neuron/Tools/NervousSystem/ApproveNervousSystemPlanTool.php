@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Actions\ApprovePlanAction;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -29,25 +28,21 @@ use Throwable;
  * be asking for, which is exactly what happened on plan 25667 in prose.
  */
 #[AgentTool(name: 'Approve Plan', category: 'nervous_system')]
-class ApproveNervousSystemPlanTool extends Tool implements HasRunKey
+class ApproveNervousSystemPlanTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ResolvesPlanForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'approve_nervous_system_plan',
-            description: 'Record a PERSON\'s decision on a plan that is waiting at awaiting_approval, so '
-                . 'the work can start (or be dropped). Call this ONLY after a human has actually said '
-                . 'yes or no in the conversation — you are recording their decision, not making it. You '
-                . 'cannot approve a plan you asked for or are assigned to, and you cannot approve on '
-                . 'your own initiative because nobody answered: if the person has not replied, say so '
-                . 'and wait.',
-        );
-    }
+    protected string $name = 'approve_nervous_system_plan';
+
+    protected ?string $description = 'Record a PERSON\'s decision on a plan that is waiting at awaiting_approval, so '
+        . 'the work can start (or be dropped). Call this ONLY after a human has actually said '
+        . 'yes or no in the conversation — you are recording their decision, not making it. You '
+        . 'cannot approve a plan you asked for or are assigned to, and you cannot approve on '
+        . 'your own initiative because nobody answered: if the person has not replied, say so '
+        . 'and wait.';
 
     /**
      * @return array<int, ToolProperty>

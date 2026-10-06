@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -29,23 +28,23 @@ use Throwable;
  * tool for that.
  */
 #[AgentTool(name: 'Kill Self-Hosted Coding Runtime', category: 'coding')]
-class KillHarnessCodingRuntimeTool extends Tool implements HasRunKey, RequiresSystemAgent
+class KillHarnessCodingRuntimeTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;
 
+    protected string $name = 'kill_self_hosted_coding_runtime';
+
+    protected ?string $description = 'Destroy this agent\'s coding container — the shared runtime every one of its '
+        . 'jobs runs inside. Use it only when the runtime itself is broken: jobs not responding, '
+        . 'checks timing out, the container wedged. It kills EVERY job currently running on this '
+        . 'agent, so to stop one job use cancel_self_hosted_coding_job instead. Committed work, '
+        . 'branches and workspaces are on the host and survive. The next task starts a fresh '
+        . 'container automatically. Only call this when a human has asked for it.';
+
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'kill_self_hosted_coding_runtime',
-            description: 'Destroy this agent\'s coding container — the shared runtime every one of its '
-                . 'jobs runs inside. Use it only when the runtime itself is broken: jobs not responding, '
-                . 'checks timing out, the container wedged. It kills EVERY job currently running on this '
-                . 'agent, so to stop one job use cancel_self_hosted_coding_job instead. Committed work, '
-                . 'branches and workspaces are on the host and survive. The next task starts a fresh '
-                . 'container automatically. Only call this when a human has asked for it.',
-        );
     }
 
     /**

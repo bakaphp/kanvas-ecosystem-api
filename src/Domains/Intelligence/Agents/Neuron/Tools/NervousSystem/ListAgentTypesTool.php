@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\NervousSystem\Capability\Services\ActiveIntegrationsService;
 use Kanvas\NervousSystem\Capability\Services\AgentTypeResolver;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
@@ -24,25 +23,21 @@ use Override;
  * company can actually run.
  */
 #[AgentTool(name: 'List Agent Types', category: 'nervous_system')]
-class ListAgentTypesTool extends Tool implements HasRunKey
+class ListAgentTypesTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_agent_types',
-            description: 'List the kinds of agent you can hire — a plain conversational teammate, a coding '
-                . 'agent that works in a sandbox and opens pull requests, a long-running one for multi-hour '
-                . 'work, and the domain agents. Call this BEFORE hire_agent whenever the job is anything '
-                . 'beyond reading and writing records, then pass the name you picked as hire_agent\'s '
-                . 'agent_type. It also tells you what each type still needs from a human after hiring — a '
-                . 'coding agent is not usable until an admin gives it a GitHub token and the repositories '
-                . 'it may touch. Do not answer that the platform cannot do something technical without '
-                . 'checking this first. Takes no arguments.',
-        );
-    }
+    protected string $name = 'list_agent_types';
+
+    protected ?string $description = 'List the kinds of agent you can hire — a plain conversational teammate, a coding '
+        . 'agent that works in a sandbox and opens pull requests, a long-running one for multi-hour '
+        . 'work, and the domain agents. Call this BEFORE hire_agent whenever the job is anything '
+        . 'beyond reading and writing records, then pass the name you picked as hire_agent\'s '
+        . 'agent_type. It also tells you what each type still needs from a human after hiring — a '
+        . 'coding agent is not usable until an admin gives it a GitHub token and the repositories '
+        . 'it may touch. Do not answer that the platform cannot do something technical without '
+        . 'checking this first. Takes no arguments.';
 
     /**
      * @return array<int, ToolProperty>

@@ -11,7 +11,6 @@ use Kanvas\Analytics\Reporting\Support\ReportRegistry;
 use Kanvas\Connectors\Intras\Reporting\Concerns\BuildsIntrasFilters;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -32,11 +31,20 @@ use Throwable;
  * the legacy report never honoured it.
  */
 #[AgentTool(name: 'Intras Evaluation Insights', category: 'reporting')]
-class EvaluationInsightsTool extends Tool implements HasRunKey
+class EvaluationInsightsTool extends Tool
 {
     use TrackByInputs;
     use BuildsIntrasFilters;
     use HasKanvasContext;
+
+    protected string $name = 'intras_evaluation_insights';
+
+    protected ?string $description = 'Resultados de evaluaciones. mode="resumen": satisfacción promedio por '
+        . 'pregunta. mode="texto": las respuestas abiertas para analizarlas (sugerencias '
+        . 'más repetidas, temas más solicitados). audience controla qué se muestra: '
+        . '"ejecutivos" (excluye preguntas abiertas y opiniones, respeta la marca de '
+        . 'excluir), "facilitador" (incluye las marcadas como excluidas, sin opiniones), '
+        . '"interno" (todo) o "tabulacion" (como ejecutivos pero con opiniones).';
 
     private const array MODES = ['resumen', 'texto'];
 
@@ -62,19 +70,6 @@ class EvaluationInsightsTool extends Tool implements HasRunKey
         'interno' => ['drop' => [], 'honour_flag' => false],
         'tabulacion' => ['drop' => ['temas_sugeridos', 'recomendacion', 'sugerencias'], 'honour_flag' => true],
     ];
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'intras_evaluation_insights',
-            description: 'Resultados de evaluaciones. mode="resumen": satisfacción promedio por '
-                . 'pregunta. mode="texto": las respuestas abiertas para analizarlas (sugerencias '
-                . 'más repetidas, temas más solicitados). audience controla qué se muestra: '
-                . '"ejecutivos" (excluye preguntas abiertas y opiniones, respeta la marca de '
-                . 'excluir), "facilitador" (incluye las marcadas como excluidas, sin opiniones), '
-                . '"interno" (todo) o "tabulacion" (como ejecutivos pero con opiniones).',
-        );
-    }
 
     /**
      * @return array<int, ToolProperty>

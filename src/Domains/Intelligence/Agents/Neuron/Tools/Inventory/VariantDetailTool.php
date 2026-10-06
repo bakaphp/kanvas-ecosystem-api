@@ -16,16 +16,12 @@ use Throwable;
 #[AgentTool(name: 'Variant Detail', category: 'inventory')]
 class VariantDetailTool extends Tool
 {
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'variant_detail',
-            description: 'Get the full detail of a single product variant: identifiers (SKU, EAN, barcode), '
-                . 'descriptions, weight, publish state, parent product, inventory per warehouse '
-                . '(stock, price, cost, flags) including the channels priced on each warehouse, attributes and media. '
-                . 'Use this after inventory_search/variant_search when the user wants the deep details of one specific variant.',
-        );
-    }
+    protected string $name = 'variant_detail';
+
+    protected ?string $description = 'Get the full detail of a single product variant: identifiers (SKU, EAN, barcode), '
+        . 'descriptions, weight, publish state, parent product, inventory per warehouse '
+        . '(stock, price, cost, flags) including the channels priced on each warehouse, attributes and media. '
+        . 'Use this after inventory_search/variant_search when the user wants the deep details of one specific variant.';
 
     #[Override]
     protected function properties(): array

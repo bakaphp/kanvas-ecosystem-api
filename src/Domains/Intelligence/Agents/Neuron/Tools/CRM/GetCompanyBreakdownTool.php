@@ -21,15 +21,11 @@ class GetCompanyBreakdownTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_company_breakdown',
-            description: 'Ranks the accounts/companies inside the CRM by data freshness (up-to-date vs outdated '
-                . 'records). Use for "which company is worst", "where should I clean first", "break it down by '
-                . 'company". Returns the top-N accounts by staleness plus a summary for the current CRM.',
-        );
-    }
+    protected string $name = 'get_company_breakdown';
+
+    protected ?string $description = 'Ranks the accounts/companies inside the CRM by data freshness (up-to-date vs outdated '
+        . 'records). Use for "which company is worst", "where should I clean first", "break it down by '
+        . 'company". Returns the top-N accounts by staleness plus a summary for the current CRM.';
 
     /**
      * @return array<int, ToolProperty>

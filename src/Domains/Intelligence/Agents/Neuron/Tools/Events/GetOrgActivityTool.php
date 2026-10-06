@@ -25,16 +25,12 @@ class GetOrgActivityTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_org_activity',
-            description: 'Organizations ranked by event participation over a period, including which have gone '
-                . 'inactive (no recent participation despite prior activity). Use for "which companies stopped '
-                . 'coming", "inactive accounts", "most active organizations". activity filters to '
-                . 'all/active/inactive/lapsed/new.',
-        );
-    }
+    protected string $name = 'get_org_activity';
+
+    protected ?string $description = 'Organizations ranked by event participation over a period, including which have gone '
+        . 'inactive (no recent participation despite prior activity). Use for "which companies stopped '
+        . 'coming", "inactive accounts", "most active organizations". activity filters to '
+        . 'all/active/inactive/lapsed/new.';
 
     /**
      * @return array<int, ToolProperty>

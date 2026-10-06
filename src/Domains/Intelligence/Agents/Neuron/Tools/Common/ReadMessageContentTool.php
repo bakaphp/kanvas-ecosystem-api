@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesMessageForTool;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Exceptions\ToolRunsExceededException;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,10 +22,18 @@ use stdClass;
  * until `has_more` is false. Tenant-scoped: only messages in the agent's own app + company resolve.
  */
 #[AgentTool(name: 'Read Message Content', category: 'ecosystem')]
-class ReadMessageContentTool extends Tool implements HasRunKey
+class ReadMessageContentTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesMessageForTool;
+
+    protected string $name = 'read_message_content';
+
+    protected ?string $description = 'Read the FULL content of a message by its id (e.g. the transcript/email a trigger '
+        . 'references). Long content is returned in chunks: start at offset 0, then pass the returned '
+        . 'next_offset to keep reading until has_more is false. Never repeat an offset you already '
+        . 'received — re-reading a page returns nothing but a reminder to move on. Always read the '
+        . 'ENTIRE content before you plan — the trigger preview is only the opening.';
 
     private const int CHUNK = 40000;
 
@@ -39,7 +46,7 @@ class ReadMessageContentTool extends Tool implements HasRunKey
 
     /**
      * Every chunk we hand back lands in the agent's history, whose window is 50k tokens
-     * (KanvasMessageHistory). Past roughly 30k tokens of a single message the trimmer starts
+     * (ConversationMessageStore). Past roughly 30k tokens of a single message the trimmer starts
      * dropping the earlier pages — the model loses page 1, asks for offset 0 again, and the read
      * never converges (KANVAS-ECOSYSTEM-621). Cap what one turn can pull instead of pretending a
      * 1M-char message is readable in one pass.
@@ -54,22 +61,13 @@ class ReadMessageContentTool extends Tool implements HasRunKey
 
     /**
      * Ledger of what this turn already received. NeuronAI clones the registered tool for every call
-     * (`clone $tool` in HandleWithTools::findTool) and the clone is shallow, so an object property
+     * (`clone $tool` in ToolNode::resolveTool) and the clone is shallow, so an object property
      * is shared by every call of the turn while staying scoped to this agent instance.
      */
     private stdClass $turn;
 
     public function __construct()
     {
-        parent::__construct(
-            name: 'read_message_content',
-            description: 'Read the FULL content of a message by its id (e.g. the transcript/email a trigger '
-                . 'references). Long content is returned in chunks: start at offset 0, then pass the returned '
-                . 'next_offset to keep reading until has_more is false. Never repeat an offset you already '
-                . 'received — re-reading a page returns nothing but a reminder to move on. Always read the '
-                . 'ENTIRE content before you plan — the trigger preview is only the opening.',
-        );
-
         $this->turn = new stdClass();
         $this->turn->calls = 0;
         $this->turn->chars = 0;

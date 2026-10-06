@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -32,21 +31,21 @@ use Throwable;
  * cheerfully address the feedback on a branch whose tests are red and call it done.
  */
 #[AgentTool(name: 'Read Coding Pull Request Feedback', category: 'coding')]
-class ReadHarnessPullRequestFeedbackTool extends Tool implements HasRunKey, RequiresSystemAgent
+class ReadHarnessPullRequestFeedbackTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;
 
+    protected string $name = 'read_coding_pull_request_feedback';
+
+    protected ?string $description = 'Read the pull request a coding job produced: whether it is open, merged or '
+        . 'closed, whether its checks passed, and every review comment on it. Use it when asked '
+        . 'how a job landed, or before continuing one — then pass what the reviewer asked for to '
+        . 'continue_self_hosted_coding_job.';
+
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'read_coding_pull_request_feedback',
-            description: 'Read the pull request a coding job produced: whether it is open, merged or '
-                . 'closed, whether its checks passed, and every review comment on it. Use it when asked '
-                . 'how a job landed, or before continuing one — then pass what the reviewer asked for to '
-                . 'continue_self_hosted_coding_job.',
-        );
     }
 
     /**

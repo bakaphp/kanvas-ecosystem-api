@@ -53,6 +53,7 @@ class SalesManagerAgentTest extends TestCase
             'reassign_lead_owner',
             'send_batch_message',
             'add_lead_note',
+            'tag_lead',
             // The person-note chain has to be granted whole: add_person_note points the model at
             // find_person, which in turn points at get_person and find_people_bulk. A missing name
             // kills the turn in findTool() (KANVAS-ECOSYSTEM-675), and dropping find_people_bulk

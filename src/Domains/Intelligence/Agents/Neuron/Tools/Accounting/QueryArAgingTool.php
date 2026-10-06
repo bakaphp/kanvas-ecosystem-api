@@ -18,15 +18,11 @@ class QueryArAgingTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'query_ar_aging',
-            description: 'Returns the AR Aging report as of a date — outstanding invoices grouped by customer and '
-                . 'bucketed by days overdue (current, 1-30, 31-60, 61-90, 90+). Use this when the user asks about '
-                . 'who owes money, what AR exposure looks like, or wants a per-customer breakdown of receivables.',
-        );
-    }
+    protected string $name = 'query_ar_aging';
+
+    protected ?string $description = 'Returns the AR Aging report as of a date — outstanding invoices grouped by customer and '
+        . 'bucketed by days overdue (current, 1-30, 31-60, 61-90, 90+). Use this when the user asks about '
+        . 'who owes money, what AR exposure looks like, or wants a per-customer breakdown of receivables.';
 
     #[Override]
     protected function properties(): array

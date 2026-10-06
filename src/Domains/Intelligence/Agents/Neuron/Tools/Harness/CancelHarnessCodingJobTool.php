@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -30,21 +29,21 @@ use Override;
  * away what it did".
  */
 #[AgentTool(name: 'Cancel Self-Hosted Coding Job', category: 'coding')]
-class CancelHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSystemAgent
+class CancelHarnessCodingJobTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;
 
+    protected string $name = 'cancel_self_hosted_coding_job';
+
+    protected ?string $description = 'Stop a coding job that is still running. Use it when the job is going the wrong '
+        . 'way, has been superseded, or is clearly stuck. Anything it already changed is kept and '
+        . 'can still be reviewed — this stops the work, it does not undo it. A job that has already '
+        . 'finished cannot be cancelled.';
+
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'cancel_self_hosted_coding_job',
-            description: 'Stop a coding job that is still running. Use it when the job is going the wrong '
-                . 'way, has been superseded, or is clearly stuck. Anything it already changed is kept and '
-                . 'can still be reviewed — this stops the work, it does not undo it. A job that has already '
-                . 'finished cannot be cancelled.',
-        );
     }
 
     /**

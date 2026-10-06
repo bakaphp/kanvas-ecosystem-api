@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasFileUploadToolProperties;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesProductForTool;
 use Kanvas\Intelligence\Agents\Traits\AttachesFileToEntity;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,7 +22,7 @@ use Override;
  * hallucinated id can never write onto another tenant's row.
  */
 #[AgentTool(name: 'Upload File To Product', category: 'inventory')]
-class UploadFileToProductTool extends Tool implements HasRunKey
+class UploadFileToProductTool extends Tool
 {
     use AttachesFileToEntity;
     use GuardsAdminForTool;
@@ -32,18 +31,14 @@ class UploadFileToProductTool extends Tool implements HasRunKey
     use ResolvesProductForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'upload_file_to_product',
-            description: 'Attach a document or image to a product — a spec sheet, manual, warranty terms, '
-                . 'datasheet or product photo. Normally you pass `content` — the full text of the document you '
-                . 'wrote — plus a `file_name` ending in .md, .txt, .csv or .json. Pass `file_url` instead when the '
-                . 'file or image already exists at a public URL. Use list_available_products or inventory_search '
-                . 'to get the product_id first. To attach to one specific variant instead of the whole product, '
-                . 'use upload_file_to_variant. Only an administrator can do this.',
-        );
-    }
+    protected string $name = 'upload_file_to_product';
+
+    protected ?string $description = 'Attach a document or image to a product — a spec sheet, manual, warranty terms, '
+        . 'datasheet or product photo. Normally you pass `content` — the full text of the document you '
+        . 'wrote — plus a `file_name` ending in .md, .txt, .csv or .json. Pass `file_url` instead when the '
+        . 'file or image already exists at a public URL. Use list_available_products or inventory_search '
+        . 'to get the product_id first. To attach to one specific variant instead of the whole product, '
+        . 'use upload_file_to_variant. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

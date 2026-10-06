@@ -12,8 +12,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\ThrottlesExceptions;
-use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
+use Kanvas\Intelligence\Knowledge\Exceptions\CollectionUpdateInProgressException;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeSourceRegistry;
 use Laravel\Ai\Exceptions\RateLimitedException;
@@ -29,6 +29,9 @@ class IndexKnowledgeJob implements ShouldBeUnique, ShouldQueue
     public int $maxExceptions = 3;
     public int $timeout = 120;
     public int $uniqueFor = 60;
+
+    /** A schema alter on a large collection takes minutes; a released job must not land inside it again. */
+    private const int SCHEMA_UPDATE_RETRY_SECONDS = 90;
 
     public function __construct(
         public readonly KnowledgeEntity $entity
@@ -56,23 +59,19 @@ class IndexKnowledgeJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(KnowledgeSourceRegistry $sources): void
     {
-        $entity = $sources->resolve(
-            $this->entity->type,
-            $this->entity->id,
-            $this->entity->appId,
-            $this->entity->companyId,
-        );
+        $source = $sources->for($this->entity->type);
+        $entity = $source?->find($this->entity->id, $this->entity->appId, $this->entity->companyId);
 
-        if ($entity === null || ! RagComponents::isEnabled($entity)) {
+        if ($source === null || $entity === null || ! $source->isEnabledFor($entity->app)) {
             return;
         }
 
         $this->overwriteAppService($entity->app);
 
-        $source = $sources->for($entity::class);
-
-        if ($source !== null) {
+        try {
             KnowledgeComponents::indexer($entity->app)->indexEntity($source, $entity);
+        } catch (CollectionUpdateInProgressException) {
+            $this->release(self::SCHEMA_UPDATE_RETRY_SECONDS);
         }
     }
 

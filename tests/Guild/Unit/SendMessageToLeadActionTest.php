@@ -127,6 +127,9 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $company->shouldReceive('get')
             ->zeroOrMoreTimes()
             ->andReturnUsing(static fn (string $key) => $configuration[$key] ?? null);
+        $company->shouldReceive('getBool')
+            ->zeroOrMoreTimes()
+            ->andReturnUsing(static fn (string $key, bool $default = false): bool => filter_var($configuration[$key] ?? $default, FILTER_VALIDATE_BOOL));
 
         $lead = Mockery::mock(Lead::class);
         $lead->shouldReceive('get')->andReturn(null)->byDefault();

@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogVariants;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,7 +22,7 @@ use Override;
  * filters and pickers are built from.
  */
 #[AgentTool(name: 'Set Variant Attributes', category: 'inventory')]
-class SetVariantAttributesTool extends Tool implements HasRunKey
+class SetVariantAttributesTool extends Tool
 {
     use DecodesJsonObjectParam;
     use GuardsAdminForTool;
@@ -31,17 +30,13 @@ class SetVariantAttributesTool extends Tool implements HasRunKey
     use ManagesCatalogVariants;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_variant_attributes',
-            description: 'Set spec attributes on one variant — the facts that differ per SKU, e.g. Size or Colour. '
-                . 'Pass a JSON object of name to value. An attribute that does not exist yet is created. '
-                . 'Attributes you do not mention are left alone. Check attribute_search first so you reuse the '
-                . 'company\'s existing attribute names. For a fact shared by every SKU of the product use '
-                . 'set_product_attributes instead. Only an administrator can do this.',
-        );
-    }
+    protected string $name = 'set_variant_attributes';
+
+    protected ?string $description = 'Set spec attributes on one variant — the facts that differ per SKU, e.g. Size or Colour. '
+        . 'Pass a JSON object of name to value. An attribute that does not exist yet is created. '
+        . 'Attributes you do not mention are left alone. Check attribute_search first so you reuse the '
+        . 'company\'s existing attribute names. For a fact shared by every SKU of the product use '
+        . 'set_product_attributes instead. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolPropertyInterface>

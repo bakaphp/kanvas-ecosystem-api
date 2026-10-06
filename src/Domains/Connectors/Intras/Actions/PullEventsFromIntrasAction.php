@@ -51,6 +51,7 @@ class PullEventsFromIntrasAction
 
         $this->pullEvents($client, $counts);
         $this->pullEventVersions($client, $counts);
+        new RestoreDeletedParentEventsAction($this->app, $this->company)->execute();
         $this->pullEventVersionDates($client, $counts);
 
         return $counts;
@@ -106,17 +107,17 @@ class PullEventsFromIntrasAction
 
                 $slug = Str::slug(trim($row->name) . '-' . $row->id);
 
-                // withTrashed(): an event pulled in only because it parents one of this agency's
-                // versions may itself be deleted in SIPGO, and it is stored flagged. Event's
-                // BaseModel carries a global `is_deleted = 0` scope, so without this the next
-                // run would not find it and would create a second copy.
+                // Always stored live: an event deleted in SIPGO is only pulled because it parents
+                // a live version, and a live version under a deleted event breaks the non-null
+                // `EventVersion.event` (KANVAS-ECOSYSTEM-5GS). withTrashed() still finds the rows
+                // earlier runs stored flagged, which RestoreDeletedParentEventsAction un-deletes.
                 $event = Event::withTrashed()->firstOrCreate([
                     'slug' => $slug,
                     'apps_id' => $this->app->getId(),
                     'companies_id' => $this->company->getId(),
                 ], [
                     'users_id' => $this->user->getId(),
-                    'is_deleted' => (int) ($row->is_deleted ?? 0),
+                    'is_deleted' => 0,
                     'name' => trim($row->name),
                     'event_type_id' => $eventTypeId,
                     'event_class_id' => $eventClassId,

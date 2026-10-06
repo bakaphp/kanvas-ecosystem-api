@@ -118,10 +118,11 @@ class SalesNeuronAgentTest extends TestCase
         $stub = new SalesNeuronAgentStub();
         $stub->setConfiguration(agent: $this->agent, user: auth()->user());
 
-        // ContactCheckerTool requires a Message constructor arg and is skipped by the generic agent
+        // ContactCheckerTool requires a Message constructor arg and is skipped by the generic agent;
+        // most tools declare no constructor at all, which counts as instantiable.
         $instantiableCount = count(array_filter(
             self::CRM_TOOLS,
-            fn (string $class): bool => new ReflectionClass($class)->getConstructor()?->getNumberOfRequiredParameters() === 0
+            fn (string $class): bool => (new ReflectionClass($class)->getConstructor()?->getNumberOfRequiredParameters() ?? 0) === 0
         ));
 
         $tools = $stub->getTools();

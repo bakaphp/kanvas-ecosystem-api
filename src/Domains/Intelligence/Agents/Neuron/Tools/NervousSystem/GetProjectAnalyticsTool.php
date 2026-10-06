@@ -25,16 +25,12 @@ class GetProjectAnalyticsTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_project_analytics',
-            description: 'Project portfolio health at a glance: open project count, breakdown by status, average '
-                . 'completion %, and overdue / blocked / at-risk / due-soon counts. Use for "how is delivery going?", '
-                . '"how many projects are behind?", "portfolio status". The aggregate companion to list_projects — '
-                . 'reporting only.',
-        );
-    }
+    protected string $name = 'get_project_analytics';
+
+    protected ?string $description = 'Project portfolio health at a glance: open project count, breakdown by status, average '
+        . 'completion %, and overdue / blocked / at-risk / due-soon counts. Use for "how is delivery going?", '
+        . '"how many projects are behind?", "portfolio status". The aggregate companion to list_projects — '
+        . 'reporting only.';
 
     /**
      * @return array<int, ToolProperty>

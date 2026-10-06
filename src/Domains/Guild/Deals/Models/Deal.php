@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Deals\Models;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
@@ -26,6 +27,7 @@ use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
@@ -56,7 +58,7 @@ use Override;
  * @property int $is_deleted
  */
 #[ObservedBy([DealObserver::class])]
-class Deal extends BaseModel
+class Deal extends BaseModel implements ProvidesAgentContext
 {
     use HasAdminLink;
     use UuidTrait;
@@ -127,6 +129,57 @@ class Deal extends BaseModel
     public function leadStatus(): BelongsTo
     {
         return $this->belongsTo(LeadStatus::class, 'status_id', 'id');
+    }
+
+    public function statusName(): ?string
+    {
+        return $this->leadStatus?->name;
+    }
+
+    /**
+     * A deal's open state is its named status (`status_id`, the same catalog leads use); the integer
+     * `status` column mirrors whatever the API was sent and reads "Active" (id 2) as closed.
+     */
+    public function hasOpenStatus(): bool
+    {
+        return in_array((int) $this->status_id, Lead::openLeadsStatusIds($this->company), true);
+    }
+
+    public function scopeHasOpenDealStatus(EloquentBuilder $query, ?CompanyInterface $company = null): EloquentBuilder
+    {
+        return $query->whereIn('status_id', Lead::openLeadsStatusIds($company));
+    }
+
+    public function scopeHasClosedDealStatus(EloquentBuilder $query, ?CompanyInterface $company = null): EloquentBuilder
+    {
+        return $query->whereNotIn('status_id', Lead::openLeadsStatusIds($company));
+    }
+
+    public function scopeHavingDealState(EloquentBuilder $query, string $state, ?CompanyInterface $company = null): EloquentBuilder
+    {
+        return match ($state) {
+            'closed' => $query->hasClosedDealStatus($company),
+            'all' => $query,
+            default => $query->hasOpenDealStatus($company),
+        };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function agentContextBrief(): array
+    {
+        return array_filter([
+            'type' => 'Deal',
+            'id' => $this->getId(),
+            'title' => $this->title,
+            'contact' => $this->people?->getName(),
+            'organization' => $this->organization?->name,
+            'status' => $this->statusName(),
+            'state' => $this->hasOpenStatus() ? 'open' : 'closed',
+            'stage' => $this->pipelineStage?->name,
+            'owner' => $this->owner?->fullName(),
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
     }
 
     public function getStringIdAttribute(): string

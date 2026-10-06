@@ -130,4 +130,29 @@ class IntrasGoalPolicyTest extends TestCase
             '0.95 x 80 + 0.6 x 30'
         );
     }
+
+    /**
+     * Plan B and C count seats, so a soft interest or a courtesy pass must not hold back the campaign.
+     */
+    public function testFirmCountKeepsOnlyCommittedRegistrations(): void
+    {
+        $this->assertSame(9, IntrasGoalPolicy::firmCount([
+            'confirmado' => 4,
+            'confirmado-plan' => 2,
+            'programa' => 1,
+            'intercambio' => 1,
+            'credito' => 1,
+            'interesado-evento' => 6,
+            'cortesia' => 3,
+            'cancelado' => 5,
+        ]));
+    }
+
+    public function testFirmTypesAreTheTopWeightedOnes(): void
+    {
+        $this->assertSame(
+            ['confirmado', 'confirmado-plan', 'programa', 'intercambio', 'credito'],
+            IntrasGoalPolicy::firmTypes()
+        );
+    }
 }

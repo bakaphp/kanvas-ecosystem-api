@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Intelligence;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -14,6 +15,10 @@ use Tests\TestCase;
 
 class AgentConversationsQueryTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'intelligence'];
+
     public function testMessagesAreScopedToTheirOwnConversation(): void
     {
         $app = app(Apps::class);
@@ -56,9 +61,17 @@ class AgentConversationsQueryTest extends TestCase
                     data {
                         id
                         agent { id }
+                        participant {
+                            __typename
+                            ... on User { id }
+                        }
                         messages(first: 50) {
                             data {
                                 content
+                                status
+                                steps
+                                tool_calls
+                                participant { __typename }
                             }
                         }
                     }
@@ -68,6 +81,15 @@ class AgentConversationsQueryTest extends TestCase
 
         $conversations = $response->json('data.agentConversations.data');
         $this->assertGreaterThanOrEqual(2, count($conversations));
+
+        $mine = collect($conversations)->first(fn (array $conv): bool => (int) $conv['agent']['id'] === $agentA->getId());
+        $this->assertSame('User', $mine['participant']['__typename']);
+        $this->assertSame($user->getId(), (int) $mine['participant']['id']);
+        $reply = collect($mine['messages']['data'])->firstWhere('content', 'A replies');
+        $this->assertSame('completed', $reply['status']);
+        $this->assertSame('A replies', $reply['steps'][0]['content']);
+        $this->assertSame([], $reply['tool_calls'], 'the deprecated field still answers, derived from steps');
+        $this->assertSame('User', $reply['participant']['__typename']);
 
         $byAgent = [];
         foreach ($conversations as $conv) {
@@ -236,5 +258,103 @@ class AgentConversationsQueryTest extends TestCase
         $contents = collect($convs[0]['messages']['data'])->pluck('content')->all();
         $this->assertContains('message from B', $contents);
         $this->assertNotContains('message from A', $contents);
+    }
+
+    public function testArchivedMessagesStayInTheTranscript(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+
+        new KanvasConversationStore()->logTurn(
+            userId: $user->getId(),
+            sessionId: (string) Str::uuid(),
+            agentClass: 'Test\\Stub\\Handler',
+            userMessage: 'Compacted later',
+            assistantResponse: 'Kept',
+            agentId: $agent->getId(),
+        );
+
+        DB::connection('intelligence')
+            ->table('agent_conversation_messages')
+            ->where('content', 'Compacted later')
+            ->update(['archived_at' => Carbon::now()]);
+
+        $response = $this->graphQL('
+            query {
+                agentConversations(first: 25) {
+                    data {
+                        agent { id }
+                        messages(first: 50) { data { content } }
+                    }
+                }
+            }
+        ')->assertSuccessful();
+
+        $mine = collect($response->json('data.agentConversations.data'))
+            ->first(fn (array $conv): bool => (int) $conv['agent']['id'] === $agent->getId());
+
+        $this->assertEqualsCanonicalizing(['Compacted later', 'Kept'], array_column($mine['messages']['data'], 'content'));
+    }
+
+    public function testTheLastPageHoldsTheNewestTurnEvenWhenOlderRowsWereArchived(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $session = (string) Str::uuid();
+
+        foreach (['first', 'second', 'third'] as $minute => $turn) {
+            Carbon::setTestNow(Carbon::parse('2026-10-04 10:00:00')->addMinutes($minute));
+            new KanvasConversationStore()->logTurn(
+                userId: $user->getId(),
+                sessionId: $session,
+                agentClass: 'Test\\Stub\\Handler',
+                userMessage: "The {$turn} question",
+                assistantResponse: "The {$turn} answer",
+                agentId: $agent->getId(),
+            );
+        }
+        Carbon::setTestNow();
+
+        // A summary archived the first turn: unordered, the window index now lists it after every active row.
+        DB::connection('intelligence')
+            ->table('agent_conversation_messages')
+            ->where('content', 'like', 'The first %')
+            ->update(['archived_at' => Carbon::now()]);
+
+        $response = $this->graphQL('
+            query {
+                agentConversations(first: 25) {
+                    data {
+                        agent { id }
+                        messages(first: 2, page: 3) {
+                            paginatorInfo { lastPage }
+                            data { content }
+                        }
+                    }
+                }
+            }
+        ')->assertSuccessful();
+
+        $mine = collect($response->json('data.agentConversations.data'))
+            ->first(fn (array $conv): bool => (int) $conv['agent']['id'] === $agent->getId());
+
+        $this->assertSame(3, $mine['messages']['paginatorInfo']['lastPage']);
+        $this->assertEqualsCanonicalizing(
+            ['The third question', 'The third answer'],
+            array_column($mine['messages']['data'], 'content'),
+            'The admin transcript pages from the last page backwards; it showed the archived rows instead'
+        );
     }
 }

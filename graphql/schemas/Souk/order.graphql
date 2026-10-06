@@ -595,6 +595,13 @@ extend type Mutation @guard {
         )
 }
 
+extend type Mutation @guardByAdmin {
+    generateOrderReceipt(id: ID!): Filesystem!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderReceiptMutation@generate"
+        )
+}
+
 extend type Mutation @guardByAppKey {
     generateCheckoutSession(
         order_id: ID!

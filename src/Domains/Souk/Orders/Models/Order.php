@@ -43,6 +43,7 @@ use Kanvas\Souk\Orders\Factories\OrderFactory;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Services\B2BConfigurationService;
+use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
 use Kanvas\Souk\Traits\PayableTrait;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -964,9 +965,9 @@ class Order extends BaseModel implements PayableInterface
 
         $this->total_gross_amount = $orderTotal;
         $this->discount_amount = $discountAmount;
-        $this->total_net_amount = $orderTotal - $discountAmount;
         $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
         $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
+        $this->total_net_amount = $orderTotal - $discountAmount + $this->chargedShippingAmount();
 
         if ($this->commission_rate !== null) {
             $netAmount = (float) $this->total_net_amount;
@@ -977,6 +978,15 @@ class Order extends BaseModel implements PayableInterface
         if ($autoSave) {
             $this->saveOrFail();
         }
+    }
+
+    protected function chargedShippingAmount(): float
+    {
+        if (empty($this->metadata['shipping'][ShippingConditionEnum::PROVIDER->value] ?? null)) {
+            return 0.0;
+        }
+
+        return (float) $this->shipping_price_net_amount;
     }
 
     #[Override]

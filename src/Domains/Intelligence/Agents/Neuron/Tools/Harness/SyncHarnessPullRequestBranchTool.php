@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -27,21 +26,21 @@ use Override;
  * Nothing else here could refresh one, so the only way out was a human doing it by hand.
  */
 #[AgentTool(name: 'Sync Coding Pull Request Branch', category: 'coding')]
-class SyncHarnessPullRequestBranchTool extends Tool implements HasRunKey, RequiresSystemAgent
+class SyncHarnessPullRequestBranchTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use ResolvesCodingRepositoryForTool;
     use TrackByInputs;
 
+    protected string $name = 'sync_coding_pull_request_branch';
+
+    protected ?string $description = 'Update a coding job\'s pull request with the latest changes from the branch it '
+        . 'targets. Use it when read_coding_pull_request_feedback reports it is behind, or when a '
+        . 'merge is blocked because the branch is out of date. A real conflict still needs a human.';
+
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'sync_coding_pull_request_branch',
-            description: 'Update a coding job\'s pull request with the latest changes from the branch it '
-                . 'targets. Use it when read_coding_pull_request_feedback reports it is behind, or when a '
-                . 'merge is blocked because the branch is out of date. A real conflict still needs a human.',
-        );
     }
 
     /**

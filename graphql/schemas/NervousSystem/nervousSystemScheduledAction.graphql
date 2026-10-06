@@ -46,7 +46,7 @@ extend type Query @guard {
     ): [NervousSystemScheduledAction!]!
         @paginate(
             model: "Kanvas\\NervousSystem\\Scheduling\\Models\\ScheduledAction"
-            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            scopes: ["fromApp", "fromCompany", "fromUser", "notDeleted"]
             defaultCount: 25
         )
 }

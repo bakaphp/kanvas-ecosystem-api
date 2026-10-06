@@ -26,16 +26,12 @@ class ReplyToEmailTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'reply_to_email',
-            description: 'Replies inside an existing email thread with an internal note (e.g. "Approved by X '
-                . 'on Y"), as an audit trail. Always sent only to the approver configured on target_id\'s '
-                . 'vendor/customer — never to the thread\'s original external sender. Commonly used right after '
-                . 'approve_pending_item succeeds, using the message_id of the original email.',
-        );
-    }
+    protected string $name = 'reply_to_email';
+
+    protected ?string $description = 'Replies inside an existing email thread with an internal note (e.g. "Approved by X '
+        . 'on Y"), as an audit trail. Always sent only to the approver configured on target_id\'s '
+        . 'vendor/customer — never to the thread\'s original external sender. Commonly used right after '
+        . 'approve_pending_item succeeds, using the message_id of the original email.';
 
     /**
      * @return array<int, ToolProperty>

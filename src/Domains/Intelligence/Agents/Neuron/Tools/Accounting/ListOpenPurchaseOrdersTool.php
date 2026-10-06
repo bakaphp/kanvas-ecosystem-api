@@ -21,16 +21,12 @@ class ListOpenPurchaseOrdersTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_open_purchase_orders',
-            description: 'Lists open (non-closed) purchase orders with their vendor, status, total and open '
-                . 'line items (sku, open quantity, unit cost, GL coding). Use this to see what a vendor has on '
-                . 'order, or to find the PO an incoming invoice should match against. Filter by vendor_code when '
-                . 'the user names a specific vendor.',
-        );
-    }
+    protected string $name = 'list_open_purchase_orders';
+
+    protected ?string $description = 'Lists open (non-closed) purchase orders with their vendor, status, total and open '
+        . 'line items (sku, open quantity, unit cost, GL coding). Use this to see what a vendor has on '
+        . 'order, or to find the PO an incoming invoice should match against. Filter by vendor_code when '
+        . 'the user names a specific vendor.';
 
     /**
      * @return array<int, ToolProperty>

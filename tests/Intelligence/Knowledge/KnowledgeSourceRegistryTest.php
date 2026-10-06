@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Knowledge;
 
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Knowledge\Contracts\KnowledgeSource;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeSourceRegistry;
@@ -23,6 +24,16 @@ class KnowledgeSourceRegistryTest extends TestCase
             public function build(Model $entity): array
             {
                 return [];
+            }
+
+            public function find(int $entityId, int $appId, int $companyId): ?Model
+            {
+                return null;
+            }
+
+            public function isEnabledFor(Apps $app): bool
+            {
+                return true;
             }
         };
 

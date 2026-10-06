@@ -18,6 +18,8 @@ use ReflectionClass;
 final class AgentTool
 {
     /**
+     * @param string|null $description The catalog reads a tool's description by reflection, never by instantiating
+     *                                 it, so a tool that builds its description at runtime must carry a literal here
      * @param string[] $frameworks CapabilityFrameworkEnum values; derived from the namespace when empty
      * @param string[]|null $requiresPermission Bouncer abilities required to use the tool
      */

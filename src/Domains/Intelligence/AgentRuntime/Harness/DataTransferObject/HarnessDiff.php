@@ -42,23 +42,42 @@ class HarnessDiff extends Data
     }
 
     /**
-     * @param list<string> $protectedPaths glob-ish prefixes from the repository's rules of engagement
+     * @param list<string> $protectedPaths
      * @return list<string>
      */
     public function touchedProtectedPaths(array $protectedPaths): array
     {
-        $hits = [];
+        return array_values(array_filter(
+            $this->paths(),
+            static fn (string $path): bool => self::pathMatches($path, $protectedPaths)
+        ));
+    }
 
-        foreach ($this->paths() as $path) {
-            foreach ($protectedPaths as $protected) {
-                if (fnmatch(rtrim($protected, '/') . '*', $path)) {
-                    $hits[] = $path;
-
-                    break;
+    /**
+     * Each entry is a file or directory from the repository root, or a glob — matched on whole path
+     * segments, never as a bare prefix, so `.env` does not catch `.env.example` and `.github/` does not
+     * catch `.githubfoo`.
+     *
+     * @param list<string> $entries
+     */
+    public static function pathMatches(string $path, array $entries): bool
+    {
+        foreach ($entries as $entry) {
+            if (strpbrk($entry, '*?[') !== false) {
+                if (fnmatch($entry, $path)) {
+                    return true;
                 }
+
+                continue;
+            }
+
+            $entry = rtrim($entry, '/');
+
+            if ($entry !== '' && ($path === $entry || str_starts_with($path, $entry . '/'))) {
+                return true;
             }
         }
 
-        return $hits;
+        return false;
     }
 }

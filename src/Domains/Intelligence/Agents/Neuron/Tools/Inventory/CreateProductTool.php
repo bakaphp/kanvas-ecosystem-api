@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogProducts;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,24 +20,20 @@ use Override;
  * set_product_published.
  */
 #[AgentTool(name: 'Create Product', category: 'inventory')]
-class CreateProductTool extends Tool implements HasRunKey
+class CreateProductTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ManagesCatalogProducts;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_product',
-            description: 'Create a new product in the inventory catalog. A default variant is created with it, '
-                . 'carrying the sku, price and quantity you pass here. The product is created as a draft unless '
-                . 'you pass is_published=true — use set_product_published later to put it on the storefront. '
-                . 'Search with inventory_search first so you do not create a duplicate. Add further variants with '
-                . 'create_variant. Only an administrator can do this.',
-        );
-    }
+    protected string $name = 'create_product';
+
+    protected ?string $description = 'Create a new product in the inventory catalog. A default variant is created with it, '
+        . 'carrying the sku, price and quantity you pass here. The product is created as a draft unless '
+        . 'you pass is_published=true — use set_product_published later to put it on the storefront. '
+        . 'Search with inventory_search first so you do not create a duplicate. Add further variants with '
+        . 'create_variant. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -26,21 +25,21 @@ use Override;
  * guesses a path, reads the wrong file, and writes a brief against code that is not there.
  */
 #[AgentTool(name: 'Search Coding Repository Code', category: 'coding')]
-class SearchHarnessRepositoryCodeTool extends Tool implements HasRunKey, RequiresSystemAgent
+class SearchHarnessRepositoryCodeTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use ResolvesCodingRepositoryForTool;
     use TrackByInputs;
 
+    protected string $name = 'search_coding_repository_code';
+
+    protected ?string $description = 'Search the CONTENTS of a repository you can work on — a function name, a class, '
+        . 'a string, a config key. Use it to find where something lives before writing a task. '
+        . 'To search by filename instead, use list_coding_repository_files.';
+
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'search_coding_repository_code',
-            description: 'Search the CONTENTS of a repository you can work on — a function name, a class, '
-                . 'a string, a config key. Use it to find where something lives before writing a task. '
-                . 'To search by filename instead, use list_coding_repository_files.',
-        );
     }
 
     /**

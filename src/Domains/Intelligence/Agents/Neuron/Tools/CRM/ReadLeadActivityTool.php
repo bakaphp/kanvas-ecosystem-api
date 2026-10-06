@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ReadsActivityForEntity;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -15,22 +14,18 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Read Lead Activity', category: 'crm')]
-class ReadLeadActivityTool extends Tool implements HasRunKey
+class ReadLeadActivityTool extends Tool
 {
     use ReadsActivityForEntity;
     use ResolvesLeadForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'read_lead_activity',
-            description: 'Read a lead\'s Activity thread — the notes, logged calls, emails, SMS and stage/system events '
-                . 'the team sees in the lead\'s Activity tab, newest first. Use it before summarizing a lead, answering '
-                . '"what happened with this lead", or deciding a next step: progress that only lives in the activity '
-                . 'is not in the lead\'s description.',
-        );
-    }
+    protected string $name = 'read_lead_activity';
+
+    protected ?string $description = 'Read a lead\'s Activity thread — the notes, logged calls, emails, SMS and stage/system events '
+        . 'the team sees in the lead\'s Activity tab, newest first. Use it before summarizing a lead, answering '
+        . '"what happened with this lead", or deciding a next step: progress that only lives in the activity '
+        . 'is not in the lead\'s description.';
 
     /**
      * @return array<int, ToolProperty>

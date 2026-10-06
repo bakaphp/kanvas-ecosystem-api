@@ -62,6 +62,8 @@ class GuardedHttpMcpTransport implements McpTransportInterface
 
     private ?ResponseInterface $lastResponse = null;
 
+    private ?string $protocolVersion = null;
+
     public function __construct(
         private ?string $url,
         private int $agentsId,
@@ -104,6 +106,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         $this->credentialsResolved = false;
         $this->sessionId = null;
         $this->lastResponse = null;
+        $this->protocolVersion = null;
     }
 
     #[Override]
@@ -125,6 +128,12 @@ class GuardedHttpMcpTransport implements McpTransportInterface
 
         if ($this->sessionId !== null) {
             $headers['Mcp-Session-Id'] = $this->sessionId;
+        }
+
+        // Protocol 2025-11-25 has the client echo the negotiated version on every request after
+        // `initialize`; a server on it refuses the second request without the header.
+        if ($this->protocolVersion !== null) {
+            $headers['MCP-Protocol-Version'] = $this->protocolVersion;
         }
 
         try {
@@ -173,9 +182,16 @@ class GuardedHttpMcpTransport implements McpTransportInterface
     }
 
     #[Override]
+    public function setProtocolVersion(string $version): void
+    {
+        $this->protocolVersion = $version;
+    }
+
+    #[Override]
     public function disconnect(): void
     {
         $this->sessionId = null;
+        $this->protocolVersion = null;
         $this->discardBody();
         $this->lastResponse = null;
     }

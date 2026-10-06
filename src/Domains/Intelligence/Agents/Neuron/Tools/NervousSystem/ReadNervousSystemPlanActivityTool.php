@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Social\Messages\Models\Message;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -26,30 +25,26 @@ use Override;
  * can't see it"; it narrates a plausible reason instead. This is the way to check.
  */
 #[AgentTool(name: 'Read Plan Activity', category: 'nervous_system')]
-class ReadNervousSystemPlanActivityTool extends Tool implements HasRunKey
+class ReadNervousSystemPlanActivityTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesPlanForTool;
     use TrackByInputs;
+
+    protected string $name = 'read_plan_activity';
+
+    protected ?string $description = 'Read the full record of ONE plan: every comment its workers posted and the '
+        . 'result each finished task produced. Use it whenever someone asks what a plan or its '
+        . 'tasks actually produced — a file, a link, a count, a summary — or when you need '
+        . 'detail your context bundle only shows in outline. The bundle is capped and truncated; '
+        . 'this is not. Check here before telling anyone that something was not produced or that '
+        . 'you cannot find it — the answer is usually recorded on the task.';
 
     private const int DEFAULT_MESSAGES = 20;
     private const int MAX_MESSAGES = 50;
 
     /** Long enough for a worker's full answer — the whole point is to reach what the bundle truncates. */
     private const int RESULT_CHAR_CAP = 4000;
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'read_plan_activity',
-            description: 'Read the full record of ONE plan: every comment its workers posted and the '
-                . 'result each finished task produced. Use it whenever someone asks what a plan or its '
-                . 'tasks actually produced — a file, a link, a count, a summary — or when you need '
-                . 'detail your context bundle only shows in outline. The bundle is capped and truncated; '
-                . 'this is not. Check here before telling anyone that something was not produced or that '
-                . 'you cannot find it — the answer is usually recorded on the task.',
-        );
-    }
 
     /**
      * @return array<int, ToolProperty>

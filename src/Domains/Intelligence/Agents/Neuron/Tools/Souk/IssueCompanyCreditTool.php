@@ -15,7 +15,6 @@ use Kanvas\Souk\Discounts\DataTransferObject\DiscountData;
 use Kanvas\Souk\Discounts\Enums\DiscountTypeEnum;
 use Kanvas\Souk\Discounts\Models\DiscountType;
 use Kanvas\Souk\Orders\Models\Order;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,21 +24,17 @@ use Spatie\LaravelData\DataCollection;
 use Throwable;
 
 #[AgentTool(name: 'Issue Company Credit', category: 'commerce')]
-class IssueCompanyCreditTool extends Tool implements HasRunKey
+class IssueCompanyCreditTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'issue_company_credit',
-            description: 'Issue a monetary credit to a client company that will be applied automatically '
-                . 'to its next order (e.g. because items on a previous order were unavailable). Provide the '
-                . 'client company (id or exact name), the amount and the reason; optionally the order number '
-                . 'that caused it. Returns issued=false with a reason when the company cannot be found.',
-        );
-    }
+    protected string $name = 'issue_company_credit';
+
+    protected ?string $description = 'Issue a monetary credit to a client company that will be applied automatically '
+        . 'to its next order (e.g. because items on a previous order were unavailable). Provide the '
+        . 'client company (id or exact name), the amount and the reason; optionally the order number '
+        . 'that caused it. Returns issued=false with a reason when the company cannot be found.';
 
     /**
      * @return array<int, ToolProperty>

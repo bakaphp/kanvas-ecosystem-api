@@ -6,8 +6,8 @@ namespace Tests\Intelligence\Unit\Providers;
 
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGemini;
 use NeuronAI\Chat\Messages\ToolCallMessage;
-use NeuronAI\Tools\Tool;
 use ReflectionMethod;
+use Tests\Stubs\Intelligence\Tools\CallbackTool;
 use Tests\TestCase;
 
 /**
@@ -58,7 +58,7 @@ class GeminiThoughtSignatureTest extends TestCase
     private function toolCallMessage(array $toolCalls): ToolCallMessage
     {
         $provider = new KanvasGemini('irrelevant-key', 'gemini-3.5-flash');
-        $provider->setTools([Tool::make('render_artifact', 'Render something for the user.')]);
+        $provider->setTools([new CallbackTool('render_artifact', 'Render something for the user.', fn () => null)]);
 
         $create = new ReflectionMethod($provider, 'createToolCallMessage');
 

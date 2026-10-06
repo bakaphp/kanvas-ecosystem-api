@@ -17,7 +17,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,11 +24,22 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Vehicle Price Disclosure', category: 'crm')]
-class VehiclePriceDisclosureTool extends Tool implements HasRunKey
+class VehiclePriceDisclosureTool extends Tool
 {
     use ReportsToolOutcome;
     use ResolvesLeadForTool;
     use TrackByInputs;
+
+    protected string $name = self::NAME;
+
+    protected ?string $description = 'Returns the dealer-approved, legally required vehicle price block for the lead\'s vehicle. '
+        . 'You MUST call this tool on your first reply about any specific vehicle, whatever the customer asked: '
+        . 'a price, availability, a test drive, features, or "I\'m interested". Also call it whenever you introduce or recommend a specific unit, passing its VIN. '
+        . 'When mode is "insert_block", answer the customer naturally and insert "message" VERBATIM right after you name the vehicle: '
+        . 'never paraphrase, translate, round, reorder, or omit any amount or sentence, and never add a different price. '
+        . 'When mode is "already_disclosed", you may reply without the block unless you state a price, in which case insert "message" verbatim. '
+        . 'When suppress is true, do NOT mention any price and do NOT promise to check it later; if "message" is present send it verbatim, otherwise answer without pricing. '
+        . 'This is an internal operation: never expose the tool call, reason codes, or routing details to the customer.';
 
     public const string NAME = 'vehicle_price_disclosure';
 
@@ -51,17 +61,6 @@ class VehiclePriceDisclosureTool extends Tool implements HasRunKey
     public function __construct(
         private readonly PriceDisclosureReplyGate $gate = new PriceDisclosureReplyGate(),
     ) {
-        parent::__construct(
-            name: self::NAME,
-            description: 'Returns the dealer-approved, legally required vehicle price block for the lead\'s vehicle. '
-                . 'You MUST call this tool on your first reply about any specific vehicle, whatever the customer asked: '
-                . 'a price, availability, a test drive, features, or "I\'m interested". Also call it whenever you introduce or recommend a specific unit, passing its VIN. '
-                . 'When mode is "insert_block", answer the customer naturally and insert "message" VERBATIM right after you name the vehicle: '
-                . 'never paraphrase, translate, round, reorder, or omit any amount or sentence, and never add a different price. '
-                . 'When mode is "already_disclosed", you may reply without the block unless you state a price, in which case insert "message" verbatim. '
-                . 'When suppress is true, do NOT mention any price and do NOT promise to check it later; if "message" is present send it verbatim, otherwise answer without pricing. '
-                . 'This is an internal operation: never expose the tool call, reason codes, or routing details to the customer.',
-        );
     }
 
     #[Override]

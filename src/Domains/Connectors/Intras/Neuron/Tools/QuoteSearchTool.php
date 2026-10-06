@@ -11,7 +11,6 @@ use Kanvas\Analytics\Reporting\Support\ReportRegistry;
 use Kanvas\Connectors\Intras\Reporting\Concerns\BuildsIntrasFilters;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -29,23 +28,19 @@ use Throwable;
  * none of which had ever reached Kanvas.
  */
 #[AgentTool(name: 'Intras Quote Search', category: 'reporting')]
-class QuoteSearchTool extends Tool implements HasRunKey
+class QuoteSearchTool extends Tool
 {
     use TrackByInputs;
     use BuildsIntrasFilters;
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'intras_quote_search',
-            description: 'Busca cotizaciones (propuestas in-house). Filtra por facilitador '
-                . 'solicitado, tema, evento solicitado, empresa, estatus, si fue aprobada, y '
-                . 'rango de fechas. Responde "¿qué empresas han solicitado propuestas del '
-                . 'facilitador X?" y "¿de temas relacionados a Y?". Con group_by="empresa" '
-                . 'devuelve el conteo por empresa.',
-        );
-    }
+    protected string $name = 'intras_quote_search';
+
+    protected ?string $description = 'Busca cotizaciones (propuestas in-house). Filtra por facilitador '
+        . 'solicitado, tema, evento solicitado, empresa, estatus, si fue aprobada, y '
+        . 'rango de fechas. Responde "¿qué empresas han solicitado propuestas del '
+        . 'facilitador X?" y "¿de temas relacionados a Y?". Con group_by="empresa" '
+        . 'devuelve el conteo por empresa.';
 
     /**
      * @return array<int, ToolProperty>

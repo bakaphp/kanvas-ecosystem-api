@@ -7,19 +7,13 @@ namespace App\Console\Commands\Intelligence\Agents;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Factories\NeuronAgentFactory;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
-use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use NeuronAI\Chat\Messages\UserMessage;
 
 class KanvasAgentCommand extends Command
@@ -31,8 +25,7 @@ class KanvasAgentCommand extends Command
      *
      * @var string
     */
-    protected $signature = 'kanvas:agent {app_id} {agent_id} {namespace} {entity_id} 
-                           {--clear-history= : Clear history - options: all, agent, entity, or specific external_reference_id} 
+    protected $signature = 'kanvas:agent {app_id} {agent_id} {namespace} {entity_id}
                            {--interactive : Start an interactive chat session}';
 
     /**
@@ -42,135 +35,90 @@ class KanvasAgentCommand extends Command
      */
     protected $description = 'Interact with a Kanvas agent';
 
-    /**
-     * Execute the console command.
-     */
-    public function handle()
+    public function handle(): int
     {
         $this->newLine();
         $this->info('Kanvas Agent');
         $this->newLine();
 
-        $appId = (int) $this->argument('app_id');
-        $app = Apps::getById($appId);
+        $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
-        $agentId = (int) $this->argument('agent_id');
-        $agent = Agent::getById($agentId, $app);
-        $clearHistoryOption = $this->option('clear-history');
+        $agent = Agent::getById((int) $this->argument('agent_id'), $app);
 
-        if ($clearHistoryOption) {
-            $this->info('Clearing chat history...');
+        $namespace = (string) $this->argument('namespace');
+        $entity = $namespace::getById($this->argument('entity_id'));
 
-            // Get all keys matching the pattern
-            $keys = Redis::keys('agent_chat_history_v3:*');
-
-            if (! empty($keys)) {
-                // Delete all matching keys
-                Redis::del($keys);
-            }
-        }
-        // Initialize the agent
-        $crm = new $agent->type->handler();
-
-        // Assuming the People model is correctly set up
-        //$person = People::getById(57626); // You might want to make this configurable
-        $entity = $this->argument('entity_id');
-        $namespace = $this->argument('namespace');
-        $entity = $namespace::getById($entity);
-        $crm->setConfiguration(
-            agent: $agent,
-            entity: $entity,
-            user: $entity->company->getAiAgentUserOrFail(),
-        );
+        $handler = $this->handlerFor($agent, $entity);
 
         if ($this->option('interactive')) {
-            $this->startInteractiveChat($crm, $entity);
-        } else {
-            // Handle single question mode for backward compatibility
-            $question = $this->ask('What would you like to ask the agent?');
-            if ($crm instanceof ADKAgent) {
-                $response = $crm->chatSimple(
-                    app: $app,
-                    company: $entity->company,
-                    userId: (string) $entity->users_id,
-                    sessionId: $entity->uuid,
-                    message: $question,
-                );
-            } else {
-                $response = $crm->chat(new UserMessage($question));
+            $this->info("Interactive chat session started. Type 'exit' or 'quit' to end the conversation.");
+
+            while (true) {
+                $question = (string) $this->ask('You');
+
+                if (in_array(strtolower($question), ['exit', 'quit'], true)) {
+                    $this->info('Chat session ended.');
+
+                    break;
+                }
+
+                $this->newLine();
+                $this->info('Agent: ' . $this->answer($handler, $entity, $question));
+                $this->newLine();
             }
-            $this->info(ChatHelper::extractTextFromResponse($response->getContent()));
+
+            return self::SUCCESS;
         }
+
+        $question = (string) $this->ask('What would you like to ask the agent?');
+        $this->info($this->answer($handler, $entity, $question));
+
+        return self::SUCCESS;
     }
 
     /**
-     * Start an interactive chat session with the agent.
+     * The entity uuid is the thread, so a CLI session continues the record's own conversation — the same
+     * address a channel turn on that record binds.
      */
-    protected function startInteractiveChat(object $agent, Model $entity): void
+    private function handlerFor(Agent $agent, Model $entity): BehavesAsKanvasAgent|ADKAgent
     {
-        $this->info("Interactive chat session started. Type 'exit' or 'quit' to end the conversation.");
-        $chatHistory = [];
+        $handlerClass = $agent->type->handler;
 
-        while (true) {
-            $question = $this->ask('You');
-
-            // Check if user wants to exit
-            if ($question !== null && strtolower($question) === 'exit' || strtolower($question) === 'quit') {
-                $this->info('Chat session ended.');
-
-                break;
-            }
-
-            $channel = new Channel();
-            $channel->name = 'Kanvas Agent Channel';
-            $channel->slug = $entity->uuid;
-            $channel->companies_id = $entity->companies_id;
-            $channel->apps_id = $entity->apps_id;
-            $channel->description = 'Channel for Kanvas Agent interactions';
-            $channel->save();
-            $messageType = 'kanvas-agent-message';
-            $messageTypeModel = (new CreateMessageTypeAction(
-                new MessageTypeInput(
-                    $entity->app->getId(),
-                    0,
-                    $messageType,
-                    $messageType,
-                )
-            ))->execute();
-
-            // Create the message using the action
-            $messageInput = new MessageInput(
-                app: $entity->app,
-                company: $entity->company,
-                user: $entity->user,
-                type: $messageTypeModel,
-                message: [
-                ],
-                is_public: 1,
-                slug: $entity->uuid,
+        if (is_a($handlerClass, ADKAgent::class, true)) {
+            $handler = new $handlerClass();
+            $handler->setConfiguration(
+                agent: $agent,
+                entity: $entity,
+                user: $entity->company->getAiAgentUserOrFail(),
             );
 
-            $createMessageAction = new CreateMessageAction($messageInput);
-            $message = $createMessageAction->execute();
-
-            // Send message to agent
-            $response = $agent instanceof ADKAgent ? $agent->chat($channel, $message, $question) : $agent->chat(new UserMessage($question));
-
-            // Store in chat history if you want to implement context
-            $chatHistory[] = [
-                'role' => 'user',
-                'content' => $question,
-            ];
-            $chatHistory[] = [
-                'role' => 'assistant',
-                'content' => $response->getContent(),
-            ];
-
-            // Display agent's response
-            $this->newLine();
-            Log::info('Agent response: ' . $response->getContent());
-            $this->info('Agent: ' . ChatHelper::extractTextFromResponse($response->getContent()));
-            $this->newLine();
+            return $handler;
         }
+
+        return NeuronAgentFactory::fromAgent(
+            agent: $agent,
+            entity: $entity,
+            user: $entity->company->getAiAgentUserOrFail(),
+            threadId: AgentChatKernel::entityThreadId($entity),
+        );
+    }
+
+    private function answer(BehavesAsKanvasAgent|ADKAgent $handler, Model $entity, string $question): string
+    {
+        if ($handler instanceof ADKAgent) {
+            $response = $handler->chatSimple(
+                app: $entity->app,
+                company: $entity->company,
+                userId: (string) $entity->users_id,
+                sessionId: $entity->uuid,
+                message: $question,
+            );
+
+            return ChatHelper::extractTextFromResponse($response->getContent());
+        }
+
+        $message = $handler->chat(new UserMessage($question))->getMessage();
+
+        return ChatHelper::extractTextFromResponse($message?->getContent() ?? '');
     }
 }

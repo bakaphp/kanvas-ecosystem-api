@@ -14,16 +14,12 @@ class ListSalesAppsTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_sales_apps',
-            description: 'List the Sales Apps (Action Pages such as share vehicle, credit application or add trade) '
-                . 'that are active for this company. Call it whenever the customer asks for something one of these '
-                . 'apps can complete, then pass the matching slug to create_engagement_page. '
-                . 'Only offer Sales Apps returned here.',
-        );
-    }
+    protected string $name = 'list_sales_apps';
+
+    protected ?string $description = 'List the Sales Apps (Action Pages such as share vehicle, credit application or add trade) '
+        . 'that are active for this company. Call it whenever the customer asks for something one of these '
+        . 'apps can complete, then pass the matching slug to create_engagement_page. '
+        . 'Only offer Sales Apps returned here.';
 
     /**
      * @return array<string, mixed>

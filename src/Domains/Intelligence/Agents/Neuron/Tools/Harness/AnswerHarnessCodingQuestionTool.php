@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -30,23 +29,23 @@ use Throwable;
  * the job timing out.
  */
 #[AgentTool(name: 'Answer Self-Hosted Coding Question', category: 'coding')]
-class AnswerHarnessCodingQuestionTool extends Tool implements HasRunKey, RequiresSystemAgent
+class AnswerHarnessCodingQuestionTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;
 
+    protected string $name = 'answer_self_hosted_coding_question';
+
+    protected ?string $description = 'Answer a coding job that is waiting on a question — it asked something and '
+        . 'stopped until it is told. Take the job_id and question_id from '
+        . 'check_self_hosted_coding_job. Answer from what you actually know about the work or '
+        . 'what a human in this conversation told you; if neither, ask them rather than '
+        . 'guessing, because the job builds on whatever you say. A question nobody answers '
+        . 'holds the job until it times out and its work is thrown away.';
+
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'answer_self_hosted_coding_question',
-            description: 'Answer a coding job that is waiting on a question — it asked something and '
-                . 'stopped until it is told. Take the job_id and question_id from '
-                . 'check_self_hosted_coding_job. Answer from what you actually know about the work or '
-                . 'what a human in this conversation told you; if neither, ask them rather than '
-                . 'guessing, because the job builds on whatever you say. A question nobody answers '
-                . 'holds the job until it times out and its work is thrown away.',
-        );
     }
 
     /**

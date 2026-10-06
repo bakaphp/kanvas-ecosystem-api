@@ -176,6 +176,23 @@ class OrderReportToolsTest extends TestCase
         $this->assertSame(50.0, (float) $result['by_payment_method']['other']['amount']);
     }
 
+    /**
+     * KANVAS-ECOSYSTEM-6JG: a Commerce agent asked `order_payment_stats` the same question ten times in
+     * one turn and the run budget killed the turn. The repeat now answers with the first result and says so.
+     */
+    public function test_order_payment_stats_answers_a_repeat_without_running_again(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+        $tool = new OrderPaymentStatsTool()->withContext($app, $company, $user);
+
+        $first = $tool->__invoke(order_types: 'paso_rapido');
+        $second = (clone $tool)->__invoke(order_types: 'paso_rapido');
+
+        $this->assertArrayNotHasKey('repeat_call', $first);
+        $this->assertTrue($second['repeat_call'], 'Neuron clones the tool per call; the guard must hold across clones');
+        $this->assertSame($first['total_amount'], $second['total_amount']);
+    }
+
     public function test_order_payment_stats_restricts_by_order_type(): void
     {
         [$app, $company, $user] = $this->seedOrders();

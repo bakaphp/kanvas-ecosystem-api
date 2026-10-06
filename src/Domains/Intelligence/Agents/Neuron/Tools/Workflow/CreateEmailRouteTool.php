@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\NervousSystem\Capability\Enums\AgentAbilityEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -38,26 +37,22 @@ use Throwable;
  * full address could claim routing for a domain the tenant does not own.
  */
 #[AgentTool(name: 'Create Email Route', category: 'workflow')]
-class CreateEmailRouteTool extends Tool implements HasRunKey
+class CreateEmailRouteTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_email_route',
-            description: 'Make an email address deliver into Kanvas: mail sent to it is POSTed to a receiver '
-                . 'you have already created, which is what lets a workflow act on it. Admin only. Use it '
-                . 'after create_company_receiver, when the work starts from someone sending an email — an '
-                . 'accounting inbox, a support address, a lead address. You choose only the part before the '
-                . '@; the domain is the company\'s own and you cannot set it. You cannot point the address '
-                . 'anywhere except a receiver belonging to this company. Re-running with the same address '
-                . 'repoints it rather than creating a second route. Do NOT use this to give yourself an '
-                . 'address — that is provision_my_email_inbox.',
-        );
-    }
+    protected string $name = 'create_email_route';
+
+    protected ?string $description = 'Make an email address deliver into Kanvas: mail sent to it is POSTed to a receiver '
+        . 'you have already created, which is what lets a workflow act on it. Admin only. Use it '
+        . 'after create_company_receiver, when the work starts from someone sending an email — an '
+        . 'accounting inbox, a support address, a lead address. You choose only the part before the '
+        . '@; the domain is the company\'s own and you cannot set it. You cannot point the address '
+        . 'anywhere except a receiver belonging to this company. Re-running with the same address '
+        . 'repoints it rather than creating a second route. Do NOT use this to give yourself an '
+        . 'address — that is provision_my_email_inbox.';
 
     /**
      * @return array<int, ToolProperty>

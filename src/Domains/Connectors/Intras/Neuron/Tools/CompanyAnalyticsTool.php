@@ -11,7 +11,6 @@ use Kanvas\Analytics\Reporting\Support\ReportRegistry;
 use Kanvas\Connectors\Intras\Reporting\Concerns\BuildsIntrasFilters;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -27,26 +26,22 @@ use Throwable;
  * rather than five filter recipes the agent has to assemble correctly.
  */
 #[AgentTool(name: 'Intras Company Analytics', category: 'reporting')]
-class CompanyAnalyticsTool extends Tool implements HasRunKey
+class CompanyAnalyticsTool extends Tool
 {
     use TrackByInputs;
     use BuildsIntrasFilters;
     use HasKanvasContext;
 
-    private const array MODES = ['top', 'inactivas', 'tendencia', 'por_potencialidad'];
+    protected string $name = 'intras_company_analytics';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'intras_company_analytics',
-            description: 'Analítica por empresa. mode: "top" (ranking por participantes), '
-                . '"inactivas" (empresas top sin eventos en el periodo, o sin eventos in-house), '
-                . '"tendencia" (compara participación entre dos periodos para detectar caídas), '
-                . '"por_potencialidad" (empresas por clasificación/potencialidad, p. ej. las de '
-                . 'potencialidad A que nunca han hecho eventos). Filtra por tamaño, sector y '
-                . 'línea temática.',
-        );
-    }
+    protected ?string $description = 'Analítica por empresa. mode: "top" (ranking por participantes), '
+        . '"inactivas" (empresas top sin eventos en el periodo, o sin eventos in-house), '
+        . '"tendencia" (compara participación entre dos periodos para detectar caídas), '
+        . '"por_potencialidad" (empresas por clasificación/potencialidad, p. ej. las de '
+        . 'potencialidad A que nunca han hecho eventos). Filtra por tamaño, sector y '
+        . 'línea temática.';
+
+    private const array MODES = ['top', 'inactivas', 'tendencia', 'por_potencialidad'];
 
     /**
      * @return array<int, ToolProperty>

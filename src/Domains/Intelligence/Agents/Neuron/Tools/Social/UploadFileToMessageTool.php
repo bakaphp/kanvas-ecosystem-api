@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasFileUploadToolProperties;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesMessageForTool;
 use Kanvas\Intelligence\Agents\Traits\AttachesFileToEntity;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,7 +20,7 @@ use Override;
  * surfaces covered by upload_file_to_lead / _product / _variant.
  */
 #[AgentTool(name: 'Upload File To Message', category: 'social')]
-class UploadFileToMessageTool extends Tool implements HasRunKey
+class UploadFileToMessageTool extends Tool
 {
     use AttachesFileToEntity;
     use HasFileUploadToolProperties;
@@ -29,17 +28,13 @@ class UploadFileToMessageTool extends Tool implements HasRunKey
     use ResolvesMessageForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'upload_file_to_message',
-            description: 'Attach a file or media to an existing message / activity post, so it shows up with the '
-                . 'message instead of only as text. Normally you pass `content` — the full text of the document '
-                . 'you wrote — plus a `file_name` ending in .md, .txt, .csv or .json. Pass `file_url` instead when '
-                . 'the file or image already exists at a public URL. Use create_message to create the message '
-                . 'first and take its message_id from there.',
-        );
-    }
+    protected string $name = 'upload_file_to_message';
+
+    protected ?string $description = 'Attach a file or media to an existing message / activity post, so it shows up with the '
+        . 'message instead of only as text. Normally you pass `content` — the full text of the document '
+        . 'you wrote — plus a `file_name` ending in .md, .txt, .csv or .json. Pass `file_url` instead when '
+        . 'the file or image already exists at a public URL. Use create_message to create the message '
+        . 'first and take its message_id from there.';
 
     /**
      * @return array<int, ToolProperty>

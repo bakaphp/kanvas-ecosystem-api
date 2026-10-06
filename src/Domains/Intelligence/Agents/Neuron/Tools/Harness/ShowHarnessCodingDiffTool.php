@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -28,22 +27,22 @@ use Throwable;
  * job behind it has nowhere to come from.
  */
 #[AgentTool(name: 'Show Self-Hosted Coding Diff', category: 'coding')]
-class ShowHarnessCodingDiffTool extends Tool implements HasRunKey, RequiresSystemAgent
+class ShowHarnessCodingDiffTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;
+
+    protected string $name = 'show_self_hosted_coding_diff';
+
+    protected ?string $description = 'Return the real diff a coding job produced, read from the workspace it ran in. '
+        . 'Use this whenever anyone asks what changed, or before describing a change. NEVER write '
+        . 'out a diff yourself: if this tool returns nothing, nothing was changed.';
 
     private const int MAX_PATCH_CHARS = 20000;
 
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'show_self_hosted_coding_diff',
-            description: 'Return the real diff a coding job produced, read from the workspace it ran in. '
-                . 'Use this whenever anyone asks what changed, or before describing a change. NEVER write '
-                . 'out a diff yourself: if this tool returns nothing, nothing was changed.',
-        );
     }
 
     /**

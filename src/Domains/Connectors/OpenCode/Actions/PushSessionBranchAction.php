@@ -11,6 +11,7 @@ use Kanvas\Connectors\OpenCode\DataTransferObject\GitIdentity;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\SshClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 
 /**
@@ -177,13 +178,7 @@ class PushSessionBranchAction
 
     private function isKanvasArtifact(string $path): bool
     {
-        foreach (self::KANVAS_ARTIFACTS as $artifact) {
-            if ($path === $artifact || str_starts_with($path, $artifact . '/')) {
-                return true;
-            }
-        }
-
-        return false;
+        return HarnessDiff::pathMatches($path, self::KANVAS_ARTIFACTS);
     }
 
     /**
@@ -191,17 +186,10 @@ class PushSessionBranchAction
      */
     private function assertNoProtectedPaths(array $changed): void
     {
-        $hits = [];
-
-        foreach ($changed as $path) {
-            foreach ($this->protectedPaths as $protected) {
-                if (fnmatch(rtrim($protected, '/') . '*', $path)) {
-                    $hits[] = $path;
-
-                    break;
-                }
-            }
-        }
+        $hits = array_values(array_filter(
+            $changed,
+            fn (string $path): bool => HarnessDiff::pathMatches($path, $this->protectedPaths)
+        ));
 
         if ($hits !== []) {
             throw new ValidationException(

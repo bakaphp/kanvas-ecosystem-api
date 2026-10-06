@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEmployeeForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,7 +23,7 @@ use Override;
  * balance they were checked against.
  */
 #[AgentTool(name: 'Set Employee Leave Balance', category: 'human_resources')]
-class SetEmployeeLeaveBalanceTool extends Tool implements HasRunKey
+class SetEmployeeLeaveBalanceTool extends Tool
 {
     use GuardsAdminForTool;
     use HandlesLeaveForTool;
@@ -32,18 +31,14 @@ class SetEmployeeLeaveBalanceTool extends Tool implements HasRunKey
     use ResolvesEmployeeForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_employee_leave_balance',
-            description: 'Sets or adjusts an employee\'s leave days for one leave type and year. Admin only. Use '
-                . 'entitled_days to set the granted total outright, or adjust_days to add (positive) or remove '
-                . '(negative) days from it. Creates the balance if the employee did not have that policy yet. It '
-                . 'cannot change used or pending days — those come from approved and outstanding requests. Returns '
-                . 'updated=false with a reason if you are not an admin or the new total is below what is already '
-                . 'used or pending.',
-        );
-    }
+    protected string $name = 'set_employee_leave_balance';
+
+    protected ?string $description = 'Sets or adjusts an employee\'s leave days for one leave type and year. Admin only. Use '
+        . 'entitled_days to set the granted total outright, or adjust_days to add (positive) or remove '
+        . '(negative) days from it. Creates the balance if the employee did not have that policy yet. It '
+        . 'cannot change used or pending days — those come from approved and outstanding requests. Returns '
+        . 'updated=false with a reason if you are not an admin or the new total is below what is already '
+        . 'used or pending.';
 
     /**
      * @return array<int, ToolProperty>

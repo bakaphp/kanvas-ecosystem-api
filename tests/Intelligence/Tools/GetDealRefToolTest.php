@@ -10,9 +10,12 @@ use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateDealTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetDealRefTool;
 use Tests\TestCase;
+use Tests\Traits\MakesLeadStatuses;
 
 class GetDealRefToolTest extends TestCase
 {
+    use MakesLeadStatuses;
+
     public function testReturnsDealDetail(): void
     {
         $app = app(Apps::class);
@@ -36,6 +39,24 @@ class GetDealRefToolTest extends TestCase
     }
 
     /** KANVAS-ECOSYSTEM-6ED: NeuronAI clones the registered tool per call, so the repeat must hold across clones. */
+    public function testStatusIsTheNamedCrmStatus(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $created = new CreateDealTool($app, $company, $user)->__invoke(title: 'Lost deal ' . uniqid());
+        $deal = Deal::getByIdFromCompanyApp((int) $created['deal_id'], $company, $app);
+        $deal->status_id = self::lostLeadStatusId();
+        $deal->saveOrFail();
+
+        $result = new GetDealRefTool()->withContext($app, $company, $user)->__invoke(deal_id: $deal->getId());
+
+        $this->assertSame('Lost', $result['status']);
+        $this->assertFalse($result['is_open']);
+        $this->assertArrayNotHasKey('lead_status', $result);
+    }
+
     public function testRepeatedReadOfAnUnchangedDealTellsTheModelToStop(): void
     {
         $dealId = $this->createDeal();

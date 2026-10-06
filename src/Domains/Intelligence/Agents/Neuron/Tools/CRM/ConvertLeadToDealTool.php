@@ -26,16 +26,12 @@ class ConvertLeadToDealTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'convert_lead_to_deal',
-            description: 'Turn an existing qualified lead into a deal (pipeline opportunity). Pass the lead_id; the '
-                . 'deal inherits the lead\'s contact, organization and owner and links back to it. Optionally override '
-                . 'the title/description. Use this when a lead is ready to become an opportunity — it returns the new '
-                . 'deal_id for subsequent deal tools. Do not call it twice for the same lead.',
-        );
-    }
+    protected string $name = 'convert_lead_to_deal';
+
+    protected ?string $description = 'Turn an existing qualified lead into a deal (pipeline opportunity). Pass the lead_id; the '
+        . 'deal inherits the lead\'s contact, organization and owner and links back to it. Optionally override '
+        . 'the title/description. Use this when a lead is ready to become an opportunity — it returns the new '
+        . 'deal_id for subsequent deal tools. Do not call it twice for the same lead.';
 
     /**
      * @return array<int, ToolProperty>

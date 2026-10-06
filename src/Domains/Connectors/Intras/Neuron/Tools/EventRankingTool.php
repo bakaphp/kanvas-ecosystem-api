@@ -12,7 +12,6 @@ use Kanvas\Connectors\Intras\Reporting\Concerns\BuildsIntrasFilters;
 use Kanvas\Connectors\Intras\Reporting\IntrasGoalPolicy;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -32,11 +31,18 @@ use Throwable;
  * rank and no satisfaction to average.
  */
 #[AgentTool(name: 'Intras Event Ranking', category: 'reporting')]
-class EventRankingTool extends Tool implements HasRunKey
+class EventRankingTool extends Tool
 {
     use TrackByInputs;
     use BuildsIntrasFilters;
     use HasKanvasContext;
+
+    protected string $name = 'intras_event_ranking';
+
+    protected ?string $description = 'Ranking de versiones de evento por métrica: "participantes", '
+        . '"asistentes", "satisfaccion" o "empresas". Devuelve el top N con sus '
+        . 'inscripciones y satisfacción. Con promedio=true devuelve el promedio de la '
+        . 'métrica en vez del ranking. Excluye versiones canceladas.';
 
     /**
      * Metrics that live on the version row.
@@ -57,17 +63,6 @@ class EventRankingTool extends Tool implements HasRunKey
      * the ranking ahead of an event with a hundred.
      */
     private const int DEFAULT_MIN_RESPONSES = 20;
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'intras_event_ranking',
-            description: 'Ranking de versiones de evento por métrica: "participantes", '
-                . '"asistentes", "satisfaccion" o "empresas". Devuelve el top N con sus '
-                . 'inscripciones y satisfacción. Con promedio=true devuelve el promedio de la '
-                . 'métrica en vez del ranking. Excluye versiones canceladas.',
-        );
-    }
 
     /**
      * @return array<int, ToolProperty>

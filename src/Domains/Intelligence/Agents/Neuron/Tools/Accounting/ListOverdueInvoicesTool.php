@@ -23,16 +23,12 @@ class ListOverdueInvoicesTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_overdue_invoices',
-            description: 'Lists individual overdue invoices (issued/sent, balance_due > 0, due_date in the past). '
-                . 'Returns invoice_number, customer name, total, balance due, days overdue, aging bucket. '
-                . 'Use this when the user asks "which invoices are overdue", wants a hit list to chase, or asks '
-                . 'about a specific customer\'s late invoices — pass customer to filter to one.',
-        );
-    }
+    protected string $name = 'list_overdue_invoices';
+
+    protected ?string $description = 'Lists individual overdue invoices (issued/sent, balance_due > 0, due_date in the past). '
+        . 'Returns invoice_number, customer name, total, balance due, days overdue, aging bucket. '
+        . 'Use this when the user asks "which invoices are overdue", wants a hit list to chase, or asks '
+        . 'about a specific customer\'s late invoices — pass customer to filter to one.';
 
     #[Override]
     protected function properties(): array

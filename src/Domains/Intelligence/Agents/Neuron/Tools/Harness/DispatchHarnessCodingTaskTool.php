@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\SplitsReferenceSlugs;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,30 +21,30 @@ use Override;
 use Throwable;
 
 #[AgentTool(name: 'Dispatch Self-Hosted Coding Task', category: 'coding')]
-class DispatchHarnessCodingTaskTool extends Tool implements HasRunKey, RequiresSystemAgent
+class DispatchHarnessCodingTaskTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use SplitsReferenceSlugs;
     // Distinct briefs are distinct work; without this every dispatch in a turn shares one budget.
     use TrackByInputs;
 
+    protected string $name = 'dispatch_self_hosted_coding_task';
+
+    protected ?string $description = 'Start a coding task on the coding runtime Kanvas hosts itself. It checks the '
+        . 'repository out itself, so name whichever one the person asked for. The task runs in the '
+        . 'background and this returns a job id immediately — it does NOT wait for the work. Neither '
+        . 'you nor the coding agent can push; a human approves that once the work is done. Write the '
+        . 'task as a complete, self-contained instruction, because the coding agent cannot ask you '
+        . 'follow-up questions mid-run. ONE repository is worked on per job, and the coding '
+        . 'agent cannot reach any other by itself — it has no credentials. If it needs to see '
+        . 'another repository, name it in `references` and it is checked out beside the work, '
+        . 'read-only; for one already-known file, paste the content into the task instead.';
+
     public function __construct(
         private readonly Agent $agent,
         private readonly ?Session $session = null,
         private readonly ?Users $requestedBy = null,
     ) {
-        parent::__construct(
-            name: 'dispatch_self_hosted_coding_task',
-            description: 'Start a coding task on the coding runtime Kanvas hosts itself. It checks the '
-                . 'repository out itself, so name whichever one the person asked for. The task runs in the '
-                . 'background and this returns a job id immediately — it does NOT wait for the work. Neither '
-                . 'you nor the coding agent can push; a human approves that once the work is done. Write the '
-                . 'task as a complete, self-contained instruction, because the coding agent cannot ask you '
-                . 'follow-up questions mid-run. ONE repository is worked on per job, and the coding '
-                . 'agent cannot reach any other by itself — it has no credentials. If it needs to see '
-                . 'another repository, name it in `references` and it is checked out beside the work, '
-                . 'read-only; for one already-known file, paste the content into the task instead.',
-        );
     }
 
     /**

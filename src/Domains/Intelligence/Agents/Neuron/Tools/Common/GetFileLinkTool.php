@@ -10,7 +10,6 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -28,7 +27,7 @@ use Override;
  * a model assembling one from the id produces a plausible dead link.
  */
 #[AgentTool(name: 'Get File Link', category: 'ecosystem')]
-class GetFileLinkTool extends Tool implements HasRunKey
+class GetFileLinkTool extends Tool
 {
     use HasKanvasContext;
 
@@ -36,19 +35,15 @@ class GetFileLinkTool extends Tool implements HasRunKey
     // budget would abort the turn partway through the list.
     use TrackByInputs;
 
-    private const int MAX_IDS = 25;
+    protected string $name = 'get_file_link';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_file_link',
-            description: 'Get an openable link for a file stored in Kanvas, by filesystem_id. Use it whenever '
-                . 'you tell a person about a document — a brief, a deck, a report you attached — so they get a '
-                . 'link instead of an id. Pass every id you are about to mention in one call. Ids this company '
-                . 'does not own come back under `unavailable`: say that the file could not be linked, and never '
-                . 'write a URL this tool did not return.',
-        );
-    }
+    protected ?string $description = 'Get an openable link for a file stored in Kanvas, by filesystem_id. Use it whenever '
+        . 'you tell a person about a document — a brief, a deck, a report you attached — so they get a '
+        . 'link instead of an id. Pass every id you are about to mention in one call. Ids this company '
+        . 'does not own come back under `unavailable`: say that the file could not be linked, and never '
+        . 'write a URL this tool did not return.';
+
+    private const int MAX_IDS = 25;
 
     #[Override]
     protected function properties(): array

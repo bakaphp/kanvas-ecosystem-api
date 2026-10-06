@@ -70,5 +70,6 @@ final class SetupImpoundLotCommandTest extends TestCase
             ->count();
 
         $this->assertEquals(10, $count);
+        $this->assertEquals(OrderTypeEnum::IMPOUND_LOT->pdfReceipt(), $orderType->refresh()->pdfReceipt());
     }
 }

@@ -13,19 +13,15 @@ use Override;
 #[AgentTool(name: 'Find Leads Bulk', category: 'crm')]
 class FindLeadsBulkTool extends FindCrmRecordsBulkTool
 {
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_leads_bulk',
-            description: 'Look up MANY leads at once by contact name or lead title. ALWAYS use this instead of '
-                . 'calling search_leads once per name whenever you have more than one to check — cross-referencing a '
-                . 'spreadsheet/CSV column, "which of these people already have a lead", qualifying an imported list. '
-                . 'Pass every name in one call, separated by commas or new lines. Returns one row per name, in the '
-                . 'order given, each with found=true/false and any matching lead_id, title, contact, owner and stage. '
-                . 'Searches leads in ANY status by default so an existing closed lead still counts as found. '
-                . 'For a single lookup, or to filter by owner, use search_leads.',
-        );
-    }
+    protected string $name = 'find_leads_bulk';
+
+    protected ?string $description = 'Look up MANY leads at once by contact name or lead title. ALWAYS use this instead of '
+        . 'calling search_leads once per name whenever you have more than one to check — cross-referencing a '
+        . 'spreadsheet/CSV column, "which of these people already have a lead", qualifying an imported list. '
+        . 'Pass every name in one call, separated by commas or new lines. Returns one row per name, in the '
+        . 'order given, each with found=true/false and any matching lead_id, title, contact, owner and stage. '
+        . 'Searches leads in ANY status by default so an existing closed lead still counts as found. '
+        . 'For a single lookup, or to filter by owner, use search_leads.';
 
     #[Override]
     protected function noun(): string
@@ -40,7 +36,7 @@ class FindLeadsBulkTool extends FindCrmRecordsBulkTool
             ->fromApp($this->app)
             ->fromCompany($this->company)
             ->notDeleted()
-            ->with(['owner', 'people', 'stage']);
+            ->with(['owner', 'people', 'stage', 'status']);
     }
 
     /**
@@ -56,9 +52,27 @@ class FindLeadsBulkTool extends FindCrmRecordsBulkTool
             'contact' => $record->people?->getName(),
             'owner' => $this->ownerName($record),
             'stage' => $record->stage?->name,
-            'is_open' => $record->isOpen(),
+            'status' => $record->statusName(),
+            'is_open' => $this->isOpen($record),
             'last_updated' => $record->updated_at?->toDateString(),
             'matched_tokens' => $score,
         ];
+    }
+
+    /**
+     * A lead's open/closed state is its named status, not the integer `status` column the base rule
+     * reads, which nothing writes.
+     */
+    #[Override]
+    protected function isOpen(Model $record): bool
+    {
+        /** @var Lead $record */
+        return $record->hasOpenLeadStatus();
+    }
+
+    #[Override]
+    protected function applyStatus(Builder $query, string $status): Builder
+    {
+        return $query->havingLeadState($status, $this->company);
     }
 }

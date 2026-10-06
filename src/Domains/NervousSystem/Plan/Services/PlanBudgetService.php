@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Plan\Services;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
 use Kanvas\Intelligence\Agents\Services\ModelPricingCalculator;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Enums\PlanLoopConfigEnum;
@@ -45,8 +46,8 @@ class PlanBudgetService
             $row = DB::connection('intelligence')
                 ->table('agent_conversation_messages as m')
                 ->where('m.conversation_id', $session->uuid)
-                ->selectRaw("COALESCE(SUM(CAST(COALESCE(JSON_EXTRACT(m.`usage`, '$.prompt_tokens'), JSON_EXTRACT(m.`usage`, '$.input_tokens'), 0) AS UNSIGNED)), 0) as input_tokens")
-                ->selectRaw("COALESCE(SUM(CAST(COALESCE(JSON_EXTRACT(m.`usage`, '$.completion_tokens'), JSON_EXTRACT(m.`usage`, '$.output_tokens'), 0) AS UNSIGNED)), 0) as output_tokens")
+                ->selectRaw(ConversationUsageSqlHelper::inputTokens() . ' as input_tokens')
+                ->selectRaw(ConversationUsageSqlHelper::outputTokens() . ' as output_tokens')
                 ->first();
 
             $model = $this->dominantModel($session->uuid);

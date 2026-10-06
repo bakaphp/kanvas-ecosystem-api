@@ -16,6 +16,10 @@ class OrganizationEventActivity extends Data
         public ?string $first_event_date,
         public ?string $last_event_date,
         public bool $had_prior_activity,
+        public int $participants_last_year = 0,
+        public int $participants_total = 0,
+        /** @var list<array{year: int, count: int, participants: int}> */
+        public array $by_year = [],
     ) {
     }
 }

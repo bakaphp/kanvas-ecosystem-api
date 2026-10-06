@@ -119,7 +119,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
             'agent_id' => $pm->getId(),
             'apps_id' => app(Apps::class)->getId(),
             'companies_id' => $this->human()->getCurrentCompany()->getId(),
-            // KanvasMessageHistory keys the conversation by putting the SESSION id in `title`.
+            // ConversationMessageStore keys the conversation by putting the SESSION id in `title`.
             'title' => $session->uuid,
             'created_at' => now(),
             'updated_at' => now(),
@@ -146,7 +146,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
      *
      * Plan 27699 reported into a 13-message stray while the person watched the 1148-message thread —
      * four rows shared `ai-assist-15776-Users-2-2-11479`, and picking the newest by id chose wrong.
-     * The row has to be resolved the way `KanvasMessageHistory` resolves it, or the report is filed
+     * The row has to be resolved the way `ConversationMessageStore` resolves it, or the report is filed
      * beside the conversation instead of in it.
      */
     public function testTheReportGoesToTheSameConversationTheAgentsOwnTurnsUse(): void
@@ -336,7 +336,7 @@ final class PlanReportsBackToTheConversationTest extends TestCase
         return [$plan->fresh(), $pm, $session];
     }
 
-    /** A conversation keyed the way KanvasMessageHistory keys one: the session id lives in `title`. */
+    /** A conversation keyed the way ConversationMessageStore keys one: the session id lives in `title`. */
     private function conversationFor(Agent $agent, string $sessionId): string
     {
         $id = (string) Str::uuid7();

@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,21 +23,17 @@ use Throwable;
  * events, broadcasts) so the agent's move is indistinguishable from a human/GraphQL move.
  */
 #[AgentTool(name: 'Update Task Status', category: 'nervous_system')]
-class UpdateNervousSystemTaskStatusTool extends Tool implements HasRunKey
+class UpdateNervousSystemTaskStatusTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
     use ResolvesTaskForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_nervous_system_task_status',
-            description: 'Move a Nervous System task to a new status (pending, in_progress, blocked, done, '
-                . 'skipped). Use this to start work, mark a task done, or flag it blocked. Optionally attach a '
-                . 'short result note, or a blocked_reason when blocking.',
-        );
-    }
+    protected string $name = 'update_nervous_system_task_status';
+
+    protected ?string $description = 'Move a Nervous System task to a new status (pending, in_progress, blocked, done, '
+        . 'skipped). Use this to start work, mark a task done, or flag it blocked. Optionally attach a '
+        . 'short result note, or a blocked_reason when blocking.';
 
     /**
      * @return array<int, ToolProperty>

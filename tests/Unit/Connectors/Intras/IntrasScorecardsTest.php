@@ -10,7 +10,7 @@ use Kanvas\Connectors\Intras\Reporting\Scoring\Scorecard;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The four INTRAS scorecards and the arithmetic the sheets specify.
+ * The five INTRAS scorecards and the arithmetic the sheets specify.
  */
 class IntrasScorecardsTest extends TestCase
 {
@@ -317,7 +317,12 @@ class IntrasScorecardsTest extends TestCase
                     static fn (?float $min): bool => $min !== null
                 ));
 
-                foreach ([$lowestFloor, $lowestFloor + 0.5, 9, 20000, 34.995, 1000000] as $measurement) {
+                $sweep = array_filter(
+                    [$lowestFloor, $lowestFloor + 0.5, 9, 20000, 34.995, 1000000],
+                    static fn (float|int $measurement): bool => $measurement >= $lowestFloor
+                );
+
+                foreach ($sweep as $measurement) {
                     $this->assertGreaterThan(
                         0.0,
                         $criterion->valueFor($measurement),
@@ -341,10 +346,61 @@ class IntrasScorecardsTest extends TestCase
 
     public function testByKeyFindsEachCardAndReturnsNullOtherwise(): void
     {
-        foreach (['ejecutivo_clasificacion', 'ejecutivo_potencialidad', 'empresa_clasificacion', 'empresa_potencialidad'] as $key) {
+        foreach (['ejecutivo_clasificacion', 'ejecutivo_potencialidad', 'empresa_clasificacion', 'empresa_potencialidad', 'evento_clasificacion'] as $key) {
             $this->assertInstanceOf(Scorecard::class, IntrasScorecards::byKey($key));
         }
 
         $this->assertNull(IntrasScorecards::byKey('nope'));
+    }
+
+    /**
+     * The sheet's ranges share edges and leave gaps. Read as floors, a shared edge takes the
+     * higher band, a gap falls to the band below, and ">25" only starts above 25.
+     */
+    public function testTheEventCardBandsReadTheSheetsEdgesAsFloors(): void
+    {
+        $band = fn (string $key, float $value): float => $this->criterion('evento_clasificacion', $key)->valueFor($value);
+
+        $this->assertSame(40.0, $band('promedio_participantes', 25.1));
+        $this->assertSame(30.0, $band('promedio_participantes', 25.0));
+        $this->assertSame(30.0, $band('promedio_participantes', 23.0));
+        $this->assertSame(20.0, $band('promedio_participantes', 22.9));
+        $this->assertSame(10.0, $band('promedio_participantes', 18.5));
+        $this->assertSame(10.0, $band('promedio_participantes', 12.0));
+        $this->assertSame(0.0, $band('promedio_participantes', 11.9));
+
+        $this->assertSame(40.0, $band('satisfaccion', 4.9));
+        $this->assertSame(30.0, $band('satisfaccion', 4.85));
+        $this->assertSame(20.0, $band('satisfaccion', 4.6));
+        $this->assertSame(10.0, $band('satisfaccion', 4.1));
+        $this->assertSame(0.0, $band('satisfaccion', 4.05));
+    }
+
+    /**
+     * 24 participants on average (30 × 60%) and 4.9 satisfaction (40 × 40%) is 34 of 40: 85%, an A.
+     */
+    public function testAnEventScoresItsTwoCriteriaByWeight(): void
+    {
+        $result = IntrasScorecards::eventoClasificacion()->score([
+            'promedio_participantes' => 24.0,
+            'satisfaccion' => 4.9,
+        ]);
+
+        $this->assertSame(85.0, $result->percentage);
+        $this->assertSame('A', $result->letter);
+    }
+
+    /**
+     * An event with no evaluations yet is scored on attendance alone, not marked down to E.
+     */
+    public function testAnEventWithoutEvaluationsIsScoredOnAttendanceAlone(): void
+    {
+        $result = IntrasScorecards::eventoClasificacion()->score([
+            'promedio_participantes' => 26.0,
+            'satisfaccion' => null,
+        ]);
+
+        $this->assertSame(100.0, $result->percentage);
+        $this->assertArrayHasKey('satisfaccion', $result->skipped);
     }
 }

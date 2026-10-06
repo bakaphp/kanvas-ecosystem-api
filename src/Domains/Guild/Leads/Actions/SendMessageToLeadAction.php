@@ -718,11 +718,7 @@ class SendMessageToLeadAction
             return;
         }
 
-        $enforceRegistration = filter_var(
-            $this->lead->company->get(TwilioConfigurationEnum::TWILIO_ENFORCE_A2P_REGISTRATION->value),
-            FILTER_VALIDATE_BOOL,
-        );
-        if (! $enforceRegistration) {
+        if (! $this->lead->company->getBool(TwilioConfigurationEnum::TWILIO_ENFORCE_A2P_REGISTRATION->value)) {
             return;
         }
 

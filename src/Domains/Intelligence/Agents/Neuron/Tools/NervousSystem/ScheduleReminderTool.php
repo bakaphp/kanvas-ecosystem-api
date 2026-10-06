@@ -17,7 +17,6 @@ use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
 use Kanvas\NervousSystem\Scheduling\Services\ScheduledActionTimezoneResolver;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -32,25 +31,25 @@ use Throwable;
  * free-typed outside address).
  */
 #[AgentTool(name: 'Schedule Reminder', category: 'nervous_system')]
-class ScheduleReminderTool extends Tool implements HasRunKey
+class ScheduleReminderTool extends Tool
 {
     use CreatesScheduledActionFromTool;
     use HasKanvasContext;
     use ResolvesConversationHuman;
     use TrackByInputs;
 
+    protected string $name = 'schedule_reminder';
+
+    protected ?string $description = 'Schedule a reminder message to be delivered at a future time — for the person you are '
+        . 'talking to, or a named teammate. Call current_time FIRST to know "now", then pass run_at as '
+        . '"YYYY-MM-DD HH:MM" in the user\'s local time. For a repeating reminder ("every weekday at 9am") '
+        . 'pass recurrence_cron as a standard 5-field cron and omit run_at. You cannot remind an outside '
+        . 'email — only this company\'s members.';
+
     public function __construct(
         private readonly ?Agent $agent = null,
         private readonly ?Session $session = null,
     ) {
-        parent::__construct(
-            name: 'schedule_reminder',
-            description: 'Schedule a reminder message to be delivered at a future time — for the person you are '
-                . 'talking to, or a named teammate. Call current_time FIRST to know "now", then pass run_at as '
-                . '"YYYY-MM-DD HH:MM" in the user\'s local time. For a repeating reminder ("every weekday at 9am") '
-                . 'pass recurrence_cron as a standard 5-field cron and omit run_at. You cannot remind an outside '
-                . 'email — only this company\'s members.',
-        );
     }
 
     /**

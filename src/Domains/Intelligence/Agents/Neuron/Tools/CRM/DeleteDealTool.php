@@ -23,14 +23,10 @@ class DeleteDealTool extends Tool
     use HasKanvasContext;
     use ResolvesDealForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'delete_deal',
-            description: 'Soft-delete a deal by its deal_id, removing it from the pipeline. Use search_deals first to '
-                . 'confirm you have the right deal. Only do this when the user explicitly asks to delete/remove a deal.',
-        );
-    }
+    protected string $name = 'delete_deal';
+
+    protected ?string $description = 'Soft-delete a deal by its deal_id, removing it from the pipeline. Use search_deals first to '
+        . 'confirm you have the right deal. Only do this when the user explicitly asks to delete/remove a deal.';
 
     /**
      * @return array<int, ToolProperty>

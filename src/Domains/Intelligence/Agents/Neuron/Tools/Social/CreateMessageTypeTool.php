@@ -27,17 +27,13 @@ class CreateMessageTypeTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_message_type',
-            description: 'Create a kind of record this app can store — "news-article", "weekly-report" — so '
-                . 'a workflow can be pointed at it and agents can write records of it. Call '
-                . 'list_message_types first: if one already exists for this purpose, use that instead of '
-                . 'making a near-duplicate, because a workflow watches one exact type and a second one '
-                . 'sitting beside it is the usual reason records go nowhere.',
-        );
-    }
+    protected string $name = 'create_message_type';
+
+    protected ?string $description = 'Create a kind of record this app can store — "news-article", "weekly-report" — so '
+        . 'a workflow can be pointed at it and agents can write records of it. Call '
+        . 'list_message_types first: if one already exists for this purpose, use that instead of '
+        . 'making a near-duplicate, because a workflow watches one exact type and a second one '
+        . 'sitting beside it is the usual reason records go nowhere.';
 
     /**
      * @return array<int, ToolProperty>

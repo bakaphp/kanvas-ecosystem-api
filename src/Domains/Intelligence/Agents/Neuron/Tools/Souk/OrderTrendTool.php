@@ -5,30 +5,35 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Souk;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
 use Kanvas\Souk\Orders\Services\OrderReportService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Order Trend', category: 'commerce')]
 class OrderTrendTool extends Tool
 {
+    use GuardsRepeatCalls;
     use HasKanvasContext;
     use ParsesOrderTypesFilter;
+    use TrackByInputs;
+
+    protected string $name = 'order_trend';
+
+    protected ?string $description = 'Order count and revenue over time, bucketed by day, week or month, with the per-period '
+        . 'averages plus the busiest and slowest period in the range. Use for "how are orders trending", '
+        . '"revenue month by month", "which week was our best", "is volume going up or down". Returns one '
+        . 'row per period that actually has orders — periods with none are omitted, not zero-filled. For a '
+        . 'single total instead of a series use sales_revenue or order_payment_stats.';
 
     public function __construct()
     {
-        parent::__construct(
-            name: 'order_trend',
-            description: 'Order count and revenue over time, bucketed by day, week or month, with the per-period '
-                . 'averages plus the busiest and slowest period in the range. Use for "how are orders trending", '
-                . '"revenue month by month", "which week was our best", "is volume going up or down". Returns one '
-                . 'row per period that actually has orders — periods with none are omitted, not zero-filled. For a '
-                . 'single total instead of a series use sales_revenue or order_payment_stats.',
-        );
+        $this->initRepeatGuard();
     }
 
     /**
@@ -56,12 +61,21 @@ class OrderTrendTool extends Tool
         ?string $until = null,
         ?bool $paid_only = null,
     ): array {
-        return new OrderReportService($this->app, $this->company)->trend(
-            $this->parseOrderTypes($order_types),
-            $since,
-            $until,
-            $group_by,
-            $paid_only ?? false,
+        return $this->oncePerTurn(
+            [
+                'group_by' => $group_by,
+                'order_types' => $order_types,
+                'since' => $since,
+                'until' => $until,
+                'paid_only' => $paid_only,
+            ],
+            fn (): array => new OrderReportService($this->app, $this->company)->trend(
+                $this->parseOrderTypes($order_types),
+                $since,
+                $until,
+                $group_by,
+                $paid_only ?? false,
+            ),
         );
     }
 }

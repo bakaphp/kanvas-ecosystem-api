@@ -5,29 +5,34 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Souk;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
 use Kanvas\Souk\Orders\Services\OrderReportService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Order Breakdown', category: 'commerce')]
 class OrderBreakdownTool extends Tool
 {
+    use GuardsRepeatCalls;
     use HasKanvasContext;
     use ParsesOrderTypesFilter;
+    use TrackByInputs;
+
+    protected string $name = 'order_breakdown';
+
+    protected ?string $description = 'Order counts and gross revenue grouped by status or by order type over an optional '
+        . 'date range, with an optional order-type filter. Use for "how many orders are pending vs paid vs '
+        . 'cancelled", "order volume by type this month", pipeline/funnel health. Includes every status '
+        . '(draft and cancelled too). For booked-revenue totals use sales_revenue instead.';
 
     public function __construct()
     {
-        parent::__construct(
-            name: 'order_breakdown',
-            description: 'Order counts and gross revenue grouped by status or by order type over an optional '
-                . 'date range, with an optional order-type filter. Use for "how many orders are pending vs paid vs '
-                . 'cancelled", "order volume by type this month", pipeline/funnel health. Includes every status '
-                . '(draft and cancelled too). For booked-revenue totals use sales_revenue instead.',
-        );
+        $this->initRepeatGuard();
     }
 
     /**
@@ -53,7 +58,19 @@ class OrderBreakdownTool extends Tool
         ?string $since = null,
         ?string $until = null,
     ): array {
-        return new OrderReportService($this->app, $this->company)
-            ->breakdown($group_by, $this->parseOrderTypes($order_types), $since, $until);
+        return $this->oncePerTurn(
+            [
+                'group_by' => $group_by,
+                'order_types' => $order_types,
+                'since' => $since,
+                'until' => $until,
+            ],
+            fn (): array => new OrderReportService($this->app, $this->company)->breakdown(
+                $group_by,
+                $this->parseOrderTypes($order_types),
+                $since,
+                $until,
+            ),
+        );
     }
 }

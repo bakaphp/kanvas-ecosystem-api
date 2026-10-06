@@ -19,8 +19,11 @@ use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\CRM\ReceptionistAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Mockery;
+use NeuronAI\Exceptions\RunInFlightException;
+use Override;
 use PDOException;
 use RuntimeException;
+use Tests\Stubs\Intelligence\BusyThenAnsweringNeuronHandlerStub;
 use Tests\Stubs\Intelligence\ThrowingNeuronHandlerStub;
 use Tests\TestCase;
 use Throwable;
@@ -141,28 +144,82 @@ class RunNeuronChatErrorHandlingTest extends TestCase
         bool $fallbackOnFailure = true,
         string $agentTypeHandler = ThrowingNeuronHandlerStub::class
     ): string {
+        return new RunNeuronChatAction(
+            agent: $this->agentFor($agentTypeHandler),
+            session: null,
+            message: 'process this invoice',
+            app: app(Apps::class),
+            user: auth()->user(),
+            handler: new ThrowingNeuronHandlerStub($exception),
+            fallbackOnFailure: $fallbackOnFailure,
+        )->execute();
+    }
+
+    private function agentFor(string $agentTypeHandler): Agent
+    {
         $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $company = auth()->user()->getCurrentCompany();
 
         $agentType = AgentType::factory()
             ->withAppId($app->getId())
             ->create(['provider' => 'neuron', 'handler' => $agentTypeHandler]);
 
-        $agent = Agent::factory()
+        return Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
             ->create(['agent_type_id' => $agentType->getId()]);
+    }
 
-        return new RunNeuronChatAction(
-            agent: $agent,
+    /**
+     * KANVAS-ECOSYSTEM-6JE: a second email on a thread whose run still held its lease was refused and
+     * the webhook failed. The turn waits for the thread instead.
+     */
+    public function testABusyThreadIsWaitedForNotFailed(): void
+    {
+        $handler = new BusyThenAnsweringNeuronHandlerStub(busyCalls: 2, reply: 'answered after the lease');
+        $action = $this->actionWithHandler($handler);
+
+        $this->assertSame('answered after the lease', $action->execute());
+        $this->assertSame(3, $handler->calls);
+        $this->assertSame([5, 5], $action->pauses, 'One poll per refusal, none after the answer');
+    }
+
+    public function testAThreadStillBusyPastTheWaitFailsAsBefore(): void
+    {
+        $handler = new BusyThenAnsweringNeuronHandlerStub(busyCalls: 1_000);
+        $action = $this->actionWithHandler($handler, fallbackOnFailure: false);
+
+        try {
+            $action->execute();
+            $this->fail('A thread busy past the wait must surface the refusal');
+        } catch (RunInFlightException) {
+            $this->assertSame(31, $handler->calls, 'One try, then one per 5 s poll across the 150 s wait');
+        }
+    }
+
+    /**
+     * The pause is recorded, not slept.
+     */
+    private function actionWithHandler(object $handler, bool $fallbackOnFailure = true): RunNeuronChatAction
+    {
+        return new class (
+            agent: $this->agentFor(ThrowingNeuronHandlerStub::class),
             session: null,
-            message: 'process this invoice',
-            app: $app,
-            user: $user,
-            handler: new ThrowingNeuronHandlerStub($exception),
+            message: 'second email on the same thread',
+            app: app(Apps::class),
+            user: auth()->user(),
+            handler: $handler,
             fallbackOnFailure: $fallbackOnFailure,
-        )->execute();
+        ) extends RunNeuronChatAction {
+            /** @var list<int> */
+            public array $pauses = [];
+
+            #[Override]
+            protected function pause(int $seconds): void
+            {
+                $this->pauses[] = $seconds;
+            }
+        };
     }
 
     /**

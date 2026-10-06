@@ -8,7 +8,6 @@ use Kanvas\Connectors\Gmail\Actions\ListEmailsAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -18,11 +17,19 @@ use Throwable;
 
 /** Searches the connected Gmail mailbox, e.g. for unread invoice emails with attachments. */
 #[AgentTool(name: 'List Emails', category: 'productivity')]
-class ListEmailsTool extends Tool implements HasRunKey
+class ListEmailsTool extends Tool
 {
     use GuardsRepeatCalls;
     use HasKanvasContext;
     use TrackByInputs;
+
+    protected string $name = 'list_emails';
+
+    protected ?string $description = 'Searches the connected Gmail mailbox using Gmail\'s own search syntax (e.g. '
+        . '"subject:Invoice has:attachment is:unread", "from:vendor@x.com"). Returns each match\'s '
+        . 'message id, thread id, and subject — use read_email_details with a message id to get the '
+        . 'full body and attachment list. The same query returns the same matches all turn — if it '
+        . 'finds nothing, change the query or say nothing was found.';
 
     /**
      * Keyed per query, so an agent can still run several different searches in a turn. An empty
@@ -32,15 +39,6 @@ class ListEmailsTool extends Tool implements HasRunKey
 
     public function __construct()
     {
-        parent::__construct(
-            name: 'list_emails',
-            description: 'Searches the connected Gmail mailbox using Gmail\'s own search syntax (e.g. '
-                . '"subject:Invoice has:attachment is:unread", "from:vendor@x.com"). Returns each match\'s '
-                . 'message id, thread id, and subject — use read_email_details with a message id to get the '
-                . 'full body and attachment list. The same query returns the same matches all turn — if it '
-                . 'finds nothing, change the query or say nothing was found.',
-        );
-
         $this->initRepeatGuard();
         $this->setMaxRuns(self::MAX_RUNS);
     }

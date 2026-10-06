@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
@@ -16,13 +17,9 @@ class LeadIntentTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_lead_intent',
-            description: 'Determine the lead intent and completion status based on source and subsource mapping from ADF sources configuration.',
-        );
-    }
+    protected string $name = 'get_lead_intent';
+
+    protected ?string $description = 'Determine the lead intent and completion status based on source and subsource mapping from ADF sources configuration.';
 
     #[Override]
     protected function properties(): array
@@ -65,14 +62,12 @@ class LeadIntentTool extends Tool
         }
 
         // @todo standardize source and subsource names to lowercase to avoid issues like this
-        if ($lead->get('VIN_SOLUTION_LEADS')) {
-            $leadSource = $lead->type->name;
-            $subSource = $lead->source->name;
-        }
+
+        $ignoreSubSource = $lead->company->get(ConfigurationEnum::IGNORE_SUB_SOURCE->value);
 
         $source = $sources->where('Source', $leadSource)
-           ->where('Sub_Source', $subSource)
-           ->first();
+            ->unless($ignoreSubSource, fn ($query) => $query->where('Sub_Source', $subSource))
+            ->first();
 
         if (! $source) {
             $source = $sources->where('is_default', true)->first() ?? [
@@ -84,6 +79,7 @@ class LeadIntentTool extends Tool
         return [
             'lead_intent' => $source['Backend'],
             'intent_completion_status' => $source['Default_Completion_Status'],
+            'lead_type' => $source['Up Type'] ?? $source['Up_Type'] ?? '',
         ];
     }
 }

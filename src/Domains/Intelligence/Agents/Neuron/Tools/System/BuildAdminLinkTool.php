@@ -10,7 +10,6 @@ use Kanvas\AdminLinks\Services\AdminLinkService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,7 +24,7 @@ use Override;
  * the string by hand produces plausible dead links.
  */
 #[AgentTool(name: 'Build Admin Link', category: 'ecosystem')]
-class BuildAdminLinkTool extends Tool implements HasRunKey
+class BuildAdminLinkTool extends Tool
 {
     use HasKanvasContext;
 
@@ -33,21 +32,17 @@ class BuildAdminLinkTool extends Tool implements HasRunKey
     // default per-name budget of 10 would abort the whole turn on the eleventh.
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'build_admin_link',
-            description: 'Build a clickable Kanvas Admin link to a record or list screen. Use it whenever you '
-                . 'mention a record a person might want to open — a project, a lead, an order, an agent — so they '
-                . 'get a link instead of an id. Pass whatever id you already have (numeric id, uuid or slug); the '
-                . 'tool looks the record up and works out the right one, so you never need to fetch another id first. '
-                . 'Omit it for the list screen. '
-                . 'Nervous System plans and tasks have no admin screen of their own: link to their project with '
-                . 'section "agent_project" instead. Returns requires_company and section_permission — mention them '
-                . 'to the person when true, because the link only opens if they have that company selected and '
-                . 'that section enabled.',
-        );
-    }
+    protected string $name = 'build_admin_link';
+
+    protected ?string $description = 'Build a clickable Kanvas Admin link to a record or list screen. Use it whenever you '
+        . 'mention a record a person might want to open — a project, a lead, an order, an agent — so they '
+        . 'get a link instead of an id. Pass whatever id you already have (numeric id, uuid or slug); the '
+        . 'tool looks the record up and works out the right one, so you never need to fetch another id first. '
+        . 'Omit it for the list screen. '
+        . 'Nervous System plans and tasks have no admin screen of their own: link to their project with '
+        . 'section "agent_project" instead. Returns requires_company and section_permission — mention them '
+        . 'to the person when true, because the link only opens if they have that company selected and '
+        . 'that section enabled.';
 
     /**
      * @return array<int, ToolProperty>

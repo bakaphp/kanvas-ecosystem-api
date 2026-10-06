@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\PresentsEntityFiles;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,23 +21,19 @@ use Override;
  * strictly to the task would show an empty list for a file that is right there.
  */
 #[AgentTool(name: 'List Task Files', category: 'nervous_system')]
-class ListNervousSystemTaskFilesTool extends Tool implements HasRunKey
+class ListNervousSystemTaskFilesTool extends Tool
 {
     use HasKanvasContext;
     use PresentsEntityFiles;
     use ResolvesTaskForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_task_files',
-            description: 'List the documents attached to a task and to the plan it belongs to — the inputs you '
-                . 'were handed. Call this BEFORE starting work on any task that mentions a file, document, '
-                . 'spreadsheet or export, then read_file the ones you need. If the file you were told about is '
-                . 'not here, say so and block the task — do not describe contents you have not read.',
-        );
-    }
+    protected string $name = 'list_task_files';
+
+    protected ?string $description = 'List the documents attached to a task and to the plan it belongs to — the inputs you '
+        . 'were handed. Call this BEFORE starting work on any task that mentions a file, document, '
+        . 'spreadsheet or export, then read_file the ones you need. If the file you were told about is '
+        . 'not here, say so and block the task — do not describe contents you have not read.';
 
     /**
      * @return array<int, ToolProperty>

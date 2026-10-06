@@ -15,7 +15,6 @@ use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleAction;
 use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -37,25 +36,21 @@ use Throwable;
  * it wants to end up with.
  */
 #[AgentTool(name: 'Update Company Workflow', category: 'workflow')]
-class UpdateCompanyWorkflowTool extends Tool implements HasRunKey
+class UpdateCompanyWorkflowTool extends Tool
 {
     use AssemblesWorkflowRuleForTool;
     use GuardsAdminForTool;
     use ResolvesWorkflowCatalogForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_company_workflow',
-            description: 'Change an existing workflow for THIS company — its conditions, the settings it '
-                . 'passes, which activities it runs, its name, or whether it is active. Admin only. Call '
-                . 'list_company_workflows first to get the workflow_id and see what it looks like now. Every '
-                . 'field REPLACES what is there: pass the complete set you want to end up with, not just the '
-                . 'part you are adding. You cannot change what record type or event it watches — that is a '
-                . 'different workflow, so create a new one and deactivate this.',
-        );
-    }
+    protected string $name = 'update_company_workflow';
+
+    protected ?string $description = 'Change an existing workflow for THIS company — its conditions, the settings it '
+        . 'passes, which activities it runs, its name, or whether it is active. Admin only. Call '
+        . 'list_company_workflows first to get the workflow_id and see what it looks like now. Every '
+        . 'field REPLACES what is there: pass the complete set you want to end up with, not just the '
+        . 'part you are adding. You cannot change what record type or event it watches — that is a '
+        . 'different workflow, so create a new one and deactivate this.';
 
     /**
      * @return array<int, ToolProperty>

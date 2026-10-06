@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
+use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
 use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
 use Kanvas\Intelligence\Agents\Services\ModelPricingCalculator;
 
@@ -50,12 +51,10 @@ class RollupLocalAgentUsageAction
             // can be logged under a different company than the agent owns.
             ->groupBy('c.agent_id', 'a.apps_id', 'a.companies_id', 't.provider')
             ->selectRaw('c.agent_id, a.apps_id, a.companies_id, t.provider as agent_provider')
-            // usage key names vary by runtime/version: prompt_tokens/completion_tokens/
-            // cache_*_input_tokens OR input_tokens/output_tokens/cache_*. Accept both.
-            ->selectRaw("COALESCE(SUM(CAST(COALESCE(JSON_EXTRACT(m.`usage`, '$.prompt_tokens'), JSON_EXTRACT(m.`usage`, '$.input_tokens'), 0) AS UNSIGNED)), 0) as input_tokens")
-            ->selectRaw("COALESCE(SUM(CAST(COALESCE(JSON_EXTRACT(m.`usage`, '$.completion_tokens'), JSON_EXTRACT(m.`usage`, '$.output_tokens'), 0) AS UNSIGNED)), 0) as output_tokens")
-            ->selectRaw("COALESCE(SUM(CAST(COALESCE(JSON_EXTRACT(m.`usage`, '$.cache_read_input_tokens'), JSON_EXTRACT(m.`usage`, '$.cache_read'), 0) AS UNSIGNED)), 0) as cache_read")
-            ->selectRaw("COALESCE(SUM(CAST(COALESCE(JSON_EXTRACT(m.`usage`, '$.cache_write_input_tokens'), JSON_EXTRACT(m.`usage`, '$.cache_write'), 0) AS UNSIGNED)), 0) as cache_write")
+            ->selectRaw(ConversationUsageSqlHelper::inputTokens() . ' as input_tokens')
+            ->selectRaw(ConversationUsageSqlHelper::outputTokens() . ' as output_tokens')
+            ->selectRaw(ConversationUsageSqlHelper::cacheReadTokens() . ' as cache_read')
+            ->selectRaw(ConversationUsageSqlHelper::cacheWriteTokens() . ' as cache_write')
             ->selectRaw('COUNT(DISTINCT c.id) as total_sessions')
             ->havingRaw('input_tokens > 0 OR output_tokens > 0')
             ->get();

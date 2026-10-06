@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Workflow;
 use Baka\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesWorkflowCatalogForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -19,24 +18,20 @@ use Override;
  * and activity names out of hundreds of registered activities, and every guess is a failed create.
  */
 #[AgentTool(name: 'List Workflow Options', category: 'workflow')]
-class ListWorkflowOptionsTool extends Tool implements HasRunKey
+class ListWorkflowOptionsTool extends Tool
 {
     use ResolvesWorkflowCatalogForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_workflow_options',
-            description: 'Lists the valid building blocks for create_company_workflow: triggers (what makes a '
-                . 'workflow run), entities (which record type it watches), actions (the activities it can run) '
-                . 'and receivers (the inbound endpoints this app can accept data on). Each action and receiver '
-                . 'comes back with what it does, the params it reads, and whether the integration it needs is '
-                . 'configured for this company — read those before choosing. Call this before '
-                . 'create_company_workflow, and pass a search term when looking for something specific such as '
-                . '"email", "slack" or "wordpress".',
-        );
-    }
+    protected string $name = 'list_workflow_options';
+
+    protected ?string $description = 'Lists the valid building blocks for create_company_workflow: triggers (what makes a '
+        . 'workflow run), entities (which record type it watches), actions (the activities it can run) '
+        . 'and receivers (the inbound endpoints this app can accept data on). Each action and receiver '
+        . 'comes back with what it does, the params it reads, and whether the integration it needs is '
+        . 'configured for this company — read those before choosing. Call this before '
+        . 'create_company_workflow, and pass a search term when looking for something specific such as '
+        . '"email", "slack" or "wordpress".';
 
     /**
      * @return array<int, ToolProperty>

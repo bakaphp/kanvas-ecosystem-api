@@ -181,6 +181,7 @@ class OpenEventsTrackingRepository
             counts: $counts,
             total_inscribed: $total,
             goal: $goal,
+            goal_to_date: $expected,
             goal_percentage: $goalService->getAchievementPercentage($total, $expected),
             color: $goalService->getColor($total, $expected),
         );

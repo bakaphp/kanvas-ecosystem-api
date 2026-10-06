@@ -23,15 +23,11 @@ class CompletionStatusTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_lead_completion_status',
-            description: 'Analyze and return the completion status of the lead intent using AI, '
-                . 'including evidence and confidence score. '
-                . 'Use this to determine if the lead has completed their intended goal.',
-        );
-    }
+    protected string $name = 'get_lead_completion_status';
+
+    protected ?string $description = 'Analyze and return the completion status of the lead intent using AI, '
+        . 'including evidence and confidence score. '
+        . 'Use this to determine if the lead has completed their intended goal.';
 
     #[Override]
     protected function properties(): array

@@ -30,6 +30,7 @@ class AgentReachOutAction
     public function __construct(
         protected readonly Lead $lead,
         protected readonly array $params = [],
+        protected readonly ?bool $deferDelivery = null,
     ) {
     }
 
@@ -136,7 +137,7 @@ class AgentReachOutAction
         $scheduledChannels = [];
         $scheduledMessageIds = [];
         $errors = [];
-        $deferDelivery = $this->lead->isAiSupport();
+        $deferDelivery = $this->deferDelivery ?? $this->lead->isAiSupport();
 
         foreach ($channels as $pair) {
             try {

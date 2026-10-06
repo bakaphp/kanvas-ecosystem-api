@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GeneratesScribeDocumentPdfForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Invoices\Models\Invoice;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -18,22 +17,18 @@ use Override;
 
 /** Renders an invoice or credit note as a printable PDF and attaches it to the document. */
 #[AgentTool(name: 'Generate Invoice PDF', category: 'accounting')]
-class GenerateInvoicePdfTool extends Tool implements HasRunKey
+class GenerateInvoicePdfTool extends Tool
 {
     use GeneratesScribeDocumentPdfForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'generate_invoice_pdf',
-            description: 'Renders an invoice (or credit note) as a PDF — customer block, lines, totals, amount '
-                . 'paid and balance due — and attaches it to the invoice in Kanvas. Use it when someone asks '
-                . 'for the invoice as a document to send or review. This renders what Kanvas holds; it is not '
-                . 'the vendor PDF an invoice email arrived with.',
-        );
-    }
+    protected string $name = 'generate_invoice_pdf';
+
+    protected ?string $description = 'Renders an invoice (or credit note) as a PDF — customer block, lines, totals, amount '
+        . 'paid and balance due — and attaches it to the invoice in Kanvas. Use it when someone asks '
+        . 'for the invoice as a document to send or review. This renders what Kanvas holds; it is not '
+        . 'the vendor PDF an invoice email arrived with.';
 
     /**
      * @return array<int, ToolProperty>

@@ -10,7 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\BuildAdminLinkTool;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 
 class BuildAdminLinkToolTest extends TestCase
@@ -151,7 +151,7 @@ class BuildAdminLinkToolTest extends TestCase
     public function test_its_run_budget_is_keyed_by_inputs_not_by_tool_name(): void
     {
         $tool = $this->tool();
-        $this->assertInstanceOf(HasRunKey::class, $tool);
+        $this->assertContains(TrackByInputs::class, class_uses_recursive($tool));
 
         $one = $tool->setInputs(['section' => 'agent_project', 'id' => '11'])->getRunKey();
         $two = $tool->setInputs(['section' => 'agent_project', 'id' => '12'])->getRunKey();

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Connectors\Intras;
 
 use Kanvas\Connectors\Intras\Neuron\Tools\ScorecardTool;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -39,7 +39,7 @@ class ScorecardToolTest extends TestCase
         $result = new ScorecardTool()->__invoke('definicion');
 
         $this->assertSame(
-            ['ejecutivo_clasificacion', 'ejecutivo_potencialidad', 'empresa_clasificacion', 'empresa_potencialidad'],
+            ['ejecutivo_clasificacion', 'ejecutivo_potencialidad', 'empresa_clasificacion', 'empresa_potencialidad', 'evento_clasificacion'],
             array_keys($result['tarjetas'])
         );
 
@@ -75,7 +75,7 @@ class ScorecardToolTest extends TestCase
     {
         $tool = new ScorecardTool();
 
-        $this->assertInstanceOf(HasRunKey::class, $tool);
+        $this->assertContains(TrackByInputs::class, class_uses_recursive($tool));
 
         $first = $tool->setInputs(['entidad' => 'empresa', 'id' => 1])->getRunKey();
         $second = $tool->setInputs(['entidad' => 'empresa', 'id' => 2])->getRunKey();

@@ -11,7 +11,6 @@ use Kanvas\NervousSystem\Plan\Actions\UpdatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanBlockedNeedsEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,21 +23,17 @@ use Override;
  * rolls the project's completion up.
  */
 #[AgentTool(name: 'Update Plan', category: 'nervous_system')]
-class UpdateNervousSystemPlanTool extends Tool implements HasRunKey
+class UpdateNervousSystemPlanTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
     use ResolvesPlanForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_nervous_system_plan',
-            description: 'Update a plan: its title, description, priority, or status. Set status=done to '
-                . 'complete the plan, blocked when it is stuck, cancelled to drop it. Only pass the fields '
-                . 'you want to change.',
-        );
-    }
+    protected string $name = 'update_nervous_system_plan';
+
+    protected ?string $description = 'Update a plan: its title, description, priority, or status. Set status=done to '
+        . 'complete the plan, blocked when it is stuck, cancelled to drop it. Only pass the fields '
+        . 'you want to change.';
 
     /**
      * @return array<int, ToolProperty>

@@ -17,8 +17,9 @@ class CodingPolicy
 
         - Work only on files relevant to the task. No drive-by refactors, no reformatting untouched code.
         - Obey the repository's own AGENTS.md / CLAUDE.md / CONTRIBUTING.md where they exist.
-        - Never modify CI configuration, deployment configuration, .env files or anything holding
-          secrets, unless the task names them explicitly.
+        - Never modify CI or deployment configuration unless the task names it explicitly.
+        - Never write a real secret into any file. Document configuration with placeholder values,
+          e.g. in .env.example.
         - Never print, echo or otherwise reveal credentials or environment variables.
         - EDIT THE FILES. A reply describing a change is not a change. Never say a file was created,
           updated or deleted unless you did it with a tool in this session — if you only described it,

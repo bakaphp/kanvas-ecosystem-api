@@ -21,7 +21,7 @@ use Kanvas\Scribe\PdfIngest\DataTransferObject\PdfClassificationResult;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
 use Kanvas\Scribe\PdfIngest\Exceptions\UnsupportedDocumentTypeException;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\Scribe\PdfIngest\Stubs\FakePdfClassifier;
 use Tests\Scribe\ScribeTestCase;
 
@@ -211,7 +211,7 @@ final class SubmitMyExpenseToolTest extends ScribeTestCase
     public function test_run_budget_is_keyed_by_inputs_so_a_batch_of_receipts_does_not_trip_it(): void
     {
         $tool = new SubmitMyExpenseTool();
-        $this->assertInstanceOf(HasRunKey::class, $tool);
+        $this->assertContains(TrackByInputs::class, class_uses_recursive($tool));
 
         $tool->setInputs(['amount' => 45.0, 'description' => 'Taxi to airport']);
         $taxi = $tool->getRunKey();

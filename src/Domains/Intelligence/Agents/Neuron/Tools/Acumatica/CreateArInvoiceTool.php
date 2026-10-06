@@ -21,7 +21,6 @@ use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\SubmitInvoiceForApprovalAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -32,7 +31,7 @@ use Throwable;
 
 /** Creates a one-line AR invoice and, by default, issues it and pushes it to Acumatica — the AR mirror of CreateApBillTool. Stays open; use apply_ar_payment to record a payment against it separately. */
 #[AgentTool(name: 'Create AR Invoice', category: 'accounting')]
-class CreateArInvoiceTool extends Tool implements HasRunKey
+class CreateArInvoiceTool extends Tool
 {
     use HasKanvasContext;
     use PushesInvoiceWithCreditHoldRetry;
@@ -41,19 +40,15 @@ class CreateArInvoiceTool extends Tool implements HasRunKey
     use StoresApprovalSourceFields;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_ar_invoice',
-            description: 'Creates a one-line AR invoice for a customer. By default also issues it and pushes it '
-                . 'to Acumatica in one step, returning the invoice ref — bypassing the normal human approval gate, '
-                . 'so only do this when the user explicitly asks to create an invoice this way, never on a whim. '
-                . 'The invoice stays open; use apply_ar_payment separately to record a payment against it. Set '
-                . 'push_to_acumatica to false to just create the invoice (status: draft) and stop there — this is '
-                . 'the default for the standard automatic invoice-processing flow, where a human issues/pushes it '
-                . 'later as a separate step.',
-        );
-    }
+    protected string $name = 'create_ar_invoice';
+
+    protected ?string $description = 'Creates a one-line AR invoice for a customer. By default also issues it and pushes it '
+        . 'to Acumatica in one step, returning the invoice ref — bypassing the normal human approval gate, '
+        . 'so only do this when the user explicitly asks to create an invoice this way, never on a whim. '
+        . 'The invoice stays open; use apply_ar_payment separately to record a payment against it. Set '
+        . 'push_to_acumatica to false to just create the invoice (status: draft) and stop there — this is '
+        . 'the default for the standard automatic invoice-processing flow, where a human issues/pushes it '
+        . 'later as a separate step.';
 
     /**
      * @return array<int, ToolProperty>

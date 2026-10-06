@@ -32,17 +32,17 @@ class ProvisionMyEmailInboxTool extends Tool
     use GuardsAdminForTool;
     use HasKanvasContext;
 
+    protected string $name = 'provision_my_email_inbox';
+
+    protected ?string $description = 'Give yourself your own email address on this company\'s domain, so people can email you '
+        . 'directly and you answer in this same conversation. You get exactly one address, derived from your '
+        . 'name — you cannot choose it or have a second one. If you already have one this simply tells you '
+        . 'what it is. Pass access="open" only if you are meant to be handed out publicly as a contact '
+        . 'address; the default "restricted" answers only teammates and people already in the CRM.';
+
     public function __construct(
         private readonly ?Agent $agent = null,
     ) {
-        parent::__construct(
-            name: 'provision_my_email_inbox',
-            description: 'Give yourself your own email address on this company\'s domain, so people can email you '
-                . 'directly and you answer in this same conversation. You get exactly one address, derived from your '
-                . 'name — you cannot choose it or have a second one. If you already have one this simply tells you '
-                . 'what it is. Pass access="open" only if you are meant to be handed out publicly as a contact '
-                . 'address; the default "restricted" answers only teammates and people already in the CRM.',
-        );
     }
 
     /**

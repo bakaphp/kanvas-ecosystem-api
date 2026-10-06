@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ReadsActivityForEntity;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -15,21 +14,17 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Read Person Activity', category: 'crm')]
-class ReadPersonActivityTool extends Tool implements HasRunKey
+class ReadPersonActivityTool extends Tool
 {
     use ReadsActivityForEntity;
     use ResolvesPersonForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'read_person_activity',
-            description: 'Read a contact\'s (person\'s) Activity thread — the notes, logged calls, emails and SMS the team '
-                . 'sees on that contact, newest first. Use it before summarizing a contact or deciding how to reach them. '
-                . 'It covers what was recorded on the person itself; each of their leads keeps its own activity.',
-        );
-    }
+    protected string $name = 'read_person_activity';
+
+    protected ?string $description = 'Read a contact\'s (person\'s) Activity thread — the notes, logged calls, emails and SMS the team '
+        . 'sees on that contact, newest first. Use it before summarizing a contact or deciding how to reach them. '
+        . 'It covers what was recorded on the person itself; each of their leads keeps its own activity.';
 
     /**
      * @return array<int, ToolProperty>

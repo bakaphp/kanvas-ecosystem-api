@@ -24,14 +24,10 @@ class AddInvoiceNoteTool extends Tool
     use HasKanvasContext;
     use ResolvesPushedInvoiceForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'add_invoice_note',
-            description: 'Appends a note to an AR invoice or credit memo that has already been pushed to '
-                . 'Acumatica — records it both in Kanvas and on the Acumatica document\'s Notes field.',
-        );
-    }
+    protected string $name = 'add_invoice_note';
+
+    protected ?string $description = 'Appends a note to an AR invoice or credit memo that has already been pushed to '
+        . 'Acumatica — records it both in Kanvas and on the Acumatica document\'s Notes field.';
 
     /**
      * @return array<int, ToolProperty>

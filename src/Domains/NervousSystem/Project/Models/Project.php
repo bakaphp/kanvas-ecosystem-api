@@ -192,6 +192,14 @@ class Project extends BaseModel implements HandlesAgentMention
         return $this->belongsTo(Agent::class, 'agent_id', 'id');
     }
 
+    /**
+     * Who speaks for the project: the PM agent's user when one is assigned, else the human owner.
+     */
+    public function pmUser(): ?Users
+    {
+        return $this->pmAgent?->user ?? $this->owner;
+    }
+
     public function swarm(): BelongsTo
     {
         return $this->belongsTo(AgentSwarm::class, 'swarm_id', 'id');

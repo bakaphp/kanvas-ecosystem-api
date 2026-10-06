@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\CorporateApplications\Actions;
 
-use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Concerns\ResolvesUpgradeTarget;
 use Kanvas\Companies\CorporateApplications\Concerns\ReviewsApplication;
 use Kanvas\Companies\CorporateApplications\Concerns\SendsApplicationEmail;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationEmailEnum as Email;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
-use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationSettingEnum as Setting;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Actions\RemoveCompanyAction;
 use Kanvas\Users\Models\Users;
 
@@ -21,10 +21,8 @@ class RejectCorporateApplicationAction
     use ReviewsApplication;
     use SendsApplicationEmail;
 
-    public const string DEFAULT_TEMPLATE = 'corporate-rejected';
-
     public function __construct(
-        protected readonly Model $application,
+        protected readonly Lead $application,
         protected readonly Apps $app,
         protected readonly string $reason,
         protected readonly ?Users $reviewedBy = null,
@@ -75,8 +73,7 @@ class RejectCorporateApplicationAction
     {
         return $this->sendApplicationEmail(
             $this->app,
-            (string) Setting::REJECTED_TEMPLATE->readFrom($this->app, self::DEFAULT_TEMPLATE),
-            'Sobre tu solicitud corporativa',
+            Email::REJECTED,
             [
                 'lead' => $this->application,
                 'reason' => $this->reason,

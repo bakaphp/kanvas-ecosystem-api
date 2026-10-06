@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Capability;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Services\CapabilityLookupService;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,21 +23,21 @@ use Throwable;
  * platform does not do this yet.
  */
 #[AgentTool(name: 'Capability Lookup', category: 'ecosystem')]
-class CapabilityLookupTool extends Tool implements HasRunKey
+class CapabilityLookupTool extends Tool
 {
     use TrackByInputs;
+
+    protected string $name = 'capability_lookup';
+
+    protected ?string $description = 'Check whether Kanvas has a tool for something BEFORE you try it with a tool that only '
+        . 'roughly fits. Answers with three things: matching tools you already have, matching tools the '
+        . 'platform has that you were NOT granted (and which agents hold them), and whether nothing '
+        . 'matches at all. Use it whenever a request sounds like a capability you are not sure you have — '
+        . 'especially when the closest tool name is not quite what was asked for.';
 
     public function __construct(
         private readonly ?Agent $executor = null,
     ) {
-        parent::__construct(
-            name: 'capability_lookup',
-            description: 'Check whether Kanvas has a tool for something BEFORE you try it with a tool that only '
-                . 'roughly fits. Answers with three things: matching tools you already have, matching tools the '
-                . 'platform has that you were NOT granted (and which agents hold them), and whether nothing '
-                . 'matches at all. Use it whenever a request sounds like a capability you are not sure you have — '
-                . 'especially when the closest tool name is not quite what was asked for.',
-        );
     }
 
     /**

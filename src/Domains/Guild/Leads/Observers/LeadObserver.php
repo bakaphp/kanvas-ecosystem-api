@@ -14,10 +14,8 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
-use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Actions\WriteLeadStageChangeThreadMessageAction;
-use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
@@ -148,7 +146,7 @@ class LeadObserver
             }
         }
 
-        $this->queueKnowledgeIndex($lead);
+        KnowledgeIndexRequested::dispatchIfEnabled($lead);
         //$lead->clearLightHouseCacheJob();
     }
 
@@ -179,7 +177,7 @@ class LeadObserver
             'organization_id',
             'companies_id',
         ])) {
-            $this->queueKnowledgeIndex($lead);
+            KnowledgeIndexRequested::dispatchIfEnabled($lead);
         }
         //$lead->clearLightHouseCacheJob();
     }
@@ -211,15 +209,6 @@ class LeadObserver
         ]);
 
         new DeleteSessionAction($lead)->execute();
-    }
-
-    private function queueKnowledgeIndex(Lead $lead): void
-    {
-        if (! RagComponents::isEnabled($lead)) {
-            return;
-        }
-
-        KnowledgeIndexRequested::dispatch(KnowledgeEntity::fromModel($lead));
     }
 
     /**

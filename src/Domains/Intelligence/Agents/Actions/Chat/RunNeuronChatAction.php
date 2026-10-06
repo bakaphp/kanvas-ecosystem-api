@@ -7,16 +7,20 @@ namespace Kanvas\Intelligence\Agents\Actions\Chat;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
+use Kanvas\Intelligence\Agents\Exceptions\AgentTurnCancelledException;
 use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
+use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
+use Kanvas\Intelligence\Agents\Services\AgentTurnCancellationService;
 use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
 use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
@@ -25,19 +29,27 @@ use Kanvas\Intelligence\Agents\Services\NeuronResponderProviderFallback;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Agent\AgentHandler;
 use NeuronAI\Agent\AgentState;
+use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
 use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Exceptions\RunInFlightException;
 use NeuronAI\Exceptions\ToolRunsExceededException;
-use NeuronAI\Tools\ToolInterface;
 use Throwable;
 
 class RunNeuronChatAction
 {
+    /**
+     * How long a turn waits for a lease held by another run on its thread. An inbound turn typically
+     * settles in well under this; the lease itself runs 600 s, far too long to hold a worker for.
+     */
+    private const int THREAD_BUSY_WAIT_SECONDS = 150;
+
+    private const int THREAD_BUSY_POLL_SECONDS = 5;
+
     private bool $endedOnToolBudget = false;
 
     /** @var list<string> */
@@ -67,8 +79,14 @@ class RunNeuronChatAction
     {
         $sessionId = $this->session?->uuid ?? '';
 
-        // Agents whose chatHistory already records each turn (KanvasMessageHistory) must not also
-        // logTurn here — that writes a second, parallel conversation. SalesAssist-style agents write
+        // A caller that skips the kernel (RespondToMentionJob, DraftCustomerUpdateAction) gets the session as
+        // its thread, the kernel's own choice when there is no source channel.
+        if ($this->handler instanceof BehavesAsKanvasAgent && $this->handler->getThreadId() === null) {
+            $this->handler->setThreadId($this->session?->uuid ?? Str::uuid()->toString());
+        }
+
+        // Agents whose chatHistory already records each turn (ConversationMessageStore) must not also
+        // logTurn here — that writes a second, parallel conversation. Agents on the rollup store write
         // their history to Social messages, so they keep logTurn as their only conversation record.
         $selfRecords = $this->handler instanceof BehavesAsKanvasAgent
             && $this->handler->persistsTurnsToConversationStore();
@@ -76,6 +94,25 @@ class RunNeuronChatAction
         $allowStructuredText = ! $this->handler instanceof ConversesWithCustomer;
         $budget = new AttachmentBudgetService();
 
+        // A stop that arrives after the turn ends must not cancel the next one, so the flag is cleared
+        // on every exit; the thread is the key the cancel mutation and the middleware share.
+        $threadId = $this->handler instanceof BehavesAsKanvasAgent ? $this->handler->getThreadId() : null;
+
+        try {
+            return $this->runTurn($sessionId, $selfRecords, $allowStructuredText, $budget);
+        } finally {
+            if ($threadId !== null) {
+                AgentTurnCancellationService::clear($threadId);
+            }
+        }
+    }
+
+    private function runTurn(
+        string $sessionId,
+        bool $selfRecords,
+        bool $allowStructuredText,
+        AttachmentBudgetService $budget
+    ): string {
         $userMessage = new UserMessage($this->message);
         foreach ($this->media as $attachment) {
             $binary = AttachmentFetchService::fetch($attachment);
@@ -108,35 +145,40 @@ class RunNeuronChatAction
         $usage = [];
 
         try {
-            if (is_object($this->handler)
-                && method_exists($this->handler, 'resolveProvider')
-                && method_exists($this->handler, 'setAiProvider')) {
+            if ($this->handler instanceof BehavesAsKanvasAgent) {
                 $this->handler->setAiProvider(
                     new NeuronResponderProviderFallback()->wrap(
-                        $this->handler->resolveProvider(),
+                        $this->handler->getProvider(),
                         $this->agent,
                     ),
                 );
             }
 
-            // chat() returns immediately with an AgentHandler; the actual LLM
-            // round-trip happens inside run() / getMessage(). Both must be
-            // inside the try block so provider errors (e.g. Gemini returning
-            // STOP with no `parts`) don't bubble as 500s.
-            $responseContent = $this->handler->chat($userMessage);
-
-            if ($responseContent instanceof AgentHandler) {
-                $state = $responseContent->run();
-                $responseMessage = $state->getMessage();
-                [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
-                $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
-                $this->executedToolCalls = BoundToolResultsMiddleware::executedCalls($state);
-            } else {
-                $responseMessage = $responseContent;
-                if ($responseMessage instanceof Message && ($u = $responseMessage->getUsage())) {
-                    $usage = $u->jsonSerialize();
-                }
+            // chat() runs the whole turn, so a provider error (e.g. Gemini blocking the content)
+            // surfaces here, inside the try, and never bubbles as a 500. A redelivered turn whose first
+            // attempt died with its worker is continued, not restarted, so no write runs twice.
+            $state = $this->handler instanceof BehavesAsKanvasAgent
+                ? $this->handler->recoverInterruptedRun($userMessage)
+                : null;
+            $state ??= $this->chatOnceTheThreadSettles($userMessage);
+            $responseMessage = $state->getMessage() ?? new AssistantMessage('');
+            [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
+            $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
+            $this->executedToolCalls = BoundToolResultsMiddleware::executedCalls($state);
+        } catch (AgentTurnCancelledException $e) {
+            // The person stopped it: no fallback, no report, no turn logged. The message row is kept
+            // for the transcript but leaves the model's window, so the resend is answered alone.
+            if ($this->handler instanceof BehavesAsKanvasAgent) {
+                $this->handler->discardTurn($userMessage);
             }
+
+            Log::info('Neuron chat turn cancelled on request', [
+                'agent_id' => $this->agent->getId(),
+                'session_id' => $sessionId,
+                'thread_id' => $e->threadId,
+            ]);
+
+            throw $e;
         } catch (Throwable $e) {
             $fallback = $this->humanizedFallback($e);
 
@@ -165,6 +207,7 @@ class RunNeuronChatAction
                     assistantResponse: $fallback,
                     agentId: $this->agent->getId(),
                     usage: ['error' => $e::class, 'message' => $e->getMessage()],
+                    participant: KanvasConversationStore::participantFor($this->session, $this->user, $this->agent),
                 );
             }
 
@@ -189,7 +232,7 @@ class RunNeuronChatAction
         if (! $selfRecords) {
             // Record the model the agent resolved to so the daily rollup can price the
             // turn — Neuron doesn't surface the model on the response itself.
-            if (is_object($this->handler) && method_exists($this->handler, 'resolvedModelName')) {
+            if ($this->handler instanceof BehavesAsKanvasAgent) {
                 $usage['model'] = $this->handler->resolvedModelName();
             }
 
@@ -203,10 +246,11 @@ class RunNeuronChatAction
                 toolCalls: $toolCalls,
                 toolResults: $toolResults,
                 usage: $usage,
+                participant: KanvasConversationStore::participantFor($this->session, $this->user, $this->agent),
             );
         }
 
-        // Idempotent backfill so SalesAssistKanvasMessageHistory (entity-keyed query)
+        // Idempotent backfill so EntityRollupMessageStore (entity-keyed query)
         // sees every channel message on the next turn.
         $this->backfillChannelMessagesToLead();
 
@@ -229,6 +273,44 @@ class RunNeuronChatAction
         return $this->executedToolCalls;
     }
 
+    /**
+     * A durable run holds a lease on its thread while it executes, and a second inbound on the same
+     * thread, two emails minutes apart on one AP mailbox, arrives while the first is still answering.
+     * Neuron refuses the second with RunInFlightException (KANVAS-ECOSYSTEM-6JE). The lease is not a
+     * fault: the turn waits for the thread to settle and runs then, so the second message is answered
+     * with the first reply in its history instead of failing the webhook.
+     */
+    private function chatOnceTheThreadSettles(UserMessage $userMessage): AgentState
+    {
+        $waited = 0;
+
+        while (true) {
+            try {
+                return $this->handler->chat($userMessage);
+            } catch (RunInFlightException $e) {
+                if ($waited >= self::THREAD_BUSY_WAIT_SECONDS) {
+                    throw $e;
+                }
+
+                if ($waited === 0) {
+                    Log::info('Agent thread busy; waiting for the running turn to settle', [
+                        'agent_id' => $this->agent->getId(),
+                        'thread_id' => $e->workflowId,
+                        'run_id' => $e->runId,
+                    ]);
+                }
+
+                $this->pause(self::THREAD_BUSY_POLL_SECONDS);
+                $waited += self::THREAD_BUSY_POLL_SECONDS;
+            }
+        }
+    }
+
+    protected function pause(int $seconds): void
+    {
+        sleep($seconds);
+    }
+
     private function humanizedFallback(Throwable $e): string
     {
         // A prospect talks to a persona (Sales, Receptionist): any system wording — a hiccup, an
@@ -242,8 +324,8 @@ class RunNeuronChatAction
                 . 'like me to look into it or handle it a different way.';
         }
 
-        // Any tool can trip the run budget, not just the people lookups this copy used to name —
-        // a reporting tool looping on an empty date range hits it too (KANVAS-ECOSYSTEM-682).
+        // Any tool can trip the run budget, not just the people lookups — a reporting tool looping on an
+        // empty date range hits it too (KANVAS-ECOSYSTEM-682).
         if ($e instanceof ToolRunsExceededException) {
             return 'I kept retrying the same lookup without getting anywhere. Could you narrow it down for me — '
                 . 'an exact name, email, or date range — and ask again?';
@@ -357,33 +439,26 @@ class RunNeuronChatAction
     {
         $toolCalls = [];
         $toolResults = [];
-        $inputTokens = 0;
-        $outputTokens = 0;
+        $usage = ['input_tokens' => 0, 'output_tokens' => 0, 'cache_read' => 0, 'cache_write' => 0];
         $seenFinal = false;
 
-        $accumulate = function (Message $m) use (&$toolCalls, &$toolResults, &$inputTokens, &$outputTokens): void {
+        $accumulate = function (Message $m) use (&$toolCalls, &$toolResults, &$usage): void {
             if ($m instanceof ToolCallMessage) {
-                foreach ($m->getTools() as $tool) {
-                    /** @var ToolInterface $tool */
-                    $toolCalls[] = $tool->jsonSerialize();
+                foreach ($m->getToolCalls() as $call) {
+                    $toolCalls[] = $call->jsonSerialize();
                 }
             }
             if ($m instanceof ToolResultMessage) {
-                foreach ($m->getTools() as $tool) {
-                    /** @var ToolInterface $tool */
-                    $toolResults[] = $tool->jsonSerialize();
+                foreach ($m->getToolCalls() as $call) {
+                    $toolResults[] = $call->jsonSerialize();
                 }
             }
-            if ($u = $m->getUsage()) {
-                $inputTokens += $u->inputTokens;
-                $outputTokens += $u->outputTokens;
+            foreach (ConversationUsageSqlHelper::neuronUsageRow($m) as $key => $count) {
+                $usage[$key] += $count;
             }
         };
 
         foreach ($state->getSteps() as $step) {
-            if (! $step instanceof Message) {
-                continue;
-            }
             $accumulate($step);
             if ($step === $finalMessage) {
                 $seenFinal = true;
@@ -394,12 +469,6 @@ class RunNeuronChatAction
             $accumulate($finalMessage);
         }
 
-        return [
-            $toolCalls,
-            $toolResults,
-            ($inputTokens > 0 || $outputTokens > 0)
-                ? ['input_tokens' => $inputTokens, 'output_tokens' => $outputTokens]
-                : [],
-        ];
+        return [$toolCalls, $toolResults, array_filter($usage)];
     }
 }

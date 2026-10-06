@@ -25,13 +25,13 @@ class ListScheduledActionsTool extends Tool
     use HasKanvasContext;
     use ResolvesConversationHuman;
 
+    protected string $name = 'list_scheduled_actions';
+
+    protected ?string $description = 'List the pending reminders and scheduled tasks for the current user, with their ids '
+        . 'and next fire times. Use before cancelling so you have the right id.';
+
     public function __construct(private readonly ?Session $session = null)
     {
-        parent::__construct(
-            name: 'list_scheduled_actions',
-            description: 'List the pending reminders and scheduled tasks for the current user, with their ids '
-                . 'and next fire times. Use before cancelling so you have the right id.',
-        );
     }
 
     /**

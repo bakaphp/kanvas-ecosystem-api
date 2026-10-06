@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,7 +23,7 @@ use Override;
  * file on behalf of someone else. The request lands as PENDING for a manager to approve.
  */
 #[AgentTool(name: 'Request My Leave', category: 'human_resources')]
-class RequestMyLeaveTool extends Tool implements HasRunKey
+class RequestMyLeaveTool extends Tool
 {
     use HandlesLeaveForTool;
     use HasKanvasContext;
@@ -32,16 +31,12 @@ class RequestMyLeaveTool extends Tool implements HasRunKey
     use RequiresHumanCaller;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'request_my_leave',
-            description: 'Files YOUR OWN PENDING time-off request against a leave type, between a start and end date '
-                . '(inclusive). It always requests for the person you are talking to — it takes no employee identifier. '
-                . 'Returns created=false with a reason if your balance is insufficient or the leave type is unknown. '
-                . 'The request goes to a manager to approve.',
-        );
-    }
+    protected string $name = 'request_my_leave';
+
+    protected ?string $description = 'Files YOUR OWN PENDING time-off request against a leave type, between a start and end date '
+        . '(inclusive). It always requests for the person you are talking to — it takes no employee identifier. '
+        . 'Returns created=false with a reason if your balance is insufficient or the leave type is unknown. '
+        . 'The request goes to a manager to approve.';
 
     /**
      * @return array<int, ToolProperty>

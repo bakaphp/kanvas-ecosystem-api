@@ -17,16 +17,12 @@ use Override;
 #[AgentTool(name: 'Resend Invoice Attachment', category: 'accounting')]
 class ResendInvoiceAttachmentTool extends AbstractResendApprovalAttachmentTool
 {
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'resend_invoice_attachment',
-            description: 'Re-sends a pending AR invoice\'s PDF to its configured approver(s) on Slack. Use this '
-                . 'when an approver says they did not receive the attachment with their approval request. Only '
-                . 'works if an invoice PDF was captured when the invoice was created — reports plainly when '
-                . 'there is nothing on file to resend, rather than failing silently.',
-        );
-    }
+    protected string $name = 'resend_invoice_attachment';
+
+    protected ?string $description = 'Re-sends a pending AR invoice\'s PDF to its configured approver(s) on Slack. Use this '
+        . 'when an approver says they did not receive the attachment with their approval request. Only '
+        . 'works if an invoice PDF was captured when the invoice was created — reports plainly when '
+        . 'there is nothing on file to resend, rather than failing silently.';
 
     /**
      * @return array<string, mixed>

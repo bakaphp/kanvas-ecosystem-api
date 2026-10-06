@@ -25,6 +25,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReassignLeadOwnerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendBatchMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetLeadStatusTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TagLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UploadFileToLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\UploadFileToMessageTool;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
@@ -80,6 +81,7 @@ class SalesManagerAgent extends SystemUserAgent
         $core[] = new ReassignLeadOwnerTool()->withContext($app, $company, $user);
         $core[] = new SetLeadStatusTool()->withContext($app, $company, $user);
         $core[] = new AddLeadNoteTool()->withContext($app, $company, $user);
+        $core[] = new TagLeadTool()->withContext($app, $company, $user);
         $core[] = new FindPersonTool()->withContext($app, $company, $user);
         $core[] = new FindPeopleBulkTool()->withContext($app, $company, $user);
         $core[] = new GetPersonTool()->withContext($app, $company, $user);

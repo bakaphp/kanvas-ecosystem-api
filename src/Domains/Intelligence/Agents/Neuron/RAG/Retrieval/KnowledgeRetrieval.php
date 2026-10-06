@@ -9,11 +9,11 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
-use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\RAG\Document;
 use NeuronAI\RAG\Retrieval\RetrievalInterface;
+use NeuronAI\RAG\VectorStore\Filter\FilterExpression;
 use Override;
 
 /**
@@ -34,15 +34,19 @@ class KnowledgeRetrieval implements RetrievalInterface
     ) {
     }
 
-    /** @return list<Document> */
+    /**
+     * Per-run Neuron filters are ignored: tenant and entity scope is enforced by KnowledgeScope.
+     *
+     * @return list<Document>
+     */
     #[Override]
-    public function retrieve(Message $query): array
+    public function retrieve(Message $query, ?FilterExpression $filters = null): array
     {
         if ($this->app === null || $this->company === null) {
             return [];
         }
 
-        if (! filter_var($this->app->get(KnowledgeConfigurationEnum::ENABLED->value), FILTER_VALIDATE_BOOL)) {
+        if (! KnowledgeComponents::knowledgeEnabled($this->app)) {
             return [];
         }
 
@@ -100,10 +104,10 @@ class KnowledgeRetrieval implements RetrievalInterface
             }
             $seen[$key] = true;
 
-            $document = new Document($hit['content']);
-            $document->sourceType = $hit['sourceType'];
-            $document->sourceName = $hit['sourceName'];
-            $document->setScore($hit['score']);
+            $document = new Document($hit['content'])
+                ->setSourceType($hit['sourceType'])
+                ->setSourceName($hit['sourceName'])
+                ->setScore($hit['score']);
             $documents[] = $document;
 
             if (count($documents) >= $topK) {

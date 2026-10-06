@@ -20,18 +20,14 @@ class UserAvailabilityTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_user_availability',
-            description: 'List free time slots for the lead owner (salesperson) in the given window, honoring company work hours. '
-                . 'Use this BEFORE proposing meeting times so the slots you suggest are real. '
-                . 'DEFAULTS: if you do not know today\'s date or the prospect did not specify a window, OMIT the `from` '
-                . 'and `to` parameters — the tool will default to "now through the next 10 business days". '
-                . 'NEVER pass dates from before the current date in your context. '
-                . 'Returns an array of {start, end} slots in ISO-8601 in the company timezone.',
-        );
-    }
+    protected string $name = 'get_user_availability';
+
+    protected ?string $description = 'List free time slots for the lead owner (salesperson) in the given window, honoring company work hours. '
+        . 'Use this BEFORE proposing meeting times so the slots you suggest are real. '
+        . 'DEFAULTS: if you do not know today\'s date or the prospect did not specify a window, OMIT the `from` '
+        . 'and `to` parameters — the tool will default to "now through the next 10 business days". '
+        . 'NEVER pass dates from before the current date in your context. '
+        . 'Returns an array of {start, end} slots in ISO-8601 in the company timezone.';
 
     #[Override]
     protected function properties(): array

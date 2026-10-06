@@ -17,7 +17,6 @@ use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use Kanvas\NervousSystem\Project\Enums\ProjectMemberTypeEnum;
 use Kanvas\NervousSystem\Project\Models\ProjectMember;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -32,23 +31,19 @@ use Override;
  *    (or their own runtime) do the work and report progress.
  */
 #[AgentTool(name: 'Assign Plan', category: 'nervous_system')]
-class AssignNervousSystemPlanTool extends Tool implements HasRunKey
+class AssignNervousSystemPlanTool extends Tool
 {
     use HasKanvasContext;
     use ReportsToolOutcome;
     use TrackByInputs;
     use ResolvesPlanForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'assign_nervous_system_plan',
-            description: 'Assign a whole plan to a project member — a human OR an agent (pass exactly one of '
-                . 'agent_id or users_id, from the members list). An executor agent auto-runs the plan; a human '
-                . '(or a non-executor agent) is recorded as owner but does NOT auto-run — @mention them to '
-                . 'notify. Returns whether the assignee will auto-run.',
-        );
-    }
+    protected string $name = 'assign_nervous_system_plan';
+
+    protected ?string $description = 'Assign a whole plan to a project member — a human OR an agent (pass exactly one of '
+        . 'agent_id or users_id, from the members list). An executor agent auto-runs the plan; a human '
+        . '(or a non-executor agent) is recorded as owner but does NOT auto-run — @mention them to '
+        . 'notify. Returns whether the assignee will auto-run.';
 
     /**
      * @return array<int, ToolProperty>

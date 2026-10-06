@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\Quotes\Models\QuoteLine;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,22 +20,18 @@ use Override;
  * importantly the quote_id, which every other quote tool takes.
  */
 #[AgentTool(name: 'Find Quote', category: 'accounting')]
-class FindQuoteTool extends Tool implements HasRunKey
+class FindQuoteTool extends Tool
 {
     use FindsTenantRecordForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_quote',
-            description: 'Look up a single quote by its quote number and return the full detail: customer, '
-                . 'status (draft/sent/accepted/rejected/expired/converted), totals, validity date, line items, '
-                . 'and the invoice it became if it was converted. Use it to get the quote_id the other quote '
-                . 'tools need. Returns found=false when there is no such quote.',
-        );
-    }
+    protected string $name = 'find_quote';
+
+    protected ?string $description = 'Look up a single quote by its quote number and return the full detail: customer, '
+        . 'status (draft/sent/accepted/rejected/expired/converted), totals, validity date, line items, '
+        . 'and the invoice it became if it was converted. Use it to get the quote_id the other quote '
+        . 'tools need. Returns found=false when there is no such quote.';
 
     /**
      * @return array<int, ToolProperty>

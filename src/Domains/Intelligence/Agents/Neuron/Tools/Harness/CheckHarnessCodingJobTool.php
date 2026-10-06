@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -27,23 +26,23 @@ use Throwable;
  * unblock it.
  */
 #[AgentTool(name: 'Check Self-Hosted Coding Job', category: 'coding')]
-class CheckHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSystemAgent
+class CheckHarnessCodingJobTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     // Checking two different jobs in one turn is normal; sharing a budget across them is not.
     use TrackByInputs;
 
+    protected string $name = 'check_self_hosted_coding_job';
+
+    protected ?string $description = 'Check a coding job you started with dispatch_self_hosted_coding_task: whether it is '
+        . 'running, waiting on a human, finished or failed, plus elapsed time, tokens and cost. When it '
+        . 'is waiting, this also returns pending_permissions — each with the permission_id that '
+        . 'answer_self_hosted_coding_permission needs. Call at '
+        . 'most once per turn — the job advances between turns, not within one.';
+
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'check_self_hosted_coding_job',
-            description: 'Check a coding job you started with dispatch_self_hosted_coding_task: whether it is '
-                . 'running, waiting on a human, finished or failed, plus elapsed time, tokens and cost. When it '
-                . 'is waiting, this also returns pending_permissions — each with the permission_id that '
-                . 'answer_self_hosted_coding_permission needs. Call at '
-                . 'most once per turn — the job advances between turns, not within one.',
-        );
     }
 
     /**
