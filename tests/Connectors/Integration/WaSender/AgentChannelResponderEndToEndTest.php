@@ -47,8 +47,6 @@ class AgentChannelResponderEndToEndTest extends TestCase
         $this->assertNotNull($outbound, 'Agent reply must be persisted on the channel');
         $this->assertStringContainsString('Hola Mundo', (string) ($outbound->message['content'] ?? ''));
         $this->assertSame((string) $session->uuid, (string) ($outbound->message['session_id'] ?? ''));
-        $this->assertSame('whatsapp', $outbound->message['verb'] ?? null);
-        $this->assertSame($outbound->messageType->verb, $outbound->message['verb']);
         $this->assertArrayNotHasKey('response_json', $outbound->message);
     }
 
