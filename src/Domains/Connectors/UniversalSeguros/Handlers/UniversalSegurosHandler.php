@@ -85,4 +85,18 @@ class UniversalSegurosHandler extends BaseIntegration
             );
         }
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::CLIENT_ID->value,
+            ConfigurationEnum::CLIENT_SECRET->value,
+            ConfigurationEnum::ENVIRONMENT->value,
+            ConfigurationEnum::SCOPES->value,
+            ConfigurationEnum::VERIFY_SSL->value,
+            InsuranceCustomFieldEnum::INSURER_COMPANY_ID->value,
+            InsuranceCustomFieldEnum::PROVIDER->value,
+        ];
+    }
 }

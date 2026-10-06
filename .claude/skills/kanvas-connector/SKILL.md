@@ -71,6 +71,15 @@ class {ConnectorName}Handler extends BaseIntegration
         // Validate by making a test API call
         return Client::validateCredentials($apiKey);
     }
+
+    // Every key setup() writes with $this->company->set(). removeIntegrationCompany runs
+    // teardown(), which deletes exactly these — an undeclared key stays live after disconnect.
+    // App-level keys are shared across companies and are deliberately not torn down.
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [ConfigurationEnum::COMPANY_KEY->value];
+    }
 }
 ```
 
@@ -328,7 +337,7 @@ VALUES ('{connector_name}', UUID(), 0, '{"api_key": {"type": "text", "required":
 ## Connector Checklist
 
 - [ ] **Enums**: `ConfigurationEnum` + `CustomFieldEnum`
-- [ ] **Handler**: Extends `BaseIntegration` with `setup()` method
+- [ ] **Handler**: Extends `BaseIntegration` with `setup()`; declares every company key it writes in `companySettingKeys()` (enforced by `tests/Connectors/HandlersDeclareSettingKeysTest.php`)
 - [ ] **Client**: Guzzle HTTP client (if external API)
 - [ ] **DTO**: Configuration/credentials data object
 - [ ] **Service**: Core service class (optional)

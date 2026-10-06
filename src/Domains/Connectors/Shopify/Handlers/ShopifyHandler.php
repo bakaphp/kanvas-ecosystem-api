@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Shopify\Handlers;
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\DataTransferObject\Shopify as ShopifyDto;
+use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Connectors\Shopify\ShopifyService;
 use Override;
 
@@ -27,5 +28,11 @@ class ShopifyHandler extends BaseIntegration
         ShopifyService::shopifySetup($shopifyDto);
 
         return ! empty(Client::getInstance($this->app, $this->company, $shopifyDto->region)->Shop->get());
+    }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [ShopifyConfigurationService::generateCredentialKey($this->company, $this->app, $this->region)];
     }
 }

@@ -30,4 +30,29 @@ abstract class BaseIntegration
      * test the integration connection
      */
     abstract public function setup(): bool;
+
+    /**
+     * Undo what setup() persisted on the company, so a disconnected integration stops resolving
+     * credentials. Connector code reads straight from company settings and never checks the
+     * integration_companies row, so leaving the keys behind keeps the integration live.
+     *
+     * App-level settings are shared by every company on the app and are deliberately left alone.
+     */
+    public function teardown(): void
+    {
+        foreach ($this->companySettingKeys() as $key) {
+            $this->company->del($key);
+        }
+    }
+
+    /**
+     * Every key setup() writes with $this->company->set(). Declare all of them, including the
+     * optional ones — del() on a missing key is a no-op.
+     *
+     * @return list<string>
+     */
+    protected function companySettingKeys(): array
+    {
+        return [];
+    }
 }

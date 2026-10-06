@@ -65,4 +65,19 @@ class WordPressHandler extends BaseIntegration
             }
         }
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::SITE_URL->value,
+            ConfigurationEnum::USERNAME->value,
+            ConfigurationEnum::APPLICATION_PASSWORD->value,
+            ConfigurationEnum::DEFAULT_POST_STATUS->value,
+            ConfigurationEnum::DEFAULT_AUTHOR_ID->value,
+            ConfigurationEnum::DEFAULT_CATEGORIES->value,
+            ConfigurationEnum::DEFAULT_TAGS->value,
+            ConfigurationEnum::ALLOW_TERM_CREATION->value,
+        ];
+    }
 }
