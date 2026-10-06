@@ -22,6 +22,7 @@ use Kanvas\Guild\Leads\Models\LeadAttempt;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 final class PublishParkingApplicationActionTest extends TestCase
@@ -66,7 +67,7 @@ final class PublishParkingApplicationActionTest extends TestCase
         $attributes = $product->attributeValues->mapWithKeys(fn ($av) => [$av->attribute->slug => $av->value]);
         $this->assertEquals(['lat' => 18.4718, 'long' => -69.9394], $attributes['coordinates']);
         $this->assertEquals(['open' => '07:00', 'close' => '22:00'], $attributes['parking-hours']);
-        $this->assertSame('commercial', $attributes['type']);
+        $this->assertSame('mall', $attributes['type']);
         $this->assertSame(120, $attributes['capacity']['totalParkingSpaces']);
 
         $variant = $product->variants()->firstOrFail();
@@ -79,8 +80,9 @@ final class PublishParkingApplicationActionTest extends TestCase
         $this->assertSame(18.4718, (float) $warehouseRow->latitude);
         $this->assertSame(-69.9394, (float) $warehouseRow->longitude);
         $this->assertSame(500.0, (float) $warehouseRow->config['rates']['overnight']);
-        $this->assertSame(['movipass', 'cash'], $warehouseRow->config['payment_methods']);
-        $this->assertSame(8, $warehouseRow->config['infrastructure']['camera_count']);
+        $this->assertSame(['card', 'cash'], $warehouseRow->config['payment_methods']);
+        $this->assertSame(['lighting', 'cameras', 'security_staff', 'electronic_gate'], $warehouseRow->config['infrastructure']);
+        $this->assertSame(8, $warehouseRow->config['camera_count']);
 
         $files = $product->getFiles();
         $this->assertCount(4, $files);
@@ -219,15 +221,96 @@ final class PublishParkingApplicationActionTest extends TestCase
         $this->assertSame(6, $ruleDays, 'Sunday is a recurring closure');
     }
 
-    public function testAValueTheWizardLetThroughFailsBeforeAnythingIsWritten(): void
+    public function testAnInvalidOptionalValueIsIgnoredAndTheParkingStillPublishes(): void
     {
-        $lead = $this->approvedApplication([Field::PARKING_TYPE->value => 'Parqueo techado']);
+        $lead = $this->approvedApplication([
+            Field::INFRASTRUCTURE->value => ['Garita de seguridad'],
+            Field::CAMERA_COUNT->value => 'muchas',
+        ]);
+
+        $publish = new PublishParkingApplicationAction($lead);
+        $product = $publish->execute();
+
+        $this->assertSame((string) $product->getId(), (string) Field::PRODUCT_ID->readFrom($lead->fresh()));
+        $this->assertEqualsCanonicalizing(
+            [Field::INFRASTRUCTURE->value, Field::CAMERA_COUNT->value],
+            array_keys($publish->ignoredFields())
+        );
+
+        $config = $product->variants()->firstOrFail()->variantWarehouses()->firstOrFail()->config;
+        $this->assertSame([], $config['infrastructure']);
+    }
+
+    public function testWithoutAScheduleTheParkingPublishesWithNoOpeningHoursForTheOwnerToSetLater(): void
+    {
+        $lead = $this->approvedApplication([
+            Field::IS_24_7->value => false,
+            Field::SCHEDULE->value => null,
+            Field::CLOSURES->value => null,
+        ]);
+
+        $product = new PublishParkingApplicationAction($lead)->execute();
+        $variant = $product->variants()->firstOrFail();
+
+        $ruleDays = ScheduleRules::query()
+            ->where('resources_type', $variant->getMorphClass())
+            ->where('resources_id', $variant->getId())
+            ->count();
+        $this->assertSame(0, $ruleDays);
+
+        $attributes = $product->attributeValues->mapWithKeys(fn ($av) => [$av->attribute->slug => $av->value]);
+        $this->assertArrayNotHasKey('parking-hours', $attributes);
+    }
+
+    #[DataProvider('fieldsTheWizardRequires')]
+    public function testAFieldTheWizardRequiresBlocksPublicationWhenMissing(Field $field): void
+    {
+        $lead = $this->approvedApplication([$field->value => null]);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage($field->value);
+
+        new PublishParkingApplicationAction($lead)->execute();
+    }
+
+    public static function fieldsTheWizardRequires(): array
+    {
+        return [
+            'parking type' => [Field::PARKING_TYPE],
+            'structure' => [Field::STRUCTURE],
+            'province' => [Field::PROVINCE],
+        ];
+    }
+
+    public function testAZeroHourlyRateBlocksPublication(): void
+    {
+        $lead = $this->approvedApplication([Field::RATE_HOURLY->value => 0]);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage(Field::RATE_HOURLY->value);
+
+        new PublishParkingApplicationAction($lead)->execute();
+    }
+
+    public function testFewerThanFourPhotosBlocksPublication(): void
+    {
+        $lead = $this->parkingApplication($this->kanvasApp, $this->company, $this->fixtureFields());
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('photos');
+
+        new PublishParkingApplicationAction($lead->fresh())->execute();
+    }
+
+    public function testAnInvalidRequiredValueFailsBeforeAnythingIsWritten(): void
+    {
+        $lead = $this->approvedApplication([Field::CAPACITY_TOTAL->value => 'muchos']);
 
         try {
             new PublishParkingApplicationAction($lead)->execute();
             $this->fail('expected a ValidationException');
         } catch (ValidationException $e) {
-            $this->assertStringContainsString(Field::PARKING_TYPE->value, $e->getMessage());
+            $this->assertStringContainsString(Field::CAPACITY_TOTAL->value, $e->getMessage());
         }
 
         $this->assertSame(0, Products::query()->fromCompany($this->company)->where('name', 'Parqueo Plaza Central')->count());
@@ -281,12 +364,7 @@ final class PublishParkingApplicationActionTest extends TestCase
     {
         $lead = $this->parkingApplication($this->kanvasApp, $this->company, array_merge($this->fixtureFields(), $overrides));
 
-        $lead->addMultipleFilesFromUrl([
-            ['url' => 'https://picsum.photos/seed/parqueo-entrada/1200/800.jpg', 'name' => 'entrada.jpg'],
-            ['url' => 'https://picsum.photos/seed/parqueo-espacios/1200/800.jpg', 'name' => 'espacios.jpg'],
-            ['url' => 'https://picsum.photos/seed/parqueo-seguridad/1200/800.jpg', 'name' => 'seguridad.jpg'],
-            ['url' => 'https://picsum.photos/seed/parqueo-acceso/1200/800.jpg', 'name' => 'acceso.jpg'],
-        ]);
+        $this->attachFixturePhotos($lead);
 
         return $lead->fresh();
     }
