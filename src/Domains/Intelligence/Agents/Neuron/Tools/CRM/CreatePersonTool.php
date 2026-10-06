@@ -10,6 +10,7 @@ use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\LinksRecordsToAdmin;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -29,6 +30,7 @@ class CreatePersonTool extends Tool
 {
     use DecodesJsonObjectParam;
     use HasKanvasContext;
+    use LinksRecordsToAdmin;
     use TrackByInputs;
 
     protected string $name = 'create_person';
@@ -127,6 +129,7 @@ class CreatePersonTool extends Tool
 
         return [
             'person_id' => $person->getId(),
+            'admin_url' => $this->adminUrlOf($person),
             'name' => $person->getName(),
             'email' => $person->getEmails()->first()?->value,
             'message' => 'Contact created.',

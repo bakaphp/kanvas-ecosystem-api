@@ -10,6 +10,7 @@ use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\LinksRecordsToAdmin;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesUpdatedWindow;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\PropertyType;
@@ -32,6 +33,7 @@ use Override;
 class SearchLeadsTool extends Tool
 {
     use HasKanvasContext;
+    use LinksRecordsToAdmin;
     use ResolvesUpdatedWindow;
     use TrackByInputs;
 
@@ -102,10 +104,19 @@ class SearchLeadsTool extends Tool
                 required: false,
             ),
             new ToolProperty(
+                name: 'sort',
+                type: PropertyType::STRING,
+                description: 'Order of the list: "newest" (default, most recently updated first) or "oldest" '
+                    . '(least recently updated first). "oldest" with status "open" answers "which open leads '
+                    . 'have gone longest without activity" in ONE call; never page backwards with '
+                    . 'updated_until to find them.',
+                required: false,
+            ),
+            new ToolProperty(
                 name: 'limit',
                 type: PropertyType::INTEGER,
-                description: 'Max leads to LIST, most recently updated first. Defaults to 25, max 100. It does '
-                    . 'not cap total_matching, so a count is right even when the list is truncated.',
+                description: 'Max leads to LIST. Defaults to 25, max 100. It does not cap total_matching, so a '
+                    . 'count is right even when the list is truncated.',
                 required: false,
             ),
         ];
@@ -121,47 +132,39 @@ class SearchLeadsTool extends Tool
         ?string $owner = null,
         ?string $updated_since = null,
         ?string $updated_until = null,
+        ?string $sort = null,
         ?int $limit = null,
     ): array {
         $query = trim((string) $query);
         $missing = strtolower(trim((string) $missing_contact));
         $owner = trim((string) $owner);
+        $sort = strtolower(trim((string) $sort)) ?: 'newest';
+
+        if (! in_array($sort, ['newest', 'oldest'], true)) {
+            return self::miss(sprintf('sort must be "newest" or "oldest" — got "%s".', $sort));
+        }
 
         $window = $this->resolveUpdatedWindow($updated_since, $updated_until);
 
         if ($window['error'] !== null) {
-            return [
-                'count' => 0,
-                'total_matching' => 0,
-                'leads' => [],
-                'error' => $window['error'],
-            ];
+            return self::miss($window['error']);
         }
 
-        // An owner or a date window narrows the book on its own — requiring a query on top of them is
-        // what made "which leads did <rep> touch today" unanswerable.
-        if ($query === '' && $missing === '' && $owner === '' && $window['from'] === null && $window['to'] === null) {
-            return [
-                'count' => 0,
-                'total_matching' => 0,
-                'leads' => [],
-                'error' => 'Give me at least one filter: a query (name, email, phone or lead title), '
-                    . 'missing_contact ("email", "phone", "either", "both"), an owner, or updated_since '
-                    . '("today", "yesterday", "last_7_days", or a YYYY-MM-DD date). All empty would return '
-                    . 'the whole book in no particular order.',
-            ];
+        // An owner, a date window or an explicit order narrows the book on its own; requiring a query on
+        // top of them makes "which leads did <rep> touch today" and "the oldest open leads" unanswerable.
+        if ($query === '' && $missing === '' && $owner === '' && $window['from'] === null && $window['to'] === null && $sort === 'newest') {
+            return self::miss('Give me at least one filter: a query (name, email, phone or lead title), '
+                . 'missing_contact ("email", "phone", "either", "both"), an owner, updated_since '
+                . '("today", "yesterday", "last_7_days", or a YYYY-MM-DD date), or sort "oldest" for the '
+                . 'leads longest without activity. All empty would return the whole book in no '
+                . 'particular order.');
         }
 
         if ($missing !== '' && ! in_array($missing, ['email', 'phone', 'either', 'both'], true)) {
-            return [
-                'count' => 0,
-                'total_matching' => 0,
-                'leads' => [],
-                'error' => sprintf(
+            return self::miss(sprintf(
                     'missing_contact must be "email", "phone", "either" or "both" — got "%s".',
                     $missing,
-                ),
-            ];
+                ));
         }
 
         $limit = max(1, min(100, $limit ?? 25));
@@ -180,7 +183,7 @@ class SearchLeadsTool extends Tool
 
         $leads = $base
             ->with(['owner', 'people.contacts', 'stage', 'status'])
-            ->orderByDesc('updated_at')
+            ->orderBy('updated_at', $sort === 'oldest' ? 'asc' : 'desc')
             ->limit($limit)
             ->get();
 
@@ -190,6 +193,7 @@ class SearchLeadsTool extends Tool
             'truncated' => $total > $leads->count(),
             'updated_window' => $window['label'],
             'timezone' => $window['timezone'],
+            'sort' => $sort,
             'leads' => $leads->map(fn (Lead $lead): array => $this->present($lead))->all(),
         ];
     }
@@ -302,6 +306,14 @@ class SearchLeadsTool extends Tool
     }
 
     /**
+     * @return array{count: int, total_matching: int, leads: list<never>, error: string}
+     */
+    private static function miss(string $error): array
+    {
+        return ['count' => 0, 'total_matching' => 0, 'leads' => [], 'error' => $error];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function present(Lead $lead): array
@@ -311,6 +323,7 @@ class SearchLeadsTool extends Tool
 
         return [
             'lead_id' => $lead->getId(),
+            'admin_url' => $this->adminUrlOf($lead),
             'title' => $lead->title,
             'contact' => $lead->people?->getName(),
             'email' => $this->firstContactValue($contacts, Contact::EMAIL_TYPES),

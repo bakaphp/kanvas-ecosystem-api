@@ -102,8 +102,9 @@ class AgentChatKernel
             throw AgentProviderException::fromThrowable($e, $this->agent);
         }
 
-        $durationMs = (microtime(true) - $startTime) * 1000.0;
-        $this->trackUsage($response, $durationMs, $sessionId);
+        $threadWaitMs = $this->neuronRun?->threadWaitMs() ?? 0;
+        $durationMs = max(0.0, (microtime(true) - $startTime) * 1000.0 - $threadWaitMs);
+        $this->trackUsage($response, $durationMs, $sessionId, $threadWaitMs);
 
         if ($this->persistConversation) {
             $this->persistConversationToSocial($response);
@@ -303,7 +304,8 @@ class AgentChatKernel
     protected function trackUsage(
         string $response,
         float $durationMs,
-        string $sessionId
+        string $sessionId,
+        int $threadWaitMs = 0,
     ): void {
         new TrackAgentUsageAction(
             agent: $this->agent,
@@ -314,6 +316,7 @@ class AgentChatKernel
             durationMs: $durationMs,
             sessionId: $sessionId,
             userId: $this->user->getId(),
+            threadWaitMs: $threadWaitMs,
         )->execute();
     }
 

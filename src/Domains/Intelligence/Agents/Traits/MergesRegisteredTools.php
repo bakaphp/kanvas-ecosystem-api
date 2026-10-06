@@ -48,12 +48,16 @@ use ReflectionParameter;
 trait MergesRegisteredTools
 {
     /**
-     * Names of the tools the registry resolved for this agent (an MCP toolkit counts as each tool it
-     * expands to), as opposed to the ones the handler hardcodes. Tool search pools exactly these.
+     * Names of the tools the registry resolved for this agent, kept apart by where they come from: an
+     * MCP toolkit expands to many large schemas and is what tool search exists to keep out of the
+     * prompt; a catalog grant is one small tool the agent may use on every turn.
      *
      * @var list<string>
      */
-    protected array $registryToolNames = [];
+    protected array $mcpToolNames = [];
+
+    /** @var list<string> */
+    protected array $catalogToolNames = [];
 
     /**
      * @return list<object>
@@ -117,11 +121,19 @@ trait MergesRegisteredTools
 
     private function recordRegistryToolNames(object $instance): void
     {
+        $fromToolkit = $instance instanceof ToolkitInterface;
+
         foreach ($this->expandToolkits([$instance]) as $tool) {
             $name = self::toolName($tool);
 
-            if ($name !== null) {
-                $this->registryToolNames[] = $name;
+            if ($name === null) {
+                continue;
+            }
+
+            if ($fromToolkit) {
+                $this->mcpToolNames[] = $name;
+            } else {
+                $this->catalogToolNames[] = $name;
             }
         }
     }

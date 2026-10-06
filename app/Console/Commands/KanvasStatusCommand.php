@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
+use Illuminate\Queue\RedisQueue;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
@@ -13,7 +14,9 @@ use Throwable;
 
 class KanvasStatusCommand extends Command
 {
-    protected $signature = 'kanvas:status {--backlog=10000 : Pending count above which a queue is flagged as backed up}';
+    protected $signature = 'kanvas:status
+        {--backlog=10000 : Pending count above which a queue is flagged as backed up}
+        {--delay=120 : Seconds the oldest waiting job may sit before the queue is flagged as late}';
 
     protected $description = 'Health snapshot of Kanvas: databases, redis, queues, failed jobs — is everything good?';
 
@@ -143,27 +146,87 @@ class KanvasStatusCommand extends Command
         $totalPending = 0;
         $backlogged = false;
         $rows = [];
+        $delayThreshold = max(1, (int) $this->option('delay'));
         foreach (self::QUEUES as $name) {
-            $pending = $queue->connection()->size($name);
+            $running = $this->runningCount($queue, $name);
+            $pending = $queue->connection()->size($name) - ($running ?? 0);
             $failed = $failedByQueue[$name] ?? 0;
+            $waiting = $this->oldestWaitingSeconds($queue, $name);
             $totalPending += $pending;
 
             $overThreshold = $pending >= $backlogThreshold;
-            $backlogged = $backlogged || $overThreshold || $failed > 0;
+            $late = $waiting !== null && $waiting >= $delayThreshold;
+            $backlogged = $backlogged || $overThreshold || $late || $failed > 0;
 
             $rows[] = [
                 $name,
                 $overThreshold ? "<fg=yellow>{$pending}</>" : (string) $pending,
+                $running === null ? '-' : (string) $running,
+                $late ? '<fg=yellow>' . $this->age($waiting) . '</>' : $this->age($waiting),
                 $failed > 0 ? "<fg=red>{$failed}</>" : '0',
             ];
         }
 
         $this->newLine();
         $this->line('<options=bold>Queues</>');
-        $this->table(['Queue', 'Pending', 'Failed'], $rows);
-        $this->line('  Total pending: ' . $totalPending . '   |   Total failed: ' . $totalFailed);
+        $this->table(['Queue', 'Waiting', 'Running', 'Oldest waiting', 'Failed'], $rows);
+        $this->line('  Total waiting: ' . $totalPending . '   |   Total failed: ' . $totalFailed);
 
         return $backlogged || $totalFailed > 0;
+    }
+
+    /**
+     * How long the job at the head of the queue has been waiting. A pending count alone cannot tell a
+     * draining queue from a stuck one: three agent turns of two minutes each read as "3 pending" and
+     * are a six-minute wait. The head of the Redis list is the oldest job and its payload carries the
+     * enqueue time.
+     */
+    private function oldestWaitingSeconds(QueueFactory $queue, string $name): ?int
+    {
+        $connection = $queue->connection();
+
+        if (! $connection instanceof RedisQueue) {
+            return null;
+        }
+
+        try {
+            $head = $connection->getConnection()->lindex($connection->getQueue($name), 0);
+        } catch (Throwable) {
+            return null;
+        }
+
+        $createdAt = is_string($head) ? (json_decode($head, true)['createdAt'] ?? null) : null;
+
+        return is_int($createdAt) ? max(0, time() - $createdAt) : null;
+    }
+
+    /**
+     * Jobs a worker has taken and not finished. `size()` folds them into the pending count, so three
+     * turns in progress on three workers read as "3 pending" with nothing waiting.
+     */
+    private function runningCount(QueueFactory $queue, string $name): ?int
+    {
+        $connection = $queue->connection();
+
+        if (! $connection instanceof RedisQueue) {
+            return null;
+        }
+
+        try {
+            return (int) $connection->getConnection()->zcard($connection->getQueue($name) . ':reserved');
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function age(?int $seconds): string
+    {
+        return match (true) {
+            $seconds === null => '-',
+            $seconds < 60 => "{$seconds}s",
+            $seconds < 3600 => intdiv($seconds, 60) . 'm',
+            default => intdiv($seconds, 3600) . 'h ' . intdiv($seconds % 3600, 60) . 'm',
+        };
     }
 
     /**

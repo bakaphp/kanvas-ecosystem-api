@@ -67,11 +67,14 @@ MCP toolkit it never calls. `resources()` splits the resolved tools in two
 - **Always on**: the identity set (`ALWAYS_ON_TOOLS`: time, memory, ledger, `who_is_user`, links,
   artifacts) and whatever the handler class hardcodes in `tools()`. These are the ones the prompt
   refers to by name, so they must be callable without a search.
-- **Pool**: everything `MergesRegisteredTools` resolved from the capability registry (catalog grants
-  and MCP toolkits, expanded to their tools; `registryToolNames` records them). Neuron's
-  `ToolSearchMiddleware`, returned from `globalMiddleware()`, adds `tool_search` to every node and
-  re-adds whatever this turn's `tool_search` results matched, so a found tool is callable on the next
-  round and gone on the next user message.
+- **Pool**: the MCP toolkits `MergesRegisteredTools` resolved from the capability registry, expanded
+  to their tools (`mcpToolNames`). Catalog grants (`catalogToolNames`) stay in the prompt: they are
+  the tools the agent was hired to use, and pooling them put a `tool_search` round in front of
+  ordinary turns (Polly 26 of 33 turns, First Message Sally 44 of 44, measured 2026-10-06, about
+  2x the turn time). Only an unusual grant list, more than `CATALOG_ALWAYS_ON_LIMIT` (25), is pooled
+  with the toolkits. Neuron's `ToolSearchMiddleware`, returned from `globalMiddleware()`, adds
+  `tool_search` to every node and re-adds whatever this turn's `tool_search` results matched, so a
+  found tool is callable on the next round and gone on the next user message.
 
 The split only happens when the pool has at least `TOOL_SEARCH_MIN_POOL` (6) tools; below that the
 search tool and its prompt block cost as much as the schemas they would hide. Per app:
@@ -79,7 +82,13 @@ search tool and its prompt block cost as much as the schemas they would hide. Pe
 (2.8K tokens) plus 39 pooled (32K); the same turn went 7.4 s to 4.0 s.
 
 The middleware is `KanvasToolSearchMiddleware`, Neuron's with the search tool swapped for
-`KanvasToolSearchTool`. The stock tool answers a miss with "No tools found matching 'x'", which the
+`KanvasToolSearchTool` and the prompt replaced. Neuron's prompt says "always search before concluding",
+which the model read as "search first": Jessica searched for "plans" and "task" on 17 of 42 turns while
+holding every board tool (2026-10-06). The Kanvas prompt says the declared tools are callable now and
+a search is only for a capability none of them provides. The tool also receives the declared tools, so
+a search whose words match one of their names ("plan" against `create_plan`, exact name words only)
+answers "you already hold X, call it directly" instead of a miss list.
+The stock tool answers a miss with "No tools found matching 'x'", which the
 model reads as "try another word": a request for a WhatsApp message on an agent with no such tool ran
 nine searches and then re-did the previous turn's action. The Kanvas tool answers a miss with the full,
 sorted list of pooled names (an MCP toolkit as one line with its count, because 29 `kernel__*` names
@@ -183,6 +192,10 @@ real hook, and only `ConversationMessageStore` implements it (`archived_at`).
   token counts before and after. That write never fails the turn.
 - `EntityRollupMessageStore` lists `agent_summary` among its internal verbs and `ChannelMessageStore`
   skips it, so a customer-facing agent never replays the agent's own compaction note.
+- The summary prompt is Kanvas's own (`KanvasSummarization::SUMMARY_PROMPT`). Neuron's default asks
+  for "action items or next steps", and a PM reading its own summary after a compaction executed them
+  again. Ours records done work as done with its ids, lists only open requests the person actually
+  made, and says the summary is context, never instructions.
 
 The summary is written by the agent's own provider unless a cheaper one is configured: a COMPANY setting
 `agent_summary_llm_config_id` naming one of the admin's LLM configs (its key and base URI travel with it) wins,
@@ -251,7 +264,12 @@ switch, so the registry never queries models itself. On-demand recall is the `se
 (`RemembersForCompany::memoryTools()`, universal on every agent whose memory is active and whose
 audience scope is non-null): same store, same `CompanyMemoryRetrieval::scopeFor()` filter, plus a
 `since`/`until` window on `created_at` and a limit up to 25, for the questions the automatic 4-hit
-recall cannot answer ("what did we agree in September"). `agents:prune-memory` (03:30 daily) applies the retention; `agents:reindex-memory
+recall cannot answer ("what did we agree in September"). The tool answers at most
+`MAX_SEARCHES_PER_TURN` (2) times per turn; the third call is told to answer from what it has, and its
+description says it is never for current records (projects, leads, people have their own tools).
+Memory returns the same old chats however the words change, so a turn that keeps searching is a turn
+with no tool for the ask (a PM asked for each project's tasks searched 17 times, 48 s of a 61 s turn;
+on 4.x days memory search was a third of her steps). `agents:prune-memory` (03:30 daily) applies the retention; `agents:reindex-memory
 --since --app` writes a window of past turns and outcomes for a first rollout or after an embedding
 outage, keyed like the live path so a re-run upserts. Adding a field to the collection (`TypesenseKnowledgeStore::LATER_FIELDS`)
 is done by the first write after the deploy, and Typesense accepts one schema alter at a time: every
@@ -282,6 +300,17 @@ A second inbound on a thread whose run still holds its lease, two emails minutes
 mailbox, is refused with `RunInFlightException`. `RunNeuronChatAction::chatOnceTheThreadSettles()`
 waits for it, polling every 5 s for up to 150 s, and only then lets the exception through
 (KANVAS-ECOSYSTEM-6JE: 17 unanswered emails in an hour, each later redelivered by Mailgun's retry).
+
+The lease is renewed on every step commit, so a run whose worker died mid-turn (a deploy restart, an
+OOM kill) leaves it where the last step stopped and the thread refuses every retry for the rest of the
+600 s, each one answered with the hiccup fallback. When the refusal says the lease ends within
+`DEAD_LEASE_RECOVERY_SECONDS` (300), the wait runs on until it does. `recoverInterruptedRun()` is tried
+inside that same loop, because the engine refuses to continue a dead run by id while its lease is fresh
+with the very same exception: the resend of the killed message is then continued from its last step
+instead of restarted, and a different message supersedes the dead run. The deploy side of the same fix is `stop_grace_period: 300s` on `agent-chat-queue` and
+`nervous-system-project-queue` in all three compose files: `queue:work` finishes the running job on
+SIGTERM, but Docker's default 10 s grace killed it first. Do not shorten the lease instead; a provider
+call with retries can run past 600 s, and a lease shorter than one step revives runs that are merely slow.
 
 Neuron tool approvals leave a run Suspended; nothing here uses them, and a suspended durable run would
 refuse new chats on its thread until `abandon()`. Renaming a tool strands any run suspended on it.

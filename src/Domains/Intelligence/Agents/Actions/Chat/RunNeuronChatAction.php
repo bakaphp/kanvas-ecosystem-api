@@ -51,6 +51,16 @@ class RunNeuronChatAction
 
     private const int THREAD_BUSY_POLL_SECONDS = 5;
 
+    /**
+     * A run whose worker died mid-turn (a deploy restart, an OOM kill) never commits again, so its lease
+     * sits where the last step left it and every retry on the thread is refused until it expires. The
+     * next start then supersedes it (RunsDurably starts with recoverFailed), so a turn that finds the
+     * lease ending within this many seconds waits for it instead of failing.
+     */
+    private const int DEAD_LEASE_RECOVERY_SECONDS = 300;
+
+    private int $threadWaitSeconds = 0;
+
     private bool $endedOnToolBudget = false;
 
     /** @var list<string> */
@@ -156,12 +166,8 @@ class RunNeuronChatAction
             }
 
             // chat() runs the whole turn, so a provider error (e.g. Gemini blocking the content)
-            // surfaces here, inside the try, and never bubbles as a 500. A redelivered turn whose first
-            // attempt died with its worker is continued, not restarted, so no write runs twice.
-            $state = $this->handler instanceof BehavesAsKanvasAgent
-                ? $this->handler->recoverInterruptedRun($userMessage)
-                : null;
-            $state ??= $this->chatOnceTheThreadSettles($userMessage);
+            // surfaces here, inside the try, and never bubbles as a 500.
+            $state = $this->chatOnceTheThreadSettles($userMessage);
             $responseMessage = $state->getMessage() ?? new AssistantMessage('');
             [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
             $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
@@ -283,7 +289,8 @@ class RunNeuronChatAction
      * thread, two emails minutes apart on one AP mailbox, arrives while the first is still answering.
      * Neuron refuses the second with RunInFlightException (KANVAS-ECOSYSTEM-6JE). The lease is not a
      * fault: the turn waits for the thread to settle and runs then, so the second message is answered
-     * with the first reply in its history instead of failing the webhook.
+     * with the first reply in its history instead of failing the webhook. Recovery of a dead run is
+     * refused the same way while its lease is fresh, so it waits inside the same loop.
      */
     private function chatOnceTheThreadSettles(UserMessage $userMessage): AgentState
     {
@@ -291,9 +298,13 @@ class RunNeuronChatAction
 
         while (true) {
             try {
-                return $this->handler->chat($userMessage);
+                return $this->recoverOrStart($userMessage);
             } catch (RunInFlightException $e) {
-                if ($waited >= self::THREAD_BUSY_WAIT_SECONDS) {
+                $limit = $this->leaseEndsWithin($e, self::DEAD_LEASE_RECOVERY_SECONDS)
+                    ? self::THREAD_BUSY_WAIT_SECONDS + self::DEAD_LEASE_RECOVERY_SECONDS
+                    : self::THREAD_BUSY_WAIT_SECONDS;
+
+                if ($waited >= $limit) {
                     throw $e;
                 }
 
@@ -307,8 +318,36 @@ class RunNeuronChatAction
 
                 $this->pause(self::THREAD_BUSY_POLL_SECONDS);
                 $waited += self::THREAD_BUSY_POLL_SECONDS;
+                $this->threadWaitSeconds = $waited;
             }
         }
+    }
+
+    /**
+     * A redelivered turn whose first attempt died with its worker is continued, not restarted, so no
+     * write runs twice.
+     */
+    private function recoverOrStart(UserMessage $userMessage): AgentState
+    {
+        $recovered = $this->handler instanceof BehavesAsKanvasAgent
+            ? $this->handler->recoverInterruptedRun($userMessage)
+            : null;
+
+        return $recovered ?? $this->handler->chat($userMessage);
+    }
+
+    private function leaseEndsWithin(RunInFlightException $e, int $seconds): bool
+    {
+        return $e->leaseExpiresAt !== null && $e->leaseExpiresAt - time() <= $seconds;
+    }
+
+    /**
+     * Time spent waiting for another run's lease, kept apart so the turn metric measures the agent and
+     * not the lock.
+     */
+    public function threadWaitMs(): int
+    {
+        return $this->threadWaitSeconds * 1000;
     }
 
     protected function pause(int $seconds): void

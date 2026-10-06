@@ -111,8 +111,10 @@ class RenderArtifactTool extends Tool
             . 'balance, a record, a list, a metric or a sequence, call this and paste the returned block into your '
             . 'reply verbatim — visual by default, without being asked. This overrides a plain-text output '
             . 'rule for that data. Use only real values your tools returned; never invent or pad numbers. Keep prose '
-            . 'around blocks short. Several blocks per reply are fine. Confirmations of a completed action are prose '
-            . 'first, then at most one block. Never use it for source code. If nothing fits, plain markdown is fine.'
+            . 'around blocks short. One block per reply is the norm: put the whole answer into a single component (a '
+            . 'table with every row, one actions list) rather than one block per paragraph; a multi-section report may '
+            . 'use one per section. A greeting, a short answer or a confirmation of a completed action is prose first, '
+            . 'then at most one block. Never use it for source code. If nothing fits, plain markdown is fine.'
             . "\nComponents:\n" . $components;
     }
 }

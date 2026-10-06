@@ -80,6 +80,23 @@ class SearchMemoryToolTest extends TestCase
         $this->assertStringContainsString('must be dates', $result['message']);
     }
 
+    public function testAThirdSearchInATurnIsToldToAnswerInstead(): void
+    {
+        $tool = $this->tool($this->storeWith(
+            $this->memory("User: Office?\nAssistant: Santo Domingo.", self::COMPANY, self::SEPTEMBER),
+        ));
+
+        foreach (['office', 'office address'] as $query) {
+            $this->assertSame(1, (clone $tool)->__invoke(query: $query)['count'], 'NeuronAI runs each call on a clone; the budget still counts the turn');
+        }
+
+        $third = (clone $tool)->__invoke(query: 'headquarters');
+
+        $this->assertSame(0, $third['count']);
+        $this->assertStringContainsString('already searched memory 2 times', $third['message']);
+        $this->assertSame(SearchMemoryTool::MAX_SEARCHES_PER_TURN, 2);
+    }
+
     private function tool(MemoryVectorStore $store, mixed $recallScope = null): SearchMemoryTool
     {
         return new SearchMemoryTool(
