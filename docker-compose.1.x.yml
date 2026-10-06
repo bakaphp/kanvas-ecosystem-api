@@ -147,36 +147,10 @@ services:
       - "php artisan config:cache && php artisan queue:work --queue=agent-task-worker
         --tries=1 --timeout=3750"
 
-  queue-imports:
+  imports-queue:
     <<: *common-queue-settings
-    container_name: queue-imports
-    command:
-      - "sh"
-      - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue imports
-        --tries=3 --timeout=6750"
-
-  queue-imports2:
-    <<: *common-queue-settings
-    container_name: queue-imports2
-    command:
-      - "sh"
-      - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue imports
-        --tries=3 --timeout=6750"
-
-  queue-imports3:
-    <<: *common-queue-settings
-    container_name: queue-imports3
-    command:
-      - "sh"
-      - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue imports
-        --tries=3 --timeout=6750"
-
-  queue-imports4:
-    <<: *common-queue-settings
-    container_name: queue-imports4
+    deploy:
+      replicas: 8
     command:
       - "sh"
       - "-c"
