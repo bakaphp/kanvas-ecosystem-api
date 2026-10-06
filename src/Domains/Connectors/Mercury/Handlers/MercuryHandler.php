@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Mercury\Handlers;
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Mercury\Actions\RegisterMercuryWebhookAction;
 use Kanvas\Connectors\Mercury\DataTransferObject\Mercury as MercuryDto;
+use Kanvas\Connectors\Mercury\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Mercury\Services\MercuryAccountService;
 use Kanvas\Connectors\Mercury\Services\MercuryService;
 use Kanvas\Exceptions\ValidationException;
@@ -62,5 +63,19 @@ class MercuryHandler extends BaseIntegration
         }
 
         return true;
+    }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::API_TOKEN->value,
+            ConfigurationEnum::BASE_URL->value,
+            ConfigurationEnum::SYNC_ENABLED->value,
+            ConfigurationEnum::SYNC_APP_ID->value,
+            ConfigurationEnum::SYNC_CURSOR->value,
+            ConfigurationEnum::WEBHOOK_ID->value,
+            ConfigurationEnum::WEBHOOK_SECRET->value,
+        ];
     }
 }

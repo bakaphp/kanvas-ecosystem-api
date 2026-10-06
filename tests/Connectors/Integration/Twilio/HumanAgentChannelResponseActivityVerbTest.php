@@ -21,42 +21,43 @@ use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 
+/**
+ * The activity must never write the message-type verb into a human reply or note:
+ * the frontend hides user-authored messages that carry a `verb` key.
+ */
 class HumanAgentChannelResponseActivityVerbTest extends TestCase
 {
     use DatabaseTransactions;
     use HasIntegrationCompany;
 
-    public function testHumanReplyGetsItsMessageTypeVerbMirroredIntoThePayload(): void
+    public function testHumanReplyPayloadIsNotTaggedWithTheMessageTypeVerb(): void
     {
-        [$app, $channel, $message] = $this->makeChannelMessage(
-            verb: 'sms',
-            payload: ['content' => 'Hi from a human', 'from_me' => true, 'from_human' => true],
-        );
+        $payload = ['content' => 'Hi from a human', 'from_me' => true, 'from_human' => true];
 
-        $this->assertArrayNotHasKey('verb', $message->message);
+        [$app, $channel, $message] = $this->makeChannelMessage(verb: 'sms', payload: $payload);
 
         $result = $this->runActivity($channel, $app, $message);
 
         $this->assertStringContainsString('From phone number is required', $result['message'] ?? '');
 
         $stored = $message->refresh()->message;
-        $this->assertSame('sms', $stored['verb']);
-        $this->assertSame($message->messageType->verb, $stored['verb']);
-        $this->assertSame('Hi from a human', $stored['content']);
-        $this->assertTrue($stored['from_human']);
+        $this->assertArrayNotHasKey('verb', $stored);
+        $this->assertSame($payload, $stored);
     }
 
-    public function testNoteGetsItsMessageTypeVerbMirroredIntoThePayload(): void
+    public function testNotePayloadIsNotTaggedWithTheMessageTypeVerb(): void
     {
-        [$app, $channel, $message] = $this->makeChannelMessage(
-            verb: 'note',
-            payload: ['content' => 'Internal note', 'from_me' => true],
-        );
+        $payload = ['content' => 'Internal note', 'from_me' => true];
+
+        [$app, $channel, $message] = $this->makeChannelMessage(verb: 'note', payload: $payload);
 
         $result = $this->runActivity($channel, $app, $message);
 
         $this->assertStringContainsString('not from human agent', $result['message'] ?? '');
-        $this->assertSame('note', $message->refresh()->message['verb']);
+
+        $stored = $message->refresh()->message;
+        $this->assertArrayNotHasKey('verb', $stored);
+        $this->assertSame($payload, $stored);
     }
 
     public function testExistingVerbIsLeftAlone(): void
