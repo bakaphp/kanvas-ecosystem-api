@@ -128,6 +128,7 @@ class BaseAgentChannelReplyAction
                     'raw_data' => $text,
                     'message_id' => '--',
                     'chat_jid' => $to,
+                    'verb' => $type->verb,
                 ])->toArray(),
                 ...($structuredResponse !== null ? ['response_json' => $structuredResponse] : []),
             ],
