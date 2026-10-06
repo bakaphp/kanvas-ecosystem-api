@@ -33,20 +33,29 @@ class PublishParkingApplicationAction
     private const array WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
     private const array FULL_DAY = ['open' => '00:00', 'close' => '23:59'];
 
-    private const array INFRASTRUCTURE = [
-        'lighting' => Field::HAS_LIGHTING,
-        'cameras' => Field::HAS_CAMERAS,
-        'camera_count' => Field::CAMERA_COUNT,
-        'guard' => Field::HAS_GUARD,
-        'roof' => Field::HAS_ROOF,
-        'access_control' => Field::HAS_ACCESS_CONTROL,
-        'restrooms' => Field::HAS_RESTROOMS,
-        'security_24_7' => Field::IS_24_7_SECURITY,
+    private const array REQUIRED_TO_PUBLISH = [
+        Field::PARKING_NAME,
+        Field::PARKING_TYPE,
+        Field::STRUCTURE,
+        Field::PROVINCE,
+        Field::LATITUDE,
+        Field::LONGITUDE,
+        Field::CAPACITY_TOTAL,
+        Field::RATE_HOURLY,
     ];
+
+    private const int MIN_PHOTOS = 4;
+
+    private array $ignoredFields = [];
 
     public function __construct(
         protected readonly Lead $application,
     ) {
+    }
+
+    public function ignoredFields(): array
+    {
+        return $this->ignoredFields;
     }
 
     public function execute(): Products
@@ -105,23 +114,27 @@ class PublishParkingApplicationAction
 
     private function validatedFields(): array
     {
-        $raw = [];
+        $fields = [];
 
         foreach ($this->application->getAll() as $key => $value) {
             $field = Field::tryFrom((string) $key);
 
-            if ($field === null || $field->step() === null || $field->isSensitive()) {
+            if ($field === null || $field->step() === null || $field->isSensitive() || $value === null || $value === '') {
                 continue;
             }
 
-            if ($value !== null && $value !== '') {
-                $raw[$field->value] = $value;
+            try {
+                $fields += new ValidateParkingApplicationStepAction([$field->value => $value])->execute();
+            } catch (ValidationException $e) {
+                if (in_array($field, self::REQUIRED_TO_PUBLISH, true)) {
+                    throw $e;
+                }
+
+                $this->ignoredFields[$field->value] = $e->getMessage();
             }
         }
 
-        $fields = new ValidateParkingApplicationStepAction($raw)->execute();
-
-        foreach ([Field::PARKING_NAME, Field::CAPACITY_TOTAL, Field::RATE_HOURLY, Field::LATITUDE, Field::LONGITUDE] as $required) {
+        foreach (self::REQUIRED_TO_PUBLISH as $required) {
             if (! isset($fields[$required->value])) {
                 throw new ValidationException("{$required->value} is required to publish the parking");
             }
@@ -129,6 +142,14 @@ class PublishParkingApplicationAction
 
         if (! empty($fields[Field::COORDINATES_PENDING_VALIDATION->value])) {
             throw new ValidationException('coordinates are still pending validation');
+        }
+
+        if ($fields[Field::RATE_HOURLY->value] <= 0) {
+            throw new ValidationException(Field::RATE_HOURLY->value . ' must be greater than zero to publish the parking');
+        }
+
+        if ($this->application->getFiles()->count() < self::MIN_PHOTOS) {
+            throw new ValidationException('at least ' . self::MIN_PHOTOS . ' photos are required to publish the parking');
         }
 
         return $fields;
@@ -259,7 +280,7 @@ class PublishParkingApplicationAction
 
     private function warehouseConfig(array $fields): array
     {
-        $config = [
+        return [
             'rates' => [
                 'hourly' => (float) $fields[Field::RATE_HOURLY->value],
                 'minimum_entry' => $fields[Field::RATE_MINIMUM_ENTRY->value] ?? null,
@@ -272,18 +293,14 @@ class PublishParkingApplicationAction
                 'disability' => $fields[Field::CAPACITY_DISABILITY->value] ?? null,
                 'numbered_spaces' => $fields[Field::NUMBERED_SPACES->value] ?? null,
             ],
-            'payment_methods' => $fields[Field::PAYMENT_METHODS->value] ?? ['movipass'],
+            'payment_methods' => $fields[Field::PAYMENT_METHODS->value] ?? [],
             'structure' => $fields[Field::STRUCTURE->value] ?? null,
             'is_24_7' => (bool) ($fields[Field::IS_24_7->value] ?? false),
             'schedule' => $fields[Field::SCHEDULE->value] ?? null,
             'closures' => $fields[Field::CLOSURES->value] ?? [],
+            'infrastructure' => $fields[Field::INFRASTRUCTURE->value] ?? [],
+            'camera_count' => $fields[Field::CAMERA_COUNT->value] ?? null,
         ];
-
-        foreach (self::INFRASTRUCTURE as $key => $field) {
-            $config['infrastructure'][$key] = $fields[$field->value] ?? null;
-        }
-
-        return $config;
     }
 
     private function photos(): array
@@ -296,6 +313,12 @@ class PublishParkingApplicationAction
 
     private function writeSchedule(Variants $variant, Companies $company, array $fields): void
     {
+        $hasOpeningHours = array_any(self::DAY_NAMES, fn (string $day): bool => $this->bandsFor($day, $fields) !== []);
+
+        if (! $hasOpeningHours) {
+            return;
+        }
+
         $closedWeekdays = collect($fields[Field::CLOSURES->value] ?? [])
             ->where('type', 'recurring')
             ->pluck('weekday')
