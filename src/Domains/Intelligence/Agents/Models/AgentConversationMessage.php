@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -45,6 +46,7 @@ use Override;
  * @property int|null $participant_id
  * @property string $agent
  * @property string $role
+ * @property string|null $kind
  * @property bool $is_public
  * @property string|null $content
  * @property array|null $attachments
@@ -84,6 +86,16 @@ class AgentConversationMessage extends ImmutableBaseModel
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The GraphQL `include_internal` argument. False is the chat a person sees: no compaction summary,
+     * which is stored as a user-role row because that is how the model reads it, and no tool rounds,
+     * which are rows with empty content. True is the backend view of what the agent did.
+     */
+    public function scopeWithInternal(Builder $query, bool $include): Builder
+    {
+        return $include ? $query : $query->whereNull('kind');
     }
 
     protected function toolCalls(): Attribute

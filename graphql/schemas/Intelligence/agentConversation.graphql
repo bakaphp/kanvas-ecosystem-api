@@ -11,8 +11,13 @@ type AgentConversation {
     participant: AgentConversationParticipant @morphTo(relation: "participant")
     title: String!
     meta: Mixed
+    """
+    The chat as the person sees it. Compaction summaries and tool rounds are left out unless
+    include_internal is true, which is the backend view of what the agent did.
+    """
     messages(
-        where: _ @whereConditions(columns: ["created_at", "status"])
+        include_internal: Boolean = false @scope(name: "withInternal")
+        where: _ @whereConditions(columns: ["created_at", "status", "role"])
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
     ): [AgentConversationMessage!]!
         @hasMany(relation: "messages", type: PAGINATOR, defaultCount: 50)
@@ -29,6 +34,10 @@ type AgentConversationMessage {
     role: String!
     status: String!
     is_public: Boolean!
+    """
+    null for a conversational turn; `summary`, `tool_call` or `tool_call_result` for the rows the person's chat leaves out.
+    """
+    kind: String
     content: String
     attachments: Mixed
     tool_calls: Mixed @deprecated(reason: "Derived from steps; read steps.tool_calls, each call carries its result.")
