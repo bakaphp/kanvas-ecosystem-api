@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Services\AgentTurnCancellationService;
@@ -198,16 +199,20 @@ class RunNeuronChatAction
                 'fallback' => $fallback,
             ]);
 
+            // A failed turn is logged as one: a caller that rethrows delivers nothing, so the transcript
+            // must not carry the fallback as if the agent had said it (the AP mailbox showed "I ran into a
+            // hiccup" replies to emails nobody answered, KANVAS-ECOSYSTEM-6JE).
             if (! $selfRecords) {
                 new KanvasConversationStore()->logTurn(
                     userId: $this->user->getId(),
                     sessionId: $sessionId,
                     agentClass: get_class($this->handler),
                     userMessage: $this->message,
-                    assistantResponse: $fallback,
+                    assistantResponse: $this->fallbackOnFailure ? $fallback : '',
                     agentId: $this->agent->getId(),
-                    usage: ['error' => $e::class, 'message' => $e->getMessage()],
                     participant: KanvasConversationStore::participantFor($this->session, $this->user, $this->agent),
+                    status: AgentConversationMessage::STATUS_FAILED,
+                    meta: ['error' => $e::class, 'message' => $e->getMessage()],
                 );
             }
 

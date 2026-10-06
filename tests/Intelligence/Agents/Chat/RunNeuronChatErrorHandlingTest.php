@@ -10,6 +10,7 @@ use GuzzleHttp\Psr7\Response;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
@@ -72,6 +73,39 @@ class RunNeuronChatErrorHandlingTest extends TestCase
             new RuntimeException('Gemini returned STOP with no parts'),
             fallbackOnFailure: false
         );
+    }
+
+    /**
+     * KANVAS-ECOSYSTEM-6JE: a refused email turn logged "I ran into a hiccup" as a completed reply to an
+     * email nobody answered. A failed turn is a failed row, and carries the fallback only when it was sent.
+     */
+    public function testAFailedTurnIsLoggedAsFailedAndCarriesTheFallbackOnlyWhenItWasSent(): void
+    {
+        $this->runChatWithThrowingHandler(new RuntimeException('provider down'));
+        $delivered = $this->latestAssistantRow();
+
+        $this->assertSame('failed', $delivered->status);
+        $this->assertStringContainsString('I ran into a hiccup', (string) $delivered->content);
+        $this->assertSame('provider down', json_decode((string) $delivered->meta, true)['message']);
+
+        try {
+            $this->runChatWithThrowingHandler(new RuntimeException('provider down'), fallbackOnFailure: false);
+        } catch (RuntimeException) {
+        }
+        $undelivered = $this->latestAssistantRow();
+
+        $this->assertSame('failed', $undelivered->status);
+        $this->assertSame('', (string) $undelivered->content, 'Nothing was sent, so nothing is quoted');
+        $this->assertSame(RuntimeException::class, json_decode((string) $undelivered->meta, true)['error']);
+    }
+
+    private function latestAssistantRow(): object
+    {
+        return DB::connection('intelligence')->table('agent_conversation_messages')
+            ->where('agent', ThrowingNeuronHandlerStub::class)
+            ->where('role', 'assistant')
+            ->orderByDesc('id')
+            ->firstOrFail();
     }
 
     public function testAHumanizedFailureIsLoggedWithItsRealCause(): void

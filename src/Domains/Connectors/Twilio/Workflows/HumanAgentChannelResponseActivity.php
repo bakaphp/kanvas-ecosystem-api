@@ -66,10 +66,11 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
             ]);
         }
 
-        $verb = $message->messageType?->verb;
-        if ($verb !== null && ($message->getMessage()['verb'] ?? null) !== $verb) {
-            $message->addMessage(['verb' => $verb]);
-        }
+        /*         $verb = $message->messageType?->verb;
+                if ($verb !== null && ($message->getMessage()['verb'] ?? null) !== $verb) {
+                    //frontend wont display user msg with verbs
+                    //$message->addMessage(['verb' => $verb]);
+                } */
 
         $messageData = $message->message;
         $content = $messageData['content'] ?? [];

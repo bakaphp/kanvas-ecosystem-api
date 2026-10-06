@@ -301,6 +301,8 @@ class KanvasConversationStore extends DatabaseConversationStore
         array $toolResults = [],
         array $usage = [],
         ?Model $participant = null,
+        string $status = AgentConversationMessage::STATUS_COMPLETED,
+        array $meta = [],
     ): void {
         [$appsId, $companiesId] = $this->tenantFor($userId, $agentId);
         [$participantType, $participantId] = self::participantColumns($participant, $userId);
@@ -343,6 +345,8 @@ class KanvasConversationStore extends DatabaseConversationStore
             $usage,
             $participantType,
             $participantId,
+            $status,
+            $meta,
         );
     }
 
@@ -440,6 +444,8 @@ class KanvasConversationStore extends DatabaseConversationStore
         array $usage = [],
         ?string $participantType = null,
         ?int $participantId = null,
+        string $status = AgentConversationMessage::STATUS_COMPLETED,
+        array $meta = [],
     ): string {
         $messageId = (string) Str::uuid7();
 
@@ -463,10 +469,10 @@ class KanvasConversationStore extends DatabaseConversationStore
                 $toolCalls,
                 $toolResults,
             )),
-            'status' => AgentConversationMessage::STATUS_COMPLETED,
+            'status' => $status,
             'sequence' => $this->nextSequence($conversationId),
             'usage' => json_encode($usage),
-            'meta' => '[]',
+            'meta' => json_encode($meta),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
