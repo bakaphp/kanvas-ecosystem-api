@@ -171,7 +171,13 @@ real hook, and only `ConversationMessageStore` implements it (`archived_at`).
   active window is ordered by that column, because a kept turn must follow the summary and neither
   `created_at` (seconds) nor the uuid7 id (construction time) can say so. Legacy rows carry null and
   sort first, where they belong.
-- The summary row carries `meta.__meta.summary = true` and `social_message_id`; the same text is written
+- The summary row carries `meta.__meta.summary = true`, `social_message_id` and `kind = summary`.
+  `kind` is the indexed column the chat filters on: tool rounds carry `tool_call` / `tool_call_result`,
+  a conversational turn has none (`ConversationMessageKindEnum`, stamped by
+  `ConversationMessageStore::persist()`, rows older than the column stamped by
+  `agents:backfill-conversation-kind`). The GraphQL `AgentConversation.messages` field leaves kinded
+  rows out; `messages(include_internal: true)` returns every row with its `kind` for the backend view
+  of what the agent did. The summary text is also written
   to Social as a private `agent_summary` message (`AgentMessageTypeEnum`, distinct from the lead
   `summary` verb) on the session channel and entity, with the covered id range, `archived_count` and the
   token counts before and after. That write never fails the turn.
