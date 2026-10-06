@@ -87,6 +87,7 @@ class TransitionOrderStateAction
 
                 if ($this->newOrderStatus->slug === PaymentStatusEnum::PAID->value) {
                     $attributes['payment_status'] = PaymentStatusEnum::PAID->value;
+                    $attributes['paid_at'] = $this->order->paid_at ?? $closedAt;
                 }
 
                 $this->order->updateQuietly($attributes);
@@ -111,7 +112,6 @@ class TransitionOrderStateAction
                 $this->fireWorkflow($currentOrderStatus);
             }
 
-
             return [
                 'status' => 'success',
                 'message' => 'Order status transitioned successfully',
@@ -123,10 +123,10 @@ class TransitionOrderStateAction
                     'message' => 'Failed to transition order status: ' . $e->getMessage(),
                 ];
             }
+
             throw $e;
         }
     }
-
 
     public function setInitialState(): void
     {
@@ -185,7 +185,6 @@ class TransitionOrderStateAction
                 'who' => $this->user,
             ]
         );
-
 
         // $activity = new TookanOrderStatusActivity(
         //     0,
