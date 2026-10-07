@@ -105,7 +105,7 @@ final class AgentToolProviderPayloadTest extends TestCase
             "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$key}",
             [
                 'contents' => [['role' => 'user', 'parts' => [['text' => 'Say OK.']]]],
-                'tools' => [new GeminiToolMapper()->map($this->allNeuronTools())],
+                'tools' => [new GeminiToolMapper()->map($this->uniqueByName($this->allNeuronTools()))],
             ]
         );
 
@@ -141,6 +141,24 @@ final class AgentToolProviderPayloadTest extends TestCase
         $this->assertNotEmpty($tools, 'Tool discovery returned nothing — the payload checks would be vacuous.');
 
         return $tools;
+    }
+
+    /**
+     * Gemini declares functions by name and refuses a duplicate. No agent registers two tools with
+     * one name, but the tree holds app-scoped subclasses (Tools/CompanyConfiguration) that keep
+     * their base tool's name, so the live payload carries one tool per name.
+     *
+     * @param list<NeuronTool> $tools
+     * @return list<NeuronTool>
+     */
+    private function uniqueByName(array $tools): array
+    {
+        $byName = [];
+        foreach ($tools as $tool) {
+            $byName[$tool->getName()] ??= $tool;
+        }
+
+        return array_values($byName);
     }
 
     /**

@@ -201,18 +201,19 @@ class HireAgentTool extends Tool
         }
 
         try {
-            $hired = new HireAgentAction(
-                app: $this->app,
-                company: $this->company,
-                hiredBy: $this->requestingUser ?? $this->user,
-                hiredByAgent: $this->hiringAgent,
-                agentType: $agentType,
-                name: $name,
-                role: $role,
-                instructions: $instructions,
-                tools: $grants['tools'],
-                soul: $soul !== null && trim($soul) !== '' ? trim($soul) : null,
-            )->execute();
+            $hired = new HireAgentAction(...[
+                'app' => $this->app,
+                'company' => $this->company,
+                'hiredBy' => $this->requestingUser ?? $this->user,
+                'hiredByAgent' => $this->hiringAgent,
+                'agentType' => $agentType,
+                'name' => $name,
+                'role' => $role,
+                'instructions' => $instructions,
+                'tools' => $grants['tools'],
+                'soul' => $soul !== null && trim($soul) !== '' ? trim($soul) : null,
+                ...$this->hireOptions(),
+            ])->execute();
         } catch (Throwable $e) {
             return $this->error($e->getMessage());
         }
@@ -240,10 +241,21 @@ class HireAgentTool extends Tool
     }
 
     /**
+     * Extra named arguments for HireAgentAction. The stable hire passes none; a subclass that hires
+     * differently (a sub-agent, for instance) supplies them here instead of re-running the whole hire.
+     *
+     * @return array<string, mixed>
+     */
+    protected function hireOptions(): array
+    {
+        return [];
+    }
+
+    /**
      * @param array<string, mixed> $extra
      * @return array<string, mixed>
      */
-    private function error(string $message, array $extra = []): array
+    protected function error(string $message, array $extra = []): array
     {
         return array_merge(['hired' => false, 'message' => $message], $extra);
     }

@@ -164,7 +164,7 @@ class GrantAgentToolsTool extends Tool
      * alongside. Hires are included because a fresh one belongs to no project yet, so a project-only
      * rule would leave the agent that created it unable to finish equipping it.
      */
-    private function mayEquip(Agent $granter, Agent $target): bool
+    protected function mayEquip(Agent $granter, Agent $target): bool
     {
         if ((int) $target->parent_id === $granter->getId()) {
             return true;

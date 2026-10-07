@@ -33,9 +33,6 @@ use Throwable;
  * wake guard compares a record's `users_id` against the agent's — point a new agent at the user that
  * owns the WhatsApp receiver and it skips every inbound message rather than just its own output,
  * silently, with no error anywhere.
- *
- * A true agent, never a sub-agent: a sub-agent is a private function of its parent, not a teammate
- * that can be assigned work and hold a conversation.
  */
 class HireAgentAction
 {
@@ -54,6 +51,8 @@ class HireAgentAction
         private readonly array $tools = [],
         private readonly ?string $soul = null,
         private readonly ?string $outputFormat = null,
+        private readonly bool $isSubAgent = false,
+        private readonly ?Agent $parentAgent = null,
     ) {
     }
 
@@ -69,6 +68,11 @@ class HireAgentAction
             throw new ValidationException(
                 'An agent needs instructions — without them it has tools and no job.'
             );
+        }
+
+        $parent = $this->parentAgent ?? $this->hiredByAgent;
+        if ($this->isSubAgent && ! $this->isLiveTenantAgent($parent)) {
+            throw new ValidationException('A sub-agent requires a parent in the same app and company.');
         }
 
         $existing = Agent::query()
@@ -104,14 +108,20 @@ class HireAgentAction
             instructions: $this->instructions,
             outputFormat: $this->outputFormat,
             tools: $this->tools,
-            // Lineage only — `isSubAgent` stays false, so no SUB_AGENT tool row is minted and the hire
-            // is a teammate, not a callable function of its hirer. The link is what lets the hirer
-            // retune it later: without a recorded relationship the correction loop only reaches agents
-            // that happen to share a project.
-            parentAgent: $this->hiredByAgent,
+            // For normal hires this records lineage; sub-agents also get a local callable tool
+            // through CreateAgentAction's existing sub-agent path.
+            parentAgent: $parent,
             createdBy: $this->hiredBy,
-            isSubAgent: false,
+            isSubAgent: $this->isSubAgent,
         ))->execute();
+    }
+
+    private function isLiveTenantAgent(?Agent $agent): bool
+    {
+        return $agent !== null
+            && (int) $agent->apps_id === (int) $this->app->getId()
+            && (int) $agent->companies_id === (int) $this->company->getId()
+            && ! (bool) $agent->is_deleted;
     }
 
     /**
