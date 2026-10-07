@@ -48,7 +48,6 @@ jobs:
           host: ${{ secrets.AWS_QUEUE_EC2_HOST }}
           username: ${{ secrets.AWS_EC2_USERNAME }}
           key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
-          command_timeout: 30m
           script: |
             cd ${{ secrets.AWS_EC2_TARGET_DIR }}
 
