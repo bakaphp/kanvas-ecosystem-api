@@ -11,6 +11,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -86,6 +87,7 @@ use Spatie\LaravelData\DataCollection;
  * @property string|null $language_code
  * @property string $status
  * @property string|null $payment_status
+ * @property Carbon|null $paid_at
  * @property string|null $fulfillment_status
  * @property string|null $shipping_method_name
  * @property int|null $shipping_method_id
@@ -136,7 +138,18 @@ class Order extends BaseModel implements PayableInterface
         'payment_gateway_names' => Json::class,
         'metadata' => Json::class,
         'private_metadata' => Json::class,
+        'paid_at' => 'datetime',
     ];
+
+    protected function paymentStatus(): Attribute
+    {
+        return Attribute::set(fn (?string $value, array $attributes): array => [
+            'payment_status' => $value,
+            'paid_at' => $value === PaymentStatusEnum::PAID->value
+                ? ($attributes['paid_at'] ?? $this->freshTimestampString())
+                : null,
+        ]);
+    }
 
     #[Override]
     public function adminLinkSection(): AdminLinkSectionEnum

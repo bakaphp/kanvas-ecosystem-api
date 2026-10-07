@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Services;
 
+use DateTimeZone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Souk\Orders\Actions\GetOrderPaymentStatsAction;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
@@ -73,26 +77,49 @@ class OrderReportService
      *
      * @return array<string, mixed>
      */
-    public function paymentStats(?array $orderTypeNames, ?string $since, ?string $until, bool $paidOnly): array
-    {
-        $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
-        $base = fn (): Builder => $this->baseQuery($typeIds, $since, $until)
-            ->when($paidOnly, fn ($q) => $q->where('orders.payment_status', PaymentStatusEnum::PAID->value));
+    public function paymentStats(
+        ?array $orderTypeNames,
+        ?string $since,
+        ?string $until,
+        ?string $timezone,
+        ?string $periodBreakdown
+    ): array {
+        $timezone = $this->validTimezone($timezone);
+        $since = $since !== null && $since !== '' ? $since : $this->firstOrderDate($timezone);
+        $until = $until !== null && $until !== '' ? $until : Carbon::now($timezone)->toDateString();
+        $breakdown = strtoupper(trim($periodBreakdown ?? 'MONTH'));
+        $breakdown = in_array($breakdown, ['DAY', 'WEEK', 'MONTH', 'YEAR'], true) ? $breakdown : 'MONTH';
 
-        $count = $base()->count();
-        $total = round((float) $base()->sum('total_net_amount'), 2);
-        $cardCount = $base()->whereExists($this->cardPaymentExists())->count();
-        $cardAmount = round((float) $base()->whereExists($this->cardPaymentExists())->sum('total_net_amount'), 2);
+        $stats = new GetOrderPaymentStatsAction(
+            app: $this->app,
+            orderTypeNames: array_values(array_filter($orderTypeNames ?? [])),
+            company: $this->company,
+        )->execute(
+            startDate: $since,
+            endDate: $until,
+            timezone: $timezone,
+            groupPeriods: [],
+            periodBreakdown: $breakdown,
+        );
+
+        $orders = (int) $stats['ordersInPeriod']['count'];
+        $total = round((float) $stats['ordersInPeriod']['totalAmount'], 2);
+        $byTransaction = $stats['ordersInPeriod']['byTransaction'];
 
         return [
-            'paid_only' => $paidOnly,
-            'orders' => $count,
+            'date_anchor' => 'payment',
+            'timezone' => $timezone,
+            'period' => $stats['period'],
+            'orders' => $orders,
             'total_amount' => $total,
-            'average_order_amount' => $count > 0 ? round($total / $count, 2) : 0.0,
+            'average_order_amount' => $orders > 0 ? round($total / $orders, 2) : 0.0,
             'by_payment_method' => [
-                'card' => ['orders' => $cardCount, 'amount' => $cardAmount],
-                'other' => ['orders' => $count - $cardCount, 'amount' => round($total - $cardAmount, 2)],
+                'card' => ['orders' => (int) $byTransaction['card'], 'amount' => round((float) $byTransaction['cardAmount'], 2)],
+                'other' => ['orders' => (int) $byTransaction['transfer'], 'amount' => round((float) $byTransaction['transferAmount'], 2)],
             ],
+            'by_service' => $stats['ordersInPeriod']['byServices'],
+            'period_breakdown' => $breakdown,
+            'by_period' => $stats['byPeriod'],
         ];
     }
 
@@ -106,17 +133,29 @@ class OrderReportService
         ?string $since,
         ?string $until,
         ?string $groupBy,
-        bool $paidOnly
+        bool $paidOnly,
+        ?string $dateAnchor = null,
+        ?string $timezone = null
     ): array {
         $interval = in_array(strtolower($groupBy ?? 'month'), ['day', 'week', 'month'], true)
             ? strtolower($groupBy ?? 'month')
             : 'month';
+        $anchor = strtolower(trim($dateAnchor ?? 'created')) === 'paid' ? 'paid' : 'created';
+        $column = $anchor === 'paid' ? 'paid_at' : 'created_at';
+        $timezone = $this->validTimezone($timezone);
         $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
 
-        $rows = $this->baseQuery($typeIds, $since, $until)
+        $rows = $this->baseQuery(
+            $typeIds,
+            $since,
+            $until,
+            $column,
+            $timezone
+        )
+            ->when($anchor === 'paid', fn ($q) => $q->whereNotNull('orders.paid_at'))
             ->when($paidOnly, fn ($q) => $q->where('orders.payment_status', PaymentStatusEnum::PAID->value))
             ->selectRaw(
-                $this->periodExpression($interval) . ' as period, '
+                $this->periodExpression($interval, $this->localizedColumn($column, $timezone)) . ' as period, '
                 . 'COUNT(*) as orders, '
                 . 'COALESCE(SUM(total_gross_amount), 0) as gross_revenue, '
                 . 'COALESCE(SUM(total_net_amount), 0) as net_revenue'
@@ -138,6 +177,8 @@ class OrderReportService
 
         return [
             'group_by' => $interval,
+            'date_anchor' => $anchor,
+            'timezone' => $timezone,
             'paid_only' => $paidOnly,
             'periods' => $periods,
             'total_orders' => $totalOrders,
@@ -147,6 +188,7 @@ class OrderReportService
             'average_net_revenue_per_period' => $periods > 0 ? round((float) $totalNet / $periods, 2) : 0.0,
             'peak_period' => $byOrders->first(),
             'lowest_period' => $byOrders->last(),
+            'peak_gross_revenue_period' => collect($rows)->sortByDesc('gross_revenue')->first(),
             'series' => $rows,
         ];
     }
@@ -265,15 +307,57 @@ class OrderReportService
     /**
      * @param int[]|null $typeIds
      */
-    private function baseQuery(?array $typeIds, ?string $since, ?string $until): Builder
-    {
+    private function baseQuery(
+        ?array $typeIds,
+        ?string $since,
+        ?string $until,
+        string $column = 'created_at',
+        string $timezone = 'UTC'
+    ): Builder {
         return Order::query()
             ->where('orders.apps_id', $this->app->getId())
             ->where('orders.companies_id', $this->company->getId())
             ->where('orders.is_deleted', false)
             ->when($typeIds !== null, fn ($q) => $q->whereIn('orders.order_types_id', $typeIds))
-            ->when($since !== null && $since !== '', fn ($q) => $q->whereDate('orders.created_at', '>=', $since))
-            ->when($until !== null && $until !== '', fn ($q) => $q->whereDate('orders.created_at', '<=', $until));
+            ->when(
+                $since !== null && $since !== '',
+                fn ($q) => $q->where('orders.' . $column, '>=', Carbon::parse($since, $timezone)->startOfDay()->utc())
+            )
+            ->when(
+                $until !== null && $until !== '',
+                fn ($q) => $q->where('orders.' . $column, '<=', Carbon::parse($until, $timezone)->endOfDay()->utc())
+            );
+    }
+
+    private function validTimezone(?string $timezone): string
+    {
+        $timezone = trim((string) $timezone);
+
+        if ($timezone === '') {
+            return 'UTC';
+        }
+
+        if (! in_array($timezone, DateTimeZone::listIdentifiers(), true)) {
+            throw new InvalidArgumentException('Unknown timezone "' . $timezone . '". Use an IANA name such as America/Santo_Domingo.');
+        }
+
+        return $timezone;
+    }
+
+    private function localizedColumn(string $column, string $timezone): string
+    {
+        return $timezone === 'UTC'
+            ? 'orders.' . $column
+            : "CONVERT_TZ(orders.{$column}, 'UTC', '{$timezone}')";
+    }
+
+    private function firstOrderDate(string $timezone): string
+    {
+        $first = $this->baseQuery(null, null, null)->min('orders.created_at');
+
+        return $first !== null
+            ? Carbon::parse($first)->timezone($timezone)->toDateString()
+            : Carbon::now($timezone)->toDateString();
     }
 
     private function resolveOrderTypeIds(?array $names): ?array
@@ -328,12 +412,12 @@ class OrderReportService
      * Week buckets start on Monday so a "last 8 weeks" series lines up with how operations reads a
      * calendar week, not with MySQL's Sunday-based WEEK().
      */
-    private function periodExpression(string $interval): string
+    private function periodExpression(string $interval, string $column): string
     {
         return match ($interval) {
-            'day' => 'DATE(orders.created_at)',
-            'week' => 'DATE(DATE_SUB(orders.created_at, INTERVAL WEEKDAY(orders.created_at) DAY))',
-            default => "DATE_FORMAT(orders.created_at, '%Y-%m-01')",
+            'day' => "DATE({$column})",
+            'week' => "DATE(DATE_SUB({$column}, INTERVAL WEEKDAY({$column}) DAY))",
+            default => "DATE_FORMAT({$column}, '%Y-%m-01')",
         };
     }
 
@@ -367,21 +451,5 @@ class OrderReportService
             'orders' => (int) ($row->orders ?? 0),
             'amount' => round((float) ($row->amount ?? 0), 2),
         ];
-    }
-
-    /**
-     * Card-payment existence kept as a correlated subquery so it never multiplies the amount sums the
-     * way a direct join to the 1:many payments table would.
-     */
-    private function cardPaymentExists(): callable
-    {
-        return function (QueryBuilder $query): void {
-            $query->select(DB::raw(1))
-                ->from('payments')
-                ->whereColumn('payments.payable_id', 'orders.id')
-                ->where('payments.payable_type', Order::class)
-                ->where('payments.is_deleted', 0)
-                ->where('payments.payment_method', 'card');
-        };
     }
 }

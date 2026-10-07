@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Repositories;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -14,8 +15,15 @@ use Kanvas\Souk\Orders\Models\Order;
 class OrderPaymentRepository
 {
     public function __construct(
-        protected Apps $app
+        protected Apps $app,
+        protected ?CompanyInterface $company = null
     ) {
+    }
+
+    private function scopeToTenant(Builder $query): void
+    {
+        $query->where('orders.apps_id', $this->app->id)
+            ->when($this->company !== null, fn ($q) => $q->where('orders.companies_id', $this->company->getId()));
     }
 
     /**
@@ -123,7 +131,7 @@ class OrderPaymentRepository
             })
             ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail))
             ->with(['items'])
-            ->where('orders.apps_id', $this->app->id);
+            ->tap(fn ($query) => $this->scopeToTenant($query));
 
         $this->applyOrderIdentifierFilters($query, $reference, $orderNumber, $metadataFilter);
 
@@ -211,7 +219,7 @@ class OrderPaymentRepository
         $query = Order::query()
             ->leftJoinSub($firstPaymentSub, 'first_payment', 'first_payment.order_id', '=', 'orders.id')
             ->leftJoinSub($paidTransitionSub, 'paid_transition', 'paid_transition.order_id', '=', 'orders.id')
-            ->where('orders.apps_id', $this->app->id)
+            ->tap(fn ($query) => $this->scopeToTenant($query))
             ->where(function ($q) {
                 $q->whereNotNull('paid_transition.changed_at')
                     ->orWhereNotNull('first_payment.order_id');
@@ -247,7 +255,7 @@ class OrderPaymentRepository
         $caseStatements = [];
         $bindings = [];
         foreach ($providers as $provider) {
-            $caseStatements[] = "WHEN orders.user_email LIKE ? THEN ?";
+            $caseStatements[] = 'WHEN orders.user_email LIKE ? THEN ?';
             $bindings[] = $provider['emailPattern'];
             $bindings[] = $provider['name'];
         }
@@ -260,7 +268,7 @@ class OrderPaymentRepository
                 COUNT(DISTINCT orders.id) AS total_count,
                 SUM(orders.total_net_amount) AS total_amount
             ", $bindings)
-            ->groupByRaw("provider_name")
+            ->groupByRaw('provider_name')
             ->get();
     }
 
@@ -296,7 +304,7 @@ class OrderPaymentRepository
                 $query->join('order_types', 'orders.order_types_id', '=', 'order_types.id')
                     ->whereIn('order_types.name', $orderTypeNames);
             })
-            ->where('orders.apps_id', $this->app->id)
+            ->tap(fn ($query) => $this->scopeToTenant($query))
             ->when($variantId, function ($query) use ($variantId) {
                 $query->whereHas('allItems', function ($q) use ($variantId) {
                     $q->where('variant_id', $variantId);
@@ -393,9 +401,9 @@ class OrderPaymentRepository
         ?array $metadataFilter = null
     ): Collection {
         $format = match (strtoupper($periodType)) {
-            'DAY'   => '%Y-%m-%d',
-            'WEEK'  => '%x-W%v',
-            'YEAR'  => '%Y',
+            'DAY' => '%Y-%m-%d',
+            'WEEK' => '%x-W%v',
+            'YEAR' => '%Y',
             default => '%Y-%m',   // MONTH
         };
 
@@ -441,7 +449,7 @@ class OrderPaymentRepository
                 );
             })
             ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail))
-            ->where('orders.apps_id', $this->app->id)
+            ->tap(fn ($query) => $this->scopeToTenant($query))
             ->where(function ($q) {
                 $q->whereNotNull('paid_transition.changed_at')
                     ->orWhereNotNull('first_payment.order_id');
