@@ -498,7 +498,7 @@ class RunNeuronChatAction
                 }
             }
             foreach (ConversationUsageSqlHelper::neuronUsageRow($m) as $key => $count) {
-                $usage[$key] += $count;
+                $usage[$key] = ($usage[$key] ?? 0) + $count;
             }
         };
 
