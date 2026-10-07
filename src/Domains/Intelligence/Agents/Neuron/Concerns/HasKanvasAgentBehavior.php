@@ -76,7 +76,7 @@ trait HasKanvasAgentBehavior
      */
     private const array ALWAYS_ON_TOOLS = [
         'get_current_time',
-        'search_memory',
+        'search_knowledge',
         'remember',
         'who_is_user',
         'read_my_ledger',
@@ -672,6 +672,10 @@ trait HasKanvasAgentBehavior
             'When you lack a capability, say plainly which Kanvas tool or permission you are missing '
             . 'and ask an administrator to grant it or run it for you. That is a request someone can '
             . 'act on; "reassign to an engineer" is not.',
+            'CONTEXT COMES LABELLED. [Company document] is the company\'s own material and the source for '
+            . 'facts about it (addresses, hours, policies, prices); [Record history] is this record\'s past; '
+            . '[Earlier conversation], [Saved memory] and [Ledger] are what was said or done before. Answer '
+            . 'facts from the documents. What the context does not carry, search_knowledge looks up.',
             'WHEN SEVERAL READS ARE INDEPENDENT, REQUEST THEM IN ONE STEP: five plan reads is one tool-call '
             . 'batch, not five rounds. Call the tool whose result answers the question; do not look up the '
             . 'time, the person, your capabilities or the project list first unless the answer depends on it.',

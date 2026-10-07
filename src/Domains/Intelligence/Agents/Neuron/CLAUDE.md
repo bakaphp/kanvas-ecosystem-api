@@ -24,6 +24,7 @@ the one company setting is `$company->set()`; unset means the default.
 | `agent_summary_llm_model` (+ `agent_summary_llm_provider`) | app | `AgentRunConfigurationEnum::SUMMARY_MODEL` / `SUMMARY_PROVIDER` | none (agent's own provider) | a cheaper model writes history summaries, with the app's key |
 | `agent_summary_llm_config_id` | **company** | `AgentRunConfigurationEnum::SUMMARY_LLM_CONFIG` | none | one of the company's LLM configs writes summaries; wins over the two app settings |
 | `agent_tool_search_enabled` | app | `AgentRunConfigurationEnum::TOOL_SEARCH` | **on** | `0` sends every granted tool and MCP toolkit on every round again; see "Tool search" below |
+| `agent_gemini_thinking` | app | `AgentRunConfigurationEnum::GEMINI_THINKING` | model default | `minimal` / `low` / `medium` / `high` sets Gemini's `thinkingLevel` on every chat step, an integer sets `thinkingBudget`; thought tokens land in the step's usage as `reasoning_tokens`, so compare before and after on one agent |
 
 Add a row here whenever a new `*ConfigurationEnum` case lands.
 
@@ -238,7 +239,14 @@ audience scope above, and its `ConversationIngestionNode` writes no tenant metad
 knowledge retrieval's job: memory only reads `source_type in (conversation, memory, ledger)`. The
 reverse holds too: `TypesenseKnowledgeStore::search()` reads through `KnowledgeScope::knowledgeFilter()`,
 which leaves those kinds out, because an organization-wide knowledge read would otherwise return every
-user's turns in the company with no audience scope at all. A turn is written through
+user's turns in the company with no audience scope at all. Within the knowledge read, `KnowledgeRetrieval::rank()`
+fills the slots with the agent's own documents first and the record's rows second, and never returns
+the inbound question to itself: a record's messages repeat the words of the question and are already
+the agent's history through the rollup store, and ranked by raw score they pushed a dealership's lot
+guide (0.75) out of the top eight on "what's your address?" (Shepard Auto, 2026-10-06).
+`LeadKnowledgeSource::isIndexable()` keeps the agent's private rows out of a lead's knowledge in the
+first place: tool calls and results, summaries, notes, anything not public, and any payload whose only
+rendering is its raw JSON. A turn is written through
 `ConversationMemoryNode::transcript()`, live and from the reindex sweep alike, which drops a `NO_UPDATE`
 reply and strips `AgentTurnResponse::noOpGuidance()` from the human side: recalled with the guidance in
 it, a stored agent-to-agent turn told a later turn to answer a human with `NO_UPDATE`.
@@ -260,16 +268,19 @@ as the agent wrote it and never pruned, and an allowlisted outcome (the list in
 `LedgerKnowledgeSource::wants()`, which names only event types the ledger really emits) as
 `source_type = ledger`, one line of what happened, pruned like a conversation. Each `KnowledgeSource`
 owns its `find()` and `isEnabledFor()`: the ledger table has no `is_deleted` and memory has its own
-switch, so the registry never queries models itself. On-demand recall is the `search_memory` tool
-(`RemembersForCompany::memoryTools()`, universal on every agent whose memory is active and whose
-audience scope is non-null): same store, same `CompanyMemoryRetrieval::scopeFor()` filter, plus a
-`since`/`until` window on `created_at` and a limit up to 25, for the questions the automatic 4-hit
-recall cannot answer ("what did we agree in September"). The tool answers at most
-`MAX_SEARCHES_PER_TURN` (2) times per turn; the third call is told to answer from what it has, and its
-description says it is never for current records (projects, leads, people have their own tools).
-Memory returns the same old chats however the words change, so a turn that keeps searching is a turn
-with no tool for the ask (a PM asked for each project's tasks searched 17 times, 48 s of a 61 s turn;
-on 4.x days memory search was a third of her steps). `agents:prune-memory` (03:30 daily) applies the retention; `agents:reindex-memory
+switch, so the registry never queries models itself. On-demand recall is the `search_knowledge` tool
+(`RemembersForCompany::memoryTools()` → `onDemandRetrieval()`): one tool over the same composite
+retrieval the automatic recall uses (`HasKnowledgeRag::retrieval()`, knowledge plus memory) on a RAG
+agent, memory alone on a `BaseKanvasAgent`, so the tool can never reach further than the recall does.
+It replaced `search_memory` on 2026-10-06: a model is bad at guessing which drawer an answer is in, and
+a sales agent asked for a documented lot address searched memory eleven times. Hits come back labelled
+by provenance (`[Company document]`, `[Record history, date]` from `KnowledgeRetrieval::labelled()`,
+`[Earlier conversation]` / `[Saved memory]` / `[Ledger]` from `CompanyMemoryRetrieval::label()`), the
+platform context says what each label means, and `since`/`until` narrow the dated kinds. The tool
+answers at most `MAX_SEARCHES_PER_TURN` (2) times per turn; the third call is told to answer from what
+it has, and its description says it is never for live records (projects, leads, people have their own
+tools). Retrieval returns the same hits however the words change, so a turn that keeps searching is a
+turn with no tool for the ask. `agents:prune-memory` (03:30 daily) applies the retention; `agents:reindex-memory
 --since --app` writes a window of past turns and outcomes for a first rollout or after an embedding
 outage, keyed like the live path so a re-run upserts. Adding a field to the collection (`TypesenseKnowledgeStore::LATER_FIELDS`)
 is done by the first write after the deploy, and Typesense accepts one schema alter at a time: every
