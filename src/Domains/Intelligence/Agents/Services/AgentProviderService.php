@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Services;
 
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Collection;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
@@ -25,6 +26,8 @@ use NeuronAI\Providers\AIProviderInterface;
 
 class AgentProviderService
 {
+    private const array GEMINI_THINKING_LEVELS = ['minimal', 'low', 'medium', 'high'];
+
     private const array KEYED_PROVIDER_CLASSES = [
         AgentLlmProviderEnum::ANTHROPIC->value => KanvasAnthropic::class,
         AgentLlmProviderEnum::OPENAI->value => KanvasOpenAI::class,
@@ -125,7 +128,7 @@ class AgentProviderService
             return new KanvasGemini(
                 key: self::requireKey($source, $agent, $provider),
                 model: $model,
-                parameters: $parameters,
+                parameters: self::withGeminiThinking($parameters, $app),
                 httpClient: $httpClient,
             );
         }
@@ -281,7 +284,42 @@ class AgentProviderService
         return (string) ($source['model']
             ?? $app->get(ConfigurationEnum::AI_PROVIDER_MODEL->value)
             ?? $app->get(ConfigurationEnum::GEMINI_MODEL->value)
-            ?? 'gemini-3.7-flash');
+            ?? 'gemini-3.8-flash');
+    }
+
+    /**
+     * The request body carries `generationConfig.thinkingConfig`; the app setting fills it when the
+     * selected config did not.
+     *
+     * @param array<string, mixed> $parameters
+     * @return array<string, mixed>
+     */
+    private static function withGeminiThinking(array $parameters, Apps $app): array
+    {
+        if (isset($parameters['generationConfig']['thinkingConfig'])) {
+            return $parameters;
+        }
+
+        $setting = Str::trimToNull((string) $app->get(AgentRunConfigurationEnum::GEMINI_THINKING->value));
+
+        if ($setting === null) {
+            return $parameters;
+        }
+
+        $level = strtolower($setting);
+        $thinking = match (true) {
+            is_numeric($setting) => ['thinkingBudget' => (int) $setting],
+            in_array($level, self::GEMINI_THINKING_LEVELS, true) => ['thinkingLevel' => $level],
+            default => null,
+        };
+
+        if ($thinking === null) {
+            return $parameters;
+        }
+
+        $parameters['generationConfig'] = [...($parameters['generationConfig'] ?? []), 'thinkingConfig' => $thinking];
+
+        return $parameters;
     }
 
     /**

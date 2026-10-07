@@ -26,6 +26,15 @@ use Tests\TestCase;
  */
 final class ArtifactDeliveryDoctrineTest extends TestCase
 {
+    public function testEveryAgentIsToldWhatEachContextLabelMeans(): void
+    {
+        $context = implode(' ', HasKanvasAgentBehavior::platformContext());
+
+        $this->assertStringContainsString('[Company document] is the company', $context);
+        $this->assertStringContainsString('[Record history]', $context);
+        $this->assertStringContainsString('search_knowledge looks up', $context);
+    }
+
     public function testEveryAgentIsToldToBatchIndependentReads(): void
     {
         $context = implode(' ', HasKanvasAgentBehavior::platformContext());

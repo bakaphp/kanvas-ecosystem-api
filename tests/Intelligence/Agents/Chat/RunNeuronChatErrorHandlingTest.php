@@ -23,6 +23,7 @@ use Mockery;
 use NeuronAI\Agent\AgentState;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\Usage;
 use NeuronAI\Exceptions\RunInFlightException;
 use NeuronAI\Providers\ProviderResponse;
 use NeuronAI\Workflow\WorkflowStatus;
@@ -31,6 +32,7 @@ use PDOException;
 use RuntimeException;
 use Tests\Stubs\Intelligence\BusyThenAnsweringNeuronHandlerStub;
 use Tests\Stubs\Intelligence\CapturingNeuronAgentStub;
+use Tests\Stubs\Intelligence\FakeNeuronProvider;
 use Tests\Stubs\Intelligence\ThrowingNeuronHandlerStub;
 use Tests\TestCase;
 use Throwable;
@@ -290,6 +292,29 @@ class RunNeuronChatErrorHandlingTest extends TestCase
         $this->assertSame('recovered', $action->execute());
         $this->assertSame(41, $handler->recoveries);
         $this->assertSame(200_000, $action->threadWaitMs());
+    }
+
+    /**
+     * Gemini reports thought tokens, the per-step usage row carries them as reasoning_tokens, and the
+     * turn total is summed from whatever keys the rows have. A key the accumulator was not seeded with
+     * must not fail the turn.
+     */
+    public function testAStepThatReportsReasoningTokensDoesNotFailTheTurn(): void
+    {
+        $handler = new class () extends CapturingNeuronAgentStub {
+        };
+        $handler->capturedProvider = new class () extends FakeNeuronProvider {
+            #[Override]
+            public function chat(Message ...$messages): ProviderResponse
+            {
+                return $this->respond(
+                    new AssistantMessage('thought about it')->setUsage(new Usage(inputTokens: 10, outputTokens: 5, reasoningTokens: 7)),
+                );
+            }
+        };
+        $handler->setConfiguration(agent: $this->agentFor(ThrowingNeuronHandlerStub::class), user: auth()->user());
+
+        $this->assertSame('thought about it', $this->actionWithHandler($handler)->execute());
     }
 
     public function testEvenADeadLeaseIsNotWaitedForForever(): void
