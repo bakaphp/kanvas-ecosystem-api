@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Neuron\Memory\ConversationMemoryNode;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\CompanyMemoryRetrieval;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\SearchKnowledgeTool;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
