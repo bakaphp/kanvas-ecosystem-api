@@ -16,7 +16,7 @@ x-common-queue-settings: &common-queue-settings
     command:
         - "sh"
         - "-c"
-        - "php artisan config:cache && php artisan queue:work
+        - "php artisan config:cache && exec php artisan queue:work
           --tries=3 --timeout=3750"
     environment:
         WWWUSER: "${WWWUSER}"
@@ -68,7 +68,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=reporting --tries=3 --timeout=3750"
     imports-queue:
         <<: *common-queue-settings
@@ -76,7 +76,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=imports --tries=3 --timeout=3750"
     batch-logger-queue:
         <<: *common-queue-settings
@@ -84,7 +84,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=batch-logger --tries=3 --timeout=3750"
     agent-runtime-queue:
         <<: *common-queue-settings
@@ -93,7 +93,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=agent-runtime --tries=3 --timeout=3750"
     product-enrichment-queue:
         <<: *common-queue-settings
@@ -101,7 +101,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=product-enrichment --tries=3 --timeout=3750"
     product-discovery-queue:
         <<: *common-queue-settings
@@ -109,7 +109,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=product-discovery --tries=3 --timeout=300"
     scout-queue:
         <<: *common-queue-settings
@@ -117,7 +117,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=scout --tries=3 --timeout=300"
     agent-chat-queue:
         <<: *common-queue-settings
@@ -127,7 +127,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=agent-chat --tries=1 --timeout=3750"
     # Replicated, and no container_name, because a single `queue:work` is one process: it takes the
     # next job only when the current one returns. A plan's task band is dispatched as one Bus::batch
@@ -141,7 +141,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=agent-task-worker --tries=1 --timeout=3750"
     # Every Kanvas notification lands here — the base Notification does `onQueue('notifications')` in
     # its constructor, so mail, push and in-app all route to this one queue. The other two compose
@@ -153,7 +153,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=notifications --tries=3 --timeout=3750"
     broadcasts-queue:
         <<: *common-queue-settings
@@ -161,7 +161,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=broadcasts --tries=3 --timeout=60"
     ledger-queue:
         <<: *common-queue-settings
@@ -169,7 +169,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work --queue=ledger
+            - "php artisan config:cache && exec php artisan queue:work --queue=ledger
               --tries=3 --timeout=3750"
     slack-ingest-queue:
         <<: *common-queue-settings
@@ -177,7 +177,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=slack-ingest --tries=3 --timeout=3750"
     nervous-system-project-queue:
         <<: *common-queue-settings
@@ -186,7 +186,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=nervous-system-project --tries=3 --timeout=3750"
     scheduled-actions-queue:
         <<: *common-queue-settings
@@ -194,7 +194,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=scheduled-actions --tries=3 --timeout=3750"
     scribe-aging-queue:
         <<: *common-queue-settings
@@ -202,7 +202,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=scribe-aging --tries=3 --timeout=3750"
     scribe-pdf-ingest-queue:
         <<: *common-queue-settings
@@ -210,7 +210,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=scribe-pdf-ingest --tries=3 --timeout=3750"
     lead-follow-ups-queue:
         <<: *common-queue-settings
@@ -218,7 +218,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan config:cache && php artisan queue:work
+            - "php artisan config:cache && exec php artisan queue:work
               --queue=lead_follow_ups --tries=3 --timeout=3750"
 
     reverb:
