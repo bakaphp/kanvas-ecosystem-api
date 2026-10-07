@@ -20,11 +20,19 @@ use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\CRM\ReceptionistAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Mockery;
+use NeuronAI\Agent\AgentState;
+use NeuronAI\Chat\Messages\AssistantMessage;
+use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\Usage;
 use NeuronAI\Exceptions\RunInFlightException;
+use NeuronAI\Providers\ProviderResponse;
+use NeuronAI\Workflow\WorkflowStatus;
 use Override;
 use PDOException;
 use RuntimeException;
 use Tests\Stubs\Intelligence\BusyThenAnsweringNeuronHandlerStub;
+use Tests\Stubs\Intelligence\CapturingNeuronAgentStub;
+use Tests\Stubs\Intelligence\FakeNeuronProvider;
 use Tests\Stubs\Intelligence\ThrowingNeuronHandlerStub;
 use Tests\TestCase;
 use Throwable;
@@ -228,6 +236,97 @@ class RunNeuronChatErrorHandlingTest extends TestCase
             $this->fail('A thread busy past the wait must surface the refusal');
         } catch (RunInFlightException) {
             $this->assertSame(31, $handler->calls, 'One try, then one per 5 s poll across the 150 s wait');
+        }
+    }
+
+    /**
+     * A worker restarted mid-turn leaves its run's lease where the last step left it. Once it expires
+     * the next start supersedes the dead run, so a turn that sees the end coming waits for it.
+     */
+    public function testADeadRunsLeaseIsWaitedOutInsteadOfFailingTheTurn(): void
+    {
+        $handler = new BusyThenAnsweringNeuronHandlerStub(busyCalls: 40, reply: 'recovered', leaseExpiresAt: time() + 200);
+        $action = $this->actionWithHandler($handler);
+
+        $this->assertSame('recovered', $action->execute());
+        $this->assertSame(41, $handler->calls, 'Waited 200 s, past the 150 s a live run gets');
+        $this->assertSame(200_000, $action->threadWaitMs());
+    }
+
+    /**
+     * The same message redelivered finds its own dead run and asks the engine to continue it by id; the
+     * engine refuses that too while the lease is fresh, so recovery has to wait inside the same loop or
+     * the person gets the hiccup a minute before the lease would have cleared.
+     */
+    public function testRecoveryOfADeadRunWaitsForItsLeaseInsteadOfFailing(): void
+    {
+        $handler = new class () extends CapturingNeuronAgentStub {
+            public int $recoveries = 0;
+
+            #[Override]
+            public function recoverInterruptedRun(Message $inbound): ?AgentState
+            {
+                if (++$this->recoveries <= 40) {
+                    throw new RunInFlightException(
+                        workflowId: 'thread-1',
+                        runId: 'run-1',
+                        status: WorkflowStatus::Running,
+                        executionAttempt: 1,
+                        leaseExpiresAt: time() + 200,
+                        reservedRunId: 'run-1',
+                    );
+                }
+
+                return new AgentState()->setResponse(new ProviderResponse(message: new AssistantMessage('recovered')));
+            }
+
+            #[Override]
+            public function chat(Message|array $messages = [], bool $stream = false): AgentState
+            {
+                throw new RuntimeException('A recoverable run must be continued, never restarted');
+            }
+        };
+        $handler->setConfiguration(agent: $this->agentFor(ThrowingNeuronHandlerStub::class), user: auth()->user());
+        $action = $this->actionWithHandler($handler);
+
+        $this->assertSame('recovered', $action->execute());
+        $this->assertSame(41, $handler->recoveries);
+        $this->assertSame(200_000, $action->threadWaitMs());
+    }
+
+    /**
+     * Gemini reports thought tokens, the per-step usage row carries them as reasoning_tokens, and the
+     * turn total is summed from whatever keys the rows have. A key the accumulator was not seeded with
+     * must not fail the turn.
+     */
+    public function testAStepThatReportsReasoningTokensDoesNotFailTheTurn(): void
+    {
+        $handler = new class () extends CapturingNeuronAgentStub {
+        };
+        $handler->capturedProvider = new class () extends FakeNeuronProvider {
+            #[Override]
+            public function chat(Message ...$messages): ProviderResponse
+            {
+                return $this->respond(
+                    new AssistantMessage('thought about it')->setUsage(new Usage(inputTokens: 10, outputTokens: 5, reasoningTokens: 7)),
+                );
+            }
+        };
+        $handler->setConfiguration(agent: $this->agentFor(ThrowingNeuronHandlerStub::class), user: auth()->user());
+
+        $this->assertSame('thought about it', $this->actionWithHandler($handler)->execute());
+    }
+
+    public function testEvenADeadLeaseIsNotWaitedForForever(): void
+    {
+        $handler = new BusyThenAnsweringNeuronHandlerStub(busyCalls: 1_000, leaseExpiresAt: time() + 200);
+        $action = $this->actionWithHandler($handler, fallbackOnFailure: false);
+
+        try {
+            $action->execute();
+            $this->fail('A lease that never clears must surface the refusal');
+        } catch (RunInFlightException) {
+            $this->assertSame(91, $handler->calls, 'One try, then one per 5 s poll across 150 s plus the 300 s recovery window');
         }
     }
 

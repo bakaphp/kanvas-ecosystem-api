@@ -46,6 +46,7 @@ class SearchLeadsToolTest extends TestCase
         $ids = array_column($result['leads'], 'lead_id');
         $this->assertContains($match->getId(), $ids);
         $this->assertNotContains($other->getId(), $ids);
+        $this->assertArrayHasKey('admin_url', $result['leads'][0], 'The link rides with the record so build_admin_link is not a second round');
     }
 
     public function testFindsLeadByTitleAndRespectsStatusFilter(): void
@@ -84,6 +85,43 @@ class SearchLeadsToolTest extends TestCase
         $allIds = array_column($all['leads'], 'lead_id');
         $this->assertContains($openLead->getId(), $allIds);
         $this->assertContains($closedLead->getId(), $allIds);
+    }
+
+    /**
+     * "Which open leads have gone longest without activity" was answered by paging backwards through
+     * updated_until eight times, because the list only came newest first.
+     */
+    public function testOldestFirstAnswersTheStaleBookInOneCallWithNoOtherFilter(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $token = 'Stalewick' . uniqid();
+        $old = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create(['title' => $token . ' old', 'status' => 0]);
+        $fresh = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create(['title' => $token . ' fresh', 'status' => 0]);
+        Lead::query()->whereKey($old->getId())->update(['updated_at' => now()->subYears(3)]);
+        Lead::query()->whereKey($fresh->getId())->update(['updated_at' => now()->subMinute()]);
+
+        $oldest = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(query: $token, sort: 'oldest', limit: 100);
+        $newest = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(query: $token, limit: 100);
+
+        $this->assertSame([$old->getId(), $fresh->getId()], array_column($oldest['leads'], 'lead_id'));
+        $this->assertSame([$fresh->getId(), $old->getId()], array_column($newest['leads'], 'lead_id'));
+        $this->assertSame('oldest', $oldest['sort']);
+
+        $noFilter = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(sort: 'oldest', limit: 5);
+        $this->assertArrayNotHasKey('error', $noFilter, 'The order alone bounds the question, no other filter needed');
+        $this->assertLessThanOrEqual(5, $noFilter['count']);
+
+        $bad = new SearchLeadsTool()->withContext($app, $company, $user)->__invoke(query: $token, sort: 'random');
+        $this->assertStringContainsString('sort must be', $bad['error']);
     }
 
     /**

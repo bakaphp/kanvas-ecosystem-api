@@ -44,8 +44,9 @@ class ParseMessageMentionsAction
     }
 
     /**
-     * `@handle` tokens from the text (may be HTML). Space-containing display names can't be
-     * matched from free text.
+     * `@handle` tokens from the text. The body is often HTML, and the editor styles the handle on its
+     * own (`@<strong>handle</strong>`), so tags come off before matching or the `@` is followed by
+     * `<` and nothing resolves. Space-containing display names can't be matched from free text.
      *
      * @return list<string>
      */
@@ -54,6 +55,8 @@ class ParseMessageMentionsAction
         if (! str_contains($content, '@')) {
             return [];
         }
+
+        $content = html_entity_decode(strip_tags($content), ENT_QUOTES | ENT_HTML5);
 
         if (preg_match_all('/@([\p{L}\p{N}._+\-]+)/u', $content, $matches) === false) {
             return [];

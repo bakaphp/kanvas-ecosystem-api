@@ -69,6 +69,18 @@ class ParseMessageMentionsActionTest extends TestCase
         Event::assertDispatched(MessageMentionsStoredEvent::class);
     }
 
+    public function testResolvesAHandleTheEditorWrappedInItsOwnTag(): void
+    {
+        Event::fake([MessageMentionsStoredEvent::class]);
+        $userId = $this->nameCurrentUser('jessicapmkanvas');
+
+        $message = $this->makeMessage('<p>@<strong>jessicapmkanvas there?</strong></p>');
+        $result = new ParseMessageMentionsAction($message)->execute();
+
+        $this->assertSame([$userId], $result);
+        Event::assertDispatched(MessageMentionsStoredEvent::class);
+    }
+
     public function testExtractsMentionFromARawStringBody(): void
     {
         Event::fake([MessageMentionsStoredEvent::class]);

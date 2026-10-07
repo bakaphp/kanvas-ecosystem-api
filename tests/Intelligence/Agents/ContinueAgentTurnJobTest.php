@@ -236,8 +236,12 @@ class ContinueAgentTurnJobTest extends TestCase
                 return 'done';
             }
 
-            protected function trackUsage(string $response, float $durationMs, string $sessionId): void
-            {
+            protected function trackUsage(
+                string $response,
+                float $durationMs,
+                string $sessionId,
+                int $threadWaitMs = 0,
+            ): void {
             }
         };
     }

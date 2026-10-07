@@ -10,6 +10,7 @@ use Kanvas\Event\Events\Models\Event;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\LinksRecordsToAdmin;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use NeuronAI\Tools\PropertyType;
@@ -20,6 +21,7 @@ use Override;
 #[AgentTool(name: 'Lead Reference', category: 'crm')]
 class LeadRefTool extends Tool
 {
+    use LinksRecordsToAdmin;
     use ResolvesLeadForTool;
 
     protected string $name = 'get_lead_ref';
@@ -58,6 +60,7 @@ class LeadRefTool extends Tool
         return [
             'lead_id' => $lead->id,
             'lead_uuid' => $lead->uuid,
+            'admin_url' => $this->adminUrlOf($lead),
             'title' => $lead->title,
             'description' => $lead->description,
             'status' => $lead->status()->first()?->name,

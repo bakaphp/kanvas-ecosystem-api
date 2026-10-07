@@ -53,6 +53,14 @@ final class RenderArtifactToolTest extends TestCase
         $this->assertSame($statsKey, $tool->setInputs($stats)->getRunKey());
     }
 
+    public function testTheDescriptionAsksForOneBlockPerReplyNotOnePerParagraph(): void
+    {
+        $description = (string) new RenderArtifactTool()->getDescription();
+
+        $this->assertStringContainsString('One block per reply is the norm', $description);
+        $this->assertStringNotContainsString('Several blocks per reply are fine', $description, 'Four render calls were 17 s of a 41 s PM turn');
+    }
+
     public function testTheTitleIsOptional(): void
     {
         $result = new RenderArtifactTool()(
