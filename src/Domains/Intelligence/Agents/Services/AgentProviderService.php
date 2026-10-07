@@ -26,6 +26,8 @@ use NeuronAI\Providers\AIProviderInterface;
 
 class AgentProviderService
 {
+    private const array GEMINI_THINKING_LEVELS = ['minimal', 'low', 'medium', 'high'];
+
     private const array KEYED_PROVIDER_CLASSES = [
         AgentLlmProviderEnum::ANTHROPIC->value => KanvasAnthropic::class,
         AgentLlmProviderEnum::OPENAI->value => KanvasOpenAI::class,
@@ -304,9 +306,10 @@ class AgentProviderService
             return $parameters;
         }
 
+        $level = strtolower($setting);
         $thinking = match (true) {
             is_numeric($setting) => ['thinkingBudget' => (int) $setting],
-            in_array(strtolower($setting), ['minimal', 'low', 'medium', 'high'], true) => ['thinkingLevel' => strtolower($setting)],
+            in_array($level, self::GEMINI_THINKING_LEVELS, true) => ['thinkingLevel' => $level],
             default => null,
         };
 

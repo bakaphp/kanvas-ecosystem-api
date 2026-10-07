@@ -133,6 +133,7 @@ trait RemembersForCompany
     {
         $knowledgeEnabled = $this->app !== null && $this->company !== null && KnowledgeComponents::knowledgeEnabled($this->app);
 
+        // retrieval() is Neuron's RAG hook: BaseRagAgent has it, a plain BaseKanvasAgent does not.
         if (method_exists($this, 'retrieval') && ($knowledgeEnabled || $this->companyMemoryActive())) {
             return $this->retrieval();
         }

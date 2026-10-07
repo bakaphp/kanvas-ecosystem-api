@@ -118,7 +118,12 @@ class AgentChatKernel
             $this->broadcastChatResponse($sessionId, $response);
         }
 
-        $this->trackUsage($response, $durationMs, $sessionId, $threadWaitMs);
+        $this->trackUsage(
+            $response,
+            $durationMs,
+            $sessionId,
+            $threadWaitMs,
+        );
 
         return $response;
     }

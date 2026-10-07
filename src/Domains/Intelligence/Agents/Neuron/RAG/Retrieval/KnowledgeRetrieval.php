@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -66,7 +67,12 @@ class KnowledgeRetrieval implements RetrievalInterface
                 $minScore,
             );
 
-            return self::rank([], $hits, $topK, $question);
+            return self::rank(
+                [],
+                $hits,
+                $topK,
+                $question,
+            );
         }
 
         // The agent's own docs, then the record in scope (a Lead). A global row like
@@ -82,7 +88,12 @@ class KnowledgeRetrieval implements RetrievalInterface
             );
         }
 
-        return self::rank($byScope[0], $byScope[1], $topK, $question);
+        return self::rank(
+            $byScope[0],
+            $byScope[1],
+            $topK,
+            $question,
+        );
     }
 
     /**
@@ -102,7 +113,12 @@ class KnowledgeRetrieval implements RetrievalInterface
             return [];
         }
 
-        return $store->search($embedding, $scope, $topK, $minScore);
+        return $store->search(
+            $embedding,
+            $scope,
+            $topK,
+            $minScore,
+        );
     }
 
     /**
@@ -169,6 +185,6 @@ class KnowledgeRetrieval implements RetrievalInterface
 
     private static function normalize(string $text): string
     {
-        return mb_strtolower(trim(preg_replace('/\s+/', ' ', $text) ?? $text));
+        return Str::lower(Str::squish($text));
     }
 }

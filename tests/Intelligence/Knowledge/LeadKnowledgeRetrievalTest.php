@@ -27,7 +27,12 @@ class LeadKnowledgeRetrievalTest extends TestCase
             $this->hit('just wandering what time do you open?', 0.657, 'Lead'),
         ];
 
-        $ranked = KnowledgeRetrieval::rank($documents, $lead, 3, 'Whats your address?');
+        $ranked = KnowledgeRetrieval::rank(
+            $documents,
+            $lead,
+            3,
+            'Whats your address?',
+        );
 
         $this->assertSame(
             [
