@@ -5877,16 +5877,16 @@
         },
         {
             "name": "league/flysystem-ftp",
-            "version": "3.35.3",
+            "version": "3.36.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem-ftp.git",
-                "reference": "6253a2041868a210afdcf06db185a116cdf28d35"
+                "reference": "878dde9b0e5baf5076855adb0e7737d8553876da"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem-ftp/zipball/6253a2041868a210afdcf06db185a116cdf28d35",
-                "reference": "6253a2041868a210afdcf06db185a116cdf28d35",
+                "url": "https://api.github.com/repos/thephpleague/flysystem-ftp/zipball/878dde9b0e5baf5076855adb0e7737d8553876da",
+                "reference": "878dde9b0e5baf5076855adb0e7737d8553876da",
                 "shasum": ""
             },
             "require": {
@@ -5921,9 +5921,9 @@
                 "ftpd"
             ],
             "support": {
-                "source": "https://github.com/thephpleague/flysystem-ftp/tree/3.35.3"
+                "source": "https://github.com/thephpleague/flysystem-ftp/tree/3.36.0"
             },
-            "time": "2026-08-16T17:47:54+00:00"
+            "time": "2026-09-02T07:55:04+00:00"
         },
         {
             "name": "league/flysystem-google-cloud-storage",
