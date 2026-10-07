@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\MatchesPeopleByName;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -15,24 +14,20 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Find People Bulk', category: 'crm')]
-class FindPeopleBulkTool extends Tool implements HasRunKey
+class FindPeopleBulkTool extends Tool
 {
     use HasKanvasContext;
     use MatchesPeopleByName;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_people_bulk',
-            description: 'Look up MANY people at once in the contacts directory by name. ALWAYS use this instead of '
-                . 'calling find_person once per name whenever you have more than one name to check — cross-referencing '
-                . 'a spreadsheet/CSV column, checking an attendee list, "which of these people do we already have". '
-                . 'Pass every name in one call, separated by commas or new lines. Returns one row per name, in the '
-                . 'order given, each with found=true/false and any matching person_id, email, phone and organization. '
-                . 'For a single lookup, or to search by email/phone instead of name, use find_person.',
-        );
-    }
+    protected string $name = 'find_people_bulk';
+
+    protected ?string $description = 'Look up MANY people at once in the contacts directory by name. ALWAYS use this instead of '
+        . 'calling find_person once per name whenever you have more than one name to check — cross-referencing '
+        . 'a spreadsheet/CSV column, checking an attendee list, "which of these people do we already have". '
+        . 'Pass every name in one call, separated by commas or new lines. Returns one row per name, in the '
+        . 'order given, each with found=true/false and any matching person_id, email, phone and organization. '
+        . 'For a single lookup, or to search by email/phone instead of name, use find_person.';
 
     /**
      * @return array<int, ToolProperty>

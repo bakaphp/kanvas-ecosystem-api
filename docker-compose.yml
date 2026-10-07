@@ -62,6 +62,14 @@ services:
     queue:
         <<: *common-queue-settings
         container_name: queue
+    reporting-queue:
+        <<: *common-queue-settings
+        container_name: reporting-queue
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && php artisan queue:work
+              --queue=reporting --tries=3 --timeout=3750"
     imports-queue:
         <<: *common-queue-settings
         container_name: imports-queue
@@ -80,7 +88,8 @@ services:
               --queue=batch-logger --tries=3 --timeout=3750"
     agent-runtime-queue:
         <<: *common-queue-settings
-        container_name: agent-runtime-queue
+        deploy:
+            replicas: 3
         command:
             - "sh"
             - "-c"
@@ -112,7 +121,9 @@ services:
               --queue=scout --tries=3 --timeout=300"
     agent-chat-queue:
         <<: *common-queue-settings
-        container_name: agent-chat-queue
+        stop_grace_period: 300s
+        deploy:
+            replicas: 3
         command:
             - "sh"
             - "-c"
@@ -170,6 +181,7 @@ services:
               --queue=slack-ingest --tries=3 --timeout=3750"
     nervous-system-project-queue:
         <<: *common-queue-settings
+        stop_grace_period: 300s
         container_name: nervous-system-project-queue
         command:
             - "sh"

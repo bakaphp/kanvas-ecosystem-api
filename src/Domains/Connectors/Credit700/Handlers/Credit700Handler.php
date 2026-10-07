@@ -38,4 +38,13 @@ class Credit700Handler extends BaseIntegration
 
         return $client->generateToken() !== '';
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::ACCOUNT->value,
+            ConfigurationEnum::PASSWORD->value,
+        ];
+    }
 }

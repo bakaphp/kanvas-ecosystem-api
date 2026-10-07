@@ -24,16 +24,12 @@ class AttachBillFileTool extends Tool
     use AttachesFileToDocumentForTool;
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'attach_bill_file',
-            description: 'Attaches a file to an AP bill that has already been pushed to Acumatica — stores it '
-                . 'in Kanvas and uploads it to the Acumatica document too. Identify the file by filesystem_id '
-                . 'when someone handed it to you this turn (an attachment marker, download_attachment), or by '
-                . 'file_url when all you have is a link.',
-        );
-    }
+    protected string $name = 'attach_bill_file';
+
+    protected ?string $description = 'Attaches a file to an AP bill that has already been pushed to Acumatica — stores it '
+        . 'in Kanvas and uploads it to the Acumatica document too. Identify the file by filesystem_id '
+        . 'when someone handed it to you this turn (an attachment marker, download_attachment), or by '
+        . 'file_url when all you have is a link.';
 
     /**
      * @return array<int, ToolProperty>

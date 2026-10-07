@@ -12,8 +12,10 @@ use Exception;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Orders\DataTransferObject\OrderReceipt;
 use Kanvas\Souk\Traits\DefaultTrait;
 
 /**
@@ -48,6 +50,28 @@ class OrderTypes extends BaseModel
     public function cardVelocityLimit(string $key): int
     {
         return (int) ($this->config['card_velocity'][$key] ?? 0);
+    }
+
+    public function pdfReceipt(): ?OrderReceipt
+    {
+        return OrderReceipt::fromConfig((array) ($this->config[OrderReceipt::CONFIG_KEY] ?? []));
+    }
+
+    public static function idsForNames(Apps $app, Companies $company, array $names): array
+    {
+        $names = array_values(array_filter($names));
+        if ($names === []) {
+            return [];
+        }
+
+        return self::query()
+            ->fromApp($app)
+            ->whereIn('companies_id', [$company->getId(), 0])
+            ->notDeleted()
+            ->whereIn('name', $names)
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
     }
 
     public function orders(): HasMany

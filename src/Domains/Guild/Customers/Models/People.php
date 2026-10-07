@@ -11,6 +11,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
+use Kanvas\Analytics\Reporting\Observers\ReportSourceObserver;
 use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -32,6 +34,7 @@ use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
+use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -70,6 +73,7 @@ use Override;
  * @property string|null $instagram_contact_id
  * @property string|null $apple_contact_id
  */
+#[ObservedBy([PeopleObserver::class, ReportSourceObserver::class])]
 class People extends BaseModel
 {
     use HasAdminLink;
@@ -388,7 +392,11 @@ class People extends BaseModel
 
     public function addDefaultAddress(DataTransferObjectAddress $address): Address
     {
-        $address = $this->addAddress($address);
+        return $this->makeDefaultAddress($this->addAddress($address));
+    }
+
+    public function makeDefaultAddress(Address $address): Address
+    {
         $address->is_default = 1;
         $address->saveOrFail();
 
@@ -430,41 +438,48 @@ class People extends BaseModel
 
     public function addEmail(string $email, int $isOptOut = 0, int $weight = 0): Contact
     {
-        return Contact::updateOrCreate(
-            [
-                'peoples_id' => $this->id,
-                'value' => $email,
-                'contacts_types_id' => ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId(),
-            ],
-            [
-                'is_opt_out' => $isOptOut,
-                'weight' => $weight,
-            ]
+        return $this->addContact(
+            ContactTypeEnum::EMAIL->getName(),
+            $email,
+            $isOptOut,
+            $weight
         );
     }
 
     public function addPhone(string $phone, int $isOptOut = 0, int $weight = 0): Contact
     {
-        return Contact::updateOrCreate(
-            [
-                'peoples_id' => $this->id,
-                'value' => $phone,
-                'contacts_types_id' => ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
-            ],
-            [
-                'is_opt_out' => $isOptOut,
-                'weight' => $weight,
-            ]
+        return $this->addContact(
+            ContactTypeEnum::PHONE->getName(),
+            $phone,
+            $isOptOut,
+            $weight
         );
     }
 
     public function addCellPhone(string $phone, int $isOptOut = 0, int $weight = 0): Contact
     {
+        return $this->addContact(
+            ContactTypeEnum::CELLPHONE->getName(),
+            $phone,
+            $isOptOut,
+            $weight
+        );
+    }
+
+    public function addContact(
+        string $typeName,
+        string $value,
+        int $isOptOut = 0,
+        int $weight = 0
+    ): Contact {
+        $typeId = ContactType::getByName($typeName)->getId();
+
+        // ContactObserver stores phones digits-only; match on that form or a "+1 809…" re-save duplicates.
         return Contact::updateOrCreate(
             [
                 'peoples_id' => $this->id,
-                'value' => $phone,
-                'contacts_types_id' => ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+                'value' => Contact::isPhoneType($typeId) ? Contact::cleanPhone($value) : $value,
+                'contacts_types_id' => $typeId,
             ],
             [
                 'is_opt_out' => $isOptOut,

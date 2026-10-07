@@ -23,4 +23,9 @@ enum ConfigurationEnum: string
     case AI_MODE_IS_MANUAL = 'lead_ai_mode_is_manual';
     case CONVERTED_TO_DEAL_ID = 'converted_to_deal_id';
     case OPEN_LEADS_STATUS_IDS = 'guild_open_leads_status_ids';
+    case DAILY_LEADS_DIGEST_ENABLED = 'guild_daily_leads_digest_enabled';
+    case DAILY_LEADS_DIGEST_HOURS = 'guild_daily_leads_digest_hours';
+    case DAILY_LEADS_DIGEST_EXCLUDED_COMPANIES = 'guild_daily_leads_digest_excluded_companies';
+    case DAILY_LEADS_DIGEST_EXCLUDED_EMAILS = 'guild_daily_leads_digest_excluded_emails';
+    case DAILY_LEADS_DIGEST_RECIPIENTS = 'guild_daily_leads_digest_recipients';
 }

@@ -15,4 +15,9 @@ enum CustomFieldEnum: string
     case MECHANIC_LNG = 'movipass_mechanic_lng';
     case MECHANIC_VEHICLE_INFO = 'movipass_mechanic_vehicle_info';
     case COMPANY_REGION_ID = 'movipass_region_id';
+    case ROADSIDE_PROVIDER_CASE_NUMBER = 'movipass_roadside_provider_case_number';
+    case ROADSIDE_PROVIDER_LAST_PUSHED_STATE = 'movipass_roadside_provider_last_pushed_state';
+    case ROADSIDE_PROVIDER_LAST_POLLED_AT = 'movipass_roadside_provider_last_polled_at';
+    case ROADSIDE_PROVIDER_SNAPSHOT = 'movipass_roadside_provider_snapshot';
+    case ROADSIDE_PROVIDER_SYNC_ERROR = 'movipass_roadside_provider_sync_error';
 }

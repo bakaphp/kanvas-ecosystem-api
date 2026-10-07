@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\NervousSystem\Capability\Services\CapabilityLookupService;
 use Kanvas\NervousSystem\Plan\Actions\RecordCapabilityGapAction;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -30,24 +29,24 @@ use Throwable;
  * report is a roadmap item, so a false one costs someone a week.
  */
 #[AgentTool(name: 'Report Capability Gap', category: 'ecosystem')]
-class ReportCapabilityGapTool extends Tool implements HasRunKey
+class ReportCapabilityGapTool extends Tool
 {
     use ReportsToolOutcome;
     use TrackByInputs;
 
+    protected string $name = 'report_capability_gap';
+
+    protected ?string $description = 'Record that the platform has no tool for something a user asked for. Use this ONLY '
+        . 'after capability_lookup came back with nothing — it is what you do instead of substituting a '
+        . 'tool that merely sounds similar. It files the request for whoever owns the roadmap and tells '
+        . 'you what to say to the user. It does NOT build anything. '
+        . 'It searches the catalog itself before filing: if related tools exist you will be shown them '
+        . 'and the report refused until you say why each one does not fit. Expect that — a capability '
+        . 'is often reachable by combining tools rather than by one named for it.';
+
     public function __construct(
         private readonly ?Agent $executor = null,
     ) {
-        parent::__construct(
-            name: 'report_capability_gap',
-            description: 'Record that the platform has no tool for something a user asked for. Use this ONLY '
-                . 'after capability_lookup came back with nothing — it is what you do instead of substituting a '
-                . 'tool that merely sounds similar. It files the request for whoever owns the roadmap and tells '
-                . 'you what to say to the user. It does NOT build anything. '
-                . 'It searches the catalog itself before filing: if related tools exist you will be shown them '
-                . 'and the report refused until you say why each one does not fit. Expect that — a capability '
-                . 'is often reachable by combining tools rather than by one named for it.',
-        );
     }
 
     /**

@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEmployeeForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,7 +22,7 @@ use Override;
  * decide_leave is what approves or rejects it.
  */
 #[AgentTool(name: 'Request Leave', category: 'human_resources')]
-class RequestLeaveTool extends Tool implements HasRunKey
+class RequestLeaveTool extends Tool
 {
     use GuardsAdminForTool;
     use HandlesLeaveForTool;
@@ -31,16 +30,12 @@ class RequestLeaveTool extends Tool implements HasRunKey
     use ResolvesEmployeeForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'request_leave',
-            description: 'Files a PENDING time-off request for an employee against a leave type, between a start and '
-                . 'end date (inclusive). Admin only. Identify the employee by email or employee_id (call find_employee '
-                . 'first for a name). Returns created=false with a reason if you are not an admin, the balance is '
-                . 'insufficient, or the leave type is unknown.',
-        );
-    }
+    protected string $name = 'request_leave';
+
+    protected ?string $description = 'Files a PENDING time-off request for an employee against a leave type, between a start and '
+        . 'end date (inclusive). Admin only. Identify the employee by email or employee_id (call find_employee '
+        . 'first for a name). Returns created=false with a reason if you are not an admin, the balance is '
+        . 'insufficient, or the leave type is unknown.';
 
     /**
      * @return array<int, ToolProperty>

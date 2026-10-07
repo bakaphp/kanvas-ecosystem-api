@@ -24,17 +24,13 @@ class SalesRevenueTool extends Tool
     use HasKanvasContext;
     use ReportsToolOutcome;
 
-    private const EXCLUDED_STATUSES = ['draft', 'canceled', 'cancelled', 'failed'];
+    protected string $name = 'sales_revenue';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'sales_revenue',
-            description: 'Total booked sales revenue + order count, optionally bounded by since/until dates and '
-                . 'optionally broken down by month. Use for "revenue this quarter", "how are sales trending", '
-                . '"total sales this year", "revenue this month vs last".',
-        );
-    }
+    protected ?string $description = 'Total booked sales revenue + order count, optionally bounded by since/until dates and '
+        . 'optionally broken down by month. Use for "revenue this quarter", "how are sales trending", '
+        . '"total sales this year", "revenue this month vs last".';
+
+    private const EXCLUDED_STATUSES = ['draft', 'canceled', 'cancelled', 'failed'];
 
     /**
      * @return array<int, ToolProperty>

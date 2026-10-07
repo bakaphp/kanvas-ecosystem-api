@@ -4,21 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
-use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use ReflectionMethod;
 use Tests\TestCase;
 
 /**
- * Guards the duplicate-email feedback loop fix: the history coalescer merges
- * consecutive same-role turns but must NOT concatenate two identical copies of the
- * same turn (which the agent's dual-persistence produces). See
- * SalesAssistKanvasMessageHistory::coalesceContent.
+ * Guards the duplicate-email feedback loop fix: the fold merges consecutive same-role turns but must
+ * NOT concatenate two identical copies of the same turn (which the agent's dual-persistence produces).
+ * See KanvasHistoryTrimmer::coalesce.
  */
 class SalesAssistHistoryCoalesceTest extends TestCase
 {
     private function coalesce(string $existing, string $incoming): string
     {
-        return (new ReflectionMethod(SalesAssistKanvasMessageHistory::class, 'coalesceContent'))
+        return new ReflectionMethod(KanvasHistoryTrimmer::class, 'coalesce')
             ->invoke(null, $existing, $incoming);
     }
 

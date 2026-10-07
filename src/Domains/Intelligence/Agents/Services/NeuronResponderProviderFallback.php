@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Services;
 
 use Illuminate\Support\Facades\Log;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasRouterProvider;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Router\RouterProvider;
 use Throwable;
@@ -20,7 +21,7 @@ final class NeuronResponderProviderFallback
             return $primary;
         }
 
-        $router = RouterProvider::make()->addProvider('primary', $primary);
+        $router = KanvasRouterProvider::make()->addProvider('primary', $primary);
         $order = ['primary'];
 
         foreach (AgentProviderService::fallbackConfigs($agent) as $config) {

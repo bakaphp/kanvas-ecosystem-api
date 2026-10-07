@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Knowledge\Contracts\KnowledgeEmbedder;
 use Kanvas\Intelligence\Knowledge\Embedders\LaravelAiKnowledgeEmbedder;
 use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
+use Kanvas\Intelligence\Knowledge\VectorStores\KnowledgeVectorStore;
 use Kanvas\Intelligence\Knowledge\VectorStores\TypesenseKnowledgeStore;
 
 /**
@@ -29,7 +30,7 @@ final class KnowledgeComponents
         $configuredCollection = trim((string) ($collection ?? $app->get(KnowledgeConfigurationEnum::COLLECTION->value)));
 
         return new TypesenseKnowledgeStore(
-            client: SearchEngineResolver::getTypesenseClient($app->get('typesense_search_settings') ?? []),
+            client: SearchEngineResolver::typesenseClient($app),
             collection: $configuredCollection !== ''
                 ? $configuredCollection
                 : config('scout.prefix') . 'neuron_lead_knowledge_gemini_' . $app->getId(),
@@ -51,7 +52,63 @@ final class KnowledgeComponents
 
     public static function resultLimit(Apps $app): int
     {
-        return min(max((int) ($app->get(KnowledgeConfigurationEnum::RESULT_LIMIT->value) ?? 8), 1), 20);
+        return self::clampedInt(
+            $app,
+            KnowledgeConfigurationEnum::RESULT_LIMIT,
+            default: 8,
+            max: 20,
+        );
+    }
+
+    private static function clampedInt(
+        Apps $app,
+        KnowledgeConfigurationEnum $key,
+        int $default,
+        int $max = PHP_INT_MAX
+    ): int {
+        return min(max((int) $app->get($key->value, $default), 1), $max);
+    }
+
+    /**
+     * On unless the tenant opts out, and only where there is somewhere to write: an app without
+     * Typesense credentials would fail every turn instead of remembering. Each qualifying turn of a
+     * remembering agent costs one embedding call on the app's own key.
+     */
+    public static function memoryEnabled(Apps $app): bool
+    {
+        return $app->getBool(KnowledgeConfigurationEnum::AGENT_MEMORY_ENABLED->value, default: true)
+            && SearchEngineResolver::hasTypesenseCredentials(SearchEngineResolver::typesenseSettings($app));
+    }
+
+    public static function knowledgeEnabled(Apps $app): bool
+    {
+        return $app->getBool(KnowledgeConfigurationEnum::ENABLED->value);
+    }
+
+    public static function memoryStore(Apps $app): KnowledgeVectorStore
+    {
+        return new KnowledgeVectorStore(self::store($app), self::memoryResultLimit($app));
+    }
+
+    /** On top of the knowledge result limit, never in its place. */
+    public static function memoryResultLimit(Apps $app): int
+    {
+        return self::clampedInt(
+            $app,
+            KnowledgeConfigurationEnum::AGENT_MEMORY_RESULT_LIMIT,
+            default: 4,
+            max: 10,
+        );
+    }
+
+    public static function memoryIngestMinChars(Apps $app): int
+    {
+        return self::clampedInt($app, KnowledgeConfigurationEnum::AGENT_MEMORY_INGEST_MIN_CHARS, default: 80);
+    }
+
+    public static function memoryRetentionDays(Apps $app): int
+    {
+        return self::clampedInt($app, KnowledgeConfigurationEnum::AGENT_MEMORY_RETENTION_DAYS, default: 365);
     }
 
     /** Optional similarity floor; null when the app hasn't configured one (no filtering). */

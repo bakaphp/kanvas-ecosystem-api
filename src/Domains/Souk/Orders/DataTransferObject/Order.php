@@ -60,6 +60,8 @@ class Order extends Data
         public readonly ?string $paymentStatus = null, // enums
         public readonly ?ModelsOrder $parent = null,
         public readonly ?string $ipAddress = null,
+        public readonly ?string $estimateShippingDate = null,
+        public readonly bool $chargeShipping = false,
     ) {
         $this->items = is_array($items) ? $this->getOrderItems($items) : $items;
     }

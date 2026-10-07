@@ -104,7 +104,9 @@ enum ArtifactComponentEnum: string
                     'min' => 1,
                     'max' => 6,
                     'item' => [
-                        'label' => ['type' => 'string', 'required' => true],
+                        // The client refuses to draw a label over 40 characters, so the block is
+                        // validated against the same ceiling here rather than at render time.
+                        'label' => ['type' => 'string', 'required' => true, 'maxLength' => 40],
                         'message' => ['type' => 'string', 'required' => true],
                         'variant' => ['type' => 'enum', 'values' => ['default', 'outline', 'destructive']],
                     ],
@@ -191,7 +193,8 @@ enum ArtifactComponentEnum: string
             self::KEYVALUE => 'keyvalue — one record\'s fields. props: items [{key, value (string|number|boolean|null)}] 1-30',
             self::ACTIONS => 'actions — next-step buttons; each message is sent back to you as the user\'s next '
                 . 'message, so make it self-contained (include the email or id) and only offer what your tools can do. '
-                . 'props: items [{label, message, variant? default|outline|destructive}] 1-6',
+                . 'props: items [{label (max 40 chars — it is a button, keep it to 3-5 words), message, '
+                . 'variant? default|outline|destructive}] 1-6',
             self::ENTITY => 'entity — a record card with an Open button. props: type lead|deal|people|organization|'
                 . 'company|user|product|order; id (the REAL id a tool returned, never invented); title; subtitle?; '
                 . 'fields? [{key, value}] 0-6',

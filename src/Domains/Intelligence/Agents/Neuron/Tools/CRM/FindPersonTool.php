@@ -8,7 +8,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExtractsPersonContacts;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\LinksRecordsToAdmin;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,24 +22,21 @@ use Override;
  * Company-wide read — an internal-teammate capability, NOT the customer-facing prospect surface.
  */
 #[AgentTool(name: 'Find Person', category: 'crm')]
-class FindPersonTool extends Tool implements HasRunKey
+class FindPersonTool extends Tool
 {
     use ExtractsPersonContacts;
     use HasKanvasContext;
+    use LinksRecordsToAdmin;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_person',
-            description: 'Search the people/contacts directory for ONE person by (partial) name, email, or phone. Use '
-                . 'whenever you need to locate a single person and do not have their person_id — "find John", "who has '
-                . 'this email", "look up the contact for +1809...". Returns person_id, name, email, phone and '
-                . 'organization for each match. Use get_person for the full profile of one match. '
-                . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_people_bulk instead and '
-                . 'pass every name in a single call; do not call this tool once per row.',
-        );
-    }
+    protected string $name = 'find_person';
+
+    protected ?string $description = 'Search the people/contacts directory for ONE person by (partial) name, email, or phone. Use '
+        . 'whenever you need to locate a single person and do not have their person_id — "find John", "who has '
+        . 'this email", "look up the contact for +1809...". Returns person_id, name, email, phone and '
+        . 'organization for each match. Use get_person for the full profile of one match. '
+        . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_people_bulk instead and '
+        . 'pass every name in a single call; do not call this tool once per row.';
 
     /**
      * @return array<int, ToolProperty>
@@ -95,6 +92,7 @@ class FindPersonTool extends Tool implements HasRunKey
             'count' => $people->count(),
             'people' => $people->map(fn (People $person): array => [
                 'person_id' => $person->getId(),
+                'admin_url' => $this->adminUrlOf($person),
                 'name' => $person->getName(),
                 'email' => $this->primaryEmail($person),
                 'phone' => $this->primaryPhone($person),

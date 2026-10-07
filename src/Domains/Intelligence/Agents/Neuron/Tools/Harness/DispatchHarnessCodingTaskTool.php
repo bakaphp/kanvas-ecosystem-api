@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\SplitsReferenceSlugs;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,30 +21,30 @@ use Override;
 use Throwable;
 
 #[AgentTool(name: 'Dispatch Self-Hosted Coding Task', category: 'coding')]
-class DispatchHarnessCodingTaskTool extends Tool implements HasRunKey, RequiresSystemAgent
+class DispatchHarnessCodingTaskTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use SplitsReferenceSlugs;
     // Distinct briefs are distinct work; without this every dispatch in a turn shares one budget.
     use TrackByInputs;
 
+    protected string $name = 'dispatch_self_hosted_coding_task';
+
+    protected ?string $description = 'Start a coding task on the coding runtime Kanvas hosts itself. It checks the '
+        . 'repository out itself, so name whichever one the person asked for. The task runs in the '
+        . 'background and this returns a job id immediately — it does NOT wait for the work. Neither '
+        . 'you nor the coding agent can push; a human approves that once the work is done. Write the '
+        . 'task as a complete, self-contained instruction, because the coding agent cannot ask you '
+        . 'follow-up questions mid-run. ONE repository is worked on per job, and the coding '
+        . 'agent cannot reach any other by itself — it has no credentials. If it needs to see '
+        . 'another repository, name it in `references` and it is checked out beside the work, '
+        . 'read-only; for one already-known file, paste the content into the task instead.';
+
     public function __construct(
         private readonly Agent $agent,
         private readonly ?Session $session = null,
         private readonly ?Users $requestedBy = null,
     ) {
-        parent::__construct(
-            name: 'dispatch_self_hosted_coding_task',
-            description: 'Start a coding task on the coding runtime Kanvas hosts itself. It checks the '
-                . 'repository out itself, so name whichever one the person asked for. The task runs in the '
-                . 'background and this returns a job id immediately — it does NOT wait for the work. Neither '
-                . 'you nor the coding agent can push; a human approves that once the work is done. Write the '
-                . 'task as a complete, self-contained instruction, because the coding agent cannot ask you '
-                . 'follow-up questions mid-run. ONE repository is worked on per job, and the coding '
-                . 'agent cannot reach any other by itself — it has no credentials. If it needs to see '
-                . 'another repository, name it in `references` and it is checked out beside the work, '
-                . 'read-only; for one already-known file, paste the content into the task instead.',
-        );
     }
 
     /**
@@ -84,14 +83,29 @@ class DispatchHarnessCodingTaskTool extends Tool implements HasRunKey, RequiresS
                     . 'known file.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'attachments',
+                type: PropertyType::STRING,
+                description: 'Files to hand the coding agent, as comma-separated filesystem_ids — take them '
+                    . 'from the "[Attached file ... filesystem_id: N]" notes on the messages you were sent. '
+                    . 'Use it for designs, mockups, screenshots and documents the work has to follow: the '
+                    . 'coding agent cannot see anything you only describe in words. The files are placed '
+                    . 'beside the repository, never committed. Mention them in the task, e.g. "match the '
+                    . 'attached design".',
+                required: false,
+            ),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $task, ?string $repository = null, ?string $references = null): array
-    {
+    public function __invoke(
+        string $task,
+        ?string $repository = null,
+        ?string $references = null,
+        ?string $attachments = null
+    ): array {
         try {
             $record = new DispatchHarnessTaskAction(
                 agent: $this->agent,
@@ -100,6 +114,7 @@ class DispatchHarnessCodingTaskTool extends Tool implements HasRunKey, RequiresS
                 requestedBy: $this->requestedBy,
                 session: $this->session,
                 referenceSlugs: $this->splitReferenceSlugs($references),
+                attachmentIds: $this->splitAttachmentIds($attachments),
             )->execute();
         } catch (Throwable $e) {
             // Spelling out the wrong move, because the model reliably finds it: told it cannot touch a
@@ -126,5 +141,15 @@ class DispatchHarnessCodingTaskTool extends Tool implements HasRunKey, RequiresS
             guidance: 'The job is running in the background. Use check_self_hosted_coding_job with this '
                 . 'job_id; it advances between turns, so checking twice in one turn tells you nothing new.'
         );
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function splitAttachmentIds(?string $attachments): array
+    {
+        preg_match_all('/\d+/', (string) $attachments, $matches);
+
+        return array_map('intval', $matches[0]);
     }
 }

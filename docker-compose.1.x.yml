@@ -117,6 +117,15 @@ services:
       - "php artisan config:cache && php artisan queue:work
         --queue=user-interactions --tries=3 --timeout=3750"
 
+  reporting-queue:
+    <<: *common-queue-settings
+    container_name: reporting-queue
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=reporting
+        --tries=3 --timeout=3750"
+
   batch-logger-queue:
     <<: *common-queue-settings
     container_name: batch-logger-queue
@@ -138,36 +147,10 @@ services:
       - "php artisan config:cache && php artisan queue:work --queue=agent-task-worker
         --tries=1 --timeout=3750"
 
-  queue-imports:
+  imports-queue:
     <<: *common-queue-settings
-    container_name: queue-imports
-    command:
-      - "sh"
-      - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue imports
-        --tries=3 --timeout=6750"
-
-  queue-imports2:
-    <<: *common-queue-settings
-    container_name: queue-imports2
-    command:
-      - "sh"
-      - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue imports
-        --tries=3 --timeout=6750"
-
-  queue-imports3:
-    <<: *common-queue-settings
-    container_name: queue-imports3
-    command:
-      - "sh"
-      - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue imports
-        --tries=3 --timeout=6750"
-
-  queue-imports4:
-    <<: *common-queue-settings
-    container_name: queue-imports4
+    deploy:
+      replicas: 8
     command:
       - "sh"
       - "-c"
@@ -298,7 +281,8 @@ services:
         --tries=3  --timeout=3750"
   agent-runtime-queue:
     <<: *common-queue-settings
-    container_name: agent-runtime-queue
+    deploy:
+      replicas: 3
     command:
       - "sh"
       - "-c"
@@ -322,7 +306,9 @@ services:
         --tries=3 --timeout=300"
   agent-chat-queue:
     <<: *common-queue-settings
-    container_name: agent-chat-queue
+    stop_grace_period: 300s
+    deploy:
+      replicas: 5
     command:
       - "sh"
       - "-c"
@@ -354,6 +340,7 @@ services:
         --queue=slack-ingest --tries=3 --timeout=3750"
   nervous-system-project-queue:
     <<: *common-queue-settings
+    stop_grace_period: 300s
     container_name: nervous-system-project-queue
     command:
       - "sh"

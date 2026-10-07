@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\ListAvailableProductsTool
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\VariantSearchTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\ListAvailableProductsTool as NeuronListAvailableProductsTool;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
@@ -311,5 +312,40 @@ class InventoryAgentToolsTest extends TestCase
 
         $this->assertNotEmpty($response->text);
         $this->assertEquals('Found 3 products in stock.', $response->text);
+    }
+
+    public function testNeuronListAvailableProductsToolTakesItsTenantFromTheAgentNotTheModel(): void
+    {
+        $company = $this->user->getCurrentCompany();
+        $product = new CreateProductAction(
+            new Product(
+                app: $this->kanvasApp,
+                company: $company,
+                user: $this->user,
+                name: 'Neuron Listed Product ' . uniqid(),
+                sku: 'NEU-' . uniqid(),
+                is_published: true,
+            ),
+            $this->user
+        )->execute();
+
+        $tool = new NeuronListAvailableProductsTool()->withContext($this->kanvasApp, $company, $this->user);
+
+        $this->assertSame(
+            ['is_published', 'only_in_stock', 'limit'],
+            array_map(fn ($property) => $property->getName(), $tool->getProperties()),
+            'A model-supplied app or company id was taken as the tenant (an admin agent passed its company id as apps_id and killed the turn)'
+        );
+
+        $result = $tool->__invoke(is_published: true, limit: 50);
+
+        $this->assertContains($product->getId(), array_column($result, 'id'));
+    }
+
+    public function testNeuronListAvailableProductsToolRefusesWithoutATenant(): void
+    {
+        $result = new NeuronListAvailableProductsTool()->__invoke();
+
+        $this->assertSame('no_tenant_context', $result['reason']);
     }
 }

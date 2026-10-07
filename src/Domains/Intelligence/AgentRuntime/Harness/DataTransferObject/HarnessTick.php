@@ -22,6 +22,10 @@ class HarnessTick extends Data
      * @param string|null                      $cursor         where to resume reading the conversation.
      *                                                         Opaque and owned by the runtime — store
      *                                                         it, never parse or compare it
+     * @param int                              $closedTurns    turns the runtime has closed so far, for
+     *                                                         `AgentTaskSession::$turn_offset` on resume
+     * @param string|null                      $lastSaid       the agent's most recent text, for a
+     *                                                         post-mortem when the run is stopped
      */
     public function __construct(
         public readonly HarnessStatusEnum $status,
@@ -33,6 +37,8 @@ class HarnessTick extends Data
         public readonly ?string $cursor = null,
         public readonly ?int $lastMessageAt = null,
         public readonly ?string $error = null,
+        public readonly int $closedTurns = 0,
+        public readonly ?string $lastSaid = null,
     ) {
     }
 

@@ -16,7 +16,6 @@ use Kanvas\NervousSystem\Project\Enums\ProjectMemberTypeEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Models\ProjectMember;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -38,22 +37,18 @@ use Override;
  *    the board has no way to render.
  */
 #[AgentTool(name: 'Move Plan', category: 'nervous_system')]
-class MoveNervousSystemPlanTool extends Tool implements HasRunKey
+class MoveNervousSystemPlanTool extends Tool
 {
     use HasKanvasContext;
     use ReportsToolOutcome;
     use TrackByInputs;
     use ResolvesPlanForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'move_nervous_system_plan',
-            description: 'Move a plan to a different project when it was filed in the wrong one. Its tasks '
-                . 'and sub-plans move with it. If the current owner is not a member of the destination '
-                . 'project the plan is left unassigned — reassign it to someone who is.',
-        );
-    }
+    protected string $name = 'move_nervous_system_plan';
+
+    protected ?string $description = 'Move a plan to a different project when it was filed in the wrong one. Its tasks '
+        . 'and sub-plans move with it. If the current owner is not a member of the destination '
+        . 'project the plan is left unassigned — reassign it to someone who is.';
 
     /**
      * @return array<int, ToolProperty>

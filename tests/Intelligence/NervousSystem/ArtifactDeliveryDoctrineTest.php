@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Neuron\Coding\ProgrammingAgent;
+use Kanvas\Intelligence\Agents\Neuron\Concerns\HasKanvasAgentBehavior;
 use Kanvas\Intelligence\Agents\Neuron\KanvasGenericNeuronAgent;
 use Kanvas\Intelligence\Agents\Neuron\ProjectManagement\ProjectManagerAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\CreateTemplateTool;
-use Kanvas\Intelligence\Agents\Neuron\Traits\HasKanvasAgentBehavior;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -26,6 +26,26 @@ use Tests\TestCase;
  */
 final class ArtifactDeliveryDoctrineTest extends TestCase
 {
+    public function testEveryAgentIsToldToBatchIndependentReads(): void
+    {
+        $context = implode(' ', HasKanvasAgentBehavior::platformContext());
+
+        $this->assertStringContainsString('REQUEST THEM IN ONE STEP', $context);
+        $this->assertStringContainsString('do not look up the time, the person, your capabilities or the project list first', $context);
+    }
+
+    public function testEveryAgentIsToldToWriteOnlyWhatItWasAskedTo(): void
+    {
+        $context = implode(' ', HasKanvasAgentBehavior::platformContext());
+
+        $this->assertStringContainsString('ONLY WRITE WHAT YOU WERE ASKED TO', $context);
+        $this->assertStringContainsString(
+            'instead of recording the request somewhere else',
+            $context,
+            'An agent that cannot send a WhatsApp wrote the request into the person\'s notes; the rule has to name that move.'
+        );
+    }
+
     public function testEveryAgentIsToldADeliverableIsNotTheBodyOfAMessage(): void
     {
         $context = implode(' ', HasKanvasAgentBehavior::platformContext());

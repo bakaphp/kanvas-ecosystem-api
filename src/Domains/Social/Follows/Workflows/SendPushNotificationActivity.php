@@ -6,6 +6,7 @@ namespace Kanvas\Social\Follows\Workflows;
 
 use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Jobs\SendMessageNotificationsToAllFollowersJob;
@@ -20,7 +21,10 @@ use Workflow\Activity;
 class SendPushNotificationActivity extends Activity implements WorkflowActivityInterface
 {
     use KanvasJobsTrait;
+
     public $tries = 2;
+
+    public ?Closure $onUnlock = null;
 
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params = []): array

@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogProducts;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -16,24 +15,20 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Duplicate Product', category: 'inventory')]
-class DuplicateProductTool extends Tool implements HasRunKey
+class DuplicateProductTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ManagesCatalogProducts;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'duplicate_product',
-            description: 'Copy an existing product, with its description, categories, attributes and variants, as '
-                . 'a new product named "... (Copy)". Much faster than create_product when the new product is a '
-                . 'near-twin of one that exists. The copy carries no stock and no selling price, so follow it with '
-                . 'set_variant_stock and set_variant_channel_price, and update_product to rename it. Only an '
-                . 'administrator can do this.',
-        );
-    }
+    protected string $name = 'duplicate_product';
+
+    protected ?string $description = 'Copy an existing product, with its description, categories, attributes and variants, as '
+        . 'a new product named "... (Copy)". Much faster than create_product when the new product is a '
+        . 'near-twin of one that exists. The copy carries no stock and no selling price, so follow it with '
+        . 'set_variant_stock and set_variant_channel_price, and update_product to rename it. Only an '
+        . 'administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

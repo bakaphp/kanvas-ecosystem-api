@@ -4,22 +4,20 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Events;
 
-use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Reports\Repositories\InscriptionsVsHistoricalRepository;
 use Kanvas\Event\Reports\Repositories\InscriptionsVsObjectiveRepository;
 use Kanvas\Event\Reports\Repositories\InscriptionTrackRepository;
 use Kanvas\Event\Reports\Repositories\ParticipantConcentrationRepository;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEventVersionForTool;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\ToolPropertyInterface;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
-use Throwable;
 
 /**
  * Analytics for one event version: enrollment vs goal, vs past editions, registrations by participant
@@ -27,10 +25,18 @@ use Throwable;
  * dashboard uses. Company-scoped (the version is resolved tenant-scoped first).
  */
 #[AgentTool(name: 'Get Event Report', category: 'events')]
-class GetEventReportTool extends Tool implements HasRunKey
+class GetEventReportTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesEventVersionForTool;
     use TrackByInputs;
+
+    protected string $name = 'get_event_report';
+
+    protected ?string $description = 'Analytics for one event version. report is one of: "inscriptions_vs_objective" (enrollment '
+        . 'curve vs this event\'s goal), "inscriptions_vs_historical" (vs past editions), "inscription_track" '
+        . '(registrations broken down by participant type), "participant_concentration" (which organizations '
+        . 'dominate the attendee list). Use for "how is event X selling", "is it on track", "who\'s coming".';
 
     private const array REPORTS = [
         'inscriptions_vs_objective',
@@ -38,17 +44,6 @@ class GetEventReportTool extends Tool implements HasRunKey
         'inscription_track',
         'participant_concentration',
     ];
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_event_report',
-            description: 'Analytics for one event version. report is one of: "inscriptions_vs_objective" (enrollment '
-                . 'curve vs this event\'s goal), "inscriptions_vs_historical" (vs past editions), "inscription_track" '
-                . '(registrations broken down by participant type), "participant_concentration" (which organizations '
-                . 'dominate the attendee list). Use for "how is event X selling", "is it on track", "who\'s coming".',
-        );
-    }
 
     /**
      * @return array<int, ToolPropertyInterface>
@@ -100,11 +95,10 @@ class GetEventReportTool extends Tool implements HasRunKey
             return ['error' => 'report must be one of: ' . implode(', ', self::REPORTS) . '.'];
         }
 
-        try {
-            /** @var EventVersion $version */
-            $version = EventVersion::getByIdFromCompanyApp($version_id, $this->company, $this->app);
-        } catch (Throwable) {
-            return ['error' => sprintf('No event version #%d found in this company.', $version_id)];
+        $version = $this->resolveEventVersionOrError($version_id);
+
+        if (is_array($version)) {
+            return $version;
         }
 
         $cumulative ??= true;

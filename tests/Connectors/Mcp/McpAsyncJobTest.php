@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Enums\McpAsyncJobStatusEnum;
 use Kanvas\NervousSystem\Capability\Models\McpAsyncJob;
 use Kanvas\Workflow\Models\Integrations;
+use NeuronAI\Tools\ToolOutput;
 use Tests\Stubs\Connectors\Mcp\FakeMcpServer;
 
 /**
@@ -57,8 +58,8 @@ final class McpAsyncJobTest extends McpTestCase
 
         $answer = $this->invokeStart($agent, $integration, $this->sessionPayload('running', self::LIVE_URL), $session);
 
-        $this->assertIsString($answer);
-        $decoded = json_decode($answer, true);
+        $this->assertInstanceOf(ToolOutput::class, $answer);
+        $decoded = json_decode($answer->getText(), true);
         $this->assertSame('running_in_background', $decoded['status']);
         $this->assertSame('s-1', $decoded['job_id']);
         $this->assertSame(self::LIVE_URL, $decoded['live_url']);
@@ -80,7 +81,8 @@ final class McpAsyncJobTest extends McpTestCase
 
         $answer = $this->invokeStart($agent, $integration, $this->sessionPayload('idle'), $this->makeSession($agent));
 
-        $this->assertIsArray($answer);
+        $this->assertInstanceOf(ToolOutput::class, $answer);
+        $this->assertFalse($answer->isError());
         $this->assertSame(0, McpAsyncJob::query()->where('agents_id', $agent->getId())->count());
         Queue::assertNotPushed(PollMcpAsyncJob::class);
     }
@@ -91,7 +93,8 @@ final class McpAsyncJobTest extends McpTestCase
 
         $answer = $this->invokeStart($agent, $integration, $this->sessionPayload('running'), session: null);
 
-        $this->assertIsArray($answer);
+        $this->assertInstanceOf(ToolOutput::class, $answer);
+        $this->assertFalse($answer->isError());
         $this->assertSame(0, McpAsyncJob::query()->where('agents_id', $agent->getId())->count());
     }
 
@@ -142,7 +145,8 @@ final class McpAsyncJobTest extends McpTestCase
 
         $answer = $connector->invokeTool(['name' => 'fake__searchJiraIssuesUsingJql'], ['jql' => 'x']);
 
-        $this->assertIsArray($answer);
+        $this->assertInstanceOf(ToolOutput::class, $answer);
+        $this->assertFalse($answer->isError());
         $this->assertSame(0, McpAsyncJob::query()->where('agents_id', $agent->getId())->count());
     }
 

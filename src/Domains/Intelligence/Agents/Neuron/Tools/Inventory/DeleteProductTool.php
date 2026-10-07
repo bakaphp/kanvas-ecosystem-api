@@ -28,17 +28,13 @@ class DeleteProductTool extends Tool
     use HasKanvasContext;
     use ManagesCatalogProducts;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'delete_product',
-            description: 'Delete a product from the catalog, along with all of its variants. Prefer '
-                . 'set_product_published with published=false when the intent is only to take the product off the '
-                . 'storefront — that is reversible and keeps its sales history readable. Use '
-                . 'list_available_products or inventory_search to get the product_id first, and confirm with the '
-                . 'user before calling this. Only an administrator can do this.',
-        );
-    }
+    protected string $name = 'delete_product';
+
+    protected ?string $description = 'Delete a product from the catalog, along with all of its variants. Prefer '
+        . 'set_product_published with published=false when the intent is only to take the product off the '
+        . 'storefront — that is reversible and keeps its sales history readable. Use '
+        . 'list_available_products or inventory_search to get the product_id first, and confirm with the '
+        . 'user before calling this. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

@@ -53,6 +53,21 @@ which can be queried from Task custom fields, and custom fields live on a differ
   but never the plan's status, and `saveQuietly()` fires no events — hence the explicit
   `broadcastChange()` in `FinalizeHarnessSessionAction`, without which the board shows a done task under
   an active plan.
+- **Limits: the poller owns them, nothing else may.** Time is counted in *active* poll ticks (parked on
+  a question/permission doesn't count), cost is Kanvas's own estimate, and both scale by
+  `1 + limit_extensions`. The sweeper reaps silence (stale heartbeat) only — a wall-clock ceiling there
+  would override all three rules.
+- **Hitting a limit is a question when the tenant has a `coding_extension` policy.**
+  `RequestSessionExtensionAction` parks the session as `awaiting_extension` *before* interrupting
+  opencode, opens the approval with a post-mortem (`SessionPostMortemService`: stuck-vs-busy, files,
+  last words), and the poller keeps ticking without touching the runtime. Approve →
+  `CodingExtensionApprovalHandler` sets `turn_offset`, bumps `limit_extensions`, prompts "continue";
+  reject, no answer in 30 min, or approved-but-not-resumed → the run stops with the post-mortem. No
+  policy → the run stops at the limit, post-mortem included. Policy:
+  `kanvas:coding:setup-push-policy --type=extension`.
+- **`turn_offset` is what makes a second turn readable.** `idle` messages stay in history forever; the
+  harness judges status and errors from the idles after the offset only. Without it the `aborted` idle
+  the pause produced is read as the resumed turn's outcome.
 - **`from_ia => true` on every plan post.** Otherwise an @mention inside the agent's own narration wakes
   the agent it names and two agents talk until the budget is gone.
 
@@ -94,6 +109,8 @@ where they explain a decision.
   per-agent container could not work there: every session ran in the server's own working directory.
 - Prompting is async and the body is flat `{text}`; it was `{prompt: {text}}`. `delivery: "steer"` joins
   the running turn, `"queue"` waits for it.
+- **`/message` pages cap at 100.** `poll()` follows the cursor to the end; one page loses the closing
+  `idle` and every token past message 100 on any long run.
 - **`/session/{id}/history` is gone.** It was the durable, seq-numbered log the poller resumed from.
   `/message` replaces it with cursor pagination, so the session stores an opaque `last_cursor` string
   instead of an integer `last_seq`. Store the cursor; never parse or compare it.
@@ -173,7 +190,8 @@ session provisions, the turn runs, and the model answers from opencode's own hos
 | `opencode_workspace_root` | no | Defaults `/srv/kanvas`. Mirrors, worktrees and `.home` all live under it. |
 | `opencode_container_cpus` / `_memory` | no | Default memory is 2g. Larger than the box's free RAM is how MySQL gets OOM-killed. |
 | `coding_max_concurrent_sessions` | no | Per app. |
-| `coding_max_session_cost_usd` | no | Per session ceiling. |
+| `coding_max_session_cost_usd` | no | Per session ceiling; default $10. `0` = uncapped. |
+| `coding_max_session_minutes` | no | Active minutes before the poller interrupts the run; default 180 (3h). Company wins over app. Ticks spent waiting on a human answer/permission don't count. |
 | `opencode_static_endpoint` / `_password` | no | Attach mode only. Leave unset for the real path, or provisioning attaches instead of launching. |
 
 **Agent-level** (custom fields, `AgentCustomFieldEnum`):
@@ -183,9 +201,12 @@ session provisions, the turn runs, and the model answers from opencode's own hos
 | `CODING_MACHINE_ID` | no | Tenant-scoped. Without it provisioning takes any active machine for the company — fine with one, arbitrary with several. |
 | `CODING_GIT_TOKEN` | **yes** | The only agent field you must set. Per agent, and it **is** the permission boundary — the agent's reach is exactly this token's reach, with no allow-list behind it. Unset, git falls back to the machine's own access, so a private clone and every push fail. |
 | `CODING_MODEL` | no | Overrides the app model for this agent. |
-| `CODING_PROVIDER_API_KEY` / `CODING_PROVIDER_KEY_NAME` | no | Agent's own key instead of the app's. Rotating it changes `kanvas.keyfp` and forces a container rebuild. |
+| `CODING_PROVIDER_ID` | no | The agent's own provider (e.g. a frontend agent on OpenRouter). **All-or-nothing**: once set, the app's base URL, npm and env var are ignored and the agent must carry its own key — the app's key is never sent to another provider. Resolved in `CodingModelResolver` only. |
+| `CODING_PROVIDER_BASE_URL` / `_NPM` / `_ENV_VAR` | with `CODING_PROVIDER_ID` | The agent's transport. Base URL is required on the compatible npm (the default). Changing the env var rebuilds the container. |
+| `CODING_PROVIDER_API_KEY` / `CODING_PROVIDER_KEY_NAME` | no | Agent's own key instead of the app's. Rotating it changes `kanvas.keyfp` and forces a container rebuild. Required with `CODING_PROVIDER_ID`. |
 | `CODING_ALLOWED_REPOS` | no | Settings (base branch, rules, protected paths), **not** a gate — the token is the gate. |
 | `CODING_ALLOW_TRUNK_PUSH` | no | Off by default. The only way a push reaches main/master/develop/... |
+| `CODING_GIT_AUTHOR_NAME` / `_EMAIL` | no | Commit author + committer; default `{agent name} <agent@kanvas.dev>`. Set when a deploy platform (Vercel) blocks commits from an email no team member owns: any email via the admin command `kanvas:coding:git-identity`, or the agent's `set_coding_commit_identity` tool, which can only pick the requesting human (`requestingHuman()`, never the agent's own user) or reset — it deliberately takes no email input. The host's `git config` is never consulted — the push passes `-c user.*` on every commit. |
 | `CODING_SYSTEM_PROMPT` | no | Appended to the agent document. |
 | `CODING_CONTAINER_PORT` / `_PASSWORD` | never set by hand | Written by the provisioner. |
 

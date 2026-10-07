@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\HasEntityContext;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,11 +24,20 @@ use Override;
  * `channel_messages` shape, so an agent granted this can watch any of them.
  */
 #[AgentTool(name: 'Read Channel Window', category: 'social')]
-class ReadChannelWindowTool extends Tool implements HasRunKey
+class ReadChannelWindowTool extends Tool
 {
     use GuardsRepeatCalls;
     use HasEntityContext;
     use HasKanvasContext;
+
+    protected string $name = 'read_channel_window';
+
+    protected ?string $description = 'Read the most recent messages on a channel, newest first, with who wrote each one. '
+        . 'Call it before judging a single message — a line out of a group conversation usually only '
+        . 'makes sense next to the ones around it. Defaults to the channel the record you were woken '
+        . 'on belongs to, so you can normally call it with no arguments. Long messages come back '
+        . 'truncated; use read_message_content for the full text of one. Re-reading a window you '
+        . 'already read this turn returns nothing new — read it once, then act on it.';
 
     public const int DEFAULT_LIMIT = 25;
     public const int MAX_LIMIT = 100;
@@ -45,16 +53,6 @@ class ReadChannelWindowTool extends Tool implements HasRunKey
 
     public function __construct()
     {
-        parent::__construct(
-            name: 'read_channel_window',
-            description: 'Read the most recent messages on a channel, newest first, with who wrote each one. '
-                . 'Call it before judging a single message — a line out of a group conversation usually only '
-                . 'makes sense next to the ones around it. Defaults to the channel the record you were woken '
-                . 'on belongs to, so you can normally call it with no arguments. Long messages come back '
-                . 'truncated; use read_message_content for the full text of one. Re-reading a window you '
-                . 'already read this turn returns nothing new — read it once, then act on it.',
-        );
-
         $this->initRepeatGuard();
         $this->setMaxRuns(self::MAX_RUNS);
     }

@@ -9,7 +9,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Tools\Traits\Guild\CreatesDealTrait;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,23 +20,23 @@ use Override;
  * which copies the lead's contact over instead of re-typing it.
  */
 #[AgentTool(name: 'Create Deal', category: 'crm')]
-class CreateDealTool extends Tool implements HasRunKey
+class CreateDealTool extends Tool
 {
     use CreatesDealTrait;
     use TrackByInputs;
+
+    protected string $name = 'create_deal';
+
+    protected ?string $description = 'Register a new CRM deal (pipeline opportunity). Provide at least a title. '
+        . 'Link it to the source lead with leads_id when one exists, or to a person/organization. '
+        . 'Leave pipeline/stage/owner unset to use the tenant defaults. Returns its deal_id for '
+        . 'subsequent deal-scoped tools. To promote an existing lead into a deal, prefer convert_lead_to_deal.';
 
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Users $user,
     ) {
-        parent::__construct(
-            name: 'create_deal',
-            description: 'Register a new CRM deal (pipeline opportunity). Provide at least a title. '
-                . 'Link it to the source lead with leads_id when one exists, or to a person/organization. '
-                . 'Leave pipeline/stage/owner unset to use the tenant defaults. Returns its deal_id for '
-                . 'subsequent deal-scoped tools. To promote an existing lead into a deal, prefer convert_lead_to_deal.',
-        );
     }
 
     /**

@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Services\FindLeadsByTraitsService;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -26,33 +25,33 @@ use Override;
  * interests, engagement progress, last-message state) — never free-text or RAG matches.
  */
 #[AgentTool(name: 'Find Leads By Traits', category: 'crm')]
-class FindLeadsByTraitsTool extends Tool implements HasRunKey
+class FindLeadsByTraitsTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
+    protected string $name = 'find_leads_by_traits';
+
+    protected ?string $description = 'Find a group of leads that share traits and build a reviewable batch-outreach recipient '
+        . 'list. Use for "find all leads interested in a RAV4 who have not responded in 7 days", "find customers '
+        . 'looking for used trucks under $30k", "find all leads interested in a 2025 Tacoma", "RAV4 leads who '
+        . 'can receive SMS", "internet leads from the last 14 days", and "leads assigned to Alex with no contact '
+        . 'in 3 days". Product interests are generic: resolve matching inventory variants by text, searchable '
+        . 'attributes and price, then require an exact lead-to-variant interest relation. Filters also include '
+        . 'engagement progress: use action "trade-in" or "credit-app" with completion "incomplete" for '
+        . '"trade-in not submitted" and "incomplete credit applications". '
+        . 'Engagement results are authoritative: never substitute lead titles, messages, RAG snippets or '
+        . 'keyword matches when this structured filter returns zero. '
+        . 'Communication filters use the latest structured message sender: awaiting_team_response means the '
+        . 'last communication is from the customer; never_replied means outbound exists but no customer message exists. '
+        . 'Also filters by status, source, stage, salesperson, rooftop/store, created dates and days-since-last-update. Returns the eligible '
+        . 'recipients plus the leads that were excluded (opted-out, do-not-contact, no contact info, duplicate) '
+        . 'with reasons. THIS DOES NOT SEND ANYTHING — it is the review step. After the manager confirms the '
+        . 'list and the message, call send_batch_message with the eligible lead_ids.';
+
     public function __construct(
         private readonly FindLeadsByTraitsService $finder = new FindLeadsByTraitsService(),
     ) {
-        parent::__construct(
-            name: 'find_leads_by_traits',
-            description: 'Find a group of leads that share traits and build a reviewable batch-outreach recipient '
-                . 'list. Use for "find all leads interested in a RAV4 who have not responded in 7 days", "find customers '
-                . 'looking for used trucks under $30k", "find all leads interested in a 2025 Tacoma", "RAV4 leads who '
-                . 'can receive SMS", "internet leads from the last 14 days", and "leads assigned to Alex with no contact '
-                . 'in 3 days". Product interests are generic: resolve matching inventory variants by text, searchable '
-                . 'attributes and price, then require an exact lead-to-variant interest relation. Filters also include '
-                . 'engagement progress: use action "trade-in" or "credit-app" with completion "incomplete" for '
-                . '"trade-in not submitted" and "incomplete credit applications". '
-                . 'Engagement results are authoritative: never substitute lead titles, messages, RAG snippets or '
-                . 'keyword matches when this structured filter returns zero. '
-                . 'Communication filters use the latest structured message sender: awaiting_team_response means the '
-                . 'last communication is from the customer; never_replied means outbound exists but no customer message exists. '
-                . 'Also filters by status, source, stage, salesperson, rooftop/store, created dates and days-since-last-update. Returns the eligible '
-                . 'recipients plus the leads that were excluded (opted-out, do-not-contact, no contact info, duplicate) '
-                . 'with reasons. THIS DOES NOT SEND ANYTHING — it is the review step. After the manager confirms the '
-                . 'list and the message, call send_batch_message with the eligible lead_ids.',
-        );
     }
 
     /**

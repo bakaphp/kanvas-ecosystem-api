@@ -7,7 +7,6 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 use Baka\Contracts\AppInterface;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Plan\Models\Plan;
-use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
 use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
 use Kanvas\NervousSystem\Project\Services\StalePlanNudgeService;
 use Kanvas\Users\Models\Users;
@@ -15,10 +14,11 @@ use Throwable;
 
 /**
  * Acts on ONE plan that's gone silent past the threshold — pings the human owner, re-wakes (then
- * escalates) a stalled agent, or nudges the owner of unassigned work; the project's human PM is always
- * notified. Anti-spam is deliberate (we've been bitten before): a plan.staleness.detected event caps it
- * to one nudge per window, and a plan.staleness.rewoke event marks a re-wake so a dead agent isn't
- * re-woken forever — the next window escalates to a human instead.
+ * escalates) a stalled agent, or nudges the owner of unassigned work. It sends no email itself — the
+ * sweep mails the project owner one digest per project (NotifyProjectInactivePlansAction). Anti-spam is
+ * deliberate (we've been bitten before): a plan.staleness.detected event caps it to one nudge per
+ * window, and a plan.staleness.rewoke event marks a re-wake so a dead agent isn't re-woken forever — the
+ * next window escalates to a human instead.
  */
 class NudgeInactivePlanAction
 {
@@ -53,10 +53,9 @@ class NudgeInactivePlanAction
         }
 
         $owner = $project->user;
-        $pmUser = $project->pmAgent?->user ?? $owner;
+        $pmUser = $project->pmUser();
 
         $result = $this->act($owner, $pmUser);
-        $this->notifyOwner($owner, $result);
 
         $this->plan->emitLedgerEvent(self::EVENT_DETECTED, payload: [
             'action' => $result,
@@ -138,40 +137,6 @@ class NudgeInactivePlanAction
         );
 
         return $this->plan->agent_id !== null ? self::RESULT_ESCALATED_AGENT : self::RESULT_PINGED_OWNER;
-    }
-
-    /**
-     * The human PM (project owner) always gets a heads-up — except when the nudge already @mentioned
-     * them in the plan comment (they'd get the mention notification too).
-     */
-    private function notifyOwner(?Users $owner, string $result): void
-    {
-        if ($owner === null) {
-            return;
-        }
-
-        $alreadyMentioned = match ($result) {
-            self::RESULT_PINGED_HUMAN => (int) $this->plan->assigned_users_id,
-            self::RESULT_PINGED_OWNER, self::RESULT_ESCALATED_AGENT => $owner->getId(),
-            default => null,
-        };
-
-        if ($owner->getId() === $alreadyMentioned) {
-            return;
-        }
-
-        $owner->notify(new PlanProgressNotification(
-            $this->plan,
-            'Plan inactive',
-            sprintf('The plan "%s" has had no activity in over %dh.', $this->plan->title, $this->thresholdHours),
-            [
-                'plan_id' => $this->plan->getId(),
-                'plan_uuid' => $this->plan->uuid,
-                'change_type' => 'stale',
-                'inactive_hours' => $this->thresholdHours,
-                'action' => $result,
-            ],
-        ));
     }
 
     private function postComment(?Users $author, string $content): void

@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Social\Tags\Models\Tag;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -16,7 +17,7 @@ use Override;
 use Throwable;
 
 /**
- * Adds or removes tags on a person — the people-side counterpart of add_lead_tags. New tags are
+ * Adds or removes tags on a person — the people-side counterpart of tag_lead. New tags are
  * created automatically. Company-wide write — an internal-teammate capability.
  */
 #[AgentTool(name: 'Tag Person', category: 'crm')]
@@ -24,15 +25,11 @@ class TagPersonTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'tag_person',
-            description: 'Add or remove tags on a person. Pass person_id and a list of tag names; set remove=true to '
-                . 'detach them instead of attaching. Tags that do not exist yet are created. Returns the person\'s '
-                . 'current tags.',
-        );
-    }
+    protected string $name = 'tag_person';
+
+    protected ?string $description = 'Add or remove tags on a person. Pass person_id and a list of tag names; set remove=true to '
+        . 'detach them instead of attaching. Tags that do not exist yet are created. Returns the person\'s '
+        . 'current tags.';
 
     /**
      * @return array<int, ToolPropertyInterface>
@@ -64,10 +61,7 @@ class TagPersonTool extends Tool
      */
     public function __invoke(int $person_id, array $tags, ?bool $remove = null): array
     {
-        $tags = array_values(array_filter(array_map(
-            fn (string $tag): string => trim($tag),
-            $tags,
-        ), fn (string $tag): bool => $tag !== ''));
+        $tags = Tag::normalizeNames($tags);
 
         if ($tags === []) {
             return ['error' => 'Provide at least one tag name.'];

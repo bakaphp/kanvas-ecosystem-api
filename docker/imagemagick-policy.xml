@@ -61,11 +61,6 @@
   <policy domain="coder" rights="none" pattern="SVG"/>
   <policy domain="coder" rights="none" pattern="MSVG"/>
 
-  <!-- libheif-backed coders, disabled until the image ships a pinned libheif build. -->
-  <policy domain="coder" rights="none" pattern="HEIC"/>
-  <policy domain="coder" rights="none" pattern="HEIF"/>
-  <policy domain="coder" rights="none" pattern="AVIF"/>
-
   <!-- Block indirect reads via @filename / list-file indirection. -->
   <policy domain="path" rights="none" pattern="@*"/>
 </policymap>

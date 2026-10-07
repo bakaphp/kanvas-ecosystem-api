@@ -7,8 +7,8 @@ namespace Tests\Stubs\Intelligence;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Chat\History\AbstractChatHistory;
-use NeuronAI\Chat\History\InMemoryChatHistory;
+use NeuronAI\Chat\History\InMemoryMessageStore;
+use NeuronAI\Chat\History\MessageStoreInterface;
 use NeuronAI\Providers\AIProviderInterface;
 use Override;
 
@@ -31,9 +31,9 @@ class CapturingSystemUserAgentStub extends SystemUserAgent
     }
 
     #[Override]
-    protected function chatHistory(): AbstractChatHistory
+    protected function messageStore(): MessageStoreInterface
     {
-        return new InMemoryChatHistory();
+        return new InMemoryMessageStore();
     }
 
     /**

@@ -108,7 +108,7 @@ class BaseAgentChannelReplyAction
         ?string $from = null,
         ?string $rawResponse = null
     ): Message {
-        if (empty($text)) {
+        if (trim($text) === '') {
             throw new AgentReplySkippedException('Empty message was created');
         }
         $user = $this->channel->company->getAiAgentUser() ?? $message->user;
@@ -149,7 +149,7 @@ class BaseAgentChannelReplyAction
         $entity = $message->entity();
         if ($entity instanceof Model) {
             $newMessage->addEntity($entity);
-            // People-keyed history (SalesAssistKanvasMessageHistory) queries by People;
+            // People-keyed history (EntityRollupMessageStore) queries by People;
             // without this attachment the outbound disappears from cross-channel rollup
             // and from the People profile UI.
             if ($entity instanceof Lead && $entity->people !== null) {

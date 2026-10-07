@@ -29,18 +29,14 @@ class ListMessageTypesTool extends Tool
 {
     use HasKanvasContext;
 
-    private const int DEFAULT_LIMIT = 50;
+    protected string $name = 'list_message_types';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_message_types',
-            description: 'Lists the message types this app has, with how many messages use each and whether '
-                . 'a workflow is watching it. Call this before writing a record with create_message and use a '
-                . 'verb from here verbatim — a verb that is not on this list silently creates a new type that '
-                . 'nothing is configured to act on, so the record is saved and nothing happens.',
-        );
-    }
+    protected ?string $description = 'Lists the message types this app has, with how many messages use each and whether '
+        . 'a workflow is watching it. Call this before writing a record with create_message and use a '
+        . 'verb from here verbatim — a verb that is not on this list silently creates a new type that '
+        . 'nothing is configured to act on, so the record is saved and nothing happens.';
+
+    private const int DEFAULT_LIMIT = 50;
 
     /**
      * @return array<int, ToolProperty>

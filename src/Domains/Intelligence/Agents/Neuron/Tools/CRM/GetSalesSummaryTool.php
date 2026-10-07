@@ -28,15 +28,11 @@ class GetSalesSummaryTool extends Tool
     use HasKanvasContext;
     use ResolvesAnalyticsTimeframe;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_sales_summary',
-            description: 'Deal pipeline performance over a timeframe: total deals plus breakdowns by stage, status, '
-                . 'and salesperson, and a daily trend. Use for "how are sales this month?", "deals per stage", "who '
-                . 'is closing the most deals?". Reporting only.',
-        );
-    }
+    protected string $name = 'get_sales_summary';
+
+    protected ?string $description = 'Deal pipeline performance over a timeframe: total deals plus breakdowns by stage, status, '
+        . 'and salesperson, and a daily trend. Use for "how are sales this month?", "deals per stage", "who '
+        . 'is closing the most deals?". Reporting only.';
 
     /**
      * @return array<int, ToolProperty>

@@ -8,109 +8,13 @@ use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventType;
-use Kanvas\Event\Events\Models\EventVersion;
-use Kanvas\Event\Events\Models\EventVersionParticipant;
-use Kanvas\Event\Participants\Models\Participant;
-use Kanvas\Event\Participants\Models\ParticipantType;
-use Kanvas\Event\Support\Setup;
-use Kanvas\Event\Themes\Models\ThemeArea;
-use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
-use Kanvas\Guild\Customers\DataTransferObject\Address;
-use Kanvas\Guild\Customers\DataTransferObject\Contact;
-use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
-use Spatie\LaravelData\DataCollection;
+use Kanvas\Event\Reports\Services\GoalTrackingService;
 use Tests\TestCase;
+use Tests\Traits\BuildsEventVersionFixtures;
 
 class ReportsTest extends TestCase
 {
-    protected function runEventSetup(): void
-    {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
-
-        $setup = new Setup($app, $user, $company);
-        $setup->run();
-    }
-
-    protected function createEventVersionWithParticipants(
-        int $maxCapacity = 50,
-        ?Carbon $eventDate = null,
-        int $participantCount = 0,
-    ): EventVersion {
-        $this->runEventSetup();
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
-        $eventDate ??= Carbon::now()->addWeeks(2);
-
-        $input = [
-            'name' => 'Test Event ' . uniqid(),
-            'description' => 'Test',
-            'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
-            'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
-            'dates' => [
-                [
-                    'date' => $eventDate->toDateString(),
-                    'start_time' => '10:00',
-                    'end_time' => '12:00',
-                ],
-            ],
-        ];
-
-        $createResponse = $this->graphQL('
-            mutation($input: EventInput!) {
-                createEvent(input: $input) {
-                    id
-                    versions { data { id } }
-                }
-            }
-        ', ['input' => $input])->assertSuccessful();
-
-        $eventId = (int) $createResponse->json('data.createEvent.id');
-        $versionId = (int) $createResponse->json('data.createEvent.versions.data.0.id');
-
-        $eventVersion = EventVersion::find($versionId);
-        $eventVersion->start_at = $eventDate->toDateTimeString();
-        $eventVersion->metadata = array_merge($eventVersion->metadata ?? [], [
-            'max_capacity' => $maxCapacity,
-        ]);
-        $eventVersion->saveQuietly();
-
-        $participantType = ParticipantType::fromCompany($company)->fromApp($app)->first();
-        $themeArea = ThemeArea::fromCompany($company)->fromApp($app)->first();
-
-        for ($i = 0; $i < $participantCount; $i++) {
-            $peopleDto = new PeopleData(
-                app: $app,
-                branch: $user->getCurrentBranch(),
-                user: $user,
-                firstname: 'Test' . $i,
-                lastname: 'Attendee' . uniqid(),
-                contacts: Contact::collect([], DataCollection::class),
-                address: Address::collect([], DataCollection::class),
-            );
-            $people = (new CreatePeopleAction($peopleDto))->execute();
-
-            $participant = Participant::create([
-                'apps_id' => $app->getId(),
-                'companies_id' => $company->getId(),
-                'users_id' => $user->getId(),
-                'people_id' => $people->getId(),
-                'theme_area_id' => $themeArea->getId(),
-            ]);
-
-            EventVersionParticipant::create([
-                'event_version_id' => $eventVersion->getId(),
-                'participant_id' => $participant->getId(),
-                'participant_type_id' => $participantType->getId(),
-                'ticket_price' => 0,
-                'discount' => 0,
-            ]);
-        }
-
-        return $eventVersion->fresh();
-    }
+    use BuildsEventVersionFixtures;
 
     public function testEventsTracking(): void
     {
@@ -151,6 +55,41 @@ class ReportsTest extends TestCase
                     ],
                 ],
             ]);
+    }
+
+    /**
+     * The percentage and colour are judged against what should be sold by now, not the final
+     * target, and goal_to_date is that number.
+     */
+    public function testEventsTrackingReturnsTheGoalExpectedToDate(): void
+    {
+        $eventDate = Carbon::now()->addWeeks(3);
+        $version = $this->createEventVersionWithParticipants(
+            maxCapacity: 20,
+            eventDate: $eventDate,
+            participantCount: 5,
+        );
+
+        $rows = $this->graphQL('
+            query {
+                eventsTracking(weeks_ahead: 7) {
+                    event_version_id
+                    total_inscribed
+                    goal
+                    goal_to_date
+                    goal_percentage
+                }
+            }
+        ')->assertSuccessful()->json('data.eventsTracking');
+
+        $row = collect($rows)->firstWhere('event_version_id', (string) $version->getId());
+        $goals = new GoalTrackingService();
+        $expected = $goals->getExpectedEnrollment(20, $goals->getWeeksUntil(Carbon::parse($version->start_at)));
+
+        $this->assertSame(20, $row['goal']);
+        $this->assertSame($expected, $row['goal_to_date']);
+        $this->assertLessThan($row['goal'], $row['goal_to_date']);
+        $this->assertEqualsWithDelta($goals->getAchievementPercentage(5, $expected), $row['goal_percentage'], 0.01);
     }
 
     public function testEventsTrackingColorCoding(): void

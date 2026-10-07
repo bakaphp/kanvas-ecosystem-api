@@ -19,10 +19,9 @@ use Throwable;
  * Compiles an Agent into the "voice agent spec" the external voice runtime
  * (Pipecat / Cloud Run) fetches at the start of each call.
  *
- * This is the read-only config-plane compilation: it assembles the same system
- * prompt the in-process NeuronAI agent uses (soul → instructions →
- * output_format, with AgentType fallback — see Agents\Types\BaseAgent), the
- * resolved model name, the per-agent voice_config, and the agent's telephony
+ * This is the read-only config-plane compilation: it assembles the agent's
+ * persona prompt (Agent::personaPrompt(), the legacy structured `role` as the
+ * fallback), the resolved model name, the per-agent voice_config, and the agent's telephony
  * number (per-agent, falling back to the company). It never returns credentials
  * — Twilio secrets stay out of this payload.
  */
@@ -131,23 +130,14 @@ class VoiceAgentSpecService
     }
 
     /**
-     * Same coalescing as Agents\Types\BaseAgent::instructions(): prefer the
-     * per-field prompt on the agent, fall back per-field to the AgentType so a
-     * type acts as the base persona, then legacy structured `role`.
+     * The agent's persona prompt, then the legacy structured `role` for records that predate it.
      */
     private function systemInstruction(): string
     {
-        $type = $this->agent->type;
-        $coalesce = static fn (?string $a, ?string $b): ?string => ($a !== null && $a !== '') ? $a : $b;
+        $persona = $this->agent->personaPrompt();
 
-        $parts = array_filter([
-            $coalesce($this->agent->soul, $type?->soul),
-            $coalesce($this->agent->instructions, $type?->instructions),
-            $coalesce($this->agent->output_format, $type?->output_format),
-        ]);
-
-        if ($parts !== []) {
-            return implode("\n\n", $parts);
+        if ($persona !== '') {
+            return $persona;
         }
 
         $role = $this->agent->role;

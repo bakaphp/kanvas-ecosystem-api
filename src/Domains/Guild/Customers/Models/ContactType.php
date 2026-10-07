@@ -22,6 +22,8 @@ class ContactType extends BaseModel
 {
     use NoAppRelationshipTrait;
 
+    public const string LINKEDIN = 'LinkedIn';
+
     protected $table = 'contacts_types';
     protected $guarded = [];
 

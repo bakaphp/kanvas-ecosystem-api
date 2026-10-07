@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Agents;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentData;
+use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\KanvasGenericLaravelAgent;
 use Kanvas\Intelligence\Agents\Laravel\SubAgents\DynamicSubAgent;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\InventorySearchTool;
@@ -132,11 +134,20 @@ class DynamicSubAgentTest extends TestCase
 
         $subAgent = new DynamicSubAgent($agentRecord);
 
-        $this->assertSame(
-            str_replace('-', '_', \Illuminate\Support\Str::snake($agentRecord->name)),
-            str_replace('-', '_', $subAgent->name())
-        );
+        $this->assertSame(Str::slug($agentRecord->name, '_'), $subAgent->name());
+        $this->assertMatchesRegularExpression(KanvasToolInterface::FUNCTION_NAME_PATTERN, $subAgent->name());
         $this->assertSame('Deduplication expert.', $subAgent->description());
+    }
+
+    public function testDynamicSubAgentNameIsAlwaysAValidFunctionName(): void
+    {
+        $agentRecord = $this->makeSubAgentRecord();
+
+        $agentRecord->name = "María's Agent";
+        $this->assertSame('marias_agent', new DynamicSubAgent($agentRecord)->name());
+
+        $agentRecord->name = '24/7 Support';
+        $this->assertSame('sub_agent_' . $agentRecord->getId(), new DynamicSubAgent($agentRecord)->name());
     }
 
     public function testDynamicSubAgentLoadsItsOwnTools(): void

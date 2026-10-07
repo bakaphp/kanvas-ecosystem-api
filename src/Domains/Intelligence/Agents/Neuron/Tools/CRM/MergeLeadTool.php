@@ -26,18 +26,14 @@ class MergeLeadTool extends Tool
     use GuardsAdminForTool;
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'merge_lead',
-            description: 'Merge a duplicate lead into another. source_lead_id is the duplicate (soft-deleted after), '
-                . 'target_lead_id is the survivor that keeps everything. Deals, attempts, participants, engagements, '
-                . 'campaign recipients, follow-up history and custom fields all move to the target, and any contact '
-                . 'detail the target is missing (email, phone, name) is copied over from the source. This is '
-                . 'irreversible — use search_leads or lead_ref to verify the two leads really are the same prospect '
-                . 'and confirm the ids with the user before calling. Only an administrator can do this.',
-        );
-    }
+    protected string $name = 'merge_lead';
+
+    protected ?string $description = 'Merge a duplicate lead into another. source_lead_id is the duplicate (soft-deleted after), '
+        . 'target_lead_id is the survivor that keeps everything. Deals, attempts, participants, engagements, '
+        . 'campaign recipients, follow-up history and custom fields all move to the target, and any contact '
+        . 'detail the target is missing (email, phone, name) is copied over from the source. This is '
+        . 'irreversible — use search_leads or lead_ref to verify the two leads really are the same prospect '
+        . 'and confirm the ids with the user before calling. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

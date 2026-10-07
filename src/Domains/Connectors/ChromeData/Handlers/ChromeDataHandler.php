@@ -45,4 +45,15 @@ class ChromeDataHandler extends BaseIntegration
             throw new ValidationException('Failed to connect to ChromeData: ' . $e->getMessage());
         }
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::ACCOUNT_NUMBER->value,
+            ConfigurationEnum::ACCOUNT_SECRET->value,
+            ConfigurationEnum::COUNTRY->value,
+            ConfigurationEnum::LANGUAGE->value,
+        ];
+    }
 }

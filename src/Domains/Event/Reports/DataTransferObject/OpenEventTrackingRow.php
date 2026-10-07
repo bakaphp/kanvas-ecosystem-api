@@ -15,6 +15,7 @@ class OpenEventTrackingRow extends Data
         public array $counts,
         public int $total_inscribed,
         public int $goal,
+        public int $goal_to_date,
         public float $goal_percentage,
         public string $color,
     ) {

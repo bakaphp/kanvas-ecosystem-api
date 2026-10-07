@@ -10,7 +10,6 @@ use Kanvas\HumanResources\Employees\Models\Employee;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,20 +22,16 @@ use Override;
  * candidates to disambiguate rather than a single guess.
  */
 #[AgentTool(name: 'Find Employee', category: 'human_resources')]
-class FindEmployeeTool extends Tool implements HasRunKey
+class FindEmployeeTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_employee',
-            description: 'Finds HR employees matching a name or email, each with their email, position, department '
-                . 'and status. Use this to resolve who an employee is before checking their leave balance or updating '
-                . 'their profile. Returns candidates — confirm the right one if there is more than one.',
-        );
-    }
+    protected string $name = 'find_employee';
+
+    protected ?string $description = 'Finds HR employees matching a name or email, each with their email, position, department '
+        . 'and status. Use this to resolve who an employee is before checking their leave balance or updating '
+        . 'their profile. Returns candidates — confirm the right one if there is more than one.';
 
     /**
      * @return array<int, ToolProperty>

@@ -10,6 +10,7 @@ use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\OpenCode\Concerns\ResolvesAgentMachine;
 use Kanvas\Connectors\OpenCode\DataTransferObject\CodingRepository;
+use Kanvas\Connectors\OpenCode\DataTransferObject\SessionAttachment;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenCode\Services\SessionConfigBuilder;
 use Kanvas\Connectors\OpenCode\Services\SessionContextBuilder;
@@ -39,6 +40,7 @@ class ProvisionCodingSessionAction
     /**
      * @param list<CodingRepository> $references Repositories checked out beside the work to be read
      *                                           from. Never branched, never committed, never pushed.
+     * @param list<SessionAttachment> $attachments
      */
     public function __construct(
         private readonly AgentTaskSession $session,
@@ -46,6 +48,7 @@ class ProvisionCodingSessionAction
         private readonly CompanyInterface $company,
         private readonly ?CodingRepository $repository = null,
         private readonly array $references = [],
+        private readonly array $attachments = [],
     ) {
     }
 
@@ -170,6 +173,7 @@ class ProvisionCodingSessionAction
         $client->writeFile($workspace . '/opencode.json', $config);
 
         $this->writeKanvasContext($client, $workspace);
+        $this->writeAttachments($client, $workspace);
 
         if ($this->repository === null) {
             return;
@@ -232,6 +236,21 @@ class ProvisionCodingSessionAction
 
         if ($context !== null) {
             $client->writeFile($workspace . '/.kanvas/context.md', $context);
+        }
+    }
+
+    /**
+     * Under `.kanvas/`, which {@see excludeFromGit()} already hides, so a design handed to the session is
+     * readable but never reaches the pull request.
+     */
+    private function writeAttachments(SshClient $client, string $workspace): void
+    {
+        foreach ($this->attachments as $attachment) {
+            if (! $client->writeFile($workspace . '/' . $attachment->relativePath, $attachment->bytes)) {
+                throw new ValidationException(
+                    'Attachment ' . $attachment->filesystemId . ' could not be written to the workspace.'
+                );
+            }
         }
     }
 

@@ -164,3 +164,56 @@ extend type Query @guard {
             resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\ExportMechanicsQuery@export"
         )
 }
+
+enum RoadsideServiceTypeEnum {
+    jump_start
+    fuel_delivery
+    light_tow
+    designated_driver
+    tire_change
+    accident_tow
+    motorcycle_tow
+    locksmith
+}
+
+type RoadsideIntakeField {
+    key: String!
+    label: String!
+    "One of: text, boolean, number, choice, datetime"
+    type: String!
+    required: Boolean!
+    "Allowed values, populated for choice fields only"
+    options: [String!]!
+    "Key of the boolean field that has to answer true before this one is required"
+    required_when: String
+    hint: String
+}
+
+type RoadsideServiceIntake {
+    service_type: String!
+    label: String!
+    "Whether the case is rejected without at least one photo attached"
+    requires_photos: Boolean!
+    "Asked for every service before the service-specific block"
+    general_fields: [RoadsideIntakeField!]!
+    service_fields: [RoadsideIntakeField!]!
+}
+
+type RoadsideNotProceedReason {
+    value: String!
+    label: String!
+}
+
+extend type Query @guard {
+    "The operator intake script: the shared questions plus the per-service block. Omit service_type to get every service."
+    roadsideAssistanceIntake(service_type: RoadsideServiceTypeEnum): [RoadsideServiceIntake!]!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideIntakeQuery@get"
+        )
+
+    "Reasons a case can be declined at the authorization gate."
+    roadsideAssistanceNotProceedReasons: [RoadsideNotProceedReason!]!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideIntakeQuery@notProceedReasons"
+        )
+}

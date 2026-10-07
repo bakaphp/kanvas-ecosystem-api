@@ -81,4 +81,17 @@ class YusenHandler extends BaseIntegration
             );
         }
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::PRIMARY_WAREHOUSE_ID->value,
+            ConfigurationEnum::NETSUITE_SAVED_SEARCH_ID->value,
+            ConfigurationEnum::NETSUITE_LOCATION_ID->value,
+            ConfigurationEnum::MATCH_FIELD->value,
+            ConfigurationEnum::QUANTITY_TOLERANCE->value,
+            ConfigurationEnum::RECONCILE_WITH_NETSUITE->value,
+        ];
+    }
 }

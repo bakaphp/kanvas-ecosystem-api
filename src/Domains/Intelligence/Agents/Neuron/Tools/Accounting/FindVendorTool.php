@@ -9,7 +9,6 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\OrganizationNameNormalizerService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,20 +22,16 @@ use Override;
  * candidates to disambiguate rather than a single guess.
  */
 #[AgentTool(name: 'Find Vendor', category: 'accounting')]
-class FindVendorTool extends Tool implements HasRunKey
+class FindVendorTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_vendor',
-            description: 'Finds vendor organizations matching a name, each with its Acumatica vendor code (when '
-                . 'synced). Use this to resolve the vendor named on an invoice before matching a PO or coding a '
-                . 'bill. Returns candidates — confirm the right one with the user if there is more than one.',
-        );
-    }
+    protected string $name = 'find_vendor';
+
+    protected ?string $description = 'Finds vendor organizations matching a name, each with its Acumatica vendor code (when '
+        . 'synced). Use this to resolve the vendor named on an invoice before matching a PO or coding a '
+        . 'bill. Returns candidates — confirm the right one with the user if there is more than one.';
 
     /**
      * @return array<int, ToolProperty>

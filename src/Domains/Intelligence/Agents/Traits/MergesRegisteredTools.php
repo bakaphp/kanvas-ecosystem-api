@@ -48,6 +48,18 @@ use ReflectionParameter;
 trait MergesRegisteredTools
 {
     /**
+     * Names of the tools the registry resolved for this agent, kept apart by where they come from: an
+     * MCP toolkit expands to many large schemas and is what tool search exists to keep out of the
+     * prompt; a catalog grant is one small tool the agent may use on every turn.
+     *
+     * @var list<string>
+     */
+    protected array $mcpToolNames = [];
+
+    /** @var list<string> */
+    protected array $catalogToolNames = [];
+
+    /**
      * @return list<object>
      */
     protected function resolveRegisteredTools(
@@ -97,6 +109,7 @@ trait MergesRegisteredTools
             }
 
             $baseline[] = $instance;
+            $this->recordRegistryToolNames($instance);
 
             if ($registered->handler !== null) {
                 $seenHandlers[$registered->handler] = true;
@@ -104,6 +117,40 @@ trait MergesRegisteredTools
         }
 
         return $this->applyWorkerBoundary(array_values($baseline));
+    }
+
+    private function recordRegistryToolNames(object $instance): void
+    {
+        $fromToolkit = $instance instanceof ToolkitInterface;
+
+        foreach ($this->expandToolkits([$instance]) as $tool) {
+            $name = self::toolName($tool);
+
+            if ($name === null) {
+                continue;
+            }
+
+            if ($fromToolkit) {
+                $this->mcpToolNames[] = $name;
+            } else {
+                $this->catalogToolNames[] = $name;
+            }
+        }
+    }
+
+    /**
+     * The two tool trees name themselves differently (Neuron `getName()`, Laravel `name()`); a toolkit
+     * answers to neither.
+     */
+    private static function toolName(object $tool): ?string
+    {
+        $name = match (true) {
+            method_exists($tool, 'getName') => $tool->getName(),
+            method_exists($tool, 'name') => $tool->name(),
+            default => null,
+        };
+
+        return is_string($name) ? $name : null;
     }
 
     /**
@@ -133,17 +180,13 @@ trait MergesRegisteredTools
         return array_values(array_filter(
             $tools,
             static function (object $tool) use ($verifying): bool {
-                // The two tool trees name themselves differently; a tool that answers to neither is
-                // kept under the worker policy — silently dropping something unidentifiable is the
-                // worse failure there. Under the verifier it is dropped, because an unidentifiable
-                // tool cannot be shown to be read-only and the allow-list must fail closed.
-                $name = match (true) {
-                    method_exists($tool, 'getName') => $tool->getName(),
-                    method_exists($tool, 'name') => $tool->name(),
-                    default => null,
-                };
+                // A tool that answers to neither name is kept under the worker policy — silently
+                // dropping something unidentifiable is the worse failure there. Under the verifier it
+                // is dropped, because an unidentifiable tool cannot be shown to be read-only and the
+                // allow-list must fail closed.
+                $name = self::toolName($tool);
 
-                if (! is_string($name)) {
+                if ($name === null) {
                     return ! $verifying;
                 }
 

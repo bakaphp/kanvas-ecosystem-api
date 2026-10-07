@@ -93,6 +93,27 @@ final class GeminiPartlessResponseTest extends TestCase
         $this->assertSame('Hola', $message->getContent());
     }
 
+    /** KANVAS-ECOSYSTEM-6HD: usageMetadata without promptTokenCount crashed Neuron's usage mapping. */
+    public function testMissingPromptTokenCountIsDerivedFromTheTotal(): void
+    {
+        $message = $this->process([
+            'candidates' => [
+                [
+                    'content' => ['role' => 'model', 'parts' => [['text' => 'Hola']]],
+                    'finishReason' => 'STOP',
+                ],
+            ],
+            'usageMetadata' => [
+                'candidatesTokenCount' => 34,
+                'thoughtsTokenCount' => 96,
+                'totalTokenCount' => 1279,
+            ],
+        ]);
+
+        $this->assertSame('Hola', $message->getContent());
+        $this->assertSame(1149, $message->getUsage()->inputTokens);
+    }
+
     public function testResponsesWithPartsAreUntouched(): void
     {
         $message = $this->process([

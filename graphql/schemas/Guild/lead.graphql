@@ -25,6 +25,8 @@ type Lead {
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
     systemModule: SystemModule @belongsTo(relation: "systemModule")
     events: [Event!]! @morphToMany(relation: "events")
+    variantInterests: [LeadVariantInterest!]!
+        @hasMany(relation: "variantInterests")
     ai_session: [AIAgentSession!]!
         @hasMany(relation: "aiSession", type: PAGINATOR)
     tags: [Tag!]
@@ -58,6 +60,16 @@ type Lead {
     is_published: Boolean!
     created_at: DateTime!
     updated_at: DateTime!
+}
+
+type LeadVariantInterest {
+    id: ID!
+    variant: Variant! @belongsTo(relation: "variant")
+    is_active: Boolean!
+    price_at_interest: Float
+    metadata: Mixed
+    created_at: DateTime!
+    updated_at: DateTime
 }
 
 type LeadChannelFilesViewer {

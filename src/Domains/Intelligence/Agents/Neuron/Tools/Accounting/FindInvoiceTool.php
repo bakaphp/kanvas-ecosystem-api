@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Invoices\Models\Invoice;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,22 +20,18 @@ use Override;
  * reports found=false when the invoice isn't in Kanvas.
  */
 #[AgentTool(name: 'Find Invoice', category: 'accounting')]
-class FindInvoiceTool extends Tool implements HasRunKey
+class FindInvoiceTool extends Tool
 {
     use FindsTenantRecordForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_invoice',
-            description: 'Look up a single invoice by its number and return the full detail: customer, document '
-                . 'status (draft/issued/sent/paid/voided), collection state, total, amount paid, balance due, '
-                . 'issued/due dates and line items. Use this when the user names a specific invoice number. '
-                . 'Returns found=false when the invoice is not in the synced data.',
-        );
-    }
+    protected string $name = 'find_invoice';
+
+    protected ?string $description = 'Look up a single invoice by its number and return the full detail: customer, document '
+        . 'status (draft/issued/sent/paid/voided), collection state, total, amount paid, balance due, '
+        . 'issued/due dates and line items. Use this when the user names a specific invoice number. '
+        . 'Returns found=false when the invoice is not in the synced data.';
 
     /**
      * @return array<int, ToolProperty>

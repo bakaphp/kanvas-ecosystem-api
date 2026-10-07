@@ -28,15 +28,11 @@ class GetLeadAnalyticsTool extends Tool
     use HasKanvasContext;
     use ResolvesAnalyticsTimeframe;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_lead_analytics',
-            description: 'Lead volume and mix over a timeframe: total leads plus breakdowns by status, source, '
-                . 'pipeline, and salesperson, and a daily trend. Use for "how many leads this week?", "which sources '
-                . 'drive the most leads?", "lead count per rep". Reporting only.',
-        );
-    }
+    protected string $name = 'get_lead_analytics';
+
+    protected ?string $description = 'Lead volume and mix over a timeframe: total leads plus breakdowns by status, source, '
+        . 'pipeline, and salesperson, and a daily trend. Use for "how many leads this week?", "which sources '
+        . 'drive the most leads?", "lead count per rep". Reporting only.';
 
     /**
      * @return array<int, ToolProperty>

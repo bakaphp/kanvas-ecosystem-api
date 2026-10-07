@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Concerns;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Social\Tags\Models\Tag;
 
@@ -26,8 +29,17 @@ trait SyncsEntityRelatedInput
         $entity->setAllCustomFields($input['custom_fields']);
     }
 
-    protected static function syncTags(Model $entity, array $input): void
-    {
+    /**
+     * App/user/company are only needed for an entity that can't derive them itself (a Company
+     * belongs to many apps); every other model resolves them from its own relations.
+     */
+    protected static function syncTags(
+        Model $entity,
+        array $input,
+        ?AppInterface $app = null,
+        ?UserInterface $user = null,
+        ?CompanyInterface $company = null
+    ): void {
         if (! array_key_exists('tags', $input) || ! is_array($input['tags'])) {
             return;
         }
@@ -38,7 +50,7 @@ trait SyncsEntityRelatedInput
             return;
         }
 
-        $entity->syncTags($tagNames);
+        $entity->syncTags($tagNames, $app, $user, $company);
     }
 
     protected static function syncFiles(Model $entity, array $input): void

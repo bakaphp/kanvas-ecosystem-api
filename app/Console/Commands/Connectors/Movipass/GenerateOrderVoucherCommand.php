@@ -7,7 +7,8 @@ namespace App\Console\Commands\Connectors\Movipass;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Movipass\Jobs\GeneratePdfVoucherJob;
+use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Souk\Orders\Actions\GenerateOrderReceiptAction;
 use Kanvas\Souk\Orders\Models\Order;
 
 class GenerateOrderVoucherCommand extends Command
@@ -36,13 +37,12 @@ class GenerateOrderVoucherCommand extends Command
         $appId = $this->argument('app_id');
         $plate = $this->argument('plate');
 
-
         $app = Apps::getById($appId);
         $this->overwriteAppService($app);
 
         $order = Order::where('apps_id', $app->getId())
             ->whereNotNull('metadata')
-            ->whereRaw("JSON_VALID(metadata)")
+            ->whereRaw('JSON_VALID(metadata)')
             ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
             ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.vehiclePlate')) is not null")
             ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.vehiclePlate')) = ?", [$plate])
@@ -51,14 +51,17 @@ class GenerateOrderVoucherCommand extends Command
 
         if (! $order) {
             $this->error("No order found for vehicle plate {$plate}");
+
             return;
         }
 
-        $voucherUrl = $order->get("voucher_url") ?? '';
+        $receipt = OrderTypeEnum::IMPOUND_LOT->pdfReceipt();
+        $voucherUrl = $order->get($receipt->urlCustomField) ?? '';
 
         if ($voucherUrl && ! $this->option('force')) {
             $this->info("Voucher already exists for order({$order->id}) {$order->order_number} : {$voucherUrl}");
             $this->info('Use --force to re-generate it.');
+
             return;
         }
 
@@ -66,22 +69,8 @@ class GenerateOrderVoucherCommand extends Command
             $this->warn("Re-generating voucher for order({$order->id}) {$order->order_number} (previous: {$voucherUrl})");
         }
 
-        $vehiclePlate = $order->metadata['data']['vehiclePlate'] ?? '';
-        $vehicleBrand = $order->metadata['data']['vehicleBrand'] ?? '';
-        $serviceName = $order->orderType->name ?? '';
+        $pdfFile = new GenerateOrderReceiptAction($order, $order->user, $receipt)->execute();
 
-        $filename = "{$order->order_number}_{$serviceName}_{$vehiclePlate}_{$vehicleBrand}";
-
-        GeneratePdfVoucherJob::dispatchSync(
-            $order,
-            $order->user,
-            'order-release-voucher',
-            $filename,
-            []
-        );
-
-        sleep(5);
-        $voucherUrl = $order->get("voucher_url") ?? '';
-        $this->info("Voucher generated for order({$order->id}) {$order->order_number} and vehicle plate {$vehiclePlate} : {$voucherUrl}");
+        $this->info("Voucher generated for order({$order->id}) {$order->order_number} and vehicle plate {$plate} : {$pdfFile->url}");
     }
 }

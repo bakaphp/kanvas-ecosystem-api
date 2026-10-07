@@ -7,6 +7,7 @@ namespace Baka\Search;
 use Algolia\AlgoliaSearch\Api\SearchClient;
 use Algolia\ScoutExtended\Engines\AlgoliaEngine;
 use BadMethodCallException;
+use Baka\Contracts\HashTableInterface;
 use Baka\Search\Engines\KanvasAlgoliaEngine;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
@@ -91,6 +92,29 @@ class SearchEngineResolver
 
         // Assuming the constructor takes a client and a chunk size
         return new EnginesTypesenseEngine($client, $maxItemsPerPage);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function typesenseSettings(HashTableInterface $app): array
+    {
+        return (array) ($app->get('typesense_search_settings') ?? []);
+    }
+
+    public static function typesenseClient(HashTableInterface $app): TypesenseClient
+    {
+        return self::getTypesenseClient(self::typesenseSettings($app));
+    }
+
+    /**
+     * Whether a client built from these settings could authenticate at all: the app's own key, else
+     * the platform key. The client constructor throws on an empty key, so callers that can live
+     * without Typesense check this first.
+     */
+    public static function hasTypesenseCredentials(array $searchSettings): bool
+    {
+        return trim((string) ($searchSettings['typesense_api_key'] ?? config('scout.typesense.api_key', ''))) !== '';
     }
 
     public static function getTypesenseClient(array $searchSettings): TypesenseClient

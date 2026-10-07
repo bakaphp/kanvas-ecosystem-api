@@ -11,10 +11,10 @@ use Kanvas\Connectors\ClaudeAgent\Services\AgentSpecBuilderService;
 use Kanvas\Connectors\ClaudeAgent\Services\CustomToolBridgeService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use NeuronAI\Tools\PropertyType;
-use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use RuntimeException;
 use Tests\Connectors\Traits\HasClaudeAgentConfiguration;
+use Tests\Stubs\Intelligence\Tools\CallbackTool;
 use Tests\TestCase;
 
 /**
@@ -46,16 +46,19 @@ final class CustomToolBridgeServiceTest extends TestCase
         return $this->makeClaudeAgent($this->currentApp, $this->currentCompany);
     }
 
-    private function lookupTool(): Tool
+    private function lookupTool(): CallbackTool
     {
-        return Tool::make('get_lead_status', 'Look up the status of a lead by id.')
-            ->addProperty(new ToolProperty(
+        return new CallbackTool(
+            'get_lead_status',
+            'Look up the status of a lead by id.',
+            static fn (int $lead_id): array => ['lead_id' => $lead_id, 'status' => 'won'],
+            [new ToolProperty(
                 name: 'lead_id',
                 type: PropertyType::INTEGER,
                 description: 'The Kanvas lead id.',
                 required: true,
-            ))
-            ->setCallable(static fn (int $lead_id): array => ['lead_id' => $lead_id, 'status' => 'won']);
+            )],
+        );
     }
 
     public function testDefinitionsCarryNameDescriptionAndSchema(): void
@@ -89,8 +92,7 @@ final class CustomToolBridgeServiceTest extends TestCase
      */
     public function testAThrowingToolBecomesAnErrorResultNotAnException(): void
     {
-        $exploding = Tool::make('explode', 'Always fails.')
-            ->setCallable(static fn (): string => throw new RuntimeException('database is on fire'));
+        $exploding = new CallbackTool('explode', 'Always fails.', static fn (): string => throw new RuntimeException('database is on fire'));
 
         $outcome = new CustomToolBridgeService($this->makeAgent(), [$exploding])->call('explode', []);
 

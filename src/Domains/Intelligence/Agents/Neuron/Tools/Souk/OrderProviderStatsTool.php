@@ -5,30 +5,35 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Souk;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
 use Kanvas\Souk\Orders\Services\OrderReportService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Order Provider Stats', category: 'commerce')]
 class OrderProviderStatsTool extends Tool
 {
+    use GuardsRepeatCalls;
     use HasKanvasContext;
     use ParsesOrderTypesFilter;
+    use TrackByInputs;
+
+    protected string $name = 'order_provider_stats';
+
+    protected ?string $description = 'Marketplace split per provider company: orders, net revenue, commission we earned and '
+        . 'payout owed to that provider, ranked by revenue. Use for "what do we owe each provider", "which '
+        . 'provider brings the most volume", "commission by provider". Also returns how many orders in the '
+        . 'range have no provider attached at all. Providers come from the order-provider link, not from '
+        . 'the customer email. For a single company-wide total use order_commission_stats.';
 
     public function __construct()
     {
-        parent::__construct(
-            name: 'order_provider_stats',
-            description: 'Marketplace split per provider company: orders, net revenue, commission we earned and '
-                . 'payout owed to that provider, ranked by revenue. Use for "what do we owe each provider", "which '
-                . 'provider brings the most volume", "commission by provider". Also returns how many orders in the '
-                . 'range have no provider attached at all. Providers come from the order-provider link, not from '
-                . 'the customer email. For a single company-wide total use order_commission_stats.',
-        );
+        $this->initRepeatGuard();
     }
 
     /**
@@ -54,11 +59,19 @@ class OrderProviderStatsTool extends Tool
         ?string $since = null,
         ?string $until = null,
     ): array {
-        return new OrderReportService($this->app, $this->company)->providerStats(
-            $this->parseOrderTypes($order_types),
-            $since,
-            $until,
-            max(1, min(50, $limit ?? 10)),
+        return $this->oncePerTurn(
+            [
+                'limit' => $limit,
+                'order_types' => $order_types,
+                'since' => $since,
+                'until' => $until,
+            ],
+            fn (): array => new OrderReportService($this->app, $this->company)->providerStats(
+                $this->parseOrderTypes($order_types),
+                $since,
+                $until,
+                max(1, min(50, $limit ?? 10)),
+            ),
         );
     }
 }

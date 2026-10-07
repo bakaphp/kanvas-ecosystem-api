@@ -10,6 +10,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessUsage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class HarnessDtoTest extends TestCase
@@ -53,8 +54,37 @@ class HarnessDtoTest extends TestCase
     {
         $diff = $this->diff();
 
-        // Both prefixes match the same file; the inner loop breaks so it is not double-counted.
-        $this->assertSame(['config/app.php'], $diff->touchedProtectedPaths(['config/', 'config/app']));
+        $this->assertSame(['config/app.php'], $diff->touchedProtectedPaths(['config/', 'config/app.php']));
+    }
+
+    /**
+     * @return array<string, array{string, list<string>, bool}>
+     */
+    public static function pathMatchesProvider(): array
+    {
+        return [
+            'a file inside a directory' => ['.github/workflows/ci.yml', ['.github/'], true],
+            'an untracked directory' => ['.github/', ['.github/'], true],
+            'a directory written without its slash' => ['database/migrations/x.php', ['database/migrations'], true],
+            'an exact file' => ['Jenkinsfile', ['Jenkinsfile'], true],
+            'a glob' => ['certs/prod.pem', ['*.pem'], true],
+            'a sibling sharing the prefix' => ['.githubfoo', ['.github/'], false],
+            'a template beside a matched file' => ['.env.example', ['.env'], false],
+            'the same name nested elsewhere' => ['docs/.github/x.md', ['.github/'], false],
+            'an empty entry matches nothing' => ['src/app.php', [''], false],
+        ];
+    }
+
+    /**
+     * @param list<string> $entries
+     */
+    #[DataProvider('pathMatchesProvider')]
+    public function testPathMatchesWholeSegmentsNotPrefixes(
+        string $path,
+        array $entries,
+        bool $expected
+    ): void {
+        $this->assertSame($expected, HarnessDiff::pathMatches($path, $entries));
     }
 
     public function testUsagePlusAddsEveryBucketAndTotalCountsOnlyInputAndOutput(): void
@@ -167,6 +197,7 @@ class HarnessDtoTest extends TestCase
             'idle' => TaskStatusEnum::IN_PROGRESS,
             'awaiting_answer' => TaskStatusEnum::IN_PROGRESS,
             'awaiting_permission' => TaskStatusEnum::IN_PROGRESS,
+            'awaiting_extension' => TaskStatusEnum::IN_PROGRESS,
             'completed' => TaskStatusEnum::DONE,
             'failed' => TaskStatusEnum::BLOCKED,
             'cancelled' => TaskStatusEnum::SKIPPED,

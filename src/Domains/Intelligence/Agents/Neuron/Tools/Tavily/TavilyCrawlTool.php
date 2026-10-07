@@ -23,21 +23,17 @@ class TavilyCrawlTool extends Tool
 {
     use ResolvesTavilyClientForTool;
 
+    protected string $name = 'tavily_crawl_site';
+
+    protected ?string $description = 'Explore a website from a starting URL and read the pages it links to, returning '
+        . 'each page as markdown. Use it when the answer is spread across a site rather than on '
+        . 'one page — "what does this company sell", "find their pricing and terms", "summarise '
+        . 'this documentation". It is the most expensive research tool here: when you already know '
+        . 'the exact page, read that URL directly instead, and when you only need to know what '
+        . 'pages exist, map the site instead.';
+
     private const int MAX_PAGES = 25;
     private const int MAX_CONTENT_LENGTH = 3000;
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'tavily_crawl_site',
-            description: 'Explore a website from a starting URL and read the pages it links to, returning '
-                . 'each page as markdown. Use it when the answer is spread across a site rather than on '
-                . 'one page — "what does this company sell", "find their pricing and terms", "summarise '
-                . 'this documentation". It is the most expensive research tool here: when you already know '
-                . 'the exact page, read that URL directly instead, and when you only need to know what '
-                . 'pages exist, map the site instead.',
-        );
-    }
 
     /**
      * @return array<int, ToolProperty>

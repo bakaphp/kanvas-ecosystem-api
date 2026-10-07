@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\Reports\Repositories\ExpenseSummaryRepository;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -17,23 +16,19 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Query Expense Report', category: 'accounting')]
-class QueryExpenseReportTool extends Tool implements HasRunKey
+class QueryExpenseReportTool extends Tool
 {
     use HasKanvasContext;
     use ReportsToolOutcome;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'query_expense_report',
-            description: 'Summarises approved expenses over a period — the total, broken down by expense '
-                . 'category, by the employee who paid, and by payment method, plus the employee-paid vs '
-                . 'company-paid split. Use it for "what did we spend on travel last month", "expense report for '
-                . 'September", or "how much of our spending is staff paying out of pocket". Counts APPROVED '
-                . 'expenses only, since that is when the cost hits the books.',
-        );
-    }
+    protected string $name = 'query_expense_report';
+
+    protected ?string $description = 'Summarises approved expenses over a period — the total, broken down by expense '
+        . 'category, by the employee who paid, and by payment method, plus the employee-paid vs '
+        . 'company-paid split. Use it for "what did we spend on travel last month", "expense report for '
+        . 'September", or "how much of our spending is staff paying out of pocket". Counts APPROVED '
+        . 'expenses only, since that is when the cost hits the books.';
 
     /**
      * @return array<int, ToolProperty>

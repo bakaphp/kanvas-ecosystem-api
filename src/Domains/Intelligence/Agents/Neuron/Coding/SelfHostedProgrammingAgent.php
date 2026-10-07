@@ -23,6 +23,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\ReadHarnessPullRequestFeedba
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\ReadHarnessRepositoryFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\ReplyToHarnessPullRequestTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\SearchHarnessRepositoryCodeTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\SetHarnessCommitIdentityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\ShowHarnessCodingDiffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\SteerHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\SyncHarnessPullRequestBranchTool;
@@ -238,6 +239,8 @@ class SelfHostedProgrammingAgent extends SystemUserAgent
                 new SearchHarnessRepositoryCodeTool($agent),
                 new ListHarnessRepositoryWorkTool($agent),
                 new SyncHarnessPullRequestBranchTool($agent),
+                // requestingHuman, not $this->user: on @mention surfaces the latter is the agent itself.
+                new SetHarnessCommitIdentityTool($agent, $this->requestingHuman()),
             ],
             $agent,
             CapabilityFrameworkEnum::NEURON

@@ -24,15 +24,11 @@ class GetCalendarTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_calendar',
-            description: 'Event editions scheduled between two dates, for a calendar/agenda view. Use for "what\'s on '
-                . 'the calendar", "events this week/month", "what\'s coming up". Pass an ISO date range (from/to); '
-                . 'resolve natural phrases like "this week" to dates before calling.',
-        );
-    }
+    protected string $name = 'get_calendar';
+
+    protected ?string $description = 'Event editions scheduled between two dates, for a calendar/agenda view. Use for "what\'s on '
+        . 'the calendar", "events this week/month", "what\'s coming up". Pass an ISO date range (from/to); '
+        . 'resolve natural phrases like "this week" to dates before calling.';
 
     /**
      * @return array<int, ToolProperty>

@@ -51,8 +51,7 @@ class ScoutMacros
 
     public static function getTypesenseData(Apps $app, Model $model, string $query, $perPage = 10, array $options = [])
     {
-        $searchSettings = $app->get('typesense_search_settings');
-        $client = SearchEngineResolver::getTypesenseClient($searchSettings);
+        $client = SearchEngineResolver::typesenseClient($app);
         $collection = $model->searchableAs();
         $fields = method_exists($model, 'typesenseQueryFields')
             ? implode(',', $model->typesenseQueryFields())

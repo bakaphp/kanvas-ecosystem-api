@@ -1117,13 +1117,9 @@ class FollowUpLeadActionTest extends TestCase
 
     public function testFollowUpKernelCallOptsOutOfThreadScopingForCrossSessionHistory(): void
     {
-        // Regression: previously the kernel called setThreadId for the follow-up
-        // path (because sourceChannel was null), which made the agent's history
-        // loader filter to a single session's messages. The fix is to pass
-        // sourceChannel: $session->channel so the kernel skips setThreadId.
-        // After the fix, the agent sees the full cross-session conversation
-        // history for the People entity — the same rollup pattern channel
-        // responders use.
+        // Regression KANVAS-ECOSYSTEM-5RF: threaded by the cron's own session, the agent saw only that
+        // session's messages. With sourceChannel the kernel threads by the session entity (the lead's
+        // person) and the rollup store loads the whole cross-session history, as channel responders do.
         $cfg = $this->defaultStageConfig();
         $cfg['follow_up']['channels'] = [
             ['type' => 'sms', 'enabled' => true, 'template_name' => null],
@@ -1145,11 +1141,10 @@ class FollowUpLeadActionTest extends TestCase
             agent: $this->seedFollowUpAgent(),
         )->execute();
 
-        // setThreadId was NOT called → the kernel hit the rollup branch
-        // (sourceChannel was non-null) → history loader sees cross-session msgs.
-        $this->assertFalse(
-            FollowUpAgentStub::$setThreadIdWasCalled,
-            'FollowUpLeadAction must pass sourceChannel to AgentChatKernel so it skips setThreadId. Without this the agent only sees one session\'s messages and produces literal-template-copy bland follow-ups (regression KANVAS-ECOSYSTEM-5RF).'
+        $this->assertSame(
+            $lead->people->uuid,
+            FollowUpAgentStub::$lastThreadId,
+            'FollowUpLeadAction must pass sourceChannel to AgentChatKernel so the thread is the session entity (the lead\'s person), not the cron session. Otherwise the agent only sees one session\'s messages and produces literal-template-copy bland follow-ups (regression KANVAS-ECOSYSTEM-5RF).'
         );
     }
 
@@ -1232,7 +1227,7 @@ class FollowUpLeadActionTest extends TestCase
 
         $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
         $this->assertStringStartsWith('agent_call_failed: ', (string) $outcome->reason);
-        $this->assertStringContainsString("I ran into a hiccup processing that", (string) $outcome->reason);
+        $this->assertStringContainsString('I ran into a hiccup processing that', (string) $outcome->reason);
         $this->assertStringNotContainsString('RuntimeException', (string) $outcome->reason);
         $this->assertStringNotContainsString('Simulated Gemini timeout', (string) $outcome->reason);
 

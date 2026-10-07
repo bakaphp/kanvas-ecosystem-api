@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,22 +22,22 @@ use Override;
  * agent: one agent must not be able to enumerate another's work, even within the same tenant.
  */
 #[AgentTool(name: 'List Self-Hosted Coding Jobs', category: 'coding')]
-class ListHarnessCodingJobsTool extends Tool implements HasRunKey, RequiresSystemAgent
+class ListHarnessCodingJobsTool extends Tool implements RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;
+
+    protected string $name = 'list_self_hosted_coding_jobs';
+
+    protected ?string $description = 'List the coding jobs you have started — their status, repository, how long they '
+        . 'have been quiet, and what they cost. Use this when asked what you are working on, or to '
+        . 'find a job id you no longer have. Costs nothing and touches no running job.';
 
     private const int MAX_LIMIT = 20;
 
     public function __construct(
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'list_self_hosted_coding_jobs',
-            description: 'List the coding jobs you have started — their status, repository, how long they '
-                . 'have been quiet, and what they cost. Use this when asked what you are working on, or to '
-                . 'find a job id you no longer have. Costs nothing and touches no running job.',
-        );
     }
 
     /**

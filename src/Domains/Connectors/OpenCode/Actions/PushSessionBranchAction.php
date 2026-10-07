@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\OpenCode\Actions;
 use Baka\Support\Str;
 use Kanvas\Connectors\OpenCode\Concerns\RunsCheckedSshCommands;
 use Kanvas\Connectors\OpenCode\Concerns\UsesGitCredential;
+use Kanvas\Connectors\OpenCode\DataTransferObject\GitIdentity;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\SshClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 
 /**
@@ -176,13 +178,7 @@ class PushSessionBranchAction
 
     private function isKanvasArtifact(string $path): bool
     {
-        foreach (self::KANVAS_ARTIFACTS as $artifact) {
-            if ($path === $artifact || str_starts_with($path, $artifact . '/')) {
-                return true;
-            }
-        }
-
-        return false;
+        return HarnessDiff::pathMatches($path, self::KANVAS_ARTIFACTS);
     }
 
     /**
@@ -190,17 +186,10 @@ class PushSessionBranchAction
      */
     private function assertNoProtectedPaths(array $changed): void
     {
-        $hits = [];
-
-        foreach ($changed as $path) {
-            foreach ($this->protectedPaths as $protected) {
-                if (fnmatch(rtrim($protected, '/') . '*', $path)) {
-                    $hits[] = $path;
-
-                    break;
-                }
-            }
-        }
+        $hits = array_values(array_filter(
+            $changed,
+            fn (string $path): bool => HarnessDiff::pathMatches($path, $this->protectedPaths)
+        ));
 
         if ($hits !== []) {
             throw new ValidationException(
@@ -211,9 +200,7 @@ class PushSessionBranchAction
 
     private function commit(SshClient $client, string $workspace): void
     {
-        // Authored by the agent, so `git log` attributes the work honestly rather than to whoever's
-        // identity happens to be configured on the machine.
-        $author = escapeshellarg(($this->session->agent?->name ?? 'Kanvas agent') . ' <agent@kanvas.dev>');
+        $identity = GitIdentity::forAgent($this->session->agent);
 
         $this->runChecked(
             $client,
@@ -232,9 +219,9 @@ class PushSessionBranchAction
         $this->runChecked(
             $client,
             'git -C ' . escapeshellarg($workspace)
-            . ' -c user.name=' . escapeshellarg($this->session->agent?->name ?? 'Kanvas agent')
-            . ' -c user.email=agent@kanvas.dev'
-            . ' commit --author=' . $author
+            . ' -c user.name=' . escapeshellarg($identity->name)
+            . ' -c user.email=' . escapeshellarg($identity->email)
+            . ' commit --author=' . escapeshellarg((string) $identity)
             . ' -m ' . escapeshellarg($this->commitMessage),
             'commit the changes'
         );

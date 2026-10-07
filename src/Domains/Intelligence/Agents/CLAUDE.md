@@ -21,8 +21,8 @@ Two archetypes, split by **audience**:
 | Talks to | company **staff** | a **prospect / customer** |
 | Reached via | @mention, channel, DM, task assignment, ownership, follow | inbound connector channel (WhatsApp/email/SMS) on a lead |
 | Acts as | itself (its own user) | itself, as a consistent **persona** |
-| Conversation memory | per channel/entity | per prospect (`SalesAssistKanvasMessageHistory` rollup — continuity *within* a lead) |
-| Cross-entity memory | ✅ full — `read_my_ledger` is company-wide | ❌ none on the customer surface — prospect-isolated |
+| Conversation memory | per channel/entity | per prospect (`EntityRollupMessageStore` rollup — continuity *within* a lead) |
+| Cross-entity memory | ✅ full — `read_my_ledger` is company-wide, and company memory (`remembersForCompany()`) recalls any earlier conversation of the company's agents | ❌ none on the customer surface — prospect-isolated, never ingested into company memory |
 
 ### The core rule: memory scope follows AUDIENCE, not agent type
 
@@ -50,7 +50,7 @@ The archetype above is declared in code by one of two empty marker interfaces in
 | Session keyed on | the entity (lead) timeline | the user thread |
 | Memory | prospect-isolated — continuity within the lead only | company-wide recall via `read_my_ledger` |
 | Speaks as | a persona, name only, never internal ids | itself, its own user |
-| Implemented by | `SalesAgent`, `ReceptionistAgent` | `SystemUserAgent` |
+| Implemented by | `SalesAgent`, `ReceptionistAgent`, `ShoppingAssistantAgent` — all share `Neuron\Concerns\HasProspectIsolatedHistory` for the per-prospect rollup | `SystemUserAgent` |
 | Read at runtime | `Agent::conversesWithCustomer()` | `Agent::conversesWithUser()` |
 
 **They are markers, not a required choice — and internal is the default.** Subclassing inherits the
@@ -187,13 +187,13 @@ new AgentChatKernel(
 
 **`persistConversation` (default `true`):** when `true`, the kernel runs `PersistChatTurnToSocialAction` and exposes the reply via `persistedReply()`. When `false` (connector path), persistence is left to the caller — the connector's `BaseAgentChannelReplyAction::createMessage()` writes the reply with the right message-type verb, channel tagging, and fires `MarkLeadMessagesAsRespondedAction` + `NotifyLeadStakeholdersService`.
 
-**`fallbackOnFailure` (default `true`):** a failed turn normally comes back as prose — `RunNeuronChatAction::humanizedFallback()` returns "I ran into a hiccup processing that…" so the person on the other end sees something. That is only right when a **human reads the reply**. A customer-facing agent (`$agent->conversesWithCustomer()` — SalesAgent, ReceptionistAgent) gets only "What do you mean?" for **every** failure: a prospect is talking to a persona, and a hiccup, an overloaded AI or a safety filter all read as a broken system. A caller whose reply feeds a pipeline must pass `false` and handle the exception: the newsroom burst publishes whatever the agent writes, so a Gemini response with no `parts` was filed as the reply and shipped as an article titled "I ran into a hiccup processing that" (KANVAS-ECOSYSTEM-691). `AgentBurstResponderAction` keys it on whether it will actually speak — `fallbackOnFailure: $shouldReply`. When it is `false` the action rethrows without `report()`, so the caller reports once rather than twice. The partless response itself no longer fails the turn: `KanvasGemini::processChatResult()` turns it into an empty reply, which connector responders already skip via `AgentReplySkippedException`.
+**`fallbackOnFailure` (default `true`):** a failed turn normally comes back as prose — `RunNeuronChatAction::humanizedFallback()` returns "I ran into a hiccup processing that…" so the person on the other end sees something. That is only right when a **human reads the reply**. A customer-facing agent (`$agent->conversesWithCustomer()` — SalesAgent, ReceptionistAgent) gets only "What do you mean?" for **every** failure: a prospect is talking to a persona, and a hiccup, an overloaded AI or a safety filter all read as a broken system. A caller whose reply feeds a pipeline must pass `false` and handle the exception: the newsroom burst publishes whatever the agent writes, so a Gemini response with no `parts` was filed as the reply and shipped as an article titled "I ran into a hiccup processing that" (KANVAS-ECOSYSTEM-691). `AgentBurstResponderAction` keys it on whether it will actually speak — `fallbackOnFailure: $shouldReply`. The Mailgun email responder passes `false` too: the fallback copy is written for staff, and an internal agent (AP/AR) answering an outside sender emailed "narrow it down — an exact name, email, or date range" to a vendor (KANVAS-ECOSYSTEM-6GW); a failed email turn now sends nothing and fails the webhook call instead. When it is `false` the action rethrows without `report()`, so the caller reports once rather than twice. The partless response itself no longer fails the turn: `KanvasGemini::processChatResult()` turns it into an empty reply, which connector responders already skip via `AgentReplySkippedException`.
 
 **`sourceChannel` / `sourceMessage` (connector path AND any other rollup caller):**
 - ADK uses them to compute its remote `userId` exactly the way `ADKAgent::chat()` does today (preserves remote session identity — without this, ADK conversations silently fork to a different memory key).
-- Neuron uses `sourceChannel !== null` as the signal to **skip `setThreadId`** — channel agents thread by entity (Lead/People), not by per-channel session, so cross-channel rollup works (the design intent of `SalesAssistKanvasMessageHistory`).
+- Neuron 4 requires a thread id on every run, so the kernel always calls `setThreadId`; `sourceChannel !== null` decides **which** id (`AgentChatKernel::threadId()`). With a channel the thread is the session **entity's own uuid** (the Lead's / People's; `entity:<class>:<id>` for one without a uuid), so every channel and every session of that prospect share one thread and `EntityRollupMessageStore` loads the whole rollup. Without a channel the thread is the session uuid and the store filters to that session.
 
-**Pass `sourceChannel: $session->channel` from any cron/queue-driven caller that needs cross-session history.** Today: connector channel responders (×6) and `FollowUpLeadAction`. Omitting it triggers `setThreadId` which filters the agent's history to a single session uuid — typically zero useful messages for a cron-spawned agent that didn't originate the prior conversation. The bug surfaces as the agent producing literal-template-copy output because the LLM gets no meaningful prior turns. `WakeAgentForPlanJob` and `AgentReceiverJob` haven't been audited for this yet — check whether they need the same fix.
+**Pass `sourceChannel: $session->channel` from any cron/queue-driven caller that needs cross-session history.** Today: connector channel responders (×6) and `FollowUpLeadAction`. Omitting it threads by session uuid, which filters the agent's history to that one session — typically zero useful messages for a cron-spawned agent that didn't originate the prior conversation. The bug surfaces as the agent producing literal-template-copy output because the LLM gets no meaningful prior turns. `WakeAgentForPlanJob` and `AgentReceiverJob` haven't been audited for this yet — check whether they need the same fix.
 
 ## Connector contract (`BaseAgentChannelReplyAction` subclasses)
 
@@ -324,39 +324,45 @@ work silently never ran. Two independent things can push a turn over, and they n
 
 | Half | Grows via | Guard |
 |---|---|---|
-| **Stored history** replayed at the start of a turn | every past turn of the thread | `RebuildsTrimmedHistory::applyLoadedHistory()` |
+| **Stored history** replayed at the start of a turn | every past turn of the thread | `KanvasHistoryTrimmer`, wired by `HasKanvasAgentBehavior::resources()` |
 | **Tool output** added *inside* the turn in progress | a tool loop pulling diffs / whole files | `BoundToolResultsMiddleware` |
 
-**A chat-history loader must never assign `$this->history` directly.** `AbstractChatHistory` enforces
-`contextWindow` only inside `addMessage()`, and `InferenceNode::pendingConversation()` sends
-`getMessages() + inbound` to the provider *before* that first add runs — so the trim that follows the
-call is too late to matter and is thrown away with the request. A thread past the ceiling then failed
-on **every** further turn with no way back (KANVAS-ECOSYSTEM-6F1, a PR-review agent).
+**A message store only loads rows; it never trims.** `KanvasChatHistory` runs the trimmer when the
+thread is loaded and again on every `addMessage()`. The load-time cut matters: since Neuron 4.1 the
+chat node sends the loaded history plus the inbound turn and adds to the history only afterwards, so
+without it the first request of every turn carried the thread whole (KANVAS-ECOSYSTEM-6HP). The stock `HistoryTrimmer` only cuts; Kanvas rows also need the same-role fold
+(dual persistence writes some turns twice, and providers reject two consecutive assistant turns or a
+history that opens with one), so every Kanvas agent opens its history with
+[`KanvasHistoryTrimmer`](ChatHistory/KanvasHistoryTrimmer.php): `fold()` (merge consecutive same-role
+turns, re-attach media blocks, drop leading assistant turns) and **then** the stock cut.
+`HasKanvasAgentBehavior::resources()` is the one place that builds the `ChatHistory`; `getChatHistory()`
+is final in v4, so override `messageStore()` to pick the store and leave the trimmer alone.
 
-Run rows through [`RebuildsTrimmedHistory`](../ChatHistory/RebuildsTrimmedHistory.php) instead — it
-coalesces same-role turns, drops leading assistant turns (providers require a user-first history), and
-**then** trims.
-
-| History | Load path | Live-add path |
+| Store | Rows | Thread |
 |---|---|---|
-| `KanvasMessageHistory` | `applyLoadedHistory()` | `mergeOrAppend()` |
-| `SalesAssistKanvasMessageHistory` | `applyLoadedHistory()` | `mergeOrAppend()` |
-| `RedisAgentChatHistory` | `applyLoadedHistory()` | appends + trims; `sanitizeAlternation()` is what keeps it alternating |
-| `ChannelMessageHistory` | adds each row through `addMessage()`, so it was never exposed | its own merge, which also re-attaches media blocks |
+| `ConversationMessageStore` | `agent_conversation_messages`; writes every turn | session uuid (the conversation row's `title`) |
+| `EntityRollupMessageStore` | Social `messages` keyed by the entity (Lead / People); writes tool telemetry only | entity uuid; filters to one session only when the thread *is* a session uuid |
+| `ChannelMessageStore` | Social channel messages, read-only | the channel; persistence is the caller's |
+| Laravel agents (`KanvasLaravelAgent::messages()`, `RemembersConversationsWithinBudget`) | `LaravelHistoryBudgetTrimmer::trim()` to the same `ModelContextWindowService` budget | n/a — the package replays from the store each turn |
 
-`MAX_LOADED_ROWS` on `KanvasMessageHistory` caps hydration on top of that — a memory guard, not a
+Anything that replays rows outside an agent run (`LeadConversationTranscriptService`, the @mention
+responder) calls `KanvasHistoryTrimmer::fold()` on them itself.
+
+`MAX_LOADED_ROWS` on `ConversationMessageStore` caps hydration on top of that — a memory guard, not a
 context guard, because `content` is a longtext, and it sits far above what any window holds so the
 token trim is always what decides. Coverage: `tests/Intelligence/Agents/LoadedHistoryTrimTest.php`.
 
 The window itself is **sized to the model that will answer**, by
-[`ModelContextWindowService`](../Services/ModelContextWindowService.php), passed in at every
-`chatHistory()` site via `resolvedContextWindow()`. It reads `model_pricing.max_input_tokens` — filled
+[`ModelContextWindowService`](../Services/ModelContextWindowService.php), passed in by
+`HasKanvasAgentBehavior::resources()` via `resolvedContextWindow()`. It reads `model_pricing.max_input_tokens` — filled
 by the nightly `nervous-system:sync-model-pricing`, so a freshly migrated environment reads NULL and
 every agent silently falls back to the 50K floor until that runs.
 
 **The model ceiling is an upper bound, not the budget.** `kanvas.agents.max_history_tokens` (env
 `AGENT_MAX_HISTORY_TOKENS`, default 50K) caps the result, and it wins over both the ceiling and the
-floor. The history is re-sent on every tool-loop step, so sizing Gemini to its ~655K ceiling took daily
+floor. An app can raise its own cap with the `agent_max_history_tokens` setting
+(`AgentRunConfigurationEnum::MAX_HISTORY_TOKENS`); unset or 0 keeps the platform value, and the model
+ceiling still bounds it. The history is re-sent on every tool-loop step, so sizing Gemini to its ~655K ceiling took daily
 Gemini spend from ~$600 to ~$1,500 the day it shipped (2026-09-18). Raise the cap only with the cost in
 view.
 
@@ -373,8 +379,12 @@ view.
   TokenCounter assumes 4 chars/token while code and JSON run nearer 3, so an undiscounted budget
   under-counts a diff-heavy history by about a third and can still cross the ceiling.
 
-Trimming still *forgets* the dropped turns. Replacing that with a rolling summary is planned, not built:
-`docs/intelligence/agent-history-compaction-plan.md`.
+Trimming forgets; summarizing keeps. Agents on `ConversationMessageStore` register
+`KanvasSummarization` on the chat node: at 80% of the window the oldest turns are compacted into a
+summary the model reads, their rows are stamped `archived_at` (never deleted, so the transcript and the
+spend rollup keep them), and the summary itself is written to Social as a private `agent_summary`
+message so a human can see what the agent kept. Rollup and channel stores never summarize: their rows
+belong to other writers. Detail in [`Neuron/CLAUDE.md`](Neuron/CLAUDE.md).
 
 ### When the tool-output budget runs out: refuse, then continue
 
@@ -406,13 +416,8 @@ class SendEmailTool extends Tool
 {
     use ResolvesLeadForTool;              // pull in the resolve-or-error trait(s) you need
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'send_email',           // snake_case — the id the LLM calls
-            description: '…',             // what it does, WHEN to use it, and hard limits ("you cannot choose the recipient")
-        );
-    }
+    protected string $name = 'send_email';   // snake_case — the id the LLM calls
+    protected ?string $description = '…';    // nullable to match the vendor base; what it does, WHEN to use it, and hard limits ("you cannot choose the recipient")
 
     #[Override]
     protected function properties(): array
@@ -424,7 +429,9 @@ class SendEmailTool extends Tool
 }
 ```
 
-The attribute `name:` is the human label; the `parent::__construct(name:)` is the snake_case LLM id.
+The attribute `name:` is the human label; the `$name` property is the snake_case LLM id. Keep `$description` a
+literal property default: `AgentToolDiscoveryService` reads it through reflection for the catalog sync, and a
+description built in a constructor is invisible to it.
 `toolType` on the attribute defaults to `'system'`; `requiresPermission` maps to Bouncer abilities for the
 catalog. Register the tool on an agent's tool list — either via `withContext(...)` or constructor injection
 (both styles exist).
@@ -490,6 +497,18 @@ A tool constructed outside that path (a test, a one-off script) must call `withC
   tool-layer mirror of `@guardByAdmin`) — not on the agent's own user.
 - Honor the audience/memory-scope rule from the top of this file: a customer-facing tool must be
   entity-scoped, never company-wide `read_my_ledger`.
+
+### A lead's open state is its named status, never `Lead::isOpen()`
+
+`Lead::isOpen()` reads the integer `status` column, which nothing in the app writes, so it is `true`
+for every lead; marking a lead Lost writes `leads_status_id` only. A tool that reported `is_open` from
+it told an agent a lost deal was an active negotiation. In a tool, report `status` as
+`$lead->statusName()` and `is_open` as `$lead->hasOpenLeadStatus()`, and filter with the
+`hasOpenLeadStatus()` / `hasClosedLeadStatus()` scopes, which honour the company's
+`guild_open_leads_status_ids`. `search_leads`, `find_leads_bulk`, `LeadBaseFilter`, `list_stale_leads`
+and `get_person` are the references; the follow-up and outreach gates still use `isOpen()` and are a
+known, separate decision. Deals carry the same pair (`status_id` named, integer `status` mirrored from
+the API): use `Deal::statusName()`, `hasOpenStatus()` and the `havingDealState()` scope the same way.
 
 ### Destination safety — the recipient is never a free LLM param
 
@@ -586,10 +605,9 @@ problem, 64Q was `find_customer` resolving names row-by-row out of a user's Exce
 that acts on a single record identified by its inputs — MUST key its budget by inputs:**
 
 ```php
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\TrackByInputs;
 
-class FindEmployeeTool extends Tool implements HasRunKey
+class FindEmployeeTool extends Tool
 {
     use TrackByInputs;   // getRunKey() = name . ':' . sha1(json(inputs))
     // ...
@@ -647,7 +665,7 @@ Coverage: `TemplateToolsTest::testUpdateNotOwnedTemplateIsFlaggedAsFailedNotSile
 
 ### A read whose answer can't change in a turn should answer the repeat, not re-run it
 
-`HasRunKey` bounds the waste; it never tells the model *why* it stopped, so a model with nothing else
+`TrackByInputs` bounds the waste; it never tells the model *why* it stopped, so a model with nothing else
 to try keeps calling until the cap kills the turn. For a **read** whose answer cannot change within one
 turn, add [`GuardsRepeatCalls`](Neuron/Tools/Traits/GuardsRepeatCalls.php) as well and wrap the body in
 `oncePerTurn($inputs, fn () => …)`: the second identical call gets the first call's own result back,
@@ -668,18 +686,34 @@ plus the per-domain equivalents in [`AccountsReceivableAgentToolsTest`](../../..
 [`EventToolsTest`](../../../../tests/Intelligence/Agents/Tools/EventToolsTest.php) and
 [`FindProductToolTest`](../../../../tests/Souk/Orders/FindProductToolTest.php).
 
+## Stopping a turn
+
+`aiAgentCancelChat(agent_id, session_id)` sets a Redis flag keyed by the thread
+(`AgentTurnCancellationService`, prefix `kanvas:agent-turn:cancel:`). `CancelsOnRequestMiddleware`, on
+`ChatNode` and `ToolNode`, reads it before every inference and every tool call and throws
+`AgentTurnCancelledException`; a request already at the provider and a tool already running finish
+first, so a stop never leaves a write half done. `RunNeuronChatAction` treats the exception as a stop,
+not a fault: no fallback prose, no `logTurn`, no `report()`; it calls `discardTurn()` on the handler
+(the message row leaves the model's window, the durable run is abandoned) and rethrows.
+`ProcessAgentChatTurnJob` broadcasts `agent.chat.cancelled`; the sync `userChat` fails with a
+validation error. The flag is cleared in `finally` on every exit, so a stop that lands after the
+reply cannot cancel the resend. The key is the thread, and userChat threads by session uuid, which
+is why the mutation takes a session: a channel turn (threaded by the entity) is out of its reach.
+Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
+
 ## Don't break
 
 - **`AgentChatKernel` is load-bearing for 4 call sites** — `userChat` (GraphQL), channel responders (×6), `WakeAgentForPlanJob`, `AgentReceiverJob`. Any change to its constructor or `execute()` contract ripples through all of them. Test both `userChat` and at least one channel responder end-to-end after touching it.
-- **Don't call `setThreadId` from the connector path.** Activating the per-thread filter on Neuron's history breaks cross-channel rollup — a prospect emails Monday, WhatsApps Tuesday, and the agent loses the prior conversation. The kernel's conditional (`if ($this->sourceChannel === null)`) is what protects this. If you wire a new code path to the kernel, pass `sourceChannel` when there's one.
+- **The connector path threads by entity, not by session.** `AgentChatKernel::threadId()` returns the session entity's uuid whenever `sourceChannel` is set, and that is what keeps cross-channel rollup working — a prospect emails Monday, WhatsApps Tuesday, and both land on one thread. Neuron 4 needs a thread on every run, so a new caller cannot skip it: pass `sourceChannel` when there is one and let the kernel pick the id. Never hand a session uuid to a channel agent.
 - **Don't pass `app` / `company` to the kernel.** They were removed deliberately. The agent IS the tenant.
 - **`persistConversation: false` requires the caller to persist.** If you omit `createMessage()` after the kernel call, the outbound reply never lands in `messages` and the next inbound turn won't see it in history. `BaseAgentChannelReplyAction::createMessage()` is the one true persistence path on the connector side.
 - **Don't instantiate agent handlers manually.** Pre-refactor, every connector did `new $this->agent->type->handler()` + `setConfiguration()` by hand. This bypassed the kernel and the four backends got out of sync. Always go through `new AgentChatKernel(...)->execute()`.
-- **`SalesAssistKanvasMessageHistory` rolls up cross-channel by design.** If you find yourself wanting to scope it to a specific channel, re-read its class docblock first — the rollup is the design intent for sales agents.
+- **`EntityRollupMessageStore` rolls up cross-channel by design.** If you find yourself wanting to scope it to a specific channel, re-read its class docblock first — the rollup is the design intent for sales agents.
 - **The email outreach anchors the thread subject on the lead.** `AgentReachOutOnChannelAction` persists the agent's email subject to the lead's `title_email_follow_up` custom field (first touch wins). The inbound Mailgun responder and the cron follow-up engine both **read** that field as the outbound subject so every email stays in one thread. Don't repurpose, overwrite, or stop writing `title_email_follow_up` from the outreach without updating both readers — see [FollowUp/CLAUDE.md → "Email follow-ups thread under the original outreach"](../FollowUp/CLAUDE.md).
-- **Never assign `$this->history` in a chat-history loader.** The context window is enforced in
-  `addMessage()`, which runs after the provider call — a direct assignment ships the whole stored
-  conversation. Use `RebuildsTrimmedHistory::applyLoadedHistory()`; see the section above.
+- **A message store loads rows; it never folds or trims them.** `KanvasHistoryTrimmer` runs inside the
+  `ChatHistory` that `resources()` builds. A store that pre-cuts hides rows from the fold and the two
+  diverge. New store = extend `KanvasMessageStore`, implement `loadActive()` + `persist()`, pick it in
+  `messageStore()`; see the section above.
 - **A `privateUserTurn` is not broadcast by the kernel.** Nobody typed it, so whatever drove the turn
   delivers the reply (see `ContinueAgentTurnJob`, `RunScheduledAgentActionJob`). A new private-turn caller
   that expects the kernel to push the reply to the live chat will show nothing.
@@ -692,3 +726,69 @@ plus the per-domain equivalents in [`AccountsReceivableAgentToolsTest`](../../..
 - [`Neuron/Tools/CRM/SendEmailTool.php`](Neuron/Tools/CRM/SendEmailTool.php) — reference for tool authoring: resolve-or-error, entity-derived recipient, and the allowlist-filtered `cc` (destination-safety) pattern. Traits it leans on live in [`Neuron/Tools/Traits/`](Neuron/Tools/Traits/).
 - Product recommendation tool (`Laravel/Tools/Inventory/ProductRecommendationLookupTool.php`) — a thin pass-through to `RecommendProductsAction`; the search backend is resolved per tenant behind it. Pass the shopper's sentence verbatim. Pipeline and configuration: [`src/Domains/Inventory/CLAUDE.md`](../../Inventory/CLAUDE.md).
 - Existing end-to-end tests in [`tests/Connectors/Integration/{WaSender,Mailgun,RespondIO,Twilio}/AgentChannelResponderEndToEndTest.php`](../../../../tests/Connectors/Integration/) — copy-paste shape when adding a new connector
+
+## Laravel agents: a tool result must never be empty, and a sub-agent needs steps to answer in
+
+Gemini's Interactions API rejects the whole follow-up request when a `function_result` carries an empty
+text block — `400 Request contains an invalid argument`, with no field named (Sentry KANVAS-ECOSYSTEM-6J2).
+The old `generateContent` path accepted an empty result, so this only surfaced with laravel/ai 1.x.
+
+The way it happens: laravel-ai budgets **1.5 steps per tool** (`TextGenerationLoop::resolveMaxSteps`), so
+a one-tool sub-agent gets two steps; when the model spends both on tool calls the loop stops and the
+sub-agent's `->text` is `''`. `CheckLeadDuplicateSubAgent` is told to run two searches, so it ran out
+every time and had been handing the parent an empty answer for months before Gemini started refusing it.
+
+- **Every `KanvasAgentAsTool` is passed to the model through `KanvasSubAgentTool`** (`KanvasLaravelAgent::tools()`
+  and `KanvasAgentAsTool::tools()` both wrap), which turns an empty answer into a sentence the parent can
+  act on. Never hand laravel-ai a bare sub-agent.
+- **`KanvasAgentAsTool::maxSteps()` is 8** so a sub-agent can run its calls and still answer. Override per
+  sub-agent only with the reason in a docblock.
+- **A parent agent's budget is `config['max_steps']` on the Agent record** (`KanvasLaravelAgent::maxSteps()`);
+  null keeps the 1.5×tools default.
+- **A tool's model-facing name is the snake slug of its `#[AgentTool]` label** (`HasKanvasContext::name()`,
+  so `Create Lead` → `create_lead`), which is what every prompt already says. Before that default,
+  laravel-ai declared the class basename (`CreateLeadTool`) for 20 tools and the model was told to call
+  functions that did not exist. Override `name()` only when the prompts use another word
+  (`search_leads`, `get_current_time`). `DynamicSubAgent` slugs the tenant's agent name and falls back to
+  `sub_agent_{id}` when the slug cannot open a function name: Gemini accepts only
+  `[a-zA-Z_][a-zA-Z0-9_.-]{0,63}` and rejects the whole request otherwise.
+  `LaravelToolNamesTest` fails on a class-named or invalid tool.
+
+## `agent_conversations` / `agent_conversation_messages` — the Laravel AI 1.x shape
+
+Both tables are Laravel AI's conversation store (`KanvasConversationStore extends DatabaseConversationStore`,
+connection `intelligence`) with Kanvas columns on top. Rules every writer follows:
+
+- **An assistant turn is `steps`, never `tool_calls`/`tool_results` columns** — those are gone. Build the
+  value with `ConversationStepsHelper::forRow($role, $content, $toolCalls, $toolResults)`; it folds each
+  result onto the call that produced it and normalises the Laravel (`id`/`arguments`), Neuron
+  (`callId`/`inputs`) and OpenAI (`function.name`, JSON-string arguments) spellings. Neuron's
+  `ToolResultMessage` is a `UserMessage`, so a tool result can sit on a `role = user` row — `forRow()`
+  handles that; "user row ⇒ empty steps" is wrong.
+- **GraphQL `tool_calls` / `tool_results` are deprecated accessors over `steps`**
+  (`AgentConversationMessage::toolCalls()` / `toolResults()`), kept so clients can migrate to `steps`.
+- **`status`** is `completed` / `paused` (a tool awaits approval) / `failed` (`meta.error`). Readers that feed
+  a model (daily learning) filter on completed; budget and spend readers keep failed turns.
+- **`kind`** is what a row is besides a turn: `summary`, `tool_call`, `tool_call_result`, or null for a
+  conversational turn (`ConversationMessageKindEnum`). The chat query filters on it; never read `meta` to
+  decide whether a row is internal.
+- **`archived_at` and `sequence`** belong to the Neuron working window, not to the transcript: a row stamped
+  `archived_at` was compacted into a summary and the model no longer sees it, but every reader of the
+  table (GraphQL, daily learning, spend rollup) keeps reading it. Order the active window by `sequence`,
+  never by `created_at` alone.
+- **Participant = who the conversation belongs to**, a morph: `Users` (staff chat), `People` (public /
+  agentic-commerce chat), `Agent` (runtime import, scheduled wake, an agent acting as its own user).
+  Resolve it with `KanvasConversationStore::participantFor($session, $user, $agent)`: a human at the keyboard
+  owns the conversation whatever record the session points at (a staff session can be keyed to a People
+  record; a uuid can carry a stale People session beside the live one); only when the acting user is an AI
+  identity (`actsAsAi()` — the agent's dedicated user or the company's AI agent user) does the session's
+  Person own it, else the Agent. `user_id` is always the acting user (the
+  agent's dedicated user for agent-owned rows); `agent_id` is which agent the conversation is with. An
+  anonymous public session opens with no participant and `conversationForSession()` claims it on the
+  first turn after the session is keyed to a Person.
+- **Usage JSON differs by writer** — laravel ≤0.11 `prompt_tokens`, laravel 1.x `input_tokens` INCLUDING
+  cache tokens, Neuron/runtimes `input_tokens` excluding them. Sum it only through
+  `ConversationUsageSqlHelper`, which subtracts the cache counts where the 1.x keys are present.
+- **Never assume the backfill state of a shared database.** Tests that skip `DatabaseTransactions` on the
+  `intelligence` connection leave rows behind; the drop migration runs `agents:backfill-conversation-steps` itself when rows lack `steps` and stops with the count
+  if any remain, so the whole upgrade ships in one deploy.

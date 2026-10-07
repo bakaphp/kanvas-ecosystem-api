@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Actions\FlagOverdueCorporateApplicationsAction;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationEmailEnum as Email;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationSettingEnum as Setting;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
@@ -67,7 +68,7 @@ final class FlagOverdueCorporateApplicationsActionTest extends TestCase
         Notification::assertSentOnDemand(
             Blank::class,
             fn (Blank $notification, array $channels, object $notifiable): bool => $notifiable->routes['mail'] === ['ops@example.com', 'lead@example.com']
-                && $notification->getTemplateName() === FlagOverdueCorporateApplicationsAction::DEFAULT_TEMPLATE
+                && $notification->getTemplateName() === Email::OVERDUE->defaultTemplate()
         );
     }
 

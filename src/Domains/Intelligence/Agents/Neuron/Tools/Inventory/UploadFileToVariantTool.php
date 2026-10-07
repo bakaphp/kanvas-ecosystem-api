@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasFileUploadToolProperties;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesVariantForTool;
 use Kanvas\Intelligence\Agents\Traits\AttachesFileToEntity;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,7 +21,7 @@ use Override;
  * upload_file_to_product. Same admin gate and tenant-scoped resolution as the product tool.
  */
 #[AgentTool(name: 'Upload File To Variant', category: 'inventory')]
-class UploadFileToVariantTool extends Tool implements HasRunKey
+class UploadFileToVariantTool extends Tool
 {
     use AttachesFileToEntity;
     use GuardsAdminForTool;
@@ -31,18 +30,14 @@ class UploadFileToVariantTool extends Tool implements HasRunKey
     use ResolvesVariantForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'upload_file_to_variant',
-            description: 'Attach a document or image to one specific product variant (a single SKU) — a photo of '
-                . 'that colour/size, its own spec sheet, a certificate. Normally you pass `content` — the full '
-                . 'text of the document you wrote — plus a `file_name` ending in .md, .txt, .csv or .json. Pass '
-                . '`file_url` instead when the file or image already exists at a public URL. Use variant_search '
-                . 'or variant_detail to get the variant_id first. If the file describes the whole product rather '
-                . 'than one SKU, use upload_file_to_product. Only an administrator can do this.',
-        );
-    }
+    protected string $name = 'upload_file_to_variant';
+
+    protected ?string $description = 'Attach a document or image to one specific product variant (a single SKU) — a photo of '
+        . 'that colour/size, its own spec sheet, a certificate. Normally you pass `content` — the full '
+        . 'text of the document you wrote — plus a `file_name` ending in .md, .txt, .csv or .json. Pass '
+        . '`file_url` instead when the file or image already exists at a public URL. Use variant_search '
+        . 'or variant_detail to get the variant_id first. If the file describes the whole product rather '
+        . 'than one SKU, use upload_file_to_product. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

@@ -6,10 +6,9 @@ namespace Tests\Stubs\Intelligence;
 
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\PostChannelMessageAction;
-use NeuronAI\Agent\AgentHandler;
+use NeuronAI\Agent\AgentState;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Providers\AIProviderInterface;
-use NeuronAI\Workflow\Interrupt\InterruptRequest;
 use Override;
 
 /**
@@ -30,7 +29,7 @@ class BoardPostingSystemUserAgentStub extends SystemUserAgentStub
     }
 
     #[Override]
-    public function chat(Message|array $messages = [], ?InterruptRequest $interrupt = null): AgentHandler
+    public function chat(Message|array $messages = [], bool $stream = false): AgentState
     {
         $channel = self::$postToChannelId !== null
             ? Channel::query()->where('id', self::$postToChannelId)->first()
@@ -46,6 +45,6 @@ class BoardPostingSystemUserAgentStub extends SystemUserAgentStub
             )->execute();
         }
 
-        return parent::chat($messages, $interrupt);
+        return parent::chat($messages, $stream);
     }
 }

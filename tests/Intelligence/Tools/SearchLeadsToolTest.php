@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Tools;
 
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -11,9 +12,12 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use Tests\TestCase;
+use Tests\Traits\MakesLeadStatuses;
 
 class SearchLeadsToolTest extends TestCase
 {
+    use MakesLeadStatuses;
+
     public function testFindsLeadByContactName(): void
     {
         $app = app(Apps::class);
@@ -42,6 +46,7 @@ class SearchLeadsToolTest extends TestCase
         $ids = array_column($result['leads'], 'lead_id');
         $this->assertContains($match->getId(), $ids);
         $this->assertNotContains($other->getId(), $ids);
+        $this->assertArrayHasKey('admin_url', $result['leads'][0], 'The link rides with the record so build_admin_link is not a second round');
     }
 
     public function testFindsLeadByTitleAndRespectsStatusFilter(): void
@@ -57,7 +62,7 @@ class SearchLeadsToolTest extends TestCase
         ]);
         $closedLead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create([
             'title' => $token . ' closed',
-            'status' => 2,
+            'leads_status_id' => self::lostLeadStatusId(),
         ]);
 
         $openOnly = new SearchLeadsTool()
@@ -67,12 +72,56 @@ class SearchLeadsToolTest extends TestCase
         $this->assertContains($openLead->getId(), $openIds);
         $this->assertNotContains($closedLead->getId(), $openIds);
 
+        $closedOnly = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(query: $token, status: 'closed', limit: 100);
+        $this->assertSame([$closedLead->getId()], array_column($closedOnly['leads'], 'lead_id'), 'closed is the named status, not the unused integer column');
+        $this->assertSame('Lost', $closedOnly['leads'][0]['status'], 'The CRM status is reported by name so a lost lead is never described as active');
+        $this->assertFalse($closedOnly['leads'][0]['is_open']);
+
         $all = new SearchLeadsTool()
             ->withContext($app, $company, $user)
             ->__invoke(query: $token, status: 'all', limit: 100);
         $allIds = array_column($all['leads'], 'lead_id');
         $this->assertContains($openLead->getId(), $allIds);
         $this->assertContains($closedLead->getId(), $allIds);
+    }
+
+    /**
+     * "Which open leads have gone longest without activity" was answered by paging backwards through
+     * updated_until eight times, because the list only came newest first.
+     */
+    public function testOldestFirstAnswersTheStaleBookInOneCallWithNoOtherFilter(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $token = 'Stalewick' . uniqid();
+        $old = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create(['title' => $token . ' old', 'status' => 0]);
+        $fresh = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create(['title' => $token . ' fresh', 'status' => 0]);
+        Lead::query()->whereKey($old->getId())->update(['updated_at' => now()->subYears(3)]);
+        Lead::query()->whereKey($fresh->getId())->update(['updated_at' => now()->subMinute()]);
+
+        $oldest = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(query: $token, sort: 'oldest', limit: 100);
+        $newest = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(query: $token, limit: 100);
+
+        $this->assertSame([$old->getId(), $fresh->getId()], array_column($oldest['leads'], 'lead_id'));
+        $this->assertSame([$fresh->getId(), $old->getId()], array_column($newest['leads'], 'lead_id'));
+        $this->assertSame('oldest', $oldest['sort']);
+
+        $noFilter = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(sort: 'oldest', limit: 5);
+        $this->assertArrayNotHasKey('error', $noFilter, 'The order alone bounds the question, no other filter needed');
+        $this->assertLessThanOrEqual(5, $noFilter['count']);
+
+        $bad = new SearchLeadsTool()->withContext($app, $company, $user)->__invoke(query: $token, sort: 'random');
+        $this->assertStringContainsString('sort must be', $bad['error']);
     }
 
     /**
@@ -175,6 +224,127 @@ class SearchLeadsToolTest extends TestCase
 
         $this->assertSame(0, $result['total_matching']);
         $this->assertArrayHasKey('error', $result);
+    }
+
+    public function testUpdatedSinceTodayExcludesLeadsUntouchedToday(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $token = 'Freshlead' . uniqid();
+        $fresh = $this->leadWithContacts($token, []);
+        $stale = $this->leadWithContacts('Stalelead' . uniqid(), []);
+        $this->forceUpdatedAt($stale, Carbon::now()->subDays(5));
+
+        $result = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(status: 'all', updated_since: 'today', limit: 100);
+
+        $ids = array_column($result['leads'], 'lead_id');
+        $this->assertContains($fresh->getId(), $ids);
+        $this->assertNotContains($stale->getId(), $ids);
+    }
+
+    /**
+     * The bug this fixes: `updated_at` is stored UTC, so a UTC-day filter files the 10pm work of a
+     * UTC-4 rep under the next day. Yesterday is where that actually bites — local yesterday 10pm is
+     * already today in UTC, so the naive filter drops it out of "yesterday" and the rep's evening
+     * simply disappears from the report.
+     */
+    public function testYesterdayIsTheCompanysDayNotTheUtcOne(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $original = $company->timezone;
+        $company->timezone = 'America/Santo_Domingo';
+        $company->saveQuietly();
+
+        try {
+            $lateLocal = Carbon::now('America/Santo_Domingo')->subDay()->startOfDay()->addHours(22);
+            $utc = $lateLocal->copy()->utc();
+
+            $this->assertNotSame(
+                $lateLocal->toDateString(),
+                $utc->toDateString(),
+                'The fixture must straddle the UTC date boundary or it proves nothing.',
+            );
+
+            $lead = $this->leadWithContacts('Eveninglead' . uniqid(), []);
+            $this->forceUpdatedAt($lead, $utc);
+
+            $result = new SearchLeadsTool()
+                ->withContext($app, $company, $user)
+                ->__invoke(status: 'all', updated_since: 'yesterday', limit: 100);
+
+            $this->assertContains($lead->getId(), array_column($result['leads'], 'lead_id'));
+        } finally {
+            $company->timezone = $original;
+            $company->saveQuietly();
+        }
+    }
+
+    /** "which leads did <rep> touch today" was refused outright before the date filter existed. */
+    public function testOwnerAloneIsAnAcceptableFilter(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $mine = $this->leadWithContacts('Ownedlead' . uniqid(), []);
+        $mine->leads_owner_id = $user->getId();
+        $mine->saveQuietly();
+
+        $result = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(status: 'all', owner: $user->email, limit: 100);
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertContains($mine->getId(), array_column($result['leads'], 'lead_id'));
+    }
+
+    public function testAnUnparseableUpdatedSinceIsRejectedWithTheAllowedForms(): void
+    {
+        $result = new SearchLeadsTool()
+            ->withContext(app(Apps::class), auth()->user()->getCurrentCompany(), auth()->user())
+            ->__invoke(updated_since: 'last tuesday');
+
+        $this->assertStringContainsString('updated_since', $result['error']);
+        $this->assertStringContainsString('today', $result['error']);
+    }
+
+    public function testUpdatedUntilIsInclusiveOfTheWholeDay(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $timezone = $company->getTimezone() ?? 'UTC';
+        $day = Carbon::now($timezone)->subDays(3);
+
+        $lead = $this->leadWithContacts('Boundedlead' . uniqid(), []);
+        $this->forceUpdatedAt($lead, $day->copy()->startOfDay()->addHours(23)->addMinutes(59)->utc());
+
+        $result = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(
+                status: 'all',
+                updated_since: $day->format('Y-m-d'),
+                updated_until: $day->format('Y-m-d'),
+                limit: 100,
+            );
+
+        $this->assertContains($lead->getId(), array_column($result['leads'], 'lead_id'));
+    }
+
+    /**
+     * `updated_at` is managed by Eloquent, so a save would stamp now over whatever the test needs.
+     */
+    private function forceUpdatedAt(Lead $lead, Carbon $moment): void
+    {
+        Lead::query()->where('id', $lead->getId())->update(['updated_at' => $moment->utc()]);
     }
 
     /**

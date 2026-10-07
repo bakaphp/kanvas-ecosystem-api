@@ -10,7 +10,6 @@ use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,25 +23,21 @@ use Override;
  * list attached so the model can retry in the same turn instead of inventing one.
  */
 #[AgentTool(name: 'Set Lead Status', category: 'crm')]
-class SetLeadStatusTool extends Tool implements HasRunKey
+class SetLeadStatusTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesLeadForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_lead_status',
-            description: 'Change a lead\'s status — this is what closes a lead out (closed, lost, won, inactive) '
-                . 'or reopens it, and it is what shows up in the lead UI and filters the active pipeline. '
-                . 'Use this whenever you are asked to close, cancel, archive, mark cold/lost/won, or reopen a lead. '
-                . 'Use search_leads to get the lead_id first. '
-                . 'Status names are configured per company — pass your best guess and, if it is not a real status, '
-                . 'the tool returns available_statuses so you can retry with a valid one in the SAME turn. '
-                . 'Never tell the user a lead was closed unless this tool returned status "success".',
-        );
-    }
+    protected string $name = 'set_lead_status';
+
+    protected ?string $description = 'Change a lead\'s status — this is what closes a lead out (closed, lost, won, inactive) '
+        . 'or reopens it, and it is what shows up in the lead UI and filters the active pipeline. '
+        . 'Use this whenever you are asked to close, cancel, archive, mark cold/lost/won, or reopen a lead. '
+        . 'Use search_leads to get the lead_id first. '
+        . 'Status names are configured per company — pass your best guess and, if it is not a real status, '
+        . 'the tool returns available_statuses so you can retry with a valid one in the SAME turn. '
+        . 'Never tell the user a lead was closed unless this tool returned status "success".';
 
     /**
      * @return array<int, ToolProperty>

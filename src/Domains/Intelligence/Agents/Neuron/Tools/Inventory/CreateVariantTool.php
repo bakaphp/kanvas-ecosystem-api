@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogVariants;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -19,23 +18,19 @@ use Override;
  * Adds a variant (one sellable SKU) to an existing product, optionally priced and stocked.
  */
 #[AgentTool(name: 'Create Variant', category: 'inventory')]
-class CreateVariantTool extends Tool implements HasRunKey
+class CreateVariantTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ManagesCatalogVariants;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_variant',
-            description: 'Add a variant to an existing product — one sellable SKU, e.g. a size or colour. The sku '
-                . 'must be unique across the company; use variant_search first to check. Pass price and quantity '
-                . 'to stock it at the same time. Use create_product instead when the product itself does not exist '
-                . 'yet. Only an administrator can do this.',
-        );
-    }
+    protected string $name = 'create_variant';
+
+    protected ?string $description = 'Add a variant to an existing product — one sellable SKU, e.g. a size or colour. The sku '
+        . 'must be unique across the company; use variant_search first to check. Pass price and quantity '
+        . 'to stock it at the same time. Use create_product instead when the product itself does not exist '
+        . 'yet. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

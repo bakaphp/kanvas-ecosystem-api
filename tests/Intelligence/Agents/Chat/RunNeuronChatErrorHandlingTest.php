@@ -10,6 +10,7 @@ use GuzzleHttp\Psr7\Response;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
@@ -19,8 +20,17 @@ use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\CRM\ReceptionistAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Mockery;
+use NeuronAI\Agent\AgentState;
+use NeuronAI\Chat\Messages\AssistantMessage;
+use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Exceptions\RunInFlightException;
+use NeuronAI\Providers\ProviderResponse;
+use NeuronAI\Workflow\WorkflowStatus;
+use Override;
 use PDOException;
 use RuntimeException;
+use Tests\Stubs\Intelligence\BusyThenAnsweringNeuronHandlerStub;
+use Tests\Stubs\Intelligence\CapturingNeuronAgentStub;
 use Tests\Stubs\Intelligence\ThrowingNeuronHandlerStub;
 use Tests\TestCase;
 use Throwable;
@@ -69,6 +79,39 @@ class RunNeuronChatErrorHandlingTest extends TestCase
             new RuntimeException('Gemini returned STOP with no parts'),
             fallbackOnFailure: false
         );
+    }
+
+    /**
+     * KANVAS-ECOSYSTEM-6JE: a refused email turn logged "I ran into a hiccup" as a completed reply to an
+     * email nobody answered. A failed turn is a failed row, and carries the fallback only when it was sent.
+     */
+    public function testAFailedTurnIsLoggedAsFailedAndCarriesTheFallbackOnlyWhenItWasSent(): void
+    {
+        $this->runChatWithThrowingHandler(new RuntimeException('provider down'));
+        $delivered = $this->latestAssistantRow();
+
+        $this->assertSame('failed', $delivered->status);
+        $this->assertStringContainsString('I ran into a hiccup', (string) $delivered->content);
+        $this->assertSame('provider down', json_decode((string) $delivered->meta, true)['message']);
+
+        try {
+            $this->runChatWithThrowingHandler(new RuntimeException('provider down'), fallbackOnFailure: false);
+        } catch (RuntimeException) {
+        }
+        $undelivered = $this->latestAssistantRow();
+
+        $this->assertSame('failed', $undelivered->status);
+        $this->assertSame('', (string) $undelivered->content, 'Nothing was sent, so nothing is quoted');
+        $this->assertSame(RuntimeException::class, json_decode((string) $undelivered->meta, true)['error']);
+    }
+
+    private function latestAssistantRow(): object
+    {
+        return DB::connection('intelligence')->table('agent_conversation_messages')
+            ->where('agent', ThrowingNeuronHandlerStub::class)
+            ->where('role', 'assistant')
+            ->orderByDesc('id')
+            ->firstOrFail();
     }
 
     public function testAHumanizedFailureIsLoggedWithItsRealCause(): void
@@ -141,28 +184,150 @@ class RunNeuronChatErrorHandlingTest extends TestCase
         bool $fallbackOnFailure = true,
         string $agentTypeHandler = ThrowingNeuronHandlerStub::class
     ): string {
+        return new RunNeuronChatAction(
+            agent: $this->agentFor($agentTypeHandler),
+            session: null,
+            message: 'process this invoice',
+            app: app(Apps::class),
+            user: auth()->user(),
+            handler: new ThrowingNeuronHandlerStub($exception),
+            fallbackOnFailure: $fallbackOnFailure,
+        )->execute();
+    }
+
+    private function agentFor(string $agentTypeHandler): Agent
+    {
         $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $company = auth()->user()->getCurrentCompany();
 
         $agentType = AgentType::factory()
             ->withAppId($app->getId())
             ->create(['provider' => 'neuron', 'handler' => $agentTypeHandler]);
 
-        $agent = Agent::factory()
+        return Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
             ->create(['agent_type_id' => $agentType->getId()]);
+    }
 
-        return new RunNeuronChatAction(
-            agent: $agent,
+    /**
+     * KANVAS-ECOSYSTEM-6JE: a second email on a thread whose run still held its lease was refused and
+     * the webhook failed. The turn waits for the thread instead.
+     */
+    public function testABusyThreadIsWaitedForNotFailed(): void
+    {
+        $handler = new BusyThenAnsweringNeuronHandlerStub(busyCalls: 2, reply: 'answered after the lease');
+        $action = $this->actionWithHandler($handler);
+
+        $this->assertSame('answered after the lease', $action->execute());
+        $this->assertSame(3, $handler->calls);
+        $this->assertSame([5, 5], $action->pauses, 'One poll per refusal, none after the answer');
+    }
+
+    public function testAThreadStillBusyPastTheWaitFailsAsBefore(): void
+    {
+        $handler = new BusyThenAnsweringNeuronHandlerStub(busyCalls: 1_000);
+        $action = $this->actionWithHandler($handler, fallbackOnFailure: false);
+
+        try {
+            $action->execute();
+            $this->fail('A thread busy past the wait must surface the refusal');
+        } catch (RunInFlightException) {
+            $this->assertSame(31, $handler->calls, 'One try, then one per 5 s poll across the 150 s wait');
+        }
+    }
+
+    /**
+     * A worker restarted mid-turn leaves its run's lease where the last step left it. Once it expires
+     * the next start supersedes the dead run, so a turn that sees the end coming waits for it.
+     */
+    public function testADeadRunsLeaseIsWaitedOutInsteadOfFailingTheTurn(): void
+    {
+        $handler = new BusyThenAnsweringNeuronHandlerStub(busyCalls: 40, reply: 'recovered', leaseExpiresAt: time() + 200);
+        $action = $this->actionWithHandler($handler);
+
+        $this->assertSame('recovered', $action->execute());
+        $this->assertSame(41, $handler->calls, 'Waited 200 s, past the 150 s a live run gets');
+        $this->assertSame(200_000, $action->threadWaitMs());
+    }
+
+    /**
+     * The same message redelivered finds its own dead run and asks the engine to continue it by id; the
+     * engine refuses that too while the lease is fresh, so recovery has to wait inside the same loop or
+     * the person gets the hiccup a minute before the lease would have cleared.
+     */
+    public function testRecoveryOfADeadRunWaitsForItsLeaseInsteadOfFailing(): void
+    {
+        $handler = new class () extends CapturingNeuronAgentStub {
+            public int $recoveries = 0;
+
+            #[Override]
+            public function recoverInterruptedRun(Message $inbound): ?AgentState
+            {
+                if (++$this->recoveries <= 40) {
+                    throw new RunInFlightException(
+                        workflowId: 'thread-1',
+                        runId: 'run-1',
+                        status: WorkflowStatus::Running,
+                        executionAttempt: 1,
+                        leaseExpiresAt: time() + 200,
+                        reservedRunId: 'run-1',
+                    );
+                }
+
+                return new AgentState()->setResponse(new ProviderResponse(message: new AssistantMessage('recovered')));
+            }
+
+            #[Override]
+            public function chat(Message|array $messages = [], bool $stream = false): AgentState
+            {
+                throw new RuntimeException('A recoverable run must be continued, never restarted');
+            }
+        };
+        $handler->setConfiguration(agent: $this->agentFor(ThrowingNeuronHandlerStub::class), user: auth()->user());
+        $action = $this->actionWithHandler($handler);
+
+        $this->assertSame('recovered', $action->execute());
+        $this->assertSame(41, $handler->recoveries);
+        $this->assertSame(200_000, $action->threadWaitMs());
+    }
+
+    public function testEvenADeadLeaseIsNotWaitedForForever(): void
+    {
+        $handler = new BusyThenAnsweringNeuronHandlerStub(busyCalls: 1_000, leaseExpiresAt: time() + 200);
+        $action = $this->actionWithHandler($handler, fallbackOnFailure: false);
+
+        try {
+            $action->execute();
+            $this->fail('A lease that never clears must surface the refusal');
+        } catch (RunInFlightException) {
+            $this->assertSame(91, $handler->calls, 'One try, then one per 5 s poll across 150 s plus the 300 s recovery window');
+        }
+    }
+
+    /**
+     * The pause is recorded, not slept.
+     */
+    private function actionWithHandler(object $handler, bool $fallbackOnFailure = true): RunNeuronChatAction
+    {
+        return new class (
+            agent: $this->agentFor(ThrowingNeuronHandlerStub::class),
             session: null,
-            message: 'process this invoice',
-            app: $app,
-            user: $user,
-            handler: new ThrowingNeuronHandlerStub($exception),
+            message: 'second email on the same thread',
+            app: app(Apps::class),
+            user: auth()->user(),
+            handler: $handler,
             fallbackOnFailure: $fallbackOnFailure,
-        )->execute();
+        ) extends RunNeuronChatAction {
+            /** @var list<int> */
+            public array $pauses = [];
+
+            #[Override]
+            protected function pause(int $seconds): void
+            {
+                $this->pauses[] = $seconds;
+            }
+        };
     }
 
     /**

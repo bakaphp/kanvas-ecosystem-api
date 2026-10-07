@@ -12,6 +12,8 @@ enum HarnessStatusEnum: string
     case RUNNING = 'running';
     case AWAITING_ANSWER = 'awaiting_answer';
     case AWAITING_PERMISSION = 'awaiting_permission';
+    /** Paused at its limit, waiting on a `coding_extension` approval. Kanvas sets it; no runtime reports it. */
+    case AWAITING_EXTENSION = 'awaiting_extension';
     case IDLE = 'idle';
     case COMPLETED = 'completed';
     case FAILED = 'failed';
@@ -47,7 +49,8 @@ enum HarnessStatusEnum: string
     {
         return match ($this) {
             self::STARTING, self::RUNNING, self::IDLE,
-            self::AWAITING_ANSWER, self::AWAITING_PERMISSION => TaskStatusEnum::IN_PROGRESS,
+            self::AWAITING_ANSWER, self::AWAITING_PERMISSION,
+            self::AWAITING_EXTENSION => TaskStatusEnum::IN_PROGRESS,
             self::COMPLETED => TaskStatusEnum::DONE,
             self::FAILED => TaskStatusEnum::BLOCKED,
             self::CANCELLED => TaskStatusEnum::SKIPPED,

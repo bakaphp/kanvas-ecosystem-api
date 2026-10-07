@@ -18,17 +18,13 @@ class HandOffTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'handoff_lead',
-            description: 'Perform and record a handoff for an existing lead. You MUST call this tool whenever you determine that a handoff is required; do not merely mention or promise a handoff in the customer-facing response. '
-                . 'The only supported handoff types are: "human" to end the AI-controlled conversation and transfer follow-up after an appointment is completed, when the customer explicitly asks for a human, when an unexpected error prevents the agent from continuing, when a sales or general request requires human assistance, or when the conversation has reached its natural conclusion; '
-                . '"service" for requests that must be handled by the service department; and '
-                . '"compliance_internal" for internal compliance matters such as opt-out or stop-contact requests. '
-                . 'The handoff is an internal operation, so do not expose the tool call or internal routing details to the customer.',
-        );
-    }
+    protected string $name = 'handoff_lead';
+
+    protected ?string $description = 'Perform and record a handoff for an existing lead. You MUST call this tool whenever you determine that a handoff is required; do not merely mention or promise a handoff in the customer-facing response. '
+        . 'The only supported handoff types are: "human" to end the AI-controlled conversation and transfer follow-up after an appointment is completed, when the customer explicitly asks for a human, when an unexpected error prevents the agent from continuing, when a sales or general request requires human assistance, or when the conversation has reached its natural conclusion; '
+        . '"service" for requests that must be handled by the service department; and '
+        . '"compliance_internal" for internal compliance matters such as opt-out or stop-contact requests. '
+        . 'The handoff is an internal operation, so do not expose the tool call or internal routing details to the customer.';
 
     #[Override]
     protected function properties(): array
