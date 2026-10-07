@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Insurance\Actions;
 
+use Kanvas\Insurance\Contracts\QuoteUpdateProviderInterface;
 use Kanvas\Insurance\DataTransferObject\QuoteResult;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
@@ -32,10 +33,21 @@ class AttachQuoteToOrderAction
             $this->order->company
         );
 
+        if ($provider instanceof QuoteUpdateProviderInterface && ! empty($this->order->metadata['insurance']['cliente'])) {
+            $provider->updateQuote(
+                $this->quoteNumber,
+                new BuildQuoteRequestFromOrderAction($this->order)->execute()
+            );
+        }
+
         $quote = $provider->getQuote($this->quoteNumber);
 
         $this->order->set(InsuranceCustomFieldEnum::PROVIDER->value, $provider->name());
         $this->order->set(InsuranceCustomFieldEnum::QUOTE_NUMBER->value, $this->quoteNumber);
+        $this->order->set(
+            InsuranceCustomFieldEnum::PRODUCT_CODE->value,
+            (string) ($this->order->metadata['insurance']['product'] ?? '')
+        );
         $this->order->set(InsuranceCustomFieldEnum::PREMIUM->value, $quote->premium);
         $this->order->set(InsuranceCustomFieldEnum::RATE_PER_KM->value, $quote->ratePerKm);
         $this->order->set(InsuranceCustomFieldEnum::TAX->value, $quote->tax);

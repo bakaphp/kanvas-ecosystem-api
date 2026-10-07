@@ -72,12 +72,13 @@ there:
 
 | Step | Runs as | Trigger |
 |---|---|---|
-| Bind the quote, stamp premium/tax/total | `AttachInsuranceQuoteActivity` | order created |
-| Push inspection documents | *(not wired)* | files attached to the order |
+| Bind the quote, send the customer, stamp premium/tax/total | `AttachInsuranceQuoteActivity` | order created |
+| Push inspection documents | `UploadInsuranceDocumentsActivity` | attach-file |
 | Report the payment we took | `ReportInsurancePaymentActivity` | card authorized |
-| Emit the policy | *(not wired)* | payment reported |
-| Invoice the policy | *(not wired)* | policy emitted |
+| Emit the policy, capture the hold | `EmitInsurancePolicyActivity` | payment reported |
+| Invoice the policy | `InvoiceInsurancePolicyActivity` | policy emitted |
 | Poll the policy back | `SyncInsurancePolicyActivity` | schedule / status change |
+| Customer backs out | `CancelInsuranceOrderActivity` | order cancelled |
 
 Whether the insurer collects or we do is the insurer's call, so both shapes are contracts:
 `PaymentLinkProviderInterface` hands the cardholder to their gateway, `PaymentReportProviderInterface`
@@ -130,18 +131,31 @@ whichever insurer backs the order. Anything with no cross-insurer meaning stays 
 connector's own enum — for Universal that's `universal_seguros_request_id` and their
 product code.
 
+## Statuses and the held payment
+
+The charge stays an authorization until the policy exists. `EmitInsurancePolicyActivity` captures it
+on success; an insurer refusal (`ValidationException` from the adapter) sets `FAILED` and voids it.
+A transient transport error is *not* a refusal — it propagates and the hold is untouched.
+`CancelInsuranceOrderActivity` voids the hold and sets `CANCELLED`, and refuses once a policy exists
+(that is a refund, not a void). `SettleInsurancePaymentAction` only touches an `AUTHORIZED` payment.
+
+## The customer
+
+Universal validates the customer and chassis on the quote before it can be emitted (§4.3 step 1), so the
+order carries the customer under `metadata.insurance.cliente` (the insurer-shaped block) beside
+`metadata.insurance.product` and `metadata.insurance.payload`. `AttachQuoteToOrderAction` PUTs it onto the
+quote through the opt-in `QuoteUpdateProviderInterface` *before* re-reading the prices, so the stamped
+totals are the final ones. The PUT replaces the whole quote, which is why `payload` has to be stored too.
+
+## Documents
+
+Files are typed by the attachment's `field_name`, which must be an `InsuranceDocumentTypeEnum` value
+(`registration`, `inspection_video`, `identification`); anything else on the order is never forwarded.
+Already-sent filesystem ids live in `UPLOADED_DOCUMENTS`, because attach-file fires on every
+attachment. Emission is refused for an inspection-required product until something has been sent.
+
 ## Open items
 
-- **Payment is undecided.** Either it goes through the Kanvas pipeline
-  (`addPaymentToOrder` → `processPayment`, leaving a `payments` row to reconcile the
-  aliado's commission) or it is delegated to the insurer's payment link.
-  `PaymentLinkProviderInterface` is implemented for Universal but **not wired to
-  anything** pending that call. Emission's trigger depends on the same decision, which
-  is why emit isn't wired either.
-- `InsuranceStatusEnum::PAID`, `CANCELLED` and `FAILED` are declared but nothing sets
-  them — they land with the payment decision.
-- The document-upload activity needs a trigger (files attached to the order) and
-  should resolve paths from the Order's `Filesystem` attachments, never accept raw
-  paths.
-- `InsuranceQuoteRequest::$vehicle` is carried but unused: mapping a Kanvas vehicle
-  product into the insurer payload is still the caller's job.
+- `InsuranceQuoteRequest::$vehicle` is carried by `BuildQuoteRequestFromOrderAction` but no adapter reads it yet.
+- Hold vs 3DS: `SettleInsurancePaymentAction` only touches an `AUTHORIZED` payment. The 3DS challenge flow (`startPaymentChallengeWithCard`) marks a held payment `PAID`, so insurance orders must be paid through `createPaymentMethod` → `addPaymentToOrder` → `processPayment` with `use_hold`, or a failed emission will not release the hold.
+- None of the new activities has a workflow rule seeded; each env needs one per trigger.

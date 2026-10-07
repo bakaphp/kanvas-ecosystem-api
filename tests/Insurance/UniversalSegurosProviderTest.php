@@ -141,6 +141,44 @@ class UniversalSegurosProviderTest extends TestCase
         $this->assertSame(1200.5, $result->premium);
     }
 
+    public function testUpdateQuotePutsTheCustomerOnTheExistingQuote(): void
+    {
+        $service = $this->service();
+        $service->shouldReceive('updateQuote')
+            ->once()
+            ->withArgs(function (string $quoteNumber, $request): bool {
+                $payload = $request->toArray();
+
+                return $quoteNumber === 'COT-991'
+                    && $payload['data']['cliente']['nombre'] === 'Ana';
+            })
+            ->andReturn([
+                'numeroCotizacion' => 'COT-991',
+                'data' => ['terminos' => ['prima' => 1200.5, 'impuesto' => 192.08, 'totalCobro' => 1392.58]],
+            ]);
+
+        $result = $this->provider($service)->updateQuote(
+            'COT-991',
+            new InsuranceQuoteRequest(
+                product: ProductEnum::PARA_TU_AUTO->value,
+                payload: ['tipo' => 'APA', 'cliente' => ['nombre' => 'Ana']]
+            )
+        );
+
+        $this->assertTrue($result->success);
+        $this->assertSame('COT-991', $result->quoteNumber);
+    }
+
+    public function testUpdateQuoteWithUnknownProductIsRejectedBeforeCallingTheInsurer(): void
+    {
+        $service = $this->service();
+        $service->shouldNotReceive('updateQuote');
+
+        $this->expectException(ValidationException::class);
+
+        $this->provider($service)->updateQuote('COT-1', new InsuranceQuoteRequest(product: 'X-XX'));
+    }
+
     public function testQuoteWithoutQuoteNumberIsNotSuccessful(): void
     {
         $service = $this->service();
@@ -328,6 +366,9 @@ class UniversalSegurosProviderTest extends TestCase
         $order->shouldReceive('get')
             ->with(InsuranceCustomFieldEnum::QUOTE_NUMBER->value)
             ->andReturn('COT-991');
+        $order->shouldReceive('get')
+            ->with(InsuranceCustomFieldEnum::STATUS->value)
+            ->andReturn(InsuranceStatusEnum::QUOTED->value);
         $order->shouldReceive('set')
             ->once()
             ->with(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::DOCUMENTS_UPLOADED->value);
@@ -433,15 +474,34 @@ class UniversalSegurosProviderTest extends TestCase
 
         $withLey = Mockery::mock(Order::class);
         $withLey->shouldReceive('get')
-            ->with(CustomFieldEnum::PRODUCT->value)
+            ->with(InsuranceCustomFieldEnum::PRODUCT_CODE->value)
             ->andReturn(ProductEnum::PARA_TU_SEGURO_DE_LEY->value);
 
         $withAuto = Mockery::mock(Order::class);
         $withAuto->shouldReceive('get')
-            ->with(CustomFieldEnum::PRODUCT->value)
+            ->with(InsuranceCustomFieldEnum::PRODUCT_CODE->value)
             ->andReturn(ProductEnum::PARA_TU_AUTO->value);
 
         $this->assertFalse($provider->requiresInspection($withLey));
         $this->assertTrue($provider->requiresInspection($withAuto));
+    }
+
+    public function testUploadingDocumentsAfterPaymentDoesNotRewindTheStatus(): void
+    {
+        $order = Mockery::mock(Order::class);
+        $order->shouldReceive('get')
+            ->with(InsuranceCustomFieldEnum::QUOTE_NUMBER->value)
+            ->andReturn('COT-991');
+        $order->shouldReceive('get')
+            ->with(InsuranceCustomFieldEnum::STATUS->value)
+            ->andReturn(InsuranceStatusEnum::PAID->value);
+        $order->shouldNotReceive('set');
+
+        $service = $this->service();
+        $service->shouldReceive('uploadDocument')->once()->andReturn(['ok' => true]);
+
+        $this->provider($service)->uploadDocuments($order, [
+            new InsuranceDocument(InsuranceDocumentTypeEnum::REGISTRATION, '/tmp/m.pdf'),
+        ]);
     }
 }

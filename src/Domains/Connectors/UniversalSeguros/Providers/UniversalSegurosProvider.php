@@ -10,7 +10,6 @@ use DomainException;
 use Kanvas\Connectors\UniversalSeguros\DataTransferObject\PaymentInformation;
 use Kanvas\Connectors\UniversalSeguros\DataTransferObject\QuoteRequest;
 use Kanvas\Connectors\UniversalSeguros\Enums\ConfigurationEnum;
-use Kanvas\Connectors\UniversalSeguros\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\DocumentOperationEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\DocumentTransactionEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\ProductEnum;
@@ -23,6 +22,7 @@ use Kanvas\Insurance\Contracts\PaymentLinkProviderInterface;
 use Kanvas\Insurance\Contracts\PaymentReportProviderInterface;
 use Kanvas\Insurance\Contracts\PolicyProviderInterface;
 use Kanvas\Insurance\Contracts\ProductCatalogProviderInterface;
+use Kanvas\Insurance\Contracts\QuoteUpdateProviderInterface;
 use Kanvas\Insurance\DataTransferObject\DocumentUploadResult;
 use Kanvas\Insurance\DataTransferObject\InsuranceDocument;
 use Kanvas\Insurance\DataTransferObject\InsurancePaymentReport;
@@ -46,7 +46,8 @@ class UniversalSegurosProvider implements
     PaymentLinkProviderInterface,
     PaymentReportProviderInterface,
     PolicyProviderInterface,
-    ProductCatalogProviderInterface
+    ProductCatalogProviderInterface,
+    QuoteUpdateProviderInterface
 {
     public const NAME = 'universal_seguros';
 
@@ -88,6 +89,16 @@ class UniversalSegurosProvider implements
         );
     }
 
+    public function updateQuote(string $quoteNumber, InsuranceQuoteRequest $request): QuoteResult
+    {
+        $product = ProductEnum::tryFrom($request->product)
+            ?? throw new ValidationException('Unknown Universal Seguros product: ' . $request->product);
+
+        return $this->toQuoteResult(
+            $this->service->updateQuote($quoteNumber, QuoteRequest::make($product, $request->payload))
+        );
+    }
+
     public function getQuote(string $quoteNumber): QuoteResult
     {
         return $this->toQuoteResult($this->service->getQuote($quoteNumber));
@@ -95,7 +106,7 @@ class UniversalSegurosProvider implements
 
     public function requiresInspection(Order $order): bool
     {
-        $product = ProductEnum::tryFrom((string) $order->get(CustomFieldEnum::PRODUCT->value));
+        $product = ProductEnum::tryFrom((string) $order->get(InsuranceCustomFieldEnum::PRODUCT_CODE->value));
 
         return $product?->requiresInspection() ?? false;
     }
@@ -117,7 +128,9 @@ class UniversalSegurosProvider implements
             );
         }
 
-        if ($results !== []) {
+        $current = (string) $order->get(InsuranceCustomFieldEnum::STATUS->value);
+
+        if ($results !== [] && in_array($current, ['', InsuranceStatusEnum::QUOTED->value], true)) {
             $order->set(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::DOCUMENTS_UPLOADED->value);
         }
 

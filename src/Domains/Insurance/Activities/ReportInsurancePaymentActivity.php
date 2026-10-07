@@ -7,12 +7,11 @@ namespace Kanvas\Insurance\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Insurance\Actions\BuildInsurancePaymentReportAction;
+use Kanvas\Insurance\Concerns\ResolvesReportablePayment;
 use Kanvas\Insurance\Contracts\PaymentReportProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
-use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
@@ -26,6 +25,8 @@ use Override;
 #[WorkflowAction]
 class ReportInsurancePaymentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    use ResolvesReportablePayment;
+
     /**
      * @param array<string, mixed> $params
      *
@@ -80,16 +81,5 @@ class ReportInsurancePaymentActivity extends KanvasActivity implements WorkflowA
             },
             company: $order->company,
         );
-    }
-
-    protected function reportablePayment(Order $order): ?Payments
-    {
-        return $order->payments()
-            ->whereIn('status', [
-                PaymentStatusEnum::AUTHORIZED->value,
-                PaymentStatusEnum::PAID->value,
-            ])
-            ->orderByDesc('id')
-            ->first();
     }
 }
