@@ -360,30 +360,6 @@ class OrderReportService
             : Carbon::now($timezone)->toDateString();
     }
 
-    private function validTimezone(?string $timezone): string
-    {
-        $timezone = trim((string) $timezone);
-
-        if ($timezone === '') {
-            return 'UTC';
-        }
-
-        if (! in_array($timezone, DateTimeZone::listIdentifiers(), true)) {
-            throw new InvalidArgumentException('Unknown timezone "' . $timezone . '". Use an IANA name such as America/Santo_Domingo.');
-        }
-
-        return $timezone;
-    }
-
-    private function firstOrderDate(string $timezone): string
-    {
-        $first = $this->baseQuery(null, null, null)->min('orders.created_at');
-
-        return $first !== null
-            ? Carbon::parse($first)->timezone($timezone)->toDateString()
-            : Carbon::now($timezone)->toDateString();
-    }
-
     private function resolveOrderTypeIds(?array $names): ?array
     {
         $names = array_filter(array_map('trim', $names ?? []), fn (string $name): bool => $name !== '');
