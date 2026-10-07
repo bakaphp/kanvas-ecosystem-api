@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
+use Kanvas\Souk\Services\StorefrontProductUrlService;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -77,7 +78,10 @@ class ListAvailableProductsTool extends Tool
             return ['message' => "No {$label} products found in the inventory."];
         }
 
-        $results = $products->map(function (Products $product) {
+        $storefronts = [];
+
+        $results = $products->map(function (Products $product) use (&$storefronts) {
+            $storefront = $storefronts[$product->companies_id] ??= StorefrontProductUrlService::forProduct($product);
             $variants = $product->variants;
             $totalStock = $variants->sum(fn ($variant) => $variant->getTotalQuantity());
 
@@ -85,6 +89,7 @@ class ListAvailableProductsTool extends Tool
                 'id' => $product->getId(),
                 'name' => $product->name,
                 'slug' => $product->slug,
+                'url' => $storefront->productUrl($product),
                 'is_published' => (bool) $product->is_published,
                 'total_stock' => $totalStock,
                 'variants' => $variants->map(fn ($variant) => [

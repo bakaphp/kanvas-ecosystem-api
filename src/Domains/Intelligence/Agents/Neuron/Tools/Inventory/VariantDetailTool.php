@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Services\StorefrontProductUrlService;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -46,7 +47,7 @@ class VariantDetailTool extends Tool
         }
 
         $variant->load([
-            'product:id,name,slug,is_published',
+            'product:id,name,slug,is_published,apps_id,companies_id',
             'status:id,name',
             'variantWarehouses.warehouse:id,name',
             'variantWarehouses.status:id,name',
@@ -72,6 +73,7 @@ class VariantDetailTool extends Tool
                 'id' => $variant->product->getId(),
                 'name' => $variant->product->name,
                 'slug' => $variant->product->slug,
+                'url' => StorefrontProductUrlService::forProduct($variant->product)->productUrl($variant->product),
                 'is_published' => (bool) $variant->product->is_published,
             ],
             'inventory' => $variant->variantWarehouses->map(fn ($vw) => [
