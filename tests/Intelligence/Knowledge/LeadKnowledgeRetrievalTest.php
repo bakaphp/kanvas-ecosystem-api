@@ -46,6 +46,20 @@ class LeadKnowledgeRetrievalTest extends TestCase
         $this->assertSame('agent_document', $ranked[0]->getSourceType());
     }
 
+    /**
+     * A hit's metadata is the whole Typesense row, content and embedding included, and Neuron refuses
+     * those keys on a Document; every retrieval with a hit threw until they were stripped.
+     */
+    public function testTheStoreRowRidesAsMetadataWithoutTheKeysNeuronReserves(): void
+    {
+        $hit = $this->hit('Refund policy', 0.9, 'agent_document');
+        $hit['metadata'] = ['content' => 'Refund policy', 'embedding' => [0.1, 0.2], 'score' => 0.9, 'id' => 'x', 'created_at' => 1_760_000_000, 'entity_id' => 7];
+
+        $ranked = KnowledgeRetrieval::rank([$hit], [], 3, 'refunds');
+
+        $this->assertSame(['created_at' => 1_760_000_000, 'entity_id' => 7], $ranked[0]->getMetadata());
+    }
+
     public function testTheRecordsRowsStillFillTheListWhenThereAreFewDocuments(): void
     {
         $ranked = KnowledgeRetrieval::rank(

@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Knowledge\Workflows\IndexKnowledgeDocumentActivity;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\RAG\Document;
 use NeuronAI\RAG\Retrieval\RetrievalInterface;
+use NeuronAI\RAG\Schema\DocumentSchema;
 use NeuronAI\RAG\VectorStore\Filter\FilterExpression;
 use Override;
 
@@ -165,7 +166,9 @@ class KnowledgeRetrieval implements RetrievalInterface
 
     /**
      * The same provenance tag memory hits carry: the model is told that a document is the company's
-     * own material and a record row is this record's past, instead of a class name and a uuid.
+     * own material and a record row is this record's past, instead of a class name and a uuid. The
+     * store row rides along as metadata minus the keys Neuron reserves on a Document (content,
+     * embedding, score, ...): setMetadata() throws on those (KANVAS-ECOSYSTEM-6JX).
      *
      * @param array{content: string, sourceType: string, sourceName: string, score: float, metadata: array<string, mixed>} $hit
      */
@@ -180,7 +183,7 @@ class KnowledgeRetrieval implements RetrievalInterface
             ->setSourceType($hit['sourceType'])
             ->setSourceName($hit['sourceName'])
             ->setScore($hit['score'])
-            ->setMetadata($hit['metadata']);
+            ->setMetadata(array_diff_key($hit['metadata'], array_flip(DocumentSchema::RESERVED_FIELDS)));
     }
 
     private static function normalize(string $text): string
