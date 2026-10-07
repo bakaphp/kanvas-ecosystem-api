@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Workflow;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesWorkflowCatalogForTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsInExplicitCompany;
 use Kanvas\NervousSystem\Capability\Enums\AgentAbilityEnum;
 use Kanvas\Workflow\Actions\CreateReceiverWebhookAction;
 use Kanvas\Workflow\DataTransferObject\ReceiverWebhook as ReceiverWebhookData;
@@ -34,7 +33,6 @@ class CreateCompanyReceiverTool extends Tool
 {
     use GuardsAdminForTool;
     use ResolvesWorkflowCatalogForTool;
-    use RunsInExplicitCompany;
     use TrackByInputs;
 
     protected string $name = 'create_company_receiver';
@@ -53,12 +51,6 @@ class CreateCompanyReceiverTool extends Tool
     protected function properties(): array
     {
         return [
-            new ToolProperty(
-                name: 'company_uuid',
-                type: PropertyType::STRING,
-                description: 'Company for this call only. Selecting a company requires the app-scoped Company Configuration Administrator and an identified app administrator. Omit to use the current company.',
-                required: false,
-            ),
             new ToolProperty(
                 name: 'receiver',
                 type: PropertyType::STRING,
@@ -98,12 +90,7 @@ class CreateCompanyReceiverTool extends Tool
         string $name,
         ?string $description = null,
         ?string $configuration = null,
-        ?string $company_uuid = null,
     ): array {
-        if ($company_uuid !== null) {
-            return $this->inExplicitCompany($company_uuid, $this->contextAgent(), fn (self $tool): array => $tool($receiver, $name, $description, $configuration));
-        }
-
         if ($denied = $this->requireRequestingAdminOrError()) {
             return $denied;
         }

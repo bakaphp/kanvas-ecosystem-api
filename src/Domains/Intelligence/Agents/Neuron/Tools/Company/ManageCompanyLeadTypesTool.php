@@ -52,6 +52,7 @@ class ManageCompanyLeadTypesTool extends CompanyResourceTool
             $record = $this->resourceQuery()->findOrFail($id);
             $record->fill($data)->saveOrFail();
         }
+
         return ['success' => true, 'record' => $this->present($record->fresh())];
     }
 }

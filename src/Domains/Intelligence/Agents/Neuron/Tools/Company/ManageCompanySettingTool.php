@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Company;
 
+use Baka\Support\Str;
 use JsonException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -79,13 +80,7 @@ class ManageCompanySettingTool extends Tool
                 description: 'For set: JSON-encoded value, e.g. true, 1600, 123, "+18095550123", or an array. Never credentials.',
                 required: false,
             ),
-            new ToolProperty(
-                name: 'company_uuid',
-                type: PropertyType::STRING,
-                description: 'Optional company UUID for this call only. Requires the Company Configuration Administrator at app scope '
-                    . 'and an identified app administrator. Omit to use the current company.',
-                required: false,
-            ),
+            $this->companyUuidProperty(),
         ];
     }
 
@@ -118,7 +113,7 @@ class ManageCompanySettingTool extends Tool
             return $this->invalidArgs('Use get or set with a nonempty key of at most 255 bytes and no control characters. Nothing was changed.');
         }
 
-        $type = self::SETTINGS[$key] ?? ($this->isCredentialKey($key) ? 'credential' : 'json');
+        $type = self::SETTINGS[$key] ?? (Str::isCredentialKey($key) ? 'credential' : 'json');
         if ($operation === 'set' && $type === 'credential') {
             return $this->denied('Configure credentials through secure administrator setup, never through chat. Nothing was changed.');
         }
@@ -130,6 +125,7 @@ class ManageCompanySettingTool extends Tool
                 if ($type !== 'credential') {
                     $result['value'] = $value;
                 }
+
                 return $this->ok($result);
             }
             if ($value_json === null) {
@@ -142,11 +138,13 @@ class ManageCompanySettingTool extends Tool
             if (! $this->company->set($key, $value, false)) {
                 return $this->failed('The setting was not saved.');
             }
+
             return $this->ok(['key' => $key, 'updated' => true, 'public' => false, 'value' => $value]);
         } catch (JsonException) {
             return $this->invalidArgs('value_json must be valid JSON. Nothing was changed.');
         } catch (Throwable $e) {
             report($e);
+
             return $this->failed('Could not complete the setting operation. Verify the saved state before retrying.');
         }
     }
@@ -177,6 +175,7 @@ class ManageCompanySettingTool extends Tool
         if ($type === 'sources') {
             return $this->validateSources($value);
         }
+
         return null;
     }
 
@@ -184,11 +183,6 @@ class ManageCompanySettingTool extends Tool
     {
         return Agent::query()->fromApp($this->app)->fromCompany($this->company)->notDeleted()
             ->where($type === 'agent' ? 'id' : 'user_id', $value)->exists();
-    }
-
-    private function isCredentialKey(string $key): bool
-    {
-        return preg_match('/secret|token|password|passwd|credential|private.?key|api.?key|client.?key|access.?key|authorization/i', $key) === 1;
     }
 
     private function isPhone(mixed $value): bool
@@ -218,6 +212,7 @@ class ManageCompanySettingTool extends Tool
             }
             $seen[$identity] = true;
         }
+
         return null;
     }
 }

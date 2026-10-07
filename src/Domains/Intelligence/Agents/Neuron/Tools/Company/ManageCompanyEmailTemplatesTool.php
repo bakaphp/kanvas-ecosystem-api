@@ -47,15 +47,7 @@ class ManageCompanyEmailTemplatesTool extends CompanyResourceTool
         $record = $operation === 'update' ? (clone $owned)->findOrFail($id) : null;
         $this->assertUniqueName($owned, $data, $id);
         if (isset($data['parent_template_id']) && $data['parent_template_id'] > 0) {
-            $seen = $id ? [$id] : [];
-            $parentId = $data['parent_template_id'];
-            while ($parentId > 0) {
-                if (in_array($parentId, $seen, true) || count($seen) >= 20) {
-                    throw new InvalidArgumentException('Invalid or cyclic template parent chain.');
-                }
-                $seen[] = $parentId;
-                $parentId = (int) $this->resourceQuery()->findOrFail($parentId)->parent_template_id;
-            }
+            $this->parentChain((int) $data['parent_template_id'], $id ? [$id] : []);
         }
         if ($operation === 'create') {
             $this->requireName($data);
@@ -74,22 +66,34 @@ class ManageCompanyEmailTemplatesTool extends CompanyResourceTool
         } else {
             $record->fill($data)->saveOrFail();
         }
+
         return ['success' => true, 'record' => $this->present($record->fresh())];
     }
 
     protected function snapshot(int $id): array
     {
+        return array_map(fn (Templates $row): array => parent::present($row), $this->parentChain($id));
+    }
+
+    /**
+     * The template and its ancestors, nearest first. A cycle or a runaway chain fails instead of
+     * looping; `$seen` lets an update exclude the row being re-parented.
+     *
+     * @return list<Templates>
+     */
+    private function parentChain(int $id, array $seen = []): array
+    {
         $chain = [];
-        $seen = [];
         while ($id > 0) {
             if (in_array($id, $seen, true) || count($seen) >= 20) {
-                throw new InvalidArgumentException('Invalid or cyclic source template parent chain.');
+                throw new InvalidArgumentException('Invalid or cyclic template parent chain.');
             }
             $seen[] = $id;
             $row = $this->resourceQuery()->findOrFail($id);
-            $chain[] = parent::present($row);
+            $chain[] = $row;
             $id = (int) $row->parent_template_id;
         }
+
         return $chain;
     }
 
@@ -121,6 +125,7 @@ class ManageCompanyEmailTemplatesTool extends CompanyResourceTool
             }
             $map[$originalId] = $result['record']['id'];
         }
+
         return [...$result, 'source_id' => $sourceId, 'template_id_map' => $map];
     }
 }

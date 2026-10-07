@@ -6,9 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Workflow;
 
 use Baka\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesWorkflowCatalogForTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsInExplicitCompany;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,9 +20,7 @@ use Override;
 #[AgentTool(name: 'List Workflow Options', category: 'workflow')]
 class ListWorkflowOptionsTool extends Tool
 {
-    use GuardsAdminForTool;
     use ResolvesWorkflowCatalogForTool;
-    use RunsInExplicitCompany;
     use TrackByInputs;
 
     protected string $name = 'list_workflow_options';
@@ -45,12 +41,6 @@ class ListWorkflowOptionsTool extends Tool
     {
         return [
             new ToolProperty(
-                name: 'company_uuid',
-                type: PropertyType::STRING,
-                description: 'Company for this call only. Selecting a company requires the app-scoped Company Configuration Administrator and an identified app administrator. Omit to use the current company.',
-                required: false,
-            ),
-            new ToolProperty(
                 name: 'kind',
                 type: PropertyType::STRING,
                 description: 'Which catalog to list: "triggers", "entities", "actions", "receivers", or '
@@ -70,11 +60,8 @@ class ListWorkflowOptionsTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(?string $kind = null, ?string $search = null, ?string $company_uuid = null): array {
-        if ($company_uuid !== null) {
-            return $this->inExplicitCompany($company_uuid, $this->contextAgent(), fn (self $tool): array => $tool($kind, $search));
-        }
-
+    public function __invoke(?string $kind = null, ?string $search = null): array
+    {
         $kind = mb_strtolower(trim((string) $kind)) ?: 'all';
         $search = Str::trimToNull((string) $search);
 

@@ -8,11 +8,18 @@ Requiere un administrador identificado de esa app.
 Otros tipos, incluso globales, no pueden utilizar company_uuid. La comprobación
 se hace por handler exacto del tipo, no por nombre editable ni texto del prompt.
 
-TOOLS ADAPTADAS
-list_agents, list_agent_types, get_agent_configuration, hire_agent,
-update_agent_instructions, grant_agent_tools, manage_company_setting.
-Todas reciben company_uuid opcional. Omitirlo conserva el comportamiento habitual.
-Las tools de workflows y creación de receivers también admiten company_uuid.
+TOOLS DEL TIPO
+Las tools estables (NervousSystem/*, Workflow/*) no cambian: no conocen company_uuid.
+Este tipo usa subclases propias en Neuron/Tools/CompanyConfiguration/ (prefijo AppScoped):
+list_agents, list_agent_types, hire_agent, update_agent_instructions, grant_agent_tools,
+list_workflow_options, list_company_workflows, create_company_workflow,
+update_company_workflow, create_company_receiver. Mismo nombre de tool que la base;
+solo se instancian desde CompanyConfigurationAgent::tools(), nunca desde el catálogo.
+Cada subclase añade company_uuid opcional y delega en la base; omitirlo conserva el
+comportamiento habitual. hire_agent añade además is_sub_agent y parent_agent_id.
+Seams en la base, sin cambio de comportamiento: mayEquip/mayRetune protegidos,
+HireAgentTool::hireOptions() (vacío) y error() protegido.
+get_agent_configuration y manage_company_setting son nuevas y ya reciben company_uuid.
 Las tools de recursos de compañía lo requieren: templates de email, pipelines,
 stages, lead types y copy_company_receiver (list/get/copy).
 Las copias devuelven mapas de IDs para adaptar las referencias del destino.

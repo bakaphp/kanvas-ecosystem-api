@@ -16,14 +16,20 @@ use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\ReceptionistAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Mockery;
+use NeuronAI\Agent\AgentState;
+use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Exceptions\RunInFlightException;
+use NeuronAI\Providers\ProviderResponse;
+use NeuronAI\Workflow\WorkflowStatus;
 use Override;
 use PDOException;
 use RuntimeException;
 use Tests\Stubs\Intelligence\BusyThenAnsweringNeuronHandlerStub;
+use Tests\Stubs\Intelligence\FakeNeuronProvider;
 use Tests\Stubs\Intelligence\ThrowingNeuronHandlerStub;
 use Tests\TestCase;
 use Throwable;
@@ -186,19 +192,21 @@ class RunNeuronChatErrorHandlingTest extends TestCase
 
     public function testRecoveryWaitsForTheLeaseAndDoesNotStartAnotherTurn(): void
     {
-        $handler = Mockery::mock(\Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent::class);
+        $handler = Mockery::mock(BehavesAsKanvasAgent::class);
         $handler->shouldReceive('getThreadId')->andReturn('thread-1');
         $handler->shouldReceive('persistsTurnsToConversationStore')->andReturn(true);
-        $handler->shouldReceive('getProvider')->andReturn(new \Tests\Stubs\Intelligence\FakeNeuronProvider());
+        $handler->shouldReceive('getProvider')->andReturn(new FakeNeuronProvider());
         $handler->shouldReceive('setAiProvider')->once();
         $handler->shouldReceive('recoverInterruptedRun')->once()->andThrow(new RunInFlightException(
-            workflowId: 'thread-1', runId: 'run-1',
-            status: \NeuronAI\Workflow\WorkflowStatus::Running,
-            executionAttempt: 1, leaseExpiresAt: time() + 600,
+            workflowId: 'thread-1',
+            runId: 'run-1',
+            status: WorkflowStatus::Running,
+            executionAttempt: 1,
+            leaseExpiresAt: time() + 600,
         ));
         $handler->shouldReceive('recoverInterruptedRun')->once()->andReturn(
-            new \NeuronAI\Agent\AgentState()->setResponse(new \NeuronAI\Providers\ProviderResponse(
-                message: new \NeuronAI\Chat\Messages\AssistantMessage('Recovered'),
+            new AgentState()->setResponse(new ProviderResponse(
+                message: new AssistantMessage('Recovered'),
             )),
         );
         $handler->shouldNotReceive('chat');

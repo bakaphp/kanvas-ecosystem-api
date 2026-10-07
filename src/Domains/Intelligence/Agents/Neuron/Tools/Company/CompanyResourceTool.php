@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Company;
 
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Validator;
@@ -18,7 +19,6 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
-use stdClass;
 
 /** Company selection always goes through the app administrator boundary, including reads. */
 abstract class CompanyResourceTool extends Tool
@@ -28,9 +28,16 @@ abstract class CompanyResourceTool extends Tool
     use RunsInExplicitCompany;
     use TrackByInputs;
 
+    private const int PAGE_SIZE = 50;
+
+    private const array OPERATIONS = ['list', 'get', 'create', 'update', 'delete', 'copy'];
+
     abstract protected function resourceQuery(): Builder;
+
     abstract protected function fields(): array;
+
     abstract protected function rules(): array;
+
     abstract protected function write(string $operation, ?int $id, array $data): array;
 
     #[Override]
@@ -85,41 +92,18 @@ abstract class CompanyResourceTool extends Tool
         ?int $page = null,
     ): array {
         $page ??= 1;
+
         return $this->inExplicitCompany($company_uuid, $this->contextAgent(), function (self $tool) use ($operation, $id, $data_json, $source_company_uuid, $page): array {
             try {
-                if (! in_array($operation, ['list', 'get', 'create', 'update', 'delete', 'copy'], true) || $page < 1) {
-                    throw new InvalidArgumentException('Invalid operation or page.');
-                }
-                if (in_array($operation, ['get', 'update', 'delete', 'copy'], true) && ($id === null || $id < 1)) {
-                    throw new InvalidArgumentException('A positive record id is required.');
-                }
-                $object = json_decode($data_json ?? '{}', false, 64, JSON_THROW_ON_ERROR);
-                if (! $object instanceof stdClass) {
-                    throw new InvalidArgumentException('data_json must be a JSON object.');
-                }
-                $data = json_decode($data_json ?? '{}', true, 64, JSON_THROW_ON_ERROR);
-                if (array_diff(array_keys($data), $tool->fields()) !== []) {
-                    throw new InvalidArgumentException('Unsupported fields. Allowed: ' . implode(', ', $tool->fields()));
-                }
-                Validator::make($data, $tool->rules())->validate();
-                if ($operation === 'list') {
-                    $rows = $tool->resourceQuery()->orderBy('id')->skip(($page - 1) * 50)->take(51)->get();
-                    return ['success' => true, 'records' => $rows->take(50)->map(fn ($row) => $tool->present($row))->all(), 'page' => $page, 'has_more' => $rows->count() > 50];
-                }
-                if ($operation === 'get') {
-                    return ['success' => true, 'record' => $tool->present($tool->resourceQuery()->findOrFail($id))];
-                }
-                if ($operation === 'copy') {
-                    if (! $source_company_uuid || $source_company_uuid === $tool->company->uuid) {
-                        throw new InvalidArgumentException('Copy requires a different source_company_uuid.');
-                    }
-                    $snapshot = $tool->inExplicitCompany($source_company_uuid, $tool->contextAgent(), fn (self $source): array => ['success' => true, 'snapshot' => $source->snapshot($id)]);
-                    if (! ($snapshot['success'] ?? false)) {
-                        return $snapshot;
-                    }
-                    return $tool->resourceQuery()->getModel()->getConnection()->transaction(fn (): array => $tool->copy($snapshot['snapshot'], $data));
-                }
-                return $tool->resourceQuery()->getModel()->getConnection()->transaction(fn (): array => $tool->write($operation, $id, $data));
+                $tool->assertValidRequest($operation, $id, $page);
+                $data = $tool->decodeData($data_json);
+
+                return match ($operation) {
+                    'list' => $tool->list($page),
+                    'get' => ['success' => true, 'record' => $tool->present($tool->resourceQuery()->findOrFail($id))],
+                    'copy' => $tool->copyFrom($source_company_uuid, (int) $id, $data),
+                    default => $tool->transaction(fn (): array => $tool->write($operation, $id, $data)),
+                };
             } catch (ValidationException $e) {
                 return ['success' => false, 'error' => $e->validator->errors()->toArray()];
             } catch (InvalidArgumentException|JsonException $e) {
@@ -144,6 +128,7 @@ abstract class CompanyResourceTool extends Tool
     {
         $sourceId = $snapshot['id'];
         unset($snapshot['id']);
+
         return [...$this->write('create', null, array_replace($snapshot, $overrides)), 'source_id' => $sourceId];
     }
 
@@ -157,5 +142,60 @@ abstract class CompanyResourceTool extends Tool
         if (isset($data['name']) && $query->where('name', $data['name'])->when($id, fn ($q) => $q->where('id', '!=', $id))->exists()) {
             throw new InvalidArgumentException('That name already exists. Read and update its destination ID explicitly; nothing was overwritten.');
         }
+    }
+
+    private function assertValidRequest(string $operation, ?int $id, int $page): void
+    {
+        if (! in_array($operation, self::OPERATIONS, true) || $page < 1) {
+            throw new InvalidArgumentException('Invalid operation or page.');
+        }
+        if (in_array($operation, ['get', 'update', 'delete', 'copy'], true) && ($id === null || $id < 1)) {
+            throw new InvalidArgumentException('A positive record id is required.');
+        }
+    }
+
+    private function decodeData(?string $json): array
+    {
+        $data = json_decode($json ?? '{}', true, 64, JSON_THROW_ON_ERROR);
+        if (! is_array($data) || ($data !== [] && array_is_list($data))) {
+            throw new InvalidArgumentException('data_json must be a JSON object.');
+        }
+        if (array_diff(array_keys($data), $this->fields()) !== []) {
+            throw new InvalidArgumentException('Unsupported fields. Allowed: ' . implode(', ', $this->fields()));
+        }
+        Validator::make($data, $this->rules())->validate();
+
+        return $data;
+    }
+
+    private function list(int $page): array
+    {
+        $rows = $this->resourceQuery()->orderBy('id')->skip(($page - 1) * self::PAGE_SIZE)->take(self::PAGE_SIZE + 1)->get();
+
+        return [
+            'success' => true,
+            'records' => $rows->take(self::PAGE_SIZE)->map(fn ($row) => $this->present($row))->all(),
+            'page' => $page,
+            'has_more' => $rows->count() > self::PAGE_SIZE,
+        ];
+    }
+
+    private function copyFrom(?string $sourceCompanyUuid, int $id, array $overrides): array
+    {
+        if (! $sourceCompanyUuid || $sourceCompanyUuid === $this->company->uuid) {
+            throw new InvalidArgumentException('Copy requires a different source_company_uuid.');
+        }
+
+        $snapshot = $this->inExplicitCompany($sourceCompanyUuid, $this->contextAgent(), fn (self $source): array => ['success' => true, 'snapshot' => $source->snapshot($id)]);
+        if (! ($snapshot['success'] ?? false)) {
+            return $snapshot;
+        }
+
+        return $this->transaction(fn (): array => $this->copy($snapshot['snapshot'], $overrides));
+    }
+
+    private function transaction(Closure $operation): array
+    {
+        return $this->resourceQuery()->getModel()->getConnection()->transaction($operation);
     }
 }

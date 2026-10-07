@@ -8,22 +8,21 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\CapabilityLookupTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Company\CopyCompanyReceiverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Company\ManageCompanyEmailTemplatesTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Company\ManageCompanyPipelinesTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Company\ManageCompanyPipelineStagesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Company\ManageCompanyLeadTypesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Company\ManageCompanyPipelineStagesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Company\ManageCompanyPipelinesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Company\ManageCompanySettingTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CompanyConfiguration\AppScopedCreateCompanyReceiverTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CompanyConfiguration\AppScopedCreateCompanyWorkflowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CompanyConfiguration\AppScopedGrantAgentToolsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CompanyConfiguration\AppScopedHireAgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CompanyConfiguration\AppScopedListAgentsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CompanyConfiguration\AppScopedListAgentTypesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CompanyConfiguration\AppScopedListCompanyWorkflowsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CompanyConfiguration\AppScopedListWorkflowOptionsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CompanyConfiguration\AppScopedUpdateAgentInstructionsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CompanyConfiguration\AppScopedUpdateCompanyWorkflowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetAgentConfigurationTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GrantAgentToolsTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentsTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyReceiverTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyWorkflowTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\ListCompanyWorkflowsTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\ListWorkflowOptionsTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\UpdateCompanyWorkflowTool;
 use Override;
 
 #[AgentTypeDefinition(
@@ -47,22 +46,22 @@ class CompanyConfigurationAgent extends SystemUserAgent
 
         // Give this type the configuration tools explicitly; do not widen every system agent's baseline.
         $tools = [
-            new ListAgentsTool($this->agent),
-            new ListAgentTypesTool(),
+            new AppScopedListAgentsTool($this->agent),
+            new AppScopedListAgentTypesTool(),
             new GetAgentConfigurationTool(),
-            new HireAgentTool($this->agent),
-            new UpdateAgentInstructionsTool($this->agent),
-            new GrantAgentToolsTool($this->agent),
+            new AppScopedHireAgentTool($this->agent),
+            new AppScopedUpdateAgentInstructionsTool($this->agent),
+            new AppScopedGrantAgentToolsTool($this->agent),
             new ManageCompanySettingTool(),
             new ManageCompanyEmailTemplatesTool(),
             new ManageCompanyPipelinesTool(),
             new ManageCompanyPipelineStagesTool(),
             new ManageCompanyLeadTypesTool(),
-            new ListWorkflowOptionsTool(),
-            new ListCompanyWorkflowsTool(),
-            new CreateCompanyWorkflowTool(),
-            new UpdateCompanyWorkflowTool(),
-            new CreateCompanyReceiverTool(),
+            new AppScopedListWorkflowOptionsTool(),
+            new AppScopedListCompanyWorkflowsTool(),
+            new AppScopedCreateCompanyWorkflowTool(),
+            new AppScopedUpdateCompanyWorkflowTool(),
+            new AppScopedCreateCompanyReceiverTool(),
             new CopyCompanyReceiverTool(),
         ];
         foreach ($tools as $tool) {
@@ -71,10 +70,7 @@ class CompanyConfigurationAgent extends SystemUserAgent
                 $this->company,
                 $this->actingUser(),
                 $this->agent,
-            );
-            if (in_array(GuardsAdminForTool::class, class_uses_recursive($tool), true)) {
-                $tool->forRequestingUser($this->requestingHuman());
-            }
+            )->forRequestingUser($this->requestingHuman());
         }
 
         $tools[] = new CapabilityLookupTool($this->agent);

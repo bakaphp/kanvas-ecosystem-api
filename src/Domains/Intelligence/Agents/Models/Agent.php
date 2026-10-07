@@ -279,8 +279,7 @@ class Agent extends BaseModel
     public function scopeFromCompanyOrConfigurationAgent(Builder $query): Builder
     {
         $app = app(Apps::class);
-        $user = auth()->user();
-        if (! new AppCompanyToolExecutor()->canAdministerApp($app, $user instanceof Users ? $user : null)) {
+        if (! self::callerCanAdministerApp($app)) {
             return $query->fromCompany();
         }
 
@@ -294,6 +293,13 @@ class Agent extends BaseModel
                         ->notDeleted());
             });
         });
+    }
+
+    private static function callerCanAdministerApp(Apps $app): bool
+    {
+        $caller = auth()->user();
+
+        return new AppCompanyToolExecutor()->canAdministerApp($app, $caller instanceof Users ? $caller : null);
     }
 
     public static function getModel(): Model
@@ -329,10 +335,9 @@ class Agent extends BaseModel
             ->orderByRaw('(apps_id = 0) ASC, (companies_id = 0) ASC')
             ->first();
 
-        $caller = auth()->user();
         $configurationAgentDenied = $agent?->type?->handler === CompanyConfigurationAgent::class
             && (int) $agent->companies_id === 0
-            && ! new AppCompanyToolExecutor()->canAdministerApp($app, $caller instanceof Users ? $caller : null);
+            && ! self::callerCanAdministerApp($app);
 
         if (! $agent || $configurationAgentDenied) {
             throw new ModelNotFoundException(

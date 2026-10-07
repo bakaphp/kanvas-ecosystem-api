@@ -9,6 +9,8 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\AppCompanyToolExecutor;
+use NeuronAI\Tools\PropertyType;
+use NeuronAI\Tools\ToolProperty;
 use Throwable;
 
 /**
@@ -18,6 +20,17 @@ use Throwable;
 trait RunsInExplicitCompany
 {
     private bool $explicitCompanyAuthorized = false;
+
+    protected function companyUuidProperty(): ToolProperty
+    {
+        return new ToolProperty(
+            name: 'company_uuid',
+            type: PropertyType::STRING,
+            description: 'Optional company UUID for this call only. Requires the Company Configuration Administrator '
+                . 'at app scope and an identified app administrator. Omit to use the current company.',
+            required: false,
+        );
+    }
 
     /** @param Closure(static): array $operation */
     protected function inExplicitCompany(string $uuid, ?Agent $agent, Closure $operation): array

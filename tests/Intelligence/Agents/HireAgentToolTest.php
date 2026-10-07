@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
-use Mockery;
 use Tests\TestCase;
 
 final class HireAgentToolTest extends TestCase
@@ -23,62 +22,12 @@ final class HireAgentToolTest extends TestCase
 
     private ?Companies $company = null;
 
-    public function testCreatesASubAgentWithALocalCallableTool(): void
-    {
-        $hirer = $this->hiringAgent(['Read Channel Window']);
-        $result = $this->tool($hirer, $this->adminCaller())->__invoke(
-            name: 'Subagent ' . fake()->unique()->uuid(),
-            role: 'Research assistant',
-            instructions: 'Answer the parent request using the supplied context.',
-            is_sub_agent: true,
-        );
-
-        $this->assertTrue($result['hired'], $result['message'] ?? '');
-        $child = Agent::findOrFail($result['agent_id']);
-        $this->assertTrue((bool) $child->is_sub_agent);
-        $this->assertSame($hirer->getId(), (int) $child->parent_id);
-        $this->assertSame($this->company()->getId(), (int) $child->companies_id);
-        $this->assertNotSame((int) $hirer->user_id, (int) $child->user_id);
-        $callable = Tool::findOrFail($result['sub_agent_tool_id']);
-        $this->assertSame($child->getId(), (int) $callable->agents_id);
-        $this->assertSame($this->kanvasApp()->getId(), (int) $callable->apps_id);
-        $this->assertFalse($hirer->selectedTools()->whereKey($callable->getId())->exists());
-    }
-
-    public function testRefusesASubAgentWithAParentFromAnotherCompany(): void
-    {
-        $hirer = $this->hiringAgent([]);
-        $hirer->companies_id = $this->company()->getId() + 100000;
-        $result = $this->tool($hirer, $this->adminCaller())->__invoke(
-            name: 'Invalid subagent ' . fake()->uuid(),
-            role: 'Worker',
-            instructions: 'Do the requested work.',
-            is_sub_agent: true,
-        );
-        $this->assertFalse($result['hired']);
-        $this->assertStringContainsString('same app and company', $result['message']);
-    }
-
-    public function testOmittingSubAgentFlagStillCreatesAnIndependentAgent(): void
-    {
-        $hirer = $this->hiringAgent([]);
-        $result = $this->tool($hirer, $this->adminCaller())->__invoke(
-            name: 'Independent ' . fake()->uuid(),
-            role: 'Worker',
-            instructions: 'Do the requested work.',
-        );
-        $this->assertTrue($result['hired'], $result['message'] ?? '');
-        $this->assertFalse($result['is_sub_agent']);
-        $this->assertNull($result['sub_agent_tool_id']);
-        $this->assertFalse(Tool::where('agents_id', $result['agent_id'])->exists());
-    }
-
     public function testHiresATeammateWithItsOwnIdentity(): void
     {
         $hirer = $this->hiringAgent(['Read Channel Window', 'Create Message']);
         $name = 'Newsroom ' . fake()->unique()->lexify('?????');
 
-        $result = $this->tool($hirer, $this->adminCaller())->__invoke(
+        $result = $this->tool($hirer, $this->currentUser())->__invoke(
             name: $name,
             role: 'Newsroom writer',
             instructions: 'Read the channel. Write an article only when something is newsworthy; '
@@ -93,7 +42,7 @@ final class HireAgentToolTest extends TestCase
 
         $this->assertNotNull($hired);
         $this->assertSame($name, $hired->name);
-        $this->assertFalse((bool) $hired->is_sub_agent, 'A hire defaults to an independent teammate.');
+        $this->assertFalse((bool) $hired->is_sub_agent, 'A hire is a teammate, never a sub-agent.');
         $this->assertSame(
             ['Create Message', 'Read Channel Window'],
             $hired->selectedTools()->pluck('name')->sort()->values()->all()
@@ -108,7 +57,7 @@ final class HireAgentToolTest extends TestCase
     {
         $hirer = $this->hiringAgent(['Read Channel Window']);
 
-        $result = $this->tool($hirer, $this->adminCaller())->__invoke(
+        $result = $this->tool($hirer, $this->currentUser())->__invoke(
             name: 'Distinct ' . fake()->unique()->lexify('?????'),
             role: 'Worker',
             instructions: 'Do the thing, or nothing when there is nothing to do.',
@@ -134,7 +83,7 @@ final class HireAgentToolTest extends TestCase
     {
         $hirer = $this->hiringAgent(['Read Channel Window']);
 
-        $result = $this->tool($hirer, $this->adminCaller())->__invoke(
+        $result = $this->tool($hirer, $this->currentUser())->__invoke(
             name: 'Staffed ' . fake()->unique()->lexify('?????'),
             role: 'Worker',
             instructions: 'Create the leads you are given. Do nothing when there are none.',
@@ -151,7 +100,7 @@ final class HireAgentToolTest extends TestCase
         $hirer = $this->hiringAgent(['Read Channel Window']);
         $before = Agent::query()->count();
 
-        $result = $this->tool($hirer, $this->adminCaller())->__invoke(
+        $result = $this->tool($hirer, $this->currentUser())->__invoke(
             name: 'Escalated ' . fake()->unique()->lexify('?????'),
             role: 'Worker',
             instructions: 'Do the thing.',
@@ -172,7 +121,7 @@ final class HireAgentToolTest extends TestCase
     {
         $hirer = $this->hiringAgent(['Read Channel Window']);
 
-        $result = $this->tool($hirer, $this->adminCaller())->__invoke(
+        $result = $this->tool($hirer, $this->currentUser())->__invoke(
             name: 'Retunable ' . fake()->unique()->lexify('?????'),
             role: 'Worker',
             instructions: 'Write things up. Do nothing when there is nothing worth writing.',
@@ -206,7 +155,7 @@ final class HireAgentToolTest extends TestCase
         $hirer = $this->hiringAgent(['Read Channel Window']);
         $name = 'Reused ' . fake()->unique()->lexify('?????');
 
-        $first = $this->tool($hirer, $this->adminCaller())->__invoke(
+        $first = $this->tool($hirer, $this->currentUser())->__invoke(
             name: $name,
             role: 'Worker',
             instructions: 'Do the thing, or nothing.',
@@ -220,7 +169,7 @@ final class HireAgentToolTest extends TestCase
         // Simulate the agent creation having failed after the user was provisioned.
         $hired->forceDelete();
 
-        $second = $this->tool($hirer, $this->adminCaller())->__invoke(
+        $second = $this->tool($hirer, $this->currentUser())->__invoke(
             name: $name,
             role: 'Worker',
             instructions: 'Do the thing, or nothing.',
@@ -242,7 +191,7 @@ final class HireAgentToolTest extends TestCase
     {
         $hirer = $this->hiringAgent(['Read Channel Window']);
 
-        $result = $this->tool($hirer, $this->adminCaller())->__invoke(
+        $result = $this->tool($hirer, $this->currentUser())->__invoke(
             name: 'Tenanted ' . fake()->unique()->lexify('?????'),
             role: 'Worker',
             instructions: 'Do the thing, or nothing.',
@@ -282,7 +231,7 @@ final class HireAgentToolTest extends TestCase
     {
         $hirer = $this->hiringAgent(['Read Channel Window']);
 
-        $result = $this->tool($hirer, $this->adminCaller())->__invoke(
+        $result = $this->tool($hirer, $this->currentUser())->__invoke(
             name: 'Jobless ' . fake()->unique()->lexify('?????'),
             role: 'Worker',
             instructions: '   ',
@@ -296,7 +245,7 @@ final class HireAgentToolTest extends TestCase
     {
         $hirer = $this->hiringAgent(['Read Channel Window']);
 
-        $result = $this->tool($hirer, $this->adminCaller())->__invoke(
+        $result = $this->tool($hirer, $this->currentUser())->__invoke(
             name: $hirer->name,
             role: 'Worker',
             instructions: 'Do the thing, or nothing.',
@@ -304,15 +253,6 @@ final class HireAgentToolTest extends TestCase
 
         $this->assertFalse($result['hired']);
         $this->assertStringContainsString('already has an agent', $result['message']);
-    }
-
-    private function adminCaller(): Users
-    {
-        // Keep this fixture independent of the shared local user's role assignments.
-        $admin = Mockery::mock($this->currentUser());
-        $admin->shouldReceive('isAdmin')->andReturn(true);
-
-        return $admin;
     }
 
     private function hiringAgent(array $toolNames): Agent

@@ -21,6 +21,7 @@ class ManageCompanySettingToolTest extends TestCase
         $company->shouldReceive('getId')->andReturn(12);
         $actor = Mockery::mock(Users::class);
         $actor->shouldReceive('isAdmin')->andReturn($admin);
+
         return new ManageCompanySettingTool()
             ->withContext(Mockery::mock(Apps::class), $company, Mockery::mock(Users::class))
             ->forRequestingUser($actor);
@@ -89,7 +90,7 @@ class ManageCompanySettingToolTest extends TestCase
 
     public function testReferenceValidationRejectsAnUnresolvedAgent(): void
     {
-        $tool = new class extends ManageCompanySettingTool {
+        $tool = new class () extends ManageCompanySettingTool {
             protected function localAgentReferenceExists(string $type, int $value): bool
             {
                 return false;

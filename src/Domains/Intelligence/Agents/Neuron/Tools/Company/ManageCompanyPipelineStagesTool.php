@@ -51,6 +51,7 @@ class ManageCompanyPipelineStagesTool extends CompanyResourceTool
             }
             $record->delete();
             new StageCounterAction($pipeline->fresh())->execute();
+
             return ['success' => true, 'deleted_id' => $id];
         }
         $this->assertUniqueName($pipeline->stages()->getQuery(), $data, $id);
@@ -62,12 +63,14 @@ class ManageCompanyPipelineStagesTool extends CompanyResourceTool
         }
         // The domain DTO does not yet expose config/has_rotting_days. Preserve explicit zero weight too.
         $record->fill(array_intersect_key($data, array_flip(['config', 'has_rotting_days', 'weight'])))->saveOrFail();
+
         return ['success' => true, 'record' => $this->present($record->fresh())];
     }
 
     protected function copy(array $snapshot, array $overrides): array
     {
         Validator::make($overrides, ['pipelines_id' => 'required|integer|min:1'])->validate();
+
         return parent::copy($snapshot, $overrides);
     }
 }

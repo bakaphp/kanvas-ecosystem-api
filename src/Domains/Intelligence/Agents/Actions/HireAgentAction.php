@@ -33,8 +33,6 @@ use Throwable;
  * wake guard compares a record's `users_id` against the agent's — point a new agent at the user that
  * owns the WhatsApp receiver and it skips every inbound message rather than just its own output,
  * silently, with no error anywhere.
- *
- * Creates a teammate by default, or an explicitly requested callable sub-agent of the hirer.
  */
 class HireAgentAction
 {
@@ -73,10 +71,7 @@ class HireAgentAction
         }
 
         $parent = $this->parentAgent ?? $this->hiredByAgent;
-        if ($this->isSubAgent && ($parent === null
-            || (int) $parent->apps_id !== (int) $this->app->getId()
-            || (int) $parent->companies_id !== (int) $this->company->getId()
-            || (bool) $parent->is_deleted)) {
+        if ($this->isSubAgent && ! $this->isLiveTenantAgent($parent)) {
             throw new ValidationException('A sub-agent requires a parent in the same app and company.');
         }
 
@@ -119,6 +114,14 @@ class HireAgentAction
             createdBy: $this->hiredBy,
             isSubAgent: $this->isSubAgent,
         ))->execute();
+    }
+
+    private function isLiveTenantAgent(?Agent $agent): bool
+    {
+        return $agent !== null
+            && (int) $agent->apps_id === (int) $this->app->getId()
+            && (int) $agent->companies_id === (int) $this->company->getId()
+            && ! (bool) $agent->is_deleted;
     }
 
     /**

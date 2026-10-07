@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Workflow;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesWorkflowCatalogForTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsInExplicitCompany;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 use NeuronAI\Tools\PropertyType;
@@ -28,9 +26,7 @@ use Override;
 #[AgentTool(name: 'List Company Workflows', category: 'workflow')]
 class ListCompanyWorkflowsTool extends Tool
 {
-    use GuardsAdminForTool;
     use ResolvesWorkflowCatalogForTool;
-    use RunsInExplicitCompany;
     use TrackByInputs;
 
     protected string $name = 'list_company_workflows';
@@ -48,12 +44,6 @@ class ListCompanyWorkflowsTool extends Tool
     {
         return [
             new ToolProperty(
-                name: 'company_uuid',
-                type: PropertyType::STRING,
-                description: 'Company for this call only. Selecting a company requires the app-scoped Company Configuration Administrator and an identified app administrator. Omit to use the current company.',
-                required: false,
-            ),
-            new ToolProperty(
                 name: 'search',
                 type: PropertyType::STRING,
                 description: 'Optional term to filter by workflow name, e.g. "wordpress", "lead".',
@@ -65,11 +55,8 @@ class ListCompanyWorkflowsTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(?string $search = null, ?string $company_uuid = null): array {
-        if ($company_uuid !== null) {
-            return $this->inExplicitCompany($company_uuid, $this->contextAgent(), fn (self $tool): array => $tool($search));
-        }
-
+    public function __invoke(?string $search = null): array
+    {
         if (! $this->hasTenantContext()) {
             return [
                 'status' => 'error',

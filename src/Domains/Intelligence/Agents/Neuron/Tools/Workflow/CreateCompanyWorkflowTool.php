@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\AssemblesWorkflowRuleForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesWorkflowCatalogForTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsInExplicitCompany;
 use Kanvas\NervousSystem\Capability\Enums\AgentAbilityEnum;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Rules\Actions\CreateRuleAction;
@@ -43,15 +42,14 @@ class CreateCompanyWorkflowTool extends Tool
     use AssemblesWorkflowRuleForTool;
     use GuardsAdminForTool;
     use ResolvesWorkflowCatalogForTool;
-    use RunsInExplicitCompany;
     use TrackByInputs;
 
     protected string $name = 'create_company_workflow';
 
     protected ?string $description = 'Creates an automation workflow for THIS company: when <trigger> happens on <entity>, '
         . 'run <actions> — optionally only when conditions match. Admin only: the person you are talking to '
-        . 'must be a company administrator. The workflow belongs to the current or explicitly authorized company; you cannot '
-        . 'create a global/platform-wide workflow. Call list_workflow_options first to '
+        . 'must be a company administrator. The workflow always belongs to the current company; you cannot '
+        . 'create a global/platform-wide workflow for other companies. Call list_workflow_options first to '
         . 'get the valid trigger, entity and action names — never invent them.';
 
     /**
@@ -61,12 +59,6 @@ class CreateCompanyWorkflowTool extends Tool
     protected function properties(): array
     {
         return [
-            new ToolProperty(
-                name: 'company_uuid',
-                type: PropertyType::STRING,
-                description: 'Company for this call only. Selecting a company requires the app-scoped Company Configuration Administrator and an identified app administrator. Omit to use the current company.',
-                required: false,
-            ),
             new ToolProperty(
                 name: 'name',
                 type: PropertyType::STRING,
@@ -141,12 +133,7 @@ class CreateCompanyWorkflowTool extends Tool
         ?string $conditions = null,
         ?string $description = null,
         ?bool $run_in_background = null,
-        ?string $company_uuid = null,
     ): array {
-        if ($company_uuid !== null) {
-            return $this->inExplicitCompany($company_uuid, $this->contextAgent(), fn (self $tool): array => $tool($name, $entity, $trigger, $actions, $params, $conditions, $description, $run_in_background));
-        }
-
         if ($denied = $this->requireRequestingAdminOrError()) {
             return $denied;
         }

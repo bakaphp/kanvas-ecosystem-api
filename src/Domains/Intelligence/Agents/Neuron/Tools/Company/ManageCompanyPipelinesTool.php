@@ -47,6 +47,7 @@ class ManageCompanyPipelinesTool extends CompanyResourceTool
                 || $record->stages->contains(fn ($stage) => $stage->followUpDays()->exists())) {
                 throw new InvalidArgumentException('Cannot delete a default pipeline or one referenced by leads or follow-ups.');
             }
+
             return ['success' => (bool) $record->softDelete(), 'deleted_id' => $id];
         }
         $this->assertUniqueName($this->resourceQuery(), $data, $operation === 'update' ? $id : null);
@@ -72,6 +73,7 @@ class ManageCompanyPipelinesTool extends CompanyResourceTool
         if ($record->is_default) {
             $this->resourceQuery()->where('id', '!=', $record->getId())->update(['is_default' => false]);
         }
+
         return ['success' => true, 'record' => $this->present($record->fresh())];
     }
 
@@ -90,6 +92,7 @@ class ManageCompanyPipelinesTool extends CompanyResourceTool
             $copy = $pipeline->stages()->create($stage);
             $map[$sourceId] = $copy->getId();
         }
+
         return [...$result, 'record' => $this->present($pipeline->fresh()), 'stage_id_map' => $map];
     }
 }

@@ -9,20 +9,20 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
-use Kanvas\Templates\Models\Templates;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\CompanyConfigurationAgent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Company\CompanyResourceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Company\CopyCompanyReceiverTool;
-use Kanvas\Workflow\Models\ReceiverWebhook;
-use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Company\ManageCompanyEmailTemplatesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Company\ManageCompanyLeadTypesTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Company\ManageCompanyPipelinesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Company\ManageCompanyPipelineStagesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Company\ManageCompanyPipelinesTool;
+use Kanvas\Templates\Models\Templates;
 use Kanvas\Users\Models\UserCompanyApps;
+use Kanvas\Workflow\Models\ReceiverWebhook;
+use Kanvas\Workflow\Rules\Models\Action;
 use Mockery;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
@@ -39,6 +39,7 @@ class CompanyResourceToolsTest extends TestCase
         UserCompanyApps::query()->firstOrCreate([
             'companies_id' => $company->getId(), 'apps_id' => app(Apps::class)->getId(),
         ], ['is_deleted' => 0, 'created_at' => now()]);
+
         return $company;
     }
 
@@ -52,12 +53,19 @@ class CompanyResourceToolsTest extends TestCase
         $caller->shouldReceive('isAdmin')->andReturn($admin);
         $agent = new Agent(['apps_id' => app(Apps::class)->getId(), 'companies_id' => 0, 'user_id' => auth()->id() + 100000]);
         $agent->setRelation('type', new AgentType(['handler' => $globalType ? CompanyConfigurationAgent::class : SystemUserAgent::class]));
-        return $tool->withContext(app(Apps::class), $company, auth()->user(), $agent)->forRequestingUser($caller);
+
+        return $tool->withContext(
+            app(Apps::class),
+            $company,
+            auth()->user(),
+            $agent,
+        )->forRequestingUser($caller);
     }
 
     private function record(array $result): array
     {
         $this->assertTrue($result['success'], json_encode($result));
+
         return $result['record'];
     }
 
@@ -146,6 +154,7 @@ class CompanyResourceToolsTest extends TestCase
             $this->assertFalse(new $class()($company->uuid, 'list')['success']);
         }
     }
+
     public function testListsEveryPageAndSharedTemplatesAreReadOnly(): void
     {
         $company = $this->tenant();
@@ -241,5 +250,4 @@ class CompanyResourceToolsTest extends TestCase
         $this->assertSame([], $copy['configuration']);
         $this->assertFalse($tool($dest->uuid, 'delete', $copy['id'])['success']);
     }
-
 }

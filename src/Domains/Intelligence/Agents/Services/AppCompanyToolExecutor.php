@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
+use Baka\Support\Str;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -40,21 +40,15 @@ class AppCompanyToolExecutor
             throw new AuthorizationException('Only the Company Configuration Administrator type at app scope can select a company, with an identified human caller.');
         }
 
-        $previousScope = Bouncer::scope()->get();
-        try {
+        // The operation runs inside the app scope on purpose: the inner tool performs its own admin guard.
+        return $this->withinAppScope($app, function () use ($app, $requestingUser, $companyUuid, $operation): array {
             // A company administrator is not automatically an administrator of the whole app.
-            Bouncer::scope()->to(RolesEnums::getScope($app, global: true));
             if (! $requestingUser->isAdmin()) {
                 throw new AuthorizationException('Only an administrator of this app can operate on another company.');
             }
 
-            $company = $this->resolveCompany($app, trim($companyUuid));
-
-            // Keep the same app-level ACL scope while the inner tool performs its own admin guard.
-            return $operation($company);
-        } finally {
-            Bouncer::scope()->to($previousScope);
-        }
+            return $operation($this->resolveCompany($app, trim($companyUuid)));
+        });
     }
 
     public function canAdministerApp(Apps $app, ?Users $user): bool
@@ -63,11 +57,21 @@ class AppCompanyToolExecutor
             return false;
         }
 
+        return $this->withinAppScope($app, fn (): bool => $user->isAdmin());
+    }
+
+    /**
+     * Bouncer filters every role query by the process-current scope, which in a long-lived worker
+     * belongs to whatever ran before; pin the app's global scope and always restore the previous one.
+     */
+    private function withinAppScope(Apps $app, Closure $operation): mixed
+    {
         $previousScope = Bouncer::scope()->get();
+
         try {
             Bouncer::scope()->to(RolesEnums::getScope($app, global: true));
 
-            return $user->isAdmin();
+            return $operation();
         } finally {
             Bouncer::scope()->to($previousScope);
         }
@@ -81,12 +85,12 @@ class AppCompanyToolExecutor
 
         $company = Companies::query()
             ->where('uuid', $uuid)
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->where('id', '>', 0)
             ->whereIn('id', UserCompanyApps::query()
                 ->select('companies_id')
-                ->where('apps_id', $app->getId())
-                ->where('is_deleted', 0))
+                ->fromApp($app)
+                ->notDeleted())
             ->first();
 
         if ($company === null) {

@@ -43,12 +43,7 @@ class GetAgentConfigurationTool extends Tool
                 description: 'Agent ID in the selected company.',
                 required: true,
             ),
-            new ToolProperty(
-                name: 'company_uuid',
-                type: PropertyType::STRING,
-                description: 'Optional source company UUID. Only the Company Configuration Administrator may select it.',
-                required: false,
-            ),
+            $this->companyUuidProperty(),
         ];
     }
 
@@ -63,6 +58,7 @@ class GetAgentConfigurationTool extends Tool
         if ($denied = $this->requireRequestingAdminOrError()) {
             return $this->denied($denied['message']);
         }
+
         try {
             $agent = Agent::query()->fromApp($this->app)->fromCompany($this->company)->notDeleted()
                 ->with(['type', 'selectedTools'])->whereKey($agent_id)->first();

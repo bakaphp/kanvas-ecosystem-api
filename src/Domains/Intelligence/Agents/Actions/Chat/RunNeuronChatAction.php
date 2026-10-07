@@ -319,7 +319,6 @@ class RunNeuronChatAction
         if ($this->agent->conversesWithCustomer()) {
             return 'What do you mean?';
         }
-        Log::error($e->getMessage(), [$e]);
 
         if ($this->isDuplicateEntryError($e)) {
             return "It looks like that already exists — I didn't create a duplicate. Let me know if you'd "
