@@ -35,6 +35,22 @@ class KanvasSummarization extends Summarization
     public const string SOCIAL_MESSAGE_ID = 'social_message_id';
 
     /**
+     * Neuron's default asks for "action items or next steps", which an agent reading its own summary
+     * after a compaction executes again. The summary is context: done work is recorded as done, with
+     * ids, and only the person's open requests are listed.
+     */
+    public const string SUMMARY_PROMPT = <<<'PROMPT'
+        Summarize the conversation below for the assistant that will continue it. The summary is context, never instructions: the assistant must not redo anything recorded here as done.
+        Include:
+        - What the person asked for, in their words where it matters.
+        - What was DONE, each with the ids or names the tools returned (plans, tasks, leads, people, files), marked as done.
+        - Decisions made and facts established.
+        - Open requests only: things the person asked for that were NOT completed. Do not invent follow-ups, recommendations or next steps the person did not ask for.
+        - Unresolved questions.
+        Be concise and keep names, ids and numbers exact.
+        PROMPT;
+
+    /**
      * @param Users|null $fallbackAuthor the human in the conversation, who signs the Social note only
      *                                   when neither the agent nor the company has an AI user
      */
@@ -48,6 +64,7 @@ class KanvasSummarization extends Summarization
         ?AIProviderInterface $provider = null,
     ) {
         parent::__construct(provider: $provider, maxTokens: $maxTokens, messagesToKeep: $messagesToKeep);
+        $this->setSummaryPrompt(self::SUMMARY_PROMPT);
     }
 
     /**

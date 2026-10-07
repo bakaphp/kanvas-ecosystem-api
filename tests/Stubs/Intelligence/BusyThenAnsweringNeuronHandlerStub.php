@@ -18,8 +18,11 @@ class BusyThenAnsweringNeuronHandlerStub
 {
     public int $calls = 0;
 
-    public function __construct(private readonly int $busyCalls, private readonly string $reply = 'answered')
-    {
+    public function __construct(
+        private readonly int $busyCalls,
+        private readonly string $reply = 'answered',
+        private readonly ?int $leaseExpiresAt = null,
+    ) {
     }
 
     public function chat(mixed $messages = []): AgentState
@@ -32,7 +35,7 @@ class BusyThenAnsweringNeuronHandlerStub
                 runId: 'run-1',
                 status: WorkflowStatus::Running,
                 executionAttempt: 1,
-                leaseExpiresAt: time() + 600,
+                leaseExpiresAt: $this->leaseExpiresAt ?? time() + 600,
             );
         }
 

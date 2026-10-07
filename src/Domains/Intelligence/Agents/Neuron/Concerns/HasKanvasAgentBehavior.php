@@ -64,6 +64,13 @@ trait HasKanvasAgentBehavior
     private const int TOOL_SEARCH_MIN_POOL = 6;
 
     /**
+     * Catalog grants stay in the prompt up to this many: each is a few hundred tokens and an agent
+     * reaches for them on ordinary turns, so pooling them adds a search round to most turns for
+     * little saving. MCP toolkits are the token hog and are always pooled.
+     */
+    private const int CATALOG_ALWAYS_ON_LIMIT = 25;
+
+    /**
      * Tools that stay on every round whatever the switch says: the identity set the prompt already
      * refers to by name, and the search tool itself.
      */
@@ -440,10 +447,10 @@ trait HasKanvasAgentBehavior
     }
 
     /**
-     * The granted catalog tools and MCP toolkits move out of the prompt into a pool the model searches
-     * (Neuron's ToolSearchMiddleware); the identity set and a handler's hardcoded tools stay. One MCP
-     * toolkit alone was 29K tokens on every round, three quarters of the prompt, for an agent that
-     * never called it.
+     * MCP toolkits move out of the prompt into a pool the model searches (Neuron's
+     * ToolSearchMiddleware); the identity set, a handler's hardcoded tools and a reasonable number of
+     * catalog grants stay. One MCP toolkit alone was 29K tokens on every round, three quarters of the
+     * prompt, for an agent that never called it.
      *
      * @param list<ToolInterface|ProviderToolInterface> $tools
      * @return array{0: list<ToolInterface|ProviderToolInterface>, 1: list<ToolInterface>}
@@ -494,7 +501,10 @@ trait HasKanvasAgentBehavior
      */
     protected function searchableToolNames(): array
     {
-        return property_exists($this, 'registryToolNames') ? $this->registryToolNames : [];
+        $mcp = property_exists($this, 'mcpToolNames') ? $this->mcpToolNames : [];
+        $catalog = property_exists($this, 'catalogToolNames') ? $this->catalogToolNames : [];
+
+        return count($catalog) > self::CATALOG_ALWAYS_ON_LIMIT ? [...$mcp, ...$catalog] : $mcp;
     }
 
     /**
@@ -662,6 +672,13 @@ trait HasKanvasAgentBehavior
             'When you lack a capability, say plainly which Kanvas tool or permission you are missing '
             . 'and ask an administrator to grant it or run it for you. That is a request someone can '
             . 'act on; "reassign to an engineer" is not.',
+            'WHEN SEVERAL READS ARE INDEPENDENT, REQUEST THEM IN ONE STEP: five plan reads is one tool-call '
+            . 'batch, not five rounds. Call the tool whose result answers the question; do not look up the '
+            . 'time, the person, your capabilities or the project list first unless the answer depends on it.',
+            'ONLY WRITE WHAT YOU WERE ASKED TO. A question is answered, not turned into a plan, a task '
+            . 'or a note; a greeting gets a greeting. Never create, assign, comment on or annotate a '
+            . 'record the person did not ask for, and when you cannot do what was asked, say so instead '
+            . 'of recording the request somewhere else.',
             'NEVER REPORT AN ACTION AS DONE UNLESS THE TOOL SAID IT WAS. A tool result carrying '
             . '"success": false, an "error", or an outcome of denied/not_found/invalid_args means it did '
             . 'NOT happen. Say what was blocked and why, in the same words the tool gave you. Reporting a '

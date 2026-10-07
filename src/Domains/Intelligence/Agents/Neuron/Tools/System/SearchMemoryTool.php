@@ -18,6 +18,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
+use stdClass;
 use Throwable;
 
 /**
@@ -30,6 +31,13 @@ class SearchMemoryTool extends Tool
 {
     use TrackByInputs;
 
+    /**
+     * Memory answers the same topic the same way however the words change, so a turn that keeps
+     * searching is a turn with no tool for what it was asked. The automatic recall already hands the
+     * model four hits before the turn starts; a real memory question needs one search and one rephrase.
+     */
+    public const int MAX_SEARCHES_PER_TURN = 2;
+
     private const int DEFAULT_LIMIT = 10;
 
     private const int MAX_LIMIT = 25;
@@ -39,8 +47,13 @@ class SearchMemoryTool extends Tool
     protected ?string $description = 'Search your long-term memory: earlier conversations, saved memories and recorded '
         . 'outcomes for this company. Use it when someone refers to something discussed or decided '
         . 'before that is not in the context you were given, or asks about a period ("last month", "in '
-        . 'September"). Write the query as the topic itself ("Acme invoicing terms"), not the question, '
-        . 'and narrow with since/until for a period. Each hit says when it happened.';
+        . 'September"). Never use it to look up current records: projects, plans, tasks, leads, people and '
+        . 'orders have their own tools and memory only holds old chats about them. Write the query as the '
+        . 'topic itself ("Acme invoicing terms"), not the question, and narrow with since/until for a period. '
+        . 'Each hit says when it happened.';
+
+    /** Shared by the per-call clones NeuronAI hands out, so it counts the turn and not one call. */
+    private readonly stdClass $turn;
 
     public function __construct(
         private readonly VectorStoreInterface $store,
@@ -49,6 +62,8 @@ class SearchMemoryTool extends Tool
         private readonly int $companyId,
         private readonly ?FilterExpression $recallScope,
     ) {
+        $this->turn = new stdClass();
+        $this->turn->searches = 0;
     }
 
     #[Override]
@@ -95,6 +110,13 @@ class SearchMemoryTool extends Tool
 
         if ($query === '') {
             return self::miss('Give the query as a topic to search for.');
+        }
+
+        if (++$this->turn->searches > self::MAX_SEARCHES_PER_TURN) {
+            return self::miss(sprintf(
+                'You have already searched memory %d times this turn; what came back is all it holds on this. Answer from it now, or read the record itself with another tool. Do not search memory again.',
+                self::MAX_SEARCHES_PER_TURN,
+            ));
         }
 
         $filters = [CompanyMemoryRetrieval::scopeFor($this->appId, $this->companyId, $this->recallScope)];

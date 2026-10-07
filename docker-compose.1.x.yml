@@ -306,8 +306,9 @@ services:
         --tries=3 --timeout=300"
   agent-chat-queue:
     <<: *common-queue-settings
+    stop_grace_period: 300s
     deploy:
-      replicas: 3
+      replicas: 5
     command:
       - "sh"
       - "-c"
@@ -339,6 +340,7 @@ services:
         --queue=slack-ingest --tries=3 --timeout=3750"
   nervous-system-project-queue:
     <<: *common-queue-settings
+    stop_grace_period: 300s
     container_name: nervous-system-project-queue
     command:
       - "sh"
