@@ -194,6 +194,25 @@ class LaravelOrderReportToolsTest extends TestCase
         );
     }
 
+    public function test_order_trend_paid_anchor_counts_only_paid_orders(): void
+    {
+        [$app, $company] = $this->seedOrders();
+
+        $result = $this->invokeTool(
+            new OrderTrendTool()->withContext($app, $company),
+            [
+                'group_by' => 'month',
+                'order_types' => ['movipass', 'paso_rapido'],
+                'date_anchor' => 'paid',
+                'timezone' => 'America/Santo_Domingo',
+            ]
+        );
+
+        $this->assertSame('paid', $result['date_anchor']);
+        $this->assertSame('America/Santo_Domingo', $result['timezone']);
+        $this->assertSame(2, (int) $result['total_orders']);
+    }
+
     public function test_order_fulfillment_stats_reports_the_paid_backlog(): void
     {
         [$app, $company] = $this->seedOrders();

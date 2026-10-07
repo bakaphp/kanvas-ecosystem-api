@@ -133,17 +133,29 @@ class OrderReportService
         ?string $since,
         ?string $until,
         ?string $groupBy,
-        bool $paidOnly
+        bool $paidOnly,
+        ?string $dateAnchor = null,
+        ?string $timezone = null
     ): array {
         $interval = in_array(strtolower($groupBy ?? 'month'), ['day', 'week', 'month'], true)
             ? strtolower($groupBy ?? 'month')
             : 'month';
+        $anchor = strtolower(trim($dateAnchor ?? 'created')) === 'paid' ? 'paid' : 'created';
+        $column = $anchor === 'paid' ? 'paid_at' : 'created_at';
+        $timezone = $this->validTimezone($timezone);
         $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
 
-        $rows = $this->baseQuery($typeIds, $since, $until)
+        $rows = $this->baseQuery(
+            $typeIds,
+            $since,
+            $until,
+            $column,
+            $timezone
+        )
+            ->when($anchor === 'paid', fn ($q) => $q->whereNotNull('orders.paid_at'))
             ->when($paidOnly, fn ($q) => $q->where('orders.payment_status', PaymentStatusEnum::PAID->value))
             ->selectRaw(
-                $this->periodExpression($interval) . ' as period, '
+                $this->periodExpression($interval, $this->localizedColumn($column, $timezone)) . ' as period, '
                 . 'COUNT(*) as orders, '
                 . 'COALESCE(SUM(total_gross_amount), 0) as gross_revenue, '
                 . 'COALESCE(SUM(total_net_amount), 0) as net_revenue'
@@ -165,6 +177,8 @@ class OrderReportService
 
         return [
             'group_by' => $interval,
+            'date_anchor' => $anchor,
+            'timezone' => $timezone,
             'paid_only' => $paidOnly,
             'periods' => $periods,
             'total_orders' => $totalOrders,
@@ -174,6 +188,7 @@ class OrderReportService
             'average_net_revenue_per_period' => $periods > 0 ? round((float) $totalNet / $periods, 2) : 0.0,
             'peak_period' => $byOrders->first(),
             'lowest_period' => $byOrders->last(),
+            'peak_gross_revenue_period' => collect($rows)->sortByDesc('gross_revenue')->first(),
             'series' => $rows,
         ];
     }
@@ -292,15 +307,57 @@ class OrderReportService
     /**
      * @param int[]|null $typeIds
      */
-    private function baseQuery(?array $typeIds, ?string $since, ?string $until): Builder
-    {
+    private function baseQuery(
+        ?array $typeIds,
+        ?string $since,
+        ?string $until,
+        string $column = 'created_at',
+        string $timezone = 'UTC'
+    ): Builder {
         return Order::query()
             ->where('orders.apps_id', $this->app->getId())
             ->where('orders.companies_id', $this->company->getId())
             ->where('orders.is_deleted', false)
             ->when($typeIds !== null, fn ($q) => $q->whereIn('orders.order_types_id', $typeIds))
-            ->when($since !== null && $since !== '', fn ($q) => $q->whereDate('orders.created_at', '>=', $since))
-            ->when($until !== null && $until !== '', fn ($q) => $q->whereDate('orders.created_at', '<=', $until));
+            ->when(
+                $since !== null && $since !== '',
+                fn ($q) => $q->where('orders.' . $column, '>=', Carbon::parse($since, $timezone)->startOfDay()->utc())
+            )
+            ->when(
+                $until !== null && $until !== '',
+                fn ($q) => $q->where('orders.' . $column, '<=', Carbon::parse($until, $timezone)->endOfDay()->utc())
+            );
+    }
+
+    private function validTimezone(?string $timezone): string
+    {
+        $timezone = trim((string) $timezone);
+
+        if ($timezone === '') {
+            return 'UTC';
+        }
+
+        if (! in_array($timezone, DateTimeZone::listIdentifiers(), true)) {
+            throw new InvalidArgumentException('Unknown timezone "' . $timezone . '". Use an IANA name such as America/Santo_Domingo.');
+        }
+
+        return $timezone;
+    }
+
+    private function localizedColumn(string $column, string $timezone): string
+    {
+        return $timezone === 'UTC'
+            ? 'orders.' . $column
+            : "CONVERT_TZ(orders.{$column}, 'UTC', '{$timezone}')";
+    }
+
+    private function firstOrderDate(string $timezone): string
+    {
+        $first = $this->baseQuery(null, null, null)->min('orders.created_at');
+
+        return $first !== null
+            ? Carbon::parse($first)->timezone($timezone)->toDateString()
+            : Carbon::now($timezone)->toDateString();
     }
 
     private function validTimezone(?string $timezone): string
@@ -379,12 +436,12 @@ class OrderReportService
      * Week buckets start on Monday so a "last 8 weeks" series lines up with how operations reads a
      * calendar week, not with MySQL's Sunday-based WEEK().
      */
-    private function periodExpression(string $interval): string
+    private function periodExpression(string $interval, string $column): string
     {
         return match ($interval) {
-            'day' => 'DATE(orders.created_at)',
-            'week' => 'DATE(DATE_SUB(orders.created_at, INTERVAL WEEKDAY(orders.created_at) DAY))',
-            default => "DATE_FORMAT(orders.created_at, '%Y-%m-01')",
+            'day' => "DATE({$column})",
+            'week' => "DATE(DATE_SUB({$column}, INTERVAL WEEKDAY({$column}) DAY))",
+            default => "DATE_FORMAT({$column}, '%Y-%m-01')",
         };
     }
 
