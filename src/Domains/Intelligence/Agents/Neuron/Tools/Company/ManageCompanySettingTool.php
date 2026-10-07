@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Company;
 
-use Baka\Support\Str;
 use JsonException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -113,7 +112,7 @@ class ManageCompanySettingTool extends Tool
             return $this->invalidArgs('Use get or set with a nonempty key of at most 255 bytes and no control characters. Nothing was changed.');
         }
 
-        $type = self::SETTINGS[$key] ?? (Str::isCredentialKey($key) ? 'credential' : 'json');
+        $type = self::SETTINGS[$key] ?? ($this->isCredentialKey($key) ? 'credential' : 'json');
         if ($operation === 'set' && $type === 'credential') {
             return $this->denied('Configure credentials through secure administrator setup, never through chat. Nothing was changed.');
         }
@@ -183,6 +182,11 @@ class ManageCompanySettingTool extends Tool
     {
         return Agent::query()->fromApp($this->app)->fromCompany($this->company)->notDeleted()
             ->where($type === 'agent' ? 'id' : 'user_id', $value)->exists();
+    }
+
+    private function isCredentialKey(string $key): bool
+    {
+        return preg_match('/secret|token|password|passwd|credential|private.?key|api.?key|client.?key|access.?key|authorization/i', $key) === 1;
     }
 
     private function isPhone(mixed $value): bool

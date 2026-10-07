@@ -197,16 +197,6 @@ class Str extends IlluminateStr
     }
 
     /**
-     * Whether a setting or configuration key names a credential, by its name alone. Agent tools use
-     * this to refuse writes and redact reads of anything that looks like a secret, so it errs on the
-     * side of matching (`token` also catches `tokens_per_minute`).
-     */
-    public static function isCredentialKey(string $key): bool
-    {
-        return preg_match('/secret|token|password|passwd|credential|private.?key|api.?key|client.?key|access.?key|authorization/i', $key) === 1;
-    }
-
-    /**
      * The filename a URL or path ends in, with any query string dropped.
      *
      * For naming a file in text a person or a model will read: a storage URL can carry a signature,

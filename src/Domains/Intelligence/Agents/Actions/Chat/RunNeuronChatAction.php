@@ -157,7 +157,10 @@ class RunNeuronChatAction
             // chat() runs the whole turn, so a provider error (e.g. Gemini blocking the content)
             // surfaces here, inside the try, and never bubbles as a 500. A redelivered turn whose first
             // attempt died with its worker is continued, not restarted, so no write runs twice.
-            $state = $this->chatOnceTheThreadSettles($userMessage);
+            $state = $this->handler instanceof BehavesAsKanvasAgent
+                ? $this->handler->recoverInterruptedRun($userMessage)
+                : null;
+            $state ??= $this->chatOnceTheThreadSettles($userMessage);
             $responseMessage = $state->getMessage() ?? new AssistantMessage('');
             [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
             $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
@@ -283,11 +286,7 @@ class RunNeuronChatAction
 
         while (true) {
             try {
-                $recovered = $this->handler instanceof BehavesAsKanvasAgent
-                    ? $this->handler->recoverInterruptedRun($userMessage)
-                    : null;
-
-                return $recovered ?? $this->handler->chat($userMessage);
+                return $this->handler->chat($userMessage);
             } catch (RunInFlightException $e) {
                 if ($waited >= self::THREAD_BUSY_WAIT_SECONDS) {
                     throw $e;

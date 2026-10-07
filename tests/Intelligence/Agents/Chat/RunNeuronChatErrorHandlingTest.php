@@ -16,20 +16,14 @@ use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
-use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\ReceptionistAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Mockery;
-use NeuronAI\Agent\AgentState;
-use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Exceptions\RunInFlightException;
-use NeuronAI\Providers\ProviderResponse;
-use NeuronAI\Workflow\WorkflowStatus;
 use Override;
 use PDOException;
 use RuntimeException;
 use Tests\Stubs\Intelligence\BusyThenAnsweringNeuronHandlerStub;
-use Tests\Stubs\Intelligence\FakeNeuronProvider;
 use Tests\Stubs\Intelligence\ThrowingNeuronHandlerStub;
 use Tests\TestCase;
 use Throwable;
@@ -188,31 +182,6 @@ class RunNeuronChatErrorHandlingTest extends TestCase
         $this->assertSame('answered after the lease', $action->execute());
         $this->assertSame(3, $handler->calls);
         $this->assertSame([5, 5], $action->pauses, 'One poll per refusal, none after the answer');
-    }
-
-    public function testRecoveryWaitsForTheLeaseAndDoesNotStartAnotherTurn(): void
-    {
-        $handler = Mockery::mock(BehavesAsKanvasAgent::class);
-        $handler->shouldReceive('getThreadId')->andReturn('thread-1');
-        $handler->shouldReceive('persistsTurnsToConversationStore')->andReturn(true);
-        $handler->shouldReceive('getProvider')->andReturn(new FakeNeuronProvider());
-        $handler->shouldReceive('setAiProvider')->once();
-        $handler->shouldReceive('recoverInterruptedRun')->once()->andThrow(new RunInFlightException(
-            workflowId: 'thread-1',
-            runId: 'run-1',
-            status: WorkflowStatus::Running,
-            executionAttempt: 1,
-            leaseExpiresAt: time() + 600,
-        ));
-        $handler->shouldReceive('recoverInterruptedRun')->once()->andReturn(
-            new AgentState()->setResponse(new ProviderResponse(
-                message: new AssistantMessage('Recovered'),
-            )),
-        );
-        $handler->shouldNotReceive('chat');
-        $action = $this->actionWithHandler($handler, fallbackOnFailure: false);
-        $this->assertSame('Recovered', $action->execute());
-        $this->assertSame([5], $action->pauses);
     }
 
     public function testAThreadStillBusyPastTheWaitFailsAsBefore(): void

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Company;
 
-use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use InvalidArgumentException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -102,7 +101,7 @@ class CopyCompanyReceiverTool extends CompanyResourceTool
     private function redact(array $configuration): array
     {
         foreach ($configuration as $key => $value) {
-            if (Str::isCredentialKey((string) $key)) {
+            if (preg_match('/secret|token|password|passwd|credential|private.?key|api.?key|client.?key|access.?key|authorization/i', (string) $key)) {
                 $configuration[$key] = '[REDACTED]';
             } elseif (is_array($value)) {
                 $configuration[$key] = $this->redact($value);
