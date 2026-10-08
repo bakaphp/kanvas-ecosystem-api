@@ -200,6 +200,84 @@ final class RenderArtifactToolTest extends TestCase
         $this->assertFalse($fenced['success'], 'A fence in the id would close the block early');
     }
 
+    public function testApprovalsTakesFiltersNotRows(): void
+    {
+        $uuid = '3f2b9c1e-8a4d-4c2e-9b1f-0a1b2c3d4e5f';
+
+        $result = new RenderArtifactTool()(
+            component: 'approvals',
+            props: json_encode([
+                'status' => 'pending',
+                'type' => 'approve_bill',
+                'ids' => [482, '483', $uuid],
+                'limit' => 5,
+            ]),
+            title: 'Bills awaiting approval',
+        );
+        $person = new RenderArtifactTool()(
+            component: 'approvals',
+            props: json_encode(['peopleId' => $uuid]),
+        );
+
+        $this->assertTrue($result['success']);
+        $this->assertStringContainsString(
+            '"component":"approvals","title":"Bills awaiting approval","props":{"status":"pending","type":"approve_bill"',
+            $result['block']
+        );
+        $this->assertTrue($person['success']);
+    }
+
+    public function testApprovalsWithNoFiltersRendersAnObject(): void
+    {
+        $result = new RenderArtifactTool()(component: 'approvals', props: '{}');
+
+        $this->assertTrue($result['success']);
+        // `[]` would be refused by the admin chat: the component's props are an object.
+        $this->assertStringContainsString('"props":{}', $result['block']);
+    }
+
+    public function testApprovalsRefusesIdsThatAreNotIds(): void
+    {
+        $result = new RenderArtifactTool()(
+            component: 'approvals',
+            props: json_encode(['ids' => ['jane', '0', 0], 'peopleId' => 'jane-cooper']),
+        );
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('props.ids[0] must be a numeric id or a uuid', $result['error']);
+        $this->assertStringContainsString('props.ids[1] must be a numeric id or a uuid', $result['error']);
+        $this->assertStringContainsString('props.ids[2] must be a numeric id or a uuid', $result['error']);
+        $this->assertStringContainsString('props.peopleId must be a numeric id or a uuid', $result['error']);
+    }
+
+    public function testApprovalsNamesItsFiltersExactly(): void
+    {
+        $result = new RenderArtifactTool()(
+            component: 'approvals',
+            props: json_encode(['people_id' => 1845, 'status' => 'open']),
+        );
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString(
+            'props.people_id is not a valid prop — allowed: status, type, ids, peopleId, limit',
+            $result['error']
+        );
+        $this->assertStringContainsString('props.status must be one of: pending, approved', $result['error']);
+    }
+
+    public function testApprovalsLimitIsAWholeNumberInRange(): void
+    {
+        $tooMany = new RenderArtifactTool()(component: 'approvals', props: json_encode(['limit' => 50]));
+        $asText = new RenderArtifactTool()(component: 'approvals', props: json_encode(['limit' => '5']));
+        $emptyType = new RenderArtifactTool()(component: 'approvals', props: json_encode(['type' => '  ']));
+
+        $this->assertFalse($tooMany['success']);
+        $this->assertStringContainsString('props.limit must be a whole number from 1 to 25', $tooMany['error']);
+        $this->assertFalse($asText['success']);
+        $this->assertFalse($emptyType['success']);
+        $this->assertStringContainsString('props.type must not be empty', $emptyType['error']);
+    }
+
     /**
      * The client validates the rendered block against its own schema and drops the whole
      * artifact if a label is over 40 characters — "Ver eventos en riesgo (próximas 5 semanas)"
