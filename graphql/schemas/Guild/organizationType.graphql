@@ -64,6 +64,7 @@ extend type Query @guard {
                     "name"
                     "created_at"
                     "updated_at"
+                    "is_default"
                 ]
             )
     ): [OrganizationType!]!

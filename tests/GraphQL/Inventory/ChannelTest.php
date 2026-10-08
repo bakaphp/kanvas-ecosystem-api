@@ -16,9 +16,11 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
+use Tests\Traits\AssertsIsDefaultOrdering;
 
 class ChannelTest extends TestCase
 {
+    use AssertsIsDefaultOrdering;
     use InventoryCases;
 
     /**
@@ -466,6 +468,76 @@ class ChannelTest extends TestCase
             array_map('strval', array_reverse($ids)),
             collect($response->json('data.channels.data'))->pluck('id')->all()
         );
+    }
+
+    public function testChannelsQueryOrdersByIsDefault(): void
+    {
+        [$defaultId, $nonDefaultId] = $this->createDefaultThenNonDefaultChannelIds();
+
+        $query = '
+            query($ids: Mixed!, $order: SortOrder!) {
+                channels(
+                    where: {column: ID, operator: IN, value: $ids}
+                    orderBy: [{column: IS_DEFAULT, order: $order}]
+                ) {
+                    data { id is_default }
+                }
+            }
+        ';
+
+        $this->assertOrdersByIsDefault(
+            $query,
+            'data.channels.data',
+            $defaultId,
+            $nonDefaultId
+        );
+    }
+
+    public function testChannelsQueryFiltersByIsDefault(): void
+    {
+        [$defaultId, $nonDefaultId] = $this->createDefaultThenNonDefaultChannelIds();
+
+        $query = '
+            query($value: Mixed!, $ids: Mixed!) {
+                channels(
+                    where: {AND: [
+                        {column: ID, operator: IN, value: $ids}
+                        {column: IS_DEFAULT, operator: EQ, value: $value}
+                    ]}
+                ) {
+                    data { id is_default }
+                }
+            }
+        ';
+
+        $this->assertFiltersByIsDefault(
+            $query,
+            'data.channels.data',
+            $defaultId,
+            $nonDefaultId
+        );
+    }
+
+    /**
+     * @return array{0: int, 1: int} [default channel id, non-default channel id created after it]
+     */
+    private function createDefaultThenNonDefaultChannelIds(): array
+    {
+        $suffix = Str::uuid()->toString();
+
+        $default = $this->createChannel([
+            'name' => 'Default Sort Channel ' . $suffix,
+            'is_default' => true,
+        ]);
+        $nonDefault = $this->createChannel([
+            'name' => 'Plain Sort Channel ' . $suffix,
+            'is_default' => false,
+        ]);
+
+        return [
+            (int) $this->graphQLData($default, 'createChannel')['id'],
+            (int) $this->graphQLData($nonDefault, 'createChannel')['id'],
+        ];
     }
 
     /**

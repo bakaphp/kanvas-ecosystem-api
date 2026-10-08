@@ -168,7 +168,10 @@ type OrderType {
     title: String
     total_statuses: Int!
     statuses(
-        orderBy: _ @orderBy(columns: ["id", "sequence", "name", "created_at"])
+        orderBy: _
+            @orderBy(
+                columns: ["id", "sequence", "name", "created_at", "is_default"]
+            )
     ): [OrderStatus!]
         @paginate(
             model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
@@ -1000,7 +1003,14 @@ extend type Query @guard {
         search: String @search
         orderBy: _
             @orderBy(
-                columns: ["id", "created_at", "updated_at", "name", "sequence"]
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "sequence"
+                    "is_default"
+                ]
             )
         where: _
             @whereConditions(
@@ -1011,6 +1021,7 @@ extend type Query @guard {
                     "slug"
                     "order_types_id"
                     "sequence"
+                    "is_default"
                 ]
             )
     ): [OrderStatus!]!

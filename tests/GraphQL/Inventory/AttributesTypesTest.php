@@ -4,13 +4,21 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Str;
+use Kanvas\Inventory\Attributes\Models\AttributesTypes;
 use Tests\TestCase;
+use Tests\Traits\AssertsIsDefaultOrdering;
 
 class AttributesTypesTest extends TestCase
 {
+    use AssertsIsDefaultOrdering;
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'inventory'];
+
     /**
      * testCreate.
-     *
      */
     // public function testCreate(): void
     // {
@@ -31,7 +39,6 @@ class AttributesTypesTest extends TestCase
 
     /**
      * testSearch.
-     *
      */
     public function testSearch(): void
     {
@@ -48,8 +55,6 @@ class AttributesTypesTest extends TestCase
 
     /**
      * testUpdate.
-     *
-     * @return void
      */
     // public function testUpdate(): void
     // {
@@ -88,8 +93,6 @@ class AttributesTypesTest extends TestCase
 
     /**
      * testDelete.
-     *
-     * @return void
      */
     // public function testDelete(): void
     // {
@@ -107,7 +110,6 @@ class AttributesTypesTest extends TestCase
 
     //     $this->assertArrayHasKey('name', $response);
 
-
     //     $id = $response['id'];
     //     $this->graphQL('
     //         mutation($id: ID!) {
@@ -116,4 +118,79 @@ class AttributesTypesTest extends TestCase
     //         'data' => ['deleteAttributeType' => true]
     //     ]);
     // }
+
+    public function testAttributesTypesOrdersByIsDefault(): void
+    {
+        [$defaultId, $nonDefaultId] = $this->createDefaultThenNonDefaultTypeIds();
+
+        $query = '
+            query($ids: Mixed!, $order: SortOrder!) {
+                attributesTypes(
+                    where: {column: ID, operator: IN, value: $ids}
+                    orderBy: [{column: IS_DEFAULT, order: $order}]
+                ) {
+                    data { id is_default }
+                }
+            }
+        ';
+
+        $this->assertOrdersByIsDefault(
+            $query,
+            'data.attributesTypes.data',
+            $defaultId,
+            $nonDefaultId
+        );
+    }
+
+    public function testAttributesTypesFiltersByIsDefault(): void
+    {
+        [$defaultId, $nonDefaultId] = $this->createDefaultThenNonDefaultTypeIds();
+
+        $query = '
+            query($value: Mixed!, $ids: Mixed!) {
+                attributesTypes(
+                    where: {AND: [
+                        {column: ID, operator: IN, value: $ids}
+                        {column: IS_DEFAULT, operator: EQ, value: $value}
+                    ]}
+                ) {
+                    data { id is_default }
+                }
+            }
+        ';
+
+        $this->assertFiltersByIsDefault(
+            $query,
+            'data.attributesTypes.data',
+            $defaultId,
+            $nonDefaultId
+        );
+    }
+
+    /**
+     * @return array{0: int, 1: int} [default type id, non-default type id created after it]
+     */
+    private function createDefaultThenNonDefaultTypeIds(): array
+    {
+        $suffix = Str::uuid()->toString();
+
+        $default = $this->createGlobalType('Default Sort Type ' . $suffix, true);
+        $nonDefault = $this->createGlobalType('Plain Sort Type ' . $suffix, false);
+
+        return [$default->getId(), $nonDefault->getId()];
+    }
+
+    private function createGlobalType(string $name, bool $isDefault): AttributesTypes
+    {
+        $user = auth()->user();
+
+        return AttributesTypes::create([
+            'apps_id' => 0,
+            'companies_id' => $user->getCurrentCompany()->getId(),
+            'users_id' => $user->getId(),
+            'name' => $name,
+            'slug' => Str::slug($name),
+            'is_default' => $isDefault,
+        ]);
+    }
 }

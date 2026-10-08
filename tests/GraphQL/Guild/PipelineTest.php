@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Testing\TestResponse;
 use Kanvas\Guild\Leads\Models\Lead;
 use Tests\TestCase;
 
 class PipelineTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'crm'];
+
     public function testGetPipeline(): void
     {
         $this->graphQL('
@@ -714,5 +719,51 @@ class PipelineTest extends TestCase
                     'restorePipelineStage' => true,
                 ],
             ]);
+    }
+
+    public function testPipelinesCanBeOrderedByIsDefault(): void
+    {
+        $this->createPipelineWithDefault('PipelineDefault-' . fake()->unique()->uuid(), true);
+        $this->createPipelineWithDefault('PipelineRegular-' . fake()->unique()->uuid(), false);
+
+        $query = '
+            query pipelines($orderBy: [QueryPipelinesOrderByOrderByClause!]) {
+                pipelines(orderBy: $orderBy) {
+                    data {
+                        name
+                        is_default
+                    }
+                }
+            }
+        ';
+
+        $descending = $this->graphQL($query, [
+            'orderBy' => [['column' => 'IS_DEFAULT', 'order' => 'DESC']],
+        ])->assertOk()->json('data.pipelines.data');
+
+        $ascending = $this->graphQL($query, [
+            'orderBy' => [['column' => 'IS_DEFAULT', 'order' => 'ASC']],
+        ])->assertOk()->json('data.pipelines.data');
+
+        $this->assertTrue($descending[0]['is_default']);
+        $this->assertFalse($ascending[0]['is_default']);
+    }
+
+    protected function createPipelineWithDefault(string $name, bool $isDefault): void
+    {
+        $this->graphQL('
+            mutation($input: PipelineInput!) {
+                createPipeline(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => [
+                'name' => $name,
+                'weight' => 0,
+                'is_default' => $isDefault,
+                'stages' => [],
+            ],
+        ])->assertOk();
     }
 }
