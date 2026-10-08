@@ -83,6 +83,18 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         new ReceiveBillAction($bill, $vendor, static::$cachedUser)->execute();
     }
 
+    private function receivedBill(string $vendorName): Bill
+    {
+        $vendor = $this->seedTestOrganization($vendorName);
+        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
+
+        return Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->latest('id')
+            ->firstOrFail();
+    }
+
     public function test_match_bills_for_payment_flags_the_exact_bill(): void
     {
         $vendor = $this->seedTestOrganization('Globex Supply');
@@ -847,21 +859,6 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $stored = $bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value);
         $this->assertNotNull($stored);
         $this->assertSame('https://cdn.example.test/current-invoice.pdf', $stored->filesystem->url);
-    }
-
-    private function receivedBill(string $vendorName): Bill
-    {
-        $vendor = $this->seedTestOrganization($vendorName);
-        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
-
-        /** @var Bill $bill */
-        $bill = Bill::query()
-            ->where('apps_id', $this->kanvasApp->getId())
-            ->where('companies_id', $this->company->getId())
-            ->latest('id')
-            ->first();
-
-        return $bill;
     }
 
     public function test_resend_bill_attachment_resends_the_stored_pdf(): void
