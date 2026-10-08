@@ -414,9 +414,10 @@ trait MergesRegisteredTools
                 ? $this->requestingHuman()
                 : (property_exists($this, 'user') ? $this->user : null);
 
-            if ($human instanceof Users) {
-                $tool->forConversationHuman($human);
-            }
+            $tool->forConversationHuman(
+                $human instanceof Users ? $human : null,
+                humanDirected: method_exists($this, 'isHumanDirectedConversation') && $this->isHumanDirectedConversation(),
+            );
         }
 
         // The record in scope can't come from toolDependencyCandidates() by type (Apps/Companies/Users

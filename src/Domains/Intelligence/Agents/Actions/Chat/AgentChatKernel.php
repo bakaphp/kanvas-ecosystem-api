@@ -64,6 +64,7 @@ class AgentChatKernel
         protected readonly ?string $adkBaseUrl = null,
         protected readonly bool $fallbackOnFailure = true,
         protected readonly bool $rendersArtifacts = false,
+        protected readonly bool $humanDirectedConversation = false,
     ) {
     }
 
@@ -259,6 +260,7 @@ class AgentChatKernel
         if ($handler instanceof BehavesAsKanvasAgent) {
             $handler->setThreadId($this->threadId($entity));
             $handler->setSession($this->session);
+            $handler->setHumanDirectedConversation($this->humanDirectedConversation);
             $handler->setCurrentLead($this->currentLead);
             // Plumb the turn's attachment URLs so the conversation history can persist a reference
             // for describing — the handler itself only ever sees the base64 content blocks.

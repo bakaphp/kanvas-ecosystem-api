@@ -11,9 +11,12 @@ trait HasConversationHuman
 {
     protected ?Users $conversationHuman = null;
 
-    public function forConversationHuman(?Users $user): static
+    protected bool $humanDirectedConversation = false;
+
+    public function forConversationHuman(?Users $user, bool $humanDirected = false): static
     {
         $this->conversationHuman = $user;
+        $this->humanDirectedConversation = $humanDirected;
 
         return $this;
     }

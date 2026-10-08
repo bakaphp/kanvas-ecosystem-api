@@ -57,6 +57,8 @@ trait HasKanvasAgentBehavior
 
     use HasTemporalContext;
 
+    protected bool $humanDirectedConversation = false;
+
     /**
      * Below this many searchable tools there is nothing to save: the search tool and its prompt block
      * cost about as much as the schemas they would hide.
@@ -151,6 +153,16 @@ trait HasKanvasAgentBehavior
     public function setSession(?Session $session): void
     {
         $this->session = $session;
+    }
+
+    public function setHumanDirectedConversation(bool $humanDirected): void
+    {
+        $this->humanDirectedConversation = $humanDirected;
+    }
+
+    public function isHumanDirectedConversation(): bool
+    {
+        return $this->humanDirectedConversation;
     }
 
     public function setConversationHuman(?Users $user): void

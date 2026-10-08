@@ -76,7 +76,7 @@ class SendEmailTool extends Tool
                 description: 'The email body, written to the prospect in the first person on behalf of the business. '
                     . 'Markdown is supported (headings, bold, lists, links) and is rendered to HTML. '
                     . 'Do not add a greeting header image, a signature, or "Sent by AI" — the template handles branding. '
-                    . 'For internal assistants, the sender’s enabled email signature is added automatically, never the customer-facing agent’s signature.',
+                    . 'For AI Assist and internal assistants, the sender’s enabled email signature is added automatically, never the customer-facing agent’s signature.',
                 required: true,
             ),
             new ToolProperty(
@@ -204,7 +204,7 @@ class SendEmailTool extends Tool
 
     protected function signatureOwner(): ?Users
     {
-        if (! ($this->contextAgent()?->conversesWithUser() ?? false)) {
+        if (! $this->humanDirectedConversation && ! ($this->contextAgent()?->conversesWithUser() ?? false)) {
             return null;
         }
 
