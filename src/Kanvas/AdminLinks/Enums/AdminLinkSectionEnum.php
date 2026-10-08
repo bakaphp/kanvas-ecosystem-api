@@ -143,6 +143,10 @@ enum AdminLinkSectionEnum: string
             self::FACILITATOR,
             self::PARTICIPANT => AdminLinkIdentifierEnum::EITHER,
 
+            // The user and company screens look their record up by uuid and nothing else, so a link
+            // built from the numeric id lands on "not found".
+            self::USER,
+            self::COMPANY,
             self::ORGANIZATION_TYPE,
             self::LEAD_TYPE,
             self::LEAD_SOURCE,

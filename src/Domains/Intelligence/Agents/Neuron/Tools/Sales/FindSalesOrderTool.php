@@ -87,6 +87,7 @@ class FindSalesOrderTool extends Tool
 
         return [
             'found' => true,
+            'id' => $order->getId(),
             'order_number' => $order->order_number,
             'customer' => $customer !== '' ? $customer : ($order->user_email ?: null),
             'customer_email' => $order->user_email,

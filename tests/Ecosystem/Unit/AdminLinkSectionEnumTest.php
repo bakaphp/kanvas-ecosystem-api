@@ -32,6 +32,18 @@ final class AdminLinkSectionEnumTest extends TestCaseUnit
         $this->assertFalse(AdminLinkSectionEnum::AGENT->identifier()->matches('42'));
     }
 
+    /**
+     * Both screens look their record up by uuid and nothing else: a link built from the numeric id
+     * opens "not found".
+     */
+    public function testTheUserAndCompanyScreensReadTheUuid(): void
+    {
+        foreach ([AdminLinkSectionEnum::USER, AdminLinkSectionEnum::COMPANY] as $section) {
+            $this->assertSame(AdminLinkIdentifierEnum::UUID, $section->identifier());
+            $this->assertFalse($section->identifier()->matches('42'));
+        }
+    }
+
     public function testNumericRoutesRejectUuids(): void
     {
         $this->assertSame(

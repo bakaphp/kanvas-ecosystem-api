@@ -382,4 +382,241 @@ final class RenderArtifactToolTest extends TestCase
 
         $this->assertTrue($result['success']);
     }
+
+    public function testAnEntityTakesEveryRecordTypeTheAdminDraws(): void
+    {
+        $uuid = '3f2b9c1e-8a4d-4c2e-9b1f-0a1b2c3d4e5f';
+
+        foreach ([['event', 210], ['discount', 12], ['agent', $uuid], ['category', 'summer-sale']] as [$type, $id]) {
+            $result = new RenderArtifactTool()(
+                component: 'entity',
+                props: ['type' => $type, 'id' => $id, 'title' => 'A record'],
+            );
+
+            $this->assertTrue($result['success'], $type . ' is a record type the admin draws');
+        }
+
+        $unknown = new RenderArtifactTool()(
+            component: 'entity',
+            props: ['type' => 'invoice', 'id' => 1, 'title' => 'Invoice 1'],
+        );
+
+        $this->assertFalse($unknown['success']);
+        $this->assertStringContainsString('props.type must be one of: lead, deal, people', $unknown['error']);
+    }
+
+    /**
+     * A uuid compared against an integer id is a cast, not a miss ("5f1c…" reads as 5), so an order
+     * card built from one opens somebody else's order. The page's own identifier or nothing.
+     */
+    public function testAnEntityIdHasToBeTheKindItsPageReads(): void
+    {
+        $uuid = '5f1c9c1e-8a4d-4c2e-9b1f-0a1b2c3d4e5f';
+
+        $order = new RenderArtifactTool()(
+            component: 'entity',
+            props: ['type' => 'order', 'id' => $uuid, 'title' => 'Order 1042'],
+        );
+        $named = new RenderArtifactTool()(
+            component: 'entity',
+            props: ['type' => 'lead', 'id' => 'acme-renewal', 'title' => 'Acme renewal'],
+        );
+        $traversal = new RenderArtifactTool()(
+            component: 'entity',
+            props: ['type' => 'category', 'id' => '../settings', 'title' => 'Settings'],
+        );
+        $either = new RenderArtifactTool()(
+            component: 'entity',
+            props: ['type' => 'lead', 'id' => $uuid, 'title' => 'Acme renewal'],
+        );
+
+        $this->assertFalse($order['success']);
+        $this->assertStringContainsString('props.id must be the numeric id of the order', $order['error']);
+        $this->assertFalse($named['success'], 'A name is not an id');
+        $this->assertStringContainsString('props.id must be the numeric id or the uuid of the lead', $named['error']);
+        $this->assertFalse($traversal['success'], 'A slug is one path segment');
+        $this->assertTrue($either['success']);
+    }
+
+    public function testRecordsTakesWhatToListNeverTheRows(): void
+    {
+        $result = new RenderArtifactTool()(
+            component: 'records',
+            props: json_encode(['type' => 'lead', 'filter' => ['statusId' => [3, '4'], 'pipelineId' => 2], 'limit' => 5]),
+            title: 'Open leads',
+        );
+        $searched = new RenderArtifactTool()(
+            component: 'records',
+            props: json_encode(['type' => 'people', 'search' => 'cooper']),
+        );
+        $rows = new RenderArtifactTool()(
+            component: 'records',
+            props: json_encode(['type' => 'lead', 'rows' => [['title' => 'Acme']]]),
+        );
+
+        $this->assertTrue($result['success']);
+        $this->assertStringContainsString(
+            '"props":{"type":"lead","filter":{"statusId":[3,"4"],"pipelineId":2},"limit":5}',
+            $result['block']
+        );
+        $this->assertTrue($searched['success']);
+        $this->assertFalse($rows['success']);
+        $this->assertStringContainsString('props.rows is not a valid prop — allowed: type, filter, search, limit', $rows['error']);
+    }
+
+    /**
+     * Dropped instead of refused, a misspelled filter would leave `{type: lead}`: every lead in the
+     * company under a title about one person.
+     */
+    public function testAFilterTheTypeDoesNotTakeIsRefusedNotDropped(): void
+    {
+        $misspelled = new RenderArtifactTool()(
+            component: 'records',
+            props: json_encode(['type' => 'lead', 'filter' => ['person_id' => 1845]]),
+        );
+        $none = new RenderArtifactTool()(
+            component: 'records',
+            props: json_encode(['type' => 'role', 'filter' => ['name' => 'Sales']]),
+        );
+
+        $this->assertFalse($misspelled['success']);
+        $this->assertStringContainsString(
+            'props.filter.person_id is not a filter of lead lists — allowed: statusId, pipelineId, stageId, personId',
+            $misspelled['error']
+        );
+        $this->assertFalse($none['success']);
+        $this->assertStringContainsString('role lists take no filters', $none['error']);
+    }
+
+    public function testAFilterValueHasToBeTheKindTheFilterTakes(): void
+    {
+        $result = new RenderArtifactTool()(
+            component: 'records',
+            props: json_encode([
+                'type' => 'order',
+                'filter' => [
+                    'status' => ['shipped'],
+                    'personId' => [1, 2],
+                    'orderTypeId' => ['wholesale'],
+                ],
+            ]),
+        );
+        $flag = new RenderArtifactTool()(
+            component: 'records',
+            props: json_encode(['type' => 'product', 'filter' => ['published' => 'yes']]),
+        );
+        $list = new RenderArtifactTool()(
+            component: 'records',
+            props: json_encode(['type' => 'lead', 'filter' => [3, 4]]),
+        );
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString(
+            'props.filter.status[0] must be one of: pending, completed, draft, canceled, failed',
+            $result['error']
+        );
+        $this->assertStringContainsString('props.filter.personId takes one value, not a list', $result['error']);
+        $this->assertStringContainsString('props.filter.orderTypeId[0] must be a numeric id or a uuid', $result['error']);
+        $this->assertFalse($flag['success']);
+        $this->assertStringContainsString('props.filter.published must be true or false', $flag['error']);
+        $this->assertFalse($list['success']);
+        $this->assertStringContainsString('props.filter must be an object of filters', $list['error']);
+    }
+
+    /**
+     * The admin's search ignores every other clause: sent together, the list would show the search
+     * alone under a title that promised the filter too.
+     */
+    public function testSearchAndFilterAreNotSentTogether(): void
+    {
+        $both = new RenderArtifactTool()(
+            component: 'records',
+            props: json_encode(['type' => 'lead', 'search' => 'acme', 'filter' => ['pipelineId' => 2]]),
+        );
+        $emptyFilter = new RenderArtifactTool()(
+            component: 'records',
+            props: '{"type":"lead","search":"acme","filter":{}}',
+        );
+
+        $this->assertFalse($both['success']);
+        $this->assertStringContainsString('props.search cannot be combined with props.filter', $both['error']);
+        $this->assertTrue($emptyFilter['success']);
+        // `{}` decodes to an empty PHP array; written back as `[]` it would read as a list.
+        $this->assertStringNotContainsString('"filter"', $emptyFilter['block']);
+    }
+
+    public function testOnlyTypesTheAdminCanListAreListed(): void
+    {
+        $result = new RenderArtifactTool()(component: 'records', props: json_encode(['type' => 'warehouse']));
+        $tooMany = new RenderArtifactTool()(component: 'records', props: json_encode(['type' => 'lead', 'limit' => 26]));
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('props.type must be one of: lead, deal, people', $result['error']);
+        $this->assertFalse($tooMany['success']);
+        $this->assertStringContainsString('props.limit must be a whole number from 1 to 25', $tooMany['error']);
+    }
+
+    public function testAMetricIsNamedNeverComputed(): void
+    {
+        $result = new RenderArtifactTool()(
+            component: 'metric',
+            props: json_encode(['metric' => 'leads.by_status', 'window' => 'last_30d', 'as' => 'table']),
+            title: 'Leads by status',
+        );
+        $invented = new RenderArtifactTool()(
+            component: 'metric',
+            props: json_encode(['metric' => 'inventory.low_stock']),
+        );
+        $numbers = new RenderArtifactTool()(
+            component: 'metric',
+            props: json_encode(['metric' => 'orders.revenue', 'value' => 12500]),
+        );
+
+        $this->assertTrue($result['success']);
+        $this->assertStringContainsString(
+            '"component":"metric","title":"Leads by status","props":{"metric":"leads.by_status","window":"last_30d","as":"table"}',
+            $result['block']
+        );
+        $this->assertFalse($invented['success']);
+        $this->assertStringContainsString('props.metric must be one of: leads.total', $invented['error']);
+        $this->assertFalse($numbers['success']);
+        $this->assertStringContainsString('props.value is not a valid prop', $numbers['error']);
+    }
+
+    /**
+     * The same checks guard a block the model wrote by hand, which never passes through the tool.
+     */
+    public function testAHandWrittenLiveBlockIsHeldToTheSameRules(): void
+    {
+        $valid = "```kanvas-artifact\n"
+            . '{"version":1,"component":"records","title":"Open leads","props":{"type":"lead","filter":{"pipelineId":2}}}'
+            . "\n```";
+        $widened = "```kanvas-artifact\n"
+            . '{"version":1,"component":"records","title":"Leads of Jane","props":{"type":"lead","filter":{"person":1845}}}'
+            . "\n```";
+        $wrongRecord = "```kanvas-artifact\n"
+            . '{"version":1,"component":"entity","props":{"type":"order","id":"5f1c9c1e-8a4d-4c2e-9b1f-0a1b2c3d4e5f","title":"Order"}}'
+            . "\n```";
+
+        $service = new ArtifactBlockService();
+
+        $this->assertSame($valid, $service->stripInvalidBlocks($valid));
+        $this->assertSame("Aquí están:\n\n", $service->stripInvalidBlocks("Aquí están:\n\n" . $widened));
+        $this->assertSame("Mira:\n\n", $service->stripInvalidBlocks("Mira:\n\n" . $wrongRecord));
+    }
+
+    /**
+     * With no tenant there is nothing to check an id against, and a context-free caller still gets a
+     * block validated for shape rather than a fatal on an unset property.
+     */
+    public function testWithoutATenantAnEntityIsOnlyCheckedForShape(): void
+    {
+        $result = new RenderArtifactTool()(
+            component: 'entity',
+            props: ['type' => 'lead', 'id' => 987654321, 'title' => 'A lead nobody looked up'],
+        );
+
+        $this->assertTrue($result['success']);
+        $this->assertStringContainsString('"id":987654321', $result['block']);
+    }
 }

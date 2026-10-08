@@ -15,6 +15,8 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
+use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\NervousSystem\Project\Models\Project;
@@ -43,6 +45,9 @@ class AdminLinkRecordResolver
         'ORGANIZATION' => Organization::class,
         'PRODUCT' => Products::class,
         'PRODUCT_VARIANT' => Variants::class,
+        // Both screens key on the slug while every inventory tool hands back the numeric id.
+        'CATEGORY' => Categories::class,
+        'CHANNEL' => Channels::class,
         'ORDER' => Order::class,
         'AGENT_PROJECT' => Project::class,
         'AGENT' => Agent::class,

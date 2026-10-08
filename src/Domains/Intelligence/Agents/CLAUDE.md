@@ -701,6 +701,34 @@ reply cannot cancel the resend. The key is the thread, and userChat threads by s
 is why the mutation takes a session: a channel turn (threaded by the entity) is out of its reach.
 Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
 
+## Chat artifacts (`render_artifact`) — a contract the admin owns
+
+The admin chat draws `kanvas-artifact` blocks; this API validates them twice (`RenderArtifactTool`, and
+`ArtifactBlockService::stripInvalidBlocks()` over every reply, which catches blocks written by hand).
+The frontend owns the contract and we mirror it: `ArtifactComponentEnum` (components and props) and
+`ArtifactEntityTypeEnum` (record types, the identifier each one's page reads, the filters a list takes).
+
+- **A mismatch is silent.** A component, type or filter the admin knows and this API does not is not an
+  error: the block is stripped and the reader gets the prose without the card. So the mirror is tested
+  against the admin's own export, `tests/fixtures/admin-artifact-contract.json`
+  ([`ArtifactContractTest`](../../../../tests/Intelligence/Enums/ArtifactContractTest.php)). When the
+  admin changes a type, a filter or the metric catalog: run `pnpm gen:artifact-contract` in
+  kanvas-admin-v2, copy `docs/control-center-artifact-contract.json` over the fixture, and make the test
+  pass. Deploy this API first — it has to know a block before an agent can be told about it.
+- **`entity`, `records`, `metric` and `approvals` are live.** The model sends a reference or filters and
+  the admin reads the data. Their props select records, so they are refused when wrong, never trimmed:
+  a filter dropped from a `records` block would list every record of the type under a title about a few.
+- **An `entity` id is looked up before the block exists** (`RenderArtifactTool::useThePageIdentifier()`,
+  through `AdminLinkRecordResolver`, scoped to the tool's tenant). An invented id comes back as
+  `not_found`; a real one is rewritten to the identifier the record's page reads — tools hand back
+  numeric ids while the lead page keys on the uuid and a category page on the slug. A type the resolver
+  has no model for is held to the right *kind* of id only. To make a type verifiable, add its model to
+  the resolver's map; a read tool for it should return `id` (the order tools return only what they were
+  given unless you add it).
+- **Which identifier a page reads lives in `AdminLinkSectionEnum::identifier()`**, never restated. The
+  admin refuses to link an id of the wrong kind, because a uuid compared against an integer id is a
+  cast and opens another record.
+
 ## Don't break
 
 - **`AgentChatKernel` is load-bearing for 4 call sites** — `userChat` (GraphQL), channel responders (×6), `WakeAgentForPlanJob`, `AgentReceiverJob`. Any change to its constructor or `execute()` contract ripples through all of them. Test both `userChat` and at least one channel responder end-to-end after touching it.

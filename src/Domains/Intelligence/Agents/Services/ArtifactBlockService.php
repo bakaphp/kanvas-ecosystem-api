@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
+use Kanvas\AdminLinks\Enums\AdminLinkIdentifierEnum;
 use Kanvas\Intelligence\Agents\Enums\ArtifactComponentEnum;
+use Kanvas\Intelligence\Agents\Enums\ArtifactEntityTypeEnum;
 
 /**
  * Validates an artifact against the admin chat's component contract and renders the fenced block.
@@ -23,6 +25,18 @@ class ArtifactBlockService
      */
     private const string RECORD_ID_PATTERN = '/^(0*[1-9]\d*|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i';
 
+    private const string NUMERIC_ID_PATTERN = '/^0*[1-9]\d*$/';
+
+    /**
+     * One path segment and nothing else: the admin puts a slug straight into the record's URL.
+     */
+    private const string SLUG_PATTERN = '/^[a-z0-9][a-z0-9_-]*$/i';
+
+    /**
+     * Enough values for an IN, not enough to turn a filter into a payload. The admin caps it the same.
+     */
+    private const int MAX_FILTER_VALUES = 25;
+
     /**
      * @param array<string, mixed> $props
      * @return list<string>
@@ -31,11 +45,17 @@ class ArtifactBlockService
     {
         $errors = $this->checkObject($props, $component->props(), 'props');
 
-        if ($errors === [] && $component === ArtifactComponentEnum::CHART) {
-            $errors = $this->checkChartKeys($props);
+        if ($errors !== []) {
+            return $errors;
         }
 
-        return $errors;
+        // Rules that span two props, so they only make sense once each prop is valid on its own.
+        return match ($component) {
+            ArtifactComponentEnum::CHART => $this->checkChartKeys($props),
+            ArtifactComponentEnum::ENTITY => $this->checkEntityId($props),
+            ArtifactComponentEnum::RECORDS => $this->checkRecords($props),
+            default => [],
+        };
     }
 
     /**
@@ -177,6 +197,10 @@ class ArtifactBlockService
                     ? $this->checkObject($item, $rule['item'], $itemPath)
                     : [$itemPath . ' must be an object']
             ),
+            // Only that it is an object: its keys belong to the record type, a sibling prop.
+            'filter' => is_array($value) && ($value === [] || ! array_is_list($value))
+                ? []
+                : [$path . ' must be an object of filters, e.g. {"statusId": 3}'],
         };
     }
 
@@ -286,6 +310,98 @@ class ArtifactBlockService
         return $missing === []
             ? []
             : [sprintf('props.data has no field named %s — xKey and series keys must be fields of data', implode(', ', $missing))];
+    }
+
+    /**
+     * The id has to be of the kind the record's page reads, or the card it produces opens nothing — or,
+     * for a uuid against an integer id, opens another record. A type the tool can look up arrives here
+     * already rewritten to that kind (RenderArtifactTool); this is what stops everything else.
+     *
+     * @param array<string, mixed> $props
+     * @return list<string>
+     */
+    private function checkEntityId(array $props): array
+    {
+        $type = ArtifactEntityTypeEnum::from($props['type']);
+        $id = is_int($props['id']) ? (string) $props['id'] : trim($props['id']);
+
+        return match ($type->identifier()) {
+            AdminLinkIdentifierEnum::ID => preg_match(self::NUMERIC_ID_PATTERN, $id) === 1
+                ? []
+                : ['props.id must be the numeric id of the ' . $type->value . ' — its page reads nothing else'],
+            AdminLinkIdentifierEnum::SLUG => preg_match(self::SLUG_PATTERN, $id) === 1
+                ? []
+                : ['props.id must be the slug of the ' . $type->value],
+            AdminLinkIdentifierEnum::UUID,
+            AdminLinkIdentifierEnum::EITHER => $this->isRecordId($id)
+                ? []
+                : ['props.id must be the numeric id or the uuid of the ' . $type->value . ', as a tool returned it'],
+        };
+    }
+
+    /**
+     * A live list selects records, so a filter the type does not take is refused, never dropped:
+     * without it the list would show every record of the type under a title about a few of them.
+     *
+     * @param array<string, mixed> $props
+     * @return list<string>
+     */
+    private function checkRecords(array $props): array
+    {
+        $type = ArtifactEntityTypeEnum::from($props['type']);
+        $filter = $props['filter'] ?? [];
+        $allowed = $type->filters() ?? [];
+
+        // The admin's search ignores every other clause, so the two together would show the search
+        // alone while the title promised the filter too.
+        if ($filter !== [] && array_key_exists('search', $props)) {
+            return ['props.search cannot be combined with props.filter — send one or the other'];
+        }
+
+        $errors = [];
+
+        foreach ($filter as $key => $value) {
+            $rule = $allowed[$key] ?? null;
+
+            if ($rule === null) {
+                $errors[] = $allowed === []
+                    ? sprintf('props.filter.%s is not a valid filter — %s lists take no filters', $key, $type->value)
+                    : sprintf(
+                        'props.filter.%s is not a filter of %s lists — allowed: %s',
+                        $key,
+                        $type->value,
+                        implode(', ', array_keys($allowed))
+                    );
+
+                continue;
+            }
+
+            array_push($errors, ...$this->checkFilterValue($value, $rule, 'props.filter.' . $key));
+        }
+
+        return $errors;
+    }
+
+    /**
+     * @param array<string, mixed> $rule
+     * @return list<string>
+     */
+    private function checkFilterValue(mixed $value, array $rule, string $path): array
+    {
+        if (! is_array($value)) {
+            return $this->checkValue($value, $rule, $path);
+        }
+
+        if (($rule['many'] ?? false) !== true) {
+            return [$path . ' takes one value, not a list'];
+        }
+
+        return $this->checkList(
+            $value,
+            ['min' => 1, 'max' => self::MAX_FILTER_VALUES],
+            $path,
+            fn (mixed $item, string $itemPath): array => $this->checkValue($item, $rule, $itemPath)
+        );
     }
 
     /**

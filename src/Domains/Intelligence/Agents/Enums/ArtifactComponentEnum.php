@@ -12,7 +12,13 @@ namespace Kanvas\Intelligence\Agents\Enums;
  * Prop spec shape: name => [type, required?, ...]. Types: string (nonEmpty?, maxLength?), number,
  * integer (min/max bound the value), bool, id (string|number), record_id (a numeric id or a uuid),
  * record_id_list, text_or_number, scalar (string|number|bool|null), enum (values), rows (flat objects),
- * list (item). On the list types min/max bound the entry count.
+ * list (item), filter (an object whose keys depend on a sibling prop — checked by the service).
+ * On the list types min/max bound the entry count.
+ *
+ * `entity`, `records`, `metric` and `approvals` are LIVE: the model sends a reference or filters and the
+ * admin reads the data itself. Their vocabulary — record types, filters, metric ids — is exported by the
+ * frontend into `tests/fixtures/admin-artifact-contract.json`, and `ArtifactContractTest` fails when the
+ * mirror here drifts from it.
  */
 enum ArtifactComponentEnum: string
 {
@@ -26,10 +32,64 @@ enum ArtifactComponentEnum: string
     case TIMELINE = 'timeline';
     case CALLOUT = 'callout';
     case APPROVALS = 'approvals';
+    case RECORDS = 'records';
+    case METRIC = 'metric';
+
+    public const int MAX_RECORDS_ROWS = 25;
 
     private const array NUMBER_FORMATS = ['number', 'currency', 'percent', 'compact'];
 
     private const array APPROVAL_STATUSES = ['pending', 'approved', 'rejected', 'cancelled', 'expired', 'all'];
+
+    private const array CHART_KINDS = ['bar', 'line', 'area', 'pie'];
+
+    private const array METRIC_WINDOWS = ['last_7d', 'last_30d', 'last_90d', 'last_12m'];
+
+    private const array METRIC_DISPLAYS = ['stats', 'chart', 'table', 'progress', 'keyvalue'];
+
+    /**
+     * The command-center metric catalog, by family. The admin resolves each id against its own
+     * analytics queries; an id it does not have draws an empty tile, so an unknown one is refused here.
+     */
+    private const array METRICS = [
+        'leads' => [
+            'total',
+            'open_count',
+            'won_count',
+            'lost_count',
+            'win_rate',
+            'over_time',
+            'by_status',
+            'by_source',
+            'by_pipeline',
+            'by_user',
+        ],
+        'deals' => [
+            'total',
+            'open_count',
+            'won_count',
+            'lost_count',
+            'win_rate',
+            'over_time',
+            'by_stage',
+            'by_status',
+            'by_pipeline',
+            'by_user',
+        ],
+        'orders' => [
+            'total',
+            'revenue',
+            'aov',
+            'count_over_time',
+            'revenue_over_time',
+            'by_status',
+            'by_payment_status',
+            'by_fulfillment_status',
+        ],
+        'messages' => ['total', 'over_time', 'by_type'],
+        'events' => ['total', 'over_time', 'by_status', 'by_type', 'by_category', 'by_class'],
+        'agents' => ['total', 'over_time', 'by_type', 'by_model', 'by_deployment_status', 'by_user'],
+    ];
 
     /**
      * @return array<string, array<string, mixed>>
@@ -38,7 +98,7 @@ enum ArtifactComponentEnum: string
     {
         return match ($this) {
             self::CHART => [
-                'kind' => ['type' => 'enum', 'required' => true, 'values' => ['bar', 'line', 'area', 'pie']],
+                'kind' => ['type' => 'enum', 'required' => true, 'values' => self::CHART_KINDS],
                 'data' => ['type' => 'rows', 'required' => true, 'min' => 1, 'max' => 100],
                 'xKey' => ['type' => 'string', 'required' => true],
                 'series' => [
@@ -113,11 +173,7 @@ enum ArtifactComponentEnum: string
                 ],
             ],
             self::ENTITY => [
-                'type' => [
-                    'type' => 'enum',
-                    'required' => true,
-                    'values' => ['lead', 'deal', 'people', 'organization', 'company', 'user', 'product', 'order'],
-                ],
+                'type' => ['type' => 'enum', 'required' => true, 'values' => ArtifactEntityTypeEnum::values()],
                 'id' => ['type' => 'id', 'required' => true],
                 'title' => ['type' => 'string', 'required' => true],
                 'subtitle' => ['type' => 'string'],
@@ -172,6 +228,25 @@ enum ArtifactComponentEnum: string
                 'peopleId' => ['type' => 'record_id'],
                 'limit' => ['type' => 'integer', 'min' => 1, 'max' => 25],
             ],
+            // What to list, not the rows. Which keys `filter` takes depends on `type`, so the service
+            // checks them against ArtifactEntityTypeEnum::filters() once the type is known.
+            self::RECORDS => [
+                'type' => [
+                    'type' => 'enum',
+                    'required' => true,
+                    'values' => ArtifactEntityTypeEnum::listable(),
+                ],
+                'filter' => ['type' => 'filter'],
+                'search' => ['type' => 'string', 'nonEmpty' => true, 'maxLength' => 80],
+                'limit' => ['type' => 'integer', 'min' => 1, 'max' => self::MAX_RECORDS_ROWS],
+            ],
+            self::METRIC => [
+                'metric' => ['type' => 'enum', 'required' => true, 'values' => self::metrics()],
+                'window' => ['type' => 'enum', 'values' => self::METRIC_WINDOWS],
+                'as' => ['type' => 'enum', 'values' => self::METRIC_DISPLAYS],
+                'chartKind' => ['type' => 'enum', 'values' => self::CHART_KINDS],
+                'limit' => ['type' => 'integer', 'min' => 1, 'max' => 50],
+            ],
         };
     }
 
@@ -195,9 +270,12 @@ enum ArtifactComponentEnum: string
                 . 'message, so make it self-contained (include the email or id) and only offer what your tools can do. '
                 . 'props: items [{label (max 40 chars — it is a button, keep it to 3-5 words), message, '
                 . 'variant? default|outline|destructive}] 1-6',
-            self::ENTITY => 'entity — a record card with an Open button. props: type lead|deal|people|organization|'
-                . 'company|user|product|order; id (the REAL id a tool returned, never invented); title; subtitle?; '
-                . 'fields? [{key, value}] 0-6',
+            self::ENTITY => 'entity — a LIVE record card: it shows your title and fields at once, then reads the '
+                . 'record itself and shows it as it is now, with a link to it. props: type '
+                . implode('|', ArtifactEntityTypeEnum::values()) . '; id (the REAL id or uuid a tool returned, '
+                . 'never invented and never a name — it is checked against the company\'s records; category and '
+                . 'channel take the slug); title; subtitle?; fields? [{key, value}] 0-6 (facts a tool gave you; '
+                . 'never an email, a phone or an address — the card shows those itself, hidden until asked)',
             self::PROGRESS => 'progress — goal completion. props: items [{label, percent 0-100, note?}] 1-8',
             self::TIMELINE => 'timeline — a sequence of events, oldest first. props: items [{title, description?, '
                 . 'date? (free text), status? done|current|upcoming}] 1-12',
@@ -210,7 +288,79 @@ enum ArtifactComponentEnum: string
                 . 'type? (an exact approval_type such as approve_bill — omit it unless a tool gave you the type); '
                 . 'ids? [approval request id or uuid, NOT the id of the bill or person it is about] 1-25; peopleId? '
                 . '(the person\'s id or uuid, for everything about them); limit? 1-25 (default 5, or one per id)',
+            self::RECORDS => 'records — a LIVE list of records of one type: send what to list, never the rows. The '
+                . 'admin reads them and the user opens any row into its record card, so prefer it to a table '
+                . 'whenever the rows are real records. props: type ' . implode('|', ArtifactEntityTypeEnum::listable())
+                . '; filter? {key: value} with the exact keys of that type — ' . self::describeFilters()
+                . ' ([] also takes a list; ids are real ids a tool returned); search? (free text, never together '
+                . 'with filter); limit? 1-' . self::MAX_RECORDS_ROWS . ' (default 5). Give it a title that says '
+                . 'what the list is',
+            self::METRIC => 'metric — one LIVE figure, trend or breakdown the analytics already compute: name it '
+                . 'and the admin runs the query, so never send the numbers. Prefer it to chart or stats when one of '
+                . 'these answers the question. props: metric ' . self::describeMetrics() . '; window? '
+                . implode('|', self::METRIC_WINDOWS) . ' (default last_90d); as? ' . implode('|', self::METRIC_DISPLAYS)
+                . ' (default: stats for a total, chart for *_over_time and by_*); chartKind? '
+                . implode('|', self::CHART_KINDS) . '; limit? 1-50 (top rows of a by_* breakdown)',
         };
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function metrics(): array
+    {
+        $ids = [];
+
+        foreach (self::METRICS as $family => $names) {
+            foreach ($names as $name) {
+                $ids[] = $family . '.' . $name;
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * "leads.{total, by_status}; deals.{…}" — a third of the length of listing every id, and the model
+     * reads the family prefix as part of the id either way.
+     */
+    private static function describeMetrics(): string
+    {
+        $families = [];
+
+        foreach (self::METRICS as $family => $names) {
+            $families[] = $family . '.{' . implode(', ', $names) . '}';
+        }
+
+        return implode('; ', $families);
+    }
+
+    /**
+     * "lead: statusId[], pipelineId; order: status[] (pending|completed)" — only the types that take
+     * a filter at all.
+     */
+    private static function describeFilters(): string
+    {
+        $types = [];
+
+        foreach (ArtifactEntityTypeEnum::cases() as $type) {
+            $filters = $type->filters() ?? [];
+
+            if ($filters === []) {
+                continue;
+            }
+
+            $keys = [];
+            foreach ($filters as $key => $rule) {
+                $keys[] = $key
+                    . (($rule['many'] ?? false) === true ? '[]' : '')
+                    . ($rule['type'] === 'enum' ? ' (' . implode('|', $rule['values']) . ')' : '');
+            }
+
+            $types[] = $type->value . ': ' . implode(', ', $keys);
+        }
+
+        return implode('; ', $types);
     }
 
     /**
