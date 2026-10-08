@@ -9,7 +9,7 @@ namespace Kanvas\Intelligence\Agents\Enums;
  * contract; `props()` mirrors it so a block is rejected here, where the model can fix it, instead of
  * rendering as a broken card.
  *
- * Prop spec shape: name => [type, required?, ...]. Types: string (non_empty?, max_length?), number,
+ * Prop spec shape: name => [type, required?, ...]. Types: string (nonEmpty?, maxLength?), number,
  * integer (min/max bound the value), bool, id (string|number), record_id (a numeric id or a uuid),
  * record_id_list, text_or_number, scalar (string|number|bool|null), enum (values), rows (flat objects),
  * list (item). On the list types min/max bound the entry count.
@@ -167,7 +167,7 @@ enum ArtifactComponentEnum: string
             // prop is optional and no filter at all means "what is pending".
             self::APPROVALS => [
                 'status' => ['type' => 'enum', 'values' => self::APPROVAL_STATUSES],
-                'type' => ['type' => 'string', 'non_empty' => true, 'max_length' => 80],
+                'type' => ['type' => 'string', 'nonEmpty' => true, 'maxLength' => 80],
                 'ids' => ['type' => 'record_id_list', 'min' => 1, 'max' => 25],
                 'peopleId' => ['type' => 'record_id'],
                 'limit' => ['type' => 'integer', 'min' => 1, 'max' => 25],

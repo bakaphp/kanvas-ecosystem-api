@@ -201,6 +201,10 @@ class ArtifactBlockService
             return [$path . ' must be a string without ```'];
         }
 
+        if (($rule['nonEmpty'] ?? false) === true && trim($value) === '') {
+            return [$path . ' must not be empty'];
+        }
+
         $max = $rule['maxLength'] ?? null;
 
         if ($max !== null && mb_strlen($value) > $max) {
@@ -284,27 +288,6 @@ class ArtifactBlockService
         return $missing === []
             ? []
             : [sprintf('props.data has no field named %s — xKey and series keys must be fields of data', implode(', ', $missing))];
-    }
-
-    /**
-     * @param array<string, mixed> $rule
-     * @return list<string>
-     */
-    private function checkString(mixed $value, array $rule, string $path): array
-    {
-        if (! is_string($value) || ! $this->hasNoFence($value)) {
-            return [$path . ' must be a string without ```'];
-        }
-
-        if (($rule['non_empty'] ?? false) === true && trim($value) === '') {
-            return [$path . ' must not be empty'];
-        }
-
-        if (isset($rule['max_length']) && mb_strlen(trim($value)) > $rule['max_length']) {
-            return [sprintf('%s must be at most %d characters', $path, $rule['max_length'])];
-        }
-
-        return [];
     }
 
     private function isRecordId(mixed $value): bool
