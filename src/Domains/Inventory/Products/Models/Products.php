@@ -380,6 +380,26 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     }
 
     /**
+     * Products with at least one live variant holding stock in a live warehouse row. A query scope, not
+     * a filter on the loaded rows: filtering after a LIMIT turns "20 in-stock products" into "whichever
+     * of the first 20 rows have stock", and a dealer whose oldest rows are sold units then reads as empty.
+     */
+    public function scopeInStock(Builder $query): Builder
+    {
+        return $query->whereHas(
+            'variants',
+            fn (Builder $variants): Builder => $variants
+                ->where('products_variants.is_deleted', 0)
+                ->whereHas(
+                    'variantWarehouses',
+                    fn (Builder $stock): Builder => $stock
+                        ->where('products_variants_warehouses.is_deleted', 0)
+                        ->where('products_variants_warehouses.quantity', '>', 0)
+                )
+        );
+    }
+
+    /**
      * @param string|array<int, string>|null $value
      */
     public function scopeFilterByAttributeValue(
