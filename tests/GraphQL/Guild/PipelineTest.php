@@ -725,8 +725,8 @@ class PipelineTest extends TestCase
 
     public function testPipelinesCanBeOrderedByIsDefault(): void
     {
-        $defaultId = $this->createPipelineWithDefault('PipelineDefault-' . fake()->unique()->uuid(), true);
-        $regularId = $this->createPipelineWithDefault('PipelineRegular-' . fake()->unique()->uuid(), false);
+        $defaultId = $this->createPipelineWithDefault('Pipeline Default ' . uniqid(), true);
+        $regularId = $this->createPipelineWithDefault('Pipeline Regular ' . uniqid(), false);
 
         $this->assertOrdersByIsDefault(
             'query($ids: Mixed!, $order: SortOrder!) {
@@ -758,6 +758,6 @@ class PipelineTest extends TestCase
                 'is_default' => $isDefault,
                 'stages' => [],
             ],
-        ])->assertOk()->json('data.createPipeline.id');
+        ])->assertGraphQLErrorFree()->json('data.createPipeline.id');
     }
 }
