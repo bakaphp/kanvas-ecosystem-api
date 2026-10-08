@@ -88,6 +88,17 @@ class RunNeuronChatAction
 
     public function execute(): string
     {
+        try {
+            return $this->executeAgent();
+        } finally {
+            if ($this->handler instanceof BehavesAsKanvasAgent) {
+                $this->handler->closeToolResources();
+            }
+        }
+    }
+
+    private function executeAgent(): string
+    {
         $sessionId = $this->session?->uuid ?? '';
 
         // A caller that skips the kernel (RespondToMentionJob, DraftCustomerUpdateAction) gets the session as

@@ -61,7 +61,7 @@ RUN ARCH=$(dpkg --print-architecture) && \
     rm /tmp/wkhtmltox.deb
 
 # Install Node.js and chokidar for file watching
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g chokidar-cli
 
@@ -99,7 +99,12 @@ RUN mkdir -p storage/app/public storage/framework/cache/data storage/framework/s
     chmod -R 777 storage bootstrap/cache
 
 # Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader
+RUN composer install --optimize-autoloader
+
+# The PHP client uses a local Node bridge to speak Playwright protocol to the
+# remote Browser Server. Keep its Playwright minor version aligned with browser/.
+RUN npm install --prefix vendor/playwright-php/playwright/bin \
+    --save-exact --ignore-scripts playwright@1.63.0
 
 # Expose the required port
 EXPOSE 8000

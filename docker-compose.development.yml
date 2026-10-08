@@ -51,6 +51,9 @@ services:
       LARAVEL_SAIL: 1
       XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
       XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
+      BROWSER_WS_ENDPOINT: ws://browser:3000/playwright
+      BROWSER_ALLOWED_HOSTS: browser-fixture
+      PLAYWRIGHT_MCP_URL: http://playwright-mcp:8931/mcp
     volumes:
       - ".:/var/www/html"
       - vendor-volume:/var/www/html/vendor
@@ -58,6 +61,62 @@ services:
       - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
     networks:
       - sail
+    depends_on:
+      browser:
+        condition: service_healthy
+      playwright-mcp:
+        condition: service_healthy
+      browser-fixture:
+        condition: service_started
+
+  # Static pages used by tests/Intelligence/Agents/Browser (reachable as http://browser-fixture).
+  browser-fixture:
+    image: nginx:alpine
+    logging: *default-logging
+    volumes:
+      - ./tests/fixtures/browser:/usr/share/nginx/html:ro
+    expose:
+      - "80"
+    networks:
+      - sail
+
+  # Headless Chromium via Playwright Browser Server. Internal only: ws://browser:3000/playwright
+  browser:
+    build:
+      context: ./browser
+    restart: unless-stopped
+    logging: *default-logging
+    init: true
+    shm_size: "2gb"
+    expose:
+      - "3000"
+    networks:
+      - sail
+
+  # Official @playwright/mcp server attached to the browser service. Internal only: http://playwright-mcp:8931/mcp
+  playwright-mcp:
+    build:
+      context: ./playwright-mcp
+    restart: unless-stopped
+    logging: *default-logging
+    init: true
+    environment:
+      PLAYWRIGHT_MCP_PORT: ${PLAYWRIGHT_MCP_PORT:-8931}
+    command:
+      - node
+      - node_modules/@playwright/mcp/cli.js
+      - --endpoint=${BROWSER_WS_ENDPOINT:-ws://browser:3000/playwright}
+      - --host=0.0.0.0
+      - --port=${PLAYWRIGHT_MCP_PORT:-8931}
+      - --allowed-hosts=playwright-mcp:${PLAYWRIGHT_MCP_PORT:-8931},localhost:${PLAYWRIGHT_MCP_PORT:-8931},127.0.0.1:${PLAYWRIGHT_MCP_PORT:-8931}
+      - --isolated
+    expose:
+      - "${PLAYWRIGHT_MCP_PORT:-8931}"
+    networks:
+      - sail
+    depends_on:
+      browser:
+        condition: service_healthy
 
   queue:
     <<: *common-queue-settings
