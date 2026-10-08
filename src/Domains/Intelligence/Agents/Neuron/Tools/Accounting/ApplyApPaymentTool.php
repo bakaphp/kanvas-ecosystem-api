@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Scribe\Bills\Actions\AllocateBillPaymentAction;
@@ -15,7 +15,7 @@ use Override;
 
 /** Applies a disbursement to an existing AP bill in the Kanvas ledger. */
 #[AgentTool(name: 'Apply AP Payment', category: 'accounting')]
-class ApplyApPaymentTool extends AbstractApplyAcumaticaPaymentTool
+class ApplyApPaymentTool extends AbstractApplyPaymentTool
 {
     protected string $name = 'apply_ap_payment';
 

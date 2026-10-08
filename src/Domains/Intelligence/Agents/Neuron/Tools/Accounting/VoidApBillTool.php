@@ -2,13 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Connectors\Acumatica\Actions\VoidApBillAction;
-use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
-use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Scribe\Bills\Actions\VoidBillAction;
 use Kanvas\Scribe\Bills\Models\Bill;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -16,7 +14,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-/** Voids a previously-pushed AP bill in Acumatica — the cleanup counterpart to CreateApBillTool. */
+/** Voids a received AP bill directly in the Kanvas ledger. */
 #[AgentTool(name: 'Void AP Bill', category: 'accounting')]
 class VoidApBillTool extends Tool
 {
@@ -24,9 +22,8 @@ class VoidApBillTool extends Tool
 
     protected string $name = 'void_ap_bill';
 
-    protected ?string $description = 'Voids a previously-pushed AP bill in Acumatica by creating and releasing a Debit '
-        . 'Adjustment against its full outstanding balance, closing both documents. Bypasses the normal '
-        . 'human approval gate — use only when the user explicitly asks to void a bill this way.';
+    protected ?string $description = 'Voids a received AP bill in the Kanvas ledger and reverses its journal entry. '
+        . 'Paid bills cannot be voided. Use only when the user explicitly asks to void the bill.';
 
     /**
      * @return array<int, ToolProperty>
@@ -41,13 +38,19 @@ class VoidApBillTool extends Tool
                 description: 'The Kanvas bill id to void (returned as bill_id by create_ap_bill).',
                 required: true,
             ),
+            new ToolProperty(
+                name: 'reason_code',
+                type: PropertyType::STRING,
+                description: 'Reason for voiding. Defaults to requested_by_user.',
+                required: false,
+            ),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $bill_id): array
+    public function __invoke(int $bill_id, ?string $reason_code = null): array
     {
         $app = $this->app;
 
@@ -66,24 +69,26 @@ class VoidApBillTool extends Tool
         }
 
         try {
-            $voidRef = new VoidApBillAction($bill)->execute();
-        } catch (AcumaticaWriteException|Throwable $e) {
+            $voidedBill = new VoidBillAction(
+                bill: $bill,
+                voidReasonCode: trim((string) $reason_code) ?: 'requested_by_user',
+                user: $this->user,
+            )->execute();
+        } catch (Throwable $e) {
             return [
                 'voided' => false,
                 'bill_id' => $bill->getId(),
-                'bill_ref' => (string) $bill->get(AcumaticaCustomFieldEnum::BILL_REF->value, ''),
                 'reason' => 'void_failed',
-                'message' => 'Voiding the bill in Acumatica failed: ' . $e->getMessage(),
+                'message' => 'Voiding the bill in the Kanvas ledger failed: ' . $e->getMessage(),
             ];
         }
 
         return [
             'voided' => true,
             'bill_id' => $bill->getId(),
-            'bill_ref' => (string) $bill->get(AcumaticaCustomFieldEnum::BILL_REF->value, ''),
-            'void_ref' => $voidRef,
-            'next' => 'A Debit Adjustment was created and released against the bill in Acumatica — both '
-                . 'documents should now show Closed with a zero balance.',
+            'document_status' => $voidedBill->document_status->value,
+            'next' => 'The bill was voided in the Kanvas ledger and its journal entry was reversed. '
+                . 'Any external synchronization is handled by configured workflows.',
         ];
     }
 }

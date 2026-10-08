@@ -25,14 +25,14 @@ use Throwable;
 
 /**
  * Approves any pending item — a bill, an invoice, an expense, or any future type — and carries out
- * whatever that approval means (e.g. pushing to Acumatica).
+ * whatever that approval means (for example, an integration action configured for the tenant).
  *
  * Prefers the generic Kanvas\Approvals domain and falls back to the legacy accounting.approval_queue
  * when the tenant has no policy configured. That is the cutover: seeding a policy moves a tenant onto
  * the new engine one at a time, and a tenant with no policy behaves exactly as it did before.
  *
  * The result shape is identical on both paths, so the agent guidance in AccountsPayableAgent /
- * AccountsReceivableAgent reads `pushed`, `push_error` and the source fields unchanged.
+ * AccountsReceivableAgent reads the approval outcome and source fields unchanged.
  */
 #[AgentTool(name: 'Approve Pending Item', category: 'accounting')]
 class ApprovePendingItemTool extends Tool
@@ -43,8 +43,8 @@ class ApprovePendingItemTool extends Tool
     protected string $name = 'approve_pending_item';
 
     protected ?string $description = 'Approves a pending item in the approval queue (e.g. a bill left pending by '
-        . 'create_ap_bill, or an invoice left pending by create_ar_invoice) and carries out its action — '
-        . 'for a bill/invoice, that means approving it in Kanvas and pushing it to Acumatica. Works for '
+        . 'create_ap_bill, or an invoice left pending by create_ar_invoice) and carries out its configured action — '
+        . 'for a bill/invoice, that means approving it in Kanvas and running any configured synchronization. Works for '
         . 'any approval type in the queue, not just invoices. Only the approver configured on that '
         . 'specific record\'s vendor/customer may call this — call it only when that specific person '
         . 'explicitly asks to approve something, never on your own initiative or on behalf of anyone else.';
@@ -238,18 +238,32 @@ class ApprovePendingItemTool extends Tool
             'approved' => true,
             'approved_by' => $approvedBy,
             'approved_at' => $approvedAt,
-            'next' => ($result['pushed'] ?? false)
-                ? "Pushed to Acumatica. Now: (1) add a note with the approval evidence (\"{$evidence}\"). "
-                    . '(2) If source_attachment_url is present, attach it (attach_bill_file/attach_invoice_file) '
-                    . 'now that this record is actually pushed. '
-                    . '(3) If source_email_message_id is present, reply_to_email with that same '
-                    . 'evidence on the original invoice email. '
-                    . '(4) In the sheet, find the row for this record and update column D (Status) to '
-                    . '"Approved", column E (Approved Date) to approved_at, and column F (Approved By) to '
-                    . 'approved_by.'
-                : 'Approved in Kanvas but the push to Acumatica failed: '
-                    . ($result['push_error'] ?? $result['handler_error'] ?? 'unknown error')
-                    . '. It needs manual attention. Do NOT mark the sheet Approved.',
+            'next' => $this->approvalNextStep($result, $evidence),
         ]);
+    }
+
+    /**
+     * @param array<string, mixed> $result
+     */
+    private function approvalNextStep(array $result, string $evidence): string
+    {
+        if (! array_key_exists('pushed', $result)) {
+            return 'Approved in Kanvas. Any external synchronization is handled by configured workflows.';
+        }
+
+        if ($result['pushed']) {
+            return "External synchronization completed. Now: (1) add a note with the approval evidence (\"{$evidence}\"). "
+                . '(2) If source_attachment_url is present, attach it (attach_bill_file/attach_invoice_file) '
+                . 'now that this record is actually synchronized. '
+                . '(3) If source_email_message_id is present, reply_to_email with that same '
+                . 'evidence on the original invoice email. '
+                . '(4) In the sheet, find the row for this record and update column D (Status) to '
+                . '"Approved", column E (Approved Date) to approved_at, and column F (Approved By) to '
+                . 'approved_by.';
+        }
+
+        return 'Approved in Kanvas but external synchronization failed: '
+            . ($result['push_error'] ?? $result['handler_error'] ?? 'unknown error')
+            . '. It needs manual attention. Do NOT mark the sheet Approved.';
     }
 }

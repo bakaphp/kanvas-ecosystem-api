@@ -2,11 +2,8 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Connectors\Acumatica\Actions\AttachFileToAcumaticaBillAction;
-use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
-use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\AttachesFileToDocumentForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -15,9 +12,8 @@ use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
-use Throwable;
 
-/** Attaches a file to an already-pushed AP bill, in Kanvas and in Acumatica. */
+/** Attaches a file to an AP bill in Kanvas Filesystem. */
 #[AgentTool(name: 'Attach Bill File', category: 'accounting')]
 class AttachBillFileTool extends Tool
 {
@@ -26,8 +22,7 @@ class AttachBillFileTool extends Tool
 
     protected string $name = 'attach_bill_file';
 
-    protected ?string $description = 'Attaches a file to an AP bill that has already been pushed to Acumatica — stores it '
-        . 'in Kanvas and uploads it to the Acumatica document too. Identify the file by filesystem_id '
+    protected ?string $description = 'Attaches a file to an AP bill in Kanvas Filesystem. Identify the file by filesystem_id '
         . 'when someone handed it to you this turn (an attachment marker, download_attachment), or by '
         . 'file_url when all you have is a link.';
 
@@ -99,16 +94,6 @@ class AttachBillFileTool extends Tool
             ];
         }
 
-        $ref = (string) $bill->get(AcumaticaCustomFieldEnum::BILL_REF->value, '');
-
-        if ($ref === '') {
-            return [
-                'file_attached' => false,
-                'reason' => 'bill_not_pushed',
-                'message' => "Bill {$bill_id} hasn't been pushed to Acumatica yet — push it before attaching a file.",
-            ];
-        }
-
         $file = $this->attachFileToDocument(
             $bill,
             $filesystem_id,
@@ -121,27 +106,10 @@ class AttachBillFileTool extends Tool
             return ['file_attached' => false, ...$file];
         }
 
-        $name = $file['name'];
-
-        try {
-            new AttachFileToAcumaticaBillAction($bill, $file['url'], $name)->execute();
-        } catch (AcumaticaWriteException|Throwable $e) {
-            return [
-                'file_attached' => true,
-                'pushed' => false,
-                'bill_id' => $bill->getId(),
-                'file_name' => $name,
-                'reason' => 'push_failed',
-                'message' => 'File saved in Kanvas but the push to Acumatica failed: ' . $e->getMessage(),
-            ];
-        }
-
         return [
             'file_attached' => true,
-            'pushed' => true,
             'bill_id' => $bill->getId(),
-            'bill_ref' => $ref,
-            'file_name' => $name,
+            'file_name' => $file['name'],
         ];
     }
 }

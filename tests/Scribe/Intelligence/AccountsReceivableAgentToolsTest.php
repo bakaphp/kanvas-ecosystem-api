@@ -19,12 +19,13 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddInvoiceNoteTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ResendInvoiceAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddInvoiceNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApplyArPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachInvoiceFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArCreditMemoTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendInvoiceAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Scribe\Approvals\Enums\ApprovalAttachmentFieldEnum;
 use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
@@ -158,6 +159,21 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame('invoice_not_found', $result['reason']);
     }
 
+    public function test_void_ar_invoice_reverses_it_in_the_kanvas_ledger(): void
+    {
+        $customer = $this->seedTestOrganization('Void AR Customer');
+        $invoice = $this->issueTestInvoice($customer, 300.0);
+
+        $result = new VoidArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: $invoice->getId(), reason_code: 'requested_by_user');
+
+        $this->assertTrue($result['voided']);
+        $this->assertSame($invoice->getId(), $result['invoice_id']);
+        $this->assertSame(InvoiceDocumentStatusEnum::VOIDED->value, $result['document_status']);
+        $this->assertSame(InvoiceDocumentStatusEnum::VOIDED, $invoice->fresh()->document_status);
+    }
+
     public function test_apply_ar_payment_allocates_natively_without_an_external_invoice_reference(): void
     {
         $customer = $this->seedTestOrganization('Native Payment Customer');
@@ -205,10 +221,9 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame(0, $allocations);
     }
 
-    public function test_create_ar_invoice_treats_an_explicit_null_push_flag_as_the_default(): void
+    public function test_create_ar_invoice_treats_an_explicit_null_issue_immediately_flag_as_the_default(): void
     {
-        // The LLM sends `"push_to_acumatica": null` for an omitted optional boolean, which used to
-        // TypeError against a non-nullable `bool $push_to_acumatica = true` (Sentry KANVAS-ECOSYSTEM-67Z).
+        // The LLM may send null for an omitted optional boolean, so normalize it before branching.
         $customer = $this->seedTestOrganization('Null Flag Customer');
         $customer->set(CustomFieldEnum::CUSTOMER_ID->value, 'C0001001');
 
@@ -217,28 +232,27 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             ->__invoke(
                 customer_name: 'Null Flag Customer',
                 amount: 275.0,
-                memo: 'Null push flag test',
-                push_to_acumatica: null,
+                memo: 'Null issue flag test',
+                issue_immediately: null,
             );
 
         $this->assertTrue($result['created']);
         $this->assertNotSame('draft', $result['document_status']);
     }
 
-    public function test_create_ar_invoice_with_legacy_false_flag_submits_draft_for_approval(): void
+    public function test_create_ar_invoice_with_issue_immediately_false_submits_draft_for_approval(): void
     {
         $customer = $this->seedTestOrganization('Pending Invoice Customer');
         $customer->set(CustomFieldEnum::CUSTOMER_ID->value, 'C0001000');
 
         $result = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(customer_name: 'Pending Invoice Customer', amount: 275.0, memo: 'Pending flow test', push_to_acumatica: false);
+            ->__invoke(customer_name: 'Pending Invoice Customer', amount: 275.0, memo: 'Pending flow test', issue_immediately: false);
 
         $this->assertTrue($result['created']);
         $this->assertSame('draft', $result['document_status']);
         $this->assertSame(275.0, (float) $result['remaining_balance']);
-        $this->assertArrayNotHasKey('invoice_ref', $result);
-        $this->assertArrayNotHasKey('acumatica_invoice_id', $result);
+        $this->assertArrayNotHasKey('external_reference', $result);
         $this->assertSame('NOT IN APPROVER LIST', $result['approved_by_flag']);
 
         $invoice = Invoice::query()->where('id', $result['invoice_id'])->first();
@@ -252,7 +266,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $result = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(customer_name: 'Flagged Invoice Customer', amount: 275.0, memo: 'Has approver test', push_to_acumatica: false);
+            ->__invoke(customer_name: 'Flagged Invoice Customer', amount: 275.0, memo: 'Has approver test', issue_immediately: false);
 
         $this->assertTrue($result['created']);
         $this->assertSame('', $result['approved_by_flag']);
@@ -265,7 +279,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $created = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(customer_name: 'Approval Flow Customer', amount: 300.0, memo: 'Approval flow test', push_to_acumatica: false);
+            ->__invoke(customer_name: 'Approval Flow Customer', amount: 300.0, memo: 'Approval flow test', issue_immediately: false);
 
         $result = new ApprovePendingItemTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -281,7 +295,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $created = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(customer_name: 'Approval Flow Customer 1B', amount: 300.0, memo: 'Approval flow test', push_to_acumatica: false);
+            ->__invoke(customer_name: 'Approval Flow Customer 1B', amount: 300.0, memo: 'Approval flow test', issue_immediately: false);
 
         $result = new ApprovePendingItemTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -307,7 +321,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
                 customer_name: 'Approval Flow Customer 2',
                 amount: 300.0,
                 memo: 'Approval flow test',
-                push_to_acumatica: false,
+                issue_immediately: false,
                 source_email_message_id: 'MSG_AR_APR_1',
                 source_attachment_filesystem_id: $pdf->getId(),
             );
@@ -344,7 +358,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $created = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(customer_name: 'Approval Flow Customer 3', amount: 300.0, memo: 'Approval flow test', push_to_acumatica: false);
+            ->__invoke(customer_name: 'Approval Flow Customer 3', amount: 300.0, memo: 'Approval flow test', issue_immediately: false);
 
         // Mirrors an @mention/channel turn: setConfiguration() receives the agent's OWN user, distinct
         // from the human actually approving, exactly like SlackUserResolverService resolving a DM sender.
@@ -511,54 +525,27 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertStringContainsString('Back-end rebate on sales-out, no VAT. Approved by the requester.', $creditNote->notes);
     }
 
-    public function test_create_ar_credit_memo_notifies_the_configured_default_email(): void
+    public function test_create_ar_credit_memo_writes_natively_without_connector_notification(): void
     {
-        $originalNotificationEmail = $this->kanvasApp->get(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value);
-        $originalNotifierAgentId = $this->kanvasApp->get(InvoicesConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value);
+        Http::fake();
+        $this->seedTestOrganization('Native Credit Memo Customer');
+        $controlAccount = Account::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('account_sub_type', AccountSubTypeEnum::TRAVEL_AND_MEALS->value)
+            ->firstOrFail();
 
-        try {
-            $notifierAgent = Agent::factory()
-                ->withAppId($this->kanvasApp->getId())
-                ->withCompanyId($this->company->getId())
-                ->create(['name' => 'Apex', 'user_id' => static::$cachedUser->getId()]);
-            $notifierAgent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test-token');
-
-            $this->kanvasApp->set(InvoicesConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value, (string) $notifierAgent->getId());
-            $this->kanvasApp->set(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value, 'notify@example.test');
-
-            Http::fake([
-                'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
-                'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
-                'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
-            ]);
-
-            $customer = $this->seedTestOrganization('Notification Test Customer');
-            $controlAccount = Account::query()
-                ->where('apps_id', $this->kanvasApp->getId())
-                ->where('companies_id', $this->company->getId())
-                ->where('account_sub_type', AccountSubTypeEnum::TRAVEL_AND_MEALS->value)
-                ->firstOrFail();
-
-            $result = new CreateArCreditMemoTool()
-                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-                ->__invoke(
-                    customer_name: 'Notification Test Customer',
-                    invoice_number: 'Notification Test Reference',
-                    lines: [
-                        ['control_account_number' => $controlAccount->account_number, 'amount' => 75.0],
-                    ],
-                );
-
-            $this->assertTrue($result['created']);
-            Http::assertSent(
-                fn (Request $request): bool => str_contains($request->url(), 'chat.postMessage')
-                    && str_contains((string) $request['markdown_text'], 'Notification Test Customer')
-                    && str_contains((string) $request['markdown_text'], (string) $result['credit_memo_id'])
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                customer_name: 'Native Credit Memo Customer',
+                invoice_number: 'Native Credit Memo Reference',
+                lines: [['control_account_number' => $controlAccount->account_number, 'amount' => 75.0]],
             );
-        } finally {
-            $this->kanvasApp->set(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value, $originalNotificationEmail);
-            $this->kanvasApp->set(InvoicesConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
-        }
+
+        $this->assertTrue($result['created']);
+        $this->assertTrue($result['issued']);
+        Http::assertNothingSent();
     }
 
     public function test_add_invoice_note_reports_not_found_for_unknown_invoice(): void
@@ -610,7 +597,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
                     customer_name: 'Resend AR Customer',
                     amount: 400.0,
                     memo: 'AR resend test',
-                    push_to_acumatica: false,
+                    issue_immediately: false,
                     source_email_message_id: 'MSG_AR_RESEND_1',
                     source_attachment_filesystem_id: $pdf->getId(),
                 );
@@ -639,7 +626,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
                 customer_name: 'AR Warning Customer',
                 amount: 250.0,
                 memo: 'No PDF captured',
-                push_to_acumatica: false,
+                issue_immediately: false,
                 source_email_message_id: 'MSG_AR_NO_PDF',
             );
 
@@ -657,7 +644,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
                 customer_name: 'AR Nothing To Resend',
                 amount: 125.0,
                 memo: 'No attachment',
-                push_to_acumatica: false,
+                issue_immediately: false,
             );
 
         $result = new ResendInvoiceAttachmentTool()
@@ -670,7 +657,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
     public function test_attach_invoice_file_accepts_a_filesystem_id_someone_handed_the_agent(): void
     {
-        $invoice = $this->pushedInvoice('Attach AR Customer');
+        $invoice = $this->issuedInvoice('Attach AR Customer');
         $pdf = $this->createFilesystemRow(
             url: 'https://cdn.example.test/ar-handed-to-agent.pdf',
             name: 'ar-handed-to-agent.pdf',
@@ -680,7 +667,6 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(invoice_id: $invoice->getId(), filesystem_id: $pdf->getId());
 
-        // The Acumatica leg fails without a pushed invoice GUID; the Kanvas-side attachment is the point.
         $this->assertTrue($result['file_attached']);
         $this->assertSame('ar-handed-to-agent.pdf', $result['file_name']);
 
@@ -691,7 +677,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
     public function test_attach_invoice_file_reports_an_unknown_filesystem_id_instead_of_attaching(): void
     {
-        $invoice = $this->pushedInvoice('Attach AR Customer');
+        $invoice = $this->issuedInvoice('Attach AR Customer');
 
         $result = new AttachInvoiceFileTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -704,7 +690,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
     public function test_attach_invoice_file_requires_a_filesystem_id_or_a_url(): void
     {
-        $invoice = $this->pushedInvoice('Attach AR Customer');
+        $invoice = $this->issuedInvoice('Attach AR Customer');
 
         $result = new AttachInvoiceFileTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -717,7 +703,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
     /** AR mirror of the AP slot test: a PO must not silently replace the invoice PDF the approval flow reads. */
     public function test_attach_invoice_file_keeps_a_second_document_beside_the_source_invoice_pdf(): void
     {
-        $invoice = $this->pushedInvoice('Attach AR Customer');
+        $invoice = $this->issuedInvoice('Attach AR Customer');
         $invoicePdf = $this->createFilesystemRow(url: 'https://cdn.example.test/ar-the-invoice.pdf', name: 'ar-the-invoice.pdf');
         $po = $this->createFilesystemRow(url: 'https://cdn.example.test/ar-po.pdf', name: 'ar-po.pdf');
 
@@ -733,16 +719,11 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame($po->getId(), $invoice->getFileByName('po')->filesystem->getId());
     }
 
-    private function pushedInvoice(string $customerName): Invoice
+    private function issuedInvoice(string $customerName): Invoice
     {
         $customer = $this->seedTestOrganization($customerName);
-        $invoice = $this->issueTestInvoice($customer, 400.0);
 
-        // attach_invoice_file gates on the Acumatica ref; INVOICE_ID stays unset so the push leg fails
-        // fast (AcumaticaWriteException) instead of reaching the network.
-        $invoice->set(CustomFieldEnum::INVOICE_REF->value, 'AR-' . $invoice->getId());
-
-        return $invoice;
+        return $this->issueTestInvoice($customer, 400.0);
     }
 
     public function test_attach_invoice_file_reports_not_found_for_unknown_invoice(): void

@@ -40,7 +40,7 @@ and `ResolveApproverEmailAction`; the tool and the queue itself never change.
 **Intake** (Apex/Arc, automatic, per their own agent guidance):
 
 1. Read the invoice email, extract the real data from the PDF.
-2. `create_ap_bill` / `create_ar_invoice` with `push_to_acumatica: false` — creates the bill/invoice
+2. `create_ap_bill` with `approve_immediately: false` / `create_ar_invoice` with `issue_immediately: false` — creates the bill/invoice
    in Kanvas only. `StoresApprovalSourceFields` stashes `source_email_message_id` as a custom field and
    attaches the invoice PDF through **Kanvas Filesystem** under the `source_invoice_pdf` field name
    (`ApprovalAttachmentFieldEnum::INVOICE_PDF`) — never as a custom-field URL. `ReadsApprovalSourceFields`

@@ -8,7 +8,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Actions\PushInvoiceToAcumaticaAction;
-use Kanvas\Connectors\Acumatica\Approvals\ReadsApprovalSourceFields;
+use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Exceptions\ValidationException;

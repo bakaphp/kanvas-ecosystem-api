@@ -9,7 +9,7 @@ use Kanvas\Scribe\Quotes\Models\Quote;
 /**
  * Resolves a quote by id for a tool, scoped to the agent's own tenant. Requires HasKanvasContext
  * ($app, $company). Returns the Quote, or an LLM-facing error array the caller merges into its own
- * response shape. Mirrors ResolvesPushedInvoiceForTool on the AR-document side.
+ * response shape. Mirrors ResolvesInvoiceForTool on the AR-document side.
  */
 trait ResolvesScribeQuoteForTool
 {

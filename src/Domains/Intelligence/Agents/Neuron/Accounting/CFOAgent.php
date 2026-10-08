@@ -30,10 +30,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryRecentExpensesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryTrialBalanceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApplyApPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApplyArPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Override;
 

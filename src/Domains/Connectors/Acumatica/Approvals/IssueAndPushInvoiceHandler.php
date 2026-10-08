@@ -10,6 +10,7 @@ use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Connectors\Acumatica\Actions\PushInvoiceToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Override;

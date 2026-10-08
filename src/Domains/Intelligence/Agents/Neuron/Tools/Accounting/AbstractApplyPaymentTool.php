@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Models\BaseModel;
@@ -19,7 +19,7 @@ use RuntimeException;
  *
  * Naming (LLM param, result keys, reasons, prose) is derived from noun() so 'bill'/'invoice' can't drift.
  */
-abstract class AbstractApplyAcumaticaPaymentTool extends Tool
+abstract class AbstractApplyPaymentTool extends Tool
 {
     use HasKanvasContext;
 

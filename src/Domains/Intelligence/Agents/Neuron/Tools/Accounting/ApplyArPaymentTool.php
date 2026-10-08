@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Scribe\Invoices\Actions\AllocateInvoicePaymentAction;
@@ -15,7 +15,7 @@ use Override;
 
 /** Applies a cash receipt to an existing AR invoice in the Kanvas ledger. */
 #[AgentTool(name: 'Apply AR Payment', category: 'accounting')]
-class ApplyArPaymentTool extends AbstractApplyAcumaticaPaymentTool
+class ApplyArPaymentTool extends AbstractApplyPaymentTool
 {
     protected string $name = 'apply_ar_payment';
 

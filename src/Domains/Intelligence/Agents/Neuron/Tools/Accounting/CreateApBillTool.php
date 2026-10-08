@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Acumatica\Approvals\ReadsApprovalSourceFields;
+use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -50,7 +50,7 @@ class CreateApBillTool extends Tool
         . 'the invoice has more than one line item. By default also approves it in Kanvas. This '
         . 'bypasses the normal human '
         . 'approval gate, so only do this when the user explicitly asks to create a bill this way, never '
-        . 'on a whim. Set the legacy push_to_acumatica parameter to false to create the bill and submit it for '
+        . 'on a whim. Set approve_immediately to false to create the bill and submit it for '
         . 'human approval '
         . '(status: pending_approval). External provider synchronization is handled separately by configured '
         . 'workflow rules.';
@@ -159,10 +159,10 @@ class CreateApBillTool extends Tool
                 required: false,
             ),
             new ToolProperty(
-                name: 'push_to_acumatica',
+                name: 'approve_immediately',
                 type: PropertyType::BOOLEAN,
-                description: 'Legacy compatibility flag: whether to approve this bill immediately in Kanvas. '
-                    . 'Defaults to true. Set to false to submit the bill for human approval '
+                description: 'Whether to approve this bill immediately in Kanvas. Defaults to true. '
+                    . 'Set to false to submit the bill for human approval '
                     . '(status: pending_approval). External provider '
                     . 'synchronization is handled separately by configured workflow rules.',
                 required: false,
@@ -201,11 +201,11 @@ class CreateApBillTool extends Tool
         ?string $subaccount = null,
         ?string $due_date = null,
         ?string $currency = null,
-        ?bool $push_to_acumatica = null,
+        ?bool $approve_immediately = null,
         ?string $source_email_message_id = null,
         ?int $source_attachment_filesystem_id = null,
     ): array {
-        $push_to_acumatica ??= true;
+        $approve_immediately ??= true;
         $app = $this->app;
         $company = $this->company;
 
@@ -301,7 +301,7 @@ class CreateApBillTool extends Tool
 
         $this->storeApprovalSourceFields($bill, $source_email_message_id, $source_attachment_filesystem_id);
 
-        if (! $push_to_acumatica) {
+        if (! $approve_immediately) {
             $approverEmails = ResolveApproverEmailAction::resolveForOrganization($vendor);
             $isMultiLine = $lines !== null && $lines !== [];
             $sourceFields = $this->sourceFields($bill);

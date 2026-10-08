@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Connectors\Acumatica\Approvals\ReadsApprovalSourceFields;
+use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
@@ -37,12 +37,11 @@ class CreateArInvoiceTool extends Tool
 
     protected string $name = 'create_ar_invoice';
 
-    protected ?string $description = 'Creates a one-line AR invoice for a customer. By default also issues it in Kanvas. '
-        . 'This bypasses the normal human approval gate, '
-        . 'so only do this when the user explicitly asks to create an invoice this way, never on a whim. '
-        . 'The invoice stays open; use apply_ar_payment separately to record a payment against it. Set '
-        . 'push_to_acumatica to false (legacy parameter) to submit the draft invoice for approval. External '
-        . 'synchronization happens through workflow activities after the invoice is issued.';
+    protected ?string $description = 'Creates a one-line AR invoice directly in the Kanvas ledger. By default it issues '
+        . 'the invoice immediately; this bypasses the normal human approval gate, so only do this when the user '
+        . 'explicitly asks, never on a whim. Set issue_immediately to false to submit a draft invoice for human '
+        . 'approval. The invoice stays open; use apply_ar_payment separately to record a payment against it. '
+        . 'External synchronization is handled by configured workflows.';
 
     /**
      * @return array<int, ToolProperty>
@@ -77,12 +76,11 @@ class CreateArInvoiceTool extends Tool
                 required: false,
             ),
             new ToolProperty(
-                name: 'push_to_acumatica',
+                name: 'issue_immediately',
                 type: PropertyType::BOOLEAN,
-                description: 'Legacy compatibility flag: whether to issue this invoice immediately in Kanvas. '
-                    . 'Defaults to true. Set to false '
-                    . 'to submit the draft invoice for human approval instead. External provider synchronization '
-                    . 'is handled separately by configured workflow rules.',
+                description: 'Whether to issue this invoice immediately in the Kanvas ledger. Defaults to true. '
+                    . 'Set to false to submit a draft invoice for human approval. External synchronization is '
+                    . 'handled separately by configured workflows.',
                 required: false,
             ),
             new ToolProperty(
@@ -112,11 +110,11 @@ class CreateArInvoiceTool extends Tool
         float $amount,
         string $memo,
         ?string $currency = null,
-        ?bool $push_to_acumatica = null,
+        ?bool $issue_immediately = null,
         ?string $source_email_message_id = null,
         ?int $source_attachment_filesystem_id = null,
     ): array {
-        $push_to_acumatica ??= true;
+        $issue_immediately ??= true;
         $app = $this->app;
         $company = $this->company;
 
@@ -164,7 +162,7 @@ class CreateArInvoiceTool extends Tool
 
         $this->storeApprovalSourceFields($invoice, $source_email_message_id, $source_attachment_filesystem_id);
 
-        if (! $push_to_acumatica) {
+        if (! $issue_immediately) {
             new SubmitInvoiceForApprovalAction($invoice, $actingUser)->execute();
 
             $approverEmails = ResolveApproverEmailAction::resolveForOrganization($customer);
