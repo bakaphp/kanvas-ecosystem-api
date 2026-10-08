@@ -70,7 +70,7 @@ class InternalAgentMemoryPrivacyTest extends TestCase
         $maxsAgent->setThreadId('max-session');
         $maxsAgent->chat(new UserMessage('What do you know about Jenn, and how does Acme like to be invoiced?'));
 
-        $prompt = (string) end($maxsAgent->systemPrompts);
+        $prompt = (string) end($maxsAgent->modelInputs);
         $this->assertStringNotContainsString('Globex', $prompt, "Jenn's conversation with another agent is hers");
         $this->assertStringContainsString('quarterly invoicing', $prompt, 'A memory saved for the company is shared');
 
@@ -79,6 +79,6 @@ class InternalAgentMemoryPrivacyTest extends TestCase
         $jennAgain->setThreadId('jenn-later');
         $jennAgain->chat(new UserMessage('Remind me what I told you about next week?'));
 
-        $this->assertStringContainsString('Globex', (string) end($jennAgain->systemPrompts), 'Her own conversation follows her to any agent');
+        $this->assertStringContainsString('Globex', (string) end($jennAgain->modelInputs), 'Her own conversation follows her to any agent');
     }
 }
