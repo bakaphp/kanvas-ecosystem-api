@@ -17,6 +17,7 @@ use Kanvas\Scribe\Bills\Exceptions\DuplicateBillNumberException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillLine;
 use Kanvas\Scribe\Bills\Models\BillTaxLine;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
  * Creates a DRAFT bill. No JE posts — drafts haven't hit the books yet.
@@ -37,7 +38,7 @@ class CreateBillAction
 
     public function execute(): Bill
     {
-        return DB::connection('accounting')->transaction(function (): Bill {
+        $bill = DB::connection('accounting')->transaction(function (): Bill {
             $vendorOrganizationId = $this->data->vendor?->getPayeeId();
             $this->assertBillNumberIsFree($vendorOrganizationId);
 
@@ -152,6 +153,16 @@ class CreateBillAction
 
             return $bill;
         });
+
+        $bill->fireWorkflowAfterCommit(
+            WorkflowEnum::CREATED->value,
+            [
+                'app' => $bill->app,
+                'entity' => 'bill',
+            ]
+        );
+
+        return $bill;
     }
 
     /**

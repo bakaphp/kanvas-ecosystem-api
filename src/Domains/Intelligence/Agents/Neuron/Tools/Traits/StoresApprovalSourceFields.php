@@ -9,7 +9,7 @@ use Kanvas\Scribe\Approvals\Enums\ApprovalCustomFieldEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 
-/** Stashes the originating email/attachment on a bill/invoice, for ReadsApprovalSourceFields to use later. */
+/** Stashes the originating email/attachment on a bill/invoice, for the approval flow to use later. */
 trait StoresApprovalSourceFields
 {
     use AttachesFileToDocumentForTool;

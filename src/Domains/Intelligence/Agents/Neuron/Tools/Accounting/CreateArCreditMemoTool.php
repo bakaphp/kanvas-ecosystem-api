@@ -2,23 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Acumatica\Actions\PushInvoiceToAcumaticaAction;
-use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
-use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
-use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
-use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\ObjectProperty;
@@ -31,7 +26,7 @@ use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
-/** Issues a standalone AR credit memo (e.g. a back-end rebate) not tied to any specific invoice, and pushes it to Acumatica. */
+/** Issues a standalone AR credit memo (e.g. a back-end rebate) directly in the Kanvas ledger. */
 #[AgentTool(name: 'Create AR Credit Memo', category: 'accounting')]
 class CreateArCreditMemoTool extends Tool
 {
@@ -42,7 +37,7 @@ class CreateArCreditMemoTool extends Tool
     protected string $name = 'create_ar_credit_memo';
 
     protected ?string $description = 'Issues a standalone AR credit memo for a customer — e.g. a back-end rebate/sell-out '
-        . 'allowance from a Credit Request Form — and pushes it to Acumatica as a Credit Memo. It is not '
+        . 'allowance from a Credit Request Form — directly in the Kanvas ledger. It is not '
         . 'tied to any specific invoice. Only call when the user explicitly asks to issue a credit, never '
         . 'on a whim.';
 
@@ -156,7 +151,7 @@ class CreateArCreditMemoTool extends Tool
 
         $customer = $this->resolveCustomerOrError(
             $customer_name,
-            'Call find_customer to see Acumatica codes and confirm the right one with the user.',
+            'Call find_customer to confirm the right customer with the user.',
         );
 
         if (is_array($customer)) {
@@ -224,70 +219,20 @@ class CreateArCreditMemoTool extends Tool
             ];
         }
 
-        try {
-            $reference = new PushInvoiceToAcumaticaAction($creditNote)->execute();
-        } catch (AcumaticaWriteException|Throwable $e) {
-            $this->notifyCreditMemoOutcome(
-                $app,
-                "AR credit memo pushed to Acumatica FAILED:\nCustomer: {$customerDisplayName}\nReference: "
-                    . "{$invoice_number}\nKanvas credit_memo_id: {$creditNote->getId()}\nError: " . $e->getMessage(),
-            );
-
-            return [
-                'created' => true,
-                'pushed' => false,
-                'credit_memo_id' => $creditNote->getId(),
-                'credit_memo_number' => $creditNote->invoice_number,
-                'customer' => $customerDisplayName,
-                'processed_at' => Carbon::now()->toDateTimeString(),
-                'reason' => 'push_failed',
-                'message' => 'Credit memo was issued in Kanvas but the push to Acumatica failed: '
-                    . $e->getMessage() . '. It needs manual attention — it will not auto-retry.',
-            ];
-        }
-
-        $this->notifyCreditMemoOutcome(
-            $app,
-            "AR credit memo pushed to Acumatica:\nCustomer: {$customerDisplayName}\nAmount: {$currency} "
-                . number_format((float) $creditNote->total_native, 2) . "\nReference: {$invoice_number}\nKanvas "
-                . "credit_memo_id: {$creditNote->getId()}\nAcumatica ref: {$reference}",
-        );
-
         return [
             'created' => true,
-            'pushed' => true,
+            'issued' => true,
             'credit_memo_id' => $creditNote->getId(),
             'credit_memo_number' => $creditNote->invoice_number,
             'customer' => $customerDisplayName,
             'amount' => (float) $creditNote->total_native,
             'currency' => $currency,
-            'credit_memo_ref' => $reference,
-            'acumatica_invoice_id' => (string) $creditNote->get(AcumaticaCustomFieldEnum::INVOICE_ID->value, ''),
             'processed_at' => Carbon::now()->toDateTimeString(),
-            'next' => 'Pushed to Acumatica as a Credit Memo. credit_memo_ref is the ERP reference. processed_at '
-                . 'is the exact time this ran — copy it verbatim if logging this to a sheet, never invent a '
-                . 'timestamp yourself. Use add_invoice_note / attach_invoice_file if you need to attach the '
-                . 'request form or manager approval.',
+            'next' => 'Credit memo issued in the Kanvas ledger. Any external synchronization is handled by '
+                . 'configured workflows. processed_at is the exact time this ran — copy it verbatim if logging '
+                . 'this to a sheet, never invent a timestamp yourself. Use add_invoice_note or attach_invoice_file '
+                . 'if you need to attach the request form or manager approval.',
         ];
-    }
-
-    // Until per-customer notification routing is decided, everything goes to one fixed default address (CREDIT_MEMO_NOTIFICATION_EMAIL) — silently skipped when unset.
-    private function notifyCreditMemoOutcome(Apps $app, string $text): void
-    {
-        $email = trim((string) $app->get(ConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value, ''));
-
-        if ($email === '') {
-            return;
-        }
-
-        $agentId = trim((string) $app->get(ConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value, ''));
-
-        new NotifyApproverAction(
-            app: $app,
-            text: $text,
-            approverEmail: $email,
-            agentId: $agentId !== '' ? $agentId : null,
-        )->execute();
     }
 
     private function resolveAccount(string $accountNumber, Apps $app, Companies $company): ?Account

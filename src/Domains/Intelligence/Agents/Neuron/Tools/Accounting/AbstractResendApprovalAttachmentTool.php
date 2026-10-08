@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Connectors\Acumatica\Approvals\ReadsApprovalSourceFields;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Approvals\Actions\ResolveApproverEmailAction;
+use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use NeuronAI\Tools\PropertyType;
@@ -22,7 +22,7 @@ use Override;
  * document and the counterparty organization differ.
  *
  * Naming (LLM param, result keys, reasons, prose) all derives from noun() so 'bill'/'invoice' can't
- * drift between the schema and the response — same shape as AbstractApplyAcumaticaPaymentTool.
+ * drift between the schema and the response — same shape as AbstractApplyPaymentTool.
  */
 abstract class AbstractResendApprovalAttachmentTool extends Tool
 {

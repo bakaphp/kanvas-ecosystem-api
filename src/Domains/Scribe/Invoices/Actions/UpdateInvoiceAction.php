@@ -15,6 +15,7 @@ use Kanvas\Scribe\Invoices\Exceptions\InvalidInvoiceTransitionException;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Scribe\Invoices\Models\InvoiceTaxLine;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
  * Updates a DRAFT invoice (header + lines + tax lines + billable reference).
@@ -48,7 +49,7 @@ class UpdateInvoiceAction
             );
         }
 
-        return DB::connection('accounting')->transaction(function (): Invoice {
+        $invoice = DB::connection('accounting')->transaction(function (): Invoice {
             $invoice = $this->invoice;
             [$totals, $baseTotals] = $this->computeTotals();
             $fxRate = (float) $this->data->fx_rate_to_base;
@@ -148,6 +149,16 @@ class UpdateInvoiceAction
 
             return $invoice;
         });
+
+        $invoice->fireWorkflowAfterCommit(
+            WorkflowEnum::UPDATED->value,
+            [
+                'app' => $invoice->app,
+                'entity' => 'invoice',
+            ]
+        );
+
+        return $invoice;
     }
 
     /**

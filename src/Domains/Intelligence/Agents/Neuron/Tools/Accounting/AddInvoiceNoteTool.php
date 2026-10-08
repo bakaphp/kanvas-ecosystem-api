@@ -2,32 +2,28 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Connectors\Acumatica\Actions\PushInvoiceNoteToAcumaticaAction;
-use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
-use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPushedInvoiceForTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesInvoiceForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
-use Throwable;
 
-/** Appends a note to an already-pushed AR invoice or credit memo, in Kanvas and in Acumatica. */
+/** Appends an internal note to an AR invoice or credit memo in the Kanvas ledger. */
 #[AgentTool(name: 'Add Invoice Note', category: 'accounting')]
 class AddInvoiceNoteTool extends Tool
 {
     use HasKanvasContext;
-    use ResolvesPushedInvoiceForTool;
+    use ResolvesInvoiceForTool;
 
     protected string $name = 'add_invoice_note';
 
-    protected ?string $description = 'Appends a note to an AR invoice or credit memo that has already been pushed to '
-        . 'Acumatica — records it both in Kanvas and on the Acumatica document\'s Notes field.';
+    protected ?string $description = 'Appends a timestamped internal note to an AR invoice or credit memo in the '
+        . 'Kanvas ledger.';
 
     /**
      * @return array<int, ToolProperty>
@@ -57,7 +53,7 @@ class AddInvoiceNoteTool extends Tool
      */
     public function __invoke(int $invoice_id, string $note): array
     {
-        $invoice = $this->resolvePushedInvoice($invoice_id);
+        $invoice = $this->resolveInvoice($invoice_id);
 
         if (is_array($invoice)) {
             return ['note_added' => false, ...$invoice];
@@ -69,23 +65,9 @@ class AddInvoiceNoteTool extends Tool
             : $stamped;
         $invoice->saveOrFail();
 
-        try {
-            new PushInvoiceNoteToAcumaticaAction($invoice)->execute($stamped);
-        } catch (AcumaticaWriteException|Throwable $e) {
-            return [
-                'note_added' => true,
-                'pushed' => false,
-                'invoice_id' => $invoice->getId(),
-                'reason' => 'push_failed',
-                'message' => 'Note saved in Kanvas but the push to Acumatica failed: ' . $e->getMessage(),
-            ];
-        }
-
         return [
             'note_added' => true,
-            'pushed' => true,
             'invoice_id' => $invoice->getId(),
-            'invoice_ref' => (string) $invoice->get(AcumaticaCustomFieldEnum::INVOICE_REF->value, ''),
             'note' => $stamped,
         ];
     }
