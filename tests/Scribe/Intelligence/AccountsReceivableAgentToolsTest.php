@@ -9,7 +9,6 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum as AcumaticaConfigurationEnum;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -159,62 +158,22 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame('invoice_not_found', $result['reason']);
     }
 
-    public function test_apply_ar_payment_reports_not_pushed_when_invoice_has_no_acumatica_ref(): void
+    public function test_apply_ar_payment_allocates_natively_without_an_external_invoice_reference(): void
     {
-        $originalSyncEnabled = $this->company->get(AcumaticaConfigurationEnum::SYNC_ENABLED->value);
-        $this->company->set(AcumaticaConfigurationEnum::SYNC_ENABLED->value, '1');
+        $customer = $this->seedTestOrganization('Native Payment Customer');
+        $invoice = $this->issueTestInvoice($customer, 300.0);
 
-        try {
-            $invoice = Invoice::create([
-                'apps_id' => $this->kanvasApp->getId(),
-                'companies_id' => $this->company->getId(),
-                'document_type' => 'invoice',
-                'invoice_number' => 'INV-NOPUSH',
-                'billable_display_name' => 'Acme Corporation',
-                'document_status' => InvoiceDocumentStatusEnum::ISSUED->value,
-                'currency' => 'USD',
-                'fx_rate_to_base' => 1.0,
-                'subtotal_native' => 300.0, 'total_native' => 300.0, 'paid_native' => 0.0, 'balance_due_native' => 300.0,
-                'subtotal_base' => 300.0, 'total_base' => 300.0, 'paid_base' => 0.0, 'balance_due_base' => 300.0,
-                'issued_date' => Carbon::parse('2026-06-01'),
-                'source' => 'kanvas',
-            ]);
+        $result = new ApplyArPaymentTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: $invoice->getId(), amount: 100.0, reference: 'NATIVE-CHK-1');
 
-            $result = new ApplyArPaymentTool()
-                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-                ->__invoke(invoice_id: (int) $invoice->id, amount: 100.0, reference: 'CHK-1');
-
-            $this->assertFalse($result['applied']);
-            $this->assertSame('invoice_not_pushed', $result['reason']);
-        } finally {
-            $this->company->set(AcumaticaConfigurationEnum::SYNC_ENABLED->value, $originalSyncEnabled);
-        }
-    }
-
-    public function test_apply_ar_payment_allocates_natively_without_acumatica_sync(): void
-    {
-        $originalSyncEnabled = $this->company->get(AcumaticaConfigurationEnum::SYNC_ENABLED->value);
-        $this->company->set(AcumaticaConfigurationEnum::SYNC_ENABLED->value, '0');
-
-        try {
-            $customer = $this->seedTestOrganization('Native Payment Customer');
-            $invoice = $this->issueTestInvoice($customer, 300.0);
-
-            $result = new ApplyArPaymentTool()
-                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-                ->__invoke(invoice_id: $invoice->getId(), amount: 100.0, reference: 'NATIVE-CHK-1');
-
-            $this->assertTrue($result['applied']);
-            $this->assertFalse($result['pushed']);
-            $this->assertSame($invoice->getId(), $result['invoice_id']);
-            $this->assertSame((string) $invoice->getId(), $result['invoice_ref']);
-            $this->assertSame(100.0, $result['amount']);
-            $this->assertSame('NATIVE-CHK-1', $result['payment_ref']);
-            $this->assertSame(200.0, (float) $result['remaining_balance']);
-            $this->assertSame(200.0, (float) Invoice::query()->findOrFail($invoice->getId())->balance_due_native);
-        } finally {
-            $this->company->set(AcumaticaConfigurationEnum::SYNC_ENABLED->value, $originalSyncEnabled);
-        }
+        $this->assertTrue($result['applied']);
+        $this->assertSame($invoice->getId(), $result['invoice_id']);
+        $this->assertNotEmpty($result['payment_id']);
+        $this->assertSame(100.0, $result['amount']);
+        $this->assertSame('NATIVE-CHK-1', $result['payment_ref']);
+        $this->assertSame(200.0, (float) $result['remaining_balance']);
+        $this->assertSame(200.0, (float) Invoice::query()->findOrFail($invoice->getId())->balance_due_native);
     }
 
     public function test_create_ar_invoice_refuses_an_empty_customer_name(): void
@@ -237,7 +196,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             ->__invoke(customer_name: 'Open Invoice Customer', amount: 50.0, memo: 'test invoice');
 
         $this->assertTrue($result['created']);
-        $this->assertArrayNotHasKey('payment_pushed', $result);
+        $this->assertArrayNotHasKey('payment_id', $result);
         $this->assertArrayNotHasKey('payment_ref', $result);
 
         $allocations = InvoicePaymentAllocation::query()
@@ -266,7 +225,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertNotSame('draft', $result['document_status']);
     }
 
-    public function test_create_ar_invoice_with_push_to_acumatica_false_stops_at_draft(): void
+    public function test_create_ar_invoice_with_legacy_false_flag_submits_draft_for_approval(): void
     {
         $customer = $this->seedTestOrganization('Pending Invoice Customer');
         $customer->set(CustomFieldEnum::CUSTOMER_ID->value, 'C0001000');
@@ -276,8 +235,8 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             ->__invoke(customer_name: 'Pending Invoice Customer', amount: 275.0, memo: 'Pending flow test', push_to_acumatica: false);
 
         $this->assertTrue($result['created']);
-        $this->assertFalse($result['invoice_pushed']);
         $this->assertSame('draft', $result['document_status']);
+        $this->assertSame(275.0, (float) $result['remaining_balance']);
         $this->assertArrayNotHasKey('invoice_ref', $result);
         $this->assertArrayNotHasKey('acumatica_invoice_id', $result);
         $this->assertSame('NOT IN APPROVER LIST', $result['approved_by_flag']);

@@ -309,7 +309,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame('BB-0G-M1', $bill->lines->first()->subaccount->sub_code);
     }
 
-    public function test_create_ap_bill_with_push_to_acumatica_false_stops_at_pending_approval(): void
+    public function test_create_ap_bill_with_legacy_false_flag_submits_for_native_approval(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
         $accountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
@@ -327,8 +327,8 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             );
 
         $this->assertTrue($result['created']);
-        $this->assertFalse($result['pushed']);
         $this->assertSame('pending_approval', $result['document_status']);
+        $this->assertSame(750.0, (float) $result['remaining_balance']);
         $this->assertArrayNotHasKey('bill_ref', $result);
         $this->assertArrayNotHasKey('acumatica_bill_id', $result);
 

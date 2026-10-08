@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 
-use Kanvas\Connectors\Acumatica\Actions\PushPaymentToAcumaticaAction;
-use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum as AcumaticaConfigurationEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Payments\Models\Payment;
@@ -14,26 +12,19 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 use RuntimeException;
-use Throwable;
 
 /**
- * Shared body for applying AP/AR payments. Payments are allocated in Kanvas and are pushed to
- * Acumatica only when sync is enabled for the company. The two flows are identical bar the document
- * type (Bill vs Invoice), the allocate action, and the ref custom field — so the control flow, tenant
- * lookup, guards, and result shape live here and each concrete tool supplies the differences below.
+ * Shared body for applying AP/AR payments. Kanvas owns payment allocation; configured workflows
+ * handle any external synchronization after the ledger transaction completes.
  *
- * Naming (LLM param, result keys, reasons, prose) is all derived from noun() so 'bill'/'invoice' can't
- * drift between the schema and the response.
+ * Naming (LLM param, result keys, reasons, prose) is derived from noun() so 'bill'/'invoice' can't drift.
  */
 abstract class AbstractApplyAcumaticaPaymentTool extends Tool
 {
     use HasKanvasContext;
 
-    /** 'bill' | 'invoice' — drives the {noun}_id param, {noun}_id/{noun}_ref result keys, and messages. */
+    /** 'bill' | 'invoice' — drives the document id parameter/result key and messages. */
     abstract protected function noun(): string;
-
-    /** Acumatica ref custom-field key on the document (BILL_REF / INVOICE_REF). */
-    abstract protected function refCustomField(): string;
 
     abstract protected function resolveDocument(int $id): ?BaseModel;
 
@@ -43,16 +34,6 @@ abstract class AbstractApplyAcumaticaPaymentTool extends Tool
      * @return array{remaining_balance: float, document_status: string}
      */
     abstract protected function refreshedState(BaseModel $document): array;
-
-    /**
-     * Extra response keys derived from Acumatica's own status on the just-pushed payment. Empty by default.
-     *
-     * @return array<string, mixed>
-     */
-    protected function additionalContext(?string $acumaticaPaymentStatus): array
-    {
-        return [];
-    }
 
     /**
      * @return array<int, ToolProperty>
@@ -102,17 +83,6 @@ abstract class AbstractApplyAcumaticaPaymentTool extends Tool
             ];
         }
 
-        $ref = (string) $document->get($this->refCustomField(), '');
-        $acumaticaEnabled = (bool) $this->company->get(AcumaticaConfigurationEnum::SYNC_ENABLED->value);
-
-        if ($acumaticaEnabled && $ref === '') {
-            return [
-                'applied' => false,
-                'reason' => $noun . '_not_pushed',
-                'message' => ucfirst($noun) . " {$id} hasn't been pushed to Acumatica yet — push it before applying a payment.",
-            ];
-        }
-
         try {
             $payment = $this->allocatePayment($document, $amount, $reference);
         } catch (RuntimeException $e) {
@@ -123,44 +93,15 @@ abstract class AbstractApplyAcumaticaPaymentTool extends Tool
             ];
         }
 
-        if (! $acumaticaEnabled) {
-            return [
-                'applied' => true,
-                'pushed' => false,
-                $idKey => $document->getId(),
-                $noun . '_ref' => $ref ?: (string) $document->getId(),
-                'amount' => $amount,
-                'payment_ref' => $reference,
-                ...$this->refreshedState($document),
-            ];
-        }
-
-        $pushAction = new PushPaymentToAcumaticaAction($payment);
-
-        try {
-            $paymentRef = $pushAction->execute();
-        } catch (Throwable $e) {
-            return [
-                'applied' => true,
-                'pushed' => false,
-                $idKey => $document->getId(),
-                'reason' => 'push_failed',
-                'message' => 'Payment recorded in Kanvas but the push to Acumatica failed: ' . $e->getMessage(),
-            ];
-        }
-
-        $acumaticaStatus = $pushAction->getLastPushedStatus();
-
         return [
             'applied' => true,
-            'pushed' => true,
             $idKey => $document->getId(),
-            $noun . '_ref' => $ref,
+            'payment_id' => $payment->getId(),
             'amount' => $amount,
-            'payment_ref' => $paymentRef,
-            'acumatica_payment_status' => $acumaticaStatus,
+            'payment_ref' => $reference,
             ...$this->refreshedState($document),
-            ...$this->additionalContext($acumaticaStatus),
+            'next' => 'Payment allocated in Kanvas. Any external synchronization is handled by configured '
+                . 'workflow activities.',
         ];
     }
 }

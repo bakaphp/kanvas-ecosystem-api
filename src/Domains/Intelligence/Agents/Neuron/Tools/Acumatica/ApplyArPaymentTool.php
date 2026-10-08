@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 
-use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Scribe\Invoices\Actions\AllocateInvoicePaymentAction;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -14,14 +13,14 @@ use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use Kanvas\Scribe\Payments\Models\Payment;
 use Override;
 
-/** Applies a cash receipt to an existing AR invoice and pushes it to Acumatica when company sync is enabled. */
+/** Applies a cash receipt to an existing AR invoice in the Kanvas ledger. */
 #[AgentTool(name: 'Apply AR Payment', category: 'accounting')]
 class ApplyArPaymentTool extends AbstractApplyAcumaticaPaymentTool
 {
     protected string $name = 'apply_ar_payment';
 
-    protected ?string $description = 'Applies a cash receipt to an existing AR invoice (partial or full), and pushes the '
-        . 'payment to Acumatica only when Acumatica sync is enabled for the company. Only call when the user '
+    protected ?string $description = 'Applies a cash receipt to an existing AR invoice (partial or full) in Kanvas. '
+        . 'Only call when the user '
         . 'explicitly asks to record a real customer payment against an invoice — never on a whim.';
 
     /**
@@ -36,12 +35,6 @@ class ApplyArPaymentTool extends AbstractApplyAcumaticaPaymentTool
     protected function noun(): string
     {
         return 'invoice';
-    }
-
-    #[Override]
-    protected function refCustomField(): string
-    {
-        return AcumaticaCustomFieldEnum::INVOICE_REF->value;
     }
 
     #[Override]
