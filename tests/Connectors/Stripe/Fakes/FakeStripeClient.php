@@ -27,6 +27,7 @@ final class FakeStripeClient extends StripeClient
     private FakePaymentMethodsService $paymentMethodsService;
     private FakeWebhooks $webhooksService;
     private FakeCouponsService $couponsService;
+    private FakePaymentLinksService $paymentLinksService;
 
     public function __construct(?string $apiKey = 'sk_test_fake')
     {
@@ -37,6 +38,7 @@ final class FakeStripeClient extends StripeClient
         $this->paymentMethodsService = new FakePaymentMethodsService();
         $this->webhooksService = new FakeWebhooks();
         $this->couponsService = new FakeCouponsService();
+        $this->paymentLinksService = new FakePaymentLinksService();
     }
 
     public function __get($name): mixed
@@ -48,8 +50,14 @@ final class FakeStripeClient extends StripeClient
             'paymentMethods' => $this->paymentMethodsService,
             'webhooks' => $this->webhooksService,
             'coupons' => $this->couponsService,
+            'paymentLinks' => $this->paymentLinksService,
             default => parent::__get($name),
         };
+    }
+
+    public function getPaymentLinks(): FakePaymentLinksService
+    {
+        return $this->paymentLinksService;
     }
 
     public function getCoupons(): FakeCouponsService
@@ -171,6 +179,21 @@ final class FakeCouponsService
     public function create(array $params, ?array $options = null): mixed
     {
         return $this->recordAndShift('create', $params, $options);
+    }
+}
+
+final class FakePaymentLinksService
+{
+    use FakeServiceTrait;
+
+    public function create(array $params, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('create', $params, $options);
+    }
+
+    public function retrieve(string $id, ?array $params = null, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('retrieve', array_merge(['id' => $id], $params ?? []), $options);
     }
 }
 
