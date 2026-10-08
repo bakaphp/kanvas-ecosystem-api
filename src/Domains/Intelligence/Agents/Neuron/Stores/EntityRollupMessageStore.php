@@ -49,7 +49,8 @@ class EntityRollupMessageStore extends KanvasMessageStore
     private const string AGENT_VERB = 'agent';
     private const string USER_VERB = 'user';
 
-    private const array INTERNAL_VERBS = [
+    /** Rows the agent writes for itself on a record's channels; never history, never knowledge. */
+    public const array INTERNAL_VERBS = [
         LeadMessageTypeEnum::NOTES->value,
         LeadMessageTypeEnum::AI_ASSIST->value,
         LeadMessageTypeEnum::INTERNAL->value,

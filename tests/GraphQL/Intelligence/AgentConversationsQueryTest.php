@@ -10,14 +10,74 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentConversation;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Tests\TestCase;
+use Tests\Traits\WritesConversationRows;
 
 class AgentConversationsQueryTest extends TestCase
 {
     use DatabaseTransactions;
+    use WritesConversationRows;
 
     protected array $connectionsToTransact = ['mysql', 'intelligence'];
+
+    /**
+     * The compaction summary is a user-role row and a tool round is an empty-content row; the person's
+     * chat shows neither, the backend view shows both and can tell them apart.
+     */
+    public function testTheChatHidesSummariesAndToolRoundsButTheBackendViewKeepsThem(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $agent = Agent::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create(['user_id' => $user->getId()]);
+        $sessionId = (string) Str::uuid();
+        new KanvasConversationStore()->logTurn(
+            userId: $user->getId(),
+            sessionId: $sessionId,
+            agentClass: 'Test\\Stub\\Handler',
+            userMessage: 'how many tasks do I have',
+            assistantResponse: 'Seven.',
+            agentId: $agent->getId(),
+        );
+        $conversation = AgentConversation::query()->where('agent_id', $agent->getId())->firstOrFail();
+        $this->conversationRow(
+            $conversation,
+            'user',
+            "## Previous conversation summary:\n\nTasks were discussed.",
+            ['kind' => 'summary'],
+        );
+        $this->conversationRow(
+            $conversation,
+            'assistant',
+            '',
+            ['kind' => 'tool_call'],
+        );
+        $this->conversationRow(
+            $conversation,
+            'user',
+            '',
+            ['kind' => 'tool_call_result'],
+        );
+
+        $response = $this->graphQL('
+            query ($agentId: ID) {
+                agentConversations(first: 1, agent_id: $agentId) {
+                    data {
+                        messages(first: 50) { data { content kind } }
+                        all_messages: messages(first: 50, include_internal: true) { data { content kind } }
+                    }
+                }
+            }
+        ', ['agentId' => $agent->getId()])->assertSuccessful();
+
+        $conv = $response->json('data.agentConversations.data.0');
+        $this->assertSame(['how many tasks do I have', 'Seven.'], array_column($conv['messages']['data'], 'content'));
+        $this->assertCount(5, $conv['all_messages']['data']);
+        $this->assertSame([null, null, 'summary', 'tool_call', 'tool_call_result'], array_column($conv['all_messages']['data'], 'kind'));
+        $this->assertStringStartsWith('## Previous conversation summary', collect($conv['all_messages']['data'])->firstWhere('kind', 'summary')['content']);
+    }
 
     public function testMessagesAreScopedToTheirOwnConversation(): void
     {

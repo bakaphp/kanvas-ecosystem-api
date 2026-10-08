@@ -6,6 +6,7 @@ namespace Tests\Intelligence;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
+use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Factories\AgentLlmConfigFactory;
 use Kanvas\Intelligence\Agents\Neuron\Providers\RecoversUnknownToolCalls;
@@ -41,6 +42,7 @@ final class AgentProviderServiceTest extends TestCase
             ConfigurationEnum::AI_PROVIDER_MODEL->value,
             ConfigurationEnum::GEMINI_KEY->value,
             ConfigurationEnum::GEMINI_MODEL->value,
+            AgentRunConfigurationEnum::GEMINI_THINKING->value,
         ];
     }
 
@@ -267,6 +269,79 @@ final class AgentProviderServiceTest extends TestCase
 
         $this->assertInstanceOf(Gemini::class, $provider);
         $this->assertSame(['temperature' => 0.1], $this->readProp($provider, 'parameters'));
+    }
+
+    public function testTheAppThinkingSettingReachesGeminiUnlessTheConfigCarriesItsOwn(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::GEMINI_KEY->value, 'gemini-key');
+        $app->set(AgentRunConfigurationEnum::GEMINI_THINKING->value, 'low');
+
+        $agent = AgentFactory::new()->withAppId($app->getId())->withCompanyId(0)->create([
+            'config' => ['llm_provider' => AgentLlmProviderEnum::GEMINI->value, 'parameters' => ['temperature' => 0.1]],
+        ]);
+
+        $this->assertSame(
+            ['temperature' => 0.1, 'generationConfig' => ['thinkingConfig' => ['thinkingLevel' => 'low']]],
+            $this->readProp(AgentProviderService::resolve($agent), 'parameters'),
+        );
+
+        $app->set(AgentRunConfigurationEnum::GEMINI_THINKING->value, '512');
+        $this->assertSame(
+            ['thinkingBudget' => 512],
+            $this->readProp(AgentProviderService::resolve($agent), 'parameters')['generationConfig']['thinkingConfig'],
+            'A number is a budget, for the models that take one',
+        );
+
+        $own = AgentFactory::new()->withAppId($app->getId())->withCompanyId(0)->create([
+            'config' => [
+                'llm_provider' => AgentLlmProviderEnum::GEMINI->value,
+                'parameters' => ['generationConfig' => ['thinkingConfig' => ['thinkingLevel' => 'high']]],
+            ],
+        ]);
+        $this->assertSame(
+            ['thinkingLevel' => 'high'],
+            $this->readProp(AgentProviderService::resolve($own), 'parameters')['generationConfig']['thinkingConfig'],
+            'The selected config wins over the app setting',
+        );
+
+        $app->set(AgentRunConfigurationEnum::GEMINI_THINKING->value, 'whatever');
+        $this->assertSame(['temperature' => 0.1], $this->readProp(AgentProviderService::resolve($agent), 'parameters'), 'An unknown value is ignored, not sent');
+    }
+
+    public function testTheQueryRewriteRunsOnTheAgentsModelWithThinkingLow(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::GEMINI_KEY->value, 'gemini-key');
+        $app->set(AgentRunConfigurationEnum::GEMINI_THINKING->value, 'high');
+
+        try {
+            $agent = AgentFactory::new()->withAppId($app->getId())->withCompanyId(0)->create([
+                'config' => [
+                    'llm_provider' => AgentLlmProviderEnum::GEMINI->value,
+                    'model' => 'gemini-3.8-flash',
+                    'parameters' => ['temperature' => 0.1],
+                ],
+            ]);
+
+            $rewrite = AgentProviderService::queryRewriteProvider($agent);
+
+            $this->assertSame(
+                ['temperature' => 0.1, 'generationConfig' => ['thinkingConfig' => ['thinkingLevel' => 'low']]],
+                $this->readProp($rewrite, 'parameters'),
+                'The rewrite overrides the app thinking level; the agent keeps its own',
+            );
+            $this->assertSame(
+                $this->readProp(AgentProviderService::resolve($agent), 'model'),
+                $this->readProp($rewrite, 'model'),
+            );
+            $this->assertSame(
+                ['thinkingLevel' => 'high'],
+                $this->readProp(AgentProviderService::resolve($agent), 'parameters')['generationConfig']['thinkingConfig'],
+            );
+        } finally {
+            $app->del(AgentRunConfigurationEnum::GEMINI_THINKING->value);
+        }
     }
 
     private function readProp(object $object, string $property): mixed

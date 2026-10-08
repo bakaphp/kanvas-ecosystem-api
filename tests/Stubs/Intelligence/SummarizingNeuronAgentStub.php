@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Stubs\Intelligence;
 
 use Kanvas\Intelligence\Agents\Neuron\KanvasGenericNeuronAgent;
+use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasSummarization;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Providers\AIProviderInterface;
@@ -43,7 +44,7 @@ class SummarizingNeuronAgentStub extends KanvasGenericNeuronAgent
             {
                 $last = end($messages);
 
-                if ($last !== false && str_contains((string) $last->getContent(), 'comprehensive summary')) {
+                if ($last !== false && str_starts_with((string) $last->getContent(), KanvasSummarization::SUMMARY_PROMPT)) {
                     $this->agent->summaryRequests++;
 
                     return $this->respond(new AssistantMessage(SummarizingNeuronAgentStub::SUMMARY_TEXT));

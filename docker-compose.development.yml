@@ -201,6 +201,7 @@ services:
         
   agent-chat-queue:
     <<: *common-queue-settings
+    stop_grace_period: 300s
     # REMOVED container_name because replicas > 1
     deploy:
       replicas: 3
@@ -237,6 +238,7 @@ services:
         --queue=slack-ingest --tries=3 --timeout=3750"
   nervous-system-project-queue:
     <<: *common-queue-settings
+    stop_grace_period: 300s
     # REMOVED container_name because replicas > 1
     command:
       - "sh"

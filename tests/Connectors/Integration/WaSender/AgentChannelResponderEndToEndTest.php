@@ -21,6 +21,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
+use Laravel\Ai\Embeddings;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\Stubs\Intelligence\StructuredNeuronAgentStub;
 use Tests\TestCase;
@@ -79,6 +80,7 @@ class AgentChannelResponderEndToEndTest extends TestCase
     private function bootScenario(string $handler): array
     {
         Http::fake(); // any outbound HTTP (WaSender send) becomes a no-op
+        Embeddings::fake(); // the lead's knowledge index runs on the sync queue, never hit a real provider
 
         $app = app(Apps::class);
         $user = auth()->user();

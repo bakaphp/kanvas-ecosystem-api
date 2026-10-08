@@ -22,11 +22,13 @@ class KanvasToolSearchTool extends ToolSearchTool
      * @param ToolInterface[] $toolPool
      * @param int<1,max> $topN
      * @param int $searchesThisTurn how many times the model already searched since its last message
+     * @param ToolInterface[] $declaredTools the tools the request already carries, callable without a search
      */
     public function __construct(
         array $toolPool,
         int $topN = 5,
         private readonly int $searchesThisTurn = 0,
+        private readonly array $declaredTools = [],
     ) {
         parent::__construct($toolPool, $topN);
     }
@@ -39,10 +41,52 @@ class KanvasToolSearchTool extends ToolSearchTool
         }
 
         if ($this->search($query) === []) {
-            return $this->closed("No tool matches '{$query}'.");
+            $declared = $this->declaredMatches($query);
+
+            return $declared === []
+                ? $this->closed("No tool matches '{$query}'.")
+                : sprintf(
+                    "No pooled tool matches '%s', and none is needed: you already hold %s. Call them directly; tool_search only finds tools that are not declared in your request.",
+                    $query,
+                    implode(', ', $declared),
+                );
         }
 
         return parent::__invoke($query);
+    }
+
+    /**
+     * Declared tools whose name shares a word with the query: a search for "plan" on an agent holding
+     * create_plan is a search for a tool it can already call. Exact words only; the stock fuzzy match
+     * paired "chat" with get_current_time, and a wrong "you already hold" is worse than the miss list.
+     *
+     * @return list<string>
+     */
+    private function declaredMatches(string $query): array
+    {
+        $keywords = $this->words($query);
+        if ($keywords === []) {
+            return [];
+        }
+
+        $names = [];
+        foreach ($this->declaredTools as $tool) {
+            if (array_intersect($keywords, $this->words($tool->getName())) !== []) {
+                $names[] = $tool->getName();
+            }
+        }
+
+        return array_slice($names, 0, $this->topN);
+    }
+
+    /**
+     * @return list<string> lowercase words of three letters or more, plural `s` dropped
+     */
+    private function words(string $text): array
+    {
+        preg_match_all('/[a-z0-9]{3,}/', strtolower($text), $matches);
+
+        return array_values(array_unique(array_map(static fn (string $word): string => rtrim($word, 's'), $matches[0])));
     }
 
     /**

@@ -48,13 +48,13 @@ final class AnalyticsSchedule
         // the apps that have the connector enabled.
         $schedule->command(ReportingRebuildCommand::class, ['49'])
             ->dailyAt('03:00')
-            ->withoutOverlapping()
+            ->withoutOverlapping(720)
             ->onOneServer()
             ->runInBackground();
 
         $schedule->command(ReportingReconcileCommand::class, ['49'])
             ->dailyAt('05:00')
-            ->withoutOverlapping()
+            ->withoutOverlapping(720)
             ->onOneServer()
             ->runInBackground();
     }

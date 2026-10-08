@@ -26,6 +26,35 @@ use Tests\TestCase;
  */
 final class ArtifactDeliveryDoctrineTest extends TestCase
 {
+    public function testEveryAgentIsToldWhatEachContextLabelMeans(): void
+    {
+        $context = implode(' ', HasKanvasAgentBehavior::platformContext());
+
+        $this->assertStringContainsString('[Company document] is the company', $context);
+        $this->assertStringContainsString('[Record history]', $context);
+        $this->assertStringContainsString('search_knowledge looks up', $context);
+    }
+
+    public function testEveryAgentIsToldToBatchIndependentReads(): void
+    {
+        $context = implode(' ', HasKanvasAgentBehavior::platformContext());
+
+        $this->assertStringContainsString('REQUEST THEM IN ONE STEP', $context);
+        $this->assertStringContainsString('do not look up the time, the person, your capabilities or the project list first', $context);
+    }
+
+    public function testEveryAgentIsToldToWriteOnlyWhatItWasAskedTo(): void
+    {
+        $context = implode(' ', HasKanvasAgentBehavior::platformContext());
+
+        $this->assertStringContainsString('ONLY WRITE WHAT YOU WERE ASKED TO', $context);
+        $this->assertStringContainsString(
+            'instead of recording the request somewhere else',
+            $context,
+            'An agent that cannot send a WhatsApp wrote the request into the person\'s notes; the rule has to name that move.'
+        );
+    }
+
     public function testEveryAgentIsToldADeliverableIsNotTheBodyOfAMessage(): void
     {
         $context = implode(' ', HasKanvasAgentBehavior::platformContext());

@@ -6,6 +6,7 @@ namespace Tests\Intelligence\Agents;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Laravel\Inventory\AgentInventoryAssistance;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\AttributeSearchTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\CategorySearchTool;
@@ -19,7 +20,9 @@ use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Services\VariantSearchService;
 use Kanvas\Users\Models\Users;
 use Laravel\Ai\Tools\Request;
@@ -340,6 +343,51 @@ class InventoryAgentToolsTest extends TestCase
         $result = $tool->__invoke(is_published: true, limit: 50);
 
         $this->assertContains($product->getId(), array_column($result, 'id'));
+    }
+
+    /**
+     * A dealer keeps sold units as stock-0 rows, so the oldest rows are the empty ones. With the stock
+     * check after the LIMIT, every slot went to sold units and the agent was told the lot was empty.
+     */
+    public function testOnlyInStockFindsStockBeyondTheFirstPageOfSoldUnits(): void
+    {
+        $company = Companies::factory()->create(['users_id' => $this->user->getId()]);
+        new InventorySetup($this->kanvasApp, $this->user, $company)->run();
+
+        foreach (range(1, 3) as $i) {
+            $this->publishedProduct($company, "Sold unit {$i}");
+        }
+        $onTheLot = $this->publishedProduct($company, 'On the lot');
+        VariantsWarehouses::query()
+            ->whereIn('products_variants_id', $onTheLot->variants()->pluck('id'))
+            ->update(['quantity' => 2]);
+
+        $neuron = new NeuronListAvailableProductsTool()
+            ->withContext($this->kanvasApp, $company, $this->user)
+            ->__invoke(is_published: true, only_in_stock: true, limit: 2);
+
+        $this->assertSame([$onTheLot->getId()], array_column($neuron, 'id'));
+
+        $laravel = new ListAvailableProductsTool()
+            ->withContext($this->kanvasApp, $company)
+            ->handle(new Request(['is_published' => true, 'only_in_stock' => true, 'limit' => 2]));
+
+        $this->assertSame([$onTheLot->getId()], array_column(json_decode((string) $laravel, true), 'id'));
+    }
+
+    private function publishedProduct(Companies $company, string $name): Products
+    {
+        return new CreateProductAction(
+            new Product(
+                app: $this->kanvasApp,
+                company: $company,
+                user: $this->user,
+                name: $name . ' ' . uniqid(),
+                sku: 'STK-' . uniqid(),
+                is_published: true,
+            ),
+            $this->user
+        )->execute();
     }
 
     public function testNeuronListAvailableProductsToolRefusesWithoutATenant(): void

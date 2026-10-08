@@ -17,6 +17,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
+use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -37,7 +38,8 @@ class VehiclePriceDisclosureTool extends Tool
         . 'a price, availability, a test drive, features, or "I\'m interested". Also call it whenever you introduce or recommend a specific unit, passing its VIN. '
         . 'When mode is "insert_block", answer the customer naturally and insert "message" VERBATIM right after you name the vehicle: '
         . 'never paraphrase, translate, round, reorder, or omit any amount or sentence, and never add a different price. '
-        . 'When mode is "already_disclosed", you may reply without the block unless you state a price, in which case insert "message" verbatim. '
+        . 'When mode is "already_disclosed", the customer already has the price: do not restate it, answer what they actually asked. '
+        . 'Only if they ask for the price again, insert "message" verbatim. '
         . 'When suppress is true, do NOT mention any price and do NOT promise to check it later; if "message" is present send it verbatim, otherwise answer without pricing. '
         . 'This is an internal operation: never expose the tool call, reason codes, or routing details to the customer.';
 
@@ -48,6 +50,9 @@ class VehiclePriceDisclosureTool extends Tool
     public const string MODE_ALREADY_DISCLOSED = 'already_disclosed';
 
     private const string DEFAULT_LANGUAGE = 'en';
+
+    /** How far back the lead's sent messages are searched for a block the tool did not render. */
+    private const int SENT_HISTORY_LIMIT = 50;
 
     /**
      * Approved wording for an out-the-door request while no calculator is connected. The customer
@@ -164,11 +169,22 @@ class VehiclePriceDisclosureTool extends Tool
         )->execute();
 
         $previous = $this->disclosures($lead)[$price->vehicleKey] ?? null;
-        $alreadyDisclosed = $previous !== null;
 
-        if (! $alreadyDisclosed) {
-            $this->recordDisclosure($lead, $price->vehicleKey, $disclosureChannel, $rendered);
+        if ($previous === null) {
+            $sentAt = $this->sentOutsideTheTool($lead, $rendered['message']);
+
+            $this->recordDisclosure(
+                $lead,
+                $price->vehicleKey,
+                $disclosureChannel,
+                $rendered,
+                $sentAt,
+            );
+
+            $previous = $sentAt !== null ? ['disclosed_at' => $sentAt->toIso8601String()] : null;
         }
+
+        $alreadyDisclosed = $previous !== null;
 
         return $this->ok([
             'suppress' => false,
@@ -191,7 +207,7 @@ class VehiclePriceDisclosureTool extends Tool
                 'source_version' => $price->sourceVersion,
             ],
         ], guidance: $alreadyDisclosed
-            ? 'This vehicle\'s price was already disclosed to this lead. Reply without the block unless you state a price; if you do, insert "message" exactly as written.'
+            ? 'This vehicle\'s price was already given to this customer. Do not restate it; answer what they actually asked. Only if they ask for the price again, insert "message" exactly as written.'
             : 'Answer the customer, then insert "message" exactly as written right after you name the vehicle. No changes, additions, or other prices.');
     }
 
@@ -246,6 +262,7 @@ class VehiclePriceDisclosureTool extends Tool
         string $vehicleKey,
         PriceDisclosureChannelEnum $channel,
         array $rendered,
+        ?Carbon $disclosedAt = null,
     ): void {
         $disclosures = $this->disclosures($lead);
         $disclosures[$vehicleKey] = [
@@ -253,9 +270,36 @@ class VehiclePriceDisclosureTool extends Tool
             'template' => $rendered['template'],
             'template_id' => $rendered['template_id'],
             'content_hash' => $rendered['content_hash'],
-            'disclosed_at' => Carbon::now()->toIso8601String(),
+            'disclosed_at' => ($disclosedAt ?? Carbon::now())->toIso8601String(),
         ];
 
         $lead->set(PriceDisclosureConfigurationEnum::DISCLOSURES->value, $disclosures);
+    }
+
+    /**
+     * The ledger only knows blocks this tool rendered. A block a salesperson, a template or a
+     * campaign already sent on the lead's channel is just as disclosed, and repeating it reads as
+     * a bot pasting the same paragraph twice. Matched verbatim (whitespace folded) because the
+     * rendered block carries the stock number and every amount, so a hit is that vehicle's price.
+     */
+    private function sentOutsideTheTool(Lead $lead, string $block): ?Carbon
+    {
+        $needle = Str::squish($block);
+        if ($needle === '') {
+            return null;
+        }
+
+        foreach (MessagesRepository::getLatestMessagesByLead($lead, self::SENT_HISTORY_LIMIT) as $message) {
+            $payload = $message->message;
+            if (! is_array($payload) || empty($payload['from_me'])) {
+                continue;
+            }
+
+            if (str_contains(Str::squish((string) ($payload['content'] ?? '')), $needle)) {
+                return Carbon::parse($message->created_at);
+            }
+        }
+
+        return null;
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Souk\Orders;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
@@ -75,7 +76,7 @@ class OrderReportToolsTest extends TestCase
                 'provider_amount' => 90.0,
             ]);
 
-        Order::factory()
+        $orderB = Order::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
             ->withUserId($user->getId())
@@ -102,6 +103,7 @@ class OrderReportToolsTest extends TestCase
             ]);
 
         $this->recordPayment($app, $company, $user, $orderA->getId(), 'card');
+        $this->recordPayment($app, $company, $user, $orderB->getId(), 'cash');
 
         return [$app, $company, $user];
     }
@@ -205,6 +207,57 @@ class OrderReportToolsTest extends TestCase
         $this->assertSame(50.0, (float) $result['total_amount']);
     }
 
+    public function test_order_payment_stats_counts_orders_on_their_payment_date(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+        $createdLongAgo = now()->subMonths(3)->startOfMonth()->addDay();
+
+        Order::query()
+            ->where('companies_id', $company->getId())
+            ->where('status', 'pending')
+            ->update(['created_at' => $createdLongAgo]);
+
+        $today = new OrderPaymentStatsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(order_types: 'paso_rapido', since: now()->toDateString(), until: now()->toDateString());
+
+        $creationDay = new OrderPaymentStatsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(order_types: 'paso_rapido', since: $createdLongAgo->toDateString(), until: $createdLongAgo->toDateString());
+
+        $this->assertSame('payment', $today['date_anchor']);
+        $this->assertSame(1, (int) $today['orders']);
+        $this->assertSame(0, (int) $creationDay['orders']);
+    }
+
+    public function test_order_payment_stats_only_counts_the_agent_company(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+
+        Order::query()
+            ->where('companies_id', $company->getId())
+            ->where('status', 'pending')
+            ->update(['companies_id' => $company->getId() + 1000000]);
+
+        $result = new OrderPaymentStatsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(order_types: 'movipass,paso_rapido');
+
+        $this->assertSame(1, (int) $result['orders']);
+        $this->assertSame(100.0, (float) $result['total_amount']);
+    }
+
+    public function test_order_payment_stats_rejects_an_unknown_timezone(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+
+        $this->expectException(InvalidArgumentException::class);
+
+        new OrderPaymentStatsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(timezone: 'Mars/Olympus_Mons');
+    }
+
     public function test_order_commission_stats_only_counts_commissioned_orders(): void
     {
         [$app, $company, $user] = $this->seedOrders();
@@ -253,6 +306,96 @@ class OrderReportToolsTest extends TestCase
 
         $this->assertSame(2, (int) $result['total_orders']);
         $this->assertSame(150.0, (float) $result['total_net_revenue']);
+    }
+
+    public function test_order_trend_paid_anchor_buckets_by_payment_month(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+
+        Order::query()
+            ->where('companies_id', $company->getId())
+            ->where('status', 'completed')
+            ->latest('id')
+            ->limit(1)
+            ->update([
+                'created_at' => now()->subMonths(2)->startOfMonth()->addDay(),
+                'paid_at' => now()->subMonth()->startOfMonth()->addDay(),
+            ]);
+
+        $result = new OrderTrendTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(group_by: 'month', order_types: 'movipass,paso_rapido', date_anchor: 'paid');
+
+        $series = collect($result['series'])->keyBy('period');
+        $this->assertSame('paid', $result['date_anchor']);
+        $this->assertSame(2, (int) $result['total_orders']);
+        $this->assertSame(1, (int) $series[now()->subMonth()->startOfMonth()->toDateString()]['orders']);
+        $this->assertSame(1, (int) $series[now()->startOfMonth()->toDateString()]['orders']);
+        $this->assertArrayNotHasKey(now()->subMonths(2)->startOfMonth()->toDateString(), $series);
+    }
+
+    public function test_order_trend_cuts_days_in_the_requested_timezone(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+        $utcEarlyMorning = now()->utc()->startOfDay()->addHours(2);
+
+        Order::query()
+            ->where('companies_id', $company->getId())
+            ->where('status', 'cancelled')
+            ->latest('id')
+            ->limit(1)
+            ->update(['created_at' => $utcEarlyMorning]);
+
+        Order::query()
+            ->where('companies_id', $company->getId())
+            ->where('status', 'completed')
+            ->update(['created_at' => now()->subMonths(2)]);
+
+        $localDay = $utcEarlyMorning->copy()->timezone('America/Santo_Domingo')->toDateString();
+
+        $result = new OrderTrendTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(
+                group_by: 'day',
+                order_types: 'movipass',
+                since: $localDay,
+                until: $localDay,
+                timezone: 'America/Santo_Domingo',
+            );
+
+        $this->assertSame('America/Santo_Domingo', $result['timezone']);
+        $this->assertSame(1, (int) $result['total_orders']);
+        $this->assertSame($localDay, $result['series'][0]['period']);
+    }
+
+    public function test_order_trend_reports_the_highest_gross_revenue_period(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+
+        Order::query()
+            ->where('companies_id', $company->getId())
+            ->where('status', 'completed')
+            ->latest('id')
+            ->limit(1)
+            ->update(['created_at' => now()->subMonths(2)->startOfMonth()->addDay()]);
+
+        $result = new OrderTrendTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(group_by: 'month', order_types: 'movipass,paso_rapido');
+
+        $this->assertSame(now()->subMonths(2)->startOfMonth()->toDateString(), $result['peak_gross_revenue_period']['period']);
+        $this->assertSame(120.0, (float) $result['peak_gross_revenue_period']['gross_revenue']);
+    }
+
+    public function test_order_trend_rejects_an_unknown_timezone(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+
+        $this->expectException(InvalidArgumentException::class);
+
+        new OrderTrendTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(timezone: 'Mars/Olympus_Mons');
     }
 
     public function test_order_fulfillment_stats_backlog_ignores_cancelled_orders(): void

@@ -9,6 +9,7 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadVariantInterestProjectionService;
+use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
 use Kanvas\Intelligence\Knowledge\Contracts\KnowledgeSource;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;
 use Kanvas\Intelligence\Knowledge\Enums\LeadRagConfigurationEnum;
@@ -136,16 +137,13 @@ final class LeadKnowledgeSource implements KnowledgeSource
             ->where('messages.companies_id', $lead->companies_id)
             ->where('messages.is_deleted', 0)
             ->whereHas('channels', fn ($query) => $query->whereIn('channels.id', $channelIds))
-            ->with(['channels' => fn ($query) => $query->whereIn('channels.id', $channelIds)])
+            ->with(['messageType', 'channels' => fn ($query) => $query->whereIn('channels.id', $channelIds)])
             ->latest('messages.id')
             ->limit($maximum)
             ->get()
-            ->map(function (Message $message) use ($lead): ?KnowledgeDocument {
+            ->filter(self::isIndexable(...))
+            ->map(function (Message $message) use ($lead): KnowledgeDocument {
                 $content = trim($message->contentText());
-                if ($content === '') {
-                    return null;
-                }
-
                 $channels = $message->channels
                     ->map(fn (Channel $channel): string => (string) $channel->name)
                     ->filter()->unique()->values()->all();
@@ -159,9 +157,34 @@ final class LeadKnowledgeSource implements KnowledgeSource
                     $message->created_at?->timestamp ?? 0,
                 );
             })
-            ->filter()
             ->values()
             ->all();
+    }
+
+    /**
+     * Only what a person wrote or read on the record is knowledge about it. The agent's private rows
+     * (tool calls, tool results, summaries, notes) carry the tool vocabulary of every question, so once
+     * indexed they outscore any real document on any question; and a payload with no text key renders
+     * as its raw JSON, which is the same noise by another route.
+     */
+    public static function isIndexable(Message $message): bool
+    {
+        if (! (bool) $message->is_public) {
+            return false;
+        }
+
+        if (in_array($message->messageType?->verb, EntityRollupMessageStore::INTERNAL_VERBS, true)) {
+            return false;
+        }
+
+        $payload = $message->getMessage();
+        if (isset($payload['tool_calls']) || isset($payload['tool_results'])) {
+            return false;
+        }
+
+        $content = trim($message->contentText());
+
+        return $content !== '' && ! is_array(json_decode($content, true));
     }
 
     private function document(

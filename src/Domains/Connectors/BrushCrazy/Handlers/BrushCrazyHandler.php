@@ -58,4 +58,10 @@ class BrushCrazyHandler extends BaseIntegration
 
         return new Client($this->app)->testConnection();
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [ConfigurationEnum::BRUSHCRAZY_SYNC_ENABLED->value];
+    }
 }

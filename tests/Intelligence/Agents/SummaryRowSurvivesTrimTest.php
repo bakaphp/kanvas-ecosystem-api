@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Agents;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
@@ -81,5 +82,12 @@ class SummaryRowSurvivesTrimTest extends TestCase
 
         $this->assertTrue($loaded[0]->getMetadata(KanvasSummarization::SUMMARY_FLAG), 'Without the flag the next turn\'s trim cannot tell the summary from any other row');
         $this->assertNull($loaded[1]->getMetadata(KanvasSummarization::SUMMARY_FLAG));
+
+        $kinds = DB::connection('intelligence')->table('agent_conversation_messages')
+            ->whereIn('id', [$loaded[0]->getId(), $loaded[1]->getId()])
+            ->orderBy('sequence')
+            ->pluck('kind')
+            ->all();
+        $this->assertSame(['summary', null], $kinds, 'The writer stamps the column the chat filters on');
     }
 }

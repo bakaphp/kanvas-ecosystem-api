@@ -25,10 +25,12 @@ class OrderPaymentStatsTool extends Tool
 
     protected string $name = 'order_payment_stats';
 
-    protected ?string $description = 'Paid-transaction money stats: total paid amount, paid-order count, average order value, '
-        . 'and the card-vs-other payment-method mix. Optional date range and order-type filter. Use for '
-        . '"how much did we collect", "recharge revenue this month", "card vs cash/transfer split". Amounts '
-        . 'are net of discounts. By default only orders with payment_status=paid are counted.';
+    protected ?string $description = 'Collected money for the orders of this company: paid-order count, total paid amount, '
+        . 'average order value, card-vs-other mix, a per-service breakdown and a per-period series. Each order '
+        . 'counts on the date it was paid (first transition into "paid", else its first paid payment), not the '
+        . 'date it was created, so this matches the payments dashboard. Use for "how much did we collect", '
+        . '"recharge revenue this month", "card vs cash/transfer split". Amounts are net of discounts. For '
+        . 'every order in a range whether paid or not, use order_trend or order_breakdown instead.';
 
     public function __construct()
     {
@@ -43,9 +45,10 @@ class OrderPaymentStatsTool extends Tool
     {
         return [
             new ToolProperty(name: 'order_types', type: PropertyType::STRING, description: 'Optional comma-separated order-type names to restrict to (see list_order_types). Omit for all types.', required: false),
-            new ToolProperty(name: 'since', type: PropertyType::STRING, description: 'Lower-bound order date, ISO YYYY-MM-DD. Omit for all-time.', required: false),
-            new ToolProperty(name: 'until', type: PropertyType::STRING, description: 'Upper-bound order date, ISO YYYY-MM-DD. Omit for open-ended.', required: false),
-            new ToolProperty(name: 'paid_only', type: PropertyType::BOOLEAN, description: 'Count only orders with payment_status=paid. Default true. Set false to include every order in the range.', required: false),
+            new ToolProperty(name: 'since', type: PropertyType::STRING, description: 'First payment date to include, ISO YYYY-MM-DD. Omit to start at the first order on record.', required: false),
+            new ToolProperty(name: 'until', type: PropertyType::STRING, description: 'Last payment date to include, ISO YYYY-MM-DD. Omit for today.', required: false),
+            new ToolProperty(name: 'timezone', type: PropertyType::STRING, description: 'IANA timezone the days are cut in, e.g. "America/Santo_Domingo". Defaults to UTC.', required: false),
+            new ToolProperty(name: 'period_breakdown', type: PropertyType::STRING, description: 'Bucket size for the by_period series: DAY, WEEK, MONTH (default) or YEAR.', required: false, enum: ['DAY', 'WEEK', 'MONTH', 'YEAR']),
         ];
     }
 
@@ -56,20 +59,23 @@ class OrderPaymentStatsTool extends Tool
         ?string $order_types = null,
         ?string $since = null,
         ?string $until = null,
-        ?bool $paid_only = null,
+        ?string $timezone = null,
+        ?string $period_breakdown = null,
     ): array {
         return $this->oncePerTurn(
             [
                 'order_types' => $order_types,
                 'since' => $since,
                 'until' => $until,
-                'paid_only' => $paid_only,
+                'timezone' => $timezone,
+                'period_breakdown' => $period_breakdown,
             ],
             fn (): array => new OrderReportService($this->app, $this->company)->paymentStats(
-                $this->parseOrderTypes($order_types),
-                $since,
-                $until,
-                $paid_only ?? true,
+                orderTypeNames: $this->parseOrderTypes($order_types),
+                since: $since,
+                until: $until,
+                timezone: $timezone,
+                periodBreakdown: $period_breakdown,
             ),
         );
     }

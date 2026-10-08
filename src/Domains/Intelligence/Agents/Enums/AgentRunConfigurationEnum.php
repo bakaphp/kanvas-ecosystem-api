@@ -34,4 +34,10 @@ enum AgentRunConfigurationEnum: string
      * the model finds them through `tool_search`. On by default; `0` sends every tool on every round.
      */
     case TOOL_SEARCH = 'agent_tool_search_enabled';
+    /**
+     * How hard Gemini thinks before each step of a chat turn. A level ("minimal", "low", "medium",
+     * "high") sets `thinkingLevel`; an integer sets `thinkingBudget` for the models that take one. Unset
+     * leaves the model's default. An LLM config that carries its own `thinkingConfig` wins.
+     */
+    case GEMINI_THINKING = 'agent_gemini_thinking';
 }

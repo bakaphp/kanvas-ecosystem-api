@@ -38,6 +38,7 @@ class BuildAdminLinkTool extends Tool
         . 'mention a record a person might want to open — a project, a lead, an order, an agent — so they '
         . 'get a link instead of an id. Pass whatever id you already have (numeric id, uuid or slug); the '
         . 'tool looks the record up and works out the right one, so you never need to fetch another id first. '
+        . 'Lead and person results already carry admin_url; use that link and do not call this for them. '
         . 'Omit it for the list screen. '
         . 'Nervous System plans and tasks have no admin screen of their own: link to their project with '
         . 'section "agent_project" instead. Returns requires_company and section_permission — mention them '

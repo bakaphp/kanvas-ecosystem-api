@@ -46,6 +46,10 @@ final class ConversationUsageSqlHelper
             $row['cache_write'] = $cacheWriteTokens;
         }
 
+        if ($usage->reasoningTokens > 0) {
+            $row['reasoning_tokens'] = $usage->reasoningTokens;
+        }
+
         return $row;
     }
 

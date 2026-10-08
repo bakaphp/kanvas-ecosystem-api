@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Workflow;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithIntegrationActivity;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -27,9 +29,21 @@ class IntegrationTest extends TestCase
         $this->assertTrue($integrationCompany['is_active']);
     }
 
+    /**
+     * Removing the row must also drop the credentials setup() stored on the company — Shopify's
+     * client reads them straight from company settings, so leaving them keeps the store connected.
+     */
     public function testRemoveIntegrationCompany(): void
     {
         $integrationCompany = $this->createShopifyIntegrationCompany();
+        $company = auth()->user()->getCurrentCompany();
+        $credentialKey = ShopifyConfigurationService::generateCredentialKey(
+            $company,
+            app(Apps::class),
+            IntegrationsCompany::getById((int) $integrationCompany['id'])->region
+        );
+
+        $this->assertNotNull($company->get($credentialKey));
 
         $this->graphQL('
         mutation($id: ID!) {
@@ -37,6 +51,8 @@ class IntegrationTest extends TestCase
         }', ['id' => $integrationCompany['id']])->assertJson([
             'data' => ['removeIntegrationCompany' => true],
         ]);
+
+        $this->assertNull($company->get($credentialKey));
     }
 
     public function testIntegrationsSearch(): void

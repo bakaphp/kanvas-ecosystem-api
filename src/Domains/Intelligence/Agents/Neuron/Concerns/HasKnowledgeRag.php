@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGemini;
+use Kanvas\Intelligence\Agents\Neuron\RAG\PreProcessors\GatedQueryRewrite;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\CompanyMemoryRetrieval;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\KnowledgeRetrieval;
 use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
+use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
 use NeuronAI\RAG\PostProcessor\AdaptiveThresholdPostProcessor;
 use NeuronAI\RAG\PreProcessor\QueryTransformationPreProcessor;
@@ -101,9 +104,9 @@ trait HasKnowledgeRag
     }
 
     /**
-     * The rewrite is one more LLM call before every retrieval, 3-4 s on a thinking model, and it only
-     * sees the one message, so it cannot resolve a follow-up. It earns that on a prospect's terse
-     * "price?" and not on a teammate's explicit question, so only customer-facing agents keep it.
+     * The rewrite is one more LLM call before retrieval and it only sees the one message, so it cannot
+     * resolve a follow-up. It earns that on a prospect's terse "price?" and not on a teammate's explicit
+     * question, so only customer-facing agents keep it, and GatedQueryRewrite skips plain sentences.
      */
     #[Override]
     protected function preProcessors(): array
@@ -112,10 +115,19 @@ trait HasKnowledgeRag
             return [];
         }
 
+        // A Gemini agent rewrites on the same model with thinking low; any other provider,
+        // including the offline test doubles, keeps the agent's own.
+        $provider = $this->getProvider() instanceof KanvasGemini && $this->agent !== null
+            ? AgentProviderService::queryRewriteProvider($this->agent)
+            : $this->getProvider();
+
         return [
-            new QueryTransformationPreProcessor(
-                provider: $this->getProvider(),
-                transformation: QueryTransformationType::REWRITING,
+            new GatedQueryRewrite(
+                new QueryTransformationPreProcessor(
+                    provider: $provider,
+                    transformation: QueryTransformationType::REWRITING,
+                ),
+                agentId: $this->agent?->getId(),
             ),
         ];
     }

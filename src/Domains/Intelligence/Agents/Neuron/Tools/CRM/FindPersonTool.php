@@ -8,6 +8,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExtractsPersonContacts;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\LinksRecordsToAdmin;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,6 +26,7 @@ class FindPersonTool extends Tool
 {
     use ExtractsPersonContacts;
     use HasKanvasContext;
+    use LinksRecordsToAdmin;
     use TrackByInputs;
 
     protected string $name = 'find_person';
@@ -90,6 +92,7 @@ class FindPersonTool extends Tool
             'count' => $people->count(),
             'people' => $people->map(fn (People $person): array => [
                 'person_id' => $person->getId(),
+                'admin_url' => $this->adminUrlOf($person),
                 'name' => $person->getName(),
                 'email' => $this->primaryEmail($person),
                 'phone' => $this->primaryPhone($person),

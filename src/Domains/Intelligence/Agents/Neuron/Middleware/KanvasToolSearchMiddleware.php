@@ -24,12 +24,24 @@ use Override;
  * how many searches this turn already ran, and the registry keeps the first `tool_search` it was
  * given, so the tool is re-registered on every node with the count read off the turn's messages.
  * Counting from the messages rather than a property keeps it right across a durable-run resume.
+ *
+ * The prompt replaces Neuron's rather than extending it: the stock "always search before concluding"
+ * reads as "search first", and the model searched for tools it already held. The tool also gets the
+ * tools the request declares, so a search for one of them answers "you already hold it" rather than
+ * a miss list.
  */
 class KanvasToolSearchMiddleware extends ToolSearchMiddleware
 {
-    protected const string KANVAS_SYSTEM_PROMPT = parent::DEFAULT_SYSTEM_PROMPT . <<<'PROMPT'
+    public const string SYSTEM_PROMPT = <<<'PROMPT'
+        ---
 
-        A search that finds nothing lists every tool you hold. Do not search again for the same need with other words; the list is complete.
+        ## `tool_search`
+
+        The tools declared in this request are loaded and callable right now; call them directly. `tool_search` only finds tools from a pool that is not declared here, and every search costs a round trip before you can act.
+
+        Search only when no declared tool provides the capability you need. Never search for a tool you can already call, and never search to confirm that a declared tool exists. After a search, the matching tools become callable on the next step.
+
+        Before telling the user a task cannot be done, search once. A search that finds nothing lists every pooled tool you hold; that list is complete, so do not search again for the same need with other words.
         PROMPT;
 
     /** @var array<string, ToolInterface> */
@@ -41,7 +53,7 @@ class KanvasToolSearchMiddleware extends ToolSearchMiddleware
      */
     public function __construct(array $toolPool, int $topN = 5)
     {
-        parent::__construct($toolPool, $topN, self::KANVAS_SYSTEM_PROMPT);
+        parent::__construct($toolPool, $topN, self::SYSTEM_PROMPT);
 
         foreach ($toolPool as $tool) {
             $this->poolByName[$tool->getName()] = $tool;
@@ -59,7 +71,12 @@ class KanvasToolSearchMiddleware extends ToolSearchMiddleware
             ? $this->currentTurn([...$resources->history->getMessages(), ...$state->request->messages])
             : [];
 
-        $search = new KanvasToolSearchTool($this->toolPool, $this->topN, $this->searchesIn($turn));
+        $search = new KanvasToolSearchTool(
+            $this->toolPool,
+            $this->topN,
+            $this->searchesIn($turn),
+            $this->declaredTools($resources),
+        );
         $resources->tools->remove($search->getName());
         $resources->tools->add($search);
 
@@ -80,6 +97,22 @@ class KanvasToolSearchMiddleware extends ToolSearchMiddleware
         foreach ($this->discoverFromMessages($turn) as $tool) {
             $resources->tools->add($tool);
         }
+    }
+
+    /**
+     * The tools the request carries without a search: everything in the registry that is not the
+     * search itself or a pooled tool loaded earlier this turn.
+     *
+     * @return list<ToolInterface>
+     */
+    private function declaredTools(AgentResources $resources): array
+    {
+        return array_values(array_filter(
+            $resources->tools->all(),
+            fn (mixed $tool): bool => $tool instanceof ToolInterface
+                && $tool->getName() !== 'tool_search'
+                && ! isset($this->poolByName[$tool->getName()]),
+        ));
     }
 
     /**

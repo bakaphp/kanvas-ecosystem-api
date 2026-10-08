@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
+use Kanvas\Intelligence\Knowledge\VectorStores\TypesenseKnowledgeStore;
+use Kanvas\Intelligence\Knowledge\Workflows\IndexKnowledgeDocumentActivity;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\RAG\Document;
 use NeuronAI\RAG\Retrieval\RetrievalInterface;
+use NeuronAI\RAG\Schema\DocumentSchema;
 use NeuronAI\RAG\VectorStore\Filter\FilterExpression;
 use Override;
 
@@ -53,7 +57,8 @@ class KnowledgeRetrieval implements RetrievalInterface
         $store = KnowledgeComponents::store($this->app);
         $topK = KnowledgeComponents::resultLimit($this->app);
         $minScore = KnowledgeComponents::minScore($this->app);
-        $embedding = KnowledgeComponents::embedder($this->app)->embed((string) $query->getContent());
+        $question = (string) $query->getContent();
+        $embedding = KnowledgeComponents::embedder($this->app)->embed($question);
 
         if ($this->organizationWide) {
             $hits = $store->search(
@@ -63,58 +68,126 @@ class KnowledgeRetrieval implements RetrievalInterface
                 $minScore,
             );
 
-            return $this->toDocuments($hits, $topK);
+            return self::rank(
+                [],
+                $hits,
+                $topK,
+                $question,
+            );
         }
 
-        // The agent's own docs, plus the record in scope (a Lead). A global row like
+        // The agent's own docs, then the record in scope (a Lead). A global row like
         // a Users (apps_id/companies_id = 0) can't form a KnowledgeEntity, so it's skipped.
-        $hits = [];
+        $byScope = [];
         foreach ([$this->agent, $this->entity] as $scopeEntity) {
-            if ($scopeEntity === null) {
-                continue;
-            }
-
-            try {
-                $scope = KnowledgeScope::forModel($scopeEntity);
-            } catch (InvalidArgumentException) {
-                continue;
-            }
-            $hits = array_merge($hits, $store->search($embedding, $scope, $topK, $minScore));
+            $byScope[] = $scopeEntity === null ? [] : $this->searchScoped(
+                $store,
+                $embedding,
+                $scopeEntity,
+                $topK,
+                $minScore,
+            );
         }
 
-        return $this->toDocuments($hits, $topK);
+        return self::rank(
+            $byScope[0],
+            $byScope[1],
+            $topK,
+            $question,
+        );
     }
 
     /**
-     * @param array<int, array{content: string, sourceType: string, sourceName: string, score: float, metadata: array<string, mixed>}> $hits
+     * @param array<int, float> $embedding
+     * @return array<int, array{content: string, sourceType: string, sourceName: string, score: float, metadata: array<string, mixed>}>
+     */
+    private function searchScoped(
+        TypesenseKnowledgeStore $store,
+        array $embedding,
+        Model $scopeEntity,
+        int $topK,
+        ?float $minScore,
+    ): array {
+        try {
+            $scope = KnowledgeScope::forModel($scopeEntity);
+        } catch (InvalidArgumentException) {
+            return [];
+        }
+
+        return $store->search(
+            $embedding,
+            $scope,
+            $topK,
+            $minScore,
+        );
+    }
+
+    /**
+     * The agent's documents fill the slots first; the record's own rows take what is left. A record's
+     * messages repeat the words of the question being asked, and are already the agent's history
+     * through the rollup store, so ranked by score alone they crowd the documents out. A hit that is
+     * the question itself is dropped: the inbound message is indexed before retrieval runs and would
+     * otherwise be the best match for itself.
+     *
+     * @param array<int, array{content: string, sourceType: string, sourceName: string, score: float, metadata: array<string, mixed>}> $documentHits
+     * @param array<int, array{content: string, sourceType: string, sourceName: string, score: float, metadata: array<string, mixed>}> $entityHits
      * @return list<Document>
      */
-    private function toDocuments(array $hits, int $topK): array
-    {
-        usort($hits, static fn (array $a, array $b): int => $b['score'] <=> $a['score']);
-
+    public static function rank(
+        array $documentHits,
+        array $entityHits,
+        int $topK,
+        string $question,
+    ): array {
+        $question = self::normalize($question);
         $seen = [];
         $documents = [];
 
-        foreach ($hits as $hit) {
-            // Dedup by content so the same passage never lands in context twice.
-            $key = md5($hit['content']);
-            if (isset($seen[$key])) {
-                continue;
-            }
-            $seen[$key] = true;
+        foreach ([$documentHits, $entityHits] as $hits) {
+            usort($hits, static fn (array $a, array $b): int => $b['score'] <=> $a['score']);
 
-            $document = new Document($hit['content'])
-                ->setSourceType($hit['sourceType'])
-                ->setSourceName($hit['sourceName'])
-                ->setScore($hit['score']);
-            $documents[] = $document;
+            foreach ($hits as $hit) {
+                $key = md5($hit['content']);
+                if (isset($seen[$key]) || self::normalize($hit['content']) === $question) {
+                    continue;
+                }
+                $seen[$key] = true;
 
-            if (count($documents) >= $topK) {
-                break;
+                $documents[] = self::labelled($hit);
+
+                if (count($documents) >= $topK) {
+                    return $documents;
+                }
             }
         }
 
         return $documents;
+    }
+
+    /**
+     * The same provenance tag memory hits carry: the model is told that a document is the company's
+     * own material and a record row is this record's past, instead of a class name and a uuid. The
+     * store row rides along as metadata minus the keys Neuron reserves on a Document (content,
+     * embedding, score, ...): setMetadata() throws on those (KANVAS-ECOSYSTEM-6JX).
+     *
+     * @param array{content: string, sourceType: string, sourceName: string, score: float, metadata: array<string, mixed>} $hit
+     */
+    private static function labelled(array $hit): Document
+    {
+        $createdAt = (int) ($hit['metadata']['created_at'] ?? 0);
+        $label = $hit['sourceType'] === IndexKnowledgeDocumentActivity::SOURCE_TYPE
+            ? 'Company document'
+            : 'Record history' . ($createdAt > 0 ? ', ' . date('Y-m-d', $createdAt) : '');
+
+        return new Document("[{$label}] " . $hit['content'])
+            ->setSourceType($hit['sourceType'])
+            ->setSourceName($hit['sourceName'])
+            ->setScore($hit['score'])
+            ->setMetadata(array_diff_key($hit['metadata'], array_flip(DocumentSchema::RESERVED_FIELDS)));
+    }
+
+    private static function normalize(string $text): string
+    {
+        return Str::lower(Str::squish($text));
     }
 }

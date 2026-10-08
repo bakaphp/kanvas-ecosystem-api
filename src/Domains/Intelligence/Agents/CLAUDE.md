@@ -769,6 +769,9 @@ connection `intelligence`) with Kanvas columns on top. Rules every writer follow
   (`AgentConversationMessage::toolCalls()` / `toolResults()`), kept so clients can migrate to `steps`.
 - **`status`** is `completed` / `paused` (a tool awaits approval) / `failed` (`meta.error`). Readers that feed
   a model (daily learning) filter on completed; budget and spend readers keep failed turns.
+- **`kind`** is what a row is besides a turn: `summary`, `tool_call`, `tool_call_result`, or null for a
+  conversational turn (`ConversationMessageKindEnum`). The chat query filters on it; never read `meta` to
+  decide whether a row is internal.
 - **`archived_at` and `sequence`** belong to the Neuron working window, not to the transcript: a row stamped
   `archived_at` was compacted into a summary and the model no longer sees it, but every reader of the
   table (GraphQL, daily learning, spend rollup) keeps reading it. Order the active window by `sequence`,

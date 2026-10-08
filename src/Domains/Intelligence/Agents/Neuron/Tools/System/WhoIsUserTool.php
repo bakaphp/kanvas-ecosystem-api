@@ -25,10 +25,10 @@ class WhoIsUserTool extends Tool
 
     protected string $name = 'who_is_user';
 
-    protected ?string $description = 'Find out who you are talking to, or look up another teammate by id OR by their @displayname/handle — '
-        . 'their name, email, company, and where they sit in the org chart (position, department, who they report to). '
-        . 'Use it whenever someone refers to a teammate by a handle (e.g. "kaioken", "@jane"), or when you need to know '
-        . 'someone\'s role before answering.';
+    protected ?string $description = 'Look up a teammate by id OR by their @displayname/handle: their name, email, company, and '
+        . 'where they sit in the org chart (position, department, who they report to). When your instructions already '
+        . 'name who you are talking to, do not call this to confirm it; call it when someone refers to another '
+        . 'teammate by a handle (e.g. "kaioken", "@jane"), or when you need a person\'s role before answering.';
 
     public function __construct(
         private readonly Apps $app,

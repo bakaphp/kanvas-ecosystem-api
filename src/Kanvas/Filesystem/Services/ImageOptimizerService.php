@@ -16,10 +16,20 @@ use RuntimeException;
 use Spatie\ImageOptimizer\OptimizerChain;
 use Spatie\ImageOptimizer\Optimizers\Jpegoptim;
 use Spatie\ImageOptimizer\Optimizers\Optipng;
+use Throwable;
 
 class ImageOptimizerService
 {
     protected const MAX_LOCAL_OPTIMIZE_FILE_SIZE_BYTES = 25 * 1024 * 1024;
+
+    /**
+     * optipng is lossless and gains next to nothing on photographic PNGs, yet its cost grows with pixel
+     * count: a 12MP phone photo takes tens of seconds and makes the upload time out on the client.
+     */
+    protected const OPTIPNG_MAX_PIXELS = 4_000_000;
+
+    /** The upload request waits on the optimizer chain, so it is capped well under the mobile clients' timeout. */
+    protected const OPTIMIZER_TIMEOUT_SECONDS = 15;
 
     /**
     * Optimize an existing Filesystem entity and update it with the optimized image.
@@ -113,100 +123,17 @@ class ImageOptimizerService
             throw new RuntimeException('Failed to download image from URL');
         }
 
-        $extension = strtolower(pathinfo($imagePath, PATHINFO_EXTENSION));
-        $resizableExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-
-        /**
-         * ----------------------------
-         * 1) RESIZE (Intervention v4)
-         * ----------------------------
-         */
-        if (($maxWidth !== null || $maxHeight !== null)
-            && in_array($extension, $resizableExtensions, true)) {
-            try {
-                $manager = self::manager();
-                $img = $manager->decodePath($imagePath);
-
-                // scale() keeps aspect ratio automatically
-                $img = $img->scale($maxWidth, $maxHeight);
-
-                // Format-aware save
-                switch ($extension) {
-                    case 'jpg':
-                    case 'jpeg':
-                        $img->save($imagePath, quality: 90);
-
-                        break;
-                    case 'png':
-                        $img->save($imagePath);
-
-                        break;
-                    case 'webp':
-                        $img->save($imagePath, quality: 90);
-
-                        break;
-                }
-            } catch (Exception $e) {
-                report($e);
-            }
-        }
-
-        /**
-         * ----------------------------
-         * 2) SPATIE OPTIMIZATION
-         * ----------------------------
-         */
-        try {
-            if ($optimize) {
-                $optimizerChain = new OptimizerChain();
-
-                $optimizerChain->addOptimizer(new Optipng(['-i0', '-o2', '-quiet']));
-                $optimizerChain->addOptimizer(
-                    new Jpegoptim([
-                        '-m85',
-                        '--strip-all',
-                        '--all-progressive',
-                    ])
-                );
-
-                $optimizerChain
-                    ->setTimeout(60)
-                    ->optimize($imagePath);
-            }
-        } catch (Exception $e) {
-            report($e);
-        }
-
-        /**
-         * -----------------------------------------------------------
-         * 3) QUALITY-BASED COMPRESSION (NO DIMENSION CHANGE)
-         * -----------------------------------------------------------
-         * Reduces file size by re-encoding at specified quality level.
-         * Works for JPEG, PNG, and WebP formats.
-         */
-        if ($quality !== null && $quality >= 1 && $quality <= 100) {
-            try {
-                $manager = self::manager();
-                $img = $manager->decodePath($imagePath);
-
-                if (self::isJpeg($extension)) {
-                    $img->save($imagePath, quality: $quality);
-                } elseif (self::isPng($extension)) {
-                    $img->save($imagePath);
-                } elseif (self::isWebp($extension)) {
-                    $img->save($imagePath, quality: $quality);
-                }
-            } catch (Exception $e) {
-                report($e);
-            }
-        }
-
-        return $imagePath;
+        return self::optimizeLocalFile(
+            filePath: $imagePath,
+            optimize: $optimize,
+            maxWidth: $maxWidth,
+            maxHeight: $maxHeight,
+            quality: $quality,
+        );
     }
 
     /**
-     * Optimize a local file in-place before upload.
-     * Unlike optimizeImageFromUrl(), this does not download — it works directly on the local path.
+     * Optimize a local file in place. Every step is best-effort: a failure leaves the file as it was.
      */
     public static function optimizeLocalFile(
         string $filePath,
@@ -226,50 +153,37 @@ class ImageOptimizerService
         }
 
         $extension = self::resolveExtension($filePath);
-        $resizableExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-
-        if (! in_array($extension, $resizableExtensions, true)) {
+        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true)) {
             return $filePath;
         }
 
-        // 1) Resize
-        if ($maxWidth !== null || $maxHeight !== null) {
-            try {
-                $manager = self::manager();
-                $img = $manager->decodePath($filePath);
-                $img = $img->scale($maxWidth, $maxHeight);
+        $isPng = self::isPng($extension);
+        $resize = $maxWidth !== null || $maxHeight !== null;
+        $quality = $quality !== null && $quality >= 1 && $quality <= 100 ? $quality : null;
+        // PNG has no quality knob: re-encoding it at the same size costs seconds and changes nothing.
+        $recompress = $quality !== null && ! $isPng;
 
-                self::saveWithFormat($img, $filePath, $extension, 90);
+        // One decode/encode pass for both; a second lossy encode only costs time and quality.
+        if ($resize || $recompress) {
+            try {
+                $img = self::manager()->decodePath($filePath);
+                if ($resize) {
+                    $img = $img->scale($maxWidth, $maxHeight);
+                }
+
+                self::saveWithFormat(
+                    $img,
+                    $filePath,
+                    $extension,
+                    $isPng ? null : ($quality ?? 90)
+                );
             } catch (Exception $e) {
                 report($e);
             }
         }
 
-        // 2) Spatie optimization
         if ($optimize) {
-            try {
-                $optimizerChain = new OptimizerChain();
-                $optimizerChain->addOptimizer(new Optipng(['-i0', '-o2', '-quiet']));
-                $optimizerChain->addOptimizer(new Jpegoptim(['-m85', '--strip-all', '--all-progressive']));
-                $optimizerChain
-                    ->setTimeout(60)
-                    ->optimize($filePath);
-            } catch (Exception $e) {
-                //log
-                Log::error('Image optimization failed for file: ' . $filePath, ['exception' => $e]);
-            }
-        }
-
-        // 3) Quality compression
-        if ($quality !== null && $quality >= 1 && $quality <= 100) {
-            try {
-                $manager = self::manager();
-                $img = $manager->decodePath($filePath);
-
-                self::saveWithFormat($img, $filePath, $extension, $quality);
-            } catch (Exception $e) {
-                report($e);
-            }
+            self::optimizeInPlace($filePath, $extension);
         }
 
         return $filePath;
@@ -446,5 +360,54 @@ class ImageOptimizerService
     protected static function manager(): ImageManager
     {
         return new ImageManager(Driver::class);
+    }
+
+    /**
+     * optipng rewrites its target in place (original parked at "<file>.bak") and the chain SIGKILLs it
+     * on timeout, which leaves a truncated image at the target. Optimize a sibling copy and swap it in
+     * only once the whole chain has succeeded.
+     */
+    private static function optimizeInPlace(string $filePath, string $extension): void
+    {
+        if (self::isPng($extension) && self::pixelCount($filePath) > self::OPTIPNG_MAX_PIXELS) {
+            return;
+        }
+
+        $candidate = $filePath . '.optimizing';
+
+        try {
+            static::optimizerChain()->optimize($filePath, $candidate);
+
+            clearstatcache(true, $candidate);
+            if (! is_file($candidate) || filesize($candidate) === 0) {
+                throw new RuntimeException('Optimizer chain produced no output');
+            }
+
+            if (! rename($candidate, $filePath)) {
+                throw new RuntimeException('Failed to swap in the optimized copy');
+            }
+        } catch (Throwable $e) {
+            Log::warning('Image optimization skipped, keeping the unoptimized file: ' . $filePath, ['exception' => $e]);
+        } finally {
+            @unlink($candidate);
+            @unlink($candidate . '.bak');
+        }
+    }
+
+    private static function pixelCount(string $filePath): int
+    {
+        $info = @getimagesize($filePath);
+
+        return $info === false ? 0 : (int) $info[0] * (int) $info[1];
+    }
+
+    /** Lossless optipng gains almost nothing on photos; -o1 keeps it cheap for the graphics it does help. */
+    protected static function optimizerChain(): OptimizerChain
+    {
+        return new OptimizerChain()
+            ->addOptimizer(new Optipng(['-i0', '-o1', '-quiet']))
+            ->addOptimizer(new Jpegoptim(['-m85', '--strip-all', '--all-progressive']))
+            ->setTimeout(self::OPTIMIZER_TIMEOUT_SECONDS)
+            ->throws();
     }
 }

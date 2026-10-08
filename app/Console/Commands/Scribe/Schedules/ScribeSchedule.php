@@ -27,7 +27,7 @@ final class ScribeSchedule
         $schedule->command(EvaluateInvoiceAgingCommand::class)
             ->dailyAt('01:15')
             ->timezone('America/New_York')
-            ->withoutOverlapping()
+            ->withoutOverlapping(720)
             ->onOneServer();
 
         $schedule->command(SendReimbursementDigestCommand::class)

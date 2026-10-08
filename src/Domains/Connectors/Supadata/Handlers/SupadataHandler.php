@@ -39,4 +39,10 @@ class SupadataHandler extends BaseIntegration
 
         return true;
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [ConfigurationEnum::SUPADATA_API_KEY->value];
+    }
 }

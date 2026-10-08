@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExposesCustomFields;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesAddressesForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\LinksRecordsToAdmin;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -33,6 +34,7 @@ class GetPersonTool extends Tool
     use ExposesCustomFields;
     use HasKanvasContext;
     use HandlesAddressesForTool;
+    use LinksRecordsToAdmin;
     use ResolvesPersonForTool;
     use TrackByInputs;
 
@@ -82,6 +84,7 @@ class GetPersonTool extends Tool
 
         return [
             'person_id' => $person->getId(),
+            'admin_url' => $this->adminUrlOf($person),
             'name' => $person->getName(),
             'firstname' => $person->firstname,
             'lastname' => $person->lastname,
@@ -128,6 +131,7 @@ class GetPersonTool extends Tool
             'linked_leads' => $person->leads
                 ->map(fn (Lead $lead): array => [
                     'lead_id' => $lead->getId(),
+                    'admin_url' => $this->adminUrlOf($lead),
                     'title' => $lead->title,
                     'status' => $lead->statusName(),
                     'is_open' => $lead->hasOpenLeadStatus(),

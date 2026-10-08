@@ -92,6 +92,77 @@ class ToolSearchOnAgentTest extends TestCase
         $this->assertContains('web_search', $provider->toolSets[0], 'A provider-native tool has no schema to hide and no pool to join');
     }
 
+    /**
+     * The default policy: pooling catalog grants costs a search round on every ordinary turn, so only
+     * MCP toolkits are pooled unless an agent holds an unusual number of grants.
+     */
+    public function testCatalogGrantsStayInThePromptAndOnlyMcpToolsArePooledByDefault(): void
+    {
+        $ran = [];
+        $catalog = $this->pool($ran);
+        $mcp = [];
+        foreach (['browsers', 'repl', 'curl', 'profiles', 'proxies', 'vaults'] as $remote) {
+            $mcp[] = new CallbackTool('kernel__' . $remote, 'Kernel ' . $remote, static fn (): string => 'ok');
+        }
+        $provider = $this->scriptedProvider([new AssistantMessage('ok')]);
+        $agent = $this->agentWithRegistry($provider, catalog: $catalog, mcp: $mcp);
+
+        $agent->chat(new UserMessage('hi'));
+
+        $this->assertContains('create_invoice', $provider->toolSets[0], 'Seven catalog grants ride along');
+        $this->assertNotContains('kernel__browsers', $provider->toolSets[0], 'The toolkit is what the search hides');
+        $this->assertContains('tool_search', $provider->toolSets[0]);
+    }
+
+    public function testAnUnusualNumberOfCatalogGrantsIsPooledToo(): void
+    {
+        $catalog = [];
+        for ($i = 0; $i < 30; $i++) {
+            $catalog[] = new CallbackTool("grant_{$i}", "Catalog grant {$i}.", static fn (): string => 'ok');
+        }
+        $provider = $this->scriptedProvider([new AssistantMessage('ok')]);
+        $agent = $this->agentWithRegistry($provider, catalog: $catalog, mcp: []);
+
+        $agent->chat(new UserMessage('hi'));
+
+        $this->assertNotContains('grant_0', $provider->toolSets[0]);
+        $this->assertContains('tool_search', $provider->toolSets[0]);
+    }
+
+    /**
+     * An agent whose registry recorded the given grants, with the default pooling policy.
+     *
+     * @param list<ToolInterface> $catalog
+     * @param list<ToolInterface> $mcp
+     */
+    private function agentWithRegistry(FakeNeuronProvider $provider, array $catalog, array $mcp): CapturingNeuronAgentStub
+    {
+        $names = static fn (array $tools): array => array_map(static fn (ToolInterface $tool): string => $tool->getName(), $tools);
+
+        $agent = new class ($names($catalog), $names($mcp)) extends CapturingNeuronAgentStub {
+            /**
+             * @param list<string> $catalog
+             * @param list<string> $mcp
+             */
+            public function __construct(array $catalog, array $mcp)
+            {
+                $this->catalogToolNames = $catalog;
+                $this->mcpToolNames = $mcp;
+            }
+
+            #[Override]
+            protected function toolSearchActive(): bool
+            {
+                return true;
+            }
+        };
+        $agent->setThreadId('tool-search-registry-' . uniqid());
+        $agent->capturedProvider = $provider;
+        $agent->addTool([...$catalog, ...$mcp]);
+
+        return $agent;
+    }
+
     public function testTheSwitchOffSendsEveryToolOnEveryRound(): void
     {
         $ran = [];

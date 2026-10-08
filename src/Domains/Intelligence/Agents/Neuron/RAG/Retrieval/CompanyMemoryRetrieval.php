@@ -62,7 +62,7 @@ final class CompanyMemoryRetrieval extends SimilarityRetrieval
 
     /**
      * The memory kinds of one tenant, narrowed by audience: what every read of company memory pins,
-     * whether the automatic recall or the search_memory tool.
+     * whether the automatic recall or the search_knowledge tool.
      */
     public static function scopeFor(int $appId, int $companyId, ?FilterExpression $recallScope): FilterExpression
     {

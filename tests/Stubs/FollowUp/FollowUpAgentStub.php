@@ -61,12 +61,15 @@ class FollowUpAgentStub extends FollowUpAgent
      */
     public static ?string $lastThreadId = null;
 
+    public static ?bool $lastPrivateUserTurn = null;
+
     public static function reset(): void
     {
         self::$cannedResponse = '{"should_respond": false, "advance_stage": false, "message": null, "reason": "stub-default"}';
         self::$lastReceivedMessages = [];
         self::$throwOnChat = null;
         self::$lastThreadId = null;
+        self::$lastPrivateUserTurn = null;
     }
 
     public static function lastPromptText(): string
@@ -125,6 +128,14 @@ class FollowUpAgentStub extends FollowUpAgent
     protected function messageStore(): MessageStoreInterface
     {
         return new InMemoryMessageStore();
+    }
+
+    #[Override]
+    public function setPrivateUserTurn(bool $private): void
+    {
+        self::$lastPrivateUserTurn = $private;
+
+        parent::setPrivateUserTurn($private);
     }
 
     #[Override]

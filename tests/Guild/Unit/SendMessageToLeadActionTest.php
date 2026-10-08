@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\Guild\Unit;
 
 use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Notification;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
@@ -13,7 +16,14 @@ use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
 use Kanvas\Guild\Leads\Exceptions\LeadOptedOutException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
+use Kanvas\Intelligence\Agents\Neuron\CRM\SalesManagerAgent;
+use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Users\Models\Users;
 use Mockery;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use Tests\TestCaseUnit;
 use Twilio\Exceptions\RestException;
 use Twilio\Http\Client as TwilioHttpClient;
@@ -22,6 +32,138 @@ use Twilio\Rest\Client as TwilioClient;
 
 final class SendMessageToLeadActionTest extends TestCaseUnit
 {
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testInternalEmailAppendsOwnerSignatureWithoutEnablingSallyTemplateSignature(): void
+    {
+        $owner = Mockery::mock(Users::class);
+        $owner->shouldReceive('get')->with('email_signature')->once()->andReturn([
+            'append' => true,
+            'text' => "Owner Name\nSales Manager",
+        ]);
+        $owner->shouldReceive('getFileByName')->with('photo')->once()->andReturn(null);
+        $this->sendSignatureTestEmail(true, $owner, function (array $data): bool {
+            $this->assertFalse($data['signature']);
+            $this->assertStringContainsString('<strong>quote</strong>', $data['content']);
+            $this->assertStringContainsString('Owner Name', $data['content']);
+            $this->assertStringContainsString('Sales Manager', $data['content']);
+            $this->assertStringNotContainsString('Sally', $data['content']);
+
+            return true;
+        });
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testCustomerFacingEmailDoesNotAppendOwnerSignature(): void
+    {
+        $owner = Mockery::mock(Users::class);
+        $owner->shouldNotReceive('get');
+        $this->sendSignatureTestEmail(false, $owner, function (array $data): bool {
+            $this->assertTrue($data['signature']);
+            $this->assertStringNotContainsString('<table', $data['content']);
+
+            return true;
+        });
+    }
+
+    private function sendSignatureTestEmail(bool $internal, Users $owner, callable $assertContent): void
+    {
+        // Intercept the delivery boundary: Blank's real constructor writes notification types.
+        $notification = Mockery::mock('overload:' . Blank::class);
+        $notification->shouldReceive('__construct')->once()->withArgs(
+            fn (string $template, array $data): bool => $template === 'first-time-agent-engagement' && $assertContent($data)
+        );
+        $notification->shouldReceive('setFromUser')->once();
+        $notification->shouldReceive('setSubject')->once()->with('Your quote');
+        Notification::shouldReceive('send')->once()->withArgs(
+            fn ($notifiable): bool => $notifiable->routes['mail'] === 'prospect@example.com'
+        );
+        $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('get')->andReturn(null);
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
+        $company = new Companies();
+        $company->name = 'Test Company';
+        $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
+        $lead->shouldReceive('getAttribute')->with('app')->andReturn(new Apps());
+        $lead->shouldReceive('getAttribute')->with('user')->andReturn(new Users());
+        $lead->shouldReceive('getAttribute')->with('uuid')->andReturn('test-lead');
+        $lead->shouldReceive('getId')->andReturn(1);
+        $agent = Mockery::mock(Agent::class);
+        $agent->shouldReceive('conversesWithUser')->andReturn($internal);
+        $agent->shouldReceive('get')->andReturn(null);
+
+        $result = new SendMessageToLeadAction($lead)->withSignatureOwner($owner)->execute(
+            channel: 'email',
+            message: 'Here is your **quote**.',
+            title: 'Your quote',
+            to: 'prospect@example.com',
+            fromAgent: $agent,
+        );
+        $this->assertSame('first-time-agent-engagement', $result['template']);
+    }
+
+    public function testInternalAssistantEmailOmitsPersonaSignature(): void
+    {
+        $this->assertEmailSignature(false, true, SalesManagerAgent::class);
+    }
+
+    public function testCustomerFacingAgentEmailKeepsPersonaSignature(): void
+    {
+        $this->assertEmailSignature(true, true, SalesAgent::class);
+    }
+
+    public function testExplicitlyDisabledSignatureStaysDisabled(): void
+    {
+        $this->assertEmailSignature(false, false, SalesAgent::class);
+        $this->assertEmailSignature(false, false, null);
+    }
+
+    public function testLegacyEmailWithoutAgentKeepsSignatureDefault(): void
+    {
+        $this->assertEmailSignature(true, true, null);
+    }
+
+    private function assertEmailSignature(bool $expected, bool $signature, ?string $handler): void
+    {
+        $agent = $handler === null ? null : new Agent();
+        $agent?->setRelation('type', (object) ['handler' => $handler]);
+
+        $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('get')->andReturn(null)->byDefault();
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
+
+        $action = new class ($lead) extends SendMessageToLeadAction {
+            protected function sendEmailMessage(
+                string $message,
+                ?string $title = null,
+                bool $signature = true,
+                ?string $to = null,
+                ?array $cc = null,
+                ?Agent $fromAgent = null
+            ): array {
+                return compact('signature', 'fromAgent', 'message', 'title', 'to', 'cc');
+            }
+        };
+
+        $result = $action->execute(
+            channel: 'email',
+            message: 'Here is the information you requested.',
+            title: 'Your request',
+            signature: $signature,
+            to: 'prospect@example.com',
+            cc: ['owner@example.com'],
+            fromAgent: $agent,
+        );
+
+        $this->assertSame($expected, $result['signature']);
+        $this->assertSame($agent, $result['fromAgent']);
+        $this->assertSame('Here is the information you requested.', $result['message']);
+        $this->assertSame('Your request', $result['title']);
+        $this->assertSame('prospect@example.com', $result['to']);
+        $this->assertSame(['owner@example.com'], $result['cc']);
+    }
+
     public function testTwilioSenderPrecheckRejectsMissingRouteBeforeApiCall(): void
     {
         $action = $this->makeTwilioPrecheckAction([]);

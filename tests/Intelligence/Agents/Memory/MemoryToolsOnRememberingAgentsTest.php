@@ -14,13 +14,13 @@ class MemoryToolsOnRememberingAgentsTest extends TestCase
 {
     use MakesAgents;
 
-    public function testARememberingAgentCanSearchItsMemory(): void
+    public function testARememberingAgentCanSearchItsKnowledgeAndMemory(): void
     {
         $user = auth()->user();
         $handler = new RememberingSystemUserAgentStub();
         $handler->setConfiguration(agent: $this->makeAgentFor($user), entity: $user, user: $user);
 
-        $this->assertContains('search_memory', $this->names($handler->getTools()));
+        $this->assertContains('search_knowledge', $this->names($handler->getTools()));
     }
 
     public function testAnAgentThatDoesNotRememberGetsNoSearchTool(): void
@@ -29,7 +29,7 @@ class MemoryToolsOnRememberingAgentsTest extends TestCase
         $handler = new KanvasGenericNeuronAgent();
         $handler->setConfiguration(agent: $this->makeAgentFor($user), user: $user);
 
-        $this->assertNotContains('search_memory', $this->names($handler->getTools()));
+        $this->assertNotContains('search_knowledge', $this->names($handler->getTools()), 'No memory and no knowledge: nothing to search');
     }
 
     /**

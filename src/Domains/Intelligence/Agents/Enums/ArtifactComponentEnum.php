@@ -9,8 +9,10 @@ namespace Kanvas\Intelligence\Agents\Enums;
  * contract; `props()` mirrors it so a block is rejected here, where the model can fix it, instead of
  * rendering as a broken card.
  *
- * Prop spec shape: name => [type, required?, ...]. Types: string, number, bool, id (string|number),
- * text_or_number, scalar (string|number|bool|null), enum (values), rows (flat objects), list (item).
+ * Prop spec shape: name => [type, required?, ...]. Types: string (nonEmpty?, maxLength?), number,
+ * integer (min/max bound the value), bool, id (string|number), record_id (a numeric id or a uuid),
+ * record_id_list, text_or_number, scalar (string|number|bool|null), enum (values), rows (flat objects),
+ * list (item). On the list types min/max bound the entry count.
  */
 enum ArtifactComponentEnum: string
 {
@@ -23,8 +25,11 @@ enum ArtifactComponentEnum: string
     case PROGRESS = 'progress';
     case TIMELINE = 'timeline';
     case CALLOUT = 'callout';
+    case APPROVALS = 'approvals';
 
     private const array NUMBER_FORMATS = ['number', 'currency', 'percent', 'compact'];
+
+    private const array APPROVAL_STATUSES = ['pending', 'approved', 'rejected', 'cancelled', 'expired', 'all'];
 
     /**
      * @return array<string, array<string, mixed>>
@@ -158,6 +163,15 @@ enum ArtifactComponentEnum: string
                 'heading' => ['type' => 'string'],
                 'text' => ['type' => 'string', 'required' => true],
             ],
+            // Filters, not rows: the admin card queries the project's approval requests itself, so every
+            // prop is optional and no filter at all means "what is pending".
+            self::APPROVALS => [
+                'status' => ['type' => 'enum', 'values' => self::APPROVAL_STATUSES],
+                'type' => ['type' => 'string', 'nonEmpty' => true, 'maxLength' => 80],
+                'ids' => ['type' => 'record_id_list', 'min' => 1, 'max' => 25],
+                'peopleId' => ['type' => 'record_id'],
+                'limit' => ['type' => 'integer', 'min' => 1, 'max' => 25],
+            ],
         };
     }
 
@@ -189,6 +203,13 @@ enum ArtifactComponentEnum: string
                 . 'date? (free text), status? done|current|upcoming}] 1-12',
             self::CALLOUT => 'callout — one short note that needs attention. props: variant info|success|warning|error; '
                 . 'heading?; text',
+            self::APPROVALS => 'approvals — LIVE approval requests across the whole project (not only the user\'s): '
+                . 'send filters, never rows. The card reads the requests itself and the user approves, rejects, '
+                . 'delegates or cancels from it, so do not also offer those as actions. props: status? '
+                . 'pending|approved|rejected|cancelled|expired|all (default pending; all when ids or peopleId is set); '
+                . 'type? (an exact approval_type such as approve_bill — omit it unless a tool gave you the type); '
+                . 'ids? [approval request id or uuid, NOT the id of the bill or person it is about] 1-25; peopleId? '
+                . '(the person\'s id or uuid, for everything about them); limit? 1-25 (default 5, or one per id)',
         };
     }
 

@@ -154,6 +154,24 @@ New connectors put workflow activities in `src/Domains/Connectors/{ConnectorName
 
 All calls to `$this->executeIntegration()` in workflow activities must include `additionalParams: $params`. Without it, the system cannot retry the activity with the correct parameters.
 
+### A handler must declare the company settings it writes, or disconnect leaves them live
+
+`removeIntegrationCompany` (the admin's disconnect) runs `RemoveIntegrationCompanyAction`, which
+instantiates the row's handler and calls `BaseIntegration::teardown()`. The default teardown deletes
+the keys returned by `companySettingKeys()` from the company — nothing else. Connector code reads
+credentials straight from `$company->get(...)` and never consults `integration_companies`, so an
+undeclared key means the tenant pressed disconnect and the integration kept working.
+
+- Declare **every** `$this->company->set()` key `setup()` can write, optional ones included; `del()` on
+  a missing key is a no-op. A key built at runtime (Shopify's per-region credential, VinSolution's
+  per-user key) is returned from the method, or handled in a `teardown()` override that calls
+  `parent::teardown()` first.
+- App-level settings (`$this->app->set()`) are shared by every company on the app and are
+  deliberately **not** torn down.
+- `tests/Connectors/HandlersDeclareSettingKeysTest.php` fails CI for a handler that writes
+  `$this->company->set(` without a `companySettingKeys()` override. Setups that write through a
+  Service (Shopify, Mercury, DealerSocket) are not caught by it — declare those by hand.
+
 ### Always seed the `integrations` row
 
 When shipping a new connector, provide the SQL insert for the `integrations` table:

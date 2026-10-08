@@ -136,6 +136,7 @@ trait CreatesLeadTrait
 
         return [
             'lead_id' => $lead->getId(),
+            'admin_url' => $lead->adminUrl(),
             'title' => $lead->title,
             'people_id' => $lead->people_id,
             'organization_id' => $lead->organization_id,

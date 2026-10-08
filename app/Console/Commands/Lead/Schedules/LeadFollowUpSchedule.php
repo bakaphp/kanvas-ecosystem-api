@@ -41,7 +41,7 @@ final class LeadFollowUpSchedule
         // Daily summary — fires once per (app, company) into the ledger.
         $schedule->command(LeadFollowUpDailySummaryCommand::class)
             ->dailyAt('00:30')
-            ->withoutOverlapping()
+            ->withoutOverlapping(720)
             ->onOneServer()
             ->runInBackground();
     }

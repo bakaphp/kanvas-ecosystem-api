@@ -596,8 +596,9 @@ class ProjectPmToolsTest extends TestCase
     }
 
     /**
-     * A PM that can only hand work to teammates who already exist, through automation somebody else
-     * already wired, cannot finish a job end to end — it stops at the edge of what is already set up.
+     * A PM that can only hand work to teammates who already exist cannot finish a job end to end, so it
+     * hires and briefs them itself and reads the automation that exists. Wiring new automation
+     * (workflows, receivers, message types) is administration it asks for, not a tool it carries.
      */
     public function testProjectManagerAgentCanStaffAndAutomateTheWork(): void
     {
@@ -617,14 +618,9 @@ class ProjectPmToolsTest extends TestCase
             'update_agent_instructions',
             'list_workflow_options',
             'list_company_workflows',
-            'create_company_workflow',
-            'update_company_workflow',
-            'create_company_receiver',
             'create_email_route',
             'read_channel_window',
             'get_transcription',
-            'list_message_types',
-            'create_message_type',
             // Lost once already: ProjectManagerAgent overrides SystemUserAgent::tools() without
             // calling parent, which drops these silently — a shorter list, no error.
             'schedule_reminder',
@@ -633,6 +629,12 @@ class ProjectPmToolsTest extends TestCase
             'cancel_scheduled_action',
         ] as $expected) {
             $this->assertContains($expected, $names, $expected . ' is missing from the PM toolset.');
+        }
+
+        // Platform administration a PM reaches for once in fifty turns: in the prompt it gets picked up
+        // on greetings and costs a round each time.
+        foreach (['create_company_workflow', 'update_company_workflow', 'create_company_receiver', 'list_message_types', 'create_message_type'] as $removed) {
+            $this->assertNotContains($removed, $names, $removed . ' is platform administration, not PM work.');
         }
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Neuron;
 
+use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasToolSearchMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\KanvasToolSearchTool;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
@@ -78,6 +79,32 @@ class ToolSearchMissTest extends TestCase
 
         $this->assertStringStartsWith('Found 1 tool(s):', $provider->toolResults[0]);
         $this->assertStringNotContainsString('This list is complete', $provider->toolResults[0]);
+    }
+
+    public function testASearchForAToolAlreadyDeclaredPointsAtItInsteadOfTheList(): void
+    {
+        $provider = $this->scriptedProvider([
+            new ToolCallMessage(null, [ToolCall::make('tool_search', 'c-1', ['query' => 'plan'])]),
+            new AssistantMessage('ok'),
+        ]);
+        $agent = $this->agentWithPool($provider, $this->pool());
+        $agent->addTool(new CallbackTool('create_plan', 'Create a plan with its tasks.', static fn (): string => 'done'));
+
+        $agent->chat(new UserMessage('make a plan for the launch'));
+
+        $reply = $provider->toolResults[0];
+        $this->assertStringContainsString('you already hold create_plan', $reply);
+        $this->assertStringContainsString('Call them directly', $reply);
+        $this->assertStringNotContainsString('This list is complete', $reply, 'The pool list is noise when the tool is already in hand');
+    }
+
+    public function testThePromptSaysDeclaredToolsNeedNoSearch(): void
+    {
+        $prompt = KanvasToolSearchMiddleware::SYSTEM_PROMPT;
+
+        $this->assertStringContainsString('call them directly', $prompt);
+        $this->assertStringContainsString('Never search for a tool you can already call', $prompt);
+        $this->assertStringNotContainsString('Always search', $prompt, "Neuron's search-first line is what sent Jessica searching for tools she held");
     }
 
     public function testTheSearchClosesAfterTheCap(): void

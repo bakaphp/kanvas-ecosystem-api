@@ -247,6 +247,10 @@ class EventVersion extends BaseModel
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,
+            'start_at' => $this->start_at?->toIso8601String(),
+            'end_at' => $this->end_at?->toIso8601String(),
+            'start_at_timestamp' => $this->start_at?->timestamp,
+            'end_at_timestamp' => $this->end_at?->timestamp,
             'config' => $this->metadata,
             'apps_id' => $this->apps_id,
             'companies_id' => $this->companies_id,
@@ -282,6 +286,26 @@ class EventVersion extends BaseModel
                 [
                     'name' => 'description',
                     'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'start_at',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'end_at',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'start_at_timestamp',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'end_at_timestamp',
+                    'type' => 'int64',
                     'optional' => true,
                 ],
                 [

@@ -70,11 +70,15 @@ class ListAvailableProductsTool extends Tool
             $builder->fromCompany($this->company);
         }
 
+        if ($only_in_stock) {
+            $builder->inStock();
+        }
+
         $products = $builder->get();
-        $label = $is_published ? 'published' : 'unpublished';
+        $label = ($is_published ? 'published' : 'unpublished') . ($only_in_stock ? ' products with stock' : ' products');
 
         if ($products->isEmpty()) {
-            return ['message' => "No {$label} products found in the inventory."];
+            return ['message' => "No {$label} found in the inventory."];
         }
 
         $results = $products->map(function (Products $product) {
@@ -94,14 +98,6 @@ class ListAvailableProductsTool extends Tool
                 ])->toArray(),
             ];
         });
-
-        if ($only_in_stock) {
-            $results = $results->filter(fn ($product) => $product['total_stock'] > 0);
-
-            if ($results->isEmpty()) {
-                return ['message' => "No {$label} products with stock found."];
-            }
-        }
 
         return $results->values()->toArray();
     }

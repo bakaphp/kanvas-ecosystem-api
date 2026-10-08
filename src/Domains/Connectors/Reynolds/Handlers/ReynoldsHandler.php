@@ -131,4 +131,21 @@ class ReynoldsHandler extends BaseIntegration
             ]
         );
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::REYNOLDS_USERNAME->value,
+            ConfigurationEnum::REYNOLDS_PASSWORD->value,
+            ConfigurationEnum::REYNOLDS_ENDPOINT->value,
+            ConfigurationEnum::REYNOLDS_SENDER_NAME->value,
+            ConfigurationEnum::REYNOLDS_DEV_MODE->value,
+            ConfigurationEnum::REYNOLDS_DEALER_NUMBER->value,
+            ConfigurationEnum::REYNOLDS_STORE_NUMBER->value,
+            ConfigurationEnum::REYNOLDS_AREA_NUMBER->value,
+            ConfigurationEnum::REYNOLDS_BUSINESS_UNIT_NAME->value,
+            ConfigurationEnum::REYNOLDS_DEALER_LOCATION_KEY->value,
+        ];
+    }
 }

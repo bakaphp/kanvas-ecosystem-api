@@ -378,6 +378,10 @@ class FollowUpLeadActionTest extends TestCase
 
         $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
         $this->assertSame('Hello Maria, just checking in.', $outcome->message);
+        $this->assertTrue(
+            FollowUpAgentStub::$lastPrivateUserTurn,
+            'The follow-up prompt must run as a private turn so it never lands in memory as a user request.',
+        );
 
         $lead->refresh();
         $this->assertSame(1, $lead->getFollowUpStateCount());

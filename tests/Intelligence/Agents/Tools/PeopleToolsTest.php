@@ -64,6 +64,7 @@ final class PeopleToolsTest extends TestCase
         $match = collect($byEmail['people'])->firstWhere('person_id', (int) $person->getId());
         $this->assertNotNull($match);
         $this->assertSame($email, $match['email']);
+        $this->assertArrayHasKey('admin_url', $match);
     }
 
     public function test_get_person_returns_profile_with_scrubbed_custom_fields(): void

@@ -69,29 +69,32 @@ final class NervousSystemSchedule
         $schedule->command(ArchiveOldLedgerEventsCommand::class)
             ->dailyAt('02:00')
             ->timezone('America/New_York')
-            ->withoutOverlapping();
+            ->withoutOverlapping(720);
 
         // Plan + capability lifecycle. ExpireCapabilities stays at :00 —
         // it's a cheap UPDATE that's unlikely to contend with the every-5/10
         // min checks that also fire there.
         $schedule->command(DetectStalledPlanTasksCommand::class)
             ->everyFiveMinutes()
-            ->withoutOverlapping();
+            ->withoutOverlapping(15);
 
         // Project heartbeat — the proactive pulse. Runs every 5 min; each project only ticks when
         // its own heartbeat_interval_minutes has elapsed.
         $schedule->command(ProjectHeartbeatCommand::class)
             ->everyFiveMinutes()
-            ->withoutOverlapping();
+            ->withoutOverlapping(15);
         $schedule->command(ExpireCapabilitiesCommand::class)
             ->hourly()
-            ->withoutOverlapping();
+            ->withoutOverlapping(120);
 
         // Scheduled agent actions (reminders / agent tasks) — the every-minute sweep claims the due
         // batch and dispatches a fire-job per row. Pure dispatcher; ±1 min fire precision.
+        // Mutex expires after 5 min: with runInBackground() the lock is released by a separate
+        // schedule:finish call, so a killed run would otherwise block the sweep for the 24h default.
+        // An early expiry is safe because claimDue() uses SKIP LOCKED.
         $schedule->command(SweepScheduledActionsCommand::class)
             ->everyMinute()
-            ->withoutOverlapping()
+            ->withoutOverlapping(5)
             ->runInBackground();
 
         // Inactive-plan nudge — once a day, ping owners of open plans that have gone silent past the
@@ -100,7 +103,7 @@ final class NervousSystemSchedule
         $schedule->command(NudgeInactivePlansCommand::class)
             ->dailyAt('08:00')
             ->timezone('America/New_York')
-            ->withoutOverlapping()
+            ->withoutOverlapping(720)
             ->onOneServer();
 
         // Unanswered intake — chase the owner, and after three unanswered rounds cancel the plan.
@@ -112,7 +115,7 @@ final class NervousSystemSchedule
         $schedule->command(SweepStaleIntakeCommand::class)
             ->dailyAt('08:15')
             ->timezone('America/New_York')
-            ->withoutOverlapping()
+            ->withoutOverlapping(720)
             ->onOneServer();
 
         // Daily rollups feed dashboard + pulse cards before operators log in.
@@ -120,43 +123,43 @@ final class NervousSystemSchedule
         $schedule->job(new RollupDailyDashboardMetricsJob())
             ->dailyAt('00:30')
             ->timezone('America/New_York')
-            ->withoutOverlapping();
+            ->withoutOverlapping(720);
         $schedule->job(new RollupDailyPulseMetricsJob())
             ->dailyAt('00:35')
             ->timezone('America/New_York')
-            ->withoutOverlapping();
+            ->withoutOverlapping(720);
 
         // Daily-learning pipeline — strict order, see timing map above.
         $schedule->command(RecordAgentDailyCyclesCommand::class)
             ->dailyAt('06:04')
             ->timezone('America/New_York')
-            ->withoutOverlapping();
+            ->withoutOverlapping(720);
         $schedule->command(SummarizeAgentDailyLearningCommand::class)
             ->dailyAt('06:30')
             ->timezone('America/New_York')
-            ->withoutOverlapping()
+            ->withoutOverlapping(720)
             ->onOneServer();
         $schedule->command(SendDailyLearningDigestCommand::class)
             ->dailyAt('07:30')
             ->timezone('America/New_York')
-            ->withoutOverlapping()
+            ->withoutOverlapping(720)
             ->onOneServer();
 
         // Agent runtime monitoring. RefreshAgentLiveCounters does a full-fleet
         // DB scan — kept off :00 to dodge the every-5/every-10/hourly cluster.
         $schedule->command(RefreshAgentLiveCountersCommand::class)
             ->hourlyAt(5)
-            ->withoutOverlapping();
+            ->withoutOverlapping(120);
         $schedule->command(CheckAgentRuntimeHealthCommand::class)
             ->everyTenMinutes()
-            ->withoutOverlapping();
+            ->withoutOverlapping(30);
 
         // Hermes kanban ingest — fan out a sync job per running Hermes deployment so the
         // agent's board moves into Kanvas plans/tasks. Status-diff per task, so over-running
         // is harmless; the per-deployment jobs run on the agent-runtime queue.
         $schedule->command(SyncKanbanDeploymentsCommand::class)
             ->everyFiveMinutes()
-            ->withoutOverlapping();
+            ->withoutOverlapping(15);
 
         // Hermes transcript ingestion — Intelligence-namespaced, but feeds
         // the 06:30 summarize step. Staggered to :10 because SSH-ingest is
@@ -164,7 +167,7 @@ final class NervousSystemSchedule
         // block on the actual ingest dispatch.
         $schedule->command(CollectAgentSessionTranscriptsCommand::class)
             ->hourlyAt(10)
-            ->withoutOverlapping()
+            ->withoutOverlapping(120)
             ->onOneServer()
             ->runInBackground();
 
@@ -173,7 +176,7 @@ final class NervousSystemSchedule
         $schedule->command(SyncModelPricingCommand::class)
             ->dailyAt('02:30')
             ->timezone('America/New_York')
-            ->withoutOverlapping()
+            ->withoutOverlapping(720)
             ->onOneServer();
 
         // Container-runtime usage collection (OpenClaw + Hermes) — provider-routed,
@@ -181,7 +184,7 @@ final class NervousSystemSchedule
         // ingest) and run in background.
         $schedule->command(CollectAgentDeploymentUsageCommand::class)
             ->hourlyAt(15)
-            ->withoutOverlapping()
+            ->withoutOverlapping(120)
             ->onOneServer()
             ->runInBackground();
 
@@ -191,7 +194,7 @@ final class NervousSystemSchedule
         $schedule->command(RollupLocalAgentUsageCommand::class)
             ->dailyAt('03:00')
             ->timezone('America/New_York')
-            ->withoutOverlapping()
+            ->withoutOverlapping(720)
             ->onOneServer();
 
         // End-of-day config backup — runs hourly and dispatches only for agents
