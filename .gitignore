@@ -15,6 +15,8 @@ public/vendor
 /.idea
 .DS_Store
 package.json
+!/browser/package.json
+!/playwright-mcp/package.json
 /storage/framework/cache/data/*
 /storage/framework/cache/views/*
 /storage/framework/sessions/*
@@ -23,6 +25,8 @@ package.json
 /storage/hermes-backup-agent/
 /storage/hermes-fixtures/
 package-lock.json
+!/browser/package-lock.json
+!/playwright-mcp/package-lock.json
 .php-cs-fixer.cache
 service-account.json
 .env.testing
