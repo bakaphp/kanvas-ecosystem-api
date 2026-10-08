@@ -99,6 +99,12 @@ class AddCreditAppAction
             'rent' => 683,
             'family' => 4389,
             'relative' => 4389,
+            'relatives' => 4389,
+            'with family' => 4389,
+            'with relative' => 4389,
+            'with relatives' => 4389,
+            'with parents' => 4389,
+            'living with relatives' => 4389,
             'military' => 4390,
             'owns mobile home' => 4391,
             'buying mobile home' => 4392,
@@ -129,6 +135,12 @@ class AddCreditAppAction
 
         $cellPhoneBackup = $this->lead->people->getCellPhones()->first() ? $this->lead->people->getCellPhones()->first()->value : '';
 
+        $residenceType = strtolower(trim((string) ($formData['housing']['residence_type'] ?? '')));
+        $housingType = $residenceType === '' ? 682 : ($eLeadHousingType[$residenceType] ?? 4394);
+
+        $employmentStatus = strtolower(trim((string) ($formData['financial']['employment_status'] ?? '')));
+        $employmentStatusType = $eLeadEmploymentStatus[$employmentStatus] ?? '4396';
+
         $postData = [
             'birthdayMonth' => is_object($contactDOB) ? $contactDOB->format('m') : '',
             'birthdayYear' => is_object($contactDOB) ? $contactDOB->format('Y') : '',
@@ -139,11 +151,11 @@ class AddCreditAppAction
             'street' => $formData['housing']['address'] ?? '',
             'street2' => $formData['housing']['address_line2'] ?? '',
             'city' => $formData['housing']['city']['name'] ?? ($formData['housing']['city'] ?? ''),
-            'state' => (string) $eLeadStates[$currentState] ?? '10',
+            'state' => (string) ($eLeadStates[strtoupper((string) $currentState)] ?? 10),
             'zip' => $formData['housing']['zip_code'] ?? '',
             'email' => $formData['personal']['email'] ?? '',
 
-            'housingType' => isset($formData['housing']['residence_type']) ? (string) $eLeadHousingType[strtolower($formData['housing']['residence_type'])] : '682',
+            'housingType' => (string) $housingType,
             'housingExpenses' => $formData['housing']['rent'] ?? '',
 
             'howLongYear' => isset($formData['housing']['time_at_address']) && ! empty($formData['housing']['time_at_address']) ? (string) $formData['housing']['time_at_address'] : '0',
@@ -154,7 +166,7 @@ class AddCreditAppAction
             'previousAddressState' => isset($formData['housing']['previous_state']['code']) && ! empty($formData['housing']['previous_state']['code']) && isset($eLeadStates[$formData['housing']['previous_state']['code']]) ? (string) $eLeadStates[$formData['housing']['previous_state']['code']] : '',
             'previousAddressZipCode' => $formData['housing']['previous_zip_code'] ?? '',
             'previousTimeAtAddress' => isset($formData['housing']['previous_time_at_address']) && ! empty($formData['housing']['previous_time_at_address']) ? (string) $formData['housing']['previous_time_at_address'] : '0',
-            'currentEmploymentStatusType' => isset($formData['financial']['employment_status']) && ! empty($formData['financial']['employment_status']) ? (string) $eLeadEmploymentStatus[strtolower($formData['financial']['employment_status'])] : '4396',
+            'currentEmploymentStatusType' => (string) $employmentStatusType,
             'currentEmployerJobTitle' => isset($formData['financial']['current_employment_title']) && ! empty($formData['financial']['current_employment_title']) ? substr($formData['financial']['current_employment_title'], 0, 54) : '',
             'currentEmployerName' => isset($formData['financial']['current_employer']) && ! empty($formData['financial']['current_employer']) ? substr($formData['financial']['current_employer'], 0, 54) : '',
             'currentEmployerPhone' => (string) ($formData['financial']['current_employer_phone'] ?? ''),
