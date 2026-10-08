@@ -12,12 +12,8 @@ use Throwable;
 
 abstract class AbstractBrowserTool extends Tool
 {
-    public function __construct(
-        protected readonly BrowserSession $session,
-        string $name,
-        string $description,
-    ) {
-        parent::__construct($name, $description);
+    public function __construct(protected readonly BrowserSession $session)
+    {
         $this->setMaxRuns(100);
     }
 
