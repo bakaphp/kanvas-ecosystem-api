@@ -177,6 +177,26 @@ class AgentProviderService
     }
 
     /**
+     * The provider that rewrites a customer message into a search query before retrieval: the agent's
+     * own model and credentials with thinking low (the one level every Gemini 3 model accepts). The job
+     * is one line of text, and at the default level a thinking model makes the customer wait on it
+     * before the agent even starts.
+     */
+    public static function queryRewriteProvider(Agent $agent): AIProviderInterface
+    {
+        $source = self::resolveSource($agent);
+
+        if (self::providerFrom($source) === AgentLlmProviderEnum::GEMINI) {
+            $source['parameters'] = self::withThinkingConfig(
+                is_array($source['parameters'] ?? null) ? $source['parameters'] : [],
+                ['thinkingLevel' => 'low'],
+            );
+        }
+
+        return self::makeProvider($agent, $source);
+    }
+
+    /**
      * The concrete model name the agent will call, following the same precedence as resolve().
      * Exposed so the chat path records the same model for usage/cost rollups.
      */
@@ -317,6 +337,16 @@ class AgentProviderService
             return $parameters;
         }
 
+        return self::withThinkingConfig($parameters, $thinking);
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     * @param array<string, int|string> $thinking
+     * @return array<string, mixed>
+     */
+    private static function withThinkingConfig(array $parameters, array $thinking): array
+    {
         $parameters['generationConfig'] = [...($parameters['generationConfig'] ?? []), 'thinkingConfig' => $thinking];
 
         return $parameters;

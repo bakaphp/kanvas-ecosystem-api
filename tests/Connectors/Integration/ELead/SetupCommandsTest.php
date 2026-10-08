@@ -9,8 +9,14 @@ use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+/**
+ * Serial: the skip test deletes the eLeads subscription id on the shared test company, a Redis-backed
+ * setting the other eLeads tests set and read in parallel.
+ */
+#[Group('serial')]
 final class SetupCommandsTest extends TestCase
 {
     use DatabaseTransactions;

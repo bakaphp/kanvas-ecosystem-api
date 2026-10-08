@@ -26,7 +26,7 @@ class SyncUsersCommand extends Command
                             {--create-missing=1 : Create Kanvas users for eLeads employees with no matching email (1=yes, 0=map only)}
                             {--password= : Password for created users, required when --create-missing=1}';
 
-    protected $description = 'Sync eLeads dealer employees into Kanvas: match by email and store the eLeads employee id so downloaded leads get an owner, creating missing users with a default password and no email.';
+    protected $description = 'Sync eLeads dealer employees into Kanvas: match by email and store the eLeads employee id so downloaded leads get an owner, creating missing users with the given --password.';
 
     public function handle(): int
     {
