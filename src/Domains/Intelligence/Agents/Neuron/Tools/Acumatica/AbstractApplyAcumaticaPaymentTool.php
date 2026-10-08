@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 
 use Kanvas\Connectors\Acumatica\Actions\PushPaymentToAcumaticaAction;
+use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum as AcumaticaConfigurationEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Payments\Models\Payment;
@@ -16,10 +17,10 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Shared body for the AP/AR "apply a payment to an already-pushed document, then push the payment to
- * Acumatica" tools. The two flows are identical bar the document type (Bill vs Invoice), the allocate
- * action, and the ref custom field — so the control flow, tenant lookup, guards, and result shape live
- * here and each concrete tool supplies the differences via the hooks below.
+ * Shared body for applying AP/AR payments. Payments are allocated in Kanvas and are pushed to
+ * Acumatica only when sync is enabled for the company. The two flows are identical bar the document
+ * type (Bill vs Invoice), the allocate action, and the ref custom field — so the control flow, tenant
+ * lookup, guards, and result shape live here and each concrete tool supplies the differences below.
  *
  * Naming (LLM param, result keys, reasons, prose) is all derived from noun() so 'bill'/'invoice' can't
  * drift between the schema and the response.
@@ -77,7 +78,7 @@ abstract class AbstractApplyAcumaticaPaymentTool extends Tool
             new ToolProperty(
                 name: 'reference',
                 type: PropertyType::STRING,
-                description: 'Payment reference (check number, wire ref, etc). Acumatica rejects an empty one.',
+                description: 'Payment reference (check number, wire ref, etc).',
                 required: true,
             ),
         ];
@@ -102,8 +103,9 @@ abstract class AbstractApplyAcumaticaPaymentTool extends Tool
         }
 
         $ref = (string) $document->get($this->refCustomField(), '');
+        $acumaticaEnabled = (bool) $this->company->get(AcumaticaConfigurationEnum::SYNC_ENABLED->value);
 
-        if ($ref === '') {
+        if ($acumaticaEnabled && $ref === '') {
             return [
                 'applied' => false,
                 'reason' => $noun . '_not_pushed',
@@ -118,6 +120,18 @@ abstract class AbstractApplyAcumaticaPaymentTool extends Tool
                 'applied' => false,
                 'reason' => 'allocation_failed',
                 'message' => $e->getMessage(),
+            ];
+        }
+
+        if (! $acumaticaEnabled) {
+            return [
+                'applied' => true,
+                'pushed' => false,
+                $idKey => $document->getId(),
+                $noun . '_ref' => $ref ?: (string) $document->getId(),
+                'amount' => $amount,
+                'payment_ref' => $reference,
+                ...$this->refreshedState($document),
             ];
         }
 

@@ -6,6 +6,18 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConvertQuoteToInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateInvoicePdfTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryBalanceSheetTool;
@@ -16,7 +28,13 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryExpenseReportTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryPnlTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryRecentExpensesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryTrialBalanceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Override;
 
 /**
@@ -24,23 +42,24 @@ use Override;
  * is @mention-reachable) specialised for finance. Its audience is company staff, so it extends
  * SystemUserAgent alongside its AP/AR counterparts rather than bare BaseRagAgent.
  *
- * Read-only: every tool is a query against the Scribe Reports repositories or the GL directly.
- * The agent does NOT write to the books — no posting, no Voids, no Approves, no rate changes. CFO advice
- * is given on top of the deterministic numbers the tools return.
+ * Finance operations are available alongside deterministic report/query tools. Financial records are
+ * only created, issued, approved, or paid when staff explicitly request the operation.
  *
  * query_data_freshness must run FIRST on every turn — the agent has to know how stale the books are
  * before it states any number.
  */
 #[AgentTypeDefinition(
     name: 'CFO Agent',
-    description: 'Read-only CFO assistant — answers questions about company finances using the Scribe '
-        . 'reports (Balance Sheet, P&L, Trial Balance, AR Aging) and direct GL queries. Defaults to '
-        . 'data-freshness check before any numeric statement.',
+    description: 'CFO assistant — answers company finance questions using Scribe reports and GL queries, '
+        . 'and can create quotes, AR invoices, AP bills, and apply invoice/bill payments when explicitly '
+        . 'requested by the user. Defaults to a data-freshness check before numeric statements.',
     provider: 'neuron',
-    soul: 'You are the CFO teammate. You answer questions about the company\'s finances using your '
-        . 'read-only tools — you do not make journal entries, approve expenses, or change anything in '
-        . 'the books. You speak plainly, with numbers, in the company\'s reporting currency, and you '
-        . 'round to whole units unless asked for precision.',
+    soul: 'You are the CFO teammate. You answer questions about company finances and can perform '
+        . 'requested finance operations: create quotes, AR invoices, AP bills, and apply invoice or bill '
+        . 'payments. Never create, issue, approve, send, or apply a payment unless the user explicitly '
+        . 'asks you to do so. You do not make journal entries, approve expenses, or change rates. Speak '
+        . 'plainly, with numbers, in the company\'s reporting currency, and round to whole units unless '
+        . 'asked for precision.',
     outputFormat: 'Plain text. Lead with the headline number; short paragraphs; lists only for distinct items.',
 )]
 class CFOAgent extends SystemUserAgent
@@ -60,6 +79,24 @@ class CFOAgent extends SystemUserAgent
             new QueryRecentExpensesTool(),
             new QueryDueToEmployeesTool(),
             new QueryExpenseReportTool(),
+            new FindCustomerTool(),
+            new FindVendorTool(),
+            new CreateQuoteTool(),
+            new FindQuoteTool(),
+            new SendQuoteTool(),
+            new AnswerQuoteTool(),
+            new ConvertQuoteToInvoiceTool(),
+            new GenerateQuotePdfTool(),
+            new GenerateInvoicePdfTool(),
+            new FindInvoiceTool(),
+            new CreateArInvoiceTool(),
+            new ApplyArPaymentTool(),
+            new CreateApBillTool(),
+            new ApplyApPaymentTool(),
+            new FindBillTool(),
+            new ListOpenBillsTool(),
+            new ExtractInvoiceDataTool(),
+            new GetFileLinkTool(),
         ]));
     }
 
@@ -73,7 +110,8 @@ class CFOAgent extends SystemUserAgent
     {
         return implode("\n", [
             '## How to handle finance questions',
-            '- You are read-only on the books: no journal entries, no approvals, no rate changes. You read and advise.',
+            '- Report tools are read-only: do not make journal entries, approve expenses, or change rates. '
+            . 'Use finance-document write tools only for operations the user explicitly requests.',
             '- ALWAYS call query_data_freshness FIRST. If the staleness exceeds 2 days, say so explicitly: '
             . '"I am answering from N-day-stale data — the last journal entry was posted on YYYY-MM-DD".',
             '- For BS/P&L/AR questions, prefer the corresponding report tool over piecing together raw GL.',
@@ -87,6 +125,15 @@ class CFOAgent extends SystemUserAgent
             . 'company-paid split → query_expense_report. It counts approved expenses only, so say so when the '
             . 'number looks lower than someone expects — pending claims are not in it.',
             '- When the user gives a date range, use THEIR range — never substitute today.',
+            '- You can create quotes, AR invoices, AP bills, and apply invoice/bill payments, but only when '
+            . 'the user explicitly requests that operation. Ask for missing customer/vendor, amount, or '
+            . 'payment-reference details rather than guessing.',
+            '- Use find_customer or find_vendor to resolve names and ask the user to choose when a match is ambiguous.',
+            '- Use find_quote, find_invoice, or find_bill to identify an existing record before acting on it; '
+            . 'use create_quote/create_ar_invoice/create_ap_bill only for an explicitly requested new record.',
+            '- Apply AR/AP payments only after the user explicitly confirms that a real payment has been made '
+            . 'and gives the amount and payment reference. Never infer that an invoice or bill has been paid.',
+            '- Quotes and invoices can be generated as PDFs; use get_file_link to return a file link when available.',
             '- Lead with the headline number when one exists (e.g. "AR exposure: $42,300 across 7 customers"), '
             . 'show the top 3-5 line items when the list is naturally short, and summarize aggregates otherwise.',
             '- Flag anomalies nobody asked about (e.g. "Heads-up: P&L shows -$5,000 from an unbalanced JE — '

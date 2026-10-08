@@ -14,15 +14,15 @@ use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use Kanvas\Scribe\Payments\Models\Payment;
 use Override;
 
-/** Applies a disbursement to an existing, already-pushed AP bill and pushes the payment to Acumatica. */
+/** Applies a disbursement to an existing AP bill and pushes it to Acumatica when company sync is enabled. */
 #[AgentTool(name: 'Apply AP Payment', category: 'accounting')]
 class ApplyApPaymentTool extends AbstractApplyAcumaticaPaymentTool
 {
     protected string $name = 'apply_ap_payment';
 
-    protected ?string $description = 'Applies a disbursement to an existing AP bill (partial or full) and pushes the '
-        . 'payment to Acumatica. Only call when the user explicitly asks to record a real vendor '
-        . 'payment against a bill — never on a whim.';
+    protected ?string $description = 'Applies a disbursement to an existing AP bill (partial or full), and pushes the '
+        . 'payment to Acumatica only when Acumatica sync is enabled for the company. Only call when the user '
+        . 'explicitly asks to record a real vendor payment against a bill — never on a whim.';
 
     /**
      * @return array<string, mixed>
