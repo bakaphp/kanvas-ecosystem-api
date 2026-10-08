@@ -10,7 +10,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
-use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;

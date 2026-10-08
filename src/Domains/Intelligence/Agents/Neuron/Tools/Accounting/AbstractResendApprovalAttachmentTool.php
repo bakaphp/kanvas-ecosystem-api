@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Approvals\Actions\ResolveApproverEmailAction;
+use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use NeuronAI\Tools\PropertyType;

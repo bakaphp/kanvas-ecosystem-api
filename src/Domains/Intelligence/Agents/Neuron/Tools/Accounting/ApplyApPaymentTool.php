@@ -29,8 +29,7 @@ class ApplyApPaymentTool extends AbstractApplyPaymentTool
     public function __invoke(int $bill_id, float $amount, string $reference): array
     {
         return $this->applyPayment($bill_id, $amount, $reference);
-    }
-
+}
     #[Override]
     protected function noun(): string
     {
@@ -75,5 +74,4 @@ class ApplyApPaymentTool extends AbstractApplyPaymentTool
             'document_status' => $fresh->document_status->value,
         ];
     }
-
 }

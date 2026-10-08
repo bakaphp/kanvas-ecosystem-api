@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
@@ -13,6 +12,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
 use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Approvals\Actions\ResolveApproverEmailAction;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
+use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\SubmitInvoiceForApprovalAction;
