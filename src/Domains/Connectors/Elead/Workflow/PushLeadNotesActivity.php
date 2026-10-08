@@ -245,7 +245,7 @@ class PushLeadNotesActivity extends KanvasActivity
         if ($isVerbInArray && $isStatusSubmitted && ! $isGetDocsWithoutDriversLicense) {
             /** @var string $text */
             $text = is_string($messageData['text'] ?? null) ? $messageData['text'] : '';
-            $baseComment = $lead->getFullName() . ' ' . $text . ' is ready to be imported into eLead. ';
+            $baseComment = $lead->people->getDisplayName() . ' ' . $text . ' is ready to be imported into eLead. ';
 
             if ($lead->get(CustomFieldEnum::LEAD_ID->value)) {
                 $botLink = 'Please first open SalesAssist Extension and then click on the banner or this url https://salink.app/?openInSa=true&uuid=' . $lead->uuid . '&action=' . $verb . '&lDID=' . (string) $lead->get(CustomFieldEnum::LEAD_ID->value);
