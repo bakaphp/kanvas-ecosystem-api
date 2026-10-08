@@ -64,6 +64,55 @@ class SearchKnowledgeToolTest extends TestCase
     /**
      * @param list<Document> $documents
      */
+    public function testReturnsAtMostFiveAndKeepsTwoSlotsForMemory(): void
+    {
+        $documents = [];
+        foreach (range(1, 8) as $i) {
+            $documents[] = new Document("[Company document] rule {$i}")->setSourceType('agent_document');
+        }
+        foreach (range(1, 3) as $i) {
+            $documents[] = new Document("[Earlier conversation] turn {$i}")->setMetadata(['source_type' => 'conversation']);
+        }
+
+        $result = new SearchKnowledgeTool($this->retrievalReturning($documents))->__invoke(query: 'financing');
+
+        $this->assertSame(SearchKnowledgeTool::MAX_RESULTS, $result['count']);
+        $this->assertSame(
+            ['company_document', 'company_document', 'company_document', 'conversation', 'conversation'],
+            array_column($result['results'], 'source'),
+        );
+        $this->assertSame('[Company document] rule 1', $result['results'][0]['content']);
+    }
+
+    public function testWithoutMemoryHitsAllFiveSlotsGoToDocuments(): void
+    {
+        $documents = [];
+        foreach (range(1, 8) as $i) {
+            $documents[] = new Document("[Company document] rule {$i}")->setSourceType('agent_document');
+        }
+
+        $result = new SearchKnowledgeTool($this->retrievalReturning($documents))->__invoke(query: 'financing');
+
+        $this->assertSame(5, $result['count']);
+        $this->assertSame(['company_document'], array_values(array_unique(array_column($result['results'], 'source'))));
+    }
+
+    public function testFewDocumentsLeaveTheRestOfTheSlotsToMemory(): void
+    {
+        $documents = [new Document('[Company document] lot address')->setSourceType('agent_document')];
+        foreach (range(1, 6) as $i) {
+            $documents[] = new Document("[Earlier conversation] turn {$i}")->setMetadata(['source_type' => 'conversation']);
+        }
+
+        $result = new SearchKnowledgeTool($this->retrievalReturning($documents))->__invoke(query: 'lot');
+
+        $this->assertSame(5, $result['count']);
+        $this->assertSame(
+            ['company_document', 'conversation', 'conversation', 'conversation', 'conversation'],
+            array_column($result['results'], 'source'),
+        );
+    }
+
     private function retrievalReturning(array $documents): RetrievalInterface
     {
         return new class ($documents) implements RetrievalInterface {
