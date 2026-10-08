@@ -11,9 +11,10 @@ namespace Kanvas\Intelligence\Agents\Enums;
  *
  * Prop spec shape: name => [type, required?, ...]. Types: string (nonEmpty?, maxLength?), number,
  * integer (min/max bound the value), bool, id (string|number), record_id (a numeric id or a uuid),
- * record_id_list, text_or_number, scalar (string|number|bool|null), enum (values), rows (flat objects),
- * list (item), filter (an object whose keys depend on a sibling prop — checked by the service).
- * On the list types min/max bound the entry count.
+ * record_id_list, integer_id (the numeric id only — what a list filter takes), text_or_number,
+ * scalar (string|number|bool|null), enum (values), rows (flat objects; booleans? false refuses a
+ * boolean cell), list (item), filter (an object whose keys depend on a sibling prop — checked by the
+ * service). On the list types min/max bound the entry count.
  *
  * `entity`, `records`, `metric` and `approvals` are LIVE: the model sends a reference or filters and the
  * admin reads the data itself. Their vocabulary — record types, filters, metric ids — is exported by the
@@ -36,6 +37,11 @@ enum ArtifactComponentEnum: string
     case METRIC = 'metric';
 
     public const int MAX_RECORDS_ROWS = 25;
+
+    /**
+     * Enough values for an IN, not enough to turn a filter into a payload.
+     */
+    public const int MAX_FILTER_VALUES = 25;
 
     private const array NUMBER_FORMATS = ['number', 'currency', 'percent', 'compact'];
 
@@ -99,15 +105,22 @@ enum ArtifactComponentEnum: string
         return match ($this) {
             self::CHART => [
                 'kind' => ['type' => 'enum', 'required' => true, 'values' => self::CHART_KINDS],
-                'data' => ['type' => 'rows', 'required' => true, 'min' => 1, 'max' => 100],
-                'xKey' => ['type' => 'string', 'required' => true],
+                // A chart plots numbers against a name; the admin refuses a boolean cell here.
+                'data' => [
+                    'type' => 'rows',
+                    'required' => true,
+                    'min' => 1,
+                    'max' => 100,
+                    'booleans' => false,
+                ],
+                'xKey' => ['type' => 'string', 'required' => true, 'nonEmpty' => true],
                 'series' => [
                     'type' => 'list',
                     'required' => true,
                     'min' => 1,
                     'max' => 5,
                     'item' => [
-                        'key' => ['type' => 'string', 'required' => true],
+                        'key' => ['type' => 'string', 'required' => true, 'nonEmpty' => true],
                         'label' => ['type' => 'string'],
                     ],
                 ],
@@ -121,7 +134,7 @@ enum ArtifactComponentEnum: string
                     'min' => 1,
                     'max' => 10,
                     'item' => [
-                        'key' => ['type' => 'string', 'required' => true],
+                        'key' => ['type' => 'string', 'required' => true, 'nonEmpty' => true],
                         'label' => ['type' => 'string', 'required' => true],
                         'align' => ['type' => 'enum', 'values' => ['left', 'center', 'right']],
                         'format' => ['type' => 'enum', 'values' => ['text', 'number', 'currency', 'percent', 'date']],
@@ -166,8 +179,18 @@ enum ArtifactComponentEnum: string
                     'item' => [
                         // The client refuses to draw a label over 40 characters, so the block is
                         // validated against the same ceiling here rather than at render time.
-                        'label' => ['type' => 'string', 'required' => true, 'maxLength' => 40],
-                        'message' => ['type' => 'string', 'required' => true],
+                        'label' => [
+                            'type' => 'string',
+                            'required' => true,
+                            'nonEmpty' => true,
+                            'maxLength' => 40,
+                        ],
+                        'message' => [
+                            'type' => 'string',
+                            'required' => true,
+                            'nonEmpty' => true,
+                            'maxLength' => 500,
+                        ],
                         'variant' => ['type' => 'enum', 'values' => ['default', 'outline', 'destructive']],
                     ],
                 ],
@@ -175,7 +198,7 @@ enum ArtifactComponentEnum: string
             self::ENTITY => [
                 'type' => ['type' => 'enum', 'required' => true, 'values' => ArtifactEntityTypeEnum::values()],
                 'id' => ['type' => 'id', 'required' => true],
-                'title' => ['type' => 'string', 'required' => true],
+                'title' => ['type' => 'string', 'required' => true, 'nonEmpty' => true],
                 'subtitle' => ['type' => 'string'],
                 'fields' => [
                     'type' => 'list',
@@ -216,8 +239,13 @@ enum ArtifactComponentEnum: string
             ],
             self::CALLOUT => [
                 'variant' => ['type' => 'enum', 'required' => true, 'values' => ['info', 'success', 'warning', 'error']],
-                'heading' => ['type' => 'string'],
-                'text' => ['type' => 'string', 'required' => true],
+                'heading' => ['type' => 'string', 'maxLength' => 80],
+                'text' => [
+                    'type' => 'string',
+                    'required' => true,
+                    'nonEmpty' => true,
+                    'maxLength' => 500,
+                ],
             ],
             // Filters, not rows: the admin card queries the project's approval requests itself, so every
             // prop is optional and no filter at all means "what is pending".
@@ -268,19 +296,20 @@ enum ArtifactComponentEnum: string
             self::KEYVALUE => 'keyvalue — one record\'s fields. props: items [{key, value (string|number|boolean|null)}] 1-30',
             self::ACTIONS => 'actions — next-step buttons; each message is sent back to you as the user\'s next '
                 . 'message, so make it self-contained (include the email or id) and only offer what your tools can do. '
-                . 'props: items [{label (max 40 chars — it is a button, keep it to 3-5 words), message, '
-                . 'variant? default|outline|destructive}] 1-6',
+                . 'props: items [{label (max 40 chars — it is a button, keep it to 3-5 words), message '
+                . '(max 500 chars), variant? default|outline|destructive}] 1-6',
             self::ENTITY => 'entity — a LIVE record card: it shows your title and fields at once, then reads the '
                 . 'record itself and shows it as it is now, with a link to it. props: type '
                 . implode('|', ArtifactEntityTypeEnum::values()) . '; id (the REAL id or uuid a tool returned, '
-                . 'never invented and never a name — it is checked against the company\'s records; category and '
-                . 'channel take the slug); title; subtitle?; fields? [{key, value}] 0-6 (facts a tool gave you; '
-                . 'never an email, a phone or an address — the card shows those itself, hidden until asked)',
+                . 'never invented and never a name — it is checked against the company\'s records; for an order '
+                . 'its id, never its order_number; category and channel take the slug or the numeric id); title; '
+                . 'subtitle?; fields? [{key, value}] 0-6 (facts a tool gave you; never an email, a phone or an '
+                . 'address — the card shows those itself, hidden until asked)',
             self::PROGRESS => 'progress — goal completion. props: items [{label, percent 0-100, note?}] 1-8',
             self::TIMELINE => 'timeline — a sequence of events, oldest first. props: items [{title, description?, '
                 . 'date? (free text), status? done|current|upcoming}] 1-12',
             self::CALLOUT => 'callout — one short note that needs attention. props: variant info|success|warning|error; '
-                . 'heading?; text',
+                . 'heading? (max 80 chars); text (max 500 chars)',
             self::APPROVALS => 'approvals — LIVE approval requests across the whole project (not only the user\'s): '
                 . 'send filters, never rows. The card reads the requests itself and the user approves, rejects, '
                 . 'delegates or cancels from it, so do not also offer those as actions. props: status? '
@@ -292,9 +321,9 @@ enum ArtifactComponentEnum: string
                 . 'admin reads them and the user opens any row into its record card, so prefer it to a table '
                 . 'whenever the rows are real records. props: type ' . implode('|', ArtifactEntityTypeEnum::listable())
                 . '; filter? {key: value} with the exact keys of that type — ' . self::describeFilters()
-                . ' ([] also takes a list; ids are real ids a tool returned); search? (free text, never together '
-                . 'with filter); limit? 1-' . self::MAX_RECORDS_ROWS . ' (default 5). Give it a title that says '
-                . 'what the list is',
+                . ' ([] also takes a list; an id is the numeric id a tool returned, never the uuid); search? (free '
+                . 'text, never together with filter; not for ' . implode(', ', self::unsearchable())
+                . '); limit? 1-' . self::MAX_RECORDS_ROWS . ' (default 5). Give it a title that says what the list is',
             self::METRIC => 'metric — one LIVE figure, trend or breakdown the analytics already compute: name it '
                 . 'and the admin runs the query, so never send the numbers. Prefer it to chart or stats when one of '
                 . 'these answers the question. props: metric ' . self::describeMetrics() . '; window? '
@@ -302,6 +331,17 @@ enum ArtifactComponentEnum: string
                 . ' (default: stats for a total, chart for *_over_time and by_*); chartKind? '
                 . implode('|', self::CHART_KINDS) . '; limit? 1-50 (top rows of a by_* breakdown)',
         };
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function unsearchable(): array
+    {
+        return array_values(array_filter(
+            ArtifactEntityTypeEnum::listable(),
+            static fn (string $type): bool => ! ArtifactEntityTypeEnum::from($type)->searchable()
+        ));
     }
 
     /**

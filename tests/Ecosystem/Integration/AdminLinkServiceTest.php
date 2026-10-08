@@ -144,11 +144,8 @@ final class AdminLinkServiceTest extends TestCase
         $this->assertSame('CRM', $meta->sectionPermission);
         $this->assertNotNull($meta->url);
 
-        $userMeta = new AdminLinkService()->meta(
-            app(Apps::class),
-            AdminLinkSectionEnum::USER,
-            '9f1c2d3e-0000-4a5b-8c9d-1e2f3a4b5c6d'
-        );
+        $uuid = '9f1c2d3e-0000-4a5b-8c9d-1e2f3a4b5c6d';
+        $userMeta = new AdminLinkService()->meta(app(Apps::class), AdminLinkSectionEnum::USER, $uuid);
 
         $this->assertFalse($userMeta->requiresCompany);
         $this->assertSame('Ecosystem', $userMeta->sectionPermission);

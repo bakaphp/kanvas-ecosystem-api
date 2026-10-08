@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -51,9 +53,16 @@ class Channels extends BaseModel
     }
     use DefaultTrait;
     use HasTagsTrait;
+    use HasAdminLink;
 
     protected $table = 'channels';
     protected $guarded = [];
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::CHANNEL;
+    }
 
     /**
      * Available products in this channel

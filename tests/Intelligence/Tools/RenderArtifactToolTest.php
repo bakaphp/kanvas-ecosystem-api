@@ -406,36 +406,50 @@ final class RenderArtifactToolTest extends TestCase
     }
 
     /**
-     * A uuid compared against an integer id is a cast, not a miss ("5f1c…" reads as 5), so an order
-     * card built from one opens somebody else's order. The page's own identifier or nothing.
+     * The card reads the row and links with the identifier the row carries, so it is found by more
+     * than its page opens with: an order by its uuid, a product by the numeric id a tool returns.
      */
-    public function testAnEntityIdHasToBeTheKindItsPageReads(): void
+    public function testAnEntityIsFoundByMoreThanItsPageReads(): void
     {
         $uuid = '5f1c9c1e-8a4d-4c2e-9b1f-0a1b2c3d4e5f';
 
-        $order = new RenderArtifactTool()(
+        foreach ([['order', $uuid], ['order', 1042], ['product', 482], ['product', $uuid], ['lead', $uuid]] as [$type, $id]) {
+            $result = new RenderArtifactTool()(
+                component: 'entity',
+                props: ['type' => $type, 'id' => $id, 'title' => 'A record'],
+            );
+
+            $this->assertTrue($result['success'], $type . ' is found by ' . $id);
+        }
+    }
+
+    public function testAnEntityIdHasToBeOneItsCardCanFindItBy(): void
+    {
+        $uuid = '5f1c9c1e-8a4d-4c2e-9b1f-0a1b2c3d4e5f';
+        $card = static fn (string $type, string|int $id): array => new RenderArtifactTool()(
             component: 'entity',
-            props: ['type' => 'order', 'id' => $uuid, 'title' => 'Order 1042'],
-        );
-        $named = new RenderArtifactTool()(
-            component: 'entity',
-            props: ['type' => 'lead', 'id' => 'acme-renewal', 'title' => 'Acme renewal'],
-        );
-        $traversal = new RenderArtifactTool()(
-            component: 'entity',
-            props: ['type' => 'category', 'id' => '../settings', 'title' => 'Settings'],
-        );
-        $either = new RenderArtifactTool()(
-            component: 'entity',
-            props: ['type' => 'lead', 'id' => $uuid, 'title' => 'Acme renewal'],
+            props: ['type' => $type, 'id' => $id, 'title' => 'A record'],
         );
 
-        $this->assertFalse($order['success']);
-        $this->assertStringContainsString('props.id must be the numeric id of the order', $order['error']);
+        $pipeline = $card('pipeline', $uuid);
+        // Its uuid is the secret of its webhook: nothing reads a project by it.
+        $project = $card('agent_project', $uuid);
+        $named = $card('lead', 'acme-renewal');
+        $zero = $card('lead', 0);
+        $traversal = $card('category', '../settings');
+        $categoryUuid = $card('category', $uuid);
+
+        $this->assertFalse($pipeline['success']);
+        $this->assertStringContainsString('props.id must be the numeric id of the pipeline', $pipeline['error']);
+        $this->assertFalse($project['success']);
         $this->assertFalse($named['success'], 'A name is not an id');
         $this->assertStringContainsString('props.id must be the numeric id or the uuid of the lead', $named['error']);
+        $this->assertFalse($zero['success']);
         $this->assertFalse($traversal['success'], 'A slug is one path segment');
-        $this->assertTrue($either['success']);
+        $this->assertFalse($categoryUuid['success'], 'The admin reads no category by its uuid');
+        $this->assertStringContainsString('props.id must be the slug of the category', $categoryUuid['error']);
+        // For a type that opens by slug the type decides: digits are a slug there too.
+        $this->assertTrue($card('category', '2024')['success']);
     }
 
     public function testRecordsTakesWhatToListNeverTheRows(): void
@@ -516,11 +530,55 @@ final class RenderArtifactToolTest extends TestCase
             $result['error']
         );
         $this->assertStringContainsString('props.filter.personId takes one value, not a list', $result['error']);
-        $this->assertStringContainsString('props.filter.orderTypeId[0] must be a numeric id or a uuid', $result['error']);
+        $this->assertStringContainsString('props.filter.orderTypeId[0] must be the numeric id, not the uuid', $result['error']);
         $this->assertFalse($flag['success']);
         $this->assertStringContainsString('props.filter.published must be true or false', $flag['error']);
         $this->assertFalse($list['success']);
         $this->assertStringContainsString('props.filter must be an object of filters', $list['error']);
+    }
+
+    /**
+     * Every column a list filters by is an integer one. The admin refuses to run a list given a uuid
+     * there, and each tool now hands the model a lead's or a person's uuid next to its id.
+     */
+    public function testAListIsNarrowedByIntegerIdsOnly(): void
+    {
+        $byUuid = new RenderArtifactTool()(
+            component: 'records',
+            props: json_encode(['type' => 'lead', 'filter' => ['personId' => '5f1c9c1e-8a4d-4c2e-9b1f-0a1b2c3d4e5f']]),
+        );
+        $byId = new RenderArtifactTool()(
+            component: 'records',
+            props: json_encode(['type' => 'lead', 'filter' => ['personId' => '1845', 'ownerId' => 0, 'statusId' => [3, '4']]]),
+        );
+
+        $tooLong = new RenderArtifactTool()(
+            component: 'records',
+            props: json_encode(['type' => 'lead', 'filter' => ['ownerId' => 1_000_000_000_000_000]]),
+        );
+
+        $this->assertFalse($byUuid['success']);
+        $this->assertStringContainsString('props.filter.personId must be the numeric id, not the uuid', $byUuid['error']);
+        $this->assertTrue($byId['success']);
+        $this->assertFalse($tooLong['success'], 'A number and the same number as text are held to one rule');
+    }
+
+    /**
+     * The API answers a search on these lists with an error, so the admin never runs one and the card
+     * would say the list cannot be shown.
+     */
+    public function testAListThatCannotBeSearchedSaysWhatToFilterBy(): void
+    {
+        $result = new RenderArtifactTool()(
+            component: 'records',
+            props: json_encode(['type' => 'participant', 'search' => 'cooper']),
+        );
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString(
+            'props.search is not available for participant lists — narrow the list with a filter instead: prospect, personId',
+            $result['error']
+        );
     }
 
     /**
@@ -595,14 +653,150 @@ final class RenderArtifactToolTest extends TestCase
             . '{"version":1,"component":"records","title":"Leads of Jane","props":{"type":"lead","filter":{"person":1845}}}'
             . "\n```";
         $wrongRecord = "```kanvas-artifact\n"
-            . '{"version":1,"component":"entity","props":{"type":"order","id":"5f1c9c1e-8a4d-4c2e-9b1f-0a1b2c3d4e5f","title":"Order"}}'
+            . '{"version":1,"component":"entity","props":{"type":"pipeline","id":"5f1c9c1e-8a4d-4c2e-9b1f-0a1b2c3d4e5f","title":"Sales"}}'
             . "\n```";
 
         $service = new ArtifactBlockService();
 
-        $this->assertSame($valid, $service->stripInvalidBlocks($valid));
+        // With prose around it: a reply that is nothing but a block comes back as written either way.
+        $this->assertSame("Aquí están:\n\n" . $valid, $service->stripInvalidBlocks("Aquí están:\n\n" . $valid));
         $this->assertSame("Aquí están:\n\n", $service->stripInvalidBlocks("Aquí están:\n\n" . $widened));
         $this->assertSame("Mira:\n\n", $service->stripInvalidBlocks("Mira:\n\n" . $wrongRecord));
+    }
+
+    /**
+     * The admin lifts props written beside `props`, takes `filters` for `filter` and a count sent as
+     * text. Held to the tool's stricter rules, the filter over a reply would strip cards it draws.
+     */
+    public function testAHandWrittenLiveBlockIsReadTheWayTheAdminReadsIt(): void
+    {
+        $beside = "```kanvas-artifact\n"
+            . '{"version":1,"component":"metric","title":"Leads","metric":"leads.total","window":"last_30d"}'
+            . "\n```";
+        $aliased = "```kanvas-artifact\n"
+            . '{"version":1,"component":"records","type":"lead","props":{"filters":{"pipelineId":2},"limit":"5"}}'
+            . "\n```";
+        $bothSpellings = "```kanvas-artifact\n"
+            . '{"version":1,"component":"records","props":{"type":"lead","filter":{"pipelineId":2},"filters":{"stageId":3}}}'
+            . "\n```";
+        $notAnObject = "```kanvas-artifact\n"
+            . '{"version":1,"component":"records","type":"lead","props":["lead"]}'
+            . "\n```";
+
+        $service = new ArtifactBlockService();
+
+        // With prose around them: a reply that is nothing but a block comes back as written either way.
+        $this->assertSame("Mira:\n\n" . $beside, $service->stripInvalidBlocks("Mira:\n\n" . $beside));
+        $this->assertSame("Mira:\n\n" . $aliased, $service->stripInvalidBlocks("Mira:\n\n" . $aliased));
+        $this->assertSame("Mira:\n\n", $service->stripInvalidBlocks("Mira:\n\n" . $bothSpellings));
+        $this->assertSame("Mira:\n\n", $service->stripInvalidBlocks("Mira:\n\n" . $notAnObject));
+    }
+
+    /**
+     * A model writing the fence by hand can put anything where the component name goes. Read as a
+     * string, a list there was a fatal that took the whole reply down with the bad card.
+     */
+    public function testABlockWhoseComponentIsNotANameIsStrippedLikeAnyOther(): void
+    {
+        $block = "```kanvas-artifact\n"
+            . '{"version":1,"component":["records"],"props":{"type":"lead"}}'
+            . "\n```";
+
+        $this->assertSame("Mira:\n\n", new ArtifactBlockService()->stripInvalidBlocks("Mira:\n\n" . $block));
+    }
+
+    /**
+     * The admin refuses to draw text over these lengths, so a callout that runs long is an error the
+     * model can shorten rather than a card that never appears.
+     */
+    public function testTextTheAdminCapsIsCappedHere(): void
+    {
+        $long = new RenderArtifactTool()(
+            component: 'callout',
+            props: ['variant' => 'warning', 'text' => str_repeat('a', 501)],
+        );
+        $untitled = new RenderArtifactTool()(
+            component: 'entity',
+            props: ['type' => 'lead', 'id' => 12, 'title' => ''],
+        );
+
+        $heading = new RenderArtifactTool()(
+            component: 'callout',
+            props: ['variant' => 'info', 'heading' => str_repeat('a', 81), 'text' => '   '],
+        );
+        $button = new RenderArtifactTool()(
+            component: 'actions',
+            props: ['items' => [['label' => '', 'message' => str_repeat('a', 501)]]],
+        );
+        $column = new RenderArtifactTool()(
+            component: 'table',
+            props: ['columns' => [['key' => '', 'label' => 'Name']], 'rows' => []],
+        );
+
+        $this->assertFalse($long['success']);
+        $this->assertStringContainsString('props.text is 501 characters; the renderer caps it at 500', $long['error']);
+        $this->assertFalse($untitled['success']);
+        $this->assertStringContainsString('props.title must not be empty', $untitled['error']);
+        $this->assertFalse($heading['success']);
+        $this->assertStringContainsString('props.heading is 81 characters; the renderer caps it at 80', $heading['error']);
+        $this->assertStringContainsString('props.text must not be empty', $heading['error']);
+        $this->assertFalse($button['success']);
+        $this->assertStringContainsString('props.items[0].label must not be empty', $button['error']);
+        $this->assertStringContainsString('props.items[0].message is 501 characters', $button['error']);
+        $this->assertFalse($column['success']);
+        $this->assertStringContainsString('props.columns[0].key must not be empty', $column['error']);
+    }
+
+    /**
+     * `{}` decodes to an empty PHP array. Written back as `[]` the admin reads a list where a row goes
+     * and refuses the whole table.
+     */
+    public function testAnEmptyRowStaysAnObject(): void
+    {
+        $result = new RenderArtifactTool()(
+            component: 'table',
+            props: '{"columns":[{"key":"a","label":"A"}],"rows":[{"a":1},{}]}',
+        );
+
+        $this->assertTrue($result['success']);
+        $this->assertStringContainsString('"rows":[{"a":1},{}]', $result['block']);
+    }
+
+    /**
+     * A count sent as text is read as the admin reads it, but only a short one: a digit string too
+     * long for an integer is not a row count, and casting it would be an error, not a refusal.
+     */
+    public function testAnAbsurdLimitIsRefusedNotCast(): void
+    {
+        $block = "```kanvas-artifact\n"
+            . '{"version":1,"component":"records","props":{"type":"lead","limit":"99999999999999999999"}}'
+            . "\n```";
+
+        $this->assertSame("Mira:\n\n", new ArtifactBlockService()->stripInvalidBlocks("Mira:\n\n" . $block));
+    }
+
+    /**
+     * A table shows a boolean cell; a chart plots none, and the admin refuses the whole chart for one.
+     */
+    public function testAChartPlotsNoBooleans(): void
+    {
+        $chart = new RenderArtifactTool()(
+            component: 'chart',
+            props: [
+                'kind' => 'bar',
+                'xKey' => 'month',
+                'series' => [['key' => 'won']],
+                'data' => [['month' => 'Jan', 'won' => true]],
+            ],
+        );
+        $table = new RenderArtifactTool()(
+            component: 'table',
+            props: ['columns' => [['key' => 'won', 'label' => 'Won']], 'rows' => [['won' => true]]],
+        );
+
+        $this->assertFalse($chart['success']);
+        $this->assertStringContainsString('props.data[0].won must be a string, number or null', $chart['error']);
+        $this->assertTrue($table['success']);
     }
 
     /**

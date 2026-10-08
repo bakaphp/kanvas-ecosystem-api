@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Enums;
 
+use BackedEnum;
 use Kanvas\AdminLinks\Enums\AdminLinkIdentifierEnum;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\NervousSystem\Project\Enums\ProjectStatusEnum;
+use Kanvas\Souk\Affiliates\Enums\AffiliateStatusEnum;
+use Kanvas\Souk\Affiliates\Enums\AffiliateTypeEnum;
+use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 
 /**
  * The record types the admin chat draws as a live card (`entity`) or a live list (`records`).
@@ -51,25 +57,10 @@ enum ArtifactEntityTypeEnum: string
     case SUBSCRIPTION_PLAN = 'subscription_plan';
     case EMAIL_TEMPLATE = 'email_template';
 
-    private const array AFFILIATE_STATUSES = ['pending', 'approved', 'active', 'suspended', 'inactive', 'rejected'];
-
-    private const array AFFILIATE_TYPES = ['individual', 'business', 'influencer', 'agency'];
-
-    private const array AGENT_FLEET_STATUSES = ['active', 'draft', 'archived'];
-
-    private const array AGENT_PROJECT_STATUSES = [
-        'draft',
-        'active',
-        'on_hold',
-        'blocked',
-        'done',
-        'archived',
-        'cancelled',
-    ];
-
-    private const array ORDER_STATUSES = ['pending', 'completed', 'draft', 'canceled', 'failed'];
-
-    private const array FULFILLMENT_STATUSES = ['pending', 'fulfilled', 'canceled'];
+    /**
+     * The longest a text filter runs. The list matches it exactly, so it is a value, never a paragraph.
+     */
+    public const int MAX_FILTER_TEXT = 80;
 
     /**
      * The admin screen a record of this type opens on. Null for an edition: it hangs off its event
@@ -120,8 +111,50 @@ enum ArtifactEntityTypeEnum: string
     }
 
     /**
+     * What the card can find the record by. Wider than what its page reads: the card reads the row and
+     * links with the identifier the row carries, so an order is found by its uuid though its page
+     * opens by id, and a product by the numeric id every tool returns though its page wants the uuid.
+     *
+     * A slug-routed type is found by the slug alone. A project's uuid is the secret of its webhook, so
+     * no card is given it: the tool turns one it is handed into the id before the block exists.
+     *
+     * @return list<AdminLinkIdentifierEnum>
+     */
+    public function lookups(): array
+    {
+        return match ($this) {
+            self::CATEGORY,
+            self::CHANNEL => [AdminLinkIdentifierEnum::SLUG],
+            self::PIPELINE,
+            self::ROTATION,
+            self::WAREHOUSE,
+            self::AGENT_PROJECT,
+            self::ROLE,
+            self::SUBSCRIPTION_PLAN,
+            self::EMAIL_TEMPLATE => [AdminLinkIdentifierEnum::ID],
+            default => [AdminLinkIdentifierEnum::ID, AdminLinkIdentifierEnum::UUID],
+        };
+    }
+
+    /**
+     * Whether a list of this type takes a free-text search. The API answers a search on these lists
+     * with an error, so the admin refuses to run one.
+     */
+    public function searchable(): bool
+    {
+        return ! in_array(
+            $this,
+            [self::DRAFT_ORDER, self::PARTICIPANT, self::FACILITATOR, self::AGENT_PROJECT],
+            true
+        );
+    }
+
+    /**
      * The filters a live list of this type takes, as prop rules, or null when the type has no list.
      * A rule marked `many` also takes a list of values.
+     *
+     * The values of a status filter are the cases of the domain's own enum, never a copy: the contract
+     * test then fails when either the admin or the domain moves.
      *
      * @return array<string, array<string, mixed>>|null
      */
@@ -147,16 +180,16 @@ enum ArtifactEntityTypeEnum: string
             self::PEOPLE => ['organizationId' => self::id()],
             self::ORGANIZATION => ['ids' => self::ids()],
             self::ORDER => [
-                'status' => self::anyOf(self::ORDER_STATUSES),
-                'fulfillmentStatus' => self::anyOf(self::FULFILLMENT_STATUSES),
+                'status' => self::anyOf(OrderStatusEnum::cases()),
+                'fulfillmentStatus' => self::anyOf(OrderFulfillmentStatusEnum::cases()),
                 'orderTypeId' => self::ids(),
                 'personId' => self::id(),
             ],
             self::DRAFT_ORDER => ['personId' => self::id()],
             self::DISCOUNT => ['active' => self::flag(), 'code' => self::text()],
             self::AFFILIATE => [
-                'status' => self::anyOf(self::AFFILIATE_STATUSES),
-                'affiliateType' => self::anyOf(self::AFFILIATE_TYPES),
+                'status' => self::anyOf(AffiliateStatusEnum::cases()),
+                'affiliateType' => self::anyOf(AffiliateTypeEnum::cases()),
                 'programId' => self::id(),
             ],
             self::PRODUCT => [
@@ -178,9 +211,9 @@ enum ArtifactEntityTypeEnum: string
             self::EVENT_VERSION => ['eventId' => self::id()],
             self::PARTICIPANT => ['prospect' => self::flag(), 'personId' => self::id()],
             self::FACILITATOR => ['personId' => self::id()],
-            self::AGENT_FLEET => ['status' => self::anyOf(self::AGENT_FLEET_STATUSES)],
+            self::AGENT_FLEET => ['status' => self::anyOf(AgentSwarmStatusEnum::cases())],
             self::AGENT_PROJECT => [
-                'status' => self::anyOf(self::AGENT_PROJECT_STATUSES),
+                'status' => self::anyOf(ProjectStatusEnum::cases()),
                 'fleetId' => self::id(),
                 'agentId' => self::id(),
             ],
@@ -219,11 +252,13 @@ enum ArtifactEntityTypeEnum: string
     }
 
     /**
+     * The integer id, never the uuid: the column behind every list filter is an integer one.
+     *
      * @return array<string, mixed>
      */
     private static function id(): array
     {
-        return ['type' => 'record_id'];
+        return ['type' => 'integer_id'];
     }
 
     /**
@@ -231,7 +266,7 @@ enum ArtifactEntityTypeEnum: string
      */
     private static function ids(): array
     {
-        return ['type' => 'record_id', 'many' => true];
+        return ['type' => 'integer_id', 'many' => true];
     }
 
     /**
@@ -243,21 +278,19 @@ enum ArtifactEntityTypeEnum: string
     }
 
     /**
-     * Matched exactly by the list, so it is a short value and never a paragraph.
-     *
      * @return array<string, mixed>
      */
     private static function text(): array
     {
-        return ['type' => 'string', 'nonEmpty' => true, 'maxLength' => 80];
+        return ['type' => 'string', 'nonEmpty' => true, 'maxLength' => self::MAX_FILTER_TEXT];
     }
 
     /**
-     * @param list<string> $values
+     * @param list<BackedEnum> $cases
      * @return array<string, mixed>
      */
-    private static function anyOf(array $values): array
+    private static function anyOf(array $cases): array
     {
-        return ['type' => 'enum', 'values' => $values, 'many' => true];
+        return ['type' => 'enum', 'values' => array_column($cases, 'value'), 'many' => true];
     }
 }

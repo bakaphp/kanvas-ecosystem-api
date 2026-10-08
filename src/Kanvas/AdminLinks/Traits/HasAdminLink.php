@@ -29,7 +29,8 @@ trait HasAdminLink
         $section = $this->adminLinkSection();
         $identifier = $this->adminLinkIdentifier();
 
-        if ($this->app === null || $identifier === null) {
+        // A slug is the client's own text and can be empty; that is no identifier, not a bad one.
+        if ($this->app === null || $identifier === null || $identifier === '') {
             return new AdminLinkMeta(
                 url: null,
                 requiresCompany: $section->requiresCompany(),

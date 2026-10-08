@@ -44,6 +44,7 @@ final class FindSalesOrderAffiliateCommissionTest extends TestCase
             ->__invoke(order_number: (string) $order->order_number);
 
         $this->assertTrue($result['found']);
+        $this->assertSame($order->getId(), $result['id']);
         $this->assertCount(1, $result['affiliate_commissions']);
 
         $commission = $result['affiliate_commissions'][0];

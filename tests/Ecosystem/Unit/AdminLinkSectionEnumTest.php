@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Ecosystem\Unit;
 
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\AdminLinks\Enums\AdminLinkIdentifierEnum;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Tests\TestCaseUnit;
@@ -152,6 +153,45 @@ final class AdminLinkSectionEnumTest extends TestCaseUnit
             AdminLinkSectionEnum::LEAD->listSegment(),
             'Sections without a separate list path must not diverge.'
         );
+    }
+
+    /**
+     * "summer-sale" has a dash and is not a uuid. Sorting identifiers by that dash sent every
+     * multi-word slug to the uuid column, where nothing matched.
+     */
+    public function testAnIdentifierIsSortedByItsWholeShapeNotByADash(): void
+    {
+        $this->assertSame(AdminLinkIdentifierEnum::ID, AdminLinkIdentifierEnum::shapeOf('42'));
+        $this->assertSame(
+            AdminLinkIdentifierEnum::UUID,
+            AdminLinkIdentifierEnum::shapeOf('9F1C2D3E-0000-4a5b-8c9d-1e2f3a4b5c6d')
+        );
+        $this->assertSame(AdminLinkIdentifierEnum::SLUG, AdminLinkIdentifierEnum::shapeOf('summer-sale'));
+        $this->assertSame(AdminLinkIdentifierEnum::SLUG, AdminLinkIdentifierEnum::shapeOf('9f1c-0000-4a5b'));
+        $this->assertSame(AdminLinkIdentifierEnum::SLUG, AdminLinkIdentifierEnum::shapeOf('42a'));
+
+        $this->assertSame('id', AdminLinkIdentifierEnum::ID->column());
+        $this->assertSame('uuid', AdminLinkIdentifierEnum::UUID->column());
+        $this->assertSame('uuid', AdminLinkIdentifierEnum::EITHER->column());
+        $this->assertSame('slug', AdminLinkIdentifierEnum::SLUG->column());
+    }
+
+    public function testEachKindOfIdentifierIsReadOffTheRecord(): void
+    {
+        $record = new class () extends Model {
+        };
+        $record->forceFill(['id' => 42, 'uuid' => '9f1c2d3e-0000-4a5b-8c9d-1e2f3a4b5c6d', 'slug' => 'summer-sale']);
+
+        $this->assertSame(42, AdminLinkIdentifierEnum::ID->of($record));
+        $this->assertSame('9f1c2d3e-0000-4a5b-8c9d-1e2f3a4b5c6d', AdminLinkIdentifierEnum::UUID->of($record));
+        $this->assertSame('9f1c2d3e-0000-4a5b-8c9d-1e2f3a4b5c6d', AdminLinkIdentifierEnum::EITHER->of($record));
+        $this->assertSame('summer-sale', AdminLinkIdentifierEnum::SLUG->of($record));
+
+        // A model with no such column has no such identifier, rather than a relation lookup.
+        $bare = new class () extends Model {
+        };
+
+        $this->assertNull(AdminLinkIdentifierEnum::SLUG->of($bare->forceFill(['id' => 7])));
     }
 
     public function testControlCenterDetection(): void
