@@ -192,11 +192,54 @@ final class VehiclePriceDisclosureToolTest extends TestCase
         $this->assertSame(VehiclePriceDisclosureTool::MODE_ALREADY_DISCLOSED, $repeat['mode']);
         $this->assertNotNull($repeat['disclosed_at']);
         $this->assertSame($initial['message'], $repeat['message']);
+        $this->assertStringContainsString('Do not restate it', $repeat['note']);
+        $this->assertStringContainsString('Only if they ask for the price again', $repeat['note']);
         $this->assertSame(VehiclePriceDisclosureTool::MODE_INSERT_BLOCK, $switched['mode']);
 
         $ledger = $lead->get(PriceDisclosureConfigurationEnum::DISCLOSURES->value);
         $this->assertSame([$first->sku, $second->sku], array_keys($ledger));
         $this->assertSame($initial['content_hash'], $ledger[$first->sku]['content_hash']);
+    }
+
+    /**
+     * The opener can reach the lead without this tool: a salesperson pastes the block, a template or a
+     * campaign sends it. The ledger then knows nothing, and an agent told insert_block repeats the same
+     * paragraph to a customer who already has it (lead 809251, Sally on SMS).
+     */
+    public function testABlockAlreadySentOnTheChannelCountsAsDisclosed(): void
+    {
+        $variant = $this->makePricedVariant(25000.0);
+        $lead = $this->makeLead($variant->sku);
+        $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');
+
+        $block = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms')['message'];
+        $lead->set(PriceDisclosureConfigurationEnum::DISCLOSURES->value, []);
+
+        $this->makeInboundMessage($lead, "Hi there!\n\n" . $block . "\nWant to come see it today?", fromAgent: true);
+        $this->makeInboundMessage($lead, 'Is it still available?');
+
+        $result = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms');
+
+        $this->assertSame(VehiclePriceDisclosureTool::MODE_ALREADY_DISCLOSED, $result['mode']);
+        $this->assertNotNull($result['disclosed_at']);
+        $this->assertStringContainsString('Do not restate it', $result['note']);
+        $this->assertArrayHasKey($variant->sku, $lead->get(PriceDisclosureConfigurationEnum::DISCLOSURES->value));
+    }
+
+    public function testTheCustomerQuotingThePriceBackIsNotADisclosure(): void
+    {
+        $variant = $this->makePricedVariant(25000.0);
+        $lead = $this->makeLead($variant->sku);
+        $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');
+
+        $block = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms')['message'];
+        $lead->set(PriceDisclosureConfigurationEnum::DISCLOSURES->value, []);
+
+        $this->makeInboundMessage($lead, 'You said: ' . $block);
+
+        $result = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms');
+
+        $this->assertSame(VehiclePriceDisclosureTool::MODE_INSERT_BLOCK, $result['mode']);
     }
 
     public function testNoVehicleInScopeIsANoOpWithoutHandoff(): void
