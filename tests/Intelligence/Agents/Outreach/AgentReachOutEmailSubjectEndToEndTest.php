@@ -38,6 +38,8 @@ class AgentReachOutEmailSubjectEndToEndTest extends TestCase
 
     public function testEmailReachOutLiftsSubjectToMailTitleAndKeepsBodyClean(): void
     {
+        SalesEmailEnvelopeNeuronAgentStub::$lastPrivateUserTurn = null;
+
         Notification::fake();
 
         $app = app(Apps::class);
@@ -101,6 +103,11 @@ class AgentReachOutEmailSubjectEndToEndTest extends TestCase
 
                 return $subjectProp->getValue($notification) === SalesEmailEnvelopeNeuronAgentStub::SUBJECT;
             }
+        );
+
+        $this->assertTrue(
+            SalesEmailEnvelopeNeuronAgentStub::$lastPrivateUserTurn,
+            'The reach-out trigger must run as a private turn so it never lands in memory as a user request.',
         );
 
         // The outreach subject is anchored on the lead so the follow-up engine can
