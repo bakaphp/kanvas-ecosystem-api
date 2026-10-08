@@ -143,8 +143,8 @@ class SendMessageToLeadAction
                 LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage(
                     $message,
                     $title,
-                    // Internal assistants act for the owner, not as the customer-facing persona.
-                    $signature && ! ($fromAgent?->conversesWithUser() ?? false),
+                    // A bound sender or internal assistant must not append the customer-facing persona.
+                    $signature && $this->signatureOwner === null && ! ($fromAgent?->conversesWithUser() ?? false),
                     $to,
                     $cc,
                     $fromAgent,
@@ -994,9 +994,8 @@ class SendMessageToLeadAction
 
         $this->guardDestinationOptOut((string) $leadEmail, LeadCommunicationChannelEnum::EMAIL->value);
 
-        $ownerSignature = ($fromAgent?->conversesWithUser() ?? false)
-            ? UserEmailSignature::fromUser($this->signatureOwner)
-            : null;
+        // An explicitly bound caller can also direct a sales persona from AI Assist.
+        $ownerSignature = UserEmailSignature::fromUser($this->signatureOwner);
 
         $mailboxAddress = $fromAgent !== null
             ? new AgentMailboxService()->addressFor($fromAgent)

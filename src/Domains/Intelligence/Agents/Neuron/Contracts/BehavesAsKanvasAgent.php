@@ -24,6 +24,9 @@ interface BehavesAsKanvasAgent extends AgentInterface, ProvidesToolDependencies
 
     public function setSession(?Session $session): void;
 
+    /** Trusted internal surface (AI Assist), regardless of the agent persona. */
+    public function setHumanDirectedConversation(bool $humanDirected): void;
+
     public function setCurrentLead(?Lead $lead): void;
 
     /** @param list<string> $media */

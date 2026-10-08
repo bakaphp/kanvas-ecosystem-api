@@ -57,9 +57,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
     #[PreserveGlobalState(false)]
     public function testCustomerFacingEmailDoesNotAppendOwnerSignature(): void
     {
-        $owner = Mockery::mock(Users::class);
-        $owner->shouldNotReceive('get');
-        $this->sendSignatureTestEmail(false, $owner, function (array $data): bool {
+        $this->sendSignatureTestEmail(false, null, function (array $data): bool {
             $this->assertTrue($data['signature']);
             $this->assertStringNotContainsString('<table', $data['content']);
 
@@ -67,7 +65,44 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         });
     }
 
-    private function sendSignatureTestEmail(bool $internal, Users $owner, callable $assertContent): void
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testAiAssistSalesPersonaUsesRequestingHumanSignature(): void
+    {
+        $owner = Mockery::mock(Users::class);
+        $owner->shouldReceive('get')->with('email_signature')->once()->andReturn([
+            'append' => true,
+            'text' => "Requesting Human\nSales Representative",
+        ]);
+        $owner->shouldReceive('getFileByName')->with('photo')->once()->andReturn(null);
+        $this->sendSignatureTestEmail(false, $owner, function (array $data): bool {
+            $this->assertFalse($data['signature']);
+            $this->assertStringContainsString('Requesting Human', $data['content']);
+            $this->assertStringNotContainsString('Sally', $data['content']);
+
+            return true;
+        });
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testAiAssistDisabledUserSignatureDoesNotFallBackToSally(): void
+    {
+        $owner = Mockery::mock(Users::class);
+        $owner->shouldReceive('get')->with('email_signature')->once()->andReturn([
+            'append' => false,
+            'text' => 'Requesting Human',
+        ]);
+        $this->sendSignatureTestEmail(false, $owner, function (array $data): bool {
+            $this->assertFalse($data['signature']);
+            $this->assertStringNotContainsString('Requesting Human', $data['content']);
+            $this->assertStringNotContainsString('<table', $data['content']);
+
+            return true;
+        });
+    }
+
+    private function sendSignatureTestEmail(bool $internal, ?Users $owner, callable $assertContent): void
     {
         // Intercept the delivery boundary: Blank's real constructor writes notification types.
         $notification = Mockery::mock('overload:' . Blank::class);

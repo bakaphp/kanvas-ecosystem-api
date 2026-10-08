@@ -36,6 +36,7 @@ class AIAssistAgentResponderAction extends BaseAgentChannelReplyAction
             message: $messageConversation,
             // AI Assist acts on this user's instruction; the handler retains its own actingUser().
             user: $this->message->user,
+            humanDirectedConversation: true,
             currentLead: $entity instanceof Lead ? $entity : null,
             sourceChannel: $this->channel,
             sourceMessage: $this->message,
