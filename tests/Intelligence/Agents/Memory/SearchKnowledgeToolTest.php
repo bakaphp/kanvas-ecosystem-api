@@ -61,9 +61,6 @@ class SearchKnowledgeToolTest extends TestCase
         $this->assertSame(SearchKnowledgeTool::MAX_SEARCHES_PER_TURN, 2);
     }
 
-    /**
-     * @param list<Document> $documents
-     */
     public function testReturnsAtMostFiveAndKeepsTwoSlotsForMemory(): void
     {
         $documents = [];
