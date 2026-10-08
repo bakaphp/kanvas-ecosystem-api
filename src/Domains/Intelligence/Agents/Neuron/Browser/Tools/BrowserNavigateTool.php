@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Browser\Tools;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Browser\BrowserSession;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\ToolProperty;
 use Override;
@@ -13,15 +12,10 @@ use Override;
 #[AgentTool(name: 'Browser Navigate', category: 'Browser')]
 class BrowserNavigateTool extends AbstractBrowserTool
 {
-    public function __construct(BrowserSession $session)
-    {
-        parent::__construct(
-            $session,
-            'browser_navigate',
-            'Open an absolute public HTTP or HTTPS URL in the current browser page. '
-                . 'Returns the final URL and page title. Inspect the page with browser_snapshot afterward.',
-        );
-    }
+    protected string $name = 'browser_navigate';
+
+    protected ?string $description = 'Open an absolute public HTTP or HTTPS URL in the current browser page. '
+        . 'Returns the final URL and page title. Inspect the page with browser_snapshot afterward.';
 
     #[Override]
     protected function properties(): array

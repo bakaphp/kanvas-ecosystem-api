@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Browser\Tools;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Browser\BrowserSession;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\ToolProperty;
 use Override;
@@ -13,14 +12,10 @@ use Override;
 #[AgentTool(name: 'Browser Type', category: 'Browser')]
 class BrowserTypeTool extends AbstractBrowserTool
 {
-    public function __construct(BrowserSession $session)
-    {
-        parent::__construct(
-            $session,
-            'browser_type',
-            'Replace the content of an editable element using an ID from the latest browser_snapshot.',
-        );
-    }
+    protected string $name = 'browser_type';
+
+    protected ?string $description = 'Replace the content of an editable element using an ID from the latest '
+        . 'browser_snapshot.';
 
     #[Override]
     protected function properties(): array

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Browser\Tools;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Browser\BrowserSession;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\ToolProperty;
 use Override;
@@ -15,15 +14,10 @@ class BrowserPressTool extends AbstractBrowserTool
 {
     private const KEYS = ['Enter', 'Escape', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 
-    public function __construct(BrowserSession $session)
-    {
-        parent::__construct(
-            $session,
-            'browser_press',
-            'Send one allowed keyboard key to an element from the latest browser_snapshot. '
-                . 'Use Enter to submit forms or confirm autocomplete choices.',
-        );
-    }
+    protected string $name = 'browser_press';
+
+    protected ?string $description = 'Send one allowed keyboard key to an element from the latest browser_snapshot. '
+        . 'Use Enter to submit forms or confirm autocomplete choices.';
 
     #[Override]
     protected function properties(): array

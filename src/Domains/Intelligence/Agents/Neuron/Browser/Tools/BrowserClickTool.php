@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Browser\Tools;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Browser\BrowserSession;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\ToolProperty;
 use Override;
@@ -13,15 +12,10 @@ use Override;
 #[AgentTool(name: 'Browser Click', category: 'Browser')]
 class BrowserClickTool extends AbstractBrowserTool
 {
-    public function __construct(BrowserSession $session)
-    {
-        parent::__construct(
-            $session,
-            'browser_click',
-            'Click an interactive element using an ID from the latest browser_snapshot. '
-                . 'Take a new snapshot after clicking.',
-        );
-    }
+    protected string $name = 'browser_click';
+
+    protected ?string $description = 'Click an interactive element using an ID from the latest browser_snapshot. '
+        . 'Take a new snapshot after clicking.';
 
     #[Override]
     protected function properties(): array
