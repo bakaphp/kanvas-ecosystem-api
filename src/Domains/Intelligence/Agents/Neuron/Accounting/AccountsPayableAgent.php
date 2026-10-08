@@ -169,7 +169,8 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'time when the statement lands.',
             '- "Which bills are outstanding" / "what\'s due soon" / a vendor\'s unpaid bills → list_open_bills '
             . '(set only_overdue for past-due focus).',
-            '- "What has vendor X got on order" / matching an invoice to a PO → list_open_purchase_orders.',
+            '- "What has vendor X got on order" / matching an invoice to a PO → find_vendor to resolve '
+            . 'organization_id, then list_open_purchase_orders with vendor_organization_id.',
             '- Resolving a vendor name off an invoice → find_vendor; if more than one candidate, confirm which.',
             '- "Add/assign an approver for vendor X" → find_vendor first to resolve organization_id, then '
             . 'add_organization_approver with that id and the approver\'s email. A vendor can have more than '
@@ -264,19 +265,17 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'following before your final reply, in order: '
             . '(1) add_bill_note on that bill_id with the evidence text "Approved by {approved_by} on '
             . '{approved_at}". '
-            . '(2) If the result included a source_attachment_url, call attach_bill_file with that bill_id, '
-            . 'file_url, and file_name. Skip this step silently when there is no source_attachment_url. '
-            . '(3) If the result included a source_email_message_id, call reply_to_email with that '
+            . '(2) If the result included a source_email_message_id, call reply_to_email with that '
             . 'message_id, target_type: "bill", target_id: the bill_id, and the same evidence text plus the '
             . 'bill number (e.g. "Approved by {approved_by} on {approved_at} — Bill #{bill_number}."), '
             . 'so it lands as an internal note in the original invoice thread. '
             . 'Skip this step silently when there is no source_email_message_id — not every bill comes from '
             . 'an email. '
-            . '(4) read_google_sheet to find the row whose column A (ID invoice) matches this bill_id — never '
+            . '(3) read_google_sheet to find the row whose column A (ID invoice) matches this bill_id — never '
             . 'guess the row. Then update_google_sheet_cell four times on that row: column D (Status) to '
             . '"Approved", column E (Approved Date) to approved_at, and column F (Approved By) to approved_by (the '
             . 'approver\'s email. '
-            . '(5) Reply with the complete breakdown: bill_id, vendor, approved_by, and approved_at.',
+            . '(4) Reply with the complete breakdown: bill_id, vendor, approved_by, and approved_at.',
         ]);
     }
 }

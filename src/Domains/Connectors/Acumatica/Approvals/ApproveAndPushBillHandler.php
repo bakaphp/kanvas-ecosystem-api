@@ -7,21 +7,14 @@ namespace Kanvas\Connectors\Acumatica\Approvals;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Approvals\Contracts\ApprovalHandlerInterface;
 use Kanvas\Approvals\Models\ApprovalRequest;
-use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
-use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
 use Kanvas\Scribe\Bills\Actions\ApproveBillAction;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Override;
-use Throwable;
 
 /**
- * The synchronous half of approving an AP bill: approve it in Kanvas, then push it to Acumatica.
- *
- * A push failure comes back as data (`pushed`, `push_error`), never as an exception: Apex reads those
- * to decide whether to mark the tracking sheet Approved, and a throw here would either lose the
- * recorded approval or have the agent report a success that never reached Acumatica.
+ * Approves an AP bill in Kanvas. Status-transition workflows handle external synchronization.
  */
 class ApproveAndPushBillHandler implements ApprovalHandlerInterface
 {
@@ -48,18 +41,7 @@ class ApproveAndPushBillHandler implements ApprovalHandlerInterface
             'target_id' => $bill->getId(),
             'label' => $bill->bill_number,
             ...$this->sourceFields($bill),
-            'pushed' => false,
-            'reference' => null,
-            'push_error' => null,
         ];
-
-        try {
-            $result['reference'] = new PushBillToAcumaticaAction($bill)->execute();
-            $result['pushed'] = true;
-            $result['acumatica_id'] = (string) $bill->get(CustomFieldEnum::BILL_ID->value, '');
-        } catch (Throwable $e) {
-            $result['push_error'] = $e->getMessage();
-        }
 
         return $result;
     }

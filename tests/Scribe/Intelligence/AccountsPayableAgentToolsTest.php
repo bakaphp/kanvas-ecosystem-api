@@ -10,7 +10,6 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
 use Kanvas\Guild\Organizations\Actions\ImportVendorApproversFromRowsAction;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -125,11 +124,13 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
     public function test_list_open_purchase_orders_tool_returns_open_pos(): void
     {
+        $vendor = $this->seedTestOrganization('Open PO Vendor');
         $po = PurchaseOrder::create([
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $this->company->getId(),
             'order_type' => 'RO',
             'order_number' => 'PO900',
+            'vendor_organization_id' => $vendor->getId(),
             'vendor_code' => 'V0000505',
             'status' => 'N',
             'currency' => 'USD',
@@ -145,23 +146,22 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             'unit_cost' => 200,
         ]);
 
-        $result = new ListOpenPurchaseOrdersTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(vendor_code: 'V0000505');
+        $result = new ListOpenPurchaseOrdersTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(vendor_organization_id: $vendor->getId());
 
         $this->assertSame(1, (int) $result['count']);
         $this->assertSame('PO900', $result['purchase_orders'][0]['order_number']);
         $this->assertSame(1, (int) $result['purchase_orders'][0]['open_line_count']);
     }
 
-    public function test_find_vendor_tool_returns_acumatica_code(): void
+    public function test_find_vendor_tool_returns_native_organization_candidates(): void
     {
         $vendor = $this->seedTestOrganization('Globex Supply');
-        $vendor->set(CustomFieldEnum::VENDOR_ID->value, 'V0000505');
 
         $result = new FindVendorTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(name: 'Globex Supply Co');
 
         $this->assertGreaterThanOrEqual(1, (int) $result['count']);
-        $codes = array_column($result['vendors'], 'acumatica_vendor_code');
-        $this->assertContains('V0000505', $codes);
+        $this->assertSame($vendor->getId(), $result['vendors'][0]['organization_id']);
+        $this->assertArrayNotHasKey('acumatica_vendor_code', $result['vendors'][0]);
     }
 
     public function test_find_purchase_order_returns_full_detail_or_not_found(): void
@@ -171,6 +171,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             'companies_id' => $this->company->getId(),
             'order_type' => 'RO',
             'order_number' => 'PO4242',
+            'vendor_organization_id' => $this->seedTestOrganization('PO Detail Vendor')->getId(),
             'vendor_code' => 'V0000505',
             'status' => 'N',
             'currency' => 'USD',
@@ -188,7 +189,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $found = new FindPurchaseOrderTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(order_number: 'PO4242');
         $this->assertTrue($found['found']);
-        $this->assertSame('V0000505', $found['vendor_code']);
+        $this->assertNotEmpty($found['vendor_organization_id']);
         $this->assertCount(1, $found['lines']);
         $this->assertSame('RL-KP336', $found['lines'][0]['sku']);
 

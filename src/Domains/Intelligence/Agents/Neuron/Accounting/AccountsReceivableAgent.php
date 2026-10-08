@@ -159,7 +159,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "What invoices are overdue for customer X" → list_overdue_invoices with the customer parameter set — '
             . 'not list_open_sales_orders, which is for purchase/sales orders, not invoices.',
             '- "Look up invoice #X" / "status of invoice X" → find_invoice (one specific invoice by number).',
-            '- "Who is customer X" / resolve a customer name to its ERP code → find_customer.',
+            '- "Who is customer X" / resolve a customer name → find_customer.',
             '- "Add/assign an approver for customer X" → find_customer first to resolve organization_id, then '
             . 'add_organization_approver with that id and the approver\'s email. A customer can have more than '
             . 'one approver — this never replaces an existing one, only adds.',
@@ -288,19 +288,17 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'do all of the following before your final reply, in order: '
             . '(1) add_invoice_note on that invoice_id with the evidence text "Approved by {approved_by} on '
             . '{approved_at}". '
-            . '(2) If the result included a source_attachment_url, call attach_invoice_file with that '
-            . 'invoice_id, file_url, and file_name. Skip this step silently when there is no source_attachment_url. '
-            . '(3) If the result included a source_email_message_id, call reply_to_email with that '
+            . '(2) If the result included a source_email_message_id, call reply_to_email with that '
             . 'message_id, target_type: "invoice", target_id: the invoice_id, and the same evidence text plus '
             . 'the invoice number (e.g. "Approved by {approved_by} on {approved_at} — Invoice '
             . '#{invoice_number}."), so it lands as an internal note in the original '
             . 'invoice thread. Skip this step silently when there is no source_email_message_id — not every '
             . 'invoice comes from an email. '
-            . '(4) read_google_sheet to find the row whose column A (ID invoice) matches this invoice_id — never '
+            . '(3) read_google_sheet to find the row whose column A (ID invoice) matches this invoice_id — never '
             . 'guess the row. Then update_google_sheet_cell four times on that row: column D (Status) to '
             . '"Approved", column E (Approved Date) to approved_at, and column F (Approved By) to approved_by (the '
             . 'approver\'s email. '
-            . '(5) Reply with the complete breakdown: invoice_id, customer, approved_by, and approved_at.',
+            . '(4) Reply with the complete breakdown: invoice_id, customer, approved_by, and approved_at.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }

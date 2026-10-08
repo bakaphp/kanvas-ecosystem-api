@@ -44,16 +44,15 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 {
     use AssertsToolRunKeys;
 
-    public function test_find_customer_tool_returns_acumatica_code(): void
+    public function test_find_customer_tool_returns_native_organization_candidates(): void
     {
         $customer = $this->seedTestOrganization('Acme Corporation');
-        $customer->set(CustomFieldEnum::CUSTOMER_ID->value, 'C0000123');
 
         $result = new FindCustomerTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(name: 'Acme Corp');
 
         $this->assertGreaterThanOrEqual(1, (int) $result['count']);
-        $codes = array_column($result['customers'], 'acumatica_customer_code');
-        $this->assertContains('C0000123', $codes);
+        $this->assertSame($customer->getId(), $result['customers'][0]['organization_id']);
+        $this->assertArrayNotHasKey('acumatica_customer_code', $result['customers'][0]);
     }
 
     public function test_find_invoice_returns_full_detail_or_not_found(): void

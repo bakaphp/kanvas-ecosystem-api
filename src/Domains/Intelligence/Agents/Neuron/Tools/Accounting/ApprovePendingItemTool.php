@@ -44,8 +44,9 @@ class ApprovePendingItemTool extends Tool
 
     protected ?string $description = 'Approves a pending item in the approval queue (e.g. a bill left pending by '
         . 'create_ap_bill, or an invoice left pending by create_ar_invoice) and carries out its configured action — '
-        . 'for a bill/invoice, that means approving it in Kanvas and running any configured synchronization. Works for '
-        . 'any approval type in the queue, not just invoices. Only the approver configured on that '
+        . 'for a bill/invoice, that means approving it in Kanvas; external synchronization is handled by '
+        . 'status-transition workflows. It works for any approval type in the queue, not just invoices. '
+        . 'Only the approver configured on that '
         . 'specific record\'s vendor/customer may call this — call it only when that specific person '
         . 'explicitly asks to approve something, never on your own initiative or on behalf of anyone else.';
 
