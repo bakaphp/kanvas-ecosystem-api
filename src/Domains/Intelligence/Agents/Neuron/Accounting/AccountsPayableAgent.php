@@ -272,9 +272,9 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'Skip this step silently when there is no source_email_message_id — not every bill comes from '
             . 'an email. '
             . '(3) read_google_sheet to find the row whose column A (ID invoice) matches this bill_id — never '
-            . 'guess the row. Then update_google_sheet_cell four times on that row: column D (Status) to '
+            . 'guess the row. Then update_google_sheet_cell three times on that row: column D (Status) to '
             . '"Approved", column E (Approved Date) to approved_at, and column F (Approved By) to approved_by (the '
-            . 'approver\'s email. '
+            . 'approver\'s email). '
             . '(4) Reply with the complete breakdown: bill_id, vendor, approved_by, and approved_at.',
         ]);
     }

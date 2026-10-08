@@ -35,6 +35,7 @@ use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use ReflectionMethod;
 use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
 use Throwable;
@@ -457,6 +458,19 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
         }
 
         $this->assertTrue(true);
+    }
+
+    public function test_a_handler_error_tells_the_agent_not_to_mark_the_sheet_approved(): void
+    {
+        $nextStep = new ReflectionMethod(ApprovePendingItemTool::class, 'approvalNextStep');
+        $tool = new ApprovePendingItemTool();
+
+        $failed = $nextStep->invoke($tool, ['target_type' => 'bill', 'handler_error' => 'downstream exploded']);
+        $clean = $nextStep->invoke($tool, ['target_type' => 'bill']);
+
+        $this->assertStringContainsString('downstream exploded', $failed);
+        $this->assertStringContainsString('Do NOT mark the sheet Approved', $failed);
+        $this->assertStringNotContainsString('Do NOT', $clean);
     }
 
     public function test_approval_result_is_persisted_without_a_synchronous_push_outcome(): void

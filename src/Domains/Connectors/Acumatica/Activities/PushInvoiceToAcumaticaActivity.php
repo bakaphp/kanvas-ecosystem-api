@@ -34,7 +34,7 @@ class PushInvoiceToAcumaticaActivity extends KanvasActivity
         $this->overwriteAppService($app);
 
         if (! new AcumaticaWriteService($app)->isWriteEnabled()) {
-            return ['status' => 'skipped', 'reason' => 'acumatica_write_disabled', 'invoice_id' => $entity->getId()];
+            return $this->skip('acumatica_write_disabled', $entity);
         }
 
         if ($entity->source === IntegrationsEnum::ACUMATICA->value) {

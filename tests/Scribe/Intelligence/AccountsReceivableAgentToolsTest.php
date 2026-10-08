@@ -187,7 +187,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame(100.0, $result['amount']);
         $this->assertSame('NATIVE-CHK-1', $result['payment_ref']);
         $this->assertSame(200.0, (float) $result['remaining_balance']);
-        $this->assertSame(200.0, (float) Invoice::query()->findOrFail($invoice->getId())->balance_due_native);
+        $this->assertSame(200.0, (float) $invoice->fresh()->balance_due_native);
     }
 
     public function test_create_ar_invoice_refuses_an_empty_customer_name(): void
@@ -245,12 +245,17 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $result = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(customer_name: 'Pending Invoice Customer', amount: 275.0, memo: 'Pending flow test', issue_immediately: false);
+            ->__invoke(
+                customer_name: 'Pending Invoice Customer',
+                amount: 275.0,
+                memo: 'Pending flow test',
+                issue_immediately: false,
+            );
 
         $this->assertTrue($result['created']);
         $this->assertSame('draft', $result['document_status']);
         $this->assertSame(275.0, (float) $result['remaining_balance']);
-        $this->assertArrayNotHasKey('external_reference', $result);
+        $this->assertArrayNotHasKey('invoice_ref', $result);
         $this->assertSame('NOT IN APPROVER LIST', $result['approved_by_flag']);
 
         $invoice = Invoice::query()->where('id', $result['invoice_id'])->first();
@@ -264,7 +269,12 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $result = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(customer_name: 'Flagged Invoice Customer', amount: 275.0, memo: 'Has approver test', issue_immediately: false);
+            ->__invoke(
+                customer_name: 'Flagged Invoice Customer',
+                amount: 275.0,
+                memo: 'Has approver test',
+                issue_immediately: false,
+            );
 
         $this->assertTrue($result['created']);
         $this->assertSame('', $result['approved_by_flag']);
@@ -277,7 +287,12 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $created = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(customer_name: 'Approval Flow Customer', amount: 300.0, memo: 'Approval flow test', issue_immediately: false);
+            ->__invoke(
+                customer_name: 'Approval Flow Customer',
+                amount: 300.0,
+                memo: 'Approval flow test',
+                issue_immediately: false,
+            );
 
         $result = new ApprovePendingItemTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -293,7 +308,12 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $created = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(customer_name: 'Approval Flow Customer 1B', amount: 300.0, memo: 'Approval flow test', issue_immediately: false);
+            ->__invoke(
+                customer_name: 'Approval Flow Customer 1B',
+                amount: 300.0,
+                memo: 'Approval flow test',
+                issue_immediately: false,
+            );
 
         $result = new ApprovePendingItemTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -356,7 +376,12 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $created = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(customer_name: 'Approval Flow Customer 3', amount: 300.0, memo: 'Approval flow test', issue_immediately: false);
+            ->__invoke(
+                customer_name: 'Approval Flow Customer 3',
+                amount: 300.0,
+                memo: 'Approval flow test',
+                issue_immediately: false,
+            );
 
         // Mirrors an @mention/channel turn: setConfiguration() receives the agent's OWN user, distinct
         // from the human actually approving, exactly like SlackUserResolverService resolving a DM sender.

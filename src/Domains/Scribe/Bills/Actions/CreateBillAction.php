@@ -154,13 +154,13 @@ class CreateBillAction
             return $bill;
         });
 
-        DB::connection('accounting')->afterCommit(fn () => $bill->fireWorkflow(
+        $bill->fireWorkflowAfterCommit(
             WorkflowEnum::CREATED->value,
-            params: [
+            [
                 'app' => $bill->app,
                 'entity' => 'bill',
-            ],
-        ));
+            ]
+        );
 
         return $bill;
     }

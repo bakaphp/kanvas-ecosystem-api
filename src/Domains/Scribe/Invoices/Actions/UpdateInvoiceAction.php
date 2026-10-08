@@ -150,13 +150,13 @@ class UpdateInvoiceAction
             return $invoice;
         });
 
-        DB::connection('accounting')->afterCommit(fn () => $invoice->fireWorkflow(
+        $invoice->fireWorkflowAfterCommit(
             WorkflowEnum::UPDATED->value,
-            params: [
+            [
                 'app' => $invoice->app,
                 'entity' => 'invoice',
-            ],
-        ));
+            ]
+        );
 
         return $invoice;
     }

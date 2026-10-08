@@ -12,8 +12,8 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 /**
  * Reads back the source email and attachment stashed on an accounting record at intake.
  *
- * The agent needs these to attach the original PDF and reply on the original thread, and it can only
- * do that when needed — so they travel out on the handler's result rather than being read again later.
+ * They travel out on the approval handler's result so the agent can reply on the original thread
+ * without reading the record again.
  */
 trait ReadsApprovalSourceFields
 {

@@ -7,7 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\AttachesFileToDocumentForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesInvoiceForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -19,6 +19,7 @@ class AttachInvoiceFileTool extends Tool
 {
     use AttachesFileToDocumentForTool;
     use HasKanvasContext;
+    use ResolvesInvoiceForTool;
 
     protected string $name = 'attach_invoice_file';
 
@@ -81,18 +82,10 @@ class AttachInvoiceFileTool extends Tool
         ?string $file_name = null,
         ?string $field_name = null,
     ): array {
-        $invoice = Invoice::query()
-            ->where('id', $invoice_id)
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->first();
+        $invoice = $this->resolveInvoice($invoice_id);
 
-        if ($invoice === null) {
-            return [
-                'file_attached' => false,
-                'reason' => 'invoice_not_found',
-                'message' => "No invoice with id {$invoice_id} for this app/company.",
-            ];
+        if (is_array($invoice)) {
+            return ['file_attached' => false, ...$invoice];
         }
 
         $file = $this->attachFileToDocument(

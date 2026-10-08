@@ -295,9 +295,9 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'invoice thread. Skip this step silently when there is no source_email_message_id — not every '
             . 'invoice comes from an email. '
             . '(3) read_google_sheet to find the row whose column A (ID invoice) matches this invoice_id — never '
-            . 'guess the row. Then update_google_sheet_cell four times on that row: column D (Status) to '
+            . 'guess the row. Then update_google_sheet_cell three times on that row: column D (Status) to '
             . '"Approved", column E (Approved Date) to approved_at, and column F (Approved By) to approved_by (the '
-            . 'approver\'s email. '
+            . 'approver\'s email). '
             . '(4) Reply with the complete breakdown: invoice_id, customer, approved_by, and approved_at.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);

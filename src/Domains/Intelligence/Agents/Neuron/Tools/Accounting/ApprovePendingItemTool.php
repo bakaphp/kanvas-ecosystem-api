@@ -233,38 +233,30 @@ class ApprovePendingItemTool extends Tool
     {
         $approvedBy = (string) $this->user->email;
         $approvedAt = Carbon::now()->toDateString();
-        $evidence = "Approved by {$approvedBy} on {$approvedAt}";
 
         return array_merge($result, [
             'approved' => true,
             'approved_by' => $approvedBy,
             'approved_at' => $approvedAt,
-            'next' => $this->approvalNextStep($result, $evidence),
+            'next' => $this->approvalNextStep($result),
         ]);
     }
 
     /**
+     * `handler_error` is the generic engine's record that the decision was stored but the handler
+     * (ApproveBillAction, IssueInvoiceAction, …) threw, so the record itself was never approved.
+     *
      * @param array<string, mixed> $result
      */
-    private function approvalNextStep(array $result, string $evidence): string
+    private function approvalNextStep(array $result): string
     {
-        if (! array_key_exists('pushed', $result)) {
-            return 'Approved in Kanvas. Any external synchronization is handled by configured workflows.';
+        $error = $result['handler_error'] ?? $result['push_error'] ?? null;
+
+        if ($error !== null) {
+            return 'The approval was recorded but carrying it out failed: ' . $error
+                . '. It needs manual attention. Do NOT mark the sheet Approved.';
         }
 
-        if ($result['pushed']) {
-            return "External synchronization completed. Now: (1) add a note with the approval evidence (\"{$evidence}\"). "
-                . '(2) If source_attachment_url is present, attach it (attach_bill_file/attach_invoice_file) '
-                . 'now that this record is actually synchronized. '
-                . '(3) If source_email_message_id is present, reply_to_email with that same '
-                . 'evidence on the original invoice email. '
-                . '(4) In the sheet, find the row for this record and update column D (Status) to '
-                . '"Approved", column E (Approved Date) to approved_at, and column F (Approved By) to '
-                . 'approved_by.';
-        }
-
-        return 'Approved in Kanvas but external synchronization failed: '
-            . ($result['push_error'] ?? $result['handler_error'] ?? 'unknown error')
-            . '. It needs manual attention. Do NOT mark the sheet Approved.';
+        return 'Approved in Kanvas. Any external synchronization is handled by configured workflows.';
     }
 }

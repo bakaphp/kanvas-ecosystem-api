@@ -242,18 +242,11 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
     public function test_add_bill_note_updates_the_kanvas_ledger_without_an_external_reference(): void
     {
-        $vendor = $this->seedTestOrganization('Globex Supply');
-        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
-
-        $bill = \Kanvas\Scribe\Bills\Models\Bill::query()
-            ->where('apps_id', $this->kanvasApp->getId())
-            ->where('companies_id', $this->company->getId())
-            ->latest('id')
-            ->first();
+        $bill = $this->receivedBill('Globex Supply');
 
         $result = new AddBillNoteTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(bill_id: (int) $bill->id, note: 'Called vendor.');
+            ->__invoke(bill_id: $bill->getId(), note: 'Called vendor.');
 
         $this->assertTrue($result['note_added']);
         $this->assertStringContainsString('Called vendor.', $bill->fresh()->internal_notes);
@@ -271,19 +264,12 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
     public function test_attach_bill_file_attaches_natively_without_an_external_reference(): void
     {
-        $vendor = $this->seedTestOrganization('Globex Supply');
-        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
-
-        $bill = \Kanvas\Scribe\Bills\Models\Bill::query()
-            ->where('apps_id', $this->kanvasApp->getId())
-            ->where('companies_id', $this->company->getId())
-            ->latest('id')
-            ->first();
+        $bill = $this->receivedBill('Globex Supply');
 
         $file = $this->createFilesystemRow(url: 'https://cdn.example.test/invoice.pdf', name: 'invoice.pdf');
         $result = new AttachBillFileTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(bill_id: (int) $bill->id, filesystem_id: $file->getId());
+            ->__invoke(bill_id: $bill->getId(), filesystem_id: $file->getId());
 
         $this->assertTrue($result['file_attached']);
         $this->assertSame($file->getId(), $bill->fresh()->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value)->filesystem->getId());

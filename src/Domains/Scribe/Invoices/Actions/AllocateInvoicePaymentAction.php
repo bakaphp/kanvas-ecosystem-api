@@ -130,21 +130,13 @@ class AllocateInvoicePaymentAction
             return $allocation->refresh();
         });
 
-        DB::connection('accounting')->afterCommit(function () use ($allocation): void {
-            $payment = $allocation->payment;
-
-            if ($payment === null) {
-                return;
-            }
-
-            $payment->fireWorkflow(
-                WorkflowEnum::CREATED->value,
-                params: [
-                    'app' => $payment->app,
-                    'entity' => 'payment',
-                ],
-            );
-        });
+        $allocation->payment?->fireWorkflowAfterCommit(
+            WorkflowEnum::CREATED->value,
+            [
+                'app' => $allocation->payment->app,
+                'entity' => 'payment',
+            ]
+        );
 
         return $allocation;
     }

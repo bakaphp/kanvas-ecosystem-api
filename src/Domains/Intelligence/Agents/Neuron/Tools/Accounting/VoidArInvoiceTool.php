@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Baka\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Invoices\Actions\VoidInvoiceAction;
@@ -72,7 +73,7 @@ class VoidArInvoiceTool extends Tool
         try {
             $voidedInvoice = new VoidInvoiceAction(
                 invoice: $invoice,
-                voidReasonCode: trim((string) $reason_code) ?: 'requested_by_user',
+                voidReasonCode: Str::trimToNull($reason_code) ?? 'requested_by_user',
                 user: $this->user,
             )->execute();
         } catch (Throwable $e) {
