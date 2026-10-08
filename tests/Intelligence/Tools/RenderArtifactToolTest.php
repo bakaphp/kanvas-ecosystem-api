@@ -240,11 +240,13 @@ final class RenderArtifactToolTest extends TestCase
     {
         $result = new RenderArtifactTool()(
             component: 'approvals',
-            props: json_encode(['ids' => ['jane'], 'peopleId' => 'jane-cooper']),
+            props: json_encode(['ids' => ['jane', '0', 0], 'peopleId' => 'jane-cooper']),
         );
 
         $this->assertFalse($result['success']);
         $this->assertStringContainsString('props.ids[0] must be a numeric id or a uuid', $result['error']);
+        $this->assertStringContainsString('props.ids[1] must be a numeric id or a uuid', $result['error']);
+        $this->assertStringContainsString('props.ids[2] must be a numeric id or a uuid', $result['error']);
         $this->assertStringContainsString('props.peopleId must be a numeric id or a uuid', $result['error']);
     }
 

@@ -21,7 +21,7 @@ class ArtifactBlockService
      * a uuid compared against an integer id is a cast ("5f1c…" reads as 5), not a miss — so anything else
      * is refused here rather than rendered as a card that shows the wrong record.
      */
-    private const string RECORD_ID_PATTERN = '/^(\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i';
+    private const string RECORD_ID_PATTERN = '/^(0*[1-9]\d*|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i';
 
     /**
      * @param array<string, mixed> $props
@@ -149,14 +149,12 @@ class ArtifactBlockService
             'id' => is_int($value) || (is_string($value) && trim($value) !== '' && $this->hasNoFence($value))
                 ? []
                 : [$path . ' must be the record id'],
-            'record_id' => $this->isRecordId($value) ? [] : [$path . ' must be a numeric id or a uuid'],
+            'record_id' => $this->checkRecordId($value, $path),
             'record_id_list' => $this->checkList(
                 $value,
                 $rule,
                 $path,
-                fn (mixed $item, string $itemPath): array => $this->isRecordId($item)
-                    ? []
-                    : [$itemPath . ' must be a numeric id or a uuid']
+                $this->checkRecordId(...)
             ),
             'text_or_number' => $this->isTextOrNumber($value) ? [] : [$path . ' must be a string or a number'],
             'scalar' => $value === null || is_bool($value) || $this->isTextOrNumber($value)
@@ -288,6 +286,14 @@ class ArtifactBlockService
         return $missing === []
             ? []
             : [sprintf('props.data has no field named %s — xKey and series keys must be fields of data', implode(', ', $missing))];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function checkRecordId(mixed $value, string $path): array
+    {
+        return $this->isRecordId($value) ? [] : [$path . ' must be a numeric id or a uuid'];
     }
 
     private function isRecordId(mixed $value): bool
