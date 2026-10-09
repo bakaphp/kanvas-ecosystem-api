@@ -18,8 +18,8 @@ use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGemini;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGrok;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasMistral;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOllama;
-use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAI;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAILike;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAIResponses;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use NeuronAI\HttpClient\Guzzle\GuzzleHttpClient;
 use NeuronAI\Providers\AIProviderInterface;
@@ -30,7 +30,7 @@ class AgentProviderService
 
     private const array KEYED_PROVIDER_CLASSES = [
         AgentLlmProviderEnum::ANTHROPIC->value => KanvasAnthropic::class,
-        AgentLlmProviderEnum::OPENAI->value => KanvasOpenAI::class,
+        AgentLlmProviderEnum::OPENAI->value => KanvasOpenAIResponses::class,
         AgentLlmProviderEnum::MISTRAL->value => KanvasMistral::class,
         AgentLlmProviderEnum::DEEPSEEK->value => KanvasDeepseek::class,
         AgentLlmProviderEnum::XAI->value => KanvasGrok::class,

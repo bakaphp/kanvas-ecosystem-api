@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Factories\AgentLlmConfigFactory;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAIResponses;
 use Kanvas\Intelligence\Agents\Neuron\Providers\RecoversUnknownToolCalls;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -17,7 +18,6 @@ use NeuronAI\Providers\Deepseek\Deepseek;
 use NeuronAI\Providers\Gemini\Gemini;
 use NeuronAI\Providers\Mistral\Mistral;
 use NeuronAI\Providers\Ollama\Ollama;
-use NeuronAI\Providers\OpenAI\OpenAI;
 use NeuronAI\Providers\OpenAILike;
 use NeuronAI\Providers\XAI\Grok;
 use ReflectionProperty;
@@ -133,7 +133,7 @@ final class AgentProviderServiceTest extends TestCase
 
         $cases = [
             [AgentLlmProviderEnum::ANTHROPIC, Anthropic::class],
-            [AgentLlmProviderEnum::OPENAI, OpenAI::class],
+            [AgentLlmProviderEnum::OPENAI, KanvasOpenAIResponses::class],
             [AgentLlmProviderEnum::MISTRAL, Mistral::class],
             [AgentLlmProviderEnum::DEEPSEEK, Deepseek::class],
             [AgentLlmProviderEnum::XAI, Grok::class],
@@ -234,6 +234,60 @@ final class AgentProviderServiceTest extends TestCase
 
         $this->assertInstanceOf(OpenAILike::class, $provider);
         $this->assertSame('https://app-box.example/v1', $this->readProp($provider, 'baseUri'));
+    }
+
+    public function testOpenAiConfigWrittenForChatCompletionsReachesTheResponsesApiInItsShape(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $cfg = AgentLlmConfigFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'provider' => AgentLlmProviderEnum::OPENAI->value,
+                'api_key' => 'openai-key',
+                'model' => 'gpt-6.1-sol',
+                'config' => ['reasoning_effort' => 'high', 'max_tokens' => 4000, 'temperature' => 0.2],
+            ]);
+
+        $agent = AgentFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['agent_llm_config_id' => $cfg->getId(), 'config' => []]);
+
+        $this->assertSame(
+            [
+                'store' => false,
+                'temperature' => 0.2,
+                'reasoning' => ['effort' => 'high'],
+                'max_output_tokens' => 4000,
+            ],
+            $this->readProp(AgentProviderService::resolve($agent), 'parameters'),
+        );
+    }
+
+    public function testResponsesParametersKeepWhatIsAlreadyInTheResponsesShape(): void
+    {
+        $this->assertSame(
+            [
+                'store' => true,
+                'reasoning' => ['summary' => 'auto', 'effort' => 'low'],
+                'max_output_tokens' => 100,
+                'text' => ['verbosity' => 'low'],
+            ],
+            KanvasOpenAIResponses::toResponsesParameters([
+                'store' => true,
+                'reasoning' => ['summary' => 'auto'],
+                'reasoning_effort' => 'low',
+                'verbosity' => 'low',
+                'max_output_tokens' => 100,
+                'max_completion_tokens' => 9000,
+            ]),
+            'An explicit store and max_output_tokens win; the legacy keys are dropped, not sent',
+        );
+
+        $this->assertSame(['store' => false], KanvasOpenAIResponses::toResponsesParameters([]));
     }
 
     public function testDefaultsToGeminiWhenNoProviderConfigured(): void

@@ -139,10 +139,13 @@ class PushLeadNotesActivity extends KanvasActivity
                     $addCoBuyer->execute($messageData);
 
                     $lead->set('cobuyer_imported', 1);
-                    $lead->set(CustomFieldEnum::CO_BUYER_APP_IMPORTER->value, [
-                        'active' => 1,
-                        'message' => 'Co-Buyer App Ready to be imported into eLead.',
-                    ]);
+                    $this->flagReadyForImport(
+                        $lead,
+                        CustomFieldEnum::CO_BUYER_APP_IMPORTER,
+                        CustomFieldEnum::CO_BUYER_APP_DATA,
+                        $result['data'] ?? null,
+                        'Co-Buyer App Ready to be imported into eLead.'
+                    );
                 }
 
                 break;
@@ -154,15 +157,19 @@ class PushLeadNotesActivity extends KanvasActivity
 
                 break;
             case ActionEnum::CREDIT_APP->value:
+            case ActionEnum::BUSINESS_CREDIT_APP->value:
                 if ($status === ActionStatusEnum::SUBMITTED->value) {
                     $addCreditApp = new AddCreditAppAction($lead);
                     $result = $addCreditApp->execute($messageData);
 
                     $lead->set('creditapp_imported', 1);
-                    $lead->set(CustomFieldEnum::CREDIT_APP_IMPORTER->value, [
-                        'active' => 1,
-                        'message' => 'Credit App Ready to be imported into eLead.',
-                    ]);
+                    $this->flagReadyForImport(
+                        $lead,
+                        CustomFieldEnum::CREDIT_APP_IMPORTER,
+                        CustomFieldEnum::CREDIT_APP_DATA,
+                        $result['data'] ?? null,
+                        'Credit App Ready to be imported into eLead.'
+                    );
 
                     if ($people = $lead->people) {
                         $this->updatePeopleAddress($people, $result, $messageData);
@@ -196,6 +203,24 @@ class PushLeadNotesActivity extends KanvasActivity
         }
 
         return $result;
+    }
+
+    /**
+     * The SalesAssist extension only shows the import popup when both the flag and its data key are on the lead.
+     */
+    protected function flagReadyForImport(
+        Lead $lead,
+        CustomFieldEnum $flag,
+        CustomFieldEnum $dataKey,
+        ?array $data,
+        string $message
+    ): void {
+        $lead->set($dataKey->value, $data);
+        $lead->set($flag->value, [
+            'active' => 1,
+            'message' => $message,
+            'date' => date('Y-m-d H:i:s'),
+        ]);
     }
 
     /**
