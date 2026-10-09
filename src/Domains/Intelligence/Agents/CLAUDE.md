@@ -493,6 +493,10 @@ A tool constructed outside that path (a test, a one-off script) must call `withC
 - Scope every query with `->fromApp($this->app)->fromCompany($this->company)` — including id/email lookups,
   so a foreign id resolves to nothing rather than another tenant's row (`FindsTenantRecordForTool`,
   `ReadUserActivityTool`).
+- `fromCompany()` **ignores the company you pass** when the request came in on an app key with no
+  `X-Kanvas-Location` (`AppKey` bound, `CompaniesBranches` not): it becomes `companies_id > 0`, every
+  company of the app. A lookup of a model-supplied id that must not cross companies writes the filter
+  out, as `AdminLinkRecordResolver::scopeToCompany()` does.
 - Mutating tools gate on the **requesting human** via `GuardsAdminForTool::requireAdminOrError()` (the
   tool-layer mirror of `@guardByAdmin`) — not on the agent's own user.
 - Honor the audience/memory-scope rule from the top of this file: a customer-facing tool must be
@@ -700,6 +704,49 @@ validation error. The flag is cleared in `finally` on every exit, so a stop that
 reply cannot cancel the resend. The key is the thread, and userChat threads by session uuid, which
 is why the mutation takes a session: a channel turn (threaded by the entity) is out of its reach.
 Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
+
+## Chat artifacts (`render_artifact`) — a contract the admin owns
+
+The admin chat draws `kanvas-artifact` blocks; this API validates them twice (`RenderArtifactTool`, and
+`ArtifactBlockService::stripInvalidBlocks()` over every reply, which catches blocks written by hand).
+The frontend owns the contract and we mirror it: `ArtifactComponentEnum` (components and props) and
+`ArtifactEntityTypeEnum` (record types, what a card finds each one by, the filters a list takes).
+
+- **A mismatch is silent.** A component, type or filter the admin knows and this API does not is not an
+  error: the block is stripped and the reader gets the prose without the card. So the mirror is tested
+  against the admin's own export, `tests/fixtures/admin-artifact-contract.json`
+  ([`ArtifactContractTest`](../../../../tests/Intelligence/Enums/ArtifactContractTest.php)). When the
+  admin changes a component, a type, a filter, a limit or the metric catalog: run
+  `pnpm gen:artifact-contract` in kanvas-admin-v2, copy `docs/control-center-artifact-contract.json`
+  over the fixture, and make the test pass.
+- **Deploy order.** Adding something: the admin first, then this API. Our tool description is what
+  tells the agent a type or a filter exists, so an API ahead of the admin makes agents write blocks
+  the deployed admin refuses to draw; an admin ahead of the API only costs a refused tool call.
+  Removing something: this API first.
+- **`entity`, `records`, `metric` and `approvals` are live.** The model sends a reference or filters and
+  the admin reads the data. Their props select records, so they are refused when wrong, never trimmed:
+  a filter dropped from a `records` block would list every record of the type under a title about a few.
+- **The tool is strict; for `records` and `metric` the filter over a reply reads the block as the
+  admin does.** The admin lifts props a model wrote beside `props`, takes `filters` for `filter` and a
+  count sent as text. `stripInvalidBlocks()` reads a hand-written `records` or `metric` block the same
+  way before checking it, or it would strip a card the admin draws. Every other component is still
+  held to the tool's rules there, so an alias or a bare array the admin would draw is stripped.
+- **An `entity` id is looked up before the block exists** (`RenderArtifactTool::useThePageIdentifier()`,
+  through `AdminLinkRecordResolver`, scoped to the tool's tenant). An invented id comes back as
+  `not_found`; a real one is rewritten to the identifier the record's page reads — tools hand back
+  numeric ids while the lead page keys on the uuid and a category page on the slug. A type the resolver
+  has no model for is held to an id its card can find it by (`ArtifactEntityTypeEnum::lookups()`,
+  wider than what the page reads: an order is found by its uuid too). To make a type verifiable, add
+  its model to the resolver's map **and give the model `HasAdminLink`** — `build_admin_link` reports a
+  mapped model it cannot link as a record that does not exist. A read tool for the type should return
+  `id`, as the Sales order tools do.
+- **A list filter id is the integer id.** Every column a list filters by is an integer one; the admin
+  refuses to run a list given a uuid there, so the `integer_id` rule refuses it first.
+- **Which identifier a page reads lives in `AdminLinkSectionEnum::identifier()`, and what a string
+  looks like when a record is looked up in `AdminLinkIdentifierEnum::shapeOf()`**, never restated. A
+  dash does not make a uuid: that guess read every multi-word slug as one. `matches()` on the same
+  enum stays loose on purpose (a dash passes as a uuid): it only guards a URL built from an identifier
+  already read off a row.
 
 ## Don't break
 

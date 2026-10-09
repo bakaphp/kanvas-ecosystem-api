@@ -50,6 +50,8 @@ final class ListOpenSalesOrdersToolTest extends TestCase
 
         $orderNumbers = array_column($result['orders'], 'order_number');
         $this->assertContains($order->order_number, $orderNumbers);
+        // The id is what an order card is built from; the order number is not an identifier.
+        $this->assertContains($order->getId(), array_column($result['orders'], 'id'));
     }
 
     public function testFilterByUnknownCustomerReturnsNoOrders(): void
