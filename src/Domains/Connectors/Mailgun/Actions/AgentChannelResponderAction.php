@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Mailgun\Actions;
 
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
@@ -36,7 +37,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         // Cold-inbound leads have no outreach anchor (AgentReachOutOnChannelAction never ran).
         // Persist the incoming subject as the thread anchor — first touch wins — so later
         // follow-ups thread under it instead of falling back to the company name (new thread).
-        if ($entity instanceof Lead) {
+        // A People channel keeps the anchor on the person.
+        if ($entity instanceof Lead || $entity instanceof People) {
             $inboundSubject = trim((string) ($this->message->message['subject'] ?? ''));
             if ($inboundSubject !== '' && ! $entity->get('title_email_follow_up')) {
                 $entity->set(

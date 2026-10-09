@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Mailgun\Workflows;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Mailgun\Actions\AgentChannelResponderAction;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\HandlesSupportModeDelayedResponseTrait;
@@ -68,6 +69,7 @@ class AgentChannelResponderActivity extends KanvasActivity
 
                 $chatJid = $message->message['chat_jid'] ?? null;
                 $lead = $message->entity();
+                $people = $lead instanceof People ? $lead : $lead?->people;
                 $message->addTag('engagement');
 
                 // Don't process messages from the phone owner
@@ -81,6 +83,13 @@ class AgentChannelResponderActivity extends KanvasActivity
                 if ($lead instanceof Lead && $lead->isAiMuted()) {
                     return [
                         'message' => 'Lead turned off AI agent responses',
+                        'entity' => null,
+                    ];
+                }
+
+                if ($lead instanceof People && $lead->isAiMuted()) {
+                    return [
+                        'message' => 'People turned off AI agent responses',
                         'entity' => null,
                     ];
                 }
@@ -109,9 +118,9 @@ class AgentChannelResponderActivity extends KanvasActivity
                             'entity_id' => $lead->getId(),
                             'canal_id' => $message->message['chat_jid'],
                             'user' => [
-                                'name' => $lead->people->getName(),
-                                'id' => $lead->people->getId(),
-                                'email' => $lead->people->getEmails()->first()?->value,
+                                'name' => $people->getName(),
+                                'id' => $people->getId(),
+                                'email' => $people->getEmails()->first()?->value,
                             ],
                             'agent' => Agent::getById($agentId, $app),
                         ])
