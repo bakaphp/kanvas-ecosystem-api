@@ -28,6 +28,7 @@ final class FakeStripeClient extends StripeClient
     private FakeWebhooks $webhooksService;
     private FakeCouponsService $couponsService;
     private FakeWebhookEndpointsService $webhookEndpointsService;
+    private FakePaymentLinksService $paymentLinksService;
 
     public function __construct(?string $apiKey = 'sk_test_fake')
     {
@@ -39,6 +40,7 @@ final class FakeStripeClient extends StripeClient
         $this->webhooksService = new FakeWebhooks();
         $this->couponsService = new FakeCouponsService();
         $this->webhookEndpointsService = new FakeWebhookEndpointsService();
+        $this->paymentLinksService = new FakePaymentLinksService();
     }
 
     public function __get($name): mixed
@@ -51,6 +53,7 @@ final class FakeStripeClient extends StripeClient
             'webhooks' => $this->webhooksService,
             'coupons' => $this->couponsService,
             'webhookEndpoints' => $this->webhookEndpointsService,
+            'paymentLinks' => $this->paymentLinksService,
             default => parent::__get($name),
         };
     }
@@ -58,6 +61,11 @@ final class FakeStripeClient extends StripeClient
     public function getWebhookEndpoints(): FakeWebhookEndpointsService
     {
         return $this->webhookEndpointsService;
+    }
+
+    public function getPaymentLinks(): FakePaymentLinksService
+    {
+        return $this->paymentLinksService;
     }
 
     public function getCoupons(): FakeCouponsService
@@ -189,6 +197,21 @@ final class FakeWebhookEndpointsService
     public function create(array $params, ?array $options = null): mixed
     {
         return $this->recordAndShift('create', $params, $options);
+    }
+}
+
+final class FakePaymentLinksService
+{
+    use FakeServiceTrait;
+
+    public function create(array $params, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('create', $params, $options);
+    }
+
+    public function retrieve(string $id, ?array $params = null, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('retrieve', array_merge(['id' => $id], $params ?? []), $options);
     }
 }
 
