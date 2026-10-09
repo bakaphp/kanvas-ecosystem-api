@@ -340,6 +340,29 @@ final class SyncAllNetSuiteCustomerItemsListActionTest extends TestCase
         );
     }
 
+    public function testReconcileCommandPrintsProgressAndLastSyncColumns(): void
+    {
+        $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());
+        $this->createNetSuiteVariant('NS-CMD-V');
+
+        $buyer = $this->createBuyerWithNetSuiteId('NS-CMD');
+        $buyer->set(CustomFieldEnum::NET_SUITE_ITEMS_LAST_SYNC->value, [
+            'at' => '2026-10-01T10:00:00Z',
+            'ns_items' => 7,
+            'processed' => 7,
+            'not_found' => 0,
+        ]);
+
+        $this->artisan('netsuite:reconcile-customer-items', [
+            'app_id' => $this->apps->getId(),
+            '--dry-run' => true,
+            '--company' => [$buyer->getId()],
+        ])
+            ->expectsOutputToContain('last sync 2026-10-01 10:00')
+            ->expectsOutputToContain('Last Sync')
+            ->assertExitCode(0);
+    }
+
     public function testSoapFaultOnSyncDoesNotAbortSweep(): void
     {
         $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());

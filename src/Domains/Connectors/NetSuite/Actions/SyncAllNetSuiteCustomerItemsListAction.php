@@ -133,11 +133,7 @@ class SyncAllNetSuiteCustomerItemsListAction
             }
 
             if ($this->onProgress !== null) {
-                ($this->onProgress)(
-                    end($results),
-                    $position + 1,
-                    $totalBuyers
-                );
+                ($this->onProgress)(end($results), $position + 1, $totalBuyers);
             }
         }
 
