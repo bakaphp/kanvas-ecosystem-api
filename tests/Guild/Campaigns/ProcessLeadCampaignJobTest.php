@@ -14,6 +14,8 @@ use Kanvas\Guild\Campaigns\Models\Campaign;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
 
@@ -172,5 +174,54 @@ class ProcessLeadCampaignJobTest extends TestCase
             ->first();
         $this->assertNotNull($peopleNote, 'Expected an audit note on the person for the people-only send');
         $this->assertStringContainsString('Batch body', $peopleNote->contentText());
+    }
+
+    public function testSentEmailIsSavedOnTheEntityEmailChannelForLeadAndPeopleRecipients(): void
+    {
+        Notification::fake();
+        $company = Companies::factory()->create();
+
+        $lead = Lead::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(auth()->user()->getId())
+            ->create();
+        $lead->people->contacts()->delete();
+        $leadEmail = 'lead-history-' . uniqid() . '@example.com';
+        $lead->people->addEmail($leadEmail);
+
+        $person = People::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(auth()->user()->getId())
+            ->create();
+        $peopleEmail = 'people-history-' . uniqid() . '@example.com';
+        $person->addEmail($peopleEmail);
+
+        $campaign = $this->campaignFor($company, 'email', 'Spring offer');
+        $this->addRecipient($campaign, $lead);
+        $this->addPeopleRecipient($campaign, $person);
+
+        new ProcessLeadCampaignJob(app(Apps::class), $campaign)->handle();
+
+        $this->assertCampaignEmailOnChannel(Lead::class, $lead->getId(), $leadEmail);
+        $this->assertCampaignEmailOnChannel(People::class, $person->getId(), $peopleEmail);
+    }
+
+    private function assertCampaignEmailOnChannel(string $entityNamespace, int $entityId, string $email): void
+    {
+        $channel = Channel::query()
+            ->where('entity_namespace', $entityNamespace)
+            ->where('entity_id', $entityId)
+            ->where('slug', SessionChannelService::createChannelSlug('email', $email))
+            ->first();
+        $this->assertNotNull($channel, "Expected an email channel on {$entityNamespace} #{$entityId}");
+
+        /** @var Message|null $message */
+        $message = $channel->messages()->latest('messages.id')->first();
+        $this->assertNotNull($message, 'Expected the sent campaign email on the channel');
+        $this->assertStringContainsString('Batch body', $message->contentText());
+        $this->assertSame('Spring offer', $message->get('title'));
+        $this->assertFalse((bool) $message->message['from_ia'], 'A campaign is sent by the manager, not the AI');
     }
 }
