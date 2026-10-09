@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\NetSuite\Actions;
 
 use Baka\Contracts\AppInterface;
+use Closure;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
@@ -19,7 +20,8 @@ class SyncAllNetSuiteCustomerItemsListAction
     public function __construct(
         protected AppInterface $app,
         protected bool $dryRun = false,
-        protected array $onlyBuyerIds = []
+        protected array $onlyBuyerIds = [],
+        protected ?Closure $onProgress = null
     ) {
     }
 
@@ -55,7 +57,9 @@ class SyncAllNetSuiteCustomerItemsListAction
         $totalSkipped = 0;
         $totalErrors = 0;
 
-        foreach ($buyers as $buyer) {
+        $totalBuyers = $buyers->count();
+
+        foreach ($buyers->values() as $position => $buyer) {
             try {
                 $channel = Channels::where('apps_id', $this->app->getId())
                     ->where('companies_id', $mainCompany->getId())
@@ -92,6 +96,7 @@ class SyncAllNetSuiteCustomerItemsListAction
                     'channel_count' => $channelCount,
                     'missing_count' => max(0, $totalProducts - $channelCount),
                     'synced' => $synced,
+                    'last_sync' => $this->lastSync($buyer),
                     'error' => null,
                 ];
             } catch (SoapFault $e) {
@@ -107,6 +112,7 @@ class SyncAllNetSuiteCustomerItemsListAction
                     'channel_count' => 0,
                     'missing_count' => 0,
                     'synced' => false,
+                    'last_sync' => $this->lastSync($buyer),
                     'error' => ['status' => $status, 'message' => $e->getMessage()],
                 ];
             } catch (Throwable $e) {
@@ -121,15 +127,24 @@ class SyncAllNetSuiteCustomerItemsListAction
                     'channel_count' => 0,
                     'missing_count' => 0,
                     'synced' => false,
+                    'last_sync' => $this->lastSync($buyer),
                     'error' => ['status' => 'error', 'message' => $e->getMessage()],
                 ];
+            }
+
+            if ($this->onProgress !== null) {
+                ($this->onProgress)(
+                    end($results),
+                    $position + 1,
+                    $totalBuyers
+                );
             }
         }
 
         return [
             'main_company_id' => $mainCompany->getId(),
             'total_products' => $totalProducts,
-            'total_buyers' => $buyers->count(),
+            'total_buyers' => $totalBuyers,
             'total_synced' => $totalSynced,
             'total_skipped' => $totalSkipped,
             'total_errors' => $totalErrors,
@@ -162,6 +177,13 @@ class SyncAllNetSuiteCustomerItemsListAction
                     ->where('products_variants_channels.is_deleted', 0);
             })
             ->count();
+    }
+
+    protected function lastSync(Companies $buyer): ?array
+    {
+        $lastSync = $buyer->get(CustomFieldEnum::NET_SUITE_ITEMS_LAST_SYNC->value);
+
+        return is_array($lastSync) ? $lastSync : null;
     }
 
     protected function isNetSuiteRateLimitError(SoapFault $e): bool
