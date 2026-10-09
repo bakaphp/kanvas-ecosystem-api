@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Actions\SettleInsurancePaymentAction;
 use Kanvas\Insurance\Contracts\InspectionProviderInterface;
-use Kanvas\Insurance\Contracts\PolicyProviderInterface;
+use Kanvas\Insurance\Contracts\PolicyEmissionProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
@@ -46,7 +46,7 @@ class EmitInsurancePolicyActivity extends KanvasActivity implements WorkflowActi
 
         $provider = InsuranceProviderFactory::forOrder($order);
 
-        if (! $provider instanceof PolicyProviderInterface) {
+        if (! $provider instanceof PolicyEmissionProviderInterface) {
             return $this->failWorkflow([
                 'order' => $order->getId(),
                 'message' => $provider->name() . ' does not emit policies',

@@ -20,6 +20,12 @@ type InsuranceQuoteResult {
     tax: Float
     total: Float
     currency: String
+    "What the intermediary earns on this policy, when the insurer publishes it at quote time."
+    commission: Float
+    "The insurer's own verdict that this quote can become a policy. Null means they do not say."
+    can_emit: Boolean
+    "The insurer's inspection state for this quote, in their own words."
+    inspection_status: String
     data: Mixed
 }
 

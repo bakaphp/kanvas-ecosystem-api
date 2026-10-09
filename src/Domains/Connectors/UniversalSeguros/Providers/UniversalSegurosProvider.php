@@ -20,7 +20,8 @@ use Kanvas\Insurance\Contracts\InspectionProviderInterface;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\Contracts\PaymentLinkProviderInterface;
 use Kanvas\Insurance\Contracts\PaymentReportProviderInterface;
-use Kanvas\Insurance\Contracts\PolicyProviderInterface;
+use Kanvas\Insurance\Contracts\PolicyEmissionProviderInterface;
+use Kanvas\Insurance\Contracts\PolicySyncProviderInterface;
 use Kanvas\Insurance\Contracts\ProductCatalogProviderInterface;
 use Kanvas\Insurance\Contracts\QuoteUpdateProviderInterface;
 use Kanvas\Insurance\DataTransferObject\DocumentUploadResult;
@@ -45,7 +46,8 @@ class UniversalSegurosProvider implements
     InsuranceProviderInterface,
     PaymentLinkProviderInterface,
     PaymentReportProviderInterface,
-    PolicyProviderInterface,
+    PolicyEmissionProviderInterface,
+    PolicySyncProviderInterface,
     ProductCatalogProviderInterface,
     QuoteUpdateProviderInterface
 {
