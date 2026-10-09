@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Actions\Chat;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
@@ -352,7 +353,7 @@ class RunNeuronChatAction
 
     protected function pause(int $seconds): void
     {
-        sleep($seconds);
+        Sleep::for($seconds)->seconds();
     }
 
     private function humanizedFallback(Throwable $e): string

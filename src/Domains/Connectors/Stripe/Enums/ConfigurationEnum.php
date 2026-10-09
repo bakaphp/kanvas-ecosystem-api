@@ -15,4 +15,7 @@ enum ConfigurationEnum: string
     case CHECKOUT_CANCEL_URL = 'CHECKOUT_CANCEL_URL';
     case STRIPE_PUBLISHABLE_KEY = 'stripe_publishable_key';
     case STRIPE_WEBHOOK_SECRET = 'stripe_webhook_secret';
+    case STRIPE_WEBHOOK_ENDPOINT_ID = 'stripe_webhook_endpoint_id';
+    case STRIPE_SHARED_APP_ACCOUNT = 'stripe_shared_app_account';
+    case PAYMENT_LINK_RECEIVER_ID = 'stripe_payment_link_receiver_id';
 }

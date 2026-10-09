@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Jobs\DispatchAppLeadFollowUpsJob;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Throwable;
@@ -46,6 +47,12 @@ class DispatchLeadFollowUpsCommand extends Command
 
             /** @var Companies $company */
             foreach ($companies as $company) {
+                if ((bool) $company->get(ConfigurationEnum::LEAD_FOLLOW_UP_DISABLED->value)) {
+                    $this->info("Company {$company->id} - {$company->name} has follow-ups disabled. Skipping.");
+
+                    continue;
+                }
+
                 $this->info("Checking work hours for company {$company->id} - {$company->name}...");
                 if (! $this->insideWorkHours($company)) {
                     $this->info("Company {$company->id} - {$company->name} is outside work hours. Skipping.");

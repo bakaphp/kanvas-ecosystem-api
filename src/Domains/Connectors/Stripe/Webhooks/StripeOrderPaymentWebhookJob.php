@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Stripe\Webhooks;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Stripe\Webhooks\Concerns\VerifiesStripeSignature;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
@@ -17,10 +18,8 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
-use Stripe\Exception\SignatureVerificationException;
 use Stripe\StripeObject;
 use Stripe\Webhook;
-use UnexpectedValueException;
 
 /**
  * Souk Order/Payment-oriented Stripe webhook (distinct from the Cashier/subscription
@@ -45,6 +44,8 @@ use UnexpectedValueException;
 )]
 class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
 {
+    use VerifiesStripeSignature;
+
     #[Override]
     public function execute(): array
     {
@@ -75,20 +76,10 @@ class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
     #[Override]
     public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
     {
-        $secret = (string) ($receiver->company->get(ConfigurationEnum::STRIPE_WEBHOOK_SECRET->value) ?? '');
-        $signature = $request->header('Stripe-Signature');
-
-        if ($secret === '' || ! is_string($signature) || $signature === '') {
-            return false;
-        }
-
-        try {
-            Webhook::constructEvent($request->getContent(), $signature, $secret);
-        } catch (SignatureVerificationException | UnexpectedValueException) {
-            return false;
-        }
-
-        return true;
+        return self::hasValidStripeSignature(
+            $request,
+            (string) $receiver->company->get(ConfigurationEnum::STRIPE_WEBHOOK_SECRET->value)
+        );
     }
 
     private function handleSucceeded(StripeObject $intent): array
