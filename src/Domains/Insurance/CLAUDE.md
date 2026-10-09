@@ -13,10 +13,21 @@ policy is a lifecycle, and the precedent for that is `Event` (tee-time bookings)
 is top-level even though the slot it sells is an `Inventory` Variant.
 
 **Why not `Inventory`?** Inventory is catalog: Products, Variants, Warehouses,
-Attributes. If a local plans catalog is ever built (insurer → plan → coverage →
-exclusion, per `.planning/movipass/features/03_seguros`), *that* belongs there as
-Products. It doesn't exist — `insuranceCatalog` is a passthrough to the insurer's API
-and persists nothing.
+Attributes. The local plans catalog (insurer → plan → coverage / exclusion /
+requirement, per `.planning/movipass/features/03_seguros`) is deliberately **not**
+Products: plans carry insurance-only fields the comparator orders on (`type`,
+`sponsored`, `commission_rate`, `recommended_score`) and nothing is ever sold from them
+directly. They are native models in `Models/` on the `commerce` connection.
+`insuranceCatalog` is still a passthrough to the insurer's API and persists nothing.
+
+Catalog rules worth knowing:
+- Tenancy is on `insurers` (`apps_id`, `companies_id`). Plans and their children inherit it
+  through the insurer, via `InsurancePlan::fromInsurerTenant`.
+- `law` / `full` is the canonical coverage category, resolved by `InsuranceProductCategoryMapper`
+  from an adapter's own product code; an unknown provider or code throws.
+- `SeedInsuranceCatalogAction` only fills in what is missing, including rows an admin
+  soft-deleted, and never rewrites an edited row.
+- Admin CRUD is `@guardByAdmin`; a consumer-facing read surface belongs to the comparator.
 
 **Why isn't this a connector?** Same reason `AgentRuntime` isn't. Per
 [`Connectors/CLAUDE.md`](../Connectors/CLAUDE.md), a shared contract with N provider
