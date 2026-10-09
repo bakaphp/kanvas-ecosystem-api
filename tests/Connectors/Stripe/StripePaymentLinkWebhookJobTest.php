@@ -18,7 +18,9 @@ use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Stripe\Webhooks\StripePaymentLinkWebhookJob;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Social\Messages\Actions\AssociateMessageToSystemModule;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -216,6 +218,13 @@ final class StripePaymentLinkWebhookJobTest extends TestCase
                 ],
             ]);
         $message->set(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value, $paymentLinkId);
+
+        // Engagement observers render the stage notification from the message's entity.
+        new AssociateMessageToSystemModule(
+            $message,
+            SystemModulesRepository::getByModelName(Lead::class, $this->kanvasApp),
+            $lead->getId()
+        )->execute();
 
         Engagement::create([
             'companies_id' => $this->company->getId(),
