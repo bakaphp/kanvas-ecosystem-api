@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Actions;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
@@ -78,7 +77,7 @@ class BaseAgentChannelReplyAction
         }
 
         if ($this->respectsLeadAiMode) {
-            $isAiMuted = $lead instanceof Lead || $lead instanceof People
+            $isAiMuted = $lead instanceof Lead
                 ? $lead->isAiMuted()
                 : IntelligenceModeEnum::tryFrom((string) $lead->get('ai_mode'))?->isOff() ?? false;
 
