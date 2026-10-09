@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Salesforce\Services;
 
 use Closure;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
@@ -27,9 +28,20 @@ final class SalesforceApiClient
 
     private const int RATE_LIMIT_RETRY_DELAY_SECONDS = 2;
 
+    /**
+     * Salesforce drops the odd connection mid-TLS-handshake under load (cURL 35, "Recv failure:
+     * Connection reset by peer") — nothing either side can fix, so it's worth one short retry
+     * before giving up on that one record.
+     */
+    private const int MAX_CONNECTION_RETRIES = 3;
+
+    private const int CONNECTION_RETRY_DELAY_SECONDS = 2;
+
     private bool $hasRetried = false;
 
     private int $rateLimitRetries = 0;
+
+    private int $connectionRetries = 0;
 
     public function __construct(
         private string $instanceUrl,
@@ -131,12 +143,23 @@ final class SalesforceApiClient
 
         $request = Http::withToken($this->accessToken)->acceptJson();
 
-        $response = match ($method) {
-            'get' => $request->get($this->instanceUrl . $path, $data),
-            'post' => $request->post($this->instanceUrl . $path, $data),
-            'patch' => $request->patch($this->instanceUrl . $path, $data),
-            'delete' => $request->delete($this->instanceUrl . $path),
-        };
+        try {
+            $response = match ($method) {
+                'get' => $request->get($this->instanceUrl . $path, $data),
+                'post' => $request->post($this->instanceUrl . $path, $data),
+                'patch' => $request->patch($this->instanceUrl . $path, $data),
+                'delete' => $request->delete($this->instanceUrl . $path),
+            };
+        } catch (ConnectionException $e) {
+            if ($this->connectionRetries >= self::MAX_CONNECTION_RETRIES) {
+                throw $e;
+            }
+
+            $this->connectionRetries++;
+            $this->wait(self::CONNECTION_RETRY_DELAY_SECONDS);
+
+            return $this->send($method, $path, $data, $allowNotFound);
+        }
 
         if ($response->status() === 401 && $this->onUnauthorized !== null && ! $this->hasRetried) {
             $this->hasRetried = true;
