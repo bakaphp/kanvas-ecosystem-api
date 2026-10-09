@@ -91,7 +91,7 @@ final class RegisterStripePaymentLinkWebhookActionTest extends TestCase
         $receiver = $this->register(sharedAppAccount: true);
 
         $this->assertTrue($receiver->configuration[ConfigurationEnum::STRIPE_SHARED_APP_ACCOUNT->value]);
-        $this->assertSame($this->kanvasApp->getAppCompany()->getId(), $receiver->companies_id);
+        $this->assertSame($this->company->getId(), $receiver->companies_id);
         $this->assertEquals($receiver->getId(), $this->kanvasApp->get(ConfigurationEnum::PAYMENT_LINK_RECEIVER_ID->value));
         $this->assertEmpty($this->company->get(ConfigurationEnum::PAYMENT_LINK_RECEIVER_ID->value));
     }

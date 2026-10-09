@@ -98,9 +98,13 @@ class RegisterStripePaymentLinkWebhookAction
         return ReceiverWebhook::where('id', (int) $receiverId)->notDeleted()->first();
     }
 
+    /**
+     * A shared receiver only anchors on a company — the webhook resolves the real one from the lead —
+     * so any company will do, and not every app has a main company configured.
+     */
     protected function receiverCompany(): CompanyInterface
     {
-        return $this->account->sharedAppAccount ? $this->app->getAppCompany() : $this->company;
+        return $this->company ?? $this->app->getAppCompany();
     }
 
     protected function accountOwner(): HashTableInterface

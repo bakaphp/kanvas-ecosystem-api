@@ -17,7 +17,7 @@ class RegisterStripePaymentLinkWebhookCommand extends Command
 
     protected $signature = 'kanvas:stripe-register-payment-link-webhook
         {app_id : Kanvas app id}
-        {company_id? : Company with its own Stripe key; omit to register the app-level Stripe account}';
+        {company_id? : A company with its own Stripe key gets its own endpoint; on the app key it only anchors the shared receiver (required when the app has no main company)}';
 
     protected $description = 'Register the Stripe webhook that marks get-deposit engagements submitted when their payment link is paid.';
 
