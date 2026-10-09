@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use NeuronAI\Providers\Anthropic\ToolMapper as AnthropicToolMapper;
 use NeuronAI\Providers\Gemini\ToolMapper as GeminiToolMapper;
+use NeuronAI\Providers\OpenAI\Responses\ToolMapper as OpenAIResponsesToolMapper;
 use NeuronAI\Providers\OpenAI\ToolMapper as OpenAIToolMapper;
 use NeuronAI\Tools\Tool as NeuronTool;
 use ReflectionClass;
@@ -62,6 +63,19 @@ final class AgentToolProviderPayloadTest extends TestCase
             $violations = [
                 ...$violations,
                 ...$this->schemaViolations($tool['function']['name'], $tool['function']['parameters']),
+            ];
+        }
+
+        $this->assertSame([], $violations, $this->explain($violations));
+    }
+
+    public function testEveryToolMapsToAValidOpenAiResponsesFunctionSchema(): void
+    {
+        $violations = [];
+        foreach (new OpenAIResponsesToolMapper()->map($this->allNeuronTools()) as $tool) {
+            $violations = [
+                ...$violations,
+                ...$this->schemaViolations($tool['name'], $tool['parameters']),
             ];
         }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Intelligence;
 
+use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
 use Tests\TestCase;
 
 class AgentLlmConfigCrudTest extends TestCase
@@ -89,6 +90,46 @@ class AgentLlmConfigCrudTest extends TestCase
             'has_api_key' => true,
             'is_routing_enabled' => true,
         ]]]);
+    }
+
+    public function testCreateAgentLlmConfigAcceptsConfigAsObject(): void
+    {
+        $config = ['temperature' => 0.2, 'max_tokens' => 4096];
+
+        $id = $this->graphQL('
+            mutation($input: AgentLlmConfigInput!) {
+                createAgentLlmConfig(input: $input) { id }
+            }
+        ', ['input' => [...$this->validInput(), 'config' => $config]])
+        ->assertSuccessful()
+        ->assertJsonMissingPath('errors')
+        ->json('data.createAgentLlmConfig.id');
+
+        $this->assertEquals($config, AgentLlmConfig::getById((int) $id)->config);
+    }
+
+    public function testUpdateAgentLlmConfigAcceptsConfigAsObject(): void
+    {
+        $id = $this->graphQL('
+            mutation($input: AgentLlmConfigInput!) {
+                createAgentLlmConfig(input: $input) { id }
+            }
+        ', ['input' => $this->validInput()])->assertSuccessful()->json('data.createAgentLlmConfig.id');
+
+        $config = [
+            'reasoning_effort' => 'high',
+            'include' => ['reasoning.encrypted_content'],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: UpdateAgentLlmConfigInput!) {
+                updateAgentLlmConfig(id: $id, input: $input) { id }
+            }
+        ', ['id' => $id, 'input' => ['config' => $config]])
+        ->assertSuccessful()
+        ->assertJsonMissingPath('errors');
+
+        $this->assertEquals($config, AgentLlmConfig::getById((int) $id)->config);
     }
 
     public function testDeleteAgentLlmConfig(): void
