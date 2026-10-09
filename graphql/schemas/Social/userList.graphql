@@ -72,9 +72,10 @@ extend type Query @guard {
     getUsersLists(
         where: _
             @whereConditions(
-                columns: ["id", "company_id", "name", "description"]
+                columns: ["id", "company_id", "name", "description", "is_default"]
             )
-        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+        orderBy: _
+            @orderBy(columns: ["created_at", "updated_at", "id", "is_default"])
     ): [UserList!]!
         @paginate(
             model: "Kanvas\\Social\\UsersLists\\Models\\UserList"
@@ -84,9 +85,10 @@ extend type Query @guard {
       getUsersListsEntities(
         where: _
             @whereConditions(
-                columns: ["id", "company_id", "name", "description"]
+                columns: ["id", "company_id", "name", "description", "is_default"]
             )
-        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+        orderBy: _
+            @orderBy(columns: ["created_at", "updated_at", "id", "is_default"])
     ): [UserList!]!
         @paginate(
             model: "Kanvas\\Social\\UsersLists\\Models\\UserList"

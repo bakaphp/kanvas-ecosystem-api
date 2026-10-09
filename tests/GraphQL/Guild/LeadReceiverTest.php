@@ -429,4 +429,54 @@ class LeadReceiverTest extends TestCase
         $names = array_column(json_decode($response, true)['data']['leadReceivers']['data'], 'name');
         $this->assertContains($name, $names);
     }
+
+    public function testLeadReceiversCanBeOrderedByIsDefault(): void
+    {
+        $this->createReceiver('ReceiverDefault-' . fake()->unique()->uuid(), true);
+        $this->createReceiver('ReceiverRegular-' . fake()->unique()->uuid(), false);
+
+        $query = '
+            query leadReceivers($orderBy: [QueryLeadReceiversOrderByOrderByClause!]) {
+                leadReceivers(orderBy: $orderBy) {
+                    data {
+                        name
+                        is_default
+                    }
+                }
+            }
+        ';
+
+        $descending = $this->graphQL($query, [
+            'orderBy' => [['column' => 'IS_DEFAULT', 'order' => 'DESC']],
+        ])->assertOk()->json('data.leadReceivers.data');
+
+        $ascending = $this->graphQL($query, [
+            'orderBy' => [['column' => 'IS_DEFAULT', 'order' => 'ASC']],
+        ])->assertOk()->json('data.leadReceivers.data');
+
+        $this->assertTrue($descending[0]['is_default']);
+        $this->assertFalse($ascending[0]['is_default']);
+    }
+
+    protected function createReceiver(string $name, bool $isDefault): void
+    {
+        $this->graphQL(
+            'mutation createLeadReceiver($input: LeadReceiverInput!) {
+                createLeadReceiver(input: $input) {
+                    id
+                }
+            }',
+            [
+                'input' => [
+                    'name' => $name,
+                    'agents_id' => auth()->user()->getId(),
+                    'is_default' => $isDefault,
+                    'rotations_id' => 1,
+                    'source_name' => 'source',
+                    'lead_sources_id' => 0,
+                    'lead_types_id' => 0,
+                ],
+            ]
+        )->assertOk();
+    }
 }

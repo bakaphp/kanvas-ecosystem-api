@@ -14,6 +14,7 @@ use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Scribe\Invoices\Models\InvoiceTaxLine;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
  * Creates a DRAFT invoice (or credit_note draft). No JE posts — drafts haven't hit the books yet.
@@ -36,7 +37,7 @@ class CreateInvoiceAction
 
     public function execute(): Invoice
     {
-        return DB::connection('accounting')->transaction(function (): Invoice {
+        $invoice = DB::connection('accounting')->transaction(function (): Invoice {
             [$totals, $baseTotals] = $this->computeTotals();
 
             $invoice = new Invoice();
@@ -143,6 +144,16 @@ class CreateInvoiceAction
 
             return $invoice;
         });
+
+        $invoice->fireWorkflowAfterCommit(
+            WorkflowEnum::CREATED->value,
+            [
+                'app' => $invoice->app,
+                'entity' => 'invoice',
+            ]
+        );
+
+        return $invoice;
     }
 
     /**

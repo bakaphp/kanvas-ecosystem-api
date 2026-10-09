@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Scribe\Bills\Actions\AllocateBillPaymentAction;
 use Kanvas\Scribe\Bills\Models\Bill;
@@ -14,15 +13,15 @@ use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use Kanvas\Scribe\Payments\Models\Payment;
 use Override;
 
-/** Applies a disbursement to an existing, already-pushed AP bill and pushes the payment to Acumatica. */
+/** Applies a disbursement to an existing AP bill in the Kanvas ledger. */
 #[AgentTool(name: 'Apply AP Payment', category: 'accounting')]
-class ApplyApPaymentTool extends AbstractApplyAcumaticaPaymentTool
+class ApplyApPaymentTool extends AbstractApplyPaymentTool
 {
     protected string $name = 'apply_ap_payment';
 
-    protected ?string $description = 'Applies a disbursement to an existing AP bill (partial or full) and pushes the '
-        . 'payment to Acumatica. Only call when the user explicitly asks to record a real vendor '
-        . 'payment against a bill — never on a whim.';
+    protected ?string $description = 'Applies a disbursement to an existing AP bill (partial or full) in Kanvas. '
+        . 'Only call when the user '
+        . 'explicitly asks to record a real vendor payment against a bill — never on a whim.';
 
     /**
      * @return array<string, mixed>
@@ -36,12 +35,6 @@ class ApplyApPaymentTool extends AbstractApplyAcumaticaPaymentTool
     protected function noun(): string
     {
         return 'bill';
-    }
-
-    #[Override]
-    protected function refCustomField(): string
-    {
-        return AcumaticaCustomFieldEnum::BILL_REF->value;
     }
 
     #[Override]
@@ -80,27 +73,6 @@ class ApplyApPaymentTool extends AbstractApplyAcumaticaPaymentTool
         return [
             'remaining_balance' => $fresh->balance_due_native,
             'document_status' => $fresh->document_status->value,
-        ];
-    }
-
-    /**
-     * A print-enabled Check method leaves the payment "Pending Print" — not posted to GL/closed — until someone runs Print/Release Checks (AP505000).
-     *
-     * @return array<string, mixed>
-     */
-    #[Override]
-    protected function additionalContext(?string $acumaticaPaymentStatus): array
-    {
-        if ($acumaticaPaymentStatus === null || $acumaticaPaymentStatus === 'Closed') {
-            return [];
-        }
-
-        return [
-            'acumatica_note' => "The payment is in Acumatica status \"{$acumaticaPaymentStatus}\", not yet "
-                . 'Closed. This bill\'s cash account uses a Check payment method with printing enabled, so '
-                . 'Acumatica queues the check instead of posting it — the bill will not actually close there '
-                . 'until someone runs Print/Release Checks (screen AP505000). Kanvas shows this bill as paid '
-                . 'for internal tracking, but the ERP side is still pending that manual step.',
         ];
     }
 }

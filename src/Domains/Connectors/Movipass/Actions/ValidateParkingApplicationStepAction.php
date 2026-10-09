@@ -65,8 +65,8 @@ class ValidateParkingApplicationStepAction
             return $this->normalizeClosures($value);
         }
 
-        if ($type === ParkingApplicationFieldTypeEnum::PAYMENT_METHODS) {
-            return $this->normalizePaymentMethods($field, $value);
+        if ($type === ParkingApplicationFieldTypeEnum::OPTION_LIST) {
+            return $this->normalizeOptionList($field, $value);
         }
 
         if ($value === null) {
@@ -355,25 +355,21 @@ class ValidateParkingApplicationStepAction
         return $normalized;
     }
 
-    private function normalizePaymentMethods(ParkingApplicationFieldEnum $field, mixed $value): array
+    private function normalizeOptionList(ParkingApplicationFieldEnum $field, mixed $value): array
     {
-        if (! is_array($value) || $value === []) {
-            throw new ValidationException("{$field->value} must be a non-empty list");
+        if (! is_array($value)) {
+            throw new ValidationException("{$field->value} must be a list");
         }
 
-        $methods = [];
+        $options = [];
 
-        foreach ($value as $method) {
-            $this->assertScalar($method, "{$field->value} entry");
-            $method = $this->assertOption($field, $method);
-            $methods[$method] = $method;
+        foreach ($value as $option) {
+            $this->assertScalar($option, "{$field->value} entry");
+            $option = $this->assertOption($field, $option);
+            $options[$option] = $option;
         }
 
-        if (! isset($methods['movipass'])) {
-            throw new ValidationException("{$field->value} must include movipass");
-        }
-
-        return array_values($methods);
+        return array_values($options);
     }
 
     private function assertCapacityBreakdownWithinTotal(array $normalized): void

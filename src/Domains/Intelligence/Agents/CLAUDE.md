@@ -552,7 +552,7 @@ There is no approved path for a free-text external recipient.
   - `properties[x].properties: should be non-empty for OBJECT type` for a bare OBJECT
 
   A list of records → `ArrayProperty` (always emits `items`) with an `ObjectProperty` item, see
-  [`CreateArCreditMemoTool`](Neuron/Tools/Acumatica/CreateArCreditMemoTool.php). A list of scalars →
+  [`CreateArCreditMemoTool`](Neuron/Tools/Accounting/CreateArCreditMemoTool.php). A list of scalars →
   `ArrayProperty` with a `ToolProperty` item, see [`CreatePersonTool`](Neuron/Tools/CRM/CreatePersonTool.php)'s
   `tags`. A **free-form key→value map** can't be expressed at all (Gemini has no `additionalProperties`) —
   declare it as STRING carrying a JSON object and decode with

@@ -53,6 +53,7 @@ final class CFOAgentSystemUserTest extends TestCase
 
         $this->assertStringContainsString('query_data_freshness FIRST', $instructions);
         $this->assertStringContainsString('Due to Employees', $instructions);
+        $this->assertStringContainsString('explicitly requests', $instructions);
         $this->assertStringContainsString('You ARE a Kanvas user', $instructions);
         // The hand-rolled SystemPrompt this replaced silently skipped the platform context.
         $this->assertStringContainsString('Kanvas is the orchestrator', $instructions);
@@ -73,6 +74,15 @@ final class CFOAgentSystemUserTest extends TestCase
         $this->assertContains('query_data_freshness', $names);
         $this->assertContains('query_balance_sheet', $names);
         $this->assertContains('query_cash_position', $names);
+        $this->assertContains('find_customer', $names);
+        $this->assertContains('find_vendor', $names);
+        foreach ([
+            'create_quote', 'find_quote', 'send_quote', 'answer_quote', 'convert_quote_to_invoice',
+            'generate_quote_pdf', 'generate_invoice_pdf', 'find_invoice', 'create_ar_invoice', 'apply_ar_payment',
+            'create_ap_bill', 'apply_ap_payment', 'find_bill', 'list_open_bills', 'extract_invoice_data', 'get_file_link',
+        ] as $toolName) {
+            $this->assertContains($toolName, $names);
+        }
         // Inherited from SystemUserAgent: company-wide self-memory, fine for an internal audience.
         $this->assertContains('read_my_ledger', $names);
     }

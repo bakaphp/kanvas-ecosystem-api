@@ -2,33 +2,28 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Connectors\Acumatica\Actions\AttachFileToAcumaticaInvoiceAction;
-use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
-use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\AttachesFileToDocumentForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPushedInvoiceForTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesInvoiceForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
-use Throwable;
 
-/** Attaches a file to an already-pushed AR invoice or credit memo, in Kanvas and in Acumatica. */
+/** Attaches a file to an AR invoice or credit memo in Kanvas Filesystem. */
 #[AgentTool(name: 'Attach Invoice File', category: 'accounting')]
 class AttachInvoiceFileTool extends Tool
 {
     use AttachesFileToDocumentForTool;
     use HasKanvasContext;
-    use ResolvesPushedInvoiceForTool;
+    use ResolvesInvoiceForTool;
 
     protected string $name = 'attach_invoice_file';
 
-    protected ?string $description = 'Attaches a file to an AR invoice or credit memo that has already been pushed to '
-        . 'Acumatica — stores it in Kanvas and uploads it to the Acumatica document too. Identify the '
+    protected ?string $description = 'Attaches a file to an AR invoice or credit memo in Kanvas Filesystem. Identify the '
         . 'file by filesystem_id when someone handed it to you this turn (an attachment marker, '
         . 'download_attachment), or by file_url when all you have is a link.';
 
@@ -87,7 +82,7 @@ class AttachInvoiceFileTool extends Tool
         ?string $file_name = null,
         ?string $field_name = null,
     ): array {
-        $invoice = $this->resolvePushedInvoice($invoice_id);
+        $invoice = $this->resolveInvoice($invoice_id);
 
         if (is_array($invoice)) {
             return ['file_attached' => false, ...$invoice];
@@ -105,27 +100,10 @@ class AttachInvoiceFileTool extends Tool
             return ['file_attached' => false, ...$file];
         }
 
-        $name = $file['name'];
-
-        try {
-            new AttachFileToAcumaticaInvoiceAction($invoice, $file['url'], $name)->execute();
-        } catch (AcumaticaWriteException|Throwable $e) {
-            return [
-                'file_attached' => true,
-                'pushed' => false,
-                'invoice_id' => $invoice->getId(),
-                'file_name' => $name,
-                'reason' => 'push_failed',
-                'message' => 'File saved in Kanvas but the push to Acumatica failed: ' . $e->getMessage(),
-            ];
-        }
-
         return [
             'file_attached' => true,
-            'pushed' => true,
             'invoice_id' => $invoice->getId(),
-            'invoice_ref' => (string) $invoice->get(AcumaticaCustomFieldEnum::INVOICE_REF->value, ''),
-            'file_name' => $name,
+            'file_name' => $file['name'],
         ];
     }
 }

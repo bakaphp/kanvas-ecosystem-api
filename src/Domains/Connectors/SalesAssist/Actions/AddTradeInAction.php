@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Actions;
 
+use Baka\Support\Arr;
 use Carbon\Carbon;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -27,7 +28,7 @@ class AddTradeInAction
 
     public function execute(array $message): array
     {
-        $formData = $message['data']['form'] ?? [];
+        $formData = $message['data']['form'] ?? Arr::fromLabelValuePairs($message['data'] ?? []);
 
         $importer = [
             'active' => 1,

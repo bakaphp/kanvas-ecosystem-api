@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Acumatica\Approvals;
+namespace Kanvas\Scribe\Approvals\Traits;
 
 use Kanvas\Scribe\Approvals\Enums\ApprovalAttachmentFieldEnum;
 use Kanvas\Scribe\Approvals\Enums\ApprovalCustomFieldEnum;
@@ -10,11 +10,10 @@ use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 
 /**
- * Reads back the source email and attachment that Apex/Arc stashed on the record at intake.
+ * Reads back the source email and attachment stashed on an accounting record at intake.
  *
- * The agent needs these to attach the original PDF and reply on the original thread, and it can only
- * do that once the record is actually pushed — so they travel out on the handler's result rather than
- * being read again later.
+ * They travel out on the approval handler's result so the agent can reply on the original thread
+ * without reading the record again.
  */
 trait ReadsApprovalSourceFields
 {
