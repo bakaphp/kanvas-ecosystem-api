@@ -96,7 +96,11 @@ class TaskWorkerBandTest extends TestCase
             'add_nervous_system_task',
             'dispatch_coding_task',
             'dispatch_long_task',
-            'send_email',
+            'send_lead_email',
+            'send_lead_sms',
+            'send_batch_message',
+            'create_lead_campaign',
+            'add_people_to_campaign',
             'cronjob',
             'update_agent_instructions',
         ] as $denied) {
@@ -136,7 +140,7 @@ class TaskWorkerBandTest extends TestCase
         $this->assertTrue(VerifierToolPolicy::permits('capability_lookup'));
 
         $this->assertFalse(VerifierToolPolicy::permits('update_nervous_system_task_status'));
-        $this->assertFalse(VerifierToolPolicy::permits('send_email'));
+        $this->assertFalse(VerifierToolPolicy::permits('send_lead_email'));
         $this->assertFalse(VerifierToolPolicy::permits('create_lead'));
     }
 
@@ -145,7 +149,8 @@ class TaskWorkerBandTest extends TestCase
     {
         $plan = $this->verifiedPlan();
 
-        $this->assertTrue(ApprovalPolicy::requiresApproval($plan, ['send_email']));
+        $this->assertTrue(ApprovalPolicy::requiresApproval($plan, ['send_lead_email']));
+        $this->assertTrue(ApprovalPolicy::requiresApproval($plan, ['create_lead_campaign']));
         $this->assertTrue(ApprovalPolicy::requiresApproval($plan, ['create_ar_invoice']));
         $this->assertTrue(ApprovalPolicy::requiresApproval($plan, ['update_agent_instructions']));
     }

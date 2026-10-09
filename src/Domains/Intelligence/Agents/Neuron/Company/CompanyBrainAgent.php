@@ -52,7 +52,7 @@ class CompanyBrainAgent extends SystemUserAgent
      * self-memory write that pairs with the inherited read_my_ledger; it touches only the agent's
      * own durable memory, nothing customer-facing.
      *
-     * It deliberately does NOT hardcode customer-facing sends (send_email/send_sms to a prospect),
+     * It deliberately does NOT hardcode customer-facing sends (send_lead_email/send_lead_sms to a prospect),
      * bulk (send_batch_message), or irreversible mutations — those belong to the specialist agents;
      * the brain recommends and hands off. Nor does it hardcode module-gated domains (accounting,
      * inventory): those depend on what the tenant actually runs, so they come in per-tenant through

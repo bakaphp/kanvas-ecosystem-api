@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
 use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
@@ -21,23 +22,25 @@ use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
 
 /**
- * Persist a message already delivered by an agent tool on the matching protocol channel.
+ * Persist a message already delivered (by an agent tool or a campaign) on the matching protocol channel.
  *
- * Tool delivery happens first. This action records that exact outbound on the SMS/email channel
- * used by inbound responders, so future turns can load one continuous protocol history. It does
- * not create a Session or fire the CREATED delivery workflow: the provider has already accepted
- * the message and must never be called twice.
+ * Delivery happens first. This action records that exact outbound on the SMS/email channel of the
+ * Lead or, for a person with no lead, of the People record, so the activity timeline and future agent
+ * turns see one continuous protocol history. It does not create a Session or fire the CREATED delivery
+ * workflow: the provider has already accepted the message and must never be called twice.
  */
-class PersistToolOutboundMessageAction
+class PersistOutboundMessageAction
 {
     public function __construct(
-        private readonly Lead $lead,
+        private readonly Lead|People $entity,
         private readonly Users $user,
         private readonly string $channelType,
         private readonly string $recipient,
         private readonly string $content,
         private readonly ?string $subject = null,
         private readonly ?Agent $agent = null,
+        private readonly bool $fromAi = true,
+        private readonly string $tag = 'agent-tool-delivery',
     ) {
     }
 
@@ -48,9 +51,10 @@ class PersistToolOutboundMessageAction
      */
     public function execute(array $providerResponse): array
     {
+        $people = $this->entity instanceof Lead ? $this->entity->people : $this->entity;
         $channel = $this->resolveProtocolChannel();
         $messageType = MessageTypeService::getOrCreate(
-            $this->lead->app,
+            $this->entity->app,
             match ($this->channelType) {
                 ChannelCategoryEnum::SMS->value => TwilioMessageTypeEnum::SMS->value,
                 ChannelCategoryEnum::EMAIL->value => ChannelCategoryEnum::MAILGUN->value,
@@ -59,22 +63,22 @@ class PersistToolOutboundMessageAction
         );
 
         $createMessage = new CreateMessageAction(new MessageInput(
-            app: $this->lead->app,
-            company: $this->lead->company,
+            app: $this->entity->app,
+            company: $this->entity->company,
             user: $this->user,
             type: $messageType,
             message: AiChatMessagePayload::from([
                 'content' => $this->content,
                 'from_me' => true,
-                'from_ia' => true,
+                'from_ia' => $this->fromAi,
                 'agent_id' => $this->agent?->getId(),
                 'raw_data' => $providerResponse,
                 'message_id' => '--',
                 'chat_jid' => $this->recipient,
             ])->toArray(),
-            tags: [$this->recipient, 'agent-tool-delivery'],
+            tags: [$this->recipient, $this->tag],
             is_public: 1,
-            people: $this->lead->people,
+            people: $people,
         ));
         $createMessage->runWorkflow = false;
         $message = $createMessage->execute();
@@ -85,9 +89,9 @@ class PersistToolOutboundMessageAction
         }
 
         $channel->addMessage($message);
-        $message->addEntity($this->lead);
-        if ($this->lead->people !== null) {
-            $message->addEntity($this->lead->people);
+        $message->addEntity($this->entity);
+        if ($this->entity instanceof Lead && $people !== null) {
+            $message->addEntity($people);
         }
 
         if ($this->channelType === ChannelCategoryEnum::SMS->value) {
@@ -99,13 +103,17 @@ class PersistToolOutboundMessageAction
 
     private function resolveProtocolChannel(): Channel
     {
+        $name = $this->entity instanceof Lead
+            ? ucfirst($this->channelType) . ' ' . $this->entity->getId()
+            : ucfirst($this->channelType) . ' People ' . $this->entity->getId();
+
         return new CreateChannelAction(ChannelDto::from([
-            'apps' => $this->lead->app,
-            'companies' => $this->lead->company,
-            'users' => $this->lead->user,
-            'entity_id' => $this->lead->getId(),
-            'entity_namespace' => Lead::class,
-            'name' => ucfirst($this->channelType) . ' ' . $this->lead->getId(),
+            'apps' => $this->entity->app,
+            'companies' => $this->entity->company,
+            'users' => $this->entity->user,
+            'entity_id' => $this->entity->getId(),
+            'entity_namespace' => $this->entity::class,
+            'name' => $name,
             'slug' => SessionChannelService::createChannelSlug($this->channelType, $this->recipient),
         ]))->execute();
     }

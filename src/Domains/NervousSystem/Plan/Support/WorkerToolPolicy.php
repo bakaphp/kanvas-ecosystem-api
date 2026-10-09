@@ -51,8 +51,11 @@ class WorkerToolPolicy extends ScopedToolPolicy
         'find_and_add_nervous_system_member',
 
         // Outbound. A worker that emails a customer has escaped every approval gate on the plan.
-        'send_email',
-        'send_sms',
+        'send_lead_email',
+        'send_lead_sms',
+        'send_batch_message',
+        'create_lead_campaign',
+        'add_people_to_campaign',
         'send_email_to_user',
         'send_slack_direct_message',
         'create_message',

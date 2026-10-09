@@ -78,7 +78,7 @@ class CompanyBrainAgentPersonaTest extends TestCase
 
         // Write-narrow: no customer-facing, bulk, or ownership-mutating tool is hardcoded on the type.
         // (remember is the one allowed write — it only touches the agent's own memory.)
-        foreach (['send_sms', 'send_email', 'send_batch_message', 'reassign_lead_owner'] as $forbidden) {
+        foreach (['send_lead_sms', 'send_lead_email', 'send_batch_message', 'reassign_lead_owner'] as $forbidden) {
             $this->assertNotContains($forbidden, $names, "Brain must NOT hardcode {$forbidden}");
         }
     }

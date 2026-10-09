@@ -18,9 +18,12 @@ use Kanvas\Guild\Campaigns\Models\Campaign;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Actions\RecordPeopleNoteAction;
 use Kanvas\Guild\Customers\Actions\SendEmailToPeopleAction;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\BatchRecipientResolverService;
+use Kanvas\Intelligence\Agents\Actions\Outreach\PersistOutboundMessageAction;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -105,7 +108,7 @@ class ProcessLeadCampaignJob implements ShouldQueue
         }
 
         try {
-            new SendMessageToLeadAction($lead)->execute(
+            $sent = new SendMessageToLeadAction($lead)->execute(
                 channel: $channel,
                 message: $this->campaign->message,
                 title: $this->campaign->subject,
@@ -114,6 +117,13 @@ class ProcessLeadCampaignJob implements ShouldQueue
             $recipient->destination = $to;
             $recipient->sent_at = Carbon::now();
             $this->markRecipient($recipient, CampaignRecipientStatusEnum::SENT);
+            $this->recordOutboundMessage(
+                $lead,
+                $channel,
+                $to,
+                $manager,
+                $sent
+            );
 
             // Per-customer audit note in the lead's own timeline, attributed to the manager
             // who ran the batch (not the AI). Self-guards; a note miss never fails the send.
@@ -166,7 +176,7 @@ class ProcessLeadCampaignJob implements ShouldQueue
         }
 
         try {
-            new SendEmailToPeopleAction($people)->execute(
+            $sent = new SendEmailToPeopleAction($people)->execute(
                 to: $to,
                 message: $this->campaign->message,
                 subject: $this->campaign->subject,
@@ -174,6 +184,13 @@ class ProcessLeadCampaignJob implements ShouldQueue
             $recipient->destination = $to;
             $recipient->sent_at = Carbon::now();
             $this->markRecipient($recipient, CampaignRecipientStatusEnum::SENT);
+            $this->recordOutboundMessage(
+                $people,
+                $channel,
+                $to,
+                $manager,
+                $sent
+            );
 
             new RecordPeopleNoteAction($people)->execute(
                 $this->campaign->subject !== null
@@ -194,6 +211,35 @@ class ProcessLeadCampaignJob implements ShouldQueue
             );
 
             return 'failed';
+        }
+    }
+
+    /**
+     * Already delivered, so a failure here is reported and swallowed: it must never mark a sent
+     * recipient failed, which would invite a resend.
+     *
+     * @param array<string, mixed> $providerResponse
+     */
+    private function recordOutboundMessage(
+        Lead|People $entity,
+        string $channel,
+        string $to,
+        Users $manager,
+        array $providerResponse
+    ): void {
+        try {
+            new PersistOutboundMessageAction(
+                entity: $entity,
+                user: $manager,
+                channelType: $channel,
+                recipient: $to,
+                content: $this->campaign->message,
+                subject: $this->campaign->subject,
+                fromAi: false,
+                tag: 'campaign',
+            )->execute($providerResponse);
+        } catch (Throwable $e) {
+            report($e);
         }
     }
 

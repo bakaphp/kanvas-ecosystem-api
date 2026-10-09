@@ -29,6 +29,8 @@ class ApprovalPolicy
     private const array ALWAYS_GATED = [
         // Anything that leaves the building.
         'send_',
+        'create_lead_campaign',
+        'add_people_to_campaign',
         'create_message',
         'hand_off_lead',
         'write_google_sheet',

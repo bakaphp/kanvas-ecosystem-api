@@ -10,7 +10,7 @@ use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Actions\Outreach\PersistToolOutboundMessageAction;
+use Kanvas\Intelligence\Agents\Actions\Outreach\PersistOutboundMessageAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\PropertyType;
@@ -19,16 +19,16 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Send SMS', category: 'crm')]
+#[AgentTool(name: 'Send SMS To Lead', category: 'crm')]
 class SendSmsTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    protected string $name = 'send_sms';
+    protected string $name = 'send_lead_sms';
 
-    protected ?string $description = 'Send one SMS to the phone already stored on a lead. '
+    protected ?string $description = 'LEADS ONLY: requires a lead_id. Send one SMS to the phone already stored on that lead. '
         . 'Use this only after the complete customer-facing message is ready. Call it at most once per message. '
-        . 'The recipient cannot be supplied or changed. For email, use send_email.';
+        . 'The recipient cannot be supplied or changed. For email, use send_lead_email.';
 
     public function __construct(
         private readonly ?Closure $sender = null,
@@ -65,7 +65,7 @@ class SendSmsTool extends Tool
         if ($message === '') {
             return [
                 'status' => 'error',
-                'message' => 'The message is empty. Write the complete message before calling send_sms.',
+                'message' => 'The message is empty. Write the complete message before calling send_lead_sms.',
             ];
         }
 
@@ -101,8 +101,8 @@ class SendSmsTool extends Tool
             ];
         }
 
-        $persisted = new PersistToolOutboundMessageAction(
-            lead: $lead,
+        $persisted = new PersistOutboundMessageAction(
+            entity: $lead,
             user: $this->contextUser() ?? $lead->company->getAiAgentUserOrFail(),
             channelType: LeadCommunicationChannelEnum::SMS->value,
             recipient: $contact->value,
