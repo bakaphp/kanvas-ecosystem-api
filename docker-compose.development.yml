@@ -83,7 +83,7 @@ services:
   # Headless Chromium via Playwright Browser Server. Internal only: ws://browser:3000/playwright
   # Image source: https://github.com/FredPeal/kanvas-playwright-server (tag = Playwright version)
   browser:
-    image: fredpeal/kanvas-playwright-browser:1.63.0
+    image: ghcr.io/fredpeal/kanvas-playwright-browser:1.63.0
     restart: unless-stopped
     logging: *default-logging
     init: true
@@ -96,7 +96,7 @@ services:
   # Official @playwright/mcp server attached to the browser service. Internal only: http://playwright-mcp:8931/mcp
   # Image source: https://github.com/FredPeal/kanvas-playwright-server (tag = @playwright/mcp version)
   playwright-mcp:
-    image: fredpeal/kanvas-playwright-mcp:0.0.80
+    image: ghcr.io/fredpeal/kanvas-playwright-mcp:0.0.80
     restart: unless-stopped
     logging: *default-logging
     init: true
