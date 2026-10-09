@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Sleep;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -21,6 +22,7 @@ use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
 use Kanvas\NervousSystem\Scheduling\Notifications\ScheduledReminderNotification;
 use Kanvas\NervousSystem\Scheduling\Services\ScheduledActionSweepService;
 use Kanvas\Users\Models\Users;
+use Tests\Stubs\Intelligence\BusyThreadNeuronAgentStub;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 
@@ -245,5 +247,69 @@ class ScheduledActionSweepAndFireTest extends TestCase
             ],
             'intelligence',
         );
+    }
+
+    /**
+     * A person is mid-turn with the agent in the same thread when the task comes due (KANVAS-ECOSYSTEM-6JQ):
+     * the task goes back on the queue instead of posting "I ran into a hiccup" and counting as fired.
+     */
+    public function testABusyThreadDefersTheAgentTaskInsteadOfFiringIt(): void
+    {
+        Sleep::fake();
+        [$app, $company, $user] = $this->context();
+        $action = $this->agentTask(BusyThreadNeuronAgentStub::class, 'Post the daily summary.');
+
+        $job = new RunScheduledAgentActionJob($app, $company, $action)->withFakeQueueInteractions();
+        $job->handle();
+
+        $job->assertReleased(delay: 60);
+        $action->refresh();
+        $this->assertNotSame(ScheduledActionStatusEnum::EXECUTED->value, $action->status);
+        $this->assertSame(0, (int) $action->occurrences_count);
+        $this->assertDatabaseMissing(
+            'nervous_system_events',
+            [
+                'source_entity_type' => ScheduledAction::class,
+                'source_entity_id' => $action->getId(),
+                'event_type' => 'scheduled_action.fired',
+            ],
+            'intelligence',
+        );
+    }
+
+    private function agentTask(string $handler, string $instruction): ScheduledAction
+    {
+        [$app, $company, $user] = $this->context();
+
+        $agentType = AgentType::factory()
+            ->withAppId($app->getId())
+            ->create([
+                'provider' => 'neuron',
+                'handler' => $handler,
+            ]);
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'agent_type_id' => $agentType->getId(),
+                'user_id' => $user->getId(),
+                'is_active' => true,
+            ]);
+
+        $action = new CreateScheduledActionAction(
+            new ScheduledActionData(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: ScheduledActionTypeEnum::AGENT_TASK,
+                timezone: 'UTC',
+                runAt: Carbon::now()->addHour(),
+                agent: $agent,
+                instruction: $instruction,
+            ),
+        )->execute();
+
+        return $this->makeDue($action);
     }
 }
