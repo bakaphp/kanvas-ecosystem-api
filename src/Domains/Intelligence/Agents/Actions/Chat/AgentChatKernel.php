@@ -102,9 +102,12 @@ class AgentChatKernel
             throw AgentProviderException::fromThrowable($e, $this->agent);
         }
 
-        $durationMs = (microtime(true) - $startTime) * 1000.0;
-        $this->trackUsage($response, $durationMs, $sessionId);
+        $threadWaitMs = $this->neuronRun?->threadWaitMs() ?? 0;
+        $durationMs = max(0.0, (microtime(true) - $startTime) * 1000.0 - $threadWaitMs);
 
+        // The broadcast carries the Social message id, which clients fetch by when the reply is too big
+        // for Pusher, so persistence comes first. Usage bookkeeping is nobody's wait: it runs after
+        // the person has the reply.
         if ($this->persistConversation) {
             $this->persistConversationToSocial($response);
         }
@@ -114,6 +117,13 @@ class AgentChatKernel
         if (! $this->privateUserTurn) {
             $this->broadcastChatResponse($sessionId, $response);
         }
+
+        $this->trackUsage(
+            $response,
+            $durationMs,
+            $sessionId,
+            $threadWaitMs,
+        );
 
         return $response;
     }
@@ -303,7 +313,8 @@ class AgentChatKernel
     protected function trackUsage(
         string $response,
         float $durationMs,
-        string $sessionId
+        string $sessionId,
+        int $threadWaitMs = 0,
     ): void {
         new TrackAgentUsageAction(
             agent: $this->agent,
@@ -314,6 +325,7 @@ class AgentChatKernel
             durationMs: $durationMs,
             sessionId: $sessionId,
             userId: $this->user->getId(),
+            threadWaitMs: $threadWaitMs,
         )->execute();
     }
 

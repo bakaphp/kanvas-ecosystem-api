@@ -54,6 +54,11 @@ type User {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@currentSubscription"
         )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getUserTagsBuilder"
+        )
 }
 
 type AddressType {
@@ -174,6 +179,7 @@ input UpdateUserInput {
     files: [FilesystemInputUrl!]
     role_ids: [ID!]
     addresses: [AddressInput!]
+    tags: [TagInput!]
 }
 
 input UserContactInput {

@@ -44,4 +44,15 @@ class OdooHandler extends BaseIntegration
 
         return true;
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::URL->value,
+            ConfigurationEnum::DATABASE->value,
+            ConfigurationEnum::USERNAME->value,
+            ConfigurationEnum::API_KEY->value,
+        ];
+    }
 }

@@ -81,17 +81,20 @@ final class SlackListenerSetupTest extends TestCase
 
     /**
      * There is no agent in the listener, so setup must never depend on the ai-agent-user-id config —
-     * nothing in the codebase sets that key and an admin has no way to reach it.
+     * an admin has no way to reach it. A fresh company has the key unset; deleting it from the shared
+     * company instead races the Mailgun agent tests in sibling paratest processes, which set it in
+     * setUp and read it mid-turn (company settings are not rolled back).
      */
     public function testSetupWorksForACompanyWithNoAiAgentUserConfigured(): void
     {
-        $this->company->del(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
+        $company = Companies::factory()->create();
+        $this->assertNull($company->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value));
 
-        $manifest = $this->manifest();
+        $manifest = $this->manifest($company);
 
         $this->assertStringContainsString('/v1/receiver/', $manifest['request_url']);
 
-        $receiver = new SlackListenerReceiverService()->findForCompany($this->kanvasApp, $this->company);
+        $receiver = new SlackListenerReceiverService()->findForCompany($this->kanvasApp, $company);
         $this->assertSame($this->user->getId(), $receiver->users_id);
     }
 
@@ -177,8 +180,8 @@ final class SlackListenerSetupTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function manifest(): array
+    private function manifest(?Companies $company = null): array
     {
-        return new GenerateSlackListenerManifestAction($this->kanvasApp, $this->company, $this->user)->execute();
+        return new GenerateSlackListenerManifestAction($this->kanvasApp, $company ?? $this->company, $this->user)->execute();
     }
 }

@@ -10,13 +10,48 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Intelligence\Agents\Enums\AgentMessageTypeEnum;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;
 use Kanvas\Intelligence\Knowledge\Sources\LeadKnowledgeSource;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Mockery;
 use Tests\TestCase;
 
 class LeadKnowledgeSourceTest extends TestCase
 {
+    /**
+     * The agent's private tool-call rows have no text key and render as their raw JSON, tool
+     * descriptions included; indexed, they carry the words of every customer question and bury the
+     * real documents.
+     */
+    public function testOnlyPublicHumanReadableMessagesAreIndexed(): void
+    {
+        $this->assertTrue(LeadKnowledgeSource::isIndexable($this->message(['content' => 'whats your address?'])));
+        $this->assertTrue(LeadKnowledgeSource::isIndexable($this->message(['content' => 'We open at 8:00 AM.', 'from_ia' => true])));
+
+        $this->assertFalse(LeadKnowledgeSource::isIndexable($this->message(['content' => '', 'tool_calls' => [['name' => 'handoff_lead']]])), 'A tool round is the agent talking to itself');
+        $this->assertFalse(LeadKnowledgeSource::isIndexable($this->message(['content' => '', 'tool_results' => [['name' => 'search_memory']]])));
+        $this->assertFalse(LeadKnowledgeSource::isIndexable($this->message(['content' => 'internal note'], isPublic: 0)), 'Private rows never reach the index');
+        $this->assertFalse(LeadKnowledgeSource::isIndexable($this->message(['content' => 'Summary of the thread'], verb: AgentMessageTypeEnum::AGENT_SUMMARY->value)));
+        $this->assertFalse(LeadKnowledgeSource::isIndexable($this->message(['from_ia' => true, 'raw_data' => 'x'])), 'A payload with no text renders as JSON and is noise');
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function message(array $payload, int $isPublic = 1, ?string $verb = null): Message
+    {
+        $message = new Message();
+        $message->setRawAttributes(['message' => json_encode($payload), 'is_public' => $isPublic], true);
+
+        $type = new MessageType();
+        $type->setRawAttributes(['verb' => $verb ?? 'twilio-sms'], true);
+        $message->setRelation('messageType', $type);
+
+        return $message;
+    }
+
     public function testBuildsStableTenantScopedProfileDocuments(): void
     {
         $app = Mockery::mock(Apps::class)->makePartial();

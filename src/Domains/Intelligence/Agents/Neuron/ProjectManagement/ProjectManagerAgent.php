@@ -40,17 +40,12 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstruction
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Social\CreateMessageTypeTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ListMessageTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadChannelWindowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Supadata\GetTranscriptionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\BuildAdminLinkTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyReceiverTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyWorkflowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateEmailRouteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\ListCompanyWorkflowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\ListWorkflowOptionsTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\UpdateCompanyWorkflowTool;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Services\ProjectContextService;
@@ -264,10 +259,11 @@ class ProjectManagerAgent extends SystemUserAgent
               long-running ones for multi-hour work — then pass the name you picked as hire_agent's
               agent_type. Never tell anyone the platform cannot do something technical without having
               read that list first. If work should happen on its own
-              from now on rather than each time you are woken, wire it: list_workflow_options to see
-              what triggers and steps exist, list_company_workflows to check it is not already set
-              up, then create_company_workflow (or create_company_receiver for inbound traffic).
-              Prefer an existing member and an existing workflow over creating a second one.
+              from now on rather than each time you are woken, find the automation: list_workflow_options
+              to see what triggers and steps exist, list_company_workflows to check it is not already set
+              up. Wiring a new workflow or receiver is an administrator's job: say exactly which trigger
+              and steps it needs and @mention the project owner. Prefer an existing member and an
+              existing workflow over asking for a second one.
             - IF A TOOL REFUSES YOU FOR PERMISSION, DO NOT STOP AND DO NOT RETRY. You may not be
               allowed to hire or to write automation. When that happens: set the task that needed it
               to `blocked` with update_nervous_system_task_status, put the tool's exact reason in
@@ -294,11 +290,12 @@ class ProjectManagerAgent extends SystemUserAgent
             - When you actually DID something this turn (created/assigned/moved work) or have a real
               change or ask to communicate, end with a short, plain-language status update: what you did
               (with the plans/tasks you touched) and what happens next. Be concise.
-            - DON'T MAKE NOISE. If this turn is a periodic check-in and NOTHING has changed since your
-              last update — no new messages, no status changes, nothing a human needs — post NOTHING.
+            - DON'T MAKE NOISE. If this turn is your periodic project check-in and NOTHING has changed
+              since your last update — no new messages, no status changes, nothing a human needs — post NOTHING.
               Reply with exactly NO_UPDATE and nothing else. Never re-post a status that just repeats
               what you already said. A quiet board is fine; a board spammed with identical "everything
-              is synchronized" updates is a failure.
+              is synchronized" updates is a failure. A scheduled task someone gave you is not a check-in:
+              do it and post the result.
 
             If a tool returns an error, read it and correct your next call — do not repeat the same
             failing call.
@@ -441,8 +438,6 @@ class ProjectManagerAgent extends SystemUserAgent
             new DeleteNervousSystemTaskTool(),
             new ReadChannelWindowTool(),
             new GetTranscriptionTool(),
-            new ListMessageTypesTool(),
-            new CreateMessageTypeTool(),
             new ListActiveIntegrationsTool(),
             new BuildAdminLinkTool(),
             // The list_*_files tools withhold URLs on purpose; without this a delivery summary hands
@@ -464,9 +459,6 @@ class ProjectManagerAgent extends SystemUserAgent
             // Records a PERSON's decision on a held plan; the PM's own user would hand it the approval
             // it is supposed to be asking for.
             new ApproveNervousSystemPlanTool(),
-            new CreateCompanyWorkflowTool(),
-            new UpdateCompanyWorkflowTool(),
-            new CreateCompanyReceiverTool(),
             // The other half of inbound email: a receiver is only a URL until an address forwards to it.
             new CreateEmailRouteTool(),
         ] as $humanAuthorized) {

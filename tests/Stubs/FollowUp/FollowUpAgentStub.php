@@ -65,6 +65,8 @@ class FollowUpAgentStub extends FollowUpAgent
      */
     public static ?string $lastThreadId = null;
 
+    public static ?bool $lastPrivateUserTurn = null;
+
     /** @var list<Document> */
     public static array $knowledgeDocuments = [];
 
@@ -80,6 +82,7 @@ class FollowUpAgentStub extends FollowUpAgent
         self::$retrievalCalls = 0;
         self::$lastSystemPrompt = null;
         self::$lastThreadId = null;
+        self::$lastPrivateUserTurn = null;
     }
 
     public static function lastPromptText(): string
@@ -161,6 +164,14 @@ class FollowUpAgentStub extends FollowUpAgent
     protected function messageStore(): MessageStoreInterface
     {
         return new InMemoryMessageStore();
+    }
+
+    #[Override]
+    public function setPrivateUserTurn(bool $private): void
+    {
+        self::$lastPrivateUserTurn = $private;
+
+        parent::setPrivateUserTurn($private);
     }
 
     #[Override]

@@ -13,6 +13,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
+use Kanvas\Intelligence\Agents\Enums\ConversationMessageKindEnum;
 use Kanvas\Intelligence\Agents\Helpers\ConversationStepsHelper;
 use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
@@ -189,6 +190,7 @@ class ConversationMessageStore extends KanvasMessageStore
 
         $meta = $message->jsonSerialize();
         unset($meta['__id'], $meta['role'], $meta['content'], $meta['usage'], $meta['tools'], $meta['__meta'][KanvasHistoryTrimmer::FOLDED_IDS]);
+        $kind = ConversationMessageKindEnum::of($message);
 
         $turnMedia = $isUserTurn ? $this->turnMedia : [];
         $attachments = array_map(
@@ -206,6 +208,7 @@ class ConversationMessageStore extends KanvasMessageStore
             'participant_id' => $participantId,
             'agent' => $this->agentClass,
             'role' => $role,
+            'kind' => $kind?->value,
             'is_public' => $isPublic,
             'content' => $content,
             'attachments' => json_encode($attachments),

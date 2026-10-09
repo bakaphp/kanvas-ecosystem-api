@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Services;
 
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Collection;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
@@ -25,6 +26,8 @@ use NeuronAI\Providers\AIProviderInterface;
 
 class AgentProviderService
 {
+    private const array GEMINI_THINKING_LEVELS = ['minimal', 'low', 'medium', 'high'];
+
     private const array KEYED_PROVIDER_CLASSES = [
         AgentLlmProviderEnum::ANTHROPIC->value => KanvasAnthropic::class,
         AgentLlmProviderEnum::OPENAI->value => KanvasOpenAI::class,
@@ -125,7 +128,7 @@ class AgentProviderService
             return new KanvasGemini(
                 key: self::requireKey($source, $agent, $provider),
                 model: $model,
-                parameters: $parameters,
+                parameters: self::withGeminiThinking($parameters, $app),
                 httpClient: $httpClient,
             );
         }
@@ -171,6 +174,26 @@ class AgentProviderService
             'model' => $model,
             'parameters' => [],
         ]);
+    }
+
+    /**
+     * The provider that rewrites a customer message into a search query before retrieval: the agent's
+     * own model and credentials with thinking low (the one level every Gemini 3 model accepts). The job
+     * is one line of text, and at the default level a thinking model makes the customer wait on it
+     * before the agent even starts.
+     */
+    public static function queryRewriteProvider(Agent $agent): AIProviderInterface
+    {
+        $source = self::resolveSource($agent);
+
+        if (self::providerFrom($source) === AgentLlmProviderEnum::GEMINI) {
+            $source['parameters'] = self::withThinkingConfig(
+                is_array($source['parameters'] ?? null) ? $source['parameters'] : [],
+                ['thinkingLevel' => 'low'],
+            );
+        }
+
+        return self::makeProvider($agent, $source);
     }
 
     /**
@@ -281,7 +304,52 @@ class AgentProviderService
         return (string) ($source['model']
             ?? $app->get(ConfigurationEnum::AI_PROVIDER_MODEL->value)
             ?? $app->get(ConfigurationEnum::GEMINI_MODEL->value)
-            ?? 'gemini-3.7-flash');
+            ?? 'gemini-3.8-flash');
+    }
+
+    /**
+     * The request body carries `generationConfig.thinkingConfig`; the app setting fills it when the
+     * selected config did not.
+     *
+     * @param array<string, mixed> $parameters
+     * @return array<string, mixed>
+     */
+    private static function withGeminiThinking(array $parameters, Apps $app): array
+    {
+        if (isset($parameters['generationConfig']['thinkingConfig'])) {
+            return $parameters;
+        }
+
+        $setting = Str::trimToNull((string) $app->get(AgentRunConfigurationEnum::GEMINI_THINKING->value));
+
+        if ($setting === null) {
+            return $parameters;
+        }
+
+        $level = strtolower($setting);
+        $thinking = match (true) {
+            is_numeric($setting) => ['thinkingBudget' => (int) $setting],
+            in_array($level, self::GEMINI_THINKING_LEVELS, true) => ['thinkingLevel' => $level],
+            default => null,
+        };
+
+        if ($thinking === null) {
+            return $parameters;
+        }
+
+        return self::withThinkingConfig($parameters, $thinking);
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     * @param array<string, int|string> $thinking
+     * @return array<string, mixed>
+     */
+    private static function withThinkingConfig(array $parameters, array $thinking): array
+    {
+        $parameters['generationConfig'] = [...($parameters['generationConfig'] ?? []), 'thinkingConfig' => $thinking];
+
+        return $parameters;
     }
 
     /**

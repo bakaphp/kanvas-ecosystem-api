@@ -40,7 +40,9 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
+use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Ramsey\Uuid\Uuid;
 use Throwable;
@@ -77,6 +79,14 @@ class SendMessageToLeadAction
     protected int $retryNumber = 0;
     protected ?int $parentAttemptId = null;
     protected bool $isOptOutConfirmation = false;
+    protected ?Users $signatureOwner = null;
+
+    public function withSignatureOwner(?Users $user): self
+    {
+        $this->signatureOwner = $user;
+
+        return $this;
+    }
 
     public function __construct(
         protected Lead $lead,
@@ -133,7 +143,8 @@ class SendMessageToLeadAction
                 LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage(
                     $message,
                     $title,
-                    $signature,
+                    // Internal assistants act for the owner, not as the customer-facing persona.
+                    $signature && ! ($fromAgent?->conversesWithUser() ?? false),
                     $to,
                     $cc,
                     $fromAgent,
@@ -983,6 +994,10 @@ class SendMessageToLeadAction
 
         $this->guardDestinationOptOut((string) $leadEmail, LeadCommunicationChannelEnum::EMAIL->value);
 
+        $ownerSignature = ($fromAgent?->conversesWithUser() ?? false)
+            ? UserEmailSignature::fromUser($this->signatureOwner)
+            : null;
+
         $mailboxAddress = $fromAgent !== null
             ? new AgentMailboxService()->addressFor($fromAgent)
             : null;
@@ -995,6 +1010,7 @@ class SendMessageToLeadAction
                 markdownBody: $message,
                 cc: $ccList,
                 attachmentUrls: $attachments,
+                signature: $ownerSignature,
             )->execute();
 
             return $this->emailResult(
@@ -1011,6 +1027,7 @@ class SendMessageToLeadAction
 
         // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
         $message = MarkdownEmailRenderer::toEmailHtml($message);
+        $message .= $ownerSignature?->toHtml() ?? '';
 
         $notification = new Blank(
             'first-time-agent-engagement',

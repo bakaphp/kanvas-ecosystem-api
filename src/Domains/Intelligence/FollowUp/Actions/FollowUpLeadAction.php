@@ -191,6 +191,9 @@ final class FollowUpLeadAction
                 // of this cron session's few messages — the same pattern as channel responders.
                 sourceChannel: $session->channel,
                 persistConversation: false,
+                // The prompt is the follow-up template, not the lead's words. Kept out of memory so a
+                // later turn cannot recall it as a request; the sent follow-up is stored on the lead.
+                privateUserTurn: true,
             )->execute();
             $result = AgentFollowUpResult::fromKernelResponse($raw);
         } catch (AgentReplySkippedException $e) {

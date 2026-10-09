@@ -39,4 +39,13 @@ class MailgunHandler extends BaseIntegration
 
         return $this->company->get(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value) === $webhookSigningKey;
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::WEBHOOK_SIGNING_KEY->value,
+            ConfigurationEnum::DOMAIN->value,
+        ];
+    }
 }

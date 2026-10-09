@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Chat\WakeAgentInSessionAction;
 use Kanvas\NervousSystem\Capability\Models\McpAsyncJob;
+use NeuronAI\Exceptions\RunInFlightException;
 
 class ResumeAgentFromMcpAsyncJob implements ShouldQueue
 {
@@ -23,7 +24,15 @@ class ResumeAgentFromMcpAsyncJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 1;
+    /**
+     * Retries exist only for a busy thread, which releases without throwing; any real failure ends the
+     * job on the first exception, so a turn that already ran tools is never run twice.
+     */
+    public int $tries = 3;
+
+    public int $maxExceptions = 1;
+
+    public int $backoff = 60;
 
     public function __construct(
         public readonly Apps $app,
@@ -50,12 +59,16 @@ class ResumeAgentFromMcpAsyncJob implements ShouldQueue
             return;
         }
 
-        new WakeAgentInSessionAction(
-            agent: $agent,
-            session: $session,
-            instruction: $this->asyncJob->resumeInstruction(),
-            user: $user,
-            verb: 'mcp-job-reply',
-        )->execute();
+        try {
+            new WakeAgentInSessionAction(
+                agent: $agent,
+                session: $session,
+                instruction: $this->asyncJob->resumeInstruction(),
+                user: $user,
+                verb: 'mcp-job-reply',
+            )->execute();
+        } catch (RunInFlightException) {
+            $this->release($this->backoff);
+        }
     }
 }

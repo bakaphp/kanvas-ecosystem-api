@@ -64,4 +64,13 @@ class HermesHandler extends BaseIntegration
 
         return true;
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::DEFAULT_MACHINE_ID->value,
+            ConfigurationEnum::GATEWAY_TOKEN->value,
+        ];
+    }
 }
