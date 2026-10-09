@@ -8,7 +8,6 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Actions\ImportPeopleRowsAction;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 final class ImportPeopleRowsActionTest extends TestCase
