@@ -15,6 +15,7 @@ use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Stripe\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Stripe\Webhooks\StripePaymentLinkWebhookJob;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
@@ -69,7 +70,7 @@ final class StripePaymentLinkWebhookJobTest extends TestCase
         $submitted = $this->submittedEngagementsFor($sentMessage);
         $this->assertCount(1, $submitted, $result['message']);
         $this->assertSame($sentMessage->getId(), Message::getById($submitted->first()->message_id)->parent_id);
-        $this->assertSame('cs_paid', $sentMessage->fresh()->get('stripe_checkout_session_id'));
+        $this->assertSame('cs_paid', $sentMessage->fresh()->get(CustomFieldEnum::STRIPE_CHECKOUT_SESSION_ID->value));
     }
 
     public function testRedeliveredCheckoutDoesNotSubmitTwice(): void
@@ -100,6 +101,28 @@ final class StripePaymentLinkWebhookJobTest extends TestCase
         $result = $this->dispatchCheckout(null, 'cs_plain_checkout');
 
         $this->assertSame('Checkout session has no payment link', $result['message']);
+        $this->assertCount(0, $this->submittedEngagementsFor($sentMessage));
+    }
+
+    public function testSharedAccountReceiverResolvesTheCompanyFromTheLead(): void
+    {
+        $this->shareReceiverAcrossApp();
+        $sentMessage = $this->sendDepositLink('plink_shared');
+        $leadId = Engagement::where('message_id', $sentMessage->getId())->firstOrFail()->leads_id;
+
+        $this->dispatchCheckout('plink_shared', 'cs_shared', metadata: ['leads_id' => (string) $leadId]);
+
+        $this->assertCount(1, $this->submittedEngagementsFor($sentMessage));
+    }
+
+    public function testSharedAccountReceiverIgnoresASessionWithoutALead(): void
+    {
+        $this->shareReceiverAcrossApp();
+        $sentMessage = $this->sendDepositLink('plink_shared_no_lead');
+
+        $result = $this->dispatchCheckout('plink_shared_no_lead', 'cs_shared_no_lead');
+
+        $this->assertStringContainsString('No lead found', $result['message']);
         $this->assertCount(0, $this->submittedEngagementsFor($sentMessage));
     }
 
@@ -192,7 +215,7 @@ final class StripePaymentLinkWebhookJobTest extends TestCase
                     'data' => ['amount' => 500],
                 ],
             ]);
-        $message->set('stripe_payment_link_id', $paymentLinkId);
+        $message->set(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value, $paymentLinkId);
 
         Engagement::create([
             'companies_id' => $this->company->getId(),
@@ -219,16 +242,30 @@ final class StripePaymentLinkWebhookJobTest extends TestCase
             ->get();
     }
 
-    private function dispatchCheckout(?string $paymentLinkId, string $sessionId, string $paymentStatus = 'paid'): array
+    private function shareReceiverAcrossApp(): void
     {
-        $raw = json_encode($this->checkoutEvent($paymentLinkId, $sessionId, $paymentStatus));
+        $this->receiver->configuration = [ConfigurationEnum::STRIPE_SHARED_APP_ACCOUNT->value => true];
+        $this->receiver->saveOrFail();
+    }
+
+    private function dispatchCheckout(
+        ?string $paymentLinkId,
+        string $sessionId,
+        string $paymentStatus = 'paid',
+        array $metadata = []
+    ): array {
+        $raw = json_encode($this->checkoutEvent($paymentLinkId, $sessionId, $paymentStatus, $metadata));
         $call = new ProcessWebhookAttemptAction($this->receiver, $this->request($raw, $this->sign($raw, self::SECRET)))->execute();
 
         return new StripePaymentLinkWebhookJob($call)->handle() ?? ['message' => (string) json_encode($call->fresh()->exception)];
     }
 
-    private function checkoutEvent(?string $paymentLinkId, string $sessionId, string $paymentStatus): array
-    {
+    private function checkoutEvent(
+        ?string $paymentLinkId,
+        string $sessionId,
+        string $paymentStatus,
+        array $metadata = []
+    ): array {
         return [
             'id' => 'evt_' . uniqid(),
             'object' => 'event',
@@ -240,6 +277,7 @@ final class StripePaymentLinkWebhookJobTest extends TestCase
                     'payment_link' => $paymentLinkId,
                     'payment_status' => $paymentStatus,
                     'amount_total' => 50000,
+                    'metadata' => $metadata,
                 ],
             ],
         ];

@@ -11,7 +11,11 @@ use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
 use Kanvas\ActionEngine\Engagements\Models\Engagement as ModelsEngagement;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Stripe\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Stripe\Webhooks\Concerns\VerifiesStripeSignature;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
@@ -21,9 +25,6 @@ use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use NotificationChannels\Expo\ExpoChannel;
 use Override;
-use Stripe\Exception\SignatureVerificationException;
-use Stripe\Webhook;
-use UnexpectedValueException;
 
 #[WorkflowAction(
     name: 'Stripe Payment Link Webhook',
@@ -34,6 +35,8 @@ use UnexpectedValueException;
 )]
 class StripePaymentLinkWebhookJob extends ProcessWebhookJob
 {
+    use VerifiesStripeSignature;
+
     /**
      * Stripe signs each endpoint with its own secret, so it lives on the receiver rather than the
      * company (where the order-payment receiver keeps its own). Receivers wired before the secret
@@ -44,23 +47,7 @@ class StripePaymentLinkWebhookJob extends ProcessWebhookJob
     {
         $secret = (string) ($receiver->configuration[ConfigurationEnum::STRIPE_WEBHOOK_SECRET->value] ?? '');
 
-        if ($secret === '') {
-            return true;
-        }
-
-        $signature = $request->header('Stripe-Signature');
-
-        if (! is_string($signature) || $signature === '') {
-            return false;
-        }
-
-        try {
-            Webhook::constructEvent($request->getContent(), $signature, $secret);
-        } catch (SignatureVerificationException|UnexpectedValueException) {
-            return false;
-        }
-
-        return true;
+        return $secret === '' || self::hasValidStripeSignature($request, $secret);
     }
 
     #[Override]
@@ -69,11 +56,8 @@ class StripePaymentLinkWebhookJob extends ProcessWebhookJob
         $payload = $this->webhookRequest->payload;
         $eventType = $payload['type'] ?? null;
 
-        // Handle different event types
         return match ($eventType) {
             'checkout.session.completed' => $this->handleCheckoutCompleted($payload),
-            // 'checkout.session.async_payment_succeeded' => $this->handleAsyncPaymentSucceeded($payload),
-            // 'checkout.session.async_payment_failed' => $this->handleAsyncPaymentFailed($payload),
             default => [
                 'message' => 'Event type not handled: ' . $eventType,
                 'response' => null,
@@ -105,10 +89,19 @@ class StripePaymentLinkWebhookJob extends ProcessWebhookJob
             ];
         }
 
+        $company = $this->resolveCompany($session);
+
+        if (! $company) {
+            return [
+                'message' => 'No lead found for shared Stripe account session: ' . ($session['metadata']['leads_id'] ?? 'null'),
+                'response' => null,
+            ];
+        }
+
         $message = Message::getByCustomFieldTransactionSafe(
-            'stripe_payment_link_id',
+            CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value,
             $paymentLinkId,
-            $this->webhookRequest->receiverWebhook->company
+            $company
         );
 
         if (! $message) {
@@ -118,8 +111,8 @@ class StripePaymentLinkWebhookJob extends ProcessWebhookJob
             ];
         }
 
-        $engagement = ModelsEngagement::fromApp($this->webhookRequest->receiverWebhook->app)
-            ->fromCompany($this->webhookRequest->receiverWebhook->company)
+        $engagement = ModelsEngagement::fromApp($this->receiver->app)
+            ->fromCompany($company)
             ->where('message_id', $message->getId())
             ->first();
 
@@ -131,9 +124,11 @@ class StripePaymentLinkWebhookJob extends ProcessWebhookJob
         }
 
         // Stripe redelivers until it sees a 2xx, and every delivery would otherwise submit again and re-notify.
-        if ($message->get('stripe_checkout_session_id') !== null) {
+        $processedSessionId = $message->get(CustomFieldEnum::STRIPE_CHECKOUT_SESSION_ID->value);
+
+        if ($processedSessionId !== null) {
             return [
-                'message' => 'Checkout session already processed: ' . $message->get('stripe_checkout_session_id'),
+                'message' => 'Checkout session already processed: ' . $processedSessionId,
                 'response' => null,
             ];
         }
@@ -147,18 +142,17 @@ class StripePaymentLinkWebhookJob extends ProcessWebhookJob
             $action,
             'sent',
             'DESC'
-        );
+        )->first();
 
         $taskId = $lead->get('check_list_status') ?? $lead->company->get('default_checklist_id');
 
-        // Create engagement data manually
         $engagementData = new Engagement(
             app: $lead->app,
             company: $lead->company,
             user: $owner,
             lead: $lead,
             action: $action,
-            requestId: $firstEngagement->exists() ? (string)$firstEngagement->first()->entity_uuid : $engagement->entity_uuid,
+            requestId: (string) ($firstEngagement ?? $engagement)->entity_uuid,
             source: 'stripe',
             status: ActionStatusEnum::SUBMITTED,
             people: $lead->people,
@@ -169,10 +163,10 @@ class StripePaymentLinkWebhookJob extends ProcessWebhookJob
         );
 
         $submittedEngagement = new CreateEngagementAction($engagementData)->execute();
-        $submittedMessage = Message::getById($submittedEngagement->message_id, $this->webhookRequest->receiverWebhook->app);
+        $submittedMessage = Message::getById($submittedEngagement->message_id, $this->receiver->app);
         $submittedMessage->parent_id = $message->getId();
         $submittedMessage->saveOrFail();
-        $message->set('stripe_checkout_session_id', (string) $session['id']);
+        $message->set(CustomFieldEnum::STRIPE_CHECKOUT_SESSION_ID->value, (string) $session['id']);
 
         $notificationMessage = new MessageNotificationTextAction($submittedEngagement, $submittedMessage)->notificationText();
         $notification = new Blank(
@@ -195,8 +189,25 @@ class StripePaymentLinkWebhookJob extends ProcessWebhookJob
         return [
             'message' => 'Checkout session completed processed successfully.',
             'response' => $submittedEngagement,
-            'first_engagement' => $firstEngagement->first()?->getId(),
+            'first_engagement' => $firstEngagement?->getId(),
             'last_engagement' => $submittedEngagement->getId(),
         ];
+    }
+
+    /**
+     * A receiver on the app-level Stripe key serves every company on it, so the paying lead
+     * (copied from the payment link's metadata onto the session) decides the company.
+     */
+    protected function resolveCompany(array $session): ?Companies
+    {
+        if (! ($this->receiver->configuration[ConfigurationEnum::STRIPE_SHARED_APP_ACCOUNT->value] ?? false)) {
+            return $this->receiver->company;
+        }
+
+        return Lead::query()
+            ->fromApp($this->receiver->app)
+            ->where('id', (int) ($session['metadata']['leads_id'] ?? 0))
+            ->first()
+            ?->company;
     }
 }
