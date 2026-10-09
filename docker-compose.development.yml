@@ -101,15 +101,9 @@ services:
     logging: *default-logging
     init: true
     environment:
+      # The image reads these itself; point BROWSER_WS_ENDPOINT at any Browser Server, local or remote.
+      BROWSER_WS_ENDPOINT: ${BROWSER_WS_ENDPOINT:-ws://browser:3000/playwright}
       PLAYWRIGHT_MCP_PORT: ${PLAYWRIGHT_MCP_PORT:-8931}
-    command:
-      - node
-      - node_modules/@playwright/mcp/cli.js
-      - --endpoint=${BROWSER_WS_ENDPOINT:-ws://browser:3000/playwright}
-      - --host=0.0.0.0
-      - --port=${PLAYWRIGHT_MCP_PORT:-8931}
-      - --allowed-hosts=playwright-mcp:${PLAYWRIGHT_MCP_PORT:-8931},localhost:${PLAYWRIGHT_MCP_PORT:-8931},127.0.0.1:${PLAYWRIGHT_MCP_PORT:-8931}
-      - --isolated
     expose:
       - "${PLAYWRIGHT_MCP_PORT:-8931}"
     networks:
