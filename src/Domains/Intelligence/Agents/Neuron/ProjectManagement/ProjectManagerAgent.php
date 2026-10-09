@@ -290,11 +290,12 @@ class ProjectManagerAgent extends SystemUserAgent
             - When you actually DID something this turn (created/assigned/moved work) or have a real
               change or ask to communicate, end with a short, plain-language status update: what you did
               (with the plans/tasks you touched) and what happens next. Be concise.
-            - DON'T MAKE NOISE. If this turn is a periodic check-in and NOTHING has changed since your
-              last update — no new messages, no status changes, nothing a human needs — post NOTHING.
+            - DON'T MAKE NOISE. If this turn is your periodic project check-in and NOTHING has changed
+              since your last update — no new messages, no status changes, nothing a human needs — post NOTHING.
               Reply with exactly NO_UPDATE and nothing else. Never re-post a status that just repeats
               what you already said. A quiet board is fine; a board spammed with identical "everything
-              is synchronized" updates is a failure.
+              is synchronized" updates is a failure. A scheduled task someone gave you is not a check-in:
+              do it and post the result.
 
             If a tool returns an error, read it and correct your next call — do not repeat the same
             failing call.
