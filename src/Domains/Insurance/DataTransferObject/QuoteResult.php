@@ -33,6 +33,26 @@ class QuoteResult
         /** The insurer's inspection state for this quote, in their own words. */
         public readonly ?string $inspectionStatus = null,
         public readonly array $raw = [],
+        public readonly ?string $productCode = null,
     ) {
+    }
+
+    public function withoutRaw(): self
+    {
+        return new self(
+            success: $this->success,
+            message: $this->message,
+            quoteNumber: $this->quoteNumber,
+            premium: $this->premium,
+            ratePerKm: $this->ratePerKm,
+            tax: $this->tax,
+            total: $this->total,
+            currency: $this->currency,
+            commission: $this->commission,
+            canEmit: $this->canEmit,
+            inspectionStatus: $this->inspectionStatus,
+            raw: [],
+            productCode: $this->productCode,
+        );
     }
 }

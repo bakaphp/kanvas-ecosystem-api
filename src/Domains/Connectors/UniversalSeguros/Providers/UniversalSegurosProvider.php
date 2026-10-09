@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\UniversalSeguros\Providers;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use DomainException;
 use Kanvas\Connectors\UniversalSeguros\DataTransferObject\PaymentInformation;
 use Kanvas\Connectors\UniversalSeguros\DataTransferObject\QuoteRequest;
@@ -15,6 +16,7 @@ use Kanvas\Connectors\UniversalSeguros\Enums\DocumentTransactionEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\ProductEnum;
 use Kanvas\Connectors\UniversalSeguros\Services\UniversalSegurosService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Insurance\Contracts\CanonicalQuoteProviderInterface;
 use Kanvas\Insurance\Contracts\CatalogProviderInterface;
 use Kanvas\Insurance\Contracts\InspectionProviderInterface;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
@@ -24,7 +26,11 @@ use Kanvas\Insurance\Contracts\PolicyEmissionProviderInterface;
 use Kanvas\Insurance\Contracts\PolicySyncProviderInterface;
 use Kanvas\Insurance\Contracts\ProductCatalogProviderInterface;
 use Kanvas\Insurance\Contracts\QuoteUpdateProviderInterface;
+use Kanvas\Insurance\Contracts\VehicleModelCatalogProviderInterface;
+use Kanvas\Insurance\DataTransferObject\CanonicalQuoteInput;
+use Kanvas\Insurance\DataTransferObject\CanonicalVehicle;
 use Kanvas\Insurance\DataTransferObject\DocumentUploadResult;
+use Kanvas\Insurance\DataTransferObject\ExternalVehicleModel;
 use Kanvas\Insurance\DataTransferObject\InsuranceDocument;
 use Kanvas\Insurance\DataTransferObject\InsurancePaymentReport;
 use Kanvas\Insurance\DataTransferObject\InsuranceProduct;
@@ -33,14 +39,17 @@ use Kanvas\Insurance\DataTransferObject\PaymentLinkResult;
 use Kanvas\Insurance\DataTransferObject\PaymentReportResult;
 use Kanvas\Insurance\DataTransferObject\PolicyResult;
 use Kanvas\Insurance\DataTransferObject\QuoteResult;
+use Kanvas\Insurance\DataTransferObject\VehicleInsuranceProfile;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceDocumentTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Services\CatalogCache;
+use Kanvas\Insurance\Services\InsuranceVehicleModelResolver;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 
 class UniversalSegurosProvider implements
+    CanonicalQuoteProviderInterface,
     CatalogProviderInterface,
     InspectionProviderInterface,
     InsuranceProviderInterface,
@@ -49,7 +58,8 @@ class UniversalSegurosProvider implements
     PolicyEmissionProviderInterface,
     PolicySyncProviderInterface,
     ProductCatalogProviderInterface,
-    QuoteUpdateProviderInterface
+    QuoteUpdateProviderInterface,
+    VehicleModelCatalogProviderInterface
 {
     public const NAME = 'universal_seguros';
 
@@ -87,8 +97,60 @@ class UniversalSegurosProvider implements
             ?? throw new ValidationException('Unknown Universal Seguros product: ' . $request->product);
 
         return $this->toQuoteResult(
-            $this->service->quote(QuoteRequest::make($product, $request->payload))
+            $this->service->quote(QuoteRequest::make($product, $this->payloadWithVehicle($request)))
         );
+    }
+
+    public function requiresVehicleModelId(): bool
+    {
+        return true;
+    }
+
+    public function quoteCanonical(
+        CanonicalQuoteInput $input,
+        string $planCode,
+        ?string $vehicleModelId
+    ): QuoteResult {
+        $product = ProductEnum::tryFrom($planCode)
+            ?? throw new ValidationException('Unknown Universal Seguros product: ' . $planCode);
+
+        return $this->quote(
+            new InsuranceQuoteRequest(
+                product: $planCode,
+                payload: ['vehiculo' => $this->canonicalVehiculo($input, $product, $vehicleModelId)],
+            )
+        );
+    }
+
+    protected function canonicalVehiculo(
+        CanonicalQuoteInput $input,
+        ProductEnum $product,
+        ?string $vehicleModelId
+    ): array {
+        $profile = $input->profile;
+        $missing = array_keys(array_filter([
+            'vehicle model' => ! is_numeric($vehicleModelId),
+            'year' => $input->vehicle->year === null,
+            'fuel_type' => $profile->fuelType === null,
+            'estimated_value' => $profile->estimatedValue === null,
+        ]));
+
+        if ($missing !== []) {
+            throw new ValidationException('Universal Seguros quote needs: ' . implode(', ', $missing));
+        }
+
+        $value = (int) round((float) $profile->estimatedValue);
+
+        return array_filter([
+            'idModelo' => (int) $vehicleModelId,
+            'anio' => $input->vehicle->year,
+            'esCeroKm' => $profile->isZeroKm ?? false,
+            'combustible' => $profile->fuelType?->universalValue(),
+            'cumpleRequisitos' => true,
+            'esUsoParticularNoDeportivoNoPublico' => true,
+            'valor' => $value,
+            'sumaAsegurada' => $product === ProductEnum::POR_SI_CHOCAS ? $value : null,
+        ], fn (mixed $field): bool => $field !== null);
     }
 
     public function updateQuote(string $quoteNumber, InsuranceQuoteRequest $request): QuoteResult
@@ -97,7 +159,7 @@ class UniversalSegurosProvider implements
             ?? throw new ValidationException('Unknown Universal Seguros product: ' . $request->product);
 
         return $this->toQuoteResult(
-            $this->service->updateQuote($quoteNumber, QuoteRequest::make($product, $request->payload))
+            $this->service->updateQuote($quoteNumber, QuoteRequest::make($product, $this->payloadWithVehicle($request)))
         );
     }
 
@@ -254,6 +316,54 @@ class UniversalSegurosProvider implements
         };
     }
 
+    public function vehicleModelEntries(): array
+    {
+        $catalog = $this->cached('vehicle_models', [], fn (): array => $this->service->getVehicleModels());
+        $brands = is_array($catalog['data'] ?? null) ? $catalog['data'] : $catalog;
+        $entries = [];
+
+        foreach ($brands as $brand) {
+            foreach (is_array($brand['modelos'] ?? null) ? $brand['modelos'] : [] as $model) {
+                if (is_array($model) && isset($model['idModelo'], $model['modelo'], $brand['marca'])) {
+                    $entries[] = new ExternalVehicleModel(
+                        brand: (string) $brand['marca'],
+                        model: (string) $model['modelo'],
+                        externalId: (string) $model['idModelo'],
+                    );
+                }
+            }
+        }
+
+        return $entries;
+    }
+
+    protected function payloadWithVehicle(InsuranceQuoteRequest $request): array
+    {
+        $payload = $request->payload;
+        $product = $request->vehicle?->product;
+
+        if ($product === null || ! is_array($payload['vehiculo'] ?? null)) {
+            return $payload;
+        }
+
+        $canonical = CanonicalVehicle::fromProduct($product);
+        $profile = VehicleInsuranceProfile::fromProduct($product);
+        $modelId = new InsuranceVehicleModelResolver()->resolve($this->app, self::NAME, $canonical);
+
+        $defaults = array_filter([
+            'idModelo' => is_numeric($modelId) ? (int) $modelId : null,
+            'anio' => $canonical->year,
+            'combustible' => $profile->fuelType?->universalValue(),
+            'esCeroKm' => $profile->isZeroKm,
+            'valor' => $profile->estimatedValue !== null ? (int) round($profile->estimatedValue) : null,
+        ], fn (mixed $value): bool => $value !== null);
+
+        $explicit = array_filter($payload['vehiculo'], fn (mixed $value): bool => $value !== null);
+        $payload['vehiculo'] = $explicit + $defaults;
+
+        return $payload;
+    }
+
     public function availableCatalogs(): array
     {
         return ['vehicle_models', 'provinces', 'municipalities', 'sectors', 'add_ons', 'rent_car_options'];
@@ -402,6 +512,9 @@ class UniversalSegurosProvider implements
             tax: $this->toFloat($terms['impuesto'] ?? null),
             total: $this->toFloat($terms['totalCobro'] ?? null),
             raw: $response,
+            productCode: Str::trimToNull(
+                is_string($response['data']['producto'] ?? null) ? $response['data']['producto'] : null
+            ),
         );
     }
 

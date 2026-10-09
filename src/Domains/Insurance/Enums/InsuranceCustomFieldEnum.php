@@ -25,6 +25,7 @@ enum InsuranceCustomFieldEnum: string
     case REQUIRES_INSPECTION = 'insurance_requires_inspection';
     case STATUS = 'insurance_status';
     case QUOTE_NUMBER = 'insurance_quote_number';
+    case PLAN_ID = 'insurance_plan_id';
     case POLICY_NUMBER = 'insurance_policy_number';
     /** Comma-separated filesystem ids already pushed to the insurer, so re-attaching a file never re-sends the others. */
     case UPLOADED_DOCUMENTS = 'insurance_uploaded_documents';

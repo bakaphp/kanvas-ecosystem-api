@@ -14,9 +14,11 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Contracts\CatalogProviderInterface;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\Contracts\ProductCatalogProviderInterface;
+use Kanvas\Insurance\DataTransferObject\CanonicalQuoteInput;
 use Kanvas\Insurance\DataTransferObject\InsuranceProduct;
 use Kanvas\Insurance\DataTransferObject\InsuranceQuoteRequest;
 use Kanvas\Insurance\DataTransferObject\QuoteResult;
+use Kanvas\Insurance\Enums\InsuranceUnderwritingFieldEnum;
 use Kanvas\Insurance\Services\CatalogCache;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 
@@ -71,6 +73,45 @@ class HumanoProvider implements
             $this->service->quote(QuoteRequest::make($plan, $request->payload)),
             $this->currency($request->payload['codigo_moneda'] ?? null)
         );
+    }
+
+    public function requiresVehicleModelId(): bool
+    {
+        return false;
+    }
+
+    public function quoteCanonical(
+        CanonicalQuoteInput $input,
+        string $planCode,
+        ?string $vehicleModelId
+    ): QuoteResult {
+        return $this->quote(
+            new InsuranceQuoteRequest(
+                product: $planCode,
+                payload: $this->canonicalPayload($input),
+            )
+        );
+    }
+
+    protected function canonicalPayload(CanonicalQuoteInput $input): array
+    {
+        $underwriting = fn (InsuranceUnderwritingFieldEnum $field): ?string => $input->underwritingValue($field);
+
+        return array_filter([
+            'marca' => $input->vehicle->brand,
+            'modelo' => $input->vehicle->model,
+            'anio' => $input->vehicle->year,
+            'valor_vehiculo' => $input->profile->estimatedValue !== null
+                ? (int) round($input->profile->estimatedValue)
+                : null,
+            'direccion_ip' => $underwriting(InsuranceUnderwritingFieldEnum::IP_ADDRESS),
+            'fecha_nacimiento' => $underwriting(InsuranceUnderwritingFieldEnum::BIRTH_DATE),
+            'edad' => $underwriting(InsuranceUnderwritingFieldEnum::AGE),
+            'estado_civil' => $underwriting(InsuranceUnderwritingFieldEnum::MARITAL_STATUS),
+            'sexo' => $underwriting(InsuranceUnderwritingFieldEnum::SEX),
+            'uso' => $underwriting(InsuranceUnderwritingFieldEnum::USAGE),
+            'zona_circulacion' => $underwriting(InsuranceUnderwritingFieldEnum::CIRCULATION_ZONE),
+        ], fn (mixed $value): bool => $value !== null);
     }
 
     public function getQuote(string $quoteNumber): QuoteResult

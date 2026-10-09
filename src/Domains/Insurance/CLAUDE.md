@@ -180,6 +180,40 @@ Files are typed by the attachment's `field_name`, which must be an `InsuranceDoc
 Already-sent filesystem ids live in `UPLOADED_DOCUMENTS`, because attach-file fires on every
 attachment. Emission is refused for an inspection-required product until something has been sent.
 
+## Search: `insuranceSearch` and picking a plan
+
+`insuranceSearch(input: CanonicalQuoteInput!)` fans out over the **local catalog** (active insurers x their
+active plans of the requested `law`/`full` category) and persists nothing. Catalog tenancy and credentials both
+come from `InsuranceProviderFactory::credentialCompany`, so a marketplace client searches the platform's catalog.
+
+- **Opt-in contract.** An adapter joins the search by implementing `CanonicalQuoteProviderInterface`
+  (`requiresVehicleModelId()` + `quoteCanonical()`). It maps the canonical vehicle/underwriting facts to its own shape;
+  insurer field names never leave the adapter. An id-based insurer whose `InsuranceVehicleModelResolver` answer is null
+  is skipped silently (not a failure) and never called.
+- **Humano is opted out.** `HumanoProvider` keeps its mapper methods but does not implement the contract, because its quote
+  needs catalog codes, a version and coverage limits that canonical input cannot supply. The fan-out skips it silently until a
+  Humano crosswalk exists; re-adding `implements CanonicalQuoteProviderInterface` is the whole switch.
+- **Ranking** (`InsuranceComparatorService`, pure): sponsored, then commission, then `recommended_score` (then `can_emit`
+  true/null/false), then lowest price, then plan id. Commission is the adapter's figure, else `premium * plan.commission_rate`.
+  It is **internal-only**: it is never part of the customer-facing GraphQL types.
+- **`is_recommended`** is `recommended_score > 0 AND can_emit !== false`, independent of the entry's rank.
+- **Partial results.** Each plan quote is a `PlanQuoteTask` that never throws; it rebinds the app (`overwriteAppService`) in the
+  worker. A rejection, an outage or a timeout becomes an `InsuranceSearchFailure`, reported per insurer only when none of its
+  plans produced a quote. `failures[].message` is a fixed text per reason (`customerMessage()`); detail goes only to the log
+  (exception class, plan code, HTTP status).
+- **Concurrency.** `OctaneQuoteTaskRunner` uses `Octane::concurrently()` (Swoole task workers) inside the server and runs
+  sequentially anywhere else (CLI, queue, tests). The service dispatches in chunks of `insurance.task_workers` (default 2, match
+  `--task-workers`), so a `TaskTimeoutException` loses only its chunk (`TIMEOUT`); any other dispatch error is `UNAVAILABLE`.
+  The timeout (`insurance.search_timeout_ms`) is per chunk, not per insurer, and the adapters' Guzzle clients keep their own
+  hard 60s limit: a per-call HTTP timeout would need a Client change.
+- **Cache.** One entry per (app, credential company, plan, vehicle signature), TTL `insurance.search_cache_ttl`; only successful
+  quotes are stored, with `raw` stripped. The signature excludes `ip_address`, which the server always overwrites from the request.
+- **Quote binding.** At response time each returned `(quote_number, plan_id)` is bound to the requesting user in a short-lived
+  cache entry (`InsuranceQuoteBinding`, `insurance.quote_binding_ttl`), never inside the shared plan-quote cache.
+- **Selecting.** `selectInsurancePlan(plan_id, quote_number)` requires that binding, re-reads the quote from the insurer (never
+  trusts client prices), rejects it when the quote's product code differs from the plan's `external_code`, then creates or updates
+  a Guild **Lead** (the pre-payment quote; an Order only appears on payment) carrying the `insurance_*` custom fields.
+  Idempotent per (customer people, plan) while the lead is open. No `variantInterest`: insurance plans are not Inventory variants.
 ## Open items
 
 - `InsuranceQuoteRequest::$vehicle` is carried by `BuildQuoteRequestFromOrderAction` but no adapter reads it yet.

@@ -43,3 +43,102 @@ extend type Query @guard {
             resolver: "App\\GraphQL\\Insurance\\Queries\\InsuranceQuery@quote"
         )
 }
+
+enum InsuranceVehicleFuelType {
+    GAS @enum(value: "gas")
+    GASOLINE_DIESEL @enum(value: "gasoline_diesel")
+    ELECTRIC @enum(value: "electric")
+}
+
+enum InsuranceSearchFailureReason {
+    REJECTED @enum(value: "rejected")
+    UNAVAILABLE @enum(value: "unavailable")
+    TIMEOUT @enum(value: "timeout")
+}
+
+input InsuranceVehicleInput {
+    product_id: ID
+    brand: String
+    model: String
+    year: Int
+    fuel_type: InsuranceVehicleFuelType
+    is_zero_km: Boolean
+    estimated_value: Float
+}
+
+input InsuranceUnderwritingInput {
+    ip_address: String
+    birth_date: String
+    age: Int
+    marital_status: String
+    sex: String
+    usage: String
+    circulation_zone: String
+}
+
+input CanonicalQuoteInput {
+    category: InsuranceCoverageCategory!
+    vehicle: InsuranceVehicleInput!
+    underwriting: InsuranceUnderwritingInput
+}
+
+type InsuranceSearchInsurer {
+    id: ID!
+    name: String!
+    logo: String
+}
+
+type InsuranceSearchPlan {
+    id: ID!
+    name: String!
+    slug: String!
+    type: InsuranceCoverageCategory!
+    deductible: Float
+    validity_days: Int
+}
+
+type InsuranceSearchEntry {
+    rank: Int!
+    insurer: InsuranceSearchInsurer!
+    plan: InsuranceSearchPlan!
+    quote_number: String!
+    price: Float
+    premium: Float
+    tax: Float
+    total: Float
+    currency: String
+    can_emit: Boolean
+    inspection_status: String
+    is_sponsored: Boolean!
+    is_recommended: Boolean!
+}
+
+type InsuranceSearchFailure {
+    insurer: InsuranceSearchInsurer!
+    reason: InsuranceSearchFailureReason!
+    message: String!
+}
+
+type InsuranceSearchResult {
+    entries: [InsuranceSearchEntry!]!
+    failures: [InsuranceSearchFailure!]!
+}
+
+input SelectInsurancePlanInput {
+    plan_id: ID!
+    quote_number: String!
+}
+
+extend type Query @guard {
+    insuranceSearch(input: CanonicalQuoteInput!): InsuranceSearchResult!
+        @field(
+            resolver: "App\\GraphQL\\Insurance\\Queries\\InsuranceQuery@search"
+        )
+}
+
+extend type Mutation @guard {
+    selectInsurancePlan(input: SelectInsurancePlanInput!): Lead!
+        @field(
+            resolver: "App\\GraphQL\\Insurance\\Mutations\\InsuranceSelectionMutation@select"
+        )
+}

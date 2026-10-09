@@ -9,8 +9,13 @@ use InvalidArgumentException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Contracts\CatalogProviderInterface;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
+use Kanvas\Insurance\DataTransferObject\CanonicalQuoteInput;
 use Kanvas\Insurance\DataTransferObject\InsuranceQuoteRequest;
+use Kanvas\Insurance\DataTransferObject\InsuranceSearchEntry;
+use Kanvas\Insurance\DataTransferObject\InsuranceSearchFailure;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
+use Kanvas\Insurance\Services\InsuranceQuoteBinding;
+use Kanvas\Insurance\Services\InsuranceSearchService;
 
 /**
  * The whole direct insurance surface: reference data to render the forms, and a
@@ -70,6 +75,72 @@ class InsuranceQuery
             'can_emit' => $quote->canEmit,
             'inspection_status' => $quote->inspectionStatus,
             'data' => $quote->raw,
+        ];
+    }
+
+    public function search(mixed $rootValue, array $request): array
+    {
+        $ctx = $this->actingContext();
+        $input = $request['input'];
+        $input['underwriting']['ip_address'] = request()->ip();
+
+        $result = app(InsuranceSearchService::class)->execute(
+            CanonicalQuoteInput::fromMultiple($ctx->app, $ctx->company, $input)
+        );
+
+        foreach ($result->entries as $entry) {
+            InsuranceQuoteBinding::bind(
+                $ctx->app->getId(),
+                $ctx->user->getId(),
+                $entry->quote->quoteNumber,
+                $entry->planId
+            );
+        }
+
+        return [
+            'entries' => array_map(
+                fn (InsuranceSearchEntry $entry, int $index): array => $this->presentEntry($entry, $index + 1),
+                $result->entries,
+                array_keys($result->entries)
+            ),
+            'failures' => array_map($this->presentFailure(...), $result->failures),
+        ];
+    }
+
+    protected function presentEntry(InsuranceSearchEntry $entry, int $rank): array
+    {
+        $quote = $entry->quote;
+
+        return [
+            'rank' => $rank,
+            'insurer' => ['id' => $entry->insurerId, 'name' => $entry->insurerName, 'logo' => $entry->insurerLogo],
+            'plan' => [
+                'id' => $entry->planId,
+                'name' => $entry->planName,
+                'slug' => $entry->planSlug,
+                'type' => $entry->category->value,
+                'deductible' => $entry->deductible,
+                'validity_days' => $entry->validityDays,
+            ],
+            'quote_number' => $quote->quoteNumber,
+            'price' => $entry->price(),
+            'premium' => $quote->premium,
+            'tax' => $quote->tax,
+            'total' => $quote->total,
+            'currency' => $quote->currency,
+            'can_emit' => $quote->canEmit,
+            'inspection_status' => $quote->inspectionStatus,
+            'is_sponsored' => $entry->sponsored,
+            'is_recommended' => $entry->isRecommended(),
+        ];
+    }
+
+    protected function presentFailure(InsuranceSearchFailure $failure): array
+    {
+        return [
+            'insurer' => ['id' => $failure->insurerId, 'name' => $failure->insurerName, 'logo' => null],
+            'reason' => $failure->reason->value,
+            'message' => $failure->message,
         ];
     }
 
