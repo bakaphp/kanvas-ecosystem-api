@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactValidationStatusEnum;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 
 /**
@@ -86,6 +87,67 @@ class BatchRecipientResolverService
     }
 
     /**
+     * The people-without-a-lead counterpart of resolve() — a bulk-imported People has no Lead to read
+     * `do_not_contact` from, so this checks the flag directly on the person instead of a proxy. Only
+     * `email` is supported: SMS stays tied to SendMessageToLeadAction's Lead-shaped send path.
+     *
+     * @param  Collection<int, People>  $people  Candidate people, ordered most-relevant first (dedup keeps the first per person).
+     * @param  string  $channel  'email' only, in v1
+     * @return array{
+     *     eligible: array<int, array<string, mixed>>,
+     *     excluded: array<int, array<string, mixed>>,
+     *     total_candidates: int,
+     *     eligible_count: int,
+     *     excluded_count: int
+     * }
+     */
+    public function resolvePeople(Collection $people, string $channel): array
+    {
+        $typeIds = $channel === 'email' ? self::EMAIL_TYPES : Contact::PHONE_TYPES;
+
+        $peopleIds = $people->map(fn (People $person): int => $person->getId())->unique()->values()->all();
+        [$hasAnyContact, $hasDeliverableContact] = $this->contactAvailability($peopleIds, $typeIds);
+
+        $eligible = [];
+        $excluded = [];
+        $seenPeople = [];
+
+        foreach ($people as $person) {
+            $peopleId = $person->getId();
+
+            if (isset($seenPeople[$peopleId])) {
+                $excluded[] = $this->rowForPeople($person, 'duplicate');
+
+                continue;
+            }
+            $seenPeople[$peopleId] = true;
+
+            if ((bool) $person->get('do_not_contact')) {
+                $excluded[] = $this->rowForPeople($person, 'do_not_contact');
+
+                continue;
+            }
+
+            if (! ($hasDeliverableContact[$peopleId] ?? false)) {
+                $reason = ($hasAnyContact[$peopleId] ?? false) ? 'opted_out_or_undeliverable' : 'no_contact_info';
+                $excluded[] = $this->rowForPeople($person, $reason);
+
+                continue;
+            }
+
+            $eligible[] = $this->rowForPeople($person, 'eligible');
+        }
+
+        return [
+            'eligible' => $eligible,
+            'excluded' => $excluded,
+            'total_candidates' => $people->count(),
+            'eligible_count' => count($eligible),
+            'excluded_count' => count($excluded),
+        ];
+    }
+
+    /**
      * @param  Collection<int, Lead>  $leads
      * @param  string  $channel  'sms' or 'email'
      * @return array<int, int>  Lead ids that are eligible to receive the batch on this channel.
@@ -112,6 +174,28 @@ class BatchRecipientResolverService
 
         $value = Contact::query()
             ->where('peoples_id', (int) $lead->people_id)
+            ->whereIn('contacts_types_id', $typeIds)
+            ->where('is_deleted', 0)
+            ->where('is_opt_out', 0)
+            ->where(fn ($q) => $q->whereNull('validation_status')->orWhereNotIn('validation_status', [
+                ContactValidationStatusEnum::HARD_BOUNCE->value,
+                ContactValidationStatusEnum::INVALID->value,
+            ]))
+            ->orderByDesc('weight')
+            ->value('value');
+
+        return $value !== null ? (string) $value : null;
+    }
+
+    /**
+     * deliverableContactValue()'s counterpart for a bare People (no Lead to read `people_id` off of).
+     */
+    public function deliverableContactValueForPeople(People $person, string $channel): ?string
+    {
+        $typeIds = $channel === 'email' ? self::EMAIL_TYPES : Contact::PHONE_TYPES;
+
+        $value = Contact::query()
+            ->where('peoples_id', $person->getId())
             ->whereIn('contacts_types_id', $typeIds)
             ->where('is_deleted', 0)
             ->where('is_opt_out', 0)
@@ -179,6 +263,22 @@ class BatchRecipientResolverService
             'salesperson' => $lead->owner ? trim($lead->owner->firstname . ' ' . $lead->owner->lastname) : null,
             'stage' => $lead->stage?->name,
             'last_activity_at' => $lead->updated_at?->toDateString(),
+            'compliance_status' => $status,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function rowForPeople(People $person, string $status): array
+    {
+        return [
+            'lead_id' => null,
+            'people_id' => $person->getId(),
+            'name' => $person->getName(),
+            'salesperson' => null,
+            'stage' => null,
+            'last_activity_at' => $person->updated_at?->toDateString(),
             'compliance_status' => $status,
         ];
     }
