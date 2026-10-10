@@ -6,6 +6,7 @@ namespace Kanvas\Insurance\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use DateTimeImmutable;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Enums\InsuranceCoverageCategoryEnum;
@@ -53,6 +54,13 @@ class CanonicalQuoteInput
         return $value === null ? null : (string) $value;
     }
 
+    public function birthDate(): ?DateTimeImmutable
+    {
+        $value = $this->underwritingValue(InsuranceUnderwritingFieldEnum::BIRTH_DATE);
+
+        return $value === null ? null : self::parseDate($value);
+    }
+
     public function signature(): string
     {
         $underwriting = $this->underwriting;
@@ -62,6 +70,7 @@ class CanonicalQuoteInput
         return md5((string) json_encode([
             $this->vehicle->brandKey(),
             $this->vehicle->modelKey(),
+            $this->vehicle->versionKey(),
             $this->vehicle->year,
             $this->profile->fuelType?->value,
             $this->profile->isZeroKm,
@@ -87,6 +96,7 @@ class CanonicalQuoteInput
                 brand: (string) ($vehicleData['brand'] ?? ''),
                 model: (string) ($vehicleData['model'] ?? ''),
                 year: isset($vehicleData['year']) ? (int) $vehicleData['year'] : null,
+                version: Str::trimToNull(isset($vehicleData['version']) ? (string) $vehicleData['version'] : null),
             ),
             new VehicleInsuranceProfile(
                 fuelType: $fuel !== null ? VehicleFuelTypeEnum::from((string) $fuel) : null,
@@ -107,17 +117,17 @@ class CanonicalQuoteInput
 
         $birthDate = $underwriting[InsuranceUnderwritingFieldEnum::BIRTH_DATE->value] ?? null;
 
-        if ($birthDate !== null && ! self::isValidDate((string) $birthDate)) {
+        if ($birthDate !== null && self::parseDate((string) $birthDate) === null) {
             throw new ValidationException('birth_date must be a valid date formatted Y-m-d');
         }
 
         return $underwriting;
     }
 
-    private static function isValidDate(string $value): bool
+    private static function parseDate(string $value): ?DateTimeImmutable
     {
         $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
 
-        return $date !== false && $date->format('Y-m-d') === $value;
+        return $date !== false && $date->format('Y-m-d') === $value ? $date : null;
     }
 }

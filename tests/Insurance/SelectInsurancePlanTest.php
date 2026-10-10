@@ -31,6 +31,7 @@ class SelectInsurancePlanTest extends TestCase
     private function planOfActingCompany(string $provider): InsurancePlan
     {
         $company = auth()->user()->getCurrentCompany();
+        $this->pinPlatformCompany($company->getId());
 
         $this->bindFakeProvider($provider);
 
@@ -182,6 +183,7 @@ class SelectInsurancePlanTest extends TestCase
     public function testAQuoteWhoseProductDiffersFromThePlanIsRejected(): void
     {
         $provider = 'select_' . uniqid();
+        $this->pinPlatformCompany(auth()->user()->getCurrentCompany()->getId());
         $this->bindFakeProvider($provider, productCode: 'SOMETHING-ELSE');
         $plan = $this->seedPlan(
             $this->seedInsurer(auth()->user()->getCurrentCompany(), $provider),

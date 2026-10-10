@@ -19,6 +19,7 @@ use Kanvas\Insurance\DataTransferObject\CanonicalVehicle;
 use Kanvas\Insurance\DataTransferObject\VehicleInsuranceProfile;
 use Kanvas\Insurance\Enums\InsuranceCoverageCategoryEnum;
 use Kanvas\Insurance\Enums\VehicleFuelTypeEnum;
+use Kanvas\Insurance\Services\InsuranceVehicleModelResolver;
 use Mockery;
 use Tests\TestCase;
 
@@ -66,15 +67,21 @@ class CanonicalQuoteAdaptersTest extends TestCase
         );
     }
 
-    public function testHumanoIsNotSearchableUntilACrosswalkExists(): void
+    public function testTheVehicleVersionIsPartOfTheSignatureAndIsNormalized(): void
     {
-        $provider = new HumanoProvider(
-            app: Mockery::mock(AppInterface::class),
-            company: Mockery::mock(CompanyInterface::class),
-            service: Mockery::mock(HumanoService::class),
+        $withVersion = fn (?string $version): CanonicalQuoteInput => CanonicalQuoteInput::fromMultiple(
+            Mockery::mock(AppInterface::class),
+            Mockery::mock(CompanyInterface::class),
+            [
+                'category' => 'full',
+                'vehicle' => ['brand' => 'Honda', 'model' => 'Civic', 'version' => $version],
+            ]
         );
 
-        $this->assertNotInstanceOf(CanonicalQuoteProviderInterface::class, $provider);
+        $this->assertSame($withVersion('EX-L')->signature(), $withVersion(' ex l ')->signature());
+        $this->assertNotSame($withVersion('EX')->signature(), $withVersion('LX')->signature());
+        $this->assertNull($withVersion('  ')->vehicle->version);
+        $this->assertSame('exl', $withVersion('EX-L')->vehicle->versionKey());
     }
 
     public function testBirthDateMustBeARealDate(): void
@@ -136,34 +143,28 @@ class CanonicalQuoteAdaptersTest extends TestCase
         }
     }
 
-    public function testHumanoSendsWhatCanonicalKnowsAndNamesTheRestAsMissing(): void
+    public function testHumanoRefusesToQuoteAVehicleWithoutACatalogReference(): void
     {
         $service = Mockery::mock(HumanoService::class);
         $service->shouldNotReceive('quote');
+        $resolver = Mockery::mock(InsuranceVehicleModelResolver::class);
+        $resolver->shouldReceive('resolveReference')->andReturn(null);
         $company = Mockery::mock(CompanyInterface::class);
         $company->shouldReceive('getId')->andReturn(2);
         $provider = new HumanoProvider(
             app: Mockery::mock(AppInterface::class),
             company: $company,
             service: $service,
+            vehicleModelResolver: $resolver,
         );
 
+        $this->assertInstanceOf(CanonicalQuoteProviderInterface::class, $provider);
         $this->assertFalse($provider->requiresVehicleModelId());
+        $this->assertFalse($provider->canQuoteVehicle($this->input(), 'mi_auto_full'));
 
-        try {
-            $provider->quoteCanonical(
-                $this->input(underwriting: ['ip_address' => '10.0.0.1', 'age' => '30', 'sex' => 'M']),
-                'mi_auto_full',
-                null
-            );
-            $this->fail('Expected a ValidationException');
-        } catch (ValidationException $e) {
-            $this->assertStringContainsString('version', $e->getMessage());
-            $this->assertStringContainsString('uso', $e->getMessage());
-            $this->assertStringNotContainsString('marca', $e->getMessage());
-            $this->assertStringNotContainsString('valor_vehiculo', $e->getMessage());
-            $this->assertStringNotContainsString('edad', $e->getMessage());
-            $this->assertStringNotContainsString('sexo', $e->getMessage());
-        }
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('no catalog reference');
+
+        $provider->quoteCanonical($this->input(), 'mi_auto_full', null);
     }
 }

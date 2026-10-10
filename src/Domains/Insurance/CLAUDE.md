@@ -190,9 +190,19 @@ come from `InsuranceProviderFactory::credentialCompany`, so a marketplace client
   (`requiresVehicleModelId()` + `quoteCanonical()`). It maps the canonical vehicle/underwriting facts to its own shape;
   insurer field names never leave the adapter. An id-based insurer whose `InsuranceVehicleModelResolver` answer is null
   is skipped silently (not a failure) and never called.
-- **Humano is opted out.** `HumanoProvider` keeps its mapper methods but does not implement the contract, because its quote
-  needs catalog codes, a version and coverage limits that canonical input cannot supply. The fan-out skips it silently until a
-  Humano crosswalk exists; re-adding `implements CanonicalQuoteProviderInterface` is the whole switch.
+- **Vehicle crosswalk.** `insurance_vehicle_model_map` is keyed by (insurer, `plan_code`, brand, model, `version_key`, year).
+  Universal uses plan `''` and version `''` with one `external_model_id` (`resolve()`); Humano uses its plan slug and carries
+  `external_brand_id` / `external_model_id` / `external_version_id` (`resolveReference()`), because its catalogs are per plan and
+  hierarchical. `BuildVehicleModelCrosswalkJob` runs either `VehicleModelCatalogProviderInterface` (whole catalog) or
+  `TargetedVehicleCatalogProviderInterface` (walks only the app's canonical vehicles and reports which plans it fully scanned, so a
+  failed or empty plan never deactivates rows). Manual rows are never touched.
+- **Humano is in the fan-out when mapped.** `HumanoProvider` also implements `VehicleReferenceQuoteProviderInterface`: its plan is
+  skipped silently (not a failure, never called) unless the crosswalk holds brand + model + version codes for that plan and the
+  canonical vehicle carries a `version` (free text, matched by `VehicleKeyNormalizer`; the picker reads
+  `insuranceCatalog` `vehicle_versions`). A search without enough underwriting facts is an `INCOMPLETE_INFORMATION` failure (customer-safe message, no field names), not a skip. Canonical
+  underwriting values (`VehicleUsageEnum`, `MaritalStatusEnum`, `SexEnum`, `CirculationZoneEnum`, `birth_date` as `Y-m-d`) are
+  translated inside `Humano\Services\CanonicalQuotePayloadMapper`. `rc_exceso` and `suma_asegurada_auto_exceso` are provisional
+  business defaults in `config/insurance.php` (`humano.*`); their meaning is undocumented by Humano. `humano.search_enabled` (`INSURANCE_HUMANO_SEARCH_ENABLED`) switches Humano out of the search silently; the applied values ride in `QuoteResult::`.
 - **Ranking** (`InsuranceComparatorService`, pure): sponsored, then commission, then `recommended_score` (then `can_emit`
   true/null/false), then lowest price, then plan id. Commission is the adapter's figure, else `premium * plan.commission_rate`.
   It is **internal-only**: it is never part of the customer-facing GraphQL types.

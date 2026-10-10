@@ -6,21 +6,32 @@ namespace Kanvas\Connectors\Humano\Providers;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Humano\DataTransferObject\QuoteRequest;
 use Kanvas\Connectors\Humano\Enums\CurrencyEnum;
 use Kanvas\Connectors\Humano\Enums\PlanEnum;
+use Kanvas\Connectors\Humano\Services\CanonicalQuotePayloadMapper;
 use Kanvas\Connectors\Humano\Services\HumanoService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Contracts\CatalogProviderInterface;
-use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\Contracts\ProductCatalogProviderInterface;
+use Kanvas\Insurance\Contracts\TargetedVehicleCatalogProviderInterface;
+use Kanvas\Insurance\Contracts\VehicleReferenceQuoteProviderInterface;
 use Kanvas\Insurance\DataTransferObject\CanonicalQuoteInput;
+use Kanvas\Insurance\DataTransferObject\CanonicalVehicle;
+use Kanvas\Insurance\DataTransferObject\ExternalVehicleModel;
+use Kanvas\Insurance\DataTransferObject\ExternalVehicleReference;
 use Kanvas\Insurance\DataTransferObject\InsuranceProduct;
 use Kanvas\Insurance\DataTransferObject\InsuranceQuoteRequest;
 use Kanvas\Insurance\DataTransferObject\QuoteResult;
-use Kanvas\Insurance\Enums\InsuranceUnderwritingFieldEnum;
+use Kanvas\Insurance\DataTransferObject\VehicleCatalogScan;
 use Kanvas\Insurance\Services\CatalogCache;
+use Kanvas\Insurance\Services\InsuranceVehicleModelResolver;
+use Kanvas\Insurance\Services\VehicleKeyNormalizer;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Throwable;
 
 /**
  * The only class that knows Humano's field names (`numeroCotizacion`,
@@ -33,8 +44,9 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
  */
 class HumanoProvider implements
     CatalogProviderInterface,
-    InsuranceProviderInterface,
-    ProductCatalogProviderInterface
+    ProductCatalogProviderInterface,
+    TargetedVehicleCatalogProviderInterface,
+    VehicleReferenceQuoteProviderInterface
 {
     public const NAME = 'humano';
 
@@ -52,6 +64,8 @@ class HumanoProvider implements
         protected AppInterface $app,
         protected CompanyInterface $company,
         protected HumanoService $service,
+        protected InsuranceVehicleModelResolver $vehicleModelResolver = new InsuranceVehicleModelResolver(),
+        protected CanonicalQuotePayloadMapper $payloadMapper = new CanonicalQuotePayloadMapper(),
     ) {
     }
 
@@ -80,38 +94,212 @@ class HumanoProvider implements
         return false;
     }
 
+    public function canQuoteVehicle(CanonicalQuoteInput $input, string $planCode): bool
+    {
+        $plan = $this->planOrNull($planCode);
+
+        return $plan !== null
+            && (bool) config('insurance.humano.search_enabled', true)
+            && $this->quotableReference($input, $plan) !== null;
+    }
+
+    public function hasRequiredInformation(CanonicalQuoteInput $input, string $planCode): bool
+    {
+        $plan = $this->plan($planCode);
+
+        try {
+            return $this->payloadMapper->missingFields($input, $plan) === [];
+        } catch (ValidationException) {
+            return false;
+        }
+    }
+
     public function quoteCanonical(
         CanonicalQuoteInput $input,
         string $planCode,
         ?string $vehicleModelId
     ): QuoteResult {
-        return $this->quote(
+        $plan = $this->plan($planCode);
+        $reference = $this->quotableReference($input, $plan)
+            ?? throw new ValidationException('Humano: the vehicle has no catalog reference for plan ' . $plan->value);
+
+        $quote = $this->quote(
             new InsuranceQuoteRequest(
-                product: $planCode,
-                payload: $this->canonicalPayload($input),
+                product: $plan->value,
+                payload: $this->payloadMapper->payload($input, $plan, $reference),
             )
         );
+
+        return $quote->withAssumptions([
+            'rc_exceso' => $this->payloadMapper->rcExceso(),
+            'suma_asegurada_auto_exceso' => $this->payloadMapper->sumInsuredExcess($plan),
+        ]);
     }
 
-    protected function canonicalPayload(CanonicalQuoteInput $input): array
+    public function scanVehicleCatalog(array $vehicles): VehicleCatalogScan
     {
-        $underwriting = fn (InsuranceUnderwritingFieldEnum $field): ?string => $input->underwritingValue($field);
+        $entries = [];
+        $scannedPlanCodes = [];
 
-        return array_filter([
-            'marca' => $input->vehicle->brand,
-            'modelo' => $input->vehicle->model,
-            'anio' => $input->vehicle->year,
-            'valor_vehiculo' => $input->profile->estimatedValue !== null
-                ? (int) round($input->profile->estimatedValue)
-                : null,
-            'direccion_ip' => $underwriting(InsuranceUnderwritingFieldEnum::IP_ADDRESS),
-            'fecha_nacimiento' => $underwriting(InsuranceUnderwritingFieldEnum::BIRTH_DATE),
-            'edad' => $underwriting(InsuranceUnderwritingFieldEnum::AGE),
-            'estado_civil' => $underwriting(InsuranceUnderwritingFieldEnum::MARITAL_STATUS),
-            'sexo' => $underwriting(InsuranceUnderwritingFieldEnum::SEX),
-            'uso' => $underwriting(InsuranceUnderwritingFieldEnum::USAGE),
-            'zona_circulacion' => $underwriting(InsuranceUnderwritingFieldEnum::CIRCULATION_ZONE),
-        ], fn (mixed $value): bool => $value !== null);
+        foreach (PlanEnum::cases() as $plan) {
+            try {
+                [$planEntries, $complete] = $this->scanPlan($plan, $vehicles);
+            } catch (Throwable $exception) {
+                Log::warning('Humano vehicle catalog scan failed', [
+                    'plan' => $plan->value,
+                    'exception' => $exception::class,
+                ]);
+
+                continue;
+            }
+
+            $entries = array_merge($entries, $planEntries);
+
+            if ($complete) {
+                $scannedPlanCodes[] = $plan->value;
+            }
+        }
+
+        return new VehicleCatalogScan($entries, $scannedPlanCodes);
+    }
+
+    protected function quotableReference(CanonicalQuoteInput $input, PlanEnum $plan): ?ExternalVehicleReference
+    {
+        $reference = $this->vehicleModelResolver->resolveReference(
+            $this->app,
+            self::NAME,
+            $plan->value,
+            $input->vehicle
+        );
+
+        return $reference?->versionId !== null && $reference->brandId !== null ? $reference : null;
+    }
+
+    protected function scanPlan(PlanEnum $plan, array $vehicles): array
+    {
+        $brands = $this->catalogIndex($this->getCatalog('vehicle_brands', ['plan' => $plan->value]));
+
+        if ($brands === []) {
+            return [[], false];
+        }
+
+        $entries = [];
+        $complete = true;
+
+        foreach ($this->groupByBrand($vehicles) as $brandKey => $brandVehicles) {
+            $brandCode = $brands[$brandKey] ?? null;
+
+            if ($brandCode === null) {
+                continue;
+            }
+
+            $models = $this->catalogIndex($this->getCatalog(
+                'vehicle_models',
+                ['plan' => $plan->value, 'marca' => $brandCode]
+            ));
+
+            if ($models === []) {
+                $complete = false;
+
+                continue;
+            }
+
+            $seenModels = [];
+
+            foreach ($brandVehicles as $vehicle) {
+                $modelCode = $models[$vehicle->modelKey()] ?? null;
+
+                if ($modelCode !== null && ! isset($seenModels[$vehicle->modelKey()])) {
+                    $seenModels[$vehicle->modelKey()] = true;
+
+                    $entries = array_merge(
+                        $entries,
+                        $this->modelEntries($plan, $vehicle, $brandCode, $modelCode)
+                    );
+                }
+            }
+        }
+
+        return [$entries, $complete];
+    }
+
+    protected function modelEntries(
+        PlanEnum $plan,
+        CanonicalVehicle $vehicle,
+        string $brandCode,
+        string $modelCode
+    ): array {
+        $entries = [
+            new ExternalVehicleModel(
+                brand: $vehicle->brand,
+                model: $vehicle->model,
+                externalId: $modelCode,
+                planCode: $plan->value,
+                brandId: $brandCode,
+            ),
+        ];
+
+        $versions = $this->getCatalog(
+            'vehicle_versions',
+            ['plan' => $plan->value, 'marca' => $brandCode, 'modelo' => $modelCode]
+        );
+
+        foreach ($this->catalogRows($versions) as $row) {
+            $entries[] = new ExternalVehicleModel(
+                brand: $vehicle->brand,
+                model: $vehicle->model,
+                externalId: $modelCode,
+                planCode: $plan->value,
+                brandId: $brandCode,
+                version: $row['name'],
+                versionId: $row['code'],
+            );
+        }
+
+        return $entries;
+    }
+
+    protected function groupByBrand(array $vehicles): array
+    {
+        $grouped = [];
+
+        foreach ($vehicles as $vehicle) {
+            $grouped[$vehicle->brandKey()][] = $vehicle;
+        }
+
+        return $grouped;
+    }
+
+    protected function catalogIndex(array $response): array
+    {
+        $index = [];
+
+        foreach ($this->catalogRows($response) as $row) {
+            $key = VehicleKeyNormalizer::normalize($row['name']);
+
+            if ($key !== '' && (! isset($index[$key]) || strnatcmp($row['code'], $index[$key]) < 0)) {
+                $index[$key] = $row['code'];
+            }
+        }
+
+        return $index;
+    }
+
+    protected function catalogRows(array $response): array
+    {
+        $payload = is_array($response['payload'] ?? null) ? $response['payload'] : $response;
+        $rows = [];
+
+        foreach ($payload as $row) {
+            $code = is_array($row) ? Str::trimmedStringOrNull($row['P_CD_DATO'] ?? null) : null;
+            $name = is_array($row) ? Str::trimmedStringOrNull($row['P_DE_DATO'] ?? null) : null;
+
+            if ($code !== null && $name !== null) {
+                $rows[] = ['code' => $code, 'name' => $name];
+            }
+        }
+
+        return $rows;
     }
 
     public function getQuote(string $quoteNumber): QuoteResult
@@ -238,14 +426,14 @@ class HumanoProvider implements
         );
     }
 
-    /**
-     * Accepts our slug or their numeric code, so a caller holding a raw `cdPlan`
-     * from a catalog response does not have to translate it back.
-     */
+    protected function planOrNull(string $product): ?PlanEnum
+    {
+        return PlanEnum::tryFrom($product) ?? PlanEnum::fromCode($product);
+    }
+
     protected function plan(string $product): PlanEnum
     {
-        return PlanEnum::tryFrom($product)
-            ?? PlanEnum::fromCode($product)
+        return $this->planOrNull($product)
             ?? throw new ValidationException(
                 'Unknown Humano plan: ' . ($product === '' ? '(none given)' : $product)
                 . '. Available: ' . implode(', ', array_column(PlanEnum::cases(), 'value'))
@@ -269,15 +457,32 @@ class HumanoProvider implements
      */
     protected function cached(string $catalog, array $params, callable $fetch): array
     {
-        return CatalogCache::remember(
+        $ttl = self::CATALOG_TTL[$catalog] ?? 0;
+        $key = CatalogCache::key(
             app: $this->app,
             company: $this->company,
             provider: self::NAME,
             catalog: $catalog,
-            ttl: self::CATALOG_TTL[$catalog] ?? 0,
-            callback: $fetch(...),
             params: $params,
         );
+        $stored = $ttl > 0 ? Cache::get($key) : null;
+
+        if (is_array($stored)) {
+            return $stored;
+        }
+
+        $value = $fetch();
+
+        if ($ttl > 0 && ! $this->isEmptyCatalog($value)) {
+            Cache::put($key, $value, $ttl);
+        }
+
+        return $value;
+    }
+
+    protected function isEmptyCatalog(array $value): bool
+    {
+        return $value === [] || (array_key_exists('payload', $value) && empty($value['payload']));
     }
 
     /**

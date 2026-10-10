@@ -54,12 +54,14 @@ enum InsuranceSearchFailureReason {
     REJECTED @enum(value: "rejected")
     UNAVAILABLE @enum(value: "unavailable")
     TIMEOUT @enum(value: "timeout")
+    INCOMPLETE_INFORMATION @enum(value: "incomplete_information")
 }
 
 input InsuranceVehicleInput {
     product_id: ID
     brand: String
     model: String
+    version: String
     year: Int
     fuel_type: InsuranceVehicleFuelType
     is_zero_km: Boolean

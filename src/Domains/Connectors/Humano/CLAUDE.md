@@ -126,6 +126,31 @@ brands to a car quote.
 Universal, where the granted emit scopes say which lines we may actually sell — so a plan the
 intermediary is not licensed for surfaces as a quote error instead.
 
+## Search (`insuranceSearch`): crosswalk, version and canonical mapping
+
+`HumanoProvider` is in the search fan-out (`VehicleReferenceQuoteProviderInterface`). Its vehicle catalogs are hierarchical,
+per plan, and carry no year (year is its own dato), so they cannot be mirrored like Universal's flat model list:
+
+- **Targeted crosswalk.** `scanVehicleCatalog()` walks, per plan, only the app's canonical vehicles: brand by normalized name
+  against `/marcas`, model against `/modelos` of that brand, then **every** version of that model from `/versiones`. All calls go
+  through the cached `getCatalog`. Rows land in `insurance_vehicle_model_map` with `plan_code` = plan slug,
+  `external_brand_id` / `external_model_id` / `external_version_id` and `version_key` (a model-level row has `version_key = ''`).
+  A plan whose brand catalog is empty, whose models come back empty or that throws is not reported as scanned, so it never
+  deactivates rows. Run it with `BuildVehicleModelCrosswalkJob`.
+- **Version is mandatory** (250004, no "any"). The canonical vehicle's free-text `version` is matched against `version_key`; no
+  match or no version means the plan is skipped silently. The picker reads `insuranceCatalog` `vehicle_versions`
+  (`plan`, `marca`, `modelo`), which returns Humano's `{payload: [{P_CD_DATO, P_DE_DATO}]}` unchanged.
+- **Canonical to Humano** lives in `Services/CanonicalQuotePayloadMapper`: `usage` to `uso` 1..17, `marital_status` to S/C,
+  `sex` to M/F/N, `circulation_zone` to 1..4, `birth_date` `Y-m-d` to `dd-mm-yyyy`, `age` derived from the birth date when absent.
+  A birth date is never invented from an age (it is required). An unsupported value throws a `ValidationException` that lists
+  the canonical values; a missing fact is named by `QuoteRequest`.
+- **PROVISIONAL defaults.** `rc_exceso` and `suma_asegurada_auto_exceso` have no documented meaning. `config/insurance.php`
+  `humano.*` defaults to `1` and `5000000` (cars) / `3000000` (`mi_moto_basico`), copied from their examples; an empty env falls
+  back to those. The values actually sent are recorded in `QuoteResult::$assumptions`. Until Humano confirms them, set
+  `INSURANCE_HUMANO_SEARCH_ENABLED=false` to keep Humano out of the search without a deploy. Confirm with Humano before relying on prices.
+- **Incomplete underwriting** (`hasRequiredInformation`) is reported as `INCOMPLETE_INFORMATION`, never as an outage.
+- **Empty catalog answers are never cached** (a 7-day TTL would pin a transient empty response).
+
 ## Prices: read Prorrata, never Anual
 
 A quote response carries both sets:
@@ -182,6 +207,10 @@ single `numeroBien`, so the first line is the vehicle; the whole response is kep
   Prorrata/Anual split, plan resolution from either spelling, the product list, catalog caching
   per plan, missing-parent rejection. Uses the `array` cache store so hit/miss counting doesn't
   need Redis.
+- `tests/Connectors/Humano/CanonicalQuotePayloadMapperTest.php` — each canonical-to-Humano mapping, its failure message,
+  the date format, age derivation and the config defaults.
+- `tests/Insurance/HumanoVehicleCrosswalkTest.php` — targeted crosswalk build against fixtures shaped like their OpenAPI
+  (per plan, idempotent, manual rows, empty and partial catalogs) and the multi-code resolver.
 - Live tests should follow the AppKey-guarded pattern (see `tests/CLAUDE.md`) and only run when
   `TEST_HUMANO_*` creds are present. **Not written yet — no credentials.**
 
@@ -196,5 +225,6 @@ single `numeroBien`, so the first line is the vehicle; the whole response is kep
 - [ ] Decide what contracting means for an insurer that cannot emit or charge: the Order's
       terminal state here is not `EMITTED`, and `InsuranceStatusEnum` has no case for
       "handed off to the insurer".
-- [ ] Vehicle → quote payload builder, shared with Universal's outstanding one — both need the
-      same insurance-specific vehicle custom fields that don't exist on products yet.
+- [ ] Confirm the `rc_exceso` / `suma_asegurada_auto_exceso` defaults and the canonical `usage` mapping with Humano.
+- [ ] Business errors (e.g. vehicle value outside the plan range) arrive as HTTP 200 with `codigoError`; `toQuoteResult`
+      maps them to a failed quote, which the search reports as `REJECTED`.

@@ -34,7 +34,28 @@ class QuoteResult
         public readonly ?string $inspectionStatus = null,
         public readonly array $raw = [],
         public readonly ?string $productCode = null,
+        public readonly array $assumptions = [],
     ) {
+    }
+
+    public function withAssumptions(array $assumptions): self
+    {
+        return new self(
+            success: $this->success,
+            message: $this->message,
+            quoteNumber: $this->quoteNumber,
+            premium: $this->premium,
+            ratePerKm: $this->ratePerKm,
+            tax: $this->tax,
+            total: $this->total,
+            currency: $this->currency,
+            commission: $this->commission,
+            canEmit: $this->canEmit,
+            inspectionStatus: $this->inspectionStatus,
+            raw: $this->raw,
+            productCode: $this->productCode,
+            assumptions: $assumptions,
+        );
     }
 
     public function withoutRaw(): self
@@ -53,6 +74,7 @@ class QuoteResult
             inspectionStatus: $this->inspectionStatus,
             raw: [],
             productCode: $this->productCode,
+            assumptions: $this->assumptions,
         );
     }
 }

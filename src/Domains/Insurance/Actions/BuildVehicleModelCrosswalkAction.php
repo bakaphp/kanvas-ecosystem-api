@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Insurance\Actions;
 
+use Kanvas\Insurance\Contracts\TargetedVehicleCatalogProviderInterface;
 use Kanvas\Insurance\Contracts\VehicleModelCatalogProviderInterface;
-use Kanvas\Insurance\DataTransferObject\CanonicalVehicle;
+use Kanvas\Insurance\DataTransferObject\ExternalVehicleModel;
+use Kanvas\Insurance\DataTransferObject\VehicleCatalogScan;
 use Kanvas\Insurance\Models\InsuranceVehicleModelMap;
 use Kanvas\Insurance\Models\Insurer;
 use Kanvas\Insurance\Services\VehicleKeyNormalizer;
@@ -18,74 +20,115 @@ class BuildVehicleModelCrosswalkAction
 
     public function __construct(
         protected Insurer $insurer,
-        protected VehicleModelCatalogProviderInterface $provider,
+        protected VehicleModelCatalogProviderInterface|TargetedVehicleCatalogProviderInterface $provider,
         protected array $vehicles,
     ) {
     }
 
     public function execute(): int
     {
-        $index = $this->indexCatalog();
+        $scan = $this->scan();
 
-        // An empty catalog means the fetch failed or was cut short, not that the insurer dropped every model.
-        if ($index === []) {
+        if ($scan->entries === [] && $scan->scannedPlanCodes === []) {
             return 0;
         }
 
-        $matchedKeys = [];
-        $unmatchedVehicles = [];
+        $confirmed = $this->confirmedEntries($scan->entries);
 
-        foreach ($this->vehicles as $vehicle) {
-            $key = $vehicle->brandKey() . '|' . $vehicle->modelKey();
-            $externalId = $index[$key] ?? null;
+        $models = [];
+        $modelsWithVersions = [];
 
-            if ($externalId === null) {
-                $unmatchedVehicles[$key] = $vehicle;
+        foreach ($confirmed as $entry) {
+            $this->upsert($entry);
+            $model = $this->modelKey($entry);
+            $models[$model] = true;
 
-                continue;
-            }
-
-            if (! isset($matchedKeys[$key])) {
-                $matchedKeys[$key] = true;
-                $this->upsert($vehicle, $externalId);
+            if ($entry->version !== '') {
+                $modelsWithVersions[$model] = true;
             }
         }
 
-        $this->deactivate(array_values($unmatchedVehicles));
+        $this->deactivateStale($scan->scannedPlanCodes, $confirmed, $models, $modelsWithVersions);
 
-        return count($matchedKeys);
+        return count($models);
     }
 
-    protected function indexCatalog(): array
+    protected function scan(): VehicleCatalogScan
     {
-        $index = [];
+        if ($this->provider instanceof TargetedVehicleCatalogProviderInterface) {
+            return $this->provider->scanVehicleCatalog($this->vehicles);
+        }
 
-        foreach ($this->provider->vehicleModelEntries() as $entry) {
+        $entries = $this->provider->vehicleModelEntries();
+
+        return new VehicleCatalogScan($entries, $entries === [] ? [] : ['']);
+    }
+
+    protected function confirmedEntries(array $entries): array
+    {
+        $wanted = [];
+
+        foreach ($this->vehicles as $vehicle) {
+            $wanted[$vehicle->brandKey() . '|' . $vehicle->modelKey()] = true;
+        }
+
+        $confirmed = [];
+
+        foreach ($entries as $entry) {
             $brandKey = VehicleKeyNormalizer::normalize($entry->brand);
             $modelKey = VehicleKeyNormalizer::normalize($entry->model);
 
-            if ($brandKey === '' || $modelKey === '') {
+            if ($brandKey === '' || $modelKey === '' || ! isset($wanted[$brandKey . '|' . $modelKey])) {
                 continue;
             }
 
-            $key = $brandKey . '|' . $modelKey;
+            $tuple = $this->tupleKey(
+                $entry->planCode,
+                $brandKey,
+                $modelKey,
+                VehicleKeyNormalizer::normalize($entry->version)
+            );
+            $current = $confirmed[$tuple] ?? null;
 
-            if (! isset($index[$key]) || strnatcmp($entry->externalId, $index[$key]) < 0) {
-                $index[$key] = $entry->externalId;
+            if ($current === null || strnatcmp($this->tieBreaker($entry), $this->tieBreaker($current)) < 0) {
+                $confirmed[$tuple] = $entry;
             }
         }
 
-        return $index;
+        return $confirmed;
     }
 
-    protected function upsert(CanonicalVehicle $vehicle, string $externalId): void
+    protected function tieBreaker(ExternalVehicleModel $entry): string
+    {
+        return $entry->versionId ?? $entry->externalId;
+    }
+
+    protected function tupleKey(
+        string $planCode,
+        string $brandKey,
+        string $modelKey,
+        string $versionKey
+    ): string {
+        return $planCode . '|' . $brandKey . '|' . $modelKey . '|' . $versionKey;
+    }
+
+    protected function modelKey(ExternalVehicleModel $entry): string
+    {
+        return $entry->planCode
+            . '|' . VehicleKeyNormalizer::normalize($entry->brand)
+            . '|' . VehicleKeyNormalizer::normalize($entry->model);
+    }
+
+    protected function upsert(ExternalVehicleModel $entry): void
     {
         $row = InsuranceVehicleModelMap::query()
             ->withoutGlobalScopes()
             ->firstOrNew([
                 'insurers_id' => $this->insurer->getId(),
-                'brand_key' => $vehicle->brandKey(),
-                'model_key' => $vehicle->modelKey(),
+                'plan_code' => $entry->planCode,
+                'brand_key' => VehicleKeyNormalizer::normalize($entry->brand),
+                'model_key' => VehicleKeyNormalizer::normalize($entry->model),
+                'version_key' => VehicleKeyNormalizer::normalize($entry->version),
                 'year' => self::ANY_YEAR,
             ]);
 
@@ -94,21 +137,34 @@ class BuildVehicleModelCrosswalkAction
         }
 
         $row->apps_id = $this->insurer->apps_id;
-        $row->external_model_id = $externalId;
+        $row->external_model_id = $entry->externalId;
+        $row->external_brand_id = $entry->brandId;
+        $row->external_version_id = $entry->versionId;
         $row->source = self::SOURCE_BUILDER;
         $row->active = true;
         $row->save();
     }
 
-    protected function deactivate(array $unmatchedVehicles): void
-    {
-        foreach (array_chunk($unmatchedVehicles, 200) as $chunk) {
-            InsuranceVehicleModelMap::query()
+    protected function deactivateStale(
+        array $scannedPlanCodes,
+        array $confirmed,
+        array $models,
+        array $modelsWithVersions
+    ): void {
+        if ($scannedPlanCodes === []) {
+            return;
+        }
+
+        $stale = [];
+
+        foreach (array_chunk($this->vehicles, 200) as $chunk) {
+            $rows = InsuranceVehicleModelMap::query()
                 ->notDeleted()
                 ->where('insurers_id', $this->insurer->getId())
                 ->where('year', self::ANY_YEAR)
                 ->where('source', self::SOURCE_BUILDER)
                 ->where('active', true)
+                ->whereIn('plan_code', $scannedPlanCodes)
                 ->where(function ($query) use ($chunk): void {
                     foreach ($chunk as $vehicle) {
                         $query->orWhere(function ($pair) use ($vehicle): void {
@@ -117,7 +173,27 @@ class BuildVehicleModelCrosswalkAction
                         });
                     }
                 })
-                ->update(['active' => false]);
+                ->get(['id', 'plan_code', 'brand_key', 'model_key', 'version_key']);
+
+            foreach ($rows as $row) {
+                $model = $row->plan_code . '|' . $row->brand_key . '|' . $row->model_key;
+                $tuple = $this->tupleKey(
+                    $row->plan_code,
+                    $row->brand_key,
+                    $row->model_key,
+                    $row->version_key
+                );
+                $modelGone = ! isset($models[$model]);
+                $versionGone = isset($modelsWithVersions[$model]) && ! isset($confirmed[$tuple]);
+
+                if ($modelGone || $versionGone) {
+                    $stale[] = $row->getKey();
+                }
+            }
+        }
+
+        foreach (array_chunk($stale, 500) as $ids) {
+            InsuranceVehicleModelMap::query()->whereIn('id', $ids)->update(['active' => false]);
         }
     }
 }

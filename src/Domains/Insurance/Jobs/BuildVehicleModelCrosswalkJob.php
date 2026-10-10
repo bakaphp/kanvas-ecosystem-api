@@ -14,6 +14,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Insurance\Actions\BuildVehicleModelCrosswalkAction;
 use Kanvas\Insurance\Actions\ListCanonicalVehiclesAction;
+use Kanvas\Insurance\Contracts\TargetedVehicleCatalogProviderInterface;
 use Kanvas\Insurance\Contracts\VehicleModelCatalogProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCatalogStatusEnum;
 use Kanvas\Insurance\Models\Insurer;
@@ -27,6 +28,10 @@ final class BuildVehicleModelCrosswalkJob implements ShouldQueue
     use KanvasJobsTrait;
     use Queueable;
     use SerializesModels;
+
+    public int $timeout = 1800;
+
+    public int $tries = 1;
 
     public function __construct(
         public readonly Apps $app,
@@ -56,7 +61,10 @@ final class BuildVehicleModelCrosswalkJob implements ShouldQueue
                 continue;
             }
 
-            if (! $provider instanceof VehicleModelCatalogProviderInterface) {
+            if (
+                ! $provider instanceof VehicleModelCatalogProviderInterface
+                && ! $provider instanceof TargetedVehicleCatalogProviderInterface
+            ) {
                 continue;
             }
 

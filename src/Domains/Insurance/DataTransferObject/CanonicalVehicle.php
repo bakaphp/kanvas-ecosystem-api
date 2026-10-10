@@ -15,6 +15,7 @@ class CanonicalVehicle
         public readonly string $brand,
         public readonly string $model,
         public readonly ?int $year = null,
+        public readonly ?string $version = null,
     ) {
     }
 
@@ -26,6 +27,7 @@ class CanonicalVehicle
             brand: (string) VehicleAttributeReader::read($vehicle, VehicleInsuranceAttributeEnum::BRAND),
             model: (string) VehicleAttributeReader::read($vehicle, VehicleInsuranceAttributeEnum::MODEL),
             year: is_numeric($year) ? (int) $year : null,
+            version: VehicleAttributeReader::read($vehicle, VehicleInsuranceAttributeEnum::VERSION),
         );
     }
 
@@ -37,6 +39,11 @@ class CanonicalVehicle
     public function modelKey(): string
     {
         return VehicleKeyNormalizer::normalize($this->model);
+    }
+
+    public function versionKey(): string
+    {
+        return VehicleKeyNormalizer::normalize((string) $this->version);
     }
 
     public function isIdentifiable(): bool

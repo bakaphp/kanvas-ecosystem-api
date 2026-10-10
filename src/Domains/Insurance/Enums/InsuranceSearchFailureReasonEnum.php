@@ -9,6 +9,7 @@ enum InsuranceSearchFailureReasonEnum: string
     case REJECTED = 'rejected';
     case UNAVAILABLE = 'unavailable';
     case TIMEOUT = 'timeout';
+    case INCOMPLETE_INFORMATION = 'incomplete_information';
 
     public function customerMessage(): string
     {
@@ -16,6 +17,7 @@ enum InsuranceSearchFailureReasonEnum: string
             self::REJECTED => 'This insurer could not quote this vehicle',
             self::UNAVAILABLE => 'This insurer is currently unavailable',
             self::TIMEOUT => 'This insurer did not answer in time',
+            self::INCOMPLETE_INFORMATION => 'More information is needed to quote this vehicle',
         };
     }
 }

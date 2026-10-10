@@ -57,6 +57,7 @@ class InsuranceSearchGraphQLTest extends TestCase
         $user = $this->createUser();
         $this->actingAs($user, 'api');
         $company = $user->getCurrentCompany();
+        $this->pinPlatformCompany($company->getId());
         $suffix = uniqid();
 
         $this->bindFakeProvider('ok_' . $suffix, fn (string $code) => $this->quoteResult('Q-' . $code, 200.0, 20.0));

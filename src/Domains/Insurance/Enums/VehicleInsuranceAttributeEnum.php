@@ -12,4 +12,5 @@ enum VehicleInsuranceAttributeEnum: string
     case BRAND = 'brand';
     case MODEL = 'model';
     case YEAR = 'year';
+    case VERSION = 'version';
 }

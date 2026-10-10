@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Insurance\Contracts\CanonicalQuoteProviderInterface;
 use Kanvas\Insurance\Contracts\QuoteTaskRunner;
+use Kanvas\Insurance\Contracts\VehicleReferenceQuoteProviderInterface;
 use Kanvas\Insurance\DataTransferObject\CanonicalQuoteInput;
 use Kanvas\Insurance\DataTransferObject\InsuranceSearchEntry;
 use Kanvas\Insurance\DataTransferObject\InsuranceSearchFailure;
@@ -140,13 +141,29 @@ class InsuranceSearchService
                 continue;
             }
 
-            $vehicleModelId = $this->vehicleModelIdFor($insurer, $input, $company, $failures);
+            $provider = $this->providerFor($insurer, $input, $company, $failures);
+
+            if ($provider === null) {
+                continue;
+            }
+
+            $vehicleModelId = $this->vehicleModelIdFor($provider, $insurer, $input);
 
             if ($vehicleModelId === false) {
                 continue;
             }
 
             foreach ($insurer->plans as $plan) {
+                if (! $this->canQuoteVehicle($provider, $input, $plan)) {
+                    continue;
+                }
+
+                if ($this->lacksRequiredInformation($provider, $input, $plan)) {
+                    $failures[] = $this->failure($insurer, InsuranceSearchFailureReasonEnum::INCOMPLETE_INFORMATION);
+
+                    continue;
+                }
+
                 $candidates[$insurer->getId() . ':' . $plan->getId()] = [
                     'insurer' => $insurer,
                     'plan' => $plan,
@@ -158,29 +175,51 @@ class InsuranceSearchService
         return $candidates;
     }
 
-    private function vehicleModelIdFor(
+    private function providerFor(
         Insurer $insurer,
         CanonicalQuoteInput $input,
         CompanyInterface $company,
         array &$failures
-    ): string|false|null {
+    ): ?CanonicalQuoteProviderInterface {
         try {
             $provider = InsuranceProviderFactory::make($insurer->provider, $input->app, $company);
         } catch (Throwable) {
             $failures[] = $this->failure($insurer, InsuranceSearchFailureReasonEnum::UNAVAILABLE);
 
-            return false;
+            return null;
         }
 
-        if (! $provider instanceof CanonicalQuoteProviderInterface) {
-            return false;
-        }
+        return $provider instanceof CanonicalQuoteProviderInterface ? $provider : null;
+    }
 
+    private function vehicleModelIdFor(
+        CanonicalQuoteProviderInterface $provider,
+        Insurer $insurer,
+        CanonicalQuoteInput $input
+    ): string|false|null {
         if (! $provider->requiresVehicleModelId()) {
             return null;
         }
 
         return $this->vehicleModelResolver->resolve($input->app, $insurer->provider, $input->vehicle) ?? false;
+    }
+
+    private function canQuoteVehicle(
+        CanonicalQuoteProviderInterface $provider,
+        CanonicalQuoteInput $input,
+        InsurancePlan $plan
+    ): bool {
+        return ! $provider instanceof VehicleReferenceQuoteProviderInterface
+            || $provider->canQuoteVehicle($input, (string) $plan->external_code);
+    }
+
+    private function lacksRequiredInformation(
+        CanonicalQuoteProviderInterface $provider,
+        CanonicalQuoteInput $input,
+        InsurancePlan $plan
+    ): bool {
+        return $provider instanceof VehicleReferenceQuoteProviderInterface
+            && ! $provider->hasRequiredInformation($input, (string) $plan->external_code);
     }
 
     private function entries(array $candidates, array $quotes): array
