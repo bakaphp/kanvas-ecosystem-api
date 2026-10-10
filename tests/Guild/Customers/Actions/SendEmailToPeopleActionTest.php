@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Customers\Actions;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -16,6 +17,10 @@ use Tests\TestCase;
 
 final class SendEmailToPeopleActionTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem'];
+
     private function freshPerson(Companies $company): People
     {
         return People::factory()

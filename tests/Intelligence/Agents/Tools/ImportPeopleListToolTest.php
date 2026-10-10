@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Tools;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ImportPeopleListTool;
@@ -12,6 +13,10 @@ use Tests\TestCase;
 
 class ImportPeopleListToolTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem'];
+
     private function tool(Companies $company, ?Users $user = null): ImportPeopleListTool
     {
         return new ImportPeopleListTool()->withContext(app(Apps::class), $company, $user ?? auth()->user());

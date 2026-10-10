@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Tools;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -17,6 +18,10 @@ use Tests\TestCase;
 
 class CreateLeadCampaignToolTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem'];
+
     private function freshPerson(Companies $company): People
     {
         $person = People::factory()

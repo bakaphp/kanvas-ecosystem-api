@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Campaigns;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -19,6 +20,10 @@ use Tests\TestCase;
 
 class ProcessLeadCampaignJobTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'crm', 'social', 'ecosystem'];
+
     private function campaignFor(Companies $company, string $channel, ?string $subject = null): Campaign
     {
         $campaign = new Campaign();
