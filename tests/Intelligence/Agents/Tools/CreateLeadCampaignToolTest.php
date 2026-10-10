@@ -11,6 +11,7 @@ use Kanvas\Guild\Campaigns\Jobs\ProcessLeadCampaignJob;
 use Kanvas\Guild\Campaigns\Models\Campaign;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateLeadCampaignTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\CreateTemplateTool;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -79,6 +80,53 @@ class CreateLeadCampaignToolTest extends TestCase
         $this->assertSame('error', $result['status']);
         $this->assertSame(0, Campaign::query()->where('companies_id', $company->getId())->count());
         Queue::assertNotPushed(ProcessLeadCampaignJob::class);
+    }
+
+    public function testUnknownTemplateNameIsRejectedBeforeCreatingTheCampaign(): void
+    {
+        Queue::fake();
+        $company = Companies::factory()->create();
+        $person = $this->freshPerson($company);
+        $person->addEmail('eligible@example.com');
+
+        $result = $this->tool($company)->__invoke(
+            people_ids: [$person->getId()],
+            message: 'Hello',
+            template_name: 'does-not-exist-' . uniqid(),
+        );
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('create_template', $result['message']);
+        $this->assertSame(0, Campaign::query()->where('companies_id', $company->getId())->count());
+        Queue::assertNotPushed(ProcessLeadCampaignJob::class);
+    }
+
+    public function testCustomTemplateNameAndAttachmentsAreStoredOnTheCampaign(): void
+    {
+        Queue::fake();
+        $company = Companies::factory()->create();
+        $user = auth()->user();
+        $person = $this->freshPerson($company);
+        $person->addEmail('eligible@example.com');
+
+        $templateName = 'tpl-' . uniqid();
+        $created = new CreateTemplateTool()
+            ->withContext(app(Apps::class), $company, $user)
+            ->__invoke(name: $templateName, html: '<p>{{ $content }}</p>');
+        $this->assertTrue($created['success']);
+
+        $result = $this->tool($company)->__invoke(
+            people_ids: [$person->getId()],
+            message: 'Hello',
+            template_name: $templateName,
+            attachment_urls: ['https://example.test/a.pdf', 'https://example.test/b.pdf'],
+        );
+
+        $this->assertSame('success', $result['status']);
+
+        $campaign = Campaign::findOrFail($result['campaign_id']);
+        $this->assertSame($templateName, $campaign->template_name);
+        $this->assertSame(['https://example.test/a.pdf', 'https://example.test/b.pdf'], $campaign->attachment_urls);
     }
 
     public function testNonAdminIsRejected(): void
