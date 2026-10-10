@@ -29,6 +29,7 @@ final class SyncUsersCommandTest extends TestCase
         $this->artisan('kanvas:vinsolution-sync-users', [
             'app_id' => $app->getId(),
             'company_ids' => (string) $company->getId(),
+            '--create-missing' => '0',
         ])
             ->expectsOutputToContain('does not have VinSolution configuration')
             ->assertSuccessful();

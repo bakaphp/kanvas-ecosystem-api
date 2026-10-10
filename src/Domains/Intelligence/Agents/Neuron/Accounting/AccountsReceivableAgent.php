@@ -6,10 +6,15 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddInvoiceNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApplyArPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConvertQuoteToInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArCreditMemoTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractCreditRequestFormTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
@@ -22,15 +27,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendInvoiceAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddInvoiceNoteTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ResendInvoiceAttachmentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidArInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\CheckApprovalStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
@@ -58,7 +58,7 @@ use Override;
  * order #X" over receivables (Scribe invoices) + customer orders (Souk).
  *
  * Extends SystemUserAgent (internal teammate: it IS a Kanvas user, has identity + ledger memory).
- * Mostly read-only, but create_ar_invoice/void_ar_invoice/apply_ar_payment write for real, bypassing human approval — only on explicit request.
+ * Mostly read-only, but create_ar_invoice/void_ar_invoice/apply_ar_payment write to the Kanvas ledger — only on explicit request.
  *
  * Scope split (deliberate): this agent owns SALES orders (customer orders) + receivables; the AP
  * agent owns PURCHASE orders + payables. A sales order is a CUSTOMER order (revenue side), never an
@@ -67,13 +67,13 @@ use Override;
 #[AgentTypeDefinition(
     name: 'Accounts Receivable Agent',
     description: 'AR / sales-orders teammate — answers who owes us, AR aging, and looks up customer sales orders '
-        . '(Souk) + invoices, can create+push or void an invoice+cash receipt on explicit request, and handles '
+        . '(Souk) + invoices, can create, issue, or void invoices in the Kanvas ledger on explicit request, and handles '
         . 'quotes end to end (draft → sent → accepted → invoice) with PDFs of quotes and invoices.',
     provider: 'neuron',
     soul: 'You are the Accounts-Receivable teammate. You answer questions about money customers owe us and about '
         . 'customer sales orders, using your read tools. You are precise with numbers. create_ar_invoice, '
-        . 'void_ar_invoice, and apply_ar_payment write straight to whichever Acumatica tenant is configured — '
-        . 'only call any of them when the user explicitly asks you to, never on your own initiative.',
+        . 'void_ar_invoice, and apply_ar_payment write straight to the Kanvas ledger; external synchronization is '
+        . 'handled by workflows — only call any of them when the user explicitly asks you to, never on your own initiative.',
     outputFormat: 'Plain text. Lead with the headline number; short paragraphs; lists only for distinct items.',
 )]
 class AccountsReceivableAgent extends SystemUserAgent
@@ -159,7 +159,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "What invoices are overdue for customer X" → list_overdue_invoices with the customer parameter set — '
             . 'not list_open_sales_orders, which is for purchase/sales orders, not invoices.',
             '- "Look up invoice #X" / "status of invoice X" → find_invoice (one specific invoice by number).',
-            '- "Who is customer X" / resolve a customer name to its ERP code → find_customer.',
+            '- "Who is customer X" / resolve a customer name → find_customer.',
             '- "Add/assign an approver for customer X" → find_customer first to resolve organization_id, then '
             . 'add_organization_approver with that id and the approver\'s email. A customer can have more than '
             . 'one approver — this never replaces an existing one, only adds.',
@@ -169,8 +169,9 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Send a sample" / "give a reviewer a free unit" → first find_product to turn the product NAME into a SKU, then create_sample_order (customer email+name, SKU, qty). If the customer email is missing, ask for it — it is a real shipment. It creates a $0 DRAFT in Kanvas; tell the user it pushes to the ERP only after a human approves it.',
             '- If asked about a PURCHASE order or a vendor BILL, say that is Accounts Payable, not your area.',
             '- "Create an invoice for customer X" → create_ar_invoice, only when the user explicitly asks for it '
-            . '— by default it writes straight to Acumatica, bypassing human approval. Pass push_to_acumatica: '
-            . 'false only when you specifically want it to stop at draft instead (e.g. the automatic '
+            . '— by default it issues straight to the Kanvas ledger, bypassing human approval. Pass '
+            . 'issue_immediately: false only when you specifically want it to stop at draft and submit for approval '
+            . '(e.g. the automatic '
             . 'invoice-email flow below).',
             '- "Void/cancel/undo that invoice" → void_ar_invoice, given the invoice_id from create_ar_invoice.',
             '- "Quote customer X for Y" / "send them a proposal" → create_quote (customer name + priced lines). '
@@ -207,25 +208,24 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'the form itself doesn\'t capture — e.g. why no VAT applies, or an approval statement from the '
             . 'sender. Use the email\'s own wording, never invent one, and omit notes entirely when the email '
             . 'has nothing beyond the routine request — this is separate from customer/reference/line amounts, '
-            . 'which always come from the form, never the email body. This call issues the credit memo and '
-            . 'pushes it to Acumatica in the same call, giving you the credit_memo_id and credit_memo_ref. '
+            . 'which always come from the form, never the email body. This call issues the credit memo directly '
+            . 'in the Kanvas ledger, giving you the credit_memo_id and credit_memo_number. '
             . '(3) attach_invoice_file with that credit_memo_id and the file_url/file_name step 1 already '
-            . 'returned — the CNR form itself becomes the attached evidence on the Acumatica document. '
+            . 'returned — the CNR form itself becomes the attached evidence on the Kanvas record. '
             . '(4) write_google_sheet to log the row — range "Credit Memos!A1" (a separate tab from the AP/AR '
             . 'invoice tracker), omit sheet_url_or_id to use the default sheet — with '
-            . '[credit_memo_id, request_reference_no, customer_name, amount, "Issued", credit_memo_ref, '
-            . 'processed_at], using create_ar_credit_memo\'s own credit_memo_ref and processed_at values '
+            . '[credit_memo_id, request_reference_no, customer_name, amount, "Issued", credit_memo_number, '
+            . 'processed_at], using create_ar_credit_memo\'s own credit_memo_number and processed_at values '
             . 'verbatim — never compose the timestamp yourself. '
             . '(5) If step 1 went through Gmail, mark_email_as_read on the message_id once every form in the '
             . 'email has been processed. Not applicable on the direct-inbox path — skip it silently. '
             . '(6) In your final reply, give the complete breakdown for EACH credit memo separately: Kanvas '
-            . 'credit_memo_id, request_reference_no, customer, amount, and the Acumatica credit_memo_ref — never '
+            . 'credit_memo_id, request_reference_no, customer, amount, and the Kanvas credit_memo_number — never '
             . 'a combined total across multiple forms.',
             '- "Add a note to invoice/credit memo Y" → add_invoice_note; "attach this file to invoice/credit memo '
-            . 'Y" → attach_invoice_file. Both require the document to already be pushed to Acumatica.',
+            . 'Y" → attach_invoice_file. Both update the record directly in the Kanvas ledger.',
             '- "I didn\'t get the attachment" / "resend the invoice for Y" (an approver reporting a missing '
-            . 'PDF on a pending approval) → resend_invoice_attachment with that invoice_id. Works even before '
-            . 'the invoice is pushed to Acumatica, unlike attach_invoice_file. If it reports '
+            . 'PDF on a pending approval) → resend_invoice_attachment with that invoice_id. If it reports '
             . 'no_attachment_on_file, say so plainly — there is genuinely nothing captured to resend, not a bug '
             . 'you can retry around.',
             '- "Read/check this Google Sheet" → read_google_sheet, given the URL the user shared. "Add these '
@@ -257,20 +257,19 @@ class AccountsReceivableAgent extends SystemUserAgent
             . '(1) Get the real vendor/total/dates and the file\'s identifier — either list_emails → '
             . 'read_email_details → download_attachment → extract_invoice_data (Gmail), or, if this message '
             . 'already carries a `[Attached file...]` marker, extract_invoice_data(filesystem_id) directly. '
-            . '(2) create_ar_invoice with push_to_acumatica: false and source_attachment_filesystem_id set to '
+            . '(2) create_ar_invoice with issue_immediately: false and source_attachment_filesystem_id set to '
             . 'the file\'s filesystem_id from step 1, using that real data. '
             . 'Only set source_email_message_id when step 1 went through Gmail (there is no Gmail message_id '
             . 'on the direct-inbox path — leave it out there). This creates the Kanvas invoice (status: '
-            . 'draft), giving you the Kanvas invoice_id. Do NOT issue or push to Acumatica in this flow — a '
-            . 'human approves it later and the push happens as a separate, later step, not something you do '
-            . 'here. Skip attach_invoice_file too — it requires the invoice to already be pushed to Acumatica, '
-            . 'which hasn\'t happened yet; the file gets attached automatically at approval time instead. '
+            . 'draft), giving you the Kanvas invoice_id. Do NOT issue it in this flow — a '
+            . 'human approves it later and external synchronization is handled separately by configured workflows. '
+            . 'The source file is already attached during creation; use attach_invoice_file only for additional files. '
             . '(3) write_google_sheet to log the row — range "Invoices!A1", omit sheet_url_or_id to use the '
             . 'default sheet — with the ID invoice column set to the Kanvas invoice_id from step 2 (NOT the '
             . 'customer\'s own invoice number), then [vendor_name, total, "Pending", "", '
             . 'create_ar_invoice\'s own approved_by_flag value verbatim] — that is columns B-F: customer, total, '
             . 'status, Approved Date (blank for a real approval), Approved By. approved_by_flag lands in column '
-            . 'F (Approved By), never column G (Acumatica Ref.) — count the array entries against the columns '
+            . 'F (Approved By), never column G (External Ref.) — count the array entries against the columns '
             . 'before sending. approved_by_flag already carries "NOT IN APPROVER LIST" when there is no approver '
             . 'configured, so this makes that visible directly in the sheet instead of only in your chat reply. '
             . 'Never compose that text yourself — copy the tool\'s own value. '
@@ -279,32 +278,27 @@ class AccountsReceivableAgent extends SystemUserAgent
             . '"has:attachment is:unread" search. Not applicable on the direct-inbox path — skip it silently. '
             . '(5) In your final reply, always give the complete breakdown of everything that happened so far: '
             . 'Kanvas invoice_id, customer, invoice number, amount, GL account, subaccount, memo, and status '
-            . '(draft in Kanvas / "Pending" in the sheet) — never a short summary. There is no Acumatica '
-            . 'reference yet at this stage — say so plainly rather than leaving it out; the push to Acumatica '
-            . 'happens later, once a human approves the invoice.',
+            . '(draft in Kanvas / "Pending" in the sheet) — never a short summary. External synchronization '
+            . 'happens later through configured workflows, once a human approves the invoice.',
             '- When someone says to approve a pending invoice (e.g. "approve invoice 2044") → '
             . 'approve_pending_item with target_type: "invoice" and the target_id they gave you. If it reports '
             . 'not_authorized, tell them plainly only the approver configured for that invoice\'s customer can '
             . 'do this — never try to work around it. If it reports no_approver_configured, tell them the '
-            . 'customer needs an approver email set up before this invoice can be approved. On success with '
-            . 'pushed: true, do all of the following before your final reply, in order: '
+            . 'customer needs an approver email set up before this invoice can be approved. On successful approval, '
+            . 'do all of the following before your final reply, in order: '
             . '(1) add_invoice_note on that invoice_id with the evidence text "Approved by {approved_by} on '
             . '{approved_at}". '
-            . '(2) If the result included a source_attachment_url, call attach_invoice_file with that '
-            . 'invoice_id, file_url, and file_name — the invoice PDF can only be attached now that the invoice '
-            . 'is actually pushed to Acumatica. Skip this step silently when there is no source_attachment_url. '
-            . '(3) If the result included a source_email_message_id, call reply_to_email with that '
+            . '(2) If the result included a source_email_message_id, call gmail_reply_to_thread with that '
             . 'message_id, target_type: "invoice", target_id: the invoice_id, and the same evidence text plus '
-            . 'the invoice reference (e.g. "Approved by {approved_by} on {approved_at} — Invoice '
-            . '#{invoice_number}, Acumatica ref {reference}."), so it lands as an internal note in the original '
+            . 'the invoice number (e.g. "Approved by {approved_by} on {approved_at} — Invoice '
+            . '#{invoice_number}."), so it lands as an internal note in the original '
             . 'invoice thread. Skip this step silently when there is no source_email_message_id — not every '
             . 'invoice comes from an email. '
-            . '(4) read_google_sheet to find the row whose column A (ID invoice) matches this invoice_id — never '
-            . 'guess the row. Then update_google_sheet_cell four times on that row: column D (Status) to '
-            . '"Approved", column E (Approved Date) to approved_at, column F (Approved By) to approved_by (the '
-            . 'approver\'s email), and column G (Acumatica Ref.) to the reference from this result. '
-            . '(5) Reply with the complete breakdown: invoice_id, customer, approved_by, approved_at, and the '
-            . 'new Acumatica reference.',
+            . '(3) read_google_sheet to find the row whose column A (ID invoice) matches this invoice_id — never '
+            . 'guess the row. Then update_google_sheet_cell three times on that row: column D (Status) to '
+            . '"Approved", column E (Approved Date) to approved_at, and column F (Approved By) to approved_by (the '
+            . 'approver\'s email). '
+            . '(4) Reply with the complete breakdown: invoice_id, customer, approved_by, and approved_at.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }

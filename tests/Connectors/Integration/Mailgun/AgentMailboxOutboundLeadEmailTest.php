@@ -24,7 +24,7 @@ use Tests\TestCase;
 /**
  * The outbound half of the agent mailbox: an agent that owns an address writes to the prospect from
  * it, instead of the company's SMTP identity. The reply lane already did this; these cover the sends
- * the agent starts — send_email, follow-ups and first-touch outreach.
+ * the agent starts — send_lead_email, follow-ups and first-touch outreach.
  */
 final class AgentMailboxOutboundLeadEmailTest extends TestCase
 {

@@ -12,7 +12,10 @@ use Kanvas\Guild\Campaigns\Enums\CampaignStatusEnum;
 use Kanvas\Guild\Campaigns\Jobs\ProcessLeadCampaignJob;
 use Kanvas\Guild\Campaigns\Models\Campaign;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
 
@@ -42,6 +45,20 @@ class ProcessLeadCampaignJobTest extends TestCase
         $recipient->lead_campaigns_id = $campaign->getId();
         $recipient->leads_id = $lead->getId();
         $recipient->peoples_id = (int) $lead->people_id;
+        $recipient->status = CampaignRecipientStatusEnum::PENDING->value;
+        $recipient->saveOrFail();
+
+        return $recipient;
+    }
+
+    private function addPeopleRecipient(Campaign $campaign, People $people): CampaignRecipient
+    {
+        $recipient = new CampaignRecipient();
+        $recipient->apps_id = $campaign->apps_id;
+        $recipient->companies_id = $campaign->companies_id;
+        $recipient->lead_campaigns_id = $campaign->getId();
+        $recipient->leads_id = null;
+        $recipient->peoples_id = $people->getId();
         $recipient->status = CampaignRecipientStatusEnum::PENDING->value;
         $recipient->saveOrFail();
 
@@ -107,5 +124,104 @@ class ProcessLeadCampaignJobTest extends TestCase
         $this->assertSame('do_not_contact', $recipient->reason);
         $this->assertSame(1, $campaign->refresh()->skipped_count);
         Notification::assertNothingSent();
+    }
+
+    public function testMixedCampaignSendsBothLeadAndPeopleOnlyRecipients(): void
+    {
+        Notification::fake();
+        $company = Companies::factory()->create();
+
+        $lead = Lead::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(auth()->user()->getId())
+            ->create();
+        $lead->people->contacts()->delete();
+        $lead->people->addEmail('lead-recipient@example.com');
+
+        $person = People::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(auth()->user()->getId())
+            ->create();
+        $person->addEmail('people-recipient@example.com');
+
+        $campaign = $this->campaignFor($company, 'email', 'Hello');
+        $leadRecipient = $this->addRecipient($campaign, $lead);
+        $peopleRecipient = $this->addPeopleRecipient($campaign, $person);
+
+        new ProcessLeadCampaignJob(app(Apps::class), $campaign)->handle();
+
+        $this->assertSame(CampaignRecipientStatusEnum::SENT->value, $leadRecipient->refresh()->status);
+        $this->assertSame('lead-recipient@example.com', $leadRecipient->destination);
+
+        $this->assertSame(CampaignRecipientStatusEnum::SENT->value, $peopleRecipient->refresh()->status);
+        $this->assertSame('people-recipient@example.com', $peopleRecipient->destination);
+
+        $campaign->refresh();
+        $this->assertSame(2, $campaign->sent_count);
+        $this->assertSame(CampaignStatusEnum::SENT->value, $campaign->status);
+
+        // The people-only recipient leaves a note on the PERSON's own timeline — never
+        // RecordLeadNoteAction, since there is no lead behind that recipient.
+        $peopleNote = Message::query()
+            ->where('companies_id', $company->getId())
+            ->whereHas(
+                'appModuleMessage',
+                fn ($q) => $q->where('system_modules', People::class)->where('entity_id', $person->getId()),
+            )
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($peopleNote, 'Expected an audit note on the person for the people-only send');
+        $this->assertStringContainsString('Batch body', $peopleNote->contentText());
+    }
+
+    public function testSentEmailIsSavedOnTheEntityEmailChannelForLeadAndPeopleRecipients(): void
+    {
+        Notification::fake();
+        $company = Companies::factory()->create();
+
+        $lead = Lead::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(auth()->user()->getId())
+            ->create();
+        $lead->people->contacts()->delete();
+        $leadEmail = 'lead-history-' . uniqid() . '@example.com';
+        $lead->people->addEmail($leadEmail);
+
+        $person = People::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(auth()->user()->getId())
+            ->create();
+        $peopleEmail = 'people-history-' . uniqid() . '@example.com';
+        $person->addEmail($peopleEmail);
+
+        $campaign = $this->campaignFor($company, 'email', 'Spring offer');
+        $this->addRecipient($campaign, $lead);
+        $this->addPeopleRecipient($campaign, $person);
+
+        new ProcessLeadCampaignJob(app(Apps::class), $campaign)->handle();
+
+        $this->assertCampaignEmailOnChannel(Lead::class, $lead->getId(), $leadEmail);
+        $this->assertCampaignEmailOnChannel(People::class, $person->getId(), $peopleEmail);
+    }
+
+    private function assertCampaignEmailOnChannel(string $entityNamespace, int $entityId, string $email): void
+    {
+        $channel = Channel::query()
+            ->where('entity_namespace', $entityNamespace)
+            ->where('entity_id', $entityId)
+            ->where('slug', SessionChannelService::createChannelSlug('email', $email))
+            ->first();
+        $this->assertNotNull($channel, "Expected an email channel on {$entityNamespace} #{$entityId}");
+
+        /** @var Message|null $message */
+        $message = $channel->messages()->latest('messages.id')->first();
+        $this->assertNotNull($message, 'Expected the sent campaign email on the channel');
+        $this->assertStringContainsString('Batch body', $message->contentText());
+        $this->assertSame('Spring offer', $message->get('title'));
+        $this->assertFalse((bool) $message->message['from_ia'], 'A campaign is sent by the manager, not the AI');
     }
 }

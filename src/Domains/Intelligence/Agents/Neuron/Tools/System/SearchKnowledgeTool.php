@@ -39,6 +39,15 @@ class SearchKnowledgeTool extends Tool
      */
     public const int MAX_SEARCHES_PER_TURN = 2;
 
+    /**
+     * A result stays in the turn and is re-sent on every later step, so the tool returns fewer than the
+     * pre-turn recall. Memory keeps a share: the retrieval lists documents first, and a plain cut would
+     * drop every earlier conversation and ledger hit whenever the documents alone fill the slots.
+     */
+    public const int MAX_RESULTS = 5;
+
+    private const int MEMORY_SHARE = 2;
+
     protected string $name = 'search_knowledge';
 
     protected ?string $description = 'Look it up: the documents the company gave you (policies, guides, location and lot '
@@ -130,12 +139,38 @@ class SearchKnowledgeTool extends Tool
             return self::miss('Nothing matches; rephrase the topic once or widen the period, then answer from what you have.');
         }
 
+        $documents = self::capped($documents);
+
         return [
             'count' => count($documents),
             'results' => array_map(static fn (Document $document): array => [
                 'source' => self::sourceOf($document),
                 'content' => $document->getContent(),
             ], $documents),
+        ];
+    }
+
+    /**
+     * @param Document[] $documents
+     * @return Document[]
+     */
+    private static function capped(array $documents): array
+    {
+        $memory = [];
+        $knowledge = [];
+        foreach ($documents as $document) {
+            if (in_array(self::sourceOf($document), KnowledgeScope::MEMORY_SOURCE_TYPES, true)) {
+                $memory[] = $document;
+            } else {
+                $knowledge[] = $document;
+            }
+        }
+
+        $knowledgeTake = min(count($knowledge), self::MAX_RESULTS - min(count($memory), self::MEMORY_SHARE));
+
+        return [
+            ...array_slice($knowledge, 0, $knowledgeTake),
+            ...array_slice($memory, 0, self::MAX_RESULTS - $knowledgeTake),
         ];
     }
 

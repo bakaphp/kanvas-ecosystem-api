@@ -65,11 +65,25 @@ extend type Query @guard {
         search: String @search
         where: _
             @whereConditions(
-                columns: ["id", "name", "uuid", "is_published", "slug"]
+                columns: [
+                    "id"
+                    "name"
+                    "uuid"
+                    "is_published"
+                    "slug"
+                    "is_default"
+                ]
             )
         orderBy: _
             @orderBy(
-                columns: ["id", "name", "slug", "created_at", "updated_at"]
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                    "created_at"
+                    "updated_at"
+                    "is_default"
+                ]
             )
     ): [Channel!]
         @paginate(

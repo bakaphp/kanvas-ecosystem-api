@@ -19,6 +19,7 @@ use Kanvas\Scribe\Payments\Actions\CreateScribePaymentAction;
 use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use Kanvas\Scribe\Payments\Models\Payment;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use RuntimeException;
 
 /**
@@ -75,7 +76,7 @@ class AllocateBillPaymentAction
             );
         }
 
-        return DB::connection('accounting')->transaction(function (): BillPaymentAllocation {
+        $allocation = DB::connection('accounting')->transaction(function (): BillPaymentAllocation {
             $bill = $this->bill;
             $fxRate = (float) $bill->fx_rate_to_base;
 
@@ -133,5 +134,15 @@ class AllocateBillPaymentAction
 
             return $allocation->refresh();
         });
+
+        $allocation->payment?->fireWorkflowAfterCommit(
+            WorkflowEnum::CREATED->value,
+            [
+                'app' => $allocation->payment->app,
+                'entity' => 'payment',
+            ]
+        );
+
+        return $allocation;
     }
 }

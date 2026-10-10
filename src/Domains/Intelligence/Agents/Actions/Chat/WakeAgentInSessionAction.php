@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Scheduling\Actions\DeliverScheduledMessageToChannelAction;
 use Kanvas\Users\Models\Users;
@@ -37,10 +38,17 @@ class WakeAgentInSessionAction
             sourceChannel: $this->session->channel,
             persistConversation: false,
             privateUserTurn: true,
+            // Whatever comes back is posted into the channel, so a failed turn must throw rather than
+            // hand back the "I ran into a hiccup" prose as if the agent had said it.
+            fallbackOnFailure: false,
         )->execute();
 
+        if (AgentTurnResponse::isNoOp($response)) {
+            return '';
+        }
+
         // An agent with no user of its own has no author to post as; the turn still ran.
-        if ($this->session->channel !== null && $this->agent->user !== null && trim($response) !== '') {
+        if ($this->session->channel !== null && $this->agent->user !== null) {
             new DeliverScheduledMessageToChannelAction(
                 channel: $this->session->channel,
                 text: $response,

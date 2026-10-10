@@ -51,4 +51,5 @@ enum ConfigurationEnum: string
     // apps (voiceAgentSpec by uuid, ignoring apps_id). Enable ONLY on the
     // trusted voice-runtime app; every other app-key stays app-scoped.
     case VOICE_RUNTIME_CROSS_APP = 'kanvas-intelligence-voice-runtime-cross-app';
+    case LEAD_FOLLOW_UP_DISABLED = 'lead_follow_up_disabled';
 }

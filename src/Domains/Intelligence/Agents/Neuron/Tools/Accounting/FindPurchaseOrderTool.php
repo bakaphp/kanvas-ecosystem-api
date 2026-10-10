@@ -74,7 +74,7 @@ class FindPurchaseOrderTool extends Tool
             'found' => true,
             'order_number' => $po->order_number,
             'order_type' => $po->order_type,
-            'vendor_code' => $po->vendor_code,
+            'vendor_organization_id' => $po->vendor_organization_id,
             'status' => $po->status,
             'order_date' => $po->order_date?->toDateString(),
             'currency' => $po->currency,

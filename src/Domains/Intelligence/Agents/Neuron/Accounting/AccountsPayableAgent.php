@@ -6,9 +6,13 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApplyApPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CategorizeExpenseTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractExpenseReceiptTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
@@ -24,12 +28,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDueToEmployeesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryExpenseReportTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordCompanyCardExpenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordExpenseReimbursementTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ResendBillAttachmentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendBillAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\CheckApprovalStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
@@ -54,18 +54,17 @@ use Override;
  * chat history, and write attribution to its OWN user (actingUser). On top of that core it adds the
  * AP read tools below.
  *
- * Mostly read-only, but create_ap_bill/void_ap_bill/apply_ap_payment write for real, bypassing human approval — only on explicit request.
+ * Mostly read-only, but create_ap_bill/void_ap_bill/apply_ap_payment write to the Kanvas ledger — only on explicit request.
  */
 #[AgentTypeDefinition(
     name: 'Accounts Payable Agent',
-    description: 'AP teammate — answers what the company owes using synced ERP data (open bills, AP aging, '
-        . 'open purchase orders, vendors), and can create+push or void a bill on explicit request.',
+    description: 'AP teammate — answers what the company owes using Kanvas payables (open bills, AP aging, '
+        . 'open purchase orders, vendors), and can create, approve, or void a bill on explicit request.',
     provider: 'neuron',
     soul: 'You are the Accounts-Payable teammate. You answer questions about what the company owes its '
         . 'vendors using your read tools. You are accountable and precise with numbers. create_ap_bill, '
-        . 'void_ap_bill, and apply_ap_payment bypass the normal human-approval path and write straight to '
-        . 'whichever Acumatica tenant is configured — only call any of them when the user explicitly asks you '
-        . 'to, never on your own initiative.',
+        . 'void_ap_bill, and apply_ap_payment write straight to Kanvas payables; external synchronization is '
+        . 'handled by workflows — only call any of them when the user explicitly asks you to, never on your own initiative.',
     outputFormat: 'Plain text. Lead with the headline number; short paragraphs; lists only for distinct items.',
 )]
 class AccountsPayableAgent extends SystemUserAgent
@@ -170,7 +169,8 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'time when the statement lands.',
             '- "Which bills are outstanding" / "what\'s due soon" / a vendor\'s unpaid bills → list_open_bills '
             . '(set only_overdue for past-due focus).',
-            '- "What has vendor X got on order" / matching an invoice to a PO → list_open_purchase_orders.',
+            '- "What has vendor X got on order" / matching an invoice to a PO → find_vendor to resolve '
+            . 'organization_id, then list_open_purchase_orders with vendor_organization_id.',
             '- Resolving a vendor name off an invoice → find_vendor; if more than one candidate, confirm which.',
             '- "Add/assign an approver for vendor X" → find_vendor first to resolve organization_id, then '
             . 'add_organization_approver with that id and the approver\'s email. A vendor can have more than '
@@ -187,17 +187,16 @@ class AccountsPayableAgent extends SystemUserAgent
             '- Lead with the headline (e.g. "Total payables: $84,200 across 12 vendors; $19,500 overdue"), then '
             . 'the top 3-5 items. Be honest about freshness; never invent precision the data lacks.',
             '- "Create a bill for vendor X" → create_ap_bill, only when the user explicitly asks for it — by '
-            . 'default it writes straight to Acumatica, bypassing human approval. Pass push_to_acumatica: false '
+            . 'default it approves the bill directly in Kanvas. Pass approve_immediately: false '
             . 'only when you specifically want it to stop at pending_approval instead (e.g. the automatic '
             . 'invoice-email flow below).',
             '- "Void/cancel/undo that bill" → void_ap_bill, given the bill_id from create_ap_bill.',
             '- "Pay a vendor bill" / "record a payment against bill Y" → apply_ap_payment, only when the user '
             . 'explicitly asks to record a real payment. Needs the bill_id, amount, and a payment reference.',
             '- "Add a note to bill Y" → add_bill_note; "attach this file to bill Y" → attach_bill_file. Both '
-            . 'require the bill to already be pushed to Acumatica.',
+            . 'update the bill directly in Kanvas.',
             '- "I didn\'t get the attachment" / "resend the invoice for bill Y" (an approver reporting a '
-            . 'missing PDF on a pending approval) → resend_bill_attachment with that bill_id. Works even before '
-            . 'the bill is pushed to Acumatica, unlike attach_bill_file. If it reports no_attachment_on_file, '
+            . 'missing PDF on a pending approval) → resend_bill_attachment with that bill_id. If it reports no_attachment_on_file, '
             . 'say so plainly — there is genuinely nothing captured to resend, not a bug you can retry around.',
             '- "Read/check this Google Sheet" → read_google_sheet, given the URL the user shared. "Add these '
             . 'rows to the sheet" → write_google_sheet. "Mark that row as X in the sheet" → '
@@ -228,7 +227,7 @@ class AccountsPayableAgent extends SystemUserAgent
             . '(1) Get the real vendor/total/dates/due date and the file\'s identifier — either list_emails → '
             . 'read_email_details → download_attachment → extract_invoice_data (Gmail), or, if this message '
             . 'already carries a `[Attached file...]` marker, extract_invoice_data(filesystem_id) directly. '
-            . '(2) create_ap_bill with push_to_acumatica: false and source_attachment_filesystem_id set to the '
+            . '(2) create_ap_bill with approve_immediately: false and source_attachment_filesystem_id set to the '
             . 'file\'s filesystem_id from step 1, using that real data. '
             . 'Pass due_date verbatim from extract_invoice_data\'s own due_date field when the invoice shows '
             . 'one — never compute or guess it yourself, and never leave it out just because computing it '
@@ -237,18 +236,17 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'total; use the singular amount/gl_account_number only for a genuinely one-line invoice. '
             . 'Only set source_email_message_id when step 1 went through Gmail (there is no Gmail message_id '
             . 'on the direct-inbox path — leave it out there). This creates the Kanvas bill and submits it for '
-            . 'approval (status: pending_approval), giving you the Kanvas bill_id. Do NOT push to Acumatica in '
-            . 'this flow — a human approves the bill later and the push happens as a separate, later step, not '
-            . 'something you do here. Skip attach_bill_file too — it requires the bill to already be pushed to '
-            . 'Acumatica, which hasn\'t happened yet; the file gets attached automatically at approval time '
-            . 'instead. If the result includes an attachment_warning, say so plainly in your final reply — '
+            . 'approval (status: pending_approval), giving you the Kanvas bill_id. A human approves the bill later; '
+            . 'external synchronization is handled by configured workflows. The source file is already attached '
+            . 'during creation; use attach_bill_file only for additional files. If the result includes an '
+            . 'attachment_warning, say so plainly in your final reply — '
             . 'the approver will not see the invoice PDF with the approval request until this is fixed. '
             . '(3) write_google_sheet to log the row — range "Invoices!A1", omit sheet_url_or_id to use the '
             . 'default sheet — with the ID invoice column set to the Kanvas bill_id from step 2 (NOT the '
             . 'vendor\'s own invoice number), then [vendor_name, total, "Pending", "", '
             . 'create_ap_bill\'s own approved_by_flag value verbatim] — that is columns B-F: vendor, total, '
             . 'status, Approved Date (blank for a real approval), Approved By. approved_by_flag lands in column '
-            . 'F (Approved By), never column G (Acumatica Ref.) — count the array entries against the columns '
+            . 'F (Approved By), never column G (External Ref.) — count the array entries against the columns '
             . 'before sending. approved_by_flag already carries "NOT IN APPROVER LIST" when there is no approver '
             . 'configured, so this makes that visible directly in the sheet instead of only in your chat reply. '
             . 'Never compose that text yourself — copy the tool\'s own value. '
@@ -257,32 +255,27 @@ class AccountsPayableAgent extends SystemUserAgent
             . '"has:attachment is:unread" search. Not applicable on the direct-inbox path — skip it silently. '
             . '(5) In your final reply, always give the complete breakdown of everything that happened so far: '
             . 'Kanvas bill_id, vendor, invoice number, amount, GL account, subaccount, memo, and status '
-            . '(pending_approval in Kanvas / "Pending" in the sheet) — never a short summary. There is no '
-            . 'Acumatica reference yet at this stage — say so plainly rather than leaving it out; the push to '
-            . 'Acumatica happens later, once a human approves the bill.',
+            . '(pending_approval in Kanvas / "Pending" in the sheet) — never a short summary. External '
+            . 'synchronization happens later through configured workflows, once a human approves the bill.',
             '- When someone says to approve a pending bill (e.g. "approve bill 1072") → approve_pending_item '
             . 'with target_type: "bill" and the target_id they gave you. If it reports not_authorized, tell '
             . 'them plainly only the approver configured for that bill\'s vendor can do this — never try to '
             . 'work around it. If it reports no_approver_configured, tell them the vendor needs an approver '
-            . 'email set up before this bill can be approved. On success with pushed: true, do all of the '
+            . 'email set up before this bill can be approved. On successful approval, do all of the '
             . 'following before your final reply, in order: '
             . '(1) add_bill_note on that bill_id with the evidence text "Approved by {approved_by} on '
             . '{approved_at}". '
-            . '(2) If the result included a source_attachment_url, call attach_bill_file with that bill_id, '
-            . 'file_url, and file_name — the invoice PDF can only be attached now that the bill is actually '
-            . 'pushed to Acumatica. Skip this step silently when there is no source_attachment_url. '
-            . '(3) If the result included a source_email_message_id, call reply_to_email with that '
+            . '(2) If the result included a source_email_message_id, call gmail_reply_to_thread with that '
             . 'message_id, target_type: "bill", target_id: the bill_id, and the same evidence text plus the '
-            . 'bill reference (e.g. "Approved by {approved_by} on {approved_at} — Bill #{bill_number}, '
-            . 'Acumatica ref {reference}."), so it lands as an internal note in the original invoice thread. '
+            . 'bill number (e.g. "Approved by {approved_by} on {approved_at} — Bill #{bill_number}."), '
+            . 'so it lands as an internal note in the original invoice thread. '
             . 'Skip this step silently when there is no source_email_message_id — not every bill comes from '
             . 'an email. '
-            . '(4) read_google_sheet to find the row whose column A (ID invoice) matches this bill_id — never '
-            . 'guess the row. Then update_google_sheet_cell four times on that row: column D (Status) to '
-            . '"Approved", column E (Approved Date) to approved_at, column F (Approved By) to approved_by (the '
-            . 'approver\'s email), and column G (Acumatica Ref.) to the reference from this result. '
-            . '(5) Reply with the complete breakdown: bill_id, vendor, approved_by, approved_at, and the new '
-            . 'Acumatica reference.',
+            . '(3) read_google_sheet to find the row whose column A (ID invoice) matches this bill_id — never '
+            . 'guess the row. Then update_google_sheet_cell three times on that row: column D (Status) to '
+            . '"Approved", column E (Approved Date) to approved_at, and column F (Approved By) to approved_by (the '
+            . 'approver\'s email). '
+            . '(4) Reply with the complete breakdown: bill_id, vendor, approved_by, and approved_at.',
         ]);
     }
 }

@@ -48,14 +48,14 @@ class CustomerFacingAgentMemoryTest extends TestCase
         $returning = $this->agent($agentRecord, $prospectA, 'a-email');
         $returning->chat(new UserMessage('Any news on the car we talked about?'));
 
-        $prompt = (string) end($returning->systemPrompts);
+        $prompt = (string) end($returning->modelInputs);
         $this->assertStringContainsString('blue 2024 Civic', $prompt, 'Prospect A is remembered on a new channel and session');
         $this->assertStringContainsString('Earlier conversation', $prompt);
 
         $stranger = $this->agent($agentRecord, $prospectB, 'b-whatsapp');
         $stranger->chat(new UserMessage('Any news on the car we talked about?'));
 
-        $this->assertStringNotContainsString('Civic', (string) end($stranger->systemPrompts), 'Prospect B never sees prospect A');
+        $this->assertStringNotContainsString('Civic', (string) end($stranger->modelInputs), 'Prospect B never sees prospect A');
     }
 
     private function agent(Agent $record, People $prospect, string $thread): RememberingCustomerAgentStub

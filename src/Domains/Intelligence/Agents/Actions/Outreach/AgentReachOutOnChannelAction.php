@@ -65,6 +65,10 @@ class AgentReachOutOnChannelAction
             sourceChannel: $channel,
             sourceMessage: null,
             persistConversation: false,
+            // The trigger is our instruction, not the lead's words. Saved to memory it reads as
+            // "User: Send the first reach-out sms…", and a later turn that recalls it can take it
+            // as a fresh request. The sent message is still stored on the lead by createMessage().
+            privateUserTurn: true,
         )->execute();
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);

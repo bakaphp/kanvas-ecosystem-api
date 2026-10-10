@@ -8,7 +8,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Guild\Campaigns\Enums\CampaignRecipientStatusEnum;
 use Kanvas\Guild\Campaigns\Enums\CampaignStatusEnum;
 use Kanvas\Guild\Campaigns\Jobs\ProcessLeadCampaignJob;
 use Kanvas\Guild\Campaigns\Models\Campaign;
@@ -23,7 +22,9 @@ use Kanvas\Users\Models\Users;
 class CreateBatchCampaignAction
 {
     /**
-     * @param  array<int, array<string, mixed>>  $eligibleRecipients  Resolver eligible rows (lead_id, people_id).
+     * @param  array<int, array<string, mixed>>  $eligibleRecipients  Resolver eligible rows (lead_id, people_id) —
+     *     exactly one of the two is non-null per row (resolve()'s rows always carry a lead_id,
+     *     resolvePeople()'s always carry a people_id and a null lead_id).
      * @param  array<string, mixed>  $criteria
      */
     public function __construct(
@@ -58,14 +59,11 @@ class CreateBatchCampaignAction
             $campaign->saveOrFail();
 
             foreach ($this->eligibleRecipients as $row) {
-                $recipient = new CampaignRecipient();
-                $recipient->apps_id = $this->app->getId();
-                $recipient->companies_id = $this->company->getId();
-                $recipient->lead_campaigns_id = $campaign->getId();
-                $recipient->leads_id = (int) $row['lead_id'];
-                $recipient->peoples_id = ((int) ($row['people_id'] ?? 0)) ?: null;
-                $recipient->status = CampaignRecipientStatusEnum::PENDING->value;
-                $recipient->saveOrFail();
+                CampaignRecipient::pending(
+                    $campaign,
+                    isset($row['lead_id']) ? (int) $row['lead_id'] : null,
+                    ((int) ($row['people_id'] ?? 0)) ?: null,
+                )->saveOrFail();
             }
 
             return $campaign;
