@@ -66,6 +66,9 @@ class InsuranceQuery
             'tax' => $quote->tax,
             'total' => $quote->total,
             'currency' => $quote->currency,
+            'commission' => $quote->commission,
+            'can_emit' => $quote->canEmit,
+            'inspection_status' => $quote->inspectionStatus,
             'data' => $quote->raw,
         ];
     }
