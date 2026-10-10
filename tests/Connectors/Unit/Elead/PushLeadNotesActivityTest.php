@@ -44,7 +44,7 @@ final class PushLeadNotesActivityTest extends TestCase
         ]);
 
         $suffix = $opportunityId !== null
-            ? 'Please first open SalesAssist Extension and then click on the banner or this url https://salink.app/?openInSa=true&uuid=test-lead-uuid&action=' . $verb . '&lDID=' . $opportunityId
+            ? 'Please first open SalesAssist Extension and then click on the banner.'
             : 'Please open the Chrome Extension to link and sync the opportunity first to view the banner.';
         $opportunity = Mockery::mock();
         $opportunity->shouldReceive('addComment')->once()->with(

@@ -11,16 +11,20 @@ use Kanvas\Imports\Actions\RunImportSourceAction;
 use Kanvas\Imports\DataTransferObject\ImportRunResult;
 use Kanvas\Imports\Enums\ImportRunStatusEnum;
 use Kanvas\Imports\Models\ImportSource;
+use Kanvas\Inventory\Importer\Actions\FinishProductImportAction;
+use Kanvas\Inventory\Variants\Models\Variants;
 use RuntimeException;
 use Tests\Ecosystem\Integration\Imports\Concerns\CreatesImportSources;
 use Tests\Ecosystem\Integration\Imports\Fakes\FakeRemoteFileClient;
 use Tests\Ecosystem\Integration\Imports\Fakes\FakeRemoteFileClientFactory;
+use Tests\Inventory\Integration\Imports\PublishesChannelVariants;
 use Tests\TestCase;
 
 final class RunImportSourceActionTest extends TestCase
 {
     use CreatesImportSources;
     use DatabaseTransactions;
+    use PublishesChannelVariants;
 
     protected $connectionsToTransact = [null, 'ecosystem', 'inventory'];
 
@@ -149,6 +153,55 @@ final class RunImportSourceActionTest extends TestCase
         $source->refresh();
         $this->assertSame(ImportRunStatusEnum::FAILED, $source->last_status);
         $this->assertSame('Connection reset by peer', $source->last_message);
+    }
+
+    public function testUnpublishesOnlyTheVariantsTheFeedNoLongerSends(): void
+    {
+        [$source, [$kept, $sold]] = $this->sourceWithPublishedVins(2);
+        $client = new FakeRemoteFileClient([
+            'MP10425.csv' => $this->dealerCsv(
+                [$kept->sku, 'S1', 'Used', '2020', 'Honda', 'Civic', '', '', '18500', ''],
+                ['VIN-NEW-' . uniqid(), 'S2', 'Used', '2021', 'Ford', 'F-150', '', '', '25000', ''],
+            ),
+        ]);
+
+        $result = $this->runWith($source, $client);
+
+        $this->assertStringContainsString('1 missing variant(s) unpublished', $result->message);
+        $this->assertSame(1, $this->publishedIn($source->channel, $kept));
+        $this->assertSame(0, $this->publishedIn($source->channel, $sold));
+    }
+
+    public function testAFeedMatchingUnderHalfOfTheChannelUnpublishesNothing(): void
+    {
+        [$source, $variants] = $this->sourceWithPublishedVins(FinishProductImportAction::MIN_PUBLISHED_FOR_RATIO);
+        $client = new FakeRemoteFileClient([
+            'MP10425.csv' => $this->dealerCsv(
+                [$variants[0]->sku, 'S1', 'Used', '2020', 'Honda', 'Civic', '', '', '18500', ''],
+            ),
+        ]);
+
+        $result = $this->runWith($source, $client);
+
+        $this->assertSame(ImportRunStatusEnum::COMPLETED, $result->status);
+        $this->assertStringContainsString('nothing unpublished', $result->message);
+        foreach ($variants as $variant) {
+            $this->assertSame(1, $this->publishedIn($source->channel, $variant));
+        }
+    }
+
+    /**
+     * @return array{0: ImportSource, 1: list<Variants>}
+     */
+    private function sourceWithPublishedVins(int $count): array
+    {
+        [$channel, $variants] = $this->publishVariantsInANewChannel($count);
+        $this->resku($variants, fn () => 'VIN-' . uniqid());
+
+        $source = $this->makeSource([['pattern' => 'MP10425.csv']]);
+        $source->update(['channels_id' => $channel->getId()]);
+
+        return [$source->refresh(), $variants];
     }
 
     private function runWith(ImportSource $source, FakeRemoteFileClient $client): ImportRunResult
