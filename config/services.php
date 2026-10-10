@@ -77,4 +77,9 @@ return [
             'api_url' => env('SIGHTENGINE_TEXT_MODERATION_API_URL'),
         ],
     ],
+
+    'playwright_mcp' => [
+        'url' => env('PLAYWRIGHT_MCP_URL', 'http://playwright-mcp:8931/mcp'),
+        'timeout' => (float) env('PLAYWRIGHT_MCP_TIMEOUT', 30),
+    ],
 ];

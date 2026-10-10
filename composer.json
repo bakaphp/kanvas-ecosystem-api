@@ -65,6 +65,7 @@
         "phpoffice/phppresentation": "dev-master",
         "phpoffice/phpspreadsheet": "^5.9",
         "phpoffice/phpword": "^1.4",
+        "playwright-php/playwright": "1.5.0",
         "powersync/authorizenet-sdk-php": "^2.0",
         "pusher/pusher-php-server": "^7.2",
         "quickbooks/v3-php-sdk": "^6.2",
