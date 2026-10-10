@@ -170,6 +170,8 @@ class ProcessLeadCampaignJob implements ShouldQueue
                 to: $to,
                 message: $this->campaign->message,
                 subject: $this->campaign->subject,
+                attachmentUrls: $this->campaign->attachment_urls ?? [],
+                templateName: $this->campaign->template_name,
             );
             $recipient->destination = $to;
             $recipient->sent_at = Carbon::now();
