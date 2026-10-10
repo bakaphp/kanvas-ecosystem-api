@@ -102,7 +102,7 @@ class Kernel extends ConsoleKernel
         // Mercury — webhooks carry the live feed; this is the recovery pull. Mercury has no replay API, so an
         // event dropped past its ~1-day retry window is gone unless we go looking. Nightly, off-peak, with a
         // 7-day lookback that comfortably outruns that window.
-        //$schedule->command(PullMercuryCommand::class)->dailyAt('02:00')->withoutOverlapping()->onOneServer();
+        $schedule->command(PullMercuryCommand::class, ['--with-ar'])->dailyAt('02:00')->withoutOverlapping()->onOneServer();
 
         // Nervous System — agent lifecycle, ledger maintenance, pulse + dashboard
         // rollups, plan + capability sweeps, the daily-learning loop.

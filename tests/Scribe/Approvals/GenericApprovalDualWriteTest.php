@@ -12,9 +12,11 @@ use Kanvas\Approvals\Exceptions\ApprovalRequiredException;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Approvals\ApproveAndPushBillHandler;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
+use Kanvas\Scribe\Approvals\Actions\ResolveApprovalAction;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
@@ -33,6 +35,7 @@ use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use ReflectionMethod;
 use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
 use Throwable;
@@ -135,12 +138,7 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
         );
     }
 
-    /**
-     * Acumatica is unreachable in tests, so this also pins the contract Apex depends on: a push
-     * failure comes back as data on a recorded approval, never as an exception, so the agent reports
-     * the failure instead of marking the sheet Approved.
-     */
-    public function test_a_failed_push_is_reported_without_undoing_the_approval(): void
+    public function test_approval_does_not_push_to_an_erp_synchronously(): void
     {
         $vendor = $this->seedTestOrganization('Push Failure Vendor');
         $approver = $this->linkApprover($vendor);
@@ -151,8 +149,25 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
         $result = new ApproveAction($request, $approver)->execute();
 
         $this->assertSame(ApprovalStatusEnum::APPROVED, $request->refresh()->status);
-        $this->assertFalse($result->handlerResult['pushed']);
-        $this->assertNotNull($result->handlerResult['push_error']);
+        $this->assertSame('bill', $result->handlerResult['target_type']);
+        $this->assertArrayNotHasKey('pushed', $result->handlerResult);
+        $this->assertArrayNotHasKey('push_error', $result->handlerResult);
+    }
+
+    public function test_legacy_resolver_refuses_a_vendor_outside_the_approval_tenant(): void
+    {
+        $vendor = $this->seedTestOrganization('Cross-Tenant Vendor');
+        $bill = $this->submitBill($vendor);
+        $item = $this->legacyQueueItem($bill);
+        $this->assertNotNull($item);
+
+        $vendor->companies_id = $this->company->getId() + 1;
+        $vendor->save();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage("Vendor for bill {$bill->getId()} no longer exists.");
+
+        new ResolveApprovalAction($item, static::$cachedUser)->execute();
     }
 
     public function test_an_expense_dual_writes_and_approves_through_the_generic_action(): void
@@ -336,8 +351,9 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
 
         $this->assertTrue($result['approved']);
         $this->assertSame('bill', $result['target_type']);
-        $this->assertArrayHasKey('pushed', $result);
+        $this->assertArrayNotHasKey('pushed', $result);
         $this->assertArrayHasKey('next', $result);
+        $this->assertStringContainsString('external synchronization', $result['next']);
         $this->assertNull($bill->pendingApproval(), 'The generic request must be closed, not left open.');
         $this->assertTrue($bill->isApproved());
     }
@@ -444,11 +460,20 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
         $this->assertTrue(true);
     }
 
-    /**
-     * "Approved" and "landed in Acumatica" are different facts. Without the push outcome persisted on
-     * the request, anything reading the record later can only see that someone signed.
-     */
-    public function test_the_push_outcome_is_persisted_on_the_request_not_just_returned(): void
+    public function test_a_handler_error_tells_the_agent_not_to_mark_the_sheet_approved(): void
+    {
+        $nextStep = new ReflectionMethod(ApprovePendingItemTool::class, 'approvalNextStep');
+        $tool = new ApprovePendingItemTool();
+
+        $failed = $nextStep->invoke($tool, ['target_type' => 'bill', 'handler_error' => 'downstream exploded']);
+        $clean = $nextStep->invoke($tool, ['target_type' => 'bill']);
+
+        $this->assertStringContainsString('downstream exploded', $failed);
+        $this->assertStringContainsString('Do NOT mark the sheet Approved', $failed);
+        $this->assertStringNotContainsString('Do NOT', $clean);
+    }
+
+    public function test_approval_result_is_persisted_without_a_synchronous_push_outcome(): void
     {
         $vendor = $this->seedTestOrganization('Persisted Result Vendor');
         $approver = $this->linkApprover($vendor, 'persisted-approver');
@@ -461,8 +486,8 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
         $result = $request->refresh()->metadata['handler_result'];
 
         $this->assertSame('bill', $result['target_type']);
-        $this->assertFalse($result['pushed'], 'Acumatica is unreachable in tests.');
-        $this->assertNotNull($result['push_error'], 'The failure has to survive on the record.');
+        $this->assertArrayNotHasKey('pushed', $result);
+        $this->assertArrayNotHasKey('push_error', $result);
         $this->assertSame($result, $request->ledgerPayload()['result']);
     }
 

@@ -411,12 +411,12 @@ sees and what keeps a hallucinating model from crashing a chat or leaking data.
 ### Skeleton
 
 ```php
-#[AgentTool(name: 'Send Email')]          // human label — drives the nervous_system_tools catalog sync
+#[AgentTool(name: 'Send Email To Lead')]  // human label — drives the nervous_system_tools catalog sync
 class SendEmailTool extends Tool
 {
     use ResolvesLeadForTool;              // pull in the resolve-or-error trait(s) you need
 
-    protected string $name = 'send_email';   // snake_case — the id the LLM calls
+    protected string $name = 'send_lead_email';   // snake_case — the id the LLM calls
     protected ?string $description = '…';    // nullable to match the vendor base; what it does, WHEN to use it, and hard limits ("you cannot choose the recipient")
 
     #[Override]
@@ -517,14 +517,14 @@ destination from the entity or from verified tenant membership — never from a 
 is a hard anti-exfiltration rule, followed by every outbound tool today, not a `SendEmailTool` quirk: a model
 that picks the destination can be prompt-injected into mailing a quote to `attacker@evil.com`.
 
-- **Customer-facing sends** (`send_email`, `send_sms`): the model composes the content; the tool resolves the
+- **Customer-facing sends** (`send_lead_email`, `send_lead_sms` — **leads only**): the model composes the content; the tool resolves the
   address/number from the lead's own `deliverable()` contacts (not opted-out, not hard-bounced). No recipient
   param at all. Say so in the description ("you cannot choose the recipient").
 - **A destination MAY be an LLM param only if the tool validates it against a closed set before sending.**
   Two allowed shapes:
   - Verified membership — `send_email_to_user` / `send_slack_direct_message` take `recipient_email` but
     resolve it through `UsersRepository::getUserOfAppByEmail()` + `belongsToCompany()`; a non-member errors out.
-  - Allowlist against on-file contacts — `send_email`'s optional `cc` is filtered by `resolveCcRecipients()`
+  - Allowlist against on-file contacts — `send_lead_email`'s optional `cc` is filtered by `resolveCcRecipients()`
     to addresses that case-insensitively match an existing deliverable contact on the lead's **person, its
     participants, or its organization**; unknown addresses are silently dropped and returned in
     `cc_rejected` so the model can tell the user. Every candidate person is re-checked with
@@ -537,13 +537,38 @@ that picks the destination can be prompt-injected into mailing a quote to `attac
 If you need a genuinely new "send to X" capability, the recipient must be entity-derived or closed-set-verified.
 There is no approved path for a free-text external recipient.
 
+### Which email tool — each one has exactly one kind of recipient
+
+| Tool | Recipient | History it leaves |
+|---|---|---|
+| `send_lead_email` | **Leads only** — the lead's on-file address (`lead_id` required) | message on the lead's email channel (lead + person entities) + lead note |
+| `create_lead_campaign` / `add_people_to_campaign` | People by id, no lead needed, admin-only, via `ProcessLeadCampaignJob` | message on the person's (or lead's) email channel + note |
+| `send_batch_message` | Leads by id, admin-only, same job | message on the lead's channel + lead note |
+| `send_lead_sms` | **Leads only** — the lead's on-file phone | message on the lead's SMS channel + lead note |
+| `send_email_to_user` | A Kanvas user in the company (internal) | assistant turn in the recipient's own chat with the agent (Social channel **and** `agent_conversation_messages`) + `agent.email.sent_to_user` ledger event |
+| `gmail_reply_to_thread` | The bill/invoice approver, inside an existing Gmail thread | the Gmail thread itself |
+
+Every send writes its history through `PersistOutboundMessageAction` (Lead or People) or, for a teammate,
+into their chat with the agent — an email that leaves no record is invisible to the activity timeline and to
+the agent's next turn. A new send path writes history in the same change.
+
+A teammate is never a People row: People is the CRM contact list, and a staff member there would surface in
+people lists and campaigns and could be email-matched onto a customer. And the Social feed alone is not
+history for an internal agent — its in-app chat replays `agent_conversation_messages`, so a write that only
+posts to the channel is something the person sees and the agent does not.
+
+The lead send tools were `send_email` / `send_sms` until 2026-10-09 (`gmail_reply_to_thread` was
+`reply_to_email`); `2026_10_09_000001_rename_lead_send_and_gmail_reply_tools` rewrote the catalog labels and
+the old ids in agent prose. Tool names are also matched literally by `WorkerToolPolicy` (and by prefix in
+`ApprovalPolicy`) — renaming a send tool without updating them lets an unsupervised worker send.
+
 ### Param typing
 
 - Optional params use **nullable typed defaults** (`?string $cc = null`) — the Neuron base normalizes a
   missing optional to `null` before `__invoke`, so a non-nullable default would `TypeError`. This matches the
   root `no-non-nullable-defaults` rule; normalize inside the body (`$cc ?? ''`, `trim()`).
 - LLM-facing params are **scalar** (STRING/INTEGER/BOOLEAN/NUMBER) by default — a comma-separated STRING you
-  split is usually enough (see `send_email`'s `cc`). Domain enums stay **internal** (filtering/dispatch);
+  split is usually enough (see `send_lead_email`'s `cc`). Domain enums stay **internal** (filtering/dispatch);
   expose their allowed values as free STRING with the options named in the description.
 - **Never declare a bare `ToolProperty(type: PropertyType::ARRAY)` or `::OBJECT`.** Gemini rejects the
   *entire* request — every tool in the turn, not just the offender — for both shapes, because
@@ -552,7 +577,7 @@ There is no approved path for a free-text external recipient.
   - `properties[x].properties: should be non-empty for OBJECT type` for a bare OBJECT
 
   A list of records → `ArrayProperty` (always emits `items`) with an `ObjectProperty` item, see
-  [`CreateArCreditMemoTool`](Neuron/Tools/Acumatica/CreateArCreditMemoTool.php). A list of scalars →
+  [`CreateArCreditMemoTool`](Neuron/Tools/Accounting/CreateArCreditMemoTool.php). A list of scalars →
   `ArrayProperty` with a `ToolProperty` item, see [`CreatePersonTool`](Neuron/Tools/CRM/CreatePersonTool.php)'s
   `tags`. A **free-form key→value map** can't be expressed at all (Gemini has no `additionalProperties`) —
   declare it as STRING carrying a JSON object and decode with

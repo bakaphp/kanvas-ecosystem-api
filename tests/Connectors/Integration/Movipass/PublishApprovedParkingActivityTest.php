@@ -74,15 +74,25 @@ final class PublishApprovedParkingActivityTest extends TestCase
         $this->assertSame(ParkingApplicationStatusEnum::PUBLISHED->value, Field::STATUS->readFrom($lead->fresh()));
     }
 
-    public function testMalformedApplicationIsFlaggedFailedWithTheKeyNotThrown(): void
+    public function testMalformedOptionalFieldPublishesAndReportsTheIgnoredKey(): void
     {
-        $lead = $this->lead([Field::STRUCTURE->value => 'Mixto'] + $this->fixtureFields());
+        $lead = $this->lead([Field::INFRASTRUCTURE->value => ['Garita de seguridad']] + $this->fixtureFields());
+
+        $result = $this->runActivity($lead);
+
+        $this->assertSame('published', $result['status']);
+        $this->assertArrayHasKey(Field::INFRASTRUCTURE->value, $result['ignored_fields']);
+    }
+
+    public function testMalformedRequiredFieldIsFlaggedFailedWithTheKeyNotThrown(): void
+    {
+        $lead = $this->lead([Field::RATE_HOURLY->value => 'gratis'] + $this->fixtureFields());
 
         $result = $this->runActivity($lead);
 
         $this->assertSame('failed', $result['status']);
-        $this->assertStringContainsString(Field::STRUCTURE->value, $result['reason']);
-        $this->assertStringContainsString(Field::STRUCTURE->value, (string) Field::STATUS_REASON->readFrom($lead->fresh()));
+        $this->assertStringContainsString(Field::RATE_HOURLY->value, $result['reason']);
+        $this->assertStringContainsString(Field::RATE_HOURLY->value, (string) Field::STATUS_REASON->readFrom($lead->fresh()));
         $this->assertNull(Field::PRODUCT_ID->readFrom($lead->fresh()));
     }
 
@@ -100,6 +110,9 @@ final class PublishApprovedParkingActivityTest extends TestCase
 
     private function lead(array $fields): Lead
     {
-        return $this->parkingApplication($this->kanvasApp, $this->company, $fields)->fresh();
+        $lead = $this->parkingApplication($this->kanvasApp, $this->company, $fields);
+        $this->attachFixturePhotos($lead);
+
+        return $lead->fresh();
     }
 }

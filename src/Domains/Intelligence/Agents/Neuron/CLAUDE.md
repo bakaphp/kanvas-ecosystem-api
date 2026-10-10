@@ -35,7 +35,7 @@ class SendEmailTool extends Tool
 {
     use TrackByInputs;
 
-    protected string $name = 'send_email';
+    protected string $name = 'send_lead_email';
     protected string $description = '…';
 
     public function __invoke(int $lead_id, string $subject): array { … }
