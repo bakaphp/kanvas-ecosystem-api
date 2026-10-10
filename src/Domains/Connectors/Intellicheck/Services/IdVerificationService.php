@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Intellicheck\Services;
 
+use Baka\Support\AddressParser;
+use Baka\Support\Str;
 use Carbon\Carbon;
 use Throwable;
 
@@ -72,38 +74,106 @@ class IdVerificationService
         return 'Unknown';
     }
 
-    /** Reshapes an Intellicheck response into the `get_docs_drivers_license` scan payload. */
+    /**
+     * Reshapes an Intellicheck response into the `get_docs_drivers_license` scan payload.
+     *
+     * The barcode (`idcheck.data`) wins field by field; the front OCR fills whatever it lacks. A rejected
+     * barcode (`DocumentBadDevice`) arrives with nothing but `processResult`, and the front still carries
+     * the whole license.
+     */
     public static function toDriverLicenseScan(array $verificationData): ?array
     {
-        $idCheck = $verificationData['idcheck']['data'] ?? null;
+        $idCheck = is_array($verificationData['idcheck']['data'] ?? null) ? $verificationData['idcheck']['data'] : [];
+        $ocr = is_array($verificationData['OCR']['data'] ?? null) ? $verificationData['OCR']['data'] : [];
+        [$ocrFirstName, $ocrLastName] = self::ocrNameParts($ocr);
 
-        if (! is_array($idCheck)) {
+        $license = self::firstFilled($idCheck['dLIDNumberRaw'] ?? null, $ocr['documentNumber'] ?? null);
+        $firstName = self::firstFilled($idCheck['firstName'] ?? null, $ocrFirstName);
+        $lastName = self::firstFilled($idCheck['lastName'] ?? null, $ocrLastName);
+
+        if ($license === '' && $firstName === '' && $lastName === '') {
             return null;
         }
 
-        $dateOfBirth = isset($idCheck['dateOfBirth']) ? strtotime((string) $idCheck['dateOfBirth']) : false;
-        $expirationDate = isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate'])
-            ? strtotime((string) $idCheck['expirationDate'])
-            : false;
+        $address = self::firstFilled(self::barcodeAddress($idCheck), rtrim((string) ($ocr['address'] ?? ''), ', '));
+        $state = self::firstFilled(
+            $idCheck['state'] ?? null,
+            $address !== '' ? (AddressParser::parse($address)['state'] ?? null) : null
+        );
 
         return [
-            'address' => $verificationData['ocr_match']['data']['address'] ?? '',
-            'state' => $idCheck['state'] ?? '',
-            'birthday' => self::toDateParts($dateOfBirth),
-            'license' => $idCheck['dLIDNumberRaw'] ?? '',
-            'exp_date' => self::toDateParts($expirationDate),
+            'address' => $address,
+            'state' => $state,
+            'birthday' => self::toDateParts(self::firstFilled($idCheck['dateOfBirth'] ?? null, $ocr['dateOfBirth'] ?? null)),
+            'license' => $license,
+            'exp_date' => self::toDateParts(self::firstFilled($idCheck['expirationDate'] ?? null, $ocr['dateOfExpiry'] ?? null)),
             'state_id' => 0,
-            'firstname' => $idCheck['firstName'] ?? '',
+            'firstname' => $firstName,
             'middlename' => '',
-            'lastname' => $idCheck['lastName'] ?? '',
+            'lastname' => $lastName,
         ];
     }
 
     /**
+     * OCR's `firstName` carries the full name ("Jowsmilk Perez"), so the first name is the full name with
+     * the last name taken off its end.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private static function ocrNameParts(array $ocr): array
+    {
+        $lastName = Str::trimmedStringOrNull($ocr['lastName'] ?? null);
+        $fullName = Str::trimmedStringOrNull($ocr['fullName'] ?? null) ?? Str::trimmedStringOrNull($ocr['firstName'] ?? null);
+
+        if ($fullName === null || $lastName === null) {
+            return [$fullName, $lastName];
+        }
+
+        $firstName = str_ends_with(strtolower($fullName), strtolower($lastName))
+            ? substr($fullName, 0, -strlen($lastName))
+            : $fullName;
+
+        return [Str::trimToNull($firstName), $lastName];
+    }
+
+    private static function barcodeAddress(array $idCheck): ?string
+    {
+        $street = Str::trimmedStringOrNull($idCheck['address1'] ?? null);
+
+        if ($street === null) {
+            return null;
+        }
+
+        $stateZip = implode(' ', array_filter([
+            Str::trimmedStringOrNull($idCheck['state'] ?? null),
+            Str::trimmedStringOrNull($idCheck['postalCode'] ?? null),
+        ]));
+
+        return implode(', ', array_filter([$street, Str::trimmedStringOrNull($idCheck['city'] ?? null), $stateZip]));
+    }
+
+    private static function firstFilled(mixed ...$values): string
+    {
+        foreach ($values as $value) {
+            $value = Str::trimmedStringOrNull($value);
+
+            if ($value !== null) {
+                return $value;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * `strtotime` reads both shapes Intellicheck sends: the barcode's `09/14/2032` and OCR's `2032-09-14`.
+     *
      * @return array{day: int, month: int, year: int}
      */
-    private static function toDateParts(int|false $timestamp): array
+    private static function toDateParts(string $date): array
     {
+        $timestamp = $date !== '' ? strtotime($date) : false;
+
         if ($timestamp === false) {
             return ['day' => 0, 'month' => 0, 'year' => 0];
         }
