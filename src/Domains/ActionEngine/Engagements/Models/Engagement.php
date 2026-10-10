@@ -132,6 +132,16 @@ class Engagement extends BaseModel
         return $this->parent_id === null && $this->childEngagements()->exists();
     }
 
+    /**
+     * Reads the message payload, not `stage->slug` like isComplete() — the two are different sources
+     * of truth and can disagree. getMessage() because some apps persist double-encoded JSON, which
+     * the raw cast hands back as a string.
+     */
+    public function hasSubmittedMessage(): bool
+    {
+        return ($this->message?->getMessage()['status'] ?? null) === ActionStatusEnum::SUBMITTED->value;
+    }
+
     public function isComplete(): bool
     {
         if (! $this->isParent()) {
