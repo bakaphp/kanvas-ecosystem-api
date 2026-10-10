@@ -72,6 +72,17 @@ class Channels extends BaseModel
         new UnPublishAllVariantsAction($this)->execute();
     }
 
+    /**
+     * Variants the company pinned as never-unpublish by bulk sweeps. An app-global channel
+     * (companies_id = 0) has no owning company to read the setting from.
+     *
+     * @return list<int>
+     */
+    public function dontUnpublishVariantIds(): array
+    {
+        return $this->company?->get('dont_unpublish_variants', []) ?? [];
+    }
+
     public function pricesHistory(): HasMany
     {
         return $this->hasMany(

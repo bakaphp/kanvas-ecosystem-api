@@ -42,6 +42,9 @@ class EngageUsageReportRecipientsTest extends TestCase
     {
         parent::setUp();
 
+        // Noon UTC keeps "yesterday" the same date in every tenant timezone the --daily window uses.
+        Carbon::setTestNow(Carbon::now('UTC')->setTime(12, 0));
+
         $this->kanvasApp = app(Apps::class);
         /** @var Users $user */
         $user = auth()->user();
@@ -56,6 +59,10 @@ class EngageUsageReportRecipientsTest extends TestCase
 
     protected function tearDown(): void
     {
+        $this->company->del('engage_usage_report_enabled');
+        $this->company->del('engage_usage_daily_report_enabled');
+        Carbon::setTestNow();
+
         Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp));
         Bouncer::retract(RolesEnums::MANAGER->value)->from($this->user);
 
@@ -102,6 +109,42 @@ class EngageUsageReportRecipientsTest extends TestCase
         ];
     }
 
+    public function testDailyRunReportsYesterdayToACompanyWithTheDailyFlag(): void
+    {
+        $this->company->set('engage_usage_daily_report_enabled', true);
+
+        Notification::fake();
+
+        $this->artisan('kanvas:analytics:send-engage-usage-report', [
+            '--daily' => true,
+            '--app' => $this->kanvasApp->getId(),
+        ])->assertSuccessful();
+
+        $yesterday = Carbon::now($this->company->timezone ?: config('app.timezone'))->subDay();
+
+        Notification::assertSentTo(
+            $this->user,
+            EngageUsageReportNotification::class,
+            fn (EngageUsageReportNotification $notification): bool => $notification->getData()['from'] === $yesterday->toDateString()
+                && $notification->getData()['to'] === $yesterday->toDateString()
+                && $notification->getData()['range_label'] === $yesterday->format('M j, Y'),
+        );
+    }
+
+    public function testDailyRunSkipsACompanyWithOnlyTheWeeklyFlag(): void
+    {
+        $this->company->set('engage_usage_report_enabled', true);
+
+        Notification::fake();
+
+        $this->artisan('kanvas:analytics:send-engage-usage-report', [
+            '--daily' => true,
+            '--app' => $this->kanvasApp->getId(),
+        ])->assertSuccessful();
+
+        Notification::assertNotSentTo($this->user, EngageUsageReportNotification::class);
+    }
+
     private function send(): int
     {
         return new SendEngageUsageReportAction(
@@ -141,6 +184,8 @@ class EngageUsageReportRecipientsTest extends TestCase
             'people_id' => $lead->people_id,
             'message_types_id' => $type->id,
             'message' => ['from_me' => true],
+            // Yesterday, so the --daily window and the seven-day window both count it.
+            'created_at' => Carbon::now()->subDay(),
         ]);
     }
 }

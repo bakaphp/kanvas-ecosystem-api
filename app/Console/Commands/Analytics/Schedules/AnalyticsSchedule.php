@@ -20,6 +20,10 @@ use Illuminate\Console\Scheduling\Schedule;
  *     — onOneServer() because the fan-out mails managers; a second worker firing it would
  *       double-send.
  *
+ *   Daily 08:00 America/New_York  SendEngageUsageReportCommand --daily
+ *     — Previous day only, for tenants with the separate daily flag. Runs on Mondays too: it
+ *       reports Sunday, the weekly run reports the week, and a tenant opted into both gets both.
+ *
  *   Daily 03:00 UTC  ReportingRebuildCommand
  *     — The reconciliation pass for the flat reporting tables. Incremental refresh cannot tell
  *       "deleted at source" from "not in this batch", so a full rebuild is the only run that
@@ -38,6 +42,13 @@ final class AnalyticsSchedule
     {
         $schedule->command(SendEngageUsageReportCommand::class)
             ->weeklyOn(1, '08:00')
+            ->timezone('America/New_York')
+            ->withoutOverlapping()
+            ->onOneServer()
+            ->runInBackground();
+
+        $schedule->command(SendEngageUsageReportCommand::class, ['--daily'])
+            ->dailyAt('08:00')
             ->timezone('America/New_York')
             ->withoutOverlapping()
             ->onOneServer()

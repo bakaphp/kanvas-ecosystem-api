@@ -273,8 +273,7 @@ class PushLeadNotesActivity extends KanvasActivity
             $baseComment = $lead->people->getDisplayName() . ' ' . $text . ' is ready to be imported into eLead. ';
 
             if ($lead->get(CustomFieldEnum::LEAD_ID->value)) {
-                $botLink = 'Please first open SalesAssist Extension and then click on the banner or this url https://salink.app/?openInSa=true&uuid=' . $lead->uuid . '&action=' . $verb . '&lDID=' . (string) $lead->get(CustomFieldEnum::LEAD_ID->value);
-                $eLeadOpportunity->addComment($baseComment . $botLink);
+                $eLeadOpportunity->addComment($baseComment . 'Please first open SalesAssist Extension and then click on the banner.');
             } else {
                 $additionalComment = 'Please open the Chrome Extension to link and sync the opportunity first to view the banner.';
                 $eLeadOpportunity->addComment($baseComment . $additionalComment);
