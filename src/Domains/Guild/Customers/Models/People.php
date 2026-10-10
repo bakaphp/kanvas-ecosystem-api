@@ -39,6 +39,8 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Traits\HasNotesChannelTrait;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
@@ -486,6 +488,14 @@ class People extends BaseModel
                 'weight' => $weight,
             ]
         );
+    }
+
+    /**
+     * A person has no lead type or working-hours defaults to resolve, so only an explicit `ai_mode` mutes it.
+     */
+    public function isAiMuted(): bool
+    {
+        return IntelligenceModeEnum::tryFrom((string) $this->get(IntelligenceConfigurationEnum::AI_MODE->value))?->isOff() ?? false;
     }
 
     public function optOutPhoneContacts(): int

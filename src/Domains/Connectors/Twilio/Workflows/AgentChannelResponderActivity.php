@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Twilio\Workflows;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\AgentChannelResponderAction;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\HandlesSupportModeDelayedResponseTrait;
@@ -66,6 +67,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
                 $lead = $message->entity();
+                $people = $lead instanceof People ? $lead : $lead?->people;
                 $message->addTag('engagement');
 
                 // Don't process messages from the phone owner
@@ -79,6 +81,13 @@ class AgentChannelResponderActivity extends KanvasActivity
                 if ($lead instanceof Lead && $lead->isAiMuted()) {
                     return [
                         'message' => 'Lead turned off AI agent responses',
+                        'entity' => null,
+                    ];
+                }
+
+                if ($lead instanceof People && $lead->isAiMuted()) {
+                    return [
+                        'message' => 'People turned off AI agent responses',
                         'entity' => null,
                     ];
                 }
@@ -103,13 +112,13 @@ class AgentChannelResponderActivity extends KanvasActivity
                             'app' => $app,
                             'company' => $channel->company,
                             'channel' => $channel,
-                            'entity_namespace' => is_object($message->entity()) ? get_class($message->entity()) : null,
-                            'entity_id' => $message->entity()->getId(),
+                            'entity_namespace' => is_object($lead) ? get_class($lead) : null,
+                            'entity_id' => $lead->getId(),
                             'canal_id' => $message->message['chat_jid'],
                             'user' => [
-                                'name' => $message->entity()->people->getName(),
-                                'id' => $message->entity()->people->getId(),
-                                'email' => $message->entity()->people->getEmails()->first()?->value,
+                                'name' => $people->getName(),
+                                'id' => $people->getId(),
+                                'email' => $people->getEmails()->first()?->value,
                             ],
                             'agent' => Agent::getById($agentId, $app),
                         ])

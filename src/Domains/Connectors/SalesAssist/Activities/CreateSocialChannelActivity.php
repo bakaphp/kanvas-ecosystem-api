@@ -17,20 +17,20 @@ use Kanvas\Workflow\KanvasActivity;
 
 #[WorkflowAction(
     name: 'SalesAssist Create Contact Channel',
-    description: 'Opens the messaging channel between an agent and a contact or lead, so there is somewhere '
+    description: 'Opens the messaging channel between an agent and a contact, lead or person, so there is somewhere '
         . 'for the conversation to live. Creates the channel only; it sends no message. Needs an agent, '
         . 'and does nothing without one.',
     integration: IntegrationsEnum::INTERNAL,
     params: [
         'agent_id' => 'The agent the channel belongs to. Required — without it the step errors.',
-        'ai_assist_agent_id' => 'Optional. Agent for the lead AI Assist channel when AI Assist is enabled; '
+        'ai_assist_agent_id' => 'Optional. Agent for the lead or person AI Assist channel when AI Assist is enabled; '
             . 'falls back to the company ai_assist_agent setting, then to agent_id.',
     ],
 )]
 class CreateSocialChannelActivity extends KanvasActivity
 {
     public function execute(
-        Contact|Lead $entity,
+        Contact|Lead|People $entity,
         Apps $app,
         array $params
     ): array {
@@ -40,7 +40,7 @@ class CreateSocialChannelActivity extends KanvasActivity
             ];
         }
 
-        $company = $entity instanceof Lead ? $entity->company : $entity->people->company;
+        $company = $entity instanceof Contact ? $entity->people->company : $entity->company;
 
         return $this->executeIntegration(
             entity: $entity,
@@ -51,6 +51,10 @@ class CreateSocialChannelActivity extends KanvasActivity
                     return $this->executeForLead($entity, $app, $params);
                 }
 
+                if ($entity instanceof People) {
+                    return $this->executeForPeople($entity, $app, $params);
+                }
+
                 return $this->executeForContact($entity, $app, $params);
             },
             company: $company
@@ -59,7 +63,6 @@ class CreateSocialChannelActivity extends KanvasActivity
 
     private function executeForLead(Lead $lead, Apps $app, array $params): array
     {
-        $results = [];
         $people = $lead->people;
 
         if (! $people instanceof People) {
@@ -68,35 +71,14 @@ class CreateSocialChannelActivity extends KanvasActivity
             ];
         }
 
-        $contacts = $people->contacts;
-
-        if ($contacts->isEmpty()) {
+        if ($people->contacts->isEmpty()) {
             return [
                 'error' => 'No contacts found for this lead',
             ];
         }
 
-        $hasNewChannel = false;
-        foreach ($contacts as $contact) {
-            $result = new CreateSocialChannelForContactAction(
-                $contact,
-                $app,
-                $params,
-                $lead
-            )->execute();
-            $results[] = $result;
-
-            if (! empty($result['is_new_channel'])) {
-                $hasNewChannel = true;
-            }
-        }
-
-        CreateAIAssistChannelAction::ifEnabled(
-            $lead,
-            $app,
-            $params,
-            (int) $params['agent_id']
-        )?->execute();
+        $results = $this->createChannels($lead, $app, $params);
+        $hasNewChannel = array_any($results, fn (array $result): bool => ! empty($result['is_new_channel']));
 
         $crmNoteResult = $hasNewChannel
             ? new CreateCrmNoteAction($lead, $app)->execute()
@@ -107,6 +89,51 @@ class CreateSocialChannelActivity extends KanvasActivity
             'results' => $results,
             'crm_note' => $crmNoteResult,
         ];
+    }
+
+    /**
+     * Channels hang off the person, not a lead, so there is no CRM lead to leave a note on.
+     */
+    private function executeForPeople(People $people, Apps $app, array $params): array
+    {
+        if ($people->contacts->isEmpty()) {
+            return [
+                'error' => 'No contacts found for this person',
+            ];
+        }
+
+        return [
+            'success' => true,
+            'results' => $this->createChannels($people, $app, $params),
+            'crm_note' => null,
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function createChannels(Lead|People $owner, Apps $app, array $params): array
+    {
+        $people = $owner instanceof People ? $owner : $owner->people;
+
+        $results = [];
+        foreach ($people->contacts as $contact) {
+            $results[] = new CreateSocialChannelForContactAction(
+                $contact,
+                $app,
+                $params,
+                $owner
+            )->execute();
+        }
+
+        CreateAIAssistChannelAction::ifEnabled(
+            $owner,
+            $app,
+            $params,
+            (int) $params['agent_id']
+        )?->execute();
+
+        return $results;
     }
 
     private function executeForContact(Contact $contact, Apps $app, array $params, ?Lead $leadOverride = null): array
