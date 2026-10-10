@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Tools;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Campaigns\Enums\CampaignStatusEnum;
@@ -15,6 +16,10 @@ use Tests\TestCase;
 
 class AddPeopleToCampaignToolTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem'];
+
     private function scheduledCampaign(Companies $company): Campaign
     {
         $campaign = new Campaign();

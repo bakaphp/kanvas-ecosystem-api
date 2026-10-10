@@ -31,6 +31,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetLeadStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TagLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UploadFileToLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\UploadFileToMessageTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\CreateTemplateTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\GetTemplateTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\ListTemplatesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\UpdateTemplateTool;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Override;
 
@@ -99,6 +103,10 @@ class SalesManagerAgent extends SystemUserAgent
         $core[] = new ImportPeopleListTool()->withContext($app, $company, $user)->forRequestingUser($user);
         $core[] = new CreateLeadCampaignTool()->withContext($app, $company, $user)->forRequestingUser($user);
         $core[] = new AddPeopleToCampaignTool()->withContext($app, $company, $user)->forRequestingUser($user);
+        $core[] = new CreateTemplateTool()->withContext($app, $company, $user);
+        $core[] = new ListTemplatesTool()->withContext($app, $company, $user);
+        $core[] = new GetTemplateTool()->withContext($app, $company, $user);
+        $core[] = new UpdateTemplateTool()->withContext($app, $company, $user);
 
         return $this->mergeRegisteredTools(
             $core,

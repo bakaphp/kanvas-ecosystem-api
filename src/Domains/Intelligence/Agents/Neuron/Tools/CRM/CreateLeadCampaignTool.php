@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Campaigns\Actions\CreateBatchCampaignAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Services\BatchRecipientResolverService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Templates\Repositories\TemplatesRepository;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -24,6 +26,10 @@ use Throwable;
  * CONFIRMED send step after import_people_list. It never trusts the given people_ids blindly: every
  * one is re-checked server-side (opted-out / do-not-contact / undeliverable / duplicate are dropped
  * no matter what is passed). Email only in v1. Admin-only.
+ *
+ * The email body always rides inside a `templates` row (default `first-time-agent-engagement`) — use
+ * create_template to design a different one first, list_templates / get_template to find or inspect
+ * an existing one, then pass its name here as template_name.
  */
 #[AgentTool(name: 'Create Lead Campaign', category: 'crm')]
 class CreateLeadCampaignTool extends Tool
@@ -36,7 +42,9 @@ class CreateLeadCampaignTool extends Tool
     protected ?string $description = 'Send or schedule an email campaign to specific people by id — typically the '
         . 'people_ids returned by import_people_list. The tool re-verifies eligibility, so opted-out / '
         . 'do-not-contact / undeliverable / duplicate people are excluded even if passed. Email only in v1. '
-        . 'Provide schedule_at (a future date-time) to schedule instead of sending now. Admin-only.';
+        . 'Provide schedule_at (a future date-time) to schedule instead of sending now. To use a different look '
+        . 'than the default, first create_template (or list_templates to reuse one you already have) and pass '
+        . 'its name as template_name. Admin-only.';
 
     private const int MAX_RECIPIENTS = 5000;
 
@@ -56,11 +64,25 @@ class CreateLeadCampaignTool extends Tool
             new ToolProperty(name: 'message', type: PropertyType::STRING, description: 'The message body to send to every recipient.', required: true),
             new ToolProperty(name: 'subject', type: PropertyType::STRING, description: 'Email subject line.', required: false),
             new ToolProperty(name: 'schedule_at', type: PropertyType::STRING, description: 'Optional future date-time (e.g. "2026-08-10 09:00") to schedule the send. Omit to send now.', required: false),
+            new ToolProperty(
+                name: 'template_name',
+                type: PropertyType::STRING,
+                description: 'Name of a templates row to render the email in (from create_template or list_templates). '
+                    . 'Omit to use the default look.',
+                required: false,
+            ),
+            new ArrayProperty(
+                name: 'attachment_urls',
+                description: 'Optional file URLs to attach to the email, shared by every recipient (e.g. from upload_file_to_message).',
+                required: false,
+                items: new ToolProperty(name: 'url', type: PropertyType::STRING, description: 'A file URL.'),
+            ),
         ];
     }
 
     /**
      * @param  list<int>  $people_ids
+     * @param  list<string>|null  $attachment_urls
      *
      * @return array<string, mixed>
      */
@@ -69,6 +91,8 @@ class CreateLeadCampaignTool extends Tool
         string $message,
         ?string $subject = null,
         ?string $schedule_at = null,
+        ?string $template_name = null,
+        ?array $attachment_urls = null,
     ): array {
         if ($denied = $this->requireAdminOrError()) {
             return ['status' => 'error', 'message' => $denied['message']];
@@ -102,6 +126,24 @@ class CreateLeadCampaignTool extends Tool
             }
         }
 
+        $templateName = $template_name !== null && trim($template_name) !== '' ? trim($template_name) : null;
+        if ($templateName !== null) {
+            try {
+                TemplatesRepository::getByName($templateName, $this->app, $this->company);
+            } catch (ModelNotFoundException) {
+                return [
+                    'status' => 'error',
+                    'message' => "No template named \"{$templateName}\" exists for this company. Call "
+                        . 'create_template to make it, or list_templates to see what already exists.',
+                ];
+            }
+        }
+
+        $attachmentUrls = array_values(array_filter(
+            $attachment_urls ?? [],
+            static fn (mixed $url): bool => is_string($url) && trim($url) !== '',
+        ));
+
         $people = People::query()
             ->fromApp($this->app)
             ->fromCompany($this->company)
@@ -127,6 +169,8 @@ class CreateLeadCampaignTool extends Tool
             subject: $subject !== null && trim($subject) !== '' ? trim($subject) : null,
             eligibleRecipients: $resolved['eligible'],
             criteria: ['people_ids' => $ids, 'channel' => 'email'],
+            attachmentUrls: $attachmentUrls,
+            templateName: $templateName,
             scheduledAt: $scheduledAt,
         )->execute();
 
