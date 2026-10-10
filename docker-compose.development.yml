@@ -14,7 +14,7 @@ x-common-queue-settings: &common-queue-settings
   command:
     - "sh"
     - "-c"
-    - "php artisan config:cache && php artisan queue:work
+    - "php artisan config:cache && exec php artisan queue:work
       --tries=3 --queue=default,notifications,kanvas-social,batch-logger,imports
       --timeout=3750"
   environment:
@@ -129,7 +129,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=reporting
+      - "php artisan config:cache && exec php artisan queue:work --queue=reporting
         --tries=3 --timeout=3750"
 
   batch-logger-queue:
@@ -138,7 +138,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=batch-logger
+      - "php artisan config:cache && exec php artisan queue:work --queue=batch-logger
         --tries=3 --timeout=3750"
 
   queue-social:
@@ -147,7 +147,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work
+      - "php artisan config:cache && exec php artisan queue:work
         --queue=kanvas-social --tries=3 --timeout=3750"
 
   queue-notifications:
@@ -156,7 +156,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work
+      - "php artisan config:cache && exec php artisan queue:work
         --queue=notifications --tries=3 --timeout=3750"
 
   queue-user-interactions:
@@ -165,7 +165,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work
+      - "php artisan config:cache && exec php artisan queue:work
         --queue=user-interactions --tries=3 --timeout=3750"
 
   queue-imports:
@@ -174,7 +174,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=imports
+      - "php artisan config:cache && exec php artisan queue:work --queue=imports
         --tries=3 --timeout=3750"
 
   queue-scrapper:
@@ -183,7 +183,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work
+      - "php artisan config:cache && exec php artisan queue:work
         --queue=scrapper-queue --tries=3 --timeout=3750"
 
   queue-sync-shopify:
@@ -192,7 +192,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work
+      - "php artisan config:cache && exec php artisan queue:work
         --queue=sync-shopify-queue --tries=3 --timeout=3750"
 
   queue-scout-worker:
@@ -201,7 +201,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue scout
+      - "php artisan config:cache && exec php artisan queue:work --queue scout
         --tries=3 --timeout=3750"
 
   queue-workflow:
@@ -210,7 +210,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=workflow
+      - "php artisan config:cache && exec php artisan queue:work --queue=workflow
         --tries=3 --timeout=3750"
 
   agent-runtime-queue:
@@ -221,7 +221,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=agent-runtime
+      - "php artisan config:cache && exec php artisan queue:work --queue=agent-runtime
         --tries=3 --timeout=3750"
   # The replica count is the parallelism ceiling for a plan's task band — one `queue:work` is one
   # process, so a batch dispatched to a single consumer runs strictly end-to-end.
@@ -233,7 +233,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=agent-task-worker
+      - "php artisan config:cache && exec php artisan queue:work --queue=agent-task-worker
         --tries=1 --timeout=3750"
   product-enrichment-queue:
     <<: *common-queue-settings
@@ -241,7 +241,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=product-enrichment
+      - "php artisan config:cache && exec php artisan queue:work --queue=product-enrichment
         --tries=3 --timeout=3750"
   product-discovery-queue:
     <<: *common-queue-settings
@@ -249,7 +249,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=product-discovery
+      - "php artisan config:cache && exec php artisan queue:work --queue=product-discovery
         --tries=3 --timeout=300"
         
   agent-chat-queue:
@@ -261,7 +261,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=agent-chat
+      - "php artisan config:cache && exec php artisan queue:work --queue=agent-chat
         --tries=1 --timeout=3750"
 
   broadcasts-queue:
@@ -270,7 +270,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=broadcasts
+      - "php artisan config:cache && exec php artisan queue:work --queue=broadcasts
         --tries=3 --timeout=60"
 
   ledger-queue:
@@ -279,7 +279,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=ledger
+      - "php artisan config:cache && exec php artisan queue:work --queue=ledger
         --tries=3 --timeout=3750"
   slack-ingest-queue:
     <<: *common-queue-settings
@@ -287,7 +287,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work
+      - "php artisan config:cache && exec php artisan queue:work
         --queue=slack-ingest --tries=3 --timeout=3750"
   nervous-system-project-queue:
     <<: *common-queue-settings
@@ -296,7 +296,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work
+      - "php artisan config:cache && exec php artisan queue:work
         --queue=nervous-system-project --tries=3 --timeout=3750"
 
   scheduled-actions-queue:
@@ -305,7 +305,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work
+      - "php artisan config:cache && exec php artisan queue:work
         --queue=scheduled-actions --tries=3 --timeout=3750"
 
   scribe-aging-queue:
@@ -314,7 +314,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work
+      - "php artisan config:cache && exec php artisan queue:work
         --queue=scribe-aging --tries=3 --timeout=3750"
 
   scribe-pdf-ingest-queue:
@@ -323,7 +323,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work
+      - "php artisan config:cache && exec php artisan queue:work
         --queue=scribe-pdf-ingest --tries=3 --timeout=3750"
 
   lead-follow-ups-queue:
@@ -332,12 +332,13 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work
+      - "php artisan config:cache && exec php artisan queue:work
         --queue=lead_follow_ups --tries=3 --timeout=3750"
 
   laravel-scheduler:
     container_name: laravel-scheduler
     restart: always
+    init: true
     image: php-app-image # Use the same image for the scheduler
     logging: *default-logging
     extra_hosts:
@@ -345,7 +346,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan schedule:work"
+      - "php artisan config:cache && exec php artisan schedule:work"
     environment:
       WWWUSER: "${WWWUSER}"
       LARAVEL_SAIL: 1

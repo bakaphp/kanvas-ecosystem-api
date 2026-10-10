@@ -36,7 +36,8 @@ class DownloadAllLeadsCommand extends Command
                             {app_id : The application ID}
                             {company_id : The company ID}
                             {user_id : The user ID}
-                            {--from= : Start date to download leads from (default: 24 hours ago)}';
+                            {--from= : Start date to download leads from (default: 24 hours ago)}
+                            {--force : Re-sync leads that already exist from Elead}';
 
     /**
      * The console command description.
@@ -78,6 +79,7 @@ class DownloadAllLeadsCommand extends Command
         $successCount = 0;
         $errorCount = 0;
         $existingCount = 0;
+        $force = (bool) $this->option('force');
 
         try {
             do {
@@ -103,7 +105,7 @@ class DownloadAllLeadsCommand extends Command
                             // Use cache lock to prevent duplicate lead creation from concurrent cron jobs
                             $lockKey = "elead_lead_sync:{$company->getId()}:{$leadId}";
 
-                            Cache::lock($lockKey, 10)->block(10, function () use ($leadId, $customerId, $item, $company, $app, $user, &$successCount, &$existingCount): void {
+                            Cache::lock($lockKey, 10)->block(10, function () use ($leadId, $customerId, $item, $company, $app, $user, $force, &$successCount, &$existingCount): void {
                                 // Check if lead already exists
                                 $existingLead = ModelsLead::getByCustomField(
                                     CustomFieldEnum::OPPORTUNITY_ID->value,
@@ -113,9 +115,14 @@ class DownloadAllLeadsCommand extends Command
 
                                 if ($existingLead) {
                                     $existingCount++;
-                                    $this->line("Lead {$leadId} already exists as {$existingLead->id} - updating");
+                                    if (! $force) {
+                                        $this->line("Lead {$leadId} already exists as {$existingLead->id} - skipping");
 
-                                    //new SyncLeadAction($existingLead)->execute();
+                                        return;
+                                    }
+
+                                    $this->line("Lead {$leadId} already exists as {$existingLead->id} - re-syncing");
+                                    new SyncLeadAction($existingLead, fresh: true)->execute();
                                 } else {
                                     $this->line("Creating new Lead {$leadId}");
 
@@ -181,7 +188,7 @@ class DownloadAllLeadsCommand extends Command
             $this->newLine(2);
             $this->info('Download completed!');
             $this->info("Successfully created: {$successCount} leads");
-            $this->info("Updated existing: {$existingCount} leads");
+            $this->info(($force ? 'Re-synced' : 'Skipped') . " existing: {$existingCount} leads");
             $this->info("Errors: {$errorCount} leads");
             $this->info('Total processed: ' . ($successCount + $existingCount + $errorCount) . ' leads');
         } catch (Throwable $e) {

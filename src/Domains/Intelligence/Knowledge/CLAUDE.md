@@ -11,14 +11,18 @@ record, or organization). A lead's own messages are indexed as record history by
 
 **Pre-turn recall** (`HasKnowledgeRag`, every reply of a RAG agent):
 
-1. Customer-facing agents rewrite the inbound message into a query first. One extra model call, 3–4 s.
+1. Customer-facing agents may rewrite the inbound message into a query first (`GatedQueryRewrite`). It is a
+   model call the customer waits on, so it runs only for a terse message (≤ 6 words) or a long one (≥ 40),
+   on the agent's model with Gemini thinking `low`. A plain sentence searches as written. Each rewrite logs
+   `Agent query rewrite` with `duration_ms`; a failed rewrite searches with the original text.
 2. Search the agent's documents and the record's rows, top `neuron_lead_rag_result_limit` (default 8).
 3. `KnowledgeRetrieval::rank()` gives the agent's documents first claim on the slots, record rows fill the
    rest, a hit identical to the question is dropped.
 4. `AdaptiveThresholdPostProcessor(0.6)` drops hits below `median − 0.6 × MAD`. **This is relative to the
    batch, not a quality bar**: a batch that is all noise at ~0.6 passes almost whole.
 
-**`search_knowledge` tool** runs the same search without step 1 and step 4, plus company memory.
+**`search_knowledge` tool** runs the same search without step 1 and step 4, plus company memory, and returns
+at most 5 results (`MAX_RESULTS`), keeping up to 2 for memory hits when there are any.
 
 Whatever comes back stays in the conversation for the rest of the turn and is re-sent on every step, so
 eight useless chunks are paid for several times over.

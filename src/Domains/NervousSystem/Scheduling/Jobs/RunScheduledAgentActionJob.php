@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -19,6 +20,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\Chat\WakeAgentInSessionAction;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Scheduling\Actions\DeliverScheduledMessageToChannelAction;
@@ -27,6 +29,7 @@ use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
 use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
 use Kanvas\NervousSystem\Scheduling\Notifications\ScheduledReminderNotification;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Exceptions\RunInFlightException;
 use Throwable;
 
 /**
@@ -62,6 +65,16 @@ class RunScheduledAgentActionJob implements ShouldQueue
                 ScheduledActionTypeEnum::REMINDER => $this->deliverReminder(),
                 ScheduledActionTypeEnum::AGENT_TASK => $this->wakeAgent(),
             };
+        } catch (RunInFlightException $e) {
+            // The agent is mid-turn in this thread (a person is talking to it). The task has not run, so
+            // it neither counts as fired nor fails: it runs once the thread settles.
+            Log::info('Scheduled agent task deferred; the thread is busy', [
+                'scheduled_action_id' => $this->action->getId(),
+                'run_id' => $e->runId,
+            ]);
+            $this->release($this->backoff);
+
+            return;
         } catch (AgentReplySkippedException) {
             // Deliberately falls through to re-arm: a deactivated agent should leave its schedule
             // ticking harmlessly, so reactivating it resumes the cadence instead of stranding the
@@ -114,7 +127,7 @@ class RunScheduledAgentActionJob implements ShouldQueue
         $response = new WakeAgentInSessionAction(
             agent: $agent,
             session: $this->resolveSession($agent),
-            instruction: (string) ($this->action->payload['instruction'] ?? ''),
+            instruction: self::assignment((string) ($this->action->payload['instruction'] ?? '')),
             user: $this->action->recipient ?? $agent->user,
         )->execute();
 
@@ -122,6 +135,17 @@ class RunScheduledAgentActionJob implements ShouldQueue
             'action_type' => $this->action->action_type,
             'response_length' => strlen($response),
         ]);
+    }
+
+    /**
+     * Reached as a bare user turn, a recurring task reads like a check-in, and an agent told to stay quiet
+     * when nothing changed answers NO_UPDATE instead of the summary it was asked for (Roven, task 168).
+     */
+    private static function assignment(string $instruction): string
+    {
+        return 'Scheduled task: you were asked to do this at this time. Carry it out now and post the result, '
+            . 'even if it looks like the last run. Do not reply ' . AgentTurnResponse::NO_UPDATE . ".\n\n"
+            . 'Task: ' . $instruction;
     }
 
     private function resolveSessionByUuid(): ?Session

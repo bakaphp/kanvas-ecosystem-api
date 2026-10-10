@@ -17,6 +17,8 @@ final class SyncLeadSourceActionTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected $connectionsToTransact = [null, 'crm'];
+
     public function testSourcesWithoutDescriptionShareOneLeadTypePerUpType(): void
     {
         $app = app(Apps::class);
