@@ -16,13 +16,19 @@ use Kanvas\Insurance\Actions\ConvertInsuranceLeadToOrderAction;
 use Kanvas\Insurance\Actions\SyncInsuranceProductsAction;
 use Kanvas\Insurance\DataTransferObject\InsuranceLeadContract;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderStatusEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Services\InsuranceQuoteBinding;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderStatus;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 use LogicException;
 use Mockery;
 use Tests\Insurance\Concerns\BuildsSearchCatalog;
+use Tests\Insurance\Concerns\SeedsInsuranceOrderPipeline;
 use Tests\Insurance\Fakes\FakeCanonicalProvider;
 use Tests\Insurance\Fakes\FakeCustomerProvider;
 use Tests\TestCase;
@@ -31,6 +37,7 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
 {
     use DatabaseTransactions;
     use BuildsSearchCatalog;
+    use SeedsInsuranceOrderPipeline;
 
     protected $connectionsToTransact = [null, 'commerce', 'crm', 'inventory', 'ecosystem', 'social'];
 
@@ -56,6 +63,15 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
     ];
 
     private FakeCustomerProvider $customerProvider;
+
+    private OrderTypes $insuranceOrderType;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->insuranceOrderType = $this->seedInsuranceOrderPipeline();
+    }
 
     private function bindCustomerProvider(): void
     {
@@ -358,5 +374,42 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
         $this->assertSame(1, Order::query()->where('reference', 'insurance-lead-' . $lead->getId())->count());
         $this->assertFalse($lead->fresh()->hasOpenLeadStatus());
         $this->assertSame($order->getId(), (int) $lead->fresh()->get(InsuranceCustomFieldEnum::ORDER_ID->value));
+    }
+
+    public function testTheOrderIsBornInsuranceTypedInTheQuotedStatusWithOneHistoryRow(): void
+    {
+        $lead = $this->selectedLead($this->sellablePlan());
+
+        $order = $this->contractAction($lead, ['customer' => self::COMPLETE_CUSTOMER])->execute()->fresh();
+
+        $this->assertSame(InsuranceOrderTypeEnum::INSURANCE->value, $order->orderType->name);
+        $this->assertSame(InsuranceOrderStatusEnum::QUOTED->value, $order->orderStatus->slug);
+        $this->assertNotSame(OrderStatusEnum::COMPLETED->value, $order->status);
+        $this->assertSame(1, $order->orderTransitionHistory()->count());
+        $this->assertTrue((bool) $order->orderTransitionHistory()->firstOrFail()->is_current);
+    }
+
+    public function testConversionIsRefusedBeforeAnythingHappensWhenThePipelineIsNotSeeded(): void
+    {
+        $lead = $this->selectedLead($this->sellablePlan());
+        OrderStatus::query()->where('order_types_id', $this->insuranceOrderType->getId())->delete();
+
+        $response = $this->graphQL(self::CONTRACT, $this->contract($lead, self::COMPLETE_CUSTOMER));
+
+        $this->assertStringContainsString('not available right now', (string) $response->json('errors.0.message'));
+        $this->assertSame(0, Order::query()->where('reference', 'insurance-lead-' . $lead->getId())->count());
+        $this->assertCount(0, $this->customerProvider->updates);
+        $this->assertTrue($lead->fresh()->hasOpenLeadStatus());
+    }
+
+    public function testConversionIsRefusedWhenTheOrderTypeDoesNotExistAtAll(): void
+    {
+        $lead = $this->selectedLead($this->sellablePlan());
+        OrderStatus::query()->where('order_types_id', $this->insuranceOrderType->getId())->delete();
+        $this->insuranceOrderType->delete();
+
+        $this->expectException(ValidationException::class);
+
+        $this->contractAction($lead, ['customer' => self::COMPLETE_CUSTOMER])->execute();
     }
 }

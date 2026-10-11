@@ -8,6 +8,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -20,9 +21,11 @@ use Kanvas\Insurance\DataTransferObject\QuoteResult;
 use Kanvas\Insurance\Enums\InsuranceCatalogStatusEnum;
 use Kanvas\Insurance\Enums\InsuranceCustomerFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
 use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceCommissionCalculator;
+use Kanvas\Insurance\Services\InsuranceOrderPipeline;
 use Kanvas\Insurance\Services\InsuranceProductSlug;
 use Kanvas\Insurance\Services\InsuranceQuoteSignature;
 use Kanvas\Inventory\Products\Models\Products;
@@ -72,6 +75,8 @@ class ConvertInsuranceLeadToOrderAction
             throw new ValidationException('This quote is closed and can no longer be contracted');
         }
 
+        $this->assertOrderPipelineSeeded();
+
         $plan = $this->planOf($lead);
         $this->assertUntampered($lead, $plan);
 
@@ -89,6 +94,20 @@ class ConvertInsuranceLeadToOrderAction
         $order = $this->createOrder($lead, $plan, $provider, $customer, $variant, $region, $quote);
 
         return $this->finishLead($lead, $order, $wonStatus);
+    }
+
+    private function assertOrderPipelineSeeded(): void
+    {
+        if (InsuranceOrderPipeline::isSeeded($this->contract->app)) {
+            return;
+        }
+
+        Log::error('Insurance order type is not set up for this app; run ' . InsuranceOrderPipeline::SETUP_COMMAND, [
+            'app_id' => $this->contract->app->getId(),
+            'lead_id' => $this->contract->lead->getId(),
+        ]);
+
+        throw new ValidationException('Insurance purchases are not available right now, please try again later');
     }
 
     private function existingOrder(Lead $lead): ?Order
@@ -282,7 +301,7 @@ class ConvertInsuranceLeadToOrderAction
                 taxes: 0.0,
                 totalDiscount: 0.0,
                 totalShipping: 0.0,
-                status: OrderStatusEnum::COMPLETED->value,
+                status: OrderStatusEnum::PENDING->value,
                 checkoutToken: '',
                 currency: $region->currency,
                 items: [$this->orderItem($variant, $plan, $quote)],
@@ -291,6 +310,7 @@ class ConvertInsuranceLeadToOrderAction
                 fulfillmentStatus: OrderStatusEnum::PENDING->value,
                 paymentGatewayName: ['manual'],
                 reference: $this->referenceFor($lead),
+                orderType: InsuranceOrderTypeEnum::INSURANCE->value,
                 paymentStatus: 'unpaid',
             )
         )->disableWorkflow()->execute();

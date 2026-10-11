@@ -29,7 +29,7 @@ class StampInsuranceQuoteAction
         $this->order->set(InsuranceCustomFieldEnum::RATE_PER_KM->value, $this->quote->ratePerKm);
         $this->order->set(InsuranceCustomFieldEnum::TAX->value, $this->quote->tax);
         $this->order->set(InsuranceCustomFieldEnum::TOTAL->value, $this->quote->total);
-        $this->order->set(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::QUOTED->value);
+        new RecordInsuranceStatusAction($this->order, InsuranceStatusEnum::QUOTED)->execute();
 
         if ($this->commission !== null) {
             $this->order->set(InsuranceCustomFieldEnum::COMMISSION->value, $this->commission);

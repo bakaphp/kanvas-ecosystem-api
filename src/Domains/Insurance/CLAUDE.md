@@ -256,7 +256,33 @@ teaching a generic Souk action about Guild leads would cross domains the wrong w
   People profile (name, email, phone, dob). Anything supplied is stored on the Lead, so a retry only needs what is still
   missing. Missing fields fail with canonical names before any Order or payment exists.
 - **Workflow.** The Order `created` event fires from the action after the `insurance_*` fields are stamped. The order carries
-  no `order_type`, so a rule filtered on one would not match.
+  the `insurance` order type, so a rule can filter on it.
+
+## Order type
+
+Insurance is its own vertical, so its orders carry the order type `insurance` (`InsuranceOrderTypeEnum`), provider-agnostic.
+That gives them the `OrderTransitionHistory` audit trail, order-type-filtered workflow rules, order-type-grouped stats and
+card velocity protection.
+
+- **Pipeline** (`InsuranceOrderStatusEnum`, seeded by `SetupInsuranceOrderPipelineAction`): `quoted` (default) ->
+  `documents_uploaded` -> `awaiting_payment` -> `payment_reported` -> `emitted` -> `policy_active`, plus `cancelled` and
+  `failed`. `policy_active`, `cancelled` and `failed` are final. The slugs are the `InsuranceStatusEnum` values, except
+  `paid` -> `payment_reported`: a status slugged `paid` would make `TransitionOrderStateAction` stamp `payment_status = paid`
+  while the charge is still an authorization, and a refused emission would leave a voided hold counted as revenue.
+  `Order::markAsPaid` therefore finds no `paid` status and leaves the pipeline alone.
+- **Setup, per environment and app:** `php artisan kanvas:insurance-setup-order-type {app_id}`. Idempotent. Without it,
+  `contractInsurancePlan` is refused before the insurer or the customer is touched (`InsuranceOrderPipeline::isSeeded`), with an
+  error in the log naming this command.
+- **`InsuranceStatusEnum` stays the source of truth.** Every write of the `insurance_status` custom field goes through
+  `RecordInsuranceStatusAction`, which sets the field and mirrors it into the order status through `TransitionOrderStateAction`.
+  Never `$order->set(InsuranceCustomFieldEnum::STATUS, ...)` directly. The mirror is best effort: an order with no type (legacy), a
+  different type, no current status, or a transition the pipeline does not allow is logged and skipped, and an exception is
+  reported, never thrown, so it cannot break or undo the money path (no hold is released or voided because of a mirror failure).
+- **Card velocity** can now be configured in `order_types.config.card_velocity` for `insurance`
+  (`max_cards_daily`, `ban_cards_daily`, `corporate_*`). It is off until configured; nothing is set in code.
+- **Legacy orders** created before the type existed (or by the FE with `metadata.insurance`) stay typeless and keep working;
+  the mirror is a no-op for them.
+
 ## Open items
 
 - `InsuranceQuoteRequest::$vehicle` is carried by `BuildQuoteRequestFromOrderAction` but no adapter reads it yet.

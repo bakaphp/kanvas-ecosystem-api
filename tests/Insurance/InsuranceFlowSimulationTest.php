@@ -22,10 +22,13 @@ use Kanvas\Insurance\Activities\ReportInsurancePaymentActivity;
 use Kanvas\Insurance\Activities\SyncInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\UploadInsuranceDocumentsActivity;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderStatusEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Models\InsuranceVehicleModelMap;
 use Kanvas\Insurance\Models\Insurer;
 use Kanvas\Insurance\Services\VehicleKeyNormalizer;
+use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\CaptureResult;
@@ -48,6 +51,7 @@ use RuntimeException;
 use Throwable;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\Insurance\Concerns\BuildsSearchCatalog;
+use Tests\Insurance\Concerns\SeedsInsuranceOrderPipeline;
 use Tests\TestCase;
 
 /**
@@ -61,6 +65,7 @@ class InsuranceFlowSimulationTest extends TestCase
     use BuildsSearchCatalog;
     use DatabaseTransactions;
     use HasIntegrationCompany;
+    use SeedsInsuranceOrderPipeline;
 
     protected $connectionsToTransact = [null, 'commerce', 'crm', 'inventory', 'ecosystem', 'social'];
 
@@ -101,6 +106,7 @@ class InsuranceFlowSimulationTest extends TestCase
         /** @var Users $user */
         $user = auth()->user();
         $this->kanvasUser = $user;
+        $this->seedInsuranceOrderPipeline();
 
         $this->setIntegration(
             $this->kanvasApp,
@@ -212,7 +218,7 @@ class InsuranceFlowSimulationTest extends TestCase
         app()->bind('payment_processor.azul', fn () => $processor);
     }
 
-    private function createOrder(): Order
+    private function createOrder(bool $insuranceTyped = true): Order
     {
         $company = $this->kanvasUser->getCurrentCompany();
         $people = People::factory()
@@ -246,7 +252,11 @@ class InsuranceFlowSimulationTest extends TestCase
                     ],
                 ],
             ]);
-        $order->setOrderType('movipass');
+
+        if ($insuranceTyped) {
+            $order->setOrderType(InsuranceOrderTypeEnum::INSURANCE->value);
+            new TransitionOrderStateAction($order, $this->kanvasUser, $order->orderStatus)->setInitialState();
+        }
 
         return $order;
     }
@@ -283,6 +293,21 @@ class InsuranceFlowSimulationTest extends TestCase
         return $activity->execute($order->fresh(), $this->kanvasApp, []);
     }
 
+    private function orderStatusTrail(Order $order): array
+    {
+        return $order->orderTransitionHistory()
+            ->orderBy('id')
+            ->with('toStatus')
+            ->get()
+            ->map(fn ($row): string => $row->toStatus->slug)
+            ->all();
+    }
+
+    private function orderStatusSlug(Order $order): ?string
+    {
+        return $order->fresh()->orderStatus?->slug;
+    }
+
     private function insuranceStatus(Order $order): ?string
     {
         return $order->fresh()->get(InsuranceCustomFieldEnum::STATUS->value);
@@ -296,6 +321,7 @@ class InsuranceFlowSimulationTest extends TestCase
 
         $attach = $this->runActivity(AttachInsuranceQuoteActivity::class, $order);
         $this->assertSame('success', $attach['status'], json_encode($attach));
+        $this->assertSame(InsuranceOrderStatusEnum::QUOTED->value, $this->orderStatusSlug($order));
         $this->assertSame(InsuranceStatusEnum::QUOTED->value, $this->insuranceStatus($order));
         $this->assertSame('Ana', $this->calls['updateQuote'][0]['data']['cliente']['nombre']);
         $this->assertEquals(6078.0, (float) $order->fresh()->get(InsuranceCustomFieldEnum::TOTAL->value));
@@ -305,6 +331,7 @@ class InsuranceFlowSimulationTest extends TestCase
         $report = $this->runActivity(ReportInsurancePaymentActivity::class, $order);
         $this->assertSame('success', $report['status'], json_encode($report));
         $this->assertSame(InsuranceStatusEnum::PAID->value, $this->insuranceStatus($order));
+        $this->assertSame(InsuranceOrderStatusEnum::PAYMENT_REPORTED->value, $this->orderStatusSlug($order));
         $this->assertSame(6078.0, (float) $this->calls['assignPaymentInformation'][0]['amount']);
         $this->assertSame('1732', $this->calls['assignPaymentInformation'][0]['cardLast4Digits']);
         $this->assertSame('COT-' . self::QUOTE, $this->calls['assignPaymentInformation'][0]['customOrderId']);
@@ -328,6 +355,11 @@ class InsuranceFlowSimulationTest extends TestCase
         $this->assertTrue($emit['paymentCaptured']);
         $this->assertSame(PaymentStatusEnum::PAID->value, $payment->fresh()->status);
         $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, $this->insuranceStatus($order));
+        $this->assertSame(InsuranceOrderStatusEnum::POLICY_ACTIVE->value, $this->orderStatusSlug($order));
+        $this->assertSame(
+            [InsuranceOrderStatusEnum::QUOTED->value, InsuranceOrderStatusEnum::PAYMENT_REPORTED->value, InsuranceOrderStatusEnum::EMITTED->value, InsuranceOrderStatusEnum::POLICY_ACTIVE->value],
+            $this->orderStatusTrail($order)
+        );
 
         $invoice = $this->runActivity(InvoiceInsurancePolicyActivity::class, $order);
         $this->assertSame('success', $invoice['status'], json_encode($invoice));
@@ -336,6 +368,29 @@ class InsuranceFlowSimulationTest extends TestCase
         $again = $this->runActivity(InvoiceInsurancePolicyActivity::class, $order);
         $this->assertSame('skipped', $again['status']);
         $this->assertCount(1, $this->calls['invoicePolicy']);
+    }
+
+    public function testALegacyOrderWithoutAnOrderTypeStillGoesThroughTheWholeChain(): void
+    {
+        $this->fakeUniversal();
+        $this->fakeProcessor();
+        $order = $this->createOrder(insuranceTyped: false);
+
+        $this->assertSame('success', $this->runActivity(AttachInsuranceQuoteActivity::class, $order)['status']);
+        $payment = $this->holdPayment($order);
+        $this->assertSame('success', $this->runActivity(ReportInsurancePaymentActivity::class, $order)['status']);
+        $this->attachDocument($order, 'registration');
+        $this->runActivity(UploadInsuranceDocumentsActivity::class, $order);
+        $emit = $this->runActivity(EmitInsurancePolicyActivity::class, $order);
+        $invoice = $this->runActivity(InvoiceInsurancePolicyActivity::class, $order);
+
+        $this->assertSame('success', $emit['status'], json_encode($emit));
+        $this->assertSame('success', $invoice['status'], json_encode($invoice));
+        $this->assertSame(PaymentStatusEnum::PAID->value, $payment->fresh()->status);
+        $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, $this->insuranceStatus($order));
+        $this->assertNull($order->fresh()->order_types_id);
+        $this->assertNull($order->fresh()->order_status_id);
+        $this->assertSame(0, $order->orderTransitionHistory()->count());
     }
 
     public function testARefusedEmissionFailsTheOrderAndReleasesTheHold(): void
@@ -353,6 +408,7 @@ class InsuranceFlowSimulationTest extends TestCase
 
         $this->assertStringContainsString('Chasis no autorizado', $result['message']);
         $this->assertSame(InsuranceStatusEnum::FAILED->value, $this->insuranceStatus($order));
+        $this->assertSame(InsuranceOrderStatusEnum::FAILED->value, $this->orderStatusSlug($order));
         $this->assertSame(PaymentStatusEnum::CANCELLED->value, $payment->fresh()->status);
         $this->assertCount(1, $this->calls['void']);
         $this->assertArrayNotHasKey('capture', $this->calls);
@@ -370,6 +426,7 @@ class InsuranceFlowSimulationTest extends TestCase
 
         $this->assertSame('success', $result['status']);
         $this->assertSame(InsuranceStatusEnum::CANCELLED->value, $this->insuranceStatus($order));
+        $this->assertSame(InsuranceOrderStatusEnum::CANCELLED->value, $this->orderStatusSlug($order));
         $this->assertSame(PaymentStatusEnum::CANCELLED->value, $payment->fresh()->status);
     }
 

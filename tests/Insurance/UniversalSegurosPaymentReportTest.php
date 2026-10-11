@@ -58,6 +58,7 @@ class UniversalSegurosPaymentReportTest extends TestCase
     public function testReportingAPaymentSendsTheQuoteNumberOffTheOrderAndFlipsItPaid(): void
     {
         $order = Mockery::mock(Order::class);
+        $order->shouldReceive('getAttribute')->with('order_types_id')->andReturn(null);
         $order->shouldReceive('get')
             ->with(InsuranceCustomFieldEnum::QUOTE_NUMBER->value)
             ->andReturn('329033');
@@ -90,6 +91,7 @@ class UniversalSegurosPaymentReportTest extends TestCase
     public function testAnEmptyBodyStillCountsAsAReportedPayment(): void
     {
         $order = Mockery::mock(Order::class);
+        $order->shouldReceive('getAttribute')->with('order_types_id')->andReturn(null);
         $order->shouldReceive('get')
             ->with(InsuranceCustomFieldEnum::QUOTE_NUMBER->value)
             ->andReturn('329033');

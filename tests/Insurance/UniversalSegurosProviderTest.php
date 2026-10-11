@@ -374,6 +374,7 @@ class UniversalSegurosProviderTest extends TestCase
     public function testDocumentsAreUploadedUnderTheInsurersOwnTransactionNames(): void
     {
         $order = Mockery::mock(Order::class);
+        $order->shouldReceive('getAttribute')->with('order_types_id')->andReturn(null);
         $order->shouldReceive('get')
             ->with(InsuranceCustomFieldEnum::QUOTE_NUMBER->value)
             ->andReturn('COT-991');
@@ -432,6 +433,7 @@ class UniversalSegurosProviderTest extends TestCase
     public function testSyncStampsThePolicyNumberAndFlipsTheOrderActive(): void
     {
         $order = Mockery::mock(Order::class);
+        $order->shouldReceive('getAttribute')->with('order_types_id')->andReturn(null);
         $order->shouldReceive('get')
             ->with(InsuranceCustomFieldEnum::QUOTE_NUMBER->value)
             ->andReturn('COT-991');

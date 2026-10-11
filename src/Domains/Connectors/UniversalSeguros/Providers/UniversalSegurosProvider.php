@@ -17,6 +17,7 @@ use Kanvas\Connectors\UniversalSeguros\Enums\ProductEnum;
 use Kanvas\Connectors\UniversalSeguros\Mappers\ClienteMapper;
 use Kanvas\Connectors\UniversalSeguros\Services\UniversalSegurosService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Insurance\Actions\RecordInsuranceStatusAction;
 use Kanvas\Insurance\Contracts\CanonicalQuoteProviderInterface;
 use Kanvas\Insurance\Contracts\CatalogProviderInterface;
 use Kanvas\Insurance\Contracts\CustomerDataProviderInterface;
@@ -215,7 +216,7 @@ class UniversalSegurosProvider implements
         $current = (string) $order->get(InsuranceCustomFieldEnum::STATUS->value);
 
         if ($results !== [] && in_array($current, ['', InsuranceStatusEnum::QUOTED->value], true)) {
-            $order->set(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::DOCUMENTS_UPLOADED->value);
+            new RecordInsuranceStatusAction($order, InsuranceStatusEnum::DOCUMENTS_UPLOADED)->execute();
         }
 
         return new DocumentUploadResult(
@@ -242,7 +243,7 @@ class UniversalSegurosProvider implements
             }
         }
 
-        $order->set(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::AWAITING_PAYMENT->value);
+        new RecordInsuranceStatusAction($order, InsuranceStatusEnum::AWAITING_PAYMENT)->execute();
 
         return new PaymentLinkResult(
             success: true,
@@ -264,7 +265,7 @@ class UniversalSegurosProvider implements
             PaymentInformation::fromReport($report->forQuote($this->quoteNumber($order)))
         );
 
-        $order->set(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::PAID->value);
+        new RecordInsuranceStatusAction($order, InsuranceStatusEnum::PAID)->execute();
 
         return new PaymentReportResult(success: true, message: 'Payment reported', raw: $raw);
     }
@@ -289,7 +290,7 @@ class UniversalSegurosProvider implements
         $quoteNumber = $this->quoteNumber($order);
 
         $this->service->emit($quoteNumber);
-        $order->set(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::EMITTED->value);
+        new RecordInsuranceStatusAction($order, InsuranceStatusEnum::EMITTED)->execute();
 
         return $this->readPolicy($order, $quoteNumber, 'Policy emitted');
     }
@@ -520,7 +521,7 @@ class UniversalSegurosProvider implements
 
         if ($policyNumber !== '') {
             $order->set(InsuranceCustomFieldEnum::POLICY_NUMBER->value, $policyNumber);
-            $order->set(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::POLICY_ACTIVE->value);
+            new RecordInsuranceStatusAction($order, InsuranceStatusEnum::POLICY_ACTIVE)->execute();
             $status = InsuranceStatusEnum::POLICY_ACTIVE;
         }
 

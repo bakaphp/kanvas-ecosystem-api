@@ -6,6 +6,7 @@ namespace Kanvas\Insurance\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Insurance\Actions\RecordInsuranceStatusAction;
 use Kanvas\Insurance\Actions\SettleInsurancePaymentAction;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
@@ -51,7 +52,7 @@ class CancelInsuranceOrderActivity extends KanvasActivity implements WorkflowAct
         }
 
         $released = new SettleInsurancePaymentAction($order)->release();
-        $order->set(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::CANCELLED->value);
+        new RecordInsuranceStatusAction($order, InsuranceStatusEnum::CANCELLED)->execute();
 
         return [
             'order' => $order->getId(),
