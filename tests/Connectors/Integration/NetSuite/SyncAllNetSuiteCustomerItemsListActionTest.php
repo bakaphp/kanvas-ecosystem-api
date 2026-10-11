@@ -258,6 +258,111 @@ final class SyncAllNetSuiteCustomerItemsListActionTest extends TestCase
         $this->assertFalse($channelExists);
     }
 
+    public function testRealSyncRecordsLastSyncWithItemCounts(): void
+    {
+        $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());
+        $this->createNetSuiteVariant('NS-LS-V');
+        $this->bindMockCustomerService(['UNKNOWN-BARCODE-1', 'UNKNOWN-BARCODE-2']);
+
+        $buyer = $this->createBuyerWithNetSuiteId('NS-LAST-SYNC');
+
+        $result = new SyncAllNetSuiteCustomerItemsListAction(
+            $this->apps,
+            onlyBuyerIds: [$buyer->getId()]
+        )->execute();
+
+        $lastSync = $buyer->get(CustomFieldEnum::NET_SUITE_ITEMS_LAST_SYNC->value);
+
+        $this->assertIsArray($lastSync);
+        $this->assertSame(2, $lastSync['ns_items']);
+        $this->assertSame(0, $lastSync['processed']);
+        $this->assertSame(2, $lastSync['not_found']);
+        $this->assertSame($lastSync, $result['results'][0]['last_sync']);
+    }
+
+    public function testDryRunDoesNotRecordLastSyncButExposesAPreviousOne(): void
+    {
+        $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());
+        $this->createNetSuiteVariant('NS-LS-DR');
+
+        $buyer = $this->createBuyerWithNetSuiteId('NS-LAST-SYNC-DR');
+
+        $first = new SyncAllNetSuiteCustomerItemsListAction(
+            $this->apps,
+            dryRun: true,
+            onlyBuyerIds: [$buyer->getId()]
+        )->execute();
+
+        $this->assertNull($first['results'][0]['last_sync']);
+        $this->assertNull($buyer->get(CustomFieldEnum::NET_SUITE_ITEMS_LAST_SYNC->value));
+
+        $buyer->set(CustomFieldEnum::NET_SUITE_ITEMS_LAST_SYNC->value, [
+            'at' => '2026-10-01T10:00:00Z',
+            'ns_items' => 5,
+            'processed' => 5,
+            'not_found' => 0,
+        ]);
+
+        $second = new SyncAllNetSuiteCustomerItemsListAction(
+            $this->apps,
+            dryRun: true,
+            onlyBuyerIds: [$buyer->getId()]
+        )->execute();
+
+        $this->assertSame(5, $second['results'][0]['last_sync']['ns_items']);
+    }
+
+    public function testReportsProgressOncePerBuyer(): void
+    {
+        $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());
+        $this->createNetSuiteVariant('NS-PROG-V');
+
+        $buyerA = $this->createBuyerWithNetSuiteId('NS-PROG-A');
+        $buyerB = $this->createBuyerWithNetSuiteId('NS-PROG-B');
+
+        $calls = [];
+
+        $result = new SyncAllNetSuiteCustomerItemsListAction(
+            app: $this->apps,
+            dryRun: true,
+            onlyBuyerIds: [$buyerA->getId(), $buyerB->getId()],
+            onProgress: function (array $entry, int $current, int $total) use (&$calls) {
+                $calls[] = [$entry['company_id'], $current, $total];
+            }
+        )->execute();
+
+        $this->assertCount(2, $calls);
+        $this->assertSame([1, 2], array_column($calls, 1));
+        $this->assertSame([2, 2], array_column($calls, 2));
+        $this->assertEqualsCanonicalizing(
+            array_column($result['results'], 'company_id'),
+            array_column($calls, 0)
+        );
+    }
+
+    public function testReconcileCommandPrintsProgressAndLastSyncColumns(): void
+    {
+        $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());
+        $this->createNetSuiteVariant('NS-CMD-V');
+
+        $buyer = $this->createBuyerWithNetSuiteId('NS-CMD');
+        $buyer->set(CustomFieldEnum::NET_SUITE_ITEMS_LAST_SYNC->value, [
+            'at' => '2026-10-01T10:00:00Z',
+            'ns_items' => 7,
+            'processed' => 7,
+            'not_found' => 0,
+        ]);
+
+        $this->artisan('netsuite:reconcile-customer-items', [
+            'app_id' => $this->apps->getId(),
+            '--dry-run' => true,
+            '--company' => [$buyer->getId()],
+        ])
+            ->expectsOutputToContain('last sync 2026-10-01 10:00')
+            ->expectsOutputToContain('Last Sync')
+            ->assertExitCode(0);
+    }
+
     public function testSoapFaultOnSyncDoesNotAbortSweep(): void
     {
         $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());
