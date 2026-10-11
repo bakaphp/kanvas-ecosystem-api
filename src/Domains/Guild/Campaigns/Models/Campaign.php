@@ -23,6 +23,8 @@ use Override;
  * @property int         $users_id
  * @property string      $channel
  * @property string      $message
+ * @property string|null $template_name
+ * @property list<string>|null $attachment_urls
  * @property array|null  $criteria
  * @property string      $status
  * @property Carbon|null $scheduled_at
@@ -45,6 +47,7 @@ class Campaign extends BaseModel
     {
         return [
             'criteria' => Json::class,
+            'attachment_urls' => Json::class,
             'scheduled_at' => 'datetime',
             'total_recipients' => 'integer',
             'sent_count' => 'integer',
