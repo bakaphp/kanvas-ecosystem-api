@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Insurance;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Humano\Providers\HumanoProvider;
+use Kanvas\Connectors\Humano\Services\HumanoService;
 use Kanvas\Connectors\UniversalSeguros\DataTransferObject\QuoteRequest;
 use Kanvas\Connectors\UniversalSeguros\Enums\ConfigurationEnum;
 use Kanvas\Connectors\UniversalSeguros\Handlers\UniversalSegurosHandler;
@@ -21,6 +23,9 @@ use Kanvas\Insurance\Activities\SyncInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\UploadInsuranceDocumentsActivity;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
+use Kanvas\Insurance\Models\InsuranceVehicleModelMap;
+use Kanvas\Insurance\Models\Insurer;
+use Kanvas\Insurance\Services\VehicleKeyNormalizer;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\CaptureResult;
@@ -129,6 +134,11 @@ class InsuranceFlowSimulationTest extends TestCase
         ];
 
         $this->service = Mockery::mock(UniversalSegurosService::class);
+        $this->service->shouldReceive('quote')->andReturnUsing(function () use ($record, $quote) {
+            $record('quote');
+
+            return $quote;
+        });
         $this->service->shouldReceive('getQuote')->andReturnUsing(function () use ($record, $quote) {
             $record('getQuote');
 
@@ -390,7 +400,7 @@ class InsuranceFlowSimulationTest extends TestCase
         );
     }
 
-    private function contractedOrder(): Order
+    private function contractedOrder(bool $viaSearch = false): Order
     {
         $company = $this->kanvasUser->getCurrentCompany();
         $this->pinPlatformCompany($company->getId());
@@ -402,8 +412,14 @@ class InsuranceFlowSimulationTest extends TestCase
         )->execute();
         $company->set(InsuranceCustomFieldEnum::INSURER_COMPANY_ID->value, $company->getId());
 
-        $plan = $this->seedPlan($this->seedInsurer($company, UniversalSegurosProvider::NAME), 'A-PA');
-        InsuranceQuoteBinding::bind($this->kanvasApp->getId(), $this->kanvasUser->getId(), self::QUOTE, $plan->getId());
+        $insurer = $this->seedInsurer($company, UniversalSegurosProvider::NAME);
+        $plan = $this->seedPlan($insurer, 'A-PA');
+
+        if ($viaSearch) {
+            $this->searchFor($insurer, $plan->getId());
+        } else {
+            InsuranceQuoteBinding::bind($this->kanvasApp->getId(), $this->kanvasUser->getId(), self::QUOTE, $plan->getId());
+        }
 
         $leadId = $this->graphQL(
             'mutation($input: SelectInsurancePlanInput!) { selectInsurancePlan(input: $input) { id } }',
@@ -423,6 +439,94 @@ class InsuranceFlowSimulationTest extends TestCase
         $this->assertSame((int) $orderId, (int) $lead->get(InsuranceCustomFieldEnum::ORDER_ID->value));
 
         return Order::findOrFail($orderId);
+    }
+
+    private function searchFor(Insurer $insurer, int $expectedPlanId): void
+    {
+        $model = 'Corolla ' . uniqid();
+        InsuranceVehicleModelMap::query()->create([
+            'apps_id' => $insurer->apps_id,
+            'insurers_id' => $insurer->getId(),
+            'plan_code' => '',
+            'brand_key' => 'toyota',
+            'model_key' => VehicleKeyNormalizer::normalize($model),
+            'version_key' => '',
+            'year' => 0,
+            'external_model_id' => '77',
+            'source' => 'manual',
+            'active' => true,
+        ]);
+
+        $response = $this->graphQL(
+            'query($input: CanonicalQuoteInput!) {
+                insuranceSearch(input: $input) {
+                    entries { plan { id } quote_number }
+                    failures { reason }
+                }
+            }',
+            ['input' => [
+                'category' => 'FULL',
+                'vehicle' => [
+                    'brand' => 'Toyota',
+                    'model' => $model,
+                    'year' => 2022,
+                    'fuel_type' => 'GASOLINE_DIESEL',
+                    'estimated_value' => 1000000,
+                ],
+            ]]
+        );
+
+        $search = $response->json('data.insuranceSearch');
+        $this->assertNotNull($search, json_encode($response->json()));
+        $this->assertSame([], $search['failures']);
+        $this->assertCount(1, $search['entries']);
+        $this->assertSame((string) $expectedPlanId, $search['entries'][0]['plan']['id']);
+        $this->assertSame(self::QUOTE, $search['entries'][0]['quote_number']);
+    }
+
+    private function bindHumanoThatMustStayUntouched(): void
+    {
+        $humano = Mockery::mock(HumanoService::class);
+        $humano->shouldReceive('quote')->never();
+        $humano->shouldReceive('getQuote')->never();
+
+        app()->bind(
+            'insurance_provider.' . HumanoProvider::NAME,
+            fn ($app, array $params): HumanoProvider => new HumanoProvider(
+                app: $params['app'],
+                company: $params['company'],
+                service: $humano,
+            )
+        );
+    }
+
+    public function testTheWholeChainFromSearchToInvoicedPolicyNeverTouchesHumano(): void
+    {
+        $this->fakeUniversal();
+        $this->fakeProcessor();
+        $this->bindHumanoThatMustStayUntouched();
+        $humanoInsurer = $this->seedInsurer($this->kanvasUser->getCurrentCompany(), HumanoProvider::NAME);
+        $this->seedPlan($humanoInsurer, 'mi_auto_full');
+        $order = $this->contractedOrder(viaSearch: true);
+
+        $this->assertCount(1, $this->calls['quote']);
+        $this->assertSame(UniversalSegurosProvider::NAME, $order->metadata['insurance']['provider']);
+        $this->assertSame(UniversalSegurosProvider::NAME, $order->fresh()->get(InsuranceCustomFieldEnum::PROVIDER->value));
+        $this->assertSame(InsuranceStatusEnum::QUOTED->value, $this->insuranceStatus($order));
+
+        $payment = $this->holdPayment($order);
+        $this->assertSame('success', $this->runActivity(ReportInsurancePaymentActivity::class, $order)['status']);
+        $this->attachDocument($order, 'registration');
+        $this->runActivity(UploadInsuranceDocumentsActivity::class, $order);
+        $emit = $this->runActivity(EmitInsurancePolicyActivity::class, $order);
+        $this->assertSame('success', $emit['status'], json_encode($emit));
+        $this->assertSame(PaymentStatusEnum::PAID->value, $payment->fresh()->status);
+        $invoice = $this->runActivity(InvoiceInsurancePolicyActivity::class, $order);
+        $this->assertSame('success', $invoice['status'], json_encode($invoice));
+        $this->assertSame(self::POLICY, $this->calls['invoicePolicy'][0]['noPoliza']);
+
+        $traces = strtolower((string) json_encode([$order->fresh()->metadata, $emit, $invoice, $this->calls]));
+        $this->assertStringNotContainsString('humano', $traces);
     }
 
     public function testTheWholeChainFromSelectionToInvoicedPolicy(): void
