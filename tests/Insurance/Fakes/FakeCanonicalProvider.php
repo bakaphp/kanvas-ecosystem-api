@@ -15,6 +15,8 @@ class FakeCanonicalProvider implements CanonicalQuoteProviderInterface
 {
     public array $calls = [];
 
+    public float $total = 116.0;
+
     public function __construct(
         private readonly string $name,
         private readonly Closure $respond,
@@ -44,9 +46,9 @@ class FakeCanonicalProvider implements CanonicalQuoteProviderInterface
             success: true,
             message: 'ok',
             quoteNumber: $quoteNumber,
-            premium: 100.0,
-            tax: 16.0,
-            total: 116.0,
+            premium: $this->total / 1.16,
+            tax: $this->total - $this->total / 1.16,
+            total: $this->total,
             currency: 'DOP',
             commission: 9.0,
             canEmit: true,

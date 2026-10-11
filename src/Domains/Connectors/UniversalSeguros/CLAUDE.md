@@ -250,6 +250,24 @@ Cross-field rules they enforce and the doc omits:
   hardcoded string covered only 3 of 5 — A-PC and A-PT would have died at emit time, *after* the
   customer paid. Regression: `tests/Connectors/UniversalSeguros/ConfigurationScopesTest.php`.
 
+## The `cliente` block and the quote PUT
+
+`Mappers/ClienteMapper` is the only place the canonical customer (`Kanvas\Insurance\DataTransferObject\InsuranceCustomer`)
+becomes Universal's `cliente`; `UniversalSegurosProvider` exposes it through `CustomerDataProviderInterface`. Every canonical
+field is required (Universal's validator rejects the empty-string defaults of `Cliente`). **Unverified, harvest from QA with a
+bogus value:** the allowed values of `genero` (sent `M`/`F`), `estadoCivil` (`S`/`C`), `tipoDocumento` (`Cedula`/`Pasaporte`),
+the `fechaNacimiento` format (sent `Y-m-d`) and whether `ocupacion`/`nacionalidad` are catalogs.
+
+A quote created by `insuranceSearch` is `{tipo, vehiculo}` only and nothing stores that body on the order, while the PUT replaces
+the whole quote. `updateQuote` therefore reads `data.vehiculo` (plus `aditamentos`/`endosoCesion`) back from `getQuote` when the
+caller sends no `vehiculo`; **the assumption that GET echoes the vehicle under `data.vehiculo` is unverified.** `updateQuote` throws (customer-safe) instead of PUTting when the GET has no vehicle. `requestId` is
+derived (`kanvas-` + HMAC-SHA256 of quote and cliente, keyed with `app.key`) so a retried update repeats the id, a changed
+customer does not and it cannot be guessed; its idempotency semantics are also unverified.
+
+The search quote now sends `vehiculo.inspeccion.tipo = 'Cargar matrícula'` (every other `Inspeccion` field defaults to empty/0)
+because omitting the block is a bare 500; this is provisional and unverified against QA - with empty plate/chassis the quote may
+still be refused with a clean 400.
+
 ## Tests
 
 - `tests/Connectors/Traits/HasUniversalSegurosConfiguration.php` — sets company creds from

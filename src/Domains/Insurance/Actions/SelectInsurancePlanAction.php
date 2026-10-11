@@ -19,6 +19,7 @@ use Kanvas\Insurance\DataTransferObject\QuoteResult;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceCommissionCalculator;
+use Kanvas\Insurance\Services\InsuranceQuoteSignature;
 
 class SelectInsurancePlanAction
 {
@@ -99,7 +100,7 @@ class SelectInsurancePlanAction
             ->fromApp($this->selection->app)
             ->fromCompany($this->selection->company)
             ->notDeleted()
-            ->isOpen()
+            ->hasOpenLeadStatus($this->selection->company)
             ->where('people_id', $people->getId())
             ->orderByDesc('id')
             ->first();
@@ -157,7 +158,15 @@ class SelectInsurancePlanAction
             ),
             InsuranceCustomFieldEnum::CAN_EMIT->value => $quote->canEmit === null ? null : (int) $quote->canEmit,
             InsuranceCustomFieldEnum::INSPECTION_STATUS->value => $quote->inspectionStatus,
-        ], fn (mixed $value): bool => $value !== null && $value !== '');
+            InsuranceCustomFieldEnum::QUOTE_SIGNATURE->value => InsuranceQuoteSignature::sign(
+                userId: $this->selection->user->getId(),
+                planId: $plan->getId(),
+                provider: $plan->insurer->provider,
+                quoteNumber: $quote->quoteNumber,
+                total: (float) $quote->total,
+                tax: (float) $quote->tax,
+            ),
+        ],fn (mixed $value): bool => $value !== null && $value !== '');
     }
 
     private function lockKey(): string

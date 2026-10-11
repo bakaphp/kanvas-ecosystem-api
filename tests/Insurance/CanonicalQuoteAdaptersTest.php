@@ -113,7 +113,8 @@ class CanonicalQuoteAdaptersTest extends TestCase
                     && $vehiculo['esCeroKm'] === true
                     && $vehiculo['combustible'] === 'Gas'
                     && $vehiculo['valor'] === 850000
-                    && $vehiculo['sumaAsegurada'] === 850000;
+                    && $vehiculo['sumaAsegurada'] === 850000
+                    && $vehiculo['inspeccion']['tipo'] === 'Cargar matrícula';
             })
             ->andReturn(['numeroCotizacion' => 'U-1', 'prima' => 100, 'total' => 116]);
 

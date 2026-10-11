@@ -14,10 +14,12 @@ use Kanvas\Connectors\UniversalSeguros\Enums\ConfigurationEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\DocumentOperationEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\DocumentTransactionEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\ProductEnum;
+use Kanvas\Connectors\UniversalSeguros\Mappers\ClienteMapper;
 use Kanvas\Connectors\UniversalSeguros\Services\UniversalSegurosService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Contracts\CanonicalQuoteProviderInterface;
 use Kanvas\Insurance\Contracts\CatalogProviderInterface;
+use Kanvas\Insurance\Contracts\CustomerDataProviderInterface;
 use Kanvas\Insurance\Contracts\InspectionProviderInterface;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\Contracts\PaymentLinkProviderInterface;
@@ -31,6 +33,7 @@ use Kanvas\Insurance\DataTransferObject\CanonicalQuoteInput;
 use Kanvas\Insurance\DataTransferObject\CanonicalVehicle;
 use Kanvas\Insurance\DataTransferObject\DocumentUploadResult;
 use Kanvas\Insurance\DataTransferObject\ExternalVehicleModel;
+use Kanvas\Insurance\DataTransferObject\InsuranceCustomer;
 use Kanvas\Insurance\DataTransferObject\InsuranceDocument;
 use Kanvas\Insurance\DataTransferObject\InsurancePaymentReport;
 use Kanvas\Insurance\DataTransferObject\InsuranceProduct;
@@ -51,6 +54,7 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 class UniversalSegurosProvider implements
     CanonicalQuoteProviderInterface,
     CatalogProviderInterface,
+    CustomerDataProviderInterface,
     InspectionProviderInterface,
     InsuranceProviderInterface,
     PaymentLinkProviderInterface,
@@ -62,6 +66,8 @@ class UniversalSegurosProvider implements
     VehicleModelCatalogProviderInterface
 {
     public const NAME = 'universal_seguros';
+
+    protected const DEFAULT_INSPECTION_TYPE = 'Cargar matrícula';
 
     /** Seconds; 0 means never cache. */
     protected const CATALOG_TTL = [
@@ -150,6 +156,7 @@ class UniversalSegurosProvider implements
             'esUsoParticularNoDeportivoNoPublico' => true,
             'valor' => $value,
             'sumaAsegurada' => $product === ProductEnum::POR_SI_CHOCAS ? $value : null,
+            'inspeccion' => ['tipo' => self::DEFAULT_INSPECTION_TYPE],
         ], fn (mixed $field): bool => $field !== null);
     }
 
@@ -159,8 +166,21 @@ class UniversalSegurosProvider implements
             ?? throw new ValidationException('Unknown Universal Seguros product: ' . $request->product);
 
         return $this->toQuoteResult(
-            $this->service->updateQuote($quoteNumber, QuoteRequest::make($product, $this->payloadWithVehicle($request)))
+            $this->service->updateQuote(
+                $quoteNumber,
+                QuoteRequest::make($product, $this->payloadForUpdate($quoteNumber, $request))
+            )
         );
+    }
+
+    public function requiredCustomerFields(): array
+    {
+        return ClienteMapper::requiredFields();
+    }
+
+    public function customerBlock(InsuranceCustomer $customer): array
+    {
+        return ClienteMapper::map($customer);
     }
 
     public function getQuote(string $quoteNumber): QuoteResult
@@ -335,6 +355,30 @@ class UniversalSegurosProvider implements
         }
 
         return $entries;
+    }
+
+    protected function payloadForUpdate(string $quoteNumber, InsuranceQuoteRequest $request): array
+    {
+        $payload = $this->payloadWithVehicle($request);
+
+        if (! isset($payload['vehiculo'])) {
+            $current = $this->service->getQuote($quoteNumber);
+            $stored = is_array($current['data'] ?? null) ? $current['data'] : [];
+
+            if (! is_array($stored['vehiculo'] ?? null)) {
+                throw new ValidationException('The vehicle of this quote could not be recovered, please quote again');
+            }
+
+            $payload += array_intersect_key($stored, array_flip(['vehiculo', 'aditamentos', 'endosoCesion']));
+        }
+
+        $payload['requestId'] ??= 'kanvas-' . hash_hmac(
+            'sha256',
+            $quoteNumber . '|' . json_encode($payload['cliente'] ?? []),
+            (string) config('app.key')
+        );
+
+        return $payload;
     }
 
     protected function payloadWithVehicle(InsuranceQuoteRequest $request): array

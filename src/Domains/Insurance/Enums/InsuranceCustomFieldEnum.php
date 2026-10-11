@@ -41,4 +41,7 @@ enum InsuranceCustomFieldEnum: string
     /** The insurer says this quote is ready to become a policy. */
     case CAN_EMIT = 'insurance_can_emit';
     case INSPECTION_STATUS = 'insurance_inspection_status';
+    case ORDER_ID = 'insurance_order_id';
+    case LEAD_ID = 'insurance_lead_id';
+    case QUOTE_SIGNATURE = 'insurance_quote_signature';
 }

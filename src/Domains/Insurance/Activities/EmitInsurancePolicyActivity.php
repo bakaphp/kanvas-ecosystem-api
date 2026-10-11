@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Actions\SettleInsurancePaymentAction;
+use Kanvas\Insurance\Concerns\FailsReleasingHeldPayment;
 use Kanvas\Insurance\Contracts\InspectionProviderInterface;
 use Kanvas\Insurance\Contracts\PolicyEmissionProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
@@ -26,6 +27,8 @@ use Override;
 #[WorkflowAction]
 class EmitInsurancePolicyActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    use FailsReleasingHeldPayment;
+
     /**
      * @param array<string, mixed> $params
      *
@@ -38,19 +41,13 @@ class EmitInsurancePolicyActivity extends KanvasActivity implements WorkflowActi
 
         /** @var Order $order */
         if (empty($order->get(InsuranceCustomFieldEnum::QUOTE_NUMBER->value))) {
-            return $this->failWorkflow([
-                'order' => $order->getId(),
-                'message' => 'Order has no insurance quote number',
-            ]);
+            return $this->failReleasingHold($order, 'Order has no insurance quote number');
         }
 
         $provider = InsuranceProviderFactory::forOrder($order);
 
         if (! $provider instanceof PolicyEmissionProviderInterface) {
-            return $this->failWorkflow([
-                'order' => $order->getId(),
-                'message' => $provider->name() . ' does not emit policies',
-            ]);
+            return $this->failReleasingHold($order, $provider->name() . ' does not emit policies');
         }
 
         $status = (string) $order->get(InsuranceCustomFieldEnum::STATUS->value);
@@ -79,22 +76,13 @@ class EmitInsurancePolicyActivity extends KanvasActivity implements WorkflowActi
             integration: $provider->integration(),
             additionalParams: $params,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($provider) {
-                $settlement = new SettleInsurancePaymentAction($order);
-
                 try {
                     $policy = $provider->emit($order);
                 } catch (ValidationException $e) {
-                    $order->set(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::FAILED->value);
-                    $released = $settlement->release();
-
-                    return $this->failWorkflow([
-                        'order' => $order->getId(),
-                        'message' => $e->getMessage(),
-                        'paymentReleased' => $released === true,
-                    ]);
+                    return $this->failReleasingHold($order, $e->getMessage());
                 }
 
-                $captured = $policy->success ? $settlement->capture() : null;
+                $captured = $policy->success ? new SettleInsurancePaymentAction($order)->capture() : null;
 
                 return [
                     'order' => $order->getId(),

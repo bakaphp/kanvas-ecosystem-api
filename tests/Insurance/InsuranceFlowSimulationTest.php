@@ -31,9 +31,18 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Baka\Http\SafeUrlFetcher;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Insurance\Actions\SyncInsuranceProductsAction;
+use Kanvas\Insurance\DataTransferObject\PaymentReportResult;
+use Kanvas\Insurance\Services\InsuranceQuoteBinding;
 use Mockery;
 use Mockery\MockInterface;
+use RuntimeException;
+use Throwable;
 use Tests\Connectors\Traits\HasIntegrationCompany;
+use Tests\Insurance\Concerns\BuildsSearchCatalog;
 use Tests\TestCase;
 
 /**
@@ -44,10 +53,29 @@ use Tests\TestCase;
  */
 class InsuranceFlowSimulationTest extends TestCase
 {
+    use BuildsSearchCatalog;
+    use DatabaseTransactions;
     use HasIntegrationCompany;
+
+    protected $connectionsToTransact = [null, 'commerce', 'crm', 'inventory', 'ecosystem', 'social'];
 
     private const QUOTE = 'COT-777';
     private const POLICY = 'A-PA-0000001392';
+
+    private const CUSTOMER = [
+        'first_name' => 'Ana',
+        'last_name' => 'Perez',
+        'email' => 'ana@example.com',
+        'phone' => '8095550100',
+        'birth_date' => '1990-05-17',
+        'sex' => 'female',
+        'marital_status' => 'single',
+        'document_type' => 'national_id',
+        'document_number' => '00100000001',
+        'nationality' => 'Dominicana',
+        'occupation' => 'Ingeniera',
+        'country_of_residence' => 'Republica Dominicana',
+    ];
 
     private Apps $kanvasApp;
 
@@ -57,6 +85,8 @@ class InsuranceFlowSimulationTest extends TestCase
     private array $calls = [];
 
     private MockInterface $service;
+
+    private array $failing = [];
 
     protected function setUp(): void
     {
@@ -83,7 +113,19 @@ class InsuranceFlowSimulationTest extends TestCase
         };
         $quote = [
             'numeroCotizacion' => self::QUOTE,
-            'data' => ['terminos' => ['prima' => 5239.67, 'impuesto' => 838.33, 'totalCobro' => 6078]],
+            'data' => [
+                'producto' => 'A-PA',
+                'vehiculo' => [
+                    'idModelo' => 77,
+                    'anio' => 2022,
+                    'esCeroKm' => false,
+                    'combustible' => 'Gasolina / Diesel',
+                    'cumpleRequisitos' => true,
+                    'esUsoParticularNoDeportivoNoPublico' => true,
+                    'valor' => 1000000,
+                ],
+                'terminos' => ['prima' => 5239.67, 'impuesto' => 838.33, 'totalCobro' => 6078],
+            ],
         ];
 
         $this->service = Mockery::mock(UniversalSegurosService::class);
@@ -105,10 +147,18 @@ class InsuranceFlowSimulationTest extends TestCase
         $this->service->shouldReceive('assignPaymentInformation')->andReturnUsing(function ($payment) use ($record) {
             $record('assignPaymentInformation', $payment->toArray());
 
+            if (isset($this->failing['assignPaymentInformation'])) {
+                throw $this->failing['assignPaymentInformation'];
+            }
+
             return [];
         });
         $this->service->shouldReceive('emit')->andReturnUsing(function () use ($record, $emitRefused) {
             $record('emit');
+
+            if (isset($this->failing['emit'])) {
+                throw $this->failing['emit'];
+            }
 
             if ($emitRefused) {
                 throw new \Kanvas\Exceptions\ValidationException('Chasis no autorizado para emision');
@@ -338,6 +388,188 @@ class InsuranceFlowSimulationTest extends TestCase
             $payment->fresh()->status,
             'known gap: sync stamps the policy but nothing captures the hold'
         );
+    }
+
+    private function contractedOrder(): Order
+    {
+        $company = $this->kanvasUser->getCurrentCompany();
+        $this->pinPlatformCompany($company->getId());
+
+        new SyncInsuranceProductsAction(
+            new UniversalSegurosProvider($this->kanvasApp, $company, Mockery::mock(UniversalSegurosService::class)),
+            $this->kanvasApp,
+            $company
+        )->execute();
+        $company->set(InsuranceCustomFieldEnum::INSURER_COMPANY_ID->value, $company->getId());
+
+        $plan = $this->seedPlan($this->seedInsurer($company, UniversalSegurosProvider::NAME), 'A-PA');
+        InsuranceQuoteBinding::bind($this->kanvasApp->getId(), $this->kanvasUser->getId(), self::QUOTE, $plan->getId());
+
+        $leadId = $this->graphQL(
+            'mutation($input: SelectInsurancePlanInput!) { selectInsurancePlan(input: $input) { id } }',
+            ['input' => ['plan_id' => $plan->getId(), 'quote_number' => self::QUOTE]]
+        )->json('data.selectInsurancePlan.id');
+        $this->assertNotNull($leadId);
+
+        $response = $this->graphQL(
+            'mutation($input: ContractInsurancePlanInput!) { contractInsurancePlan(input: $input) { id } }',
+            ['input' => ['lead_id' => $leadId, 'customer' => self::CUSTOMER]]
+        );
+        $orderId = $response->json('data.contractInsurancePlan.id');
+        $this->assertNotNull($orderId, json_encode($response->json()));
+
+        $lead = Lead::findOrFail($leadId);
+        $this->assertFalse($lead->hasOpenLeadStatus());
+        $this->assertSame((int) $orderId, (int) $lead->get(InsuranceCustomFieldEnum::ORDER_ID->value));
+
+        return Order::findOrFail($orderId);
+    }
+
+    public function testTheWholeChainFromSelectionToInvoicedPolicy(): void
+    {
+        $this->fakeUniversal();
+        $this->fakeProcessor();
+        $order = $this->contractedOrder();
+
+        $this->assertEquals(6078.0, (float) $order->total_gross_amount);
+        $this->assertSame(InsuranceStatusEnum::QUOTED->value, $this->insuranceStatus($order));
+
+        $this->assertCount(1, $this->calls['updateQuote']);
+        $attach = $this->runActivity(AttachInsuranceQuoteActivity::class, $order);
+        $this->assertSame('skipped', $attach['status'], json_encode($attach));
+        $this->assertCount(1, $this->calls['updateQuote'], 'the activity must not PUT the customer a second time');
+        $this->assertMatchesRegularExpression('/^kanvas-[0-9a-f]{64}$/', $this->calls['updateQuote'][0]['data']['requestId']);
+        $this->assertSame('Ana', $this->calls['updateQuote'][0]['data']['cliente']['nombre']);
+        $this->assertSame('F', $this->calls['updateQuote'][0]['data']['cliente']['genero']);
+        $this->assertSame(77, $this->calls['updateQuote'][0]['data']['vehiculo']['idModelo']);
+
+        $payment = $this->holdPayment($order);
+
+        $report = $this->runActivity(ReportInsurancePaymentActivity::class, $order);
+        $this->assertSame('success', $report['status'], json_encode($report));
+        $this->assertSame(InsuranceStatusEnum::PAID->value, $this->insuranceStatus($order));
+
+        $this->attachDocument($order, 'registration');
+        $this->runActivity(UploadInsuranceDocumentsActivity::class, $order);
+
+        $emit = $this->runActivity(EmitInsurancePolicyActivity::class, $order);
+        $this->assertSame('success', $emit['status'], json_encode($emit));
+        $this->assertTrue($emit['paymentCaptured']);
+        $this->assertSame(PaymentStatusEnum::PAID->value, $payment->fresh()->status);
+        $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, $this->insuranceStatus($order));
+        $this->assertCount(1, $this->calls['capture']);
+        $this->assertArrayNotHasKey('void', $this->calls);
+
+        $invoice = $this->runActivity(InvoiceInsurancePolicyActivity::class, $order);
+        $this->assertSame('success', $invoice['status'], json_encode($invoice));
+        $this->assertSame(self::POLICY, $this->calls['invoicePolicy'][0]['noPoliza']);
+    }
+
+    public function testTheWholeChainFromSelectionVoidsTheHoldWhenTheInsurerRefusesToEmit(): void
+    {
+        $this->fakeUniversal(emitRefused: true);
+        $this->fakeProcessor();
+        $order = $this->contractedOrder();
+        $this->runActivity(AttachInsuranceQuoteActivity::class, $order);
+        $payment = $this->holdPayment($order);
+        $this->runActivity(ReportInsurancePaymentActivity::class, $order);
+        $this->attachDocument($order, 'registration');
+        $this->runActivity(UploadInsuranceDocumentsActivity::class, $order);
+
+        $emit = $this->runActivity(EmitInsurancePolicyActivity::class, $order);
+
+        $this->assertStringContainsString('Chasis no autorizado', $emit['message']);
+        $this->assertSame(InsuranceStatusEnum::FAILED->value, $this->insuranceStatus($order));
+        $this->assertSame(PaymentStatusEnum::CANCELLED->value, $payment->fresh()->status);
+        $this->assertCount(1, $this->calls['void']);
+        $this->assertArrayNotHasKey('capture', $this->calls);
+        $this->assertArrayNotHasKey('invoicePolicy', $this->calls);
+    }
+
+    private function heldContractedOrder(): array
+    {
+        $order = $this->contractedOrder();
+        $payment = $this->holdPayment($order);
+
+        return [$order, $payment];
+    }
+
+    public function testAnInsurerRefusalOfThePaymentReportReleasesTheHold(): void
+    {
+        $this->fakeUniversal();
+        $this->fakeProcessor();
+        $this->failing['assignPaymentInformation'] = new ValidationException('Pago rechazado');
+        [$order, $payment] = $this->heldContractedOrder();
+
+        $report = $this->runActivity(ReportInsurancePaymentActivity::class, $order);
+
+        $this->assertStringContainsString('Pago rechazado', $report['message']);
+        $this->assertSame(InsuranceStatusEnum::FAILED->value, $this->insuranceStatus($order));
+        $this->assertSame(PaymentStatusEnum::CANCELLED->value, $payment->fresh()->status);
+        $this->assertCount(1, $this->calls['void']);
+    }
+
+    public function testAPendingPaymentReportReleasesTheHold(): void
+    {
+        $this->fakeUniversal();
+        $this->fakeProcessor();
+        [$order, $payment] = $this->heldContractedOrder();
+        $provider = Mockery::mock(
+            UniversalSegurosProvider::class,
+            [$this->kanvasApp, $this->kanvasUser->getCurrentCompany(), $this->service]
+        )->makePartial();
+        $provider->shouldReceive('reportPayment')->andReturn(new PaymentReportResult(success: false, message: 'Queued'));
+        app()->bind('insurance_provider.universal_seguros', fn () => $provider);
+
+        $report = $this->runActivity(ReportInsurancePaymentActivity::class, $order);
+
+        $this->assertSame('Queued', $report['message']);
+        $this->assertSame(PaymentStatusEnum::CANCELLED->value, $payment->fresh()->status);
+    }
+
+    public function testATransientErrorWhileReportingLeavesTheHoldUntouched(): void
+    {
+        $this->fakeUniversal();
+        $this->fakeProcessor();
+        $this->failing['assignPaymentInformation'] = new RuntimeException('cURL error 28');
+        [$order, $payment] = $this->heldContractedOrder();
+
+        $report = $this->runActivity(ReportInsurancePaymentActivity::class, $order);
+
+        $this->assertArrayHasKey('error', $report);
+        $this->assertSame(PaymentStatusEnum::AUTHORIZED->value, $payment->fresh()->status);
+        $this->assertArrayNotHasKey('void', $this->calls);
+    }
+
+    public function testATransientErrorWhileEmittingLeavesTheHoldUntouched(): void
+    {
+        $this->fakeUniversal();
+        $this->fakeProcessor();
+        $this->failing['emit'] = new RuntimeException('cURL error 28');
+        [$order, $payment] = $this->heldContractedOrder();
+        $this->runActivity(ReportInsurancePaymentActivity::class, $order);
+        $this->attachDocument($order, 'registration');
+        $this->runActivity(UploadInsuranceDocumentsActivity::class, $order);
+
+        $emit = $this->runActivity(EmitInsurancePolicyActivity::class, $order);
+
+        $this->assertArrayHasKey('error', $emit);
+        $this->assertSame(PaymentStatusEnum::AUTHORIZED->value, $payment->fresh()->status);
+        $this->assertArrayNotHasKey('void', $this->calls);
+        $this->assertArrayNotHasKey('capture', $this->calls);
+    }
+
+    public function testAnOrderWithoutAQuoteNumberFailsEmissionAndReleasesTheHold(): void
+    {
+        $this->fakeUniversal();
+        $this->fakeProcessor();
+        [$order, $payment] = $this->heldContractedOrder();
+        $order->del(InsuranceCustomFieldEnum::QUOTE_NUMBER->value);
+
+        $emit = $this->runActivity(EmitInsurancePolicyActivity::class, $order);
+
+        $this->assertTrue($emit['paymentReleased']);
+        $this->assertSame(PaymentStatusEnum::CANCELLED->value, $payment->fresh()->status);
     }
 
     private function attachDocument(Order $order, string $fieldName): void

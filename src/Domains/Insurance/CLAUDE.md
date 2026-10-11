@@ -162,7 +162,7 @@ product code.
 The charge stays an authorization until the policy exists. `EmitInsurancePolicyActivity` captures it
 on success; an insurer refusal (`ValidationException` from the adapter) sets `FAILED` and voids it.
 A transient transport error is *not* a refusal — it propagates and the hold is untouched.
-`CancelInsuranceOrderActivity` voids the hold and sets `CANCELLED`, and refuses once a policy exists
+Report and Emit share that rule through `FailsReleasingHeldPayment`: a ValidationException from the insurer, a `success=false` report, a missing quote number or an adapter that cannot report/emit sets `FAILED` and voids the hold; a transport error (any other exception) never does. Missing inspection documents and "not reported yet" are recoverable ordering problems and do not void. `CancelInsuranceOrderActivity` voids the hold and sets `CANCELLED`, and refuses once a policy exists
 (that is a refund, not a void). `SettleInsurancePaymentAction` only touches an `AUTHORIZED` payment.
 
 ## The customer
@@ -224,6 +224,39 @@ come from `InsuranceProviderFactory::credentialCompany`, so a marketplace client
   trusts client prices), rejects it when the quote's product code differs from the plan's `external_code`, then creates or updates
   a Guild **Lead** (the pre-payment quote; an Order only appears on payment) carrying the `insurance_*` custom fields.
   Idempotent per (customer people, plan) while the lead is open. No `variantInterest`: insurance plans are not Inventory variants.
+## Contracting: `contractInsurancePlan` turns the Lead into the Order
+
+`contractInsurancePlan(input: {lead_id, customer})` runs `ConvertInsuranceLeadToOrderAction` and returns the Order the
+customer then pays through the normal `createPaymentMethod` -> `addPaymentToOrder` -> `processPayment` (hold) path. It is a
+dedicated mutation, not an extension of `createOrderFromCart`: that path needs a cart and a Stripe payment intent, and
+teaching a generic Souk action about Guild leads would cross domains the wrong way.
+
+- **The Lead is identity, the insurer is the price.** A customer can write `insurance_*` custom fields on their own lead with
+  `updateLead`, so those fields are never trusted for money. `SelectInsurancePlanAction` stamps `insurance_quote_signature`
+  (`InsuranceQuoteSignature`, HMAC-SHA256 over user | plan | provider | quote number | total | tax, keyed with `app.key`);
+  conversion refuses a lead whose signature no longer matches ("no longer valid, select again"). Even a valid lead only
+  supplies *which* quote: total, tax and premium on the Order come from `provider->getQuote()` read at contract time. Rotating
+  `APP_KEY` invalidates every open lead's signature, which just means customers select again.
+- **The insurer is told before anything is charged.** Inside the conversion the customer is PUT onto the quote
+  (`PushCustomerToQuoteAction`, the same code `AttachQuoteToOrderAction` uses) and the quote is re-read, **before the Order
+  exists**. An insurer rejection of the customer surfaces as a `ValidationException` pre-payment and creates no Order.
+  `StampInsuranceQuoteAction` (shared with Attach) then writes the `insurance_*` fields and status `QUOTED`.
+  `AttachInsuranceQuoteActivity` therefore skips any order whose insurance status is already set; it still does the work for
+  legacy orders created by the FE with `metadata.insurance` and no status.
+- **Tenant and owner checks.** The lead is looked up `getByIdFromCompanyApp`, must belong to the acting user, and its plan
+  must still be active in the credential company's catalog. The Order line is the seeded Product `InsuranceProductSlug::for(provider, code)`
+  and must be published, so an un-granted line is not sellable.
+- **Idempotent, closed-aware, retry-safe.** The Order carries `reference = insurance-lead-{lead id}`; a repeat call (or a retry
+  after the Order was created but the Lead writes failed - Order is `commerce`, Lead is `crm` + custom fields in `ecosystem`, so
+  no single transaction can span them) finds that Order, re-links the Lead (`insurance_order_id`) and sets it `Won`. A Lead no
+  longer in an open status (`Lead::hasOpenLeadStatus`) is refused. `SelectInsurancePlanAction` only reuses an *open* lead.
+- **Customer data.** Insurers declare what they need through the opt-in `CustomerDataProviderInterface`
+  (`requiredCustomerFields()` + `customerBlock()`); the shape is canonical (`InsuranceCustomerFieldEnum`) and only the adapter
+  knows its own field names. Values resolve as: `customer` input > Lead custom fields `insurance_customer_*` > the Lead's
+  People profile (name, email, phone, dob). Anything supplied is stored on the Lead, so a retry only needs what is still
+  missing. Missing fields fail with canonical names before any Order or payment exists.
+- **Workflow.** The Order `created` event fires from the action after the `insurance_*` fields are stamped. The order carries
+  no `order_type`, so a rule filtered on one would not match.
 ## Open items
 
 - `InsuranceQuoteRequest::$vehicle` is carried by `BuildQuoteRequestFromOrderAction` but no adapter reads it yet.

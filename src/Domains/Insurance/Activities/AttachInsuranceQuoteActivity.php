@@ -7,6 +7,7 @@ namespace Kanvas\Insurance\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Insurance\Actions\AttachQuoteToOrderAction;
+use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -42,6 +43,14 @@ class AttachInsuranceQuoteActivity extends KanvasActivity implements WorkflowAct
                 'order' => $order->getId(),
                 'status' => 'skipped',
                 'message' => 'Order carries no insurance quote',
+            ];
+        }
+
+        if ((string) $order->get(InsuranceCustomFieldEnum::STATUS->value) !== '') {
+            return [
+                'order' => $order->getId(),
+                'status' => 'skipped',
+                'message' => 'Quote already attached to this order',
             ];
         }
 

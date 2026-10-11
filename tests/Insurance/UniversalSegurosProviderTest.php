@@ -33,6 +33,16 @@ use Tests\TestCase;
  */
 class UniversalSegurosProviderTest extends TestCase
 {
+    private const STORED_VEHICLE = [
+        'idModelo' => 77,
+        'anio' => 2022,
+        'esCeroKm' => false,
+        'combustible' => 'Gasolina / Diesel',
+        'cumpleRequisitos' => true,
+        'esUsoParticularNoDeportivoNoPublico' => true,
+        'valor' => 1000000,
+    ];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -144,6 +154,7 @@ class UniversalSegurosProviderTest extends TestCase
     public function testUpdateQuotePutsTheCustomerOnTheExistingQuote(): void
     {
         $service = $this->service();
+        $service->shouldReceive('getQuote')->once()->andReturn(['data' => ['vehiculo' => self::STORED_VEHICLE]]);
         $service->shouldReceive('updateQuote')
             ->once()
             ->withArgs(function (string $quoteNumber, $request): bool {

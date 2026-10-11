@@ -13,6 +13,7 @@ use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\Contracts\ProductCatalogProviderInterface;
 use Kanvas\Insurance\DataTransferObject\InsuranceProduct;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Services\InsuranceProductSlug;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
@@ -131,7 +132,7 @@ class SyncInsuranceProductsAction
      */
     protected function slug(InsuranceProduct $product): string
     {
-        return $this->provider->name() . '-' . strtolower(str_replace(['_', ' '], '-', $product->code));
+        return InsuranceProductSlug::for($this->provider->name(), $product->code);
     }
 
     /**
