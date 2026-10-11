@@ -50,6 +50,9 @@ class Kernel extends ConsoleKernel
     #[Override]
     protected function schedule(Schedule $schedule)
     {
+        // Safety net so a task added without ->onOneServer() can't run once per scheduler host.
+        Schedule::alwaysOnOneServer();
+
         // Platform health (Spatie).
         $schedule->command(RunHealthChecksCommand::class)->everyMinute();
         $schedule->command(DispatchQueueCheckJobsCommand::class)->everyMinute();
