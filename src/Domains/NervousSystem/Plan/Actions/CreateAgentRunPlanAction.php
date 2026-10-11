@@ -77,6 +77,10 @@ class CreateAgentRunPlanAction
                 title: $this->titlePrefix . Str::limit($brief, 80),
                 planType: $this->planType,
                 agent: $this->agent,
+                // Without this `AnnouncesPlanOutcome` has no agent to speak as and silently skips the
+                // transcript, the broadcast and the Slack push: the asker only ever got the direct
+                // notification.
+                createdByAgent: $this->agent,
                 // The requesting human when there is one: a plan owned by the agent's own user is a
                 // plan whose completion notification goes to a bot.
                 user: $this->requestedBy ?? $this->agent->user,
