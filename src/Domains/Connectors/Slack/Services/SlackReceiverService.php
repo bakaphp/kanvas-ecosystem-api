@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Slack\Services;
 
+use Baka\Support\Str;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Slack\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Slack\Webhooks\ProcessSlackWebhookJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
+use Throwable;
 
 /**
  * The agent owns its receiver: one Slack app per agent means one request URL per agent.
@@ -25,6 +27,27 @@ use Kanvas\Workflow\Models\WorkflowAction;
  */
 class SlackReceiverService
 {
+    /**
+     * The workspace the agent is connected to, without creating a receiver for an agent that has none.
+     */
+    public function teamIdFor(Agent $agent): ?string
+    {
+        $receiverId = $agent->get(CustomFieldEnum::RECEIVER_ID->value);
+
+        if ($receiverId === null) {
+            return null;
+        }
+
+        try {
+            /** @var ReceiverWebhook $receiver */
+            $receiver = ReceiverWebhook::getById((int) $receiverId, $agent->app);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return Str::trimToNull((string) ($receiver->configuration[ConfigurationEnum::TEAM_ID->value] ?? ''));
+    }
+
     public function forAgent(Agent $agent): ReceiverWebhook
     {
         $receiverId = $agent->get(CustomFieldEnum::RECEIVER_ID->value);

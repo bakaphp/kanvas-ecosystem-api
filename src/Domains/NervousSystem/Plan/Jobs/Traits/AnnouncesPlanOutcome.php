@@ -179,15 +179,7 @@ trait AnnouncesPlanOutcome
 
         $this->askerResolved = true;
 
-        if ($plan->origin_users_id === null) {
-            return null;
-        }
-
-        try {
-            return $this->cachedAsker = Users::getById((int) $plan->origin_users_id);
-        } catch (Throwable) {
-            return null;
-        }
+        return $this->cachedAsker = $plan->asker();
     }
 
     /**

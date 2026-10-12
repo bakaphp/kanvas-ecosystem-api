@@ -7,6 +7,7 @@ namespace Kanvas\NervousSystem\Plan\Jobs;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -107,20 +108,20 @@ class NotifyPlanOwnerOfCompletedPlanJob implements ShouldQueue
     /** What each finished task actually returned, for the conversation copy. */
     private function resultsDigest(Plan $plan): string
     {
-        $results = $plan->tasks()
-            ->where('is_deleted', 0)
-            ->where('status', 'done')
-            ->orderBy('sequence')
-            ->orderBy('id')
-            ->get()
-            ->map(function (Task $task): ?string {
+        $done = $this->doneTasks($plan);
+
+        $results = $done
+            ->map(function (Task $task) use ($done, $plan): ?string {
                 $summary = $task->workerSummaryExcerpt(self::RESULT_CHAR_CAP);
 
-                return $summary === null ? null : sprintf(
-                    '%s: %s',
-                    Str::limit((string) $task->title, 60),
-                    $summary,
-                );
+                if ($summary === null) {
+                    return null;
+                }
+
+                // One task that IS the plan (a coding job, a follow-up) has nothing to label.
+                return $done->count() === 1 && $this->restatesThePlan($plan, $task)
+                    ? $summary
+                    : sprintf('%s: %s', Str::limit((string) $task->title, 60), $summary);
             })
             ->filter()
             ->values();
@@ -128,15 +129,13 @@ class NotifyPlanOwnerOfCompletedPlanJob implements ShouldQueue
         return $results->isEmpty() ? '' : "\n\n" . $results->implode("\n");
     }
 
-    /** The task titles, so the reader recognises the work — "3 tasks done" names nothing. */
+    /**
+     * The task titles, so the reader recognises the work — "3 tasks done" names nothing. A task whose
+     * title is the plan's own brief is left out: the title already said it.
+     */
     private function whatGotDone(Plan $plan): string
     {
-        $tasks = $plan->tasks()
-            ->where('is_deleted', 0)
-            ->where('status', 'done')
-            ->orderBy('sequence')
-            ->orderBy('id')
-            ->get();
+        $tasks = $this->doneTasks($plan)->reject(fn (Task $task): bool => $this->restatesThePlan($plan, $task));
 
         if ($tasks->isEmpty()) {
             return '';
@@ -153,5 +152,36 @@ class NotifyPlanOwnerOfCompletedPlanJob implements ShouldQueue
             $titles,
             $rest > 0 ? sprintf(' and %d more', $rest) : '',
         );
+    }
+
+    /**
+     * @return Collection<int, Task>
+     */
+    private function doneTasks(Plan $plan): Collection
+    {
+        return $plan->tasks()
+            ->where('is_deleted', 0)
+            ->where('status', 'done')
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Single-task runs title the task with the plan's brief, truncated at different lengths, so the
+     * comparison is "one starts with the other" once the ellipsis is off.
+     */
+    private function restatesThePlan(Plan $plan, Task $task): bool
+    {
+        $title = rtrim(trim((string) $task->title), '.…');
+        $brief = trim((string) ($plan->description ?? ''));
+
+        if ($title === '') {
+            return false;
+        }
+
+        return str_starts_with($brief, $title)
+            || str_starts_with($title, rtrim($brief, '.…'))
+            || str_contains((string) $plan->title, $title);
     }
 }

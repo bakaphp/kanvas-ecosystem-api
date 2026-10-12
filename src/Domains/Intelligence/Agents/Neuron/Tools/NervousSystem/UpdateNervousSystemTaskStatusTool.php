@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
@@ -23,7 +24,7 @@ use Throwable;
  * events, broadcasts) so the agent's move is indistinguishable from a human/GraphQL move.
  */
 #[AgentTool(name: 'Update Task Status', category: 'nervous_system')]
-class UpdateNervousSystemTaskStatusTool extends Tool
+class UpdateNervousSystemTaskStatusTool extends Tool implements RequiresSystemAgent
 {
     use HasKanvasContext;
     use TrackByInputs;
@@ -88,6 +89,22 @@ class UpdateNervousSystemTaskStatusTool extends Tool
             $newStatus = TaskStatusEnum::fromAlias($status);
         } catch (Throwable) {
             return ['error' => "Invalid status '{$status}'. Use one of: pending, in_progress, blocked, done, skipped."];
+        }
+
+        if ($newStatus === TaskStatusEnum::WAITING) {
+            return ['error' => 'A wait needs its wake: use snooze_task with the date, not a status change.'];
+        }
+
+        // A second "done" on a done task is not a write: it would re-emit the completion and, on a
+        // follow-up, re-run the close. The person thanking the agent is not asking it to act again.
+        if ($task->status === $newStatus->value) {
+            return [
+                'task_id' => $task->getId(),
+                'status' => $task->status,
+                'plan_id' => $task->plan_id,
+                'unchanged' => true,
+                'note' => sprintf('Task #%d was already %s; nothing changed. Do not say you marked it now.', $task->getId(), $task->status),
+            ];
         }
 
         $updated = new UpdateTaskStatusAction(

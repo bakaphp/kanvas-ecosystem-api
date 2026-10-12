@@ -47,15 +47,15 @@ class SetAgentToolAction
             ));
         }
 
-        // Code execution on our machines, with the agent's git token. Refused unless the agent is
-        // positively an internal system agent — "not marked customer-facing" is not good enough when
-        // the thing being handed over is a shell and source access.
+        // Refused unless the agent is positively an internal system agent — "not marked
+        // customer-facing" is not good enough when the thing being handed over is a shell, source
+        // access, or the staff directory.
         $handler = (string) $tool->handler;
 
         if ($handler !== '' && is_a($handler, RequiresSystemAgent::class, true) && ! $agent->conversesWithUser()) {
             throw new ValidationException(sprintf(
-                'Tool "%s" runs code on a Kanvas machine, so only an internal system agent can hold it. '
-                    . 'Agent "%s" is not one.',
+                'Tool "%s" is for internal system agents only: it reaches the company\'s staff, tasks or '
+                    . 'machines. Agent "%s" is not one.',
                 $tool->name,
                 $agent->name,
             ));

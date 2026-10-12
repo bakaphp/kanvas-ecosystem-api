@@ -23,6 +23,9 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Scheduling\Actions\DeliverScheduledMessageToChannelAction;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionStatusEnum;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
@@ -203,6 +206,8 @@ class RunScheduledAgentActionJob implements ShouldQueue
             throw new ValidationException('A scheduled agent task has no agent to run.');
         }
 
+        $this->reopenWaitingTask();
+
         $response = new WakeAgentInSessionAction(
             agent: $agent,
             session: $this->resolveSession($agent),
@@ -214,6 +219,34 @@ class RunScheduledAgentActionJob implements ShouldQueue
             'action_type' => $this->action->action_type,
             'response_length' => strlen($response),
         ]);
+    }
+
+    /**
+     * The wake of a snoozed task ends the wait: the task is back in progress before the agent runs, so
+     * the continuation loop counts it as open again instead of answering WAIT to the agent's own wake.
+     */
+    private function reopenWaitingTask(): void
+    {
+        if ($this->action->source_entity_type !== Task::class) {
+            return;
+        }
+
+        $task = Task::query()
+            ->where('id', (int) $this->action->source_entity_id)
+            ->where('apps_id', $this->action->apps_id)
+            ->notDeleted()
+            ->first();
+
+        if ($task === null || $task->status !== TaskStatusEnum::WAITING->value) {
+            return;
+        }
+
+        new UpdateTaskStatusAction(
+            task: $task,
+            newStatus: TaskStatusEnum::IN_PROGRESS,
+            fromSync: true,
+            firingWakeId: $this->action->getId(),
+        )->execute();
     }
 
     /**
