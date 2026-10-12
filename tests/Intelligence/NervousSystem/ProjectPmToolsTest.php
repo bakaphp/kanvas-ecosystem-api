@@ -852,6 +852,24 @@ class ProjectPmToolsTest extends TestCase
         $this->assertSame('done', Plan::query()->where('id', $plan->id)->value('status'));
     }
 
+    /**
+     * Sentry KANVAS-ECOSYSTEM-6MC: `on_hold` is a project status the model carried over to a plan,
+     * and the enum's ValueError killed the whole chat turn instead of being a correctable tool error.
+     */
+    public function testUpdatePlanToolRejectsAnUnknownStatusWithoutEndingTheTurn(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        $tool = new UpdateNervousSystemPlanTool()->withContext($app, $company, $user);
+        $result = $tool((int) $plan->id, status: 'on_hold');
+
+        $this->assertStringContainsString("Invalid plan status 'on_hold'", $result['error']);
+        $this->assertStringContainsString('awaiting_approval', $result['error']);
+        $this->assertSame($plan->status, Plan::query()->where('id', $plan->id)->value('status'));
+    }
+
     public function testDeletePlanToolRemovesPlanAndCascades(): void
     {
         [$app, $company, $user] = $this->context();
