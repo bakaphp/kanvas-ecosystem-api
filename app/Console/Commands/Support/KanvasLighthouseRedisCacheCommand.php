@@ -17,7 +17,7 @@ class KanvasLighthouseRedisCacheCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:lighthouse-redis-cache {class} {app_id} {company_id?}';
+    protected $signature = 'kanvas:lighthouse-redis-cache {class} {app_id} {company_id?} {--id=* : Only these primary keys, for repairing a single stale entity}';
 
     /**
      * The console command description.
@@ -34,6 +34,7 @@ class KanvasLighthouseRedisCacheCommand extends Command
         $class = $this->argument('class');
         $appId = $this->argument('app_id');
         $companyId = $this->argument('company_id');
+        $ids = array_map('intval', $this->option('id'));
 
         $app = Apps::getById($appId);
         $this->overwriteAppService($app);
@@ -58,6 +59,7 @@ class KanvasLighthouseRedisCacheCommand extends Command
             ->when($companyId, function ($query, $companyId) {
                 return $query->where('companies_id', $companyId);
             })
+            ->when($ids !== [], fn ($query) => $query->whereKey($ids))
             ->orderBy('created_at', 'DESC')
             ->chunk(100, function ($entitiesChunk) use ($class) {
                 foreach ($entitiesChunk as $entity) {
