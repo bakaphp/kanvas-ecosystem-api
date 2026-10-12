@@ -23,7 +23,7 @@ use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigur
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Services\ContactRejectionService;
-use Kanvas\Guild\Customers\Actions\CreateSocialChannelsAfterPullAction;
+use Kanvas\Guild\Customers\Actions\CreateLeadSocialChannelsAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -167,7 +167,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                     ->notDeleted()
                     ->firstOrFail();
 
-                new CreateSocialChannelsAfterPullAction(
+                new CreateLeadSocialChannelsAction(
                     $resolvedLead,
                     $app,
                     $params,
