@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Blade;
 use InvalidArgumentException;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
@@ -79,7 +80,7 @@ class ContactCheckerTool extends Tool
             throw new InvalidArgumentException('Message is not associated with a Notes channel linked to an entity');
         }
 
-        $lead = $message->entity();
+        $lead = $message->preferredEntity(Lead::class);
 
         return $lead;
     }

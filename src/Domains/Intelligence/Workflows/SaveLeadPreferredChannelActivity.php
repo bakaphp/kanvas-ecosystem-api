@@ -70,7 +70,7 @@ class SaveLeadPreferredChannelActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function () use ($message, $channel) {
-                $messageEntity = $message->entity();
+                $messageEntity = $message->entity(Lead::class);
 
                 if (! $messageEntity instanceof Lead) {
                     return $this->failWorkflow([

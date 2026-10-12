@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Sessions\Activities;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Services\GoogleADKService;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -50,7 +51,7 @@ class InjectADKSessionEventsActivity extends KanvasActivity
             ]);
         }
 
-        $entity = $message->entity() ?? $channel->entityData();
+        $entity = $message->preferredEntity(Lead::class) ?? $channel->entityData();
 
         if (! $entity) {
             return $this->failWorkflow([
