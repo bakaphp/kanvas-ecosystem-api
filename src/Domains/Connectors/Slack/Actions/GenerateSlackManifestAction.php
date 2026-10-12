@@ -31,6 +31,7 @@ class GenerateSlackManifestAction
         'im:write',
         'mpim:history',
         'mpim:read',
+        'mpim:write',
         'channels:history',
         'channels:read',
         'groups:history',
@@ -48,6 +49,7 @@ class GenerateSlackManifestAction
     private const array BOT_EVENTS = [
         'app_mention',
         'message.im',
+        'message.mpim',
         'app_uninstalled',
         'tokens_revoked',
     ];

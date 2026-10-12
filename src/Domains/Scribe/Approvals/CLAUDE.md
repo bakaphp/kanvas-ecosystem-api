@@ -70,7 +70,7 @@ and `ResolveApproverEmailAction`; the tool and the queue itself never change.
    is handled by configured workflow activities; the approval tool does not push to an ERP.
 7. On success, the agent's own guidance (in `AccountsPayableAgent`/`AccountsReceivableAgent`) drives
    the rest: `add_bill_note`/`add_invoice_note` records "Approved by {email} on {date}";
-   `attach_bill_file`/`attach_invoice_file` adds any additional files; `reply_to_email` replies inside
+   `attach_bill_file`/`attach_invoice_file` adds any additional files; `gmail_reply_to_thread` replies inside
    the original email thread
    with the same evidence, sent only to that vendor's/customer's approver — never to the vendor
    itself; and `update_google_sheet_cell` flips the sheet row to "Approved" with the date and

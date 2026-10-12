@@ -34,9 +34,8 @@ class OfacScreeningActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::OFAC,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) {
-                // Get the lead associated with the message
-                $lead = $message->entity();
-                if (! $lead || ! $lead instanceof Lead) {
+                $lead = $message->entity(Lead::class);
+                if (! $lead instanceof Lead) {
                     throw new Exception('Message must be associated with a lead for OFAC screening');
                 }
 

@@ -67,6 +67,10 @@ class StalePlanNudgeService
             ->notDeleted()
             ->whereNotNull('project_id')
             ->whereIn('status', $this->nudgeableStatusValues())
+            // Waiting on a booked wake or on a running child is not silence; the wake, the child's
+            // outcome, or the heartbeat once it is overdue, owns that plan. A human instruction on the
+            // plan still reaches the agent through comments.
+            ->whereDoesntHave('tasks', fn (Builder $query): Builder => $query->waitingAsPlanned())
             ->when(
                 $projectId !== null,
                 fn (Builder $query): Builder => $query->where('project_id', $projectId),

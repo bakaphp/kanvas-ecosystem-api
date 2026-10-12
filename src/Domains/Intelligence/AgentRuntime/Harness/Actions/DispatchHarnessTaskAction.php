@@ -30,6 +30,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Actions\CreateAgentRunPlanAction;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Plan\Support\DelegationOrigin;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -72,6 +73,11 @@ class DispatchHarnessTaskAction
          * @var list<int>
          */
         private readonly array $attachmentIds = [],
+        /**
+         * The empty run this one replaces. Its task is reused rather than recorded again: the plan,
+         * the parent link and the attempt all stand, only the session is new.
+         */
+        private readonly ?AgentTaskSession $retryOf = null,
     ) {
     }
 
@@ -87,7 +93,7 @@ class DispatchHarnessTaskAction
 
         $repository = $this->resolveRepository();
         $attachmentIds = $this->resolveAttachmentIds();
-        $task = $this->recordAsTask($brief, $attachmentIds);
+        $task = $this->retryOf === null ? $this->recordAsTask($brief, $attachmentIds) : $this->taskToRetry($this->retryOf);
         $session = $this->newSession($task);
 
         if ($this->launchesItsOwnContainer()) {
@@ -175,6 +181,10 @@ class DispatchHarnessTaskAction
      */
     private function recordAsTask(string $brief, array $attachmentIds): Task
     {
+        // A dispatch made while working a task is that task delegating: the job's outcome has to
+        // resume it, not just land on a board. The session is the only record of which task that is.
+        $origin = DelegationOrigin::fromSession($this->session);
+
         return new CreateAgentRunPlanAction(
             agent: $this->agent,
             brief: $brief,
@@ -184,11 +194,27 @@ class DispatchHarnessTaskAction
                 'repo_slug' => $this->repoSlug(),
                 'harness' => $this->harness->value,
                 'attachment_ids' => $attachmentIds,
+                // Kept so a retry can hand the same references to its session.
+                'reference_slugs' => $this->referenceSlugs,
             ]),
             // Carries where this was asked for, so the outcome is reported back into that conversation
             // rather than only onto a plan board nobody is subscribed to.
             session: $this->session,
+            parentTask: $origin->task,
+            parentPlan: $origin->plan,
         )->execute();
+    }
+
+    private function taskToRetry(AgentTaskSession $retryOf): Task
+    {
+        /** @var Task|null $task */
+        $task = $retryOf->task;
+
+        if ($task === null) {
+            throw new ValidationException('Session ' . $retryOf->getId() . ' has no task to retry.');
+        }
+
+        return $task;
     }
 
     private function newSession(Task $task): AgentTaskSession
@@ -209,6 +235,13 @@ class DispatchHarnessTaskAction
         $resolver = new CodingModelResolver($app, $this->agent);
         $session->provider = $resolver->provider();
         $session->model = $resolver->model();
+
+        if ($this->retryOf !== null) {
+            $session->retry_of_session_id = $this->retryOf->getId();
+            // The same model unless the tenant named a fallback: an empty run is more often the prompt
+            // or the runtime than the model, and a second session already costs a full run.
+            $session->model = $resolver->fallbackModel() ?? $this->retryOf->model ?? $session->model;
+        }
 
         if ($this->continues !== null) {
             $session->branch = $this->continues->branch;

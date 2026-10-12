@@ -68,7 +68,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                 }
 
                 $chatJid = $message->message['chat_jid'] ?? null;
-                $lead = $message->entity();
+                $lead = $message->preferredEntity(Lead::class);
                 $people = $lead instanceof People ? $lead : $lead?->people;
                 $message->addTag('engagement');
 

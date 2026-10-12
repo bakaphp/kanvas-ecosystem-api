@@ -265,7 +265,7 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'following before your final reply, in order: '
             . '(1) add_bill_note on that bill_id with the evidence text "Approved by {approved_by} on '
             . '{approved_at}". '
-            . '(2) If the result included a source_email_message_id, call reply_to_email with that '
+            . '(2) If the result included a source_email_message_id, call gmail_reply_to_thread with that '
             . 'message_id, target_type: "bill", target_id: the bill_id, and the same evidence text plus the '
             . 'bill number (e.g. "Approved by {approved_by} on {approved_at} — Bill #{bill_number}."), '
             . 'so it lands as an internal note in the original invoice thread. '

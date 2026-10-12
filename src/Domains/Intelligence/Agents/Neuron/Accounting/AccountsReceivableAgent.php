@@ -288,7 +288,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'do all of the following before your final reply, in order: '
             . '(1) add_invoice_note on that invoice_id with the evidence text "Approved by {approved_by} on '
             . '{approved_at}". '
-            . '(2) If the result included a source_email_message_id, call reply_to_email with that '
+            . '(2) If the result included a source_email_message_id, call gmail_reply_to_thread with that '
             . 'message_id, target_type: "invoice", target_id: the invoice_id, and the same evidence text plus '
             . 'the invoice number (e.g. "Approved by {approved_by} on {approved_at} — Invoice '
             . '#{invoice_number}."), so it lands as an internal note in the original '

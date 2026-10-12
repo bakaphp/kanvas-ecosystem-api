@@ -107,7 +107,7 @@ class SendDelayMessageCommand extends Command
     protected function processMessage(Companies $company, Message $message, int $delayMinutes): void
     {
         try {
-            $lead = $message->entity();
+            $lead = $message->preferredEntity(Lead::class);
         } catch (Throwable $e) {
             report($e);
             $this->error('Message ID ' . $message->getId() . ' has an invalid Lead entity. Skipping.');

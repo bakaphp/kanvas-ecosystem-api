@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\PresentsEntityFiles;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
@@ -21,7 +22,7 @@ use Override;
  * strictly to the task would show an empty list for a file that is right there.
  */
 #[AgentTool(name: 'List Task Files', category: 'nervous_system')]
-class ListNervousSystemTaskFilesTool extends Tool
+class ListNervousSystemTaskFilesTool extends Tool implements RequiresSystemAgent
 {
     use HasKanvasContext;
     use PresentsEntityFiles;

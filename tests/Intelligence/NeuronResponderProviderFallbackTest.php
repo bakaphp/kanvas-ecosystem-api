@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Factories\AgentLlmConfigFactory;
 use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAIResponses;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Agents\Services\NeuronResponderProviderFallback;
 use NeuronAI\Router\RouterProvider;
@@ -166,6 +167,6 @@ final class NeuronResponderProviderFallbackTest extends TestCase
 
         $provider = AgentProviderService::resolveConfig($agent, $config);
 
-        $this->assertInstanceOf(\NeuronAI\Providers\OpenAI\OpenAI::class, $provider);
+        $this->assertInstanceOf(KanvasOpenAIResponses::class, $provider);
     }
 }

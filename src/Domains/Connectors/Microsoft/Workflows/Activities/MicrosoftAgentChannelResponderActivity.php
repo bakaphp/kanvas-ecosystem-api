@@ -57,7 +57,7 @@ class MicrosoftAgentChannelResponderActivity extends KanvasActivity
                 }
 
                 $chatJid = $message->message['chat_jid'] ?? null;
-                $lead = $message->entity();
+                $lead = $message->preferredEntity(Lead::class);
                 $message->addTag('engagement');
 
                 if ($message->message['from_me'] ?? false) {

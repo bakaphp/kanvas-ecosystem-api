@@ -37,7 +37,33 @@ class CreateAgentRunPlanAction
         private readonly array $input = [],
         private readonly string $titlePrefix = 'Coding: ',
         private readonly ?Session $session = null,
+        /**
+         * The task this run was delegated from, when the dispatch happened inside a task-driven turn.
+         * Its outcome resumes that task; the plan it belongs to becomes this run's parent plan.
+         */
+        private readonly ?Task $parentTask = null,
+        /** The plan the dispatching turn ran under, for a delegation made outside any one task. */
+        private readonly ?Plan $parentPlan = null,
     ) {
+    }
+
+    /**
+     * Two links that must agree: the task link is what wakes the parent, the plan link and the project
+     * are what the heartbeat traverses. A run with only one of them is invisible to the other.
+     */
+    private function recordLineage(Plan $plan, Task $task): void
+    {
+        $parentPlan = $this->parentPlan ?? $this->parentTask?->plan;
+
+        if ($parentPlan !== null) {
+            $plan->parent_plan_id = $parentPlan->getId();
+            $plan->project_id ??= $parentPlan->project_id;
+        }
+
+        if ($this->parentTask !== null) {
+            $task->parent_task_id = $this->parentTask->getId();
+            $task->parent_revision = (int) $this->parentTask->revision;
+        }
     }
 
     /**
@@ -51,6 +77,10 @@ class CreateAgentRunPlanAction
      */
     private function recordOrigin(Plan $plan): void
     {
+        // The asker is known even when no conversation is: a run opened from a scheduled turn still
+        // has a person to tell when it ends.
+        $plan->origin_users_id = $this->requestedBy?->getId();
+
         if ($this->session === null) {
             return;
         }
@@ -59,11 +89,10 @@ class CreateAgentRunPlanAction
         $plan->origin_session_id = $this->session->getId();
 
         $sessionUser = $this->session->user;
-        $plan->origin_users_id = is_array($sessionUser) && isset($sessionUser['id'])
-            ? (int) $sessionUser['id']
-            : $this->requestedBy?->getId();
 
-        $plan->saveQuietly();
+        if (is_array($sessionUser) && isset($sessionUser['id'])) {
+            $plan->origin_users_id = (int) $sessionUser['id'];
+        }
     }
 
     public function execute(): Task
@@ -77,6 +106,10 @@ class CreateAgentRunPlanAction
                 title: $this->titlePrefix . Str::limit($brief, 80),
                 planType: $this->planType,
                 agent: $this->agent,
+                // Without this `AnnouncesPlanOutcome` has no agent to speak as and silently skips the
+                // transcript, the broadcast and the Slack push: the asker only ever got the direct
+                // notification.
+                createdByAgent: $this->agent,
                 // The requesting human when there is one: a plan owned by the agent's own user is a
                 // plan whose completion notification goes to a bot.
                 user: $this->requestedBy ?? $this->agent->user,
@@ -94,12 +127,16 @@ class CreateAgentRunPlanAction
             fromSync: true,
         )->execute();
 
-        $this->recordOrigin($plan);
-
         /** @var Task $task */
         $task = $plan->tasks()->firstOrFail();
         // Not on the DTO: TaskData has no agent, and the board's "whose work is this" column reads it.
         $task->agent_id = $this->agent->getId();
+        // Born in_progress, so the transition never minted its attempt; the outcome row needs one.
+        $task->current_attempt_id = Str::uuid()->toString();
+
+        $this->recordOrigin($plan);
+        $this->recordLineage($plan, $task);
+        $plan->saveQuietly();
         $task->saveQuietly();
 
         return $task;
