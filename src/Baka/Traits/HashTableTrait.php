@@ -80,7 +80,7 @@ trait HashTableTrait
         $settingsModelClass = get_class($this->settingsModel);
         $primaryKey = $this->getSettingsPrimaryKey();
 
-        $value = Str::isJson($value) ? json_decode($value, true) : $value;
+        $value = $this->deserializeSettingValue($value);
 
         // Use upsert for atomic insert/update
         $settingsModelClass::upsert(
@@ -179,11 +179,12 @@ trait HashTableTrait
         }
 
         foreach ($settings as $setting) {
+            $value = $this->deserializeSettingValue($setting->getRawOriginal('value'));
             if (! $publicFormat) {
-                $allSettings[$setting->name] = $setting->value;
+                $allSettings[$setting->name] = $value;
             } else {
                 $allSettings[$setting->name] = [
-                    'value' => $setting->value,
+                    'value' => $value,
                     'public' => (bool) $setting->is_public,
                 ];
             }
@@ -211,7 +212,7 @@ trait HashTableTrait
             if ($value === self::REDIS_NULL_MARKER) {
                 continue;
             }
-            $result[$key] = Str::jsonToArray($value);
+            $result[$key] = $this->deserializeSettingValue($value);
         }
 
         return $result;
@@ -250,7 +251,7 @@ trait HashTableTrait
         foreach ($paginatedKeys as $index => $key) {
             $paginatedResult[] = [
                 'name' => $key,
-                'value' => Str::jsonToArray($values[$index]),
+                'value' => $this->deserializeSettingValue($values[$index]),
                 'entity_id' => $this->getKey(),
             ];
         }
@@ -302,9 +303,10 @@ trait HashTableTrait
         $setting = $this->getSettingsByKey($key);
 
         if (is_object($setting)) {
-            $this->setInRedis($key, $setting->value);
+            $value = $setting->getRawOriginal('value');
+            $this->setInRedis($key, $value);
 
-            return $setting->value;
+            return $value;
         }
 
         // Cache the "not found" state to prevent future database queries
@@ -319,7 +321,13 @@ trait HashTableTrait
             $value = Crypt::decryptString(substr($value, strlen(HashTableInterface::SECRET_PREFIX)));
         }
 
-        return Str::jsonToArray($value);
+        return $this->deserializeSettingValue($value);
+    }
+
+    private function deserializeSettingValue(mixed $value): mixed
+    {
+        // Numeric-looking settings can be identifiers and must not lose precision through JSON decoding.
+        return is_string($value) && is_numeric($value) ? $value : Str::jsonToArray($value);
     }
 
     /**
