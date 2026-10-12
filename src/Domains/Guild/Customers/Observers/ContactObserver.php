@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Observers;
 
 use Kanvas\Companies\Enums\ConfigurationEnum;
-use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelsAfterPullAction;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
+use Kanvas\Guild\Customers\Actions\CreateSocialChannelsAfterPullAction;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
