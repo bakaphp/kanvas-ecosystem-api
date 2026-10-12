@@ -61,7 +61,12 @@ trait LinksAskToTask
         $waitingFor = Str::trimToNull($waitingFor);
 
         if ($taskId !== null || $waitingFor === null) {
-            return $this->linkAskToTask($taskId, $agent, $recipient, $channelId);
+            return $this->linkAskToTask(
+                $taskId,
+                $agent,
+                $recipient,
+                $channelId,
+            );
         }
 
         if ($requester === null) {

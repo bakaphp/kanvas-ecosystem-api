@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Plan\Models;
 
-use Baka\Traits\KanvasModelTrait;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Kanvas\NervousSystem\Models\ImmutableBaseModel;
 use Override;
 
 /**
@@ -28,15 +27,9 @@ use Override;
  * @property Carbon|null $delivered_at
  * @property Carbon $created_at
  */
-class TaskChildOutcome extends Model
+class TaskChildOutcome extends ImmutableBaseModel
 {
-    use KanvasModelTrait;
-
-    protected $connection = 'intelligence';
-
     protected $table = 'nervous_system_task_child_outcomes';
-
-    public $timestamps = false;
 
     protected $guarded = [];
 

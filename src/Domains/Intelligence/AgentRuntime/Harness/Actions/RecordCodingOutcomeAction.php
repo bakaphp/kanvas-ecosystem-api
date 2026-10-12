@@ -137,7 +137,12 @@ class RecordCodingOutcomeAction
         $title = $this->outcome->kind->headline();
         $body = $title . "\n\n" . $this->outcome->line();
 
-        $this->postToPlanBoard($plan, $body, 'coding_job_result', 'coding-job-alert');
+        $this->postToPlanBoard(
+            $plan,
+            $body,
+            'coding_job_result',
+            'coding-job-alert',
+        );
         $this->alsoPostToOriginConversation($plan, $body, 'coding_job_result');
         $this->notifyTheAsker($plan, $title, $body);
     }

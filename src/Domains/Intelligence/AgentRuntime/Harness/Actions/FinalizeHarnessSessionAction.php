@@ -289,7 +289,12 @@ class FinalizeHarnessSessionAction
 
         $body = $title . "\n\n" . $detail . "\n\n" . $this->costLine();
 
-        $this->postToPlanBoard($plan, $body, 'coding_job_result', 'coding-job-alert');
+        $this->postToPlanBoard(
+            $plan,
+            $body,
+            'coding_job_result',
+            'coding-job-alert',
+        );
         $this->alsoPostToOriginConversation($plan, $body, 'coding_job_result');
         $this->notifyTheAsker($plan, $title, $body);
     }

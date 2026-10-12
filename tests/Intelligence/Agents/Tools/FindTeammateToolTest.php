@@ -116,7 +116,12 @@ class FindTeammateToolTest extends TestCase
 
         $branch = $company->branch ?? $company->branches()->first();
         $role = RolesRepository::getByNameFromCompany(RolesEnums::USER->value, $company, $app);
-        new AssignCompanyAction($user, $branch, $role, $app)->execute();
+        new AssignCompanyAction(
+            $user,
+            $branch,
+            $role,
+            $app,
+        )->execute();
 
         return $user;
     }
