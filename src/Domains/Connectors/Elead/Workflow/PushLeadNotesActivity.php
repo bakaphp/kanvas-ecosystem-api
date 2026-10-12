@@ -60,7 +60,7 @@ class PushLeadNotesActivity extends KanvasActivity
             additionalParams: $params,
             integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams) {
                 $message->refresh();
-                $lead = $message->entity();
+                $lead = $message->entity(Lead::class);
 
                 if (! $lead instanceof Lead) {
                     return $this->failWorkflow([

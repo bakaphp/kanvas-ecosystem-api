@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
@@ -30,6 +31,7 @@ use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Deals\Models\Deal;
@@ -46,7 +48,6 @@ use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
-use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -176,6 +177,11 @@ class Message extends BaseModel
     public function appModuleMessage(): HasOne
     {
         return $this->hasOne(AppModuleMessage::class, 'message_id');
+    }
+
+    public function appModuleMessages(): HasMany
+    {
+        return $this->hasMany(AppModuleMessage::class, 'message_id');
     }
 
     public function users(): BelongsToMany
@@ -318,6 +324,9 @@ class Message extends BaseModel
             'system_modules' => get_class($entity),
         ]);
 
+        $this->unsetRelation('appModuleMessage');
+        $this->unsetRelation('appModuleMessages');
+
         $this->attachPersonFromEntity($entity);
     }
 
@@ -371,15 +380,51 @@ class Message extends BaseModel
         $this->saveQuietly();
     }
 
-    public function entity(): ?Model
+    /**
+     * A message usually links several entities (a Lead and its People, for example), and
+     * app_module_message carries no ordering. Pass the class you need instead of trusting
+     * whichever row comes back first.
+     */
+    public function entity(?string $class = null): ?Model
     {
-        if (! $this->appModuleMessage) {
-            return null;
+        $link = $class === null
+            ? $this->appModuleMessage
+            : $this->appModuleMessages->first(fn (AppModuleMessage $link) => $link->hasEntityOfClass($class));
+
+        return $link?->resolveEntity();
+    }
+
+    public function preferredEntity(string ...$classes): ?Model
+    {
+        foreach ($classes as $class) {
+            $entity = $this->entity($class);
+
+            if ($entity !== null) {
+                return $entity;
+            }
         }
 
-        $legacyClassMap = SystemModules::convertLegacySystemModules($this->appModuleMessage->system_modules);
+        return $this->entity();
+    }
 
-        return $legacyClassMap::getById($this->appModuleMessage->entity_id);
+    /**
+     * A link whose entity was since soft-deleted (a merged People, for example) is skipped rather
+     * than failing the whole read.
+     *
+     * @return Collection<int, Model>
+     */
+    public function entities(): Collection
+    {
+        return $this->appModuleMessages
+            ->map(function (AppModuleMessage $link): ?Model {
+                try {
+                    return $link->resolveEntity();
+                } catch (ModelNotFoundException) {
+                    return null;
+                }
+            })
+            ->filter()
+            ->values();
     }
 
     public function engagement(): HasOne

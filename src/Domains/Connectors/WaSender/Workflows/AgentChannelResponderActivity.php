@@ -72,7 +72,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                $lead = $message->entity();
+                $lead = $message->preferredEntity(Lead::class);
                 $message->addTag('engagement');
 
                 // Don't process messages from the phone owner
