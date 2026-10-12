@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Humano\DataTransferObject;
 
+use Baka\Support\Str;
 use Kanvas\Connectors\Humano\Enums\CurrencyEnum;
 use Kanvas\Connectors\Humano\Enums\DatoEnum;
 use Kanvas\Connectors\Humano\Enums\DocumentoReferidorEnum;
@@ -11,23 +12,8 @@ use Kanvas\Connectors\Humano\Enums\PlanEnum;
 use Kanvas\Connectors\Humano\Enums\VigenciaEnum;
 use Kanvas\Exceptions\ValidationException;
 
-/**
- * Builds the exact `/cotizacion/productos/cotizar` body from a flat, readable
- * payload.
- *
- * Every dato is validated here rather than at their gateway on purpose: Humano
- * answers a bad quote with `{statusCode, message}` and no field key, so a caller
- * that sends a wrong `uso` learns only that something failed. Failing locally names
- * the field and lists the accepted values.
- *
- * Optional keys are omitted rather than sent as null — the same rule the Universal
- * connector learned the hard way, applied up front here.
- */
 class QuoteRequest
 {
-    /**
-     * @param list<Dato> $datos
-     */
     public function __construct(
         public readonly PlanEnum $plan,
         public readonly CurrencyEnum $currency,
@@ -40,9 +26,6 @@ class QuoteRequest
     ) {
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     */
     public static function make(PlanEnum $plan, array $payload): self
     {
         $referidorType = self::referidorType($payload['tipo_documento_referidor'] ?? null);
@@ -66,9 +49,6 @@ class QuoteRequest
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public function toArray(): array
     {
         $body = [
@@ -87,14 +67,6 @@ class QuoteRequest
         return $body;
     }
 
-    /**
-     * Missing datos are reported together — a caller filling a quote form should not
-     * have to discover fourteen required fields one round trip at a time.
-     *
-     * @param array<string, mixed> $payload
-     *
-     * @return list<Dato>
-     */
     protected static function datos(PlanEnum $plan, array $payload): array
     {
         $datos = [new Dato(DatoEnum::PLAN, $plan->code())];
@@ -170,10 +142,6 @@ class QuoteRequest
             ?? throw new ValidationException('Humano: tipo_documento_referidor must be CED, RNC or PAS');
     }
 
-    /**
-     * Their gateway rejects a quote with no originating IP, and it is not something
-     * this layer can invent — the caller knows whose request it is.
-     */
     protected static function requiredIp(mixed $value): string
     {
         return self::trimmed($value)
@@ -182,12 +150,10 @@ class QuoteRequest
 
     protected static function trimmed(mixed $value): ?string
     {
-        if ($value === null || is_array($value)) {
+        if (! is_scalar($value)) {
             return null;
         }
 
-        $value = trim((string) (is_bool($value) ? (int) $value : $value));
-
-        return $value === '' ? null : $value;
+        return Str::trimToNull((string) (is_bool($value) ? (int) $value : $value));
     }
 }

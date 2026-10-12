@@ -9,7 +9,6 @@ use Baka\Contracts\CompanyInterface;
 use DomainException;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\UniversalSeguros\Enums\ConfigurationEnum;
-use Kanvas\Connectors\UniversalSeguros\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\DocumentOperationEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\DocumentTransactionEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\ProductEnum;
@@ -27,10 +26,6 @@ use Mockery;
 use Mockery\MockInterface;
 use Tests\TestCase;
 
-/**
- * The adapter is the only place that knows Universal's field names, so it is tested
- * against a mocked service — no network, no DB.
- */
 class UniversalSegurosProviderTest extends TestCase
 {
     private const STORED_VEHICLE = [
@@ -47,8 +42,6 @@ class UniversalSegurosProviderTest extends TestCase
     {
         parent::setUp();
 
-        // Catalog reads go through CatalogCache; an array store keeps each test's
-        // hit/miss counting honest without needing Redis.
         config(['cache.default' => 'array']);
         Cache::flush();
     }
@@ -60,7 +53,6 @@ class UniversalSegurosProviderTest extends TestCase
 
         $company = Mockery::mock(CompanyInterface::class);
         $company->shouldReceive('getId')->andReturn(2);
-        // Empty means "not configured", which falls back to the full default set.
         $company->shouldReceive('get')->with(ConfigurationEnum::SCOPES->value)->andReturn($scopes ?? '');
 
         return new UniversalSegurosProvider(
@@ -94,10 +86,6 @@ class UniversalSegurosProviderTest extends TestCase
         $this->assertSame(1392.58, $result->total);
     }
 
-    /**
-     * Their A-KM sample verbatim. Reading prima first prices it at 0; summing
-     * primaFija + primaKm prices it at 1005.85 — totalCobro says 1000.
-     */
     public function testPerKilometerProductPricesOffTheFixedPremiumNotTheZeroPrima(): void
     {
         $service = $this->service();
@@ -232,10 +220,6 @@ class UniversalSegurosProviderTest extends TestCase
         $this->assertSame(['A', 'B'], $result);
     }
 
-    /**
-     * numeroPagina=-1 hands back the whole catalog, so a second search must not
-     * cost a second round trip.
-     */
     public function testVehicleModelsAreFetchedOnceAndNarrowedLocally(): void
     {
         $service = $this->service();
@@ -285,9 +269,6 @@ class UniversalSegurosProviderTest extends TestCase
         $this->assertSame(['Tamboril'], $provider->getCatalog('municipalities', ['provincia' => 'Santiago']));
     }
 
-    /**
-     * They hang off a plan revision that only exists after a quote — per customer.
-     */
     public function testRentCarOptionsAreNeverCached(): void
     {
         $service = $this->service();
@@ -322,10 +303,6 @@ class UniversalSegurosProviderTest extends TestCase
         $this->assertSame('Para Tu Seguro de Ley', $withoutInspection[0]->name);
     }
 
-    /**
-     * The real QA grant: three of five. A line without its emit scope would take
-     * the customer's money and then fail at emission.
-     */
     public function testOnlyLinesTheAliadoCanEmitComeBackAvailable(): void
     {
         $provider = $this->provider(
@@ -457,9 +434,6 @@ class UniversalSegurosProviderTest extends TestCase
         $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE, $result->status);
     }
 
-    /**
-     * The insurer emits out of band, so a missing policy is "not yet", not a failure.
-     */
     public function testSyncWithNoPolicyYetKeepsTheCurrentStatus(): void
     {
         $order = Mockery::mock(Order::class);

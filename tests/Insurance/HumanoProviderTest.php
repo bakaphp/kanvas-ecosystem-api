@@ -25,18 +25,12 @@ use Mockery;
 use Mockery\MockInterface;
 use Tests\TestCase;
 
-/**
- * The adapter is the only place that knows Humano's field names, so it is tested
- * against a mocked service — no network, no DB.
- */
 class HumanoProviderTest extends TestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Catalog reads go through CatalogCache; an array store keeps each test's
-        // hit/miss counting honest without needing Redis.
         config(['cache.default' => 'array']);
         Cache::flush();
     }
@@ -56,9 +50,6 @@ class HumanoProviderTest extends TestCase
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     private function quotePayload(): array
     {
         return [
@@ -87,11 +78,6 @@ class HumanoProviderTest extends TestCase
         $this->assertSame(IntegrationsEnum::HUMANO, $provider->integration());
     }
 
-    /**
-     * The trap: on an annual quote Anual and Prorrata are identical, so reading the
-     * wrong one passes every annual test and then charges a monthly policy twelve
-     * times over. Prorrata is what the chosen vigencia actually costs.
-     */
     public function testPricesOffTheProratedAmountsNotTheAnnualOnes(): void
     {
         $service = Mockery::mock(HumanoService::class);
@@ -159,10 +145,6 @@ class HumanoProviderTest extends TestCase
         ));
     }
 
-    /**
-     * A caller holding a raw cdPlan from a catalog response shouldn't have to
-     * translate it back to our slug.
-     */
     public function testTheirNumericPlanCodeIsAcceptedAsWellAsOurSlug(): void
     {
         $service = Mockery::mock(HumanoService::class);
@@ -194,10 +176,6 @@ class HumanoProviderTest extends TestCase
         $this->assertSame($provider->getCatalog('provinces'), $provider->getCatalog('provinces'));
     }
 
-    /**
-     * Humano filters the eligible vehicles per plan, so a key that ignored the plan
-     * would serve Mi Moto's catalog to a car quote.
-     */
     public function testVehicleCatalogsAreCachedPerPlan(): void
     {
         $service = Mockery::mock(HumanoService::class);

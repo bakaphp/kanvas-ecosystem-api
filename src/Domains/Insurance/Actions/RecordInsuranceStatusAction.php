@@ -41,7 +41,8 @@ class RecordInsuranceStatusAction
 
     private function isInsuranceTyped(): bool
     {
-        return $this->order->orderType?->name === InsuranceOrderTypeEnum::INSURANCE->value;
+        return $this->order->order_types_id !== null
+            && $this->order->orderType?->name === InsuranceOrderTypeEnum::INSURANCE->value;
     }
 
     private function mirror(): void

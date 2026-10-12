@@ -12,33 +12,21 @@ use Kanvas\Insurance\Concerns\ResolvesReportablePayment;
 use Kanvas\Insurance\Contracts\PaymentReportProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
-use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-/**
- * Runs once the policy exists. Universal issues the invoice; we only hand them
- * the transaction and the policy number. The endpoint documents no idempotency
- * key, so the order is stamped and a second run is a no-op.
- */
 #[WorkflowAction]
 class InvoiceInsurancePolicyActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     use ResolvesReportablePayment;
 
-    /**
-     * @param array<string, mixed> $params
-     *
-     * @return array<string, mixed>
-     */
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
 
-        /** @var Order $order */
         if (! empty($order->get(InsuranceCustomFieldEnum::INVOICED_AT->value))) {
             return [
                 'order' => $order->getId(),

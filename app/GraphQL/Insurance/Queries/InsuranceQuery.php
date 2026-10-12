@@ -17,18 +17,10 @@ use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceQuoteBinding;
 use Kanvas\Insurance\Services\InsuranceSearchService;
 
-/**
- * The whole direct insurance surface: reference data to render the forms, and a
- * price to compare. Everything past "I'll take this one" rides the Order and its
- * workflow activities, like the other Movipass verticals.
- */
 class InsuranceQuery
 {
     use ResolvesActingContext;
 
-    /**
-     * @return array<array-key, mixed>
-     */
     public function catalog(mixed $rootValue, array $request): array
     {
         $provider = $this->resolveProvider($request['provider'] ?? null);
@@ -43,12 +35,6 @@ class InsuranceQuery
         );
     }
 
-    /**
-     * Quoting persists nothing on our side — comparing five insurers must not leave
-     * five half-built orders behind.
-     *
-     * @return array<string, mixed>
-     */
     public function quote(mixed $rootValue, array $request): array
     {
         $provider = $this->resolveProvider($request['provider'] ?? null);
@@ -144,11 +130,6 @@ class InsuranceQuery
         ];
     }
 
-    /**
-     * The factory throws InvalidArgumentException, which Lighthouse masks as
-     * "Internal server error" — a misconfigured company would get an opaque 500
-     * instead of being told the insurer isn't set up.
-     */
     protected function resolveProvider(?string $requested): InsuranceProviderInterface
     {
         $ctx = $this->actingContext();

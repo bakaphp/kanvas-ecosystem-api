@@ -57,9 +57,6 @@ class UploadOrderDocumentsAction
         return $result;
     }
 
-    /**
-     * @return list<int>
-     */
     protected function uploadedIds(): array
     {
         $stored = trim((string) $this->order->get(InsuranceCustomFieldEnum::UPLOADED_DOCUMENTS->value));
@@ -67,14 +64,6 @@ class UploadOrderDocumentsAction
         return $stored === '' ? [] : array_map(intval(...), explode(',', $stored));
     }
 
-    /**
-     * The field name is the document type, so an unrelated attachment on the order
-     * is never forwarded to the insurer.
-     *
-     * @param list<int> $alreadyUploaded
-     *
-     * @return list<FilesystemEntities>
-     */
     protected function pendingFiles(array $alreadyUploaded): array
     {
         $types = array_map(fn (InsuranceDocumentTypeEnum $type): string => $type->value, InsuranceDocumentTypeEnum::cases());

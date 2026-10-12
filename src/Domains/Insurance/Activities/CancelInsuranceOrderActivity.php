@@ -10,30 +10,19 @@ use Kanvas\Insurance\Actions\RecordInsuranceStatusAction;
 use Kanvas\Insurance\Actions\SettleInsurancePaymentAction;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
-use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-/**
- * Runs when the customer backs out before a policy exists. Nothing is sent to the
- * insurer — an unemitted quote simply lapses — so cancelling is releasing the hold.
- */
 #[WorkflowAction]
 class CancelInsuranceOrderActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    /**
-     * @param array<string, mixed> $params
-     *
-     * @return array<string, mixed>
-     */
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
 
-        /** @var Order $order */
         $status = (string) $order->get(InsuranceCustomFieldEnum::STATUS->value);
 
         if ($status === '') {

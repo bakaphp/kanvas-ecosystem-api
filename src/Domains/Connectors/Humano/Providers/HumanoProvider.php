@@ -33,15 +33,6 @@ use Kanvas\Insurance\Services\VehicleKeyNormalizer;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Throwable;
 
-/**
- * The only class that knows Humano's field names (`numeroCotizacion`,
- * `montoPrimaProrrata`, `cdPlan`). Nothing outside it should reference them.
- *
- * Deliberately narrower than the Universal adapter: their intermediary API issues
- * and charges only the travel line, so there is no auto emission or payment to
- * implement and this provider does not claim PolicyEmissionProviderInterface or
- * PaymentLinkProviderInterface. See CLAUDE.md.
- */
 class HumanoProvider implements
     CatalogProviderInterface,
     ProductCatalogProviderInterface,
@@ -50,7 +41,6 @@ class HumanoProvider implements
 {
     public const NAME = 'humano';
 
-    /** Seconds; 0 means never cache. */
     protected const CATALOG_TTL = [
         'provinces' => 2592000,
         'municipalities' => 2592000,
@@ -325,11 +315,6 @@ class HumanoProvider implements
         return ['provinces', 'municipalities', 'sectors', 'vehicle_brands', 'vehicle_models', 'vehicle_versions'];
     }
 
-    /**
-     * Their API exposes no entitlement signal — unlike Universal, where the granted
-     * emit scopes say which lines we may actually sell — so every plan is offered.
-     * A plan the intermediary is not licensed for will surface as a quote error.
-     */
     public function products(): array
     {
         return array_map(
@@ -343,11 +328,6 @@ class HumanoProvider implements
         );
     }
 
-    /**
-     * @param array<string, mixed> $params
-     *
-     * @return array<array-key, mixed>
-     */
     protected function addressCatalog(string $catalog, array $params): array
     {
         $province = (string) ($params['provincia'] ?? $params['cdProvincia'] ?? '');
@@ -377,15 +357,6 @@ class HumanoProvider implements
         );
     }
 
-    /**
-     * Every vehicle catalog is scoped by plan — Humano filters the eligible brands,
-     * models and versions per line, so a cache key without it would serve Mi Moto's
-     * catalog to a car quote.
-     *
-     * @param array<string, mixed> $params
-     *
-     * @return array<array-key, mixed>
-     */
     protected function vehicleCatalog(string $catalog, array $params): array
     {
         $plan = $this->plan((string) ($params['plan'] ?? $params['product'] ?? ''));
@@ -449,12 +420,6 @@ class HumanoProvider implements
         return CurrencyEnum::tryFrom((int) $value);
     }
 
-    /**
-     * @param array<string, mixed> $params
-     * @param callable(): array<array-key, mixed> $fetch
-     *
-     * @return array<array-key, mixed>
-     */
     protected function cached(string $catalog, array $params, callable $fetch): array
     {
         $ttl = self::CATALOG_TTL[$catalog] ?? 0;
@@ -485,21 +450,6 @@ class HumanoProvider implements
         return $value === [] || (array_key_exists('payload', $value) && empty($value['payload']));
     }
 
-    /**
-     * Prices come in two sets: Anual (the full-term price) and Prorrata (what the
-     * chosen `codigoVigencia` actually costs). They are identical on an annual
-     * quote — their own sample returns the same 50265.54 twice — which is exactly
-     * what makes Anual the tempting wrong answer: it prices a monthly policy at
-     * twelve times the amount and no annual test would catch it. Prorrata is right
-     * for every vigencia, so that is what the graph gets; the annual figures and
-     * `planesDePago` ride in `raw`.
-     *
-     * `montoComponenteProrrata` is mapped to tax because it is 16% of the premium
-     * in their sample, matching the ISC on insurance premiums. Their doc does not
-     * name it — confirm against a live quote before prod.
-     *
-     * @param array<string, mixed> $response
-     */
     protected function toQuoteResult(
         array $response,
         ?CurrencyEnum $currency = null,
@@ -522,15 +472,6 @@ class HumanoProvider implements
         );
     }
 
-    /**
-     * `cotizaciones` is a list because a quote can cover several insured assets;
-     * auto quotes send a single `numeroBien`, so the first line is the vehicle. The
-     * whole response stays in `raw` so a caller that needs the rest still has it.
-     *
-     * @param array<string, mixed> $response
-     *
-     * @return array<string, mixed>
-     */
     protected function firstQuote(array $response): array
     {
         $quotes = $response['cotizaciones'] ?? null;

@@ -166,7 +166,7 @@ class SelectInsurancePlanAction
                 total: (float) $quote->total,
                 tax: (float) $quote->tax,
             ),
-        ],fn (mixed $value): bool => $value !== null && $value !== '');
+        ], fn (mixed $value): bool => $value !== null && $value !== '');
     }
 
     private function lockKey(): string

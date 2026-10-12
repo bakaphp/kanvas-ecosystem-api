@@ -4,17 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Humano\Enums;
 
-/**
- * Humano's auto lines. The plan is what Kanvas calls the product: their quote takes
- * exactly one, and the vehicle catalogs are filtered by it, so there is still no
- * separate plan level to model.
- *
- * The case value is deliberately NOT their code. Theirs is "0".."4", and "0" is
- * falsy — stamped on an Order as the product code, every `empty()` check against it
- * reads "no product" and the order silently looks unquoted. The adapter is the only
- * thing that needs the number, so it converts at the boundary like any other
- * insurer-shaped value.
- */
 enum PlanEnum: string
 {
     case MI_AUTO_PREMIER = 'mi_auto_premier';
@@ -23,9 +12,6 @@ enum PlanEnum: string
     case MI_AUTO_FLEX = 'mi_auto_flex';
     case MI_MOTO_BASICO = 'mi_moto_basico';
 
-    /**
-     * `valorDato` for DatoEnum::PLAN, and `cdPlan` on the vehicle catalogs.
-     */
     public function code(): string
     {
         return match ($this) {
@@ -48,10 +34,6 @@ enum PlanEnum: string
         return null;
     }
 
-    /**
-     * Their commercial names. Customer-facing copy is authored on the seeded Kanvas
-     * Product, not here.
-     */
     public function label(): string
     {
         return match ($this) {

@@ -6,7 +6,6 @@ namespace Tests\Insurance;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\UniversalSeguros\Providers\UniversalSegurosProvider;
 use Kanvas\Connectors\UniversalSeguros\Services\UniversalSegurosService;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -29,7 +28,6 @@ use LogicException;
 use Mockery;
 use Tests\Insurance\Concerns\BuildsSearchCatalog;
 use Tests\Insurance\Concerns\SeedsInsuranceOrderPipeline;
-use Tests\Insurance\Fakes\FakeCanonicalProvider;
 use Tests\Insurance\Fakes\FakeCustomerProvider;
 use Tests\TestCase;
 

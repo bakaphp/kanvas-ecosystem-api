@@ -13,7 +13,6 @@ use Kanvas\Insurance\Concerns\ResolvesReportablePayment;
 use Kanvas\Insurance\Contracts\PaymentReportProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
-use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
@@ -25,17 +24,11 @@ class ReportInsurancePaymentActivity extends KanvasActivity implements WorkflowA
     use FailsReleasingHeldPayment;
     use ResolvesReportablePayment;
 
-    /**
-     * @param array<string, mixed> $params
-     *
-     * @return array<string, mixed>
-     */
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
 
-        /** @var Order $order */
         if (empty($order->get(InsuranceCustomFieldEnum::QUOTE_NUMBER->value))) {
             return $this->failReleasingHold($order, 'Order has no insurance quote number');
         }

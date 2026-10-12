@@ -14,32 +14,21 @@ use Kanvas\Insurance\Contracts\PolicyEmissionProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
-use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-/**
- * Runs once the payment has been reported. The charge is still a hold at this
- * point, so a refusal from the insurer releases it instead of refunding.
- */
 #[WorkflowAction]
 class EmitInsurancePolicyActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     use FailsReleasingHeldPayment;
 
-    /**
-     * @param array<string, mixed> $params
-     *
-     * @return array<string, mixed>
-     */
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
 
-        /** @var Order $order */
         if (empty($order->get(InsuranceCustomFieldEnum::QUOTE_NUMBER->value))) {
             return $this->failReleasingHold($order, 'Order has no insurance quote number');
         }

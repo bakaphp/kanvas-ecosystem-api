@@ -4,29 +4,35 @@ declare(strict_types=1);
 
 namespace Tests\Insurance;
 
+use Baka\Http\SafeUrlFetcher;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Humano\Providers\HumanoProvider;
 use Kanvas\Connectors\Humano\Services\HumanoService;
 use Kanvas\Connectors\UniversalSeguros\DataTransferObject\QuoteRequest;
-use Kanvas\Connectors\UniversalSeguros\Enums\ConfigurationEnum;
 use Kanvas\Connectors\UniversalSeguros\Handlers\UniversalSegurosHandler;
 use Kanvas\Connectors\UniversalSeguros\Providers\UniversalSegurosProvider;
 use Kanvas\Connectors\UniversalSeguros\Services\UniversalSegurosService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Insurance\Activities\CancelInsuranceOrderActivity;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Insurance\Actions\SyncInsuranceProductsAction;
 use Kanvas\Insurance\Activities\AttachInsuranceQuoteActivity;
+use Kanvas\Insurance\Activities\CancelInsuranceOrderActivity;
 use Kanvas\Insurance\Activities\EmitInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\InvoiceInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\ReportInsurancePaymentActivity;
 use Kanvas\Insurance\Activities\SyncInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\UploadInsuranceDocumentsActivity;
+use Kanvas\Insurance\DataTransferObject\PaymentReportResult;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderStatusEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Models\InsuranceVehicleModelMap;
 use Kanvas\Insurance\Models\Insurer;
+use Kanvas\Insurance\Services\InsuranceQuoteBinding;
 use Kanvas\Insurance\Services\VehicleKeyNormalizer;
 use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Models\Order;
@@ -38,28 +44,14 @@ use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
-use Baka\Http\SafeUrlFetcher;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Exceptions\ValidationException;
-use Kanvas\Insurance\Actions\SyncInsuranceProductsAction;
-use Kanvas\Insurance\DataTransferObject\PaymentReportResult;
-use Kanvas\Insurance\Services\InsuranceQuoteBinding;
 use Mockery;
 use Mockery\MockInterface;
 use RuntimeException;
-use Throwable;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\Insurance\Concerns\BuildsSearchCatalog;
 use Tests\Insurance\Concerns\SeedsInsuranceOrderPipeline;
 use Tests\TestCase;
 
-/**
- * Runs the whole insurance chain with the real activities, a real Order and a
- * real database, faking only the two things that leave the building: Universal's
- * HTTP service and the card processor. It is the closest thing to the browser
- * run that does not need Universal QA credentials.
- */
 class InsuranceFlowSimulationTest extends TestCase
 {
     use BuildsSearchCatalog;
@@ -91,7 +83,6 @@ class InsuranceFlowSimulationTest extends TestCase
 
     private Users $kanvasUser;
 
-    /** @var array<string, list<mixed>> */
     private array $calls = [];
 
     private MockInterface $service;
@@ -103,7 +94,6 @@ class InsuranceFlowSimulationTest extends TestCase
         parent::setUp();
 
         $this->kanvasApp = app(Apps::class);
-        /** @var Users $user */
         $user = auth()->user();
         $this->kanvasUser = $user;
         $this->seedInsuranceOrderPipeline();

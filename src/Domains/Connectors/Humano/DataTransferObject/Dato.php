@@ -6,10 +6,6 @@ namespace Kanvas\Connectors\Humano\DataTransferObject;
 
 use Kanvas\Connectors\Humano\Enums\DatoEnum;
 
-/**
- * One entry in Humano's generic `datos[]` bag. `numeroBien` identifies the insured
- * asset within the quote; auto quotes carry a single vehicle, so it is 1.
- */
 class Dato
 {
     public function __construct(
@@ -19,9 +15,6 @@ class Dato
     ) {
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public function toArray(): array
     {
         return [

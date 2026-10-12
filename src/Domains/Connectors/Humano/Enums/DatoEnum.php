@@ -4,16 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Humano\Enums;
 
-/**
- * Humano quotes through one generic `datos[]` bag keyed by `codigoDato` rather than
- * a typed body, so this table IS the request schema. Nothing outside this connector
- * should ever see a 250xxx code.
- *
- * `allowedValues()` is here because their failure mode is a bare
- * `{statusCode, message}` with no field key — unlike insurers that answer a bad
- * enum with the valid set. Validating locally is the only way a caller finds out
- * which value was wrong.
- */
 enum DatoEnum: int
 {
     case PLAN = 250091;
@@ -31,9 +21,6 @@ enum DatoEnum: int
     case RC_EXCESO = 250105;
     case SUMA_ASEGURADA_AUTO_EXCESO = 250088;
 
-    /**
-     * Goes out verbatim as `label` on each dato.
-     */
     public function label(): string
     {
         return match ($this) {
@@ -54,9 +41,6 @@ enum DatoEnum: int
         };
     }
 
-    /**
-     * The key a caller uses in `InsuranceQuoteRequest::$payload`.
-     */
     public function payloadKey(): string
     {
         return match ($this) {
@@ -77,13 +61,6 @@ enum DatoEnum: int
         };
     }
 
-    /**
-     * The datos a caller supplies. PLAN is excluded because it comes from the
-     * product the graph was asked to quote, not from the payload — letting it in
-     * would give a request two places to disagree about which plan it is.
-     *
-     * @return list<self>
-     */
     public static function fromPayload(): array
     {
         return array_values(array_filter(
@@ -92,11 +69,6 @@ enum DatoEnum: int
         ));
     }
 
-    /**
-     * Value => label. Empty means free-form (numeric, date or catalog-backed).
-     *
-     * @return array<string, string>
-     */
     public function allowedValues(): array
     {
         return match ($this) {

@@ -14,10 +14,6 @@ use Kanvas\Insurance\Contracts\QuoteTaskRunner;
 use Kanvas\Insurance\Services\OctaneQuoteTaskRunner;
 use Override;
 
-/**
- * Adding an insurer is a binding here plus an adapter — no new GraphQL mutation.
- * Resolved through InsuranceProviderFactory as "insurance_provider.{name}".
- */
 class InsuranceProviderServiceProvider extends ServiceProvider
 {
     #[Override]

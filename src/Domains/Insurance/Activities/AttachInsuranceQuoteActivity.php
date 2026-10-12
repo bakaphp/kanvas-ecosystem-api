@@ -9,31 +9,19 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Insurance\Actions\AttachQuoteToOrderAction;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
-use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-/**
- * Runs on order-created. The order arrives carrying the provider + quote the
- * customer picked in the comparator (order metadata); this pulls the real numbers
- * from the insurer and stamps them, so the rest of the flow reads the Order only.
- */
 #[WorkflowAction]
 class AttachInsuranceQuoteActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    /**
-     * @param array<string, mixed> $params
-     *
-     * @return array<string, mixed>
-     */
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
 
-        /** @var Order $order */
         $metadata = (array) ($order->metadata['insurance'] ?? []);
         $providerName = (string) ($metadata['provider'] ?? '');
         $quoteNumber = (string) ($metadata['quote_number'] ?? '');

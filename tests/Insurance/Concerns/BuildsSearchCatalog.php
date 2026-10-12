@@ -61,6 +61,7 @@ trait BuildsSearchCatalog
 
         Redis::hSet($key, self::PLATFORM_COMPANY_SETTING, $previous);
     }
+
     protected function bindFakeProvider(
         string $name,
         ?Closure $respond = null,

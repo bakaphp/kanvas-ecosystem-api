@@ -44,7 +44,6 @@ class HumanoHandler extends BaseIntegration
         $this->company->set(ConfigurationEnum::ENVIRONMENT->value, $environment);
         $this->company->set(InsuranceCustomFieldEnum::INSURER_COMPANY_ID->value, $insurerCompany->getId());
 
-        // Without a default, every insuranceQuote would have to name the provider.
         $this->company->set(InsuranceCustomFieldEnum::PROVIDER->value, HumanoProvider::NAME);
 
         $this->assertCredentialsWork();
@@ -58,11 +57,6 @@ class HumanoHandler extends BaseIntegration
         return true;
     }
 
-    /**
-     * There is no token endpoint to round-trip against, so the cheapest authenticated
-     * read stands in for one: provincias takes no parameters and every intermediary
-     * can see it, so a failure here is a credential problem and nothing else.
-     */
     protected function assertCredentialsWork(): void
     {
         try {
@@ -72,9 +66,6 @@ class HumanoHandler extends BaseIntegration
         }
     }
 
-    /**
-     * Required, so a misconfigured setup can't seed the catalog under the aliado.
-     */
     protected function resolveInsurerCompany(): Companies
     {
         $insurerCompanyId = (int) ($this->data['insurer_companies_id'] ?? 0);

@@ -84,10 +84,6 @@ class UniversalSegurosPaymentReportTest extends TestCase
         $this->assertTrue($result->success);
     }
 
-    /**
-     * A 204 carries no body, so the adapter must not read success out of the
-     * response — a call that did not throw is all the signal there is.
-     */
     public function testAnEmptyBodyStillCountsAsAReportedPayment(): void
     {
         $order = Mockery::mock(Order::class);

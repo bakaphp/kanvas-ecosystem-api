@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Humano\Enums;
 
-/**
- * Policy term. It decides which of the two amount sets in a quote response is the
- * one the customer actually owes — see HumanoProvider::toQuoteResult.
- */
 enum VigenciaEnum: string
 {
     case MENSUAL = 'M';

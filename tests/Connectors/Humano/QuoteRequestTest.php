@@ -10,14 +10,8 @@ use Kanvas\Connectors\Humano\Enums\PlanEnum;
 use Kanvas\Exceptions\ValidationException;
 use Tests\TestCase;
 
-/**
- * Pure DTO-shape tests — no network, no DB.
- */
 class QuoteRequestTest extends TestCase
 {
-    /**
-     * @return array<string, mixed>
-     */
     private function input(): array
     {
         return [
@@ -39,9 +33,6 @@ class QuoteRequestTest extends TestCase
         ];
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
     private function datosOf(QuoteRequest $request): array
     {
         return $request->toArray()['datos'];
@@ -60,11 +51,6 @@ class QuoteRequestTest extends TestCase
         $this->assertSame(1, $byCode[DatoEnum::MARCA->value]['numeroBien']);
     }
 
-    /**
-     * Their plan codes are "0".."4". "0" is falsy, so it must never become the
-     * product code we stamp on an Order — but it is exactly what has to go out on
-     * the wire.
-     */
     public function testPlanTravelsAsHumanosNumericCodeNotOurSlug(): void
     {
         $datos = $this->datosOf(QuoteRequest::make(PlanEnum::MI_AUTO_PREMIER, $this->input()));
@@ -82,11 +68,6 @@ class QuoteRequestTest extends TestCase
         $this->assertSame('A', $body['codigoVigencia']);
     }
 
-    /**
-     * Humano answers a bad quote with a bare message and no field key, so every
-     * missing field has to be named locally — and all of them at once, or filling
-     * the form costs one round trip per field.
-     */
     public function testEveryMissingFieldIsReportedInOneError(): void
     {
         $input = $this->input();
@@ -117,10 +98,6 @@ class QuoteRequestTest extends TestCase
         QuoteRequest::make(PlanEnum::MI_AUTO_FULL, $input);
     }
 
-    /**
-     * Optional keys are omitted, never sent as null — the Universal connector lost a
-     * day to an explicit null returning a bare 500.
-     */
     public function testUnsetReferrerIsOmittedRatherThanSentAsNull(): void
     {
         $body = QuoteRequest::make(PlanEnum::MI_AUTO_FULL, $this->input())->toArray();

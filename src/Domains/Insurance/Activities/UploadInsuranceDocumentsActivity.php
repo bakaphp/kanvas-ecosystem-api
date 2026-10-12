@@ -10,30 +10,19 @@ use Kanvas\Insurance\Actions\UploadOrderDocumentsAction;
 use Kanvas\Insurance\Contracts\InspectionProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
-use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-/**
- * Runs on attach-file. Fires on every attachment, so it only sends the typed
- * documents it has not already pushed.
- */
 #[WorkflowAction]
 class UploadInsuranceDocumentsActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    /**
-     * @param array<string, mixed> $params
-     *
-     * @return array<string, mixed>
-     */
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
 
-        /** @var Order $order */
         if (empty($order->get(InsuranceCustomFieldEnum::QUOTE_NUMBER->value))) {
             return [
                 'order' => $order->getId(),

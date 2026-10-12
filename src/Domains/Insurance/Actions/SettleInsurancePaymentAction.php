@@ -10,12 +10,6 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Processors\ProcessorFactory;
 
-/**
- * The authorization is held until the policy exists: capture it once the insurer
- * has emitted, release it when they refuse or the customer backs out. Only an
- * AUTHORIZED payment is touched — a PAID one was already captured by the
- * processor and is a refund, not a void.
- */
 class SettleInsurancePaymentAction
 {
     public function __construct(

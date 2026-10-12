@@ -35,7 +35,6 @@ use Kanvas\Insurance\DataTransferObject\CanonicalVehicle;
 use Kanvas\Insurance\DataTransferObject\DocumentUploadResult;
 use Kanvas\Insurance\DataTransferObject\ExternalVehicleModel;
 use Kanvas\Insurance\DataTransferObject\InsuranceCustomer;
-use Kanvas\Insurance\DataTransferObject\InsuranceDocument;
 use Kanvas\Insurance\DataTransferObject\InsurancePaymentReport;
 use Kanvas\Insurance\DataTransferObject\InsuranceProduct;
 use Kanvas\Insurance\DataTransferObject\InsuranceQuoteRequest;
@@ -70,14 +69,12 @@ class UniversalSegurosProvider implements
 
     protected const DEFAULT_INSPECTION_TYPE = 'Cargar matrícula';
 
-    /** Seconds; 0 means never cache. */
     protected const CATALOG_TTL = [
         'vehicle_models' => 604800,
         'provinces' => 2592000,
         'municipalities' => 2592000,
         'sectors' => 2592000,
         'add_ons' => 86400,
-        // Keyed off a plan revision that only exists after a quote — per customer.
         'rent_car_options' => 0,
     ];
 
@@ -196,9 +193,6 @@ class UniversalSegurosProvider implements
         return $product?->requiresInspection() ?? false;
     }
 
-    /**
-     * @param list<InsuranceDocument> $documents
-     */
     public function uploadDocuments(Order $order, array $documents): DocumentUploadResult
     {
         $quoteNumber = $this->quoteNumber($order);
@@ -254,11 +248,6 @@ class UniversalSegurosProvider implements
         );
     }
 
-    /**
-     * Records how the premium was settled on our side. It neither charges nor
-     * emits, and answers 204 with no body — so a non-throwing call is the only
-     * success signal there is.
-     */
     public function reportPayment(Order $order, InsurancePaymentReport $report): PaymentReportResult
     {
         $raw = $this->service->assignPaymentInformation(
@@ -430,12 +419,6 @@ class UniversalSegurosProvider implements
         );
     }
 
-    /**
-     * Emission is scoped per product and Universal licenses subsets, so a line
-     * without its emit scope dies at emission — after the customer has paid.
-     *
-     * @return list<string>
-     */
     protected function grantedScopes(): array
     {
         $scopes = trim((string) $this->company->get(ConfigurationEnum::SCOPES->value));
@@ -443,12 +426,6 @@ class UniversalSegurosProvider implements
         return preg_split('/\s+/', $scopes !== '' ? $scopes : ConfigurationEnum::defaultScopes()) ?: [];
     }
 
-    /**
-     * `numeroPagina=-1` returns everything in one call, so it is cached whole and
-     * narrowed here — filtering upstream would cost a round trip per keystroke.
-     *
-     * @return array<array-key, mixed>
-     */
     protected function vehicleModels(string $marca, string $modelo): array
     {
         $catalog = $this->cached('vehicle_models', [], fn (): array => $this->service->getVehicleModels());
@@ -493,12 +470,6 @@ class UniversalSegurosProvider implements
         return str_contains(mb_strtolower($haystack), mb_strtolower($needle));
     }
 
-    /**
-     * @param array<string, mixed> $params
-     * @param callable(): array<array-key, mixed> $fetch
-     *
-     * @return array<array-key, mixed>
-     */
     protected function cached(string $catalog, array $params, callable $fetch): array
     {
         return CatalogCache::remember(
@@ -534,13 +505,6 @@ class UniversalSegurosProvider implements
         );
     }
 
-    /**
-     * A-KM returns `prima: 0` alongside primaFija/primaKm, so presence of primaFija
-     * — not a falsy prima — tells the two shapes apart. primaKm is a rate per
-     * kilometer, never an addend: their sample is 1000 + 5.85 with totalCobro 1000.
-     *
-     * @param array<string, mixed> $response
-     */
     protected function toQuoteResult(array $response): QuoteResult
     {
         $quoteNumber = (string) ($response['data']['numeroCotizacion'] ?? $response['numeroCotizacion'] ?? '');
