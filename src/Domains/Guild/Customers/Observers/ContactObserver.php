@@ -92,6 +92,16 @@ class ContactObserver
 
         // Never block the contact save on channel creation.
         try {
+            // Every channel needs an agent for its session, so without one there is nothing to open.
+            $companyHasAgents = Agent::fromApp($people->app)
+                ->fromCompany($people->company)
+                ->notDeleted()
+                ->exists();
+
+            if (! $companyHasAgents) {
+                return;
+            }
+
             $lead = LeadsRepository::getPeopleActiveLead($people) ?? LeadsRepository::getPeopleLastLead($people);
 
             if ($lead === null) {
@@ -127,7 +137,7 @@ class ContactObserver
             ->latest('id')
             ->value('agents_id');
 
-        if ($existingAgentId !== null) {
+        if ($existingAgentId !== null && Agent::where('id', $existingAgentId)->notDeleted()->exists()) {
             return (int) $existingAgentId;
         }
 
