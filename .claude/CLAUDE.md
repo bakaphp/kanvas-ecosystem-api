@@ -82,6 +82,7 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Kanvas/Imports/CLAUDE.md` — scheduled FTP/SFTP imports into the existing mapper pipeline: why all mapping lives in the `FilesystemMapper` and never in PHP, the template-`version` trap (editing a template does not update mappers already made from it), why a mapped value must satisfy the target model's PHP types, the header-row delimiter detection, the "never unpublish on a partial feed" invariant, and what a second entity type needs.
 - `src/Kanvas/Approvals/CLAUDE.md` — generic cross-domain approval gating (policies, resolvers, the sync-handler vs workflow lanes, the transitional entity-fired event, and the `ecosystem` connection test trap).
 - `src/Domains/Insurance/CLAUDE.md` — provider-agnostic insurance layer (quote → policy). Why it is a top-level domain rather than Souk/Inventory/a connector, why only 2 direct queries exist and everything else is a workflow activity, and the hybrid generic-vs-connector custom-field split.
+- `app/Mcp/CLAUDE.md` — Kanvas exposed as an MCP server (`laravel/mcp`): the three mandatory `X-Kanvas-*` headers and the middleware that enforces them, the `KanvasTool` base and its tenant-scoped lookups, and why a board "task" is a `Plan` and a "subtask" is a `Task`.
 
 ### Where to put new conventions (don't bloat this file)
 
