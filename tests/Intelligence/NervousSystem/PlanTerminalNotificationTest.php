@@ -282,6 +282,30 @@ class PlanTerminalNotificationTest extends TestCase
         $this->assertStringContainsString('Final count: 33.', $digest);
     }
 
+    /**
+     * A one-task run (a follow-up, a coding job) titles its task with the plan's own brief. Naming it
+     * again after the title, and a third time as the digest's label, read as "Done: X — X. X: result".
+     */
+    public function test_a_one_task_plan_names_its_work_once(): void
+    {
+        $plan = $this->makePlan([
+            'status' => PlanStatusEnum::DONE->value,
+            'title' => 'Follow-up: Get the weekly calendar and photo from Jenn',
+            'description' => 'Get the weekly calendar and photo from Jenn',
+        ]);
+        $task = $this->makeTask($plan, TaskStatusEnum::DONE);
+        $task->title = 'Get the weekly calendar and photo from Jenn';
+        $task->result = ['note' => 'Received the screenshot: https://cdn.example.test/calendar.png'];
+        $task->saveQuietly();
+
+        $job = new NotifyPlanOwnerOfCompletedPlanJob($plan->refresh());
+        $done = new ReflectionMethod($job, 'whatGotDone')->invoke($job, $plan);
+        $digest = new ReflectionMethod($job, 'resultsDigest')->invoke($job, $plan);
+
+        $this->assertSame('', $done);
+        $this->assertSame("\n\nReceived the screenshot: https://cdn.example.test/calendar.png", $digest);
+    }
+
     /** A plan whose tasks recorded nothing has no results to report, and must not pad the message. */
     public function test_a_plan_with_no_recorded_results_adds_nothing(): void
     {

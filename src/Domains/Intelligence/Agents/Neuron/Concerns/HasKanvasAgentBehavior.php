@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
@@ -29,6 +30,7 @@ use Kanvas\Intelligence\Agents\Traits\HasTemporalContext;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Scheduling\Services\ScheduledActionTimezoneResolver;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\AgentResources;
@@ -62,6 +64,9 @@ trait HasKanvasAgentBehavior
      * cost about as much as the schemas they would hide.
      */
     private const int TOOL_SEARCH_MIN_POOL = 6;
+
+    /** Enough for every ask one person realistically owes an agent; more is a prompt, not a list. */
+    private const int WAITING_ON_PERSON_LIMIT = 8;
 
     /**
      * Catalog grants stay in the prompt up to this many: each is a few hundred tokens and an agent
@@ -631,6 +636,7 @@ trait HasKanvasAgentBehavior
                 ...$this->temporalContextLines($this->resolveTenantTimezone()),
                 ...$this->memoryRecallLines(),
                 ...self::platformContext(),
+                ...$this->waitingOnPersonLines(),
             ],
             steps: explode("\n", $this->agent?->roleSection('steps', "\n") ?? ''),
             output: explode("\n", $this->agent?->roleSection('output', "\n") ?? ''),
@@ -648,7 +654,79 @@ trait HasKanvasAgentBehavior
     protected function platformContextBlock(): string
     {
         return "\n\nHOW WORK IS DONE HERE — this applies to you like every other agent:\n"
-            . implode("\n", array_map(fn (string $line): string => '- ' . $line, self::platformContext()));
+            . implode("\n", array_map(fn (string $line): string => '- ' . $line, self::platformContext()))
+            . $this->waitingOnPersonBlock();
+    }
+
+    /** The waiting-tasks lines as a prompt block, for the agents that write their own `instructions()`. */
+    protected function waitingOnPersonBlock(): string
+    {
+        $lines = $this->waitingOnPersonLines();
+
+        return $lines === [] ? '' : "\n\n" . implode("\n", $lines);
+    }
+
+    /**
+     * The agent's tasks parked on the person it is talking to, so their message is read as the answer
+     * it probably is. Without this a reply from Charlie arrived as a stranger's message and the agent
+     * told him to "reply to Scott instead".
+     *
+     * Only on a turn with a real human on the other side: on the @mention and channel surfaces
+     * `$this->user` is the agent's own user, and listing its own waits to itself is noise.
+     *
+     * @return list<string>
+     */
+    protected function waitingOnPersonLines(): array
+    {
+        $human = $this->requestingHuman();
+
+        if ($this->agent === null || $human === null || $human->getId() === (int) ($this->agent->user_id ?? 0)) {
+            return [];
+        }
+
+        $tasks = Task::query()
+            ->fromApp($this->agent->app)
+            ->fromCompany($this->agent->company)
+            ->waitingOnPerson($human, $this->session?->channel_id)
+            ->orderBy('wake_at')
+            ->limit(self::WAITING_ON_PERSON_LIMIT)
+            ->get();
+
+        if ($tasks->isEmpty()) {
+            return [];
+        }
+
+        $lines = [sprintf(
+            'OPEN TASKS WAITING ON THIS PERSON (%s). Their message is probably the answer to one of these:',
+            $this->displayNameFor($human),
+        )];
+
+        foreach ($tasks as $task) {
+            $lines[] = sprintf(
+                '  task #%d "%s" — asked for: %s%s',
+                $task->getId(),
+                Str::limit((string) $task->title, 100),
+                Str::limit((string) ($task->blocked_reason ?? $task->description ?? 'no reason recorded'), 200),
+                $task->wake_at !== null ? ' — follow-up booked ' . $task->wake_at->toDateString() : '',
+            );
+        }
+
+        $lines[] = 'Check the reply against what was actually asked — every question, the right period, the '
+            . 'right file — before closing anything. Record what was answered on the task (the result of '
+            . 'update_nervous_system_task_status: the link, the figure, the answer; attach_file_to_task for a '
+            . 'file they sent) and close it only when the '
+            . 'ask is fully met; closing cancels the follow-up. If part is missing, thank them, ask for exactly '
+            . 'the remainder, and snooze_task to when they say. A reply arriving is not, by itself, the answer. '
+            . 'If they ask about the task itself, report its status from here — do not open a second task.';
+
+        return $lines;
+    }
+
+    protected function displayNameFor(Users $user): string
+    {
+        $fullName = trim((string) $user->firstname . ' ' . (string) $user->lastname);
+
+        return $fullName !== '' ? $fullName : $user->getAppDisplayName();
     }
 
     /**

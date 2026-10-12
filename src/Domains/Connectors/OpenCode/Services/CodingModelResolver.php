@@ -43,6 +43,17 @@ class CodingModelResolver
             ?? Str::trimToNull((string) $this->app->get(ConfigurationEnum::MODEL->value));
     }
 
+    /**
+     * Company wins over app, like the key.
+     */
+    public function fallbackModel(): ?string
+    {
+        return Str::trimToNull((string) (
+            $this->agent?->company?->get(ConfigurationEnum::FALLBACK_MODEL->value)
+            ?? $this->app->get(ConfigurationEnum::FALLBACK_MODEL->value)
+        ));
+    }
+
     public function hasOwnProvider(): bool
     {
         return $this->agentSetting(AgentCustomFieldEnum::PROVIDER_ID) !== null;

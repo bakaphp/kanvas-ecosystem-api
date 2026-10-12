@@ -123,13 +123,15 @@ class ProcessSlackWebhookJob extends SlackWebhookJob
     }
 
     /**
-     * DMs always, rooms only when @mentioned. The manifest subscribes to `app_mention` + `message.im`
-     * and nothing else, so a room message that isn't a mention never reaches us in the first place —
-     * this is the belt to that manifest's braces.
+     * DMs and group DMs always, rooms only when @mentioned. A group DM is one the agent opened to ask
+     * a teammate in front of whoever wanted the answer, so every message in it is for the agent. The
+     * manifest subscribes to `app_mention`, `message.im` and `message.mpim` and nothing else, so a room
+     * message that isn't a mention never reaches us in the first place — this is the belt to that
+     * manifest's braces.
      */
     private function shouldAnswer(array $event): bool
     {
-        return ($event['channel_type'] ?? '') === 'im'
+        return in_array($event['channel_type'] ?? '', ['im', 'mpim'], true)
             || ($event['type'] ?? '') === EventTypeEnum::APP_MENTION->value;
     }
 }

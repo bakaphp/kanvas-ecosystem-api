@@ -9,6 +9,13 @@ enum TaskStatusEnum: string
     case PENDING = 'pending';
     case IN_PROGRESS = 'in_progress';
     case BLOCKED = 'blocked';
+    /**
+     * Parked on a person or a date, with a booked wake (`wake_at`). Not terminal and not in flight: the
+     * continuation loop returns WAIT instead of dispatching, bands do not advance past it, the heartbeat
+     * leaves it alone until its wake is overdue. It leaves this state only through its wake or a reply
+     * that answers it — never through `blocked`, which every poller treats as the end of the road.
+     */
+    case WAITING = 'waiting';
     case DONE = 'done';
     case SKIPPED = 'skipped';
 
@@ -58,6 +65,14 @@ enum TaskStatusEnum: string
     }
 
     /**
+     * @return array<int, string>
+     */
+    public static function terminalStatusValues(): array
+    {
+        return array_map(fn (self $status): string => $status->value, self::terminalStatuses());
+    }
+
+    /**
      * Like ::from() but tolerates common synonyms ("completed" → "done",
      * "started" → "in_progress", etc.) and case/whitespace variations.
      * Agents and humans will naturally reach for these — accept them
@@ -69,6 +84,7 @@ enum TaskStatusEnum: string
             'completed', 'complete', 'finished', 'finish' => 'done',
             'in-progress', 'inprogress', 'started', 'start', 'running' => 'in_progress',
             'skip' => 'skipped',
+            'wait', 'snoozed', 'snooze', 'parked' => 'waiting',
             default => strtolower(trim($value)),
         };
 
