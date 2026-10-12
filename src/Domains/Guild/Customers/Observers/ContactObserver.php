@@ -8,6 +8,7 @@ use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
 use Kanvas\Guild\Customers\Actions\CreateLeadSocialChannelsAction;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -93,12 +94,9 @@ class ContactObserver
         // Never block the contact save on channel creation.
         try {
             // Every channel needs an agent for its session, so without one there is nothing to open.
-            $companyHasAgents = Agent::fromApp($people->app)
-                ->fromCompany($people->company)
-                ->notDeleted()
-                ->exists();
+            $defaultAgentId = $this->resolveDefaultAgentId($people);
 
-            if (! $companyHasAgents) {
+            if ($defaultAgentId === null) {
                 return;
             }
 
@@ -108,11 +106,7 @@ class ContactObserver
                 return;
             }
 
-            $agentId = $this->resolveAgentId($lead);
-
-            if ($agentId === null) {
-                return;
-            }
+            $agentId = $this->resolveSessionAgentId($lead) ?? $defaultAgentId;
 
             new CreateLeadSocialChannelsAction(
                 $lead,
@@ -126,28 +120,33 @@ class ContactObserver
     }
 
     /**
-     * Sessions are keyed by agent, so opening the channels with a different agent than the one the
-     * lead already talks to would add a second session to each of them. The name lookup is the one
-     * PullLeadActivity uses for a lead that has none yet.
+     * The same lookup PullLeadActivity opens a lead's channels with.
      */
-    private function resolveAgentId(Lead $lead): ?int
+    private function resolveDefaultAgentId(People $people): ?int
     {
-        $existingAgentId = $lead->aiSession()
+        $agentName = $people->company->get(SalesAssistConfigurationEnum::AGENT_NAME->value)
+            ?? SalesAssistConfigurationEnum::DEFAULT_AGENT_NAME;
+
+        return Agent::where('name', $agentName)
+            ->fromApp($people->app)
+            ->fromCompany($people->company)
+            ->notDeleted()
+            ->value('id');
+    }
+
+    /**
+     * Sessions are keyed by agent, so opening the channels with a different agent than the one the
+     * lead already talks to would add a second session to each of them.
+     */
+    private function resolveSessionAgentId(Lead $lead): ?int
+    {
+        $agentId = $lead->aiSession()
             ->where('canal_id', 'not like', SessionChannelService::createCanalId('ai-assist', '') . '%')
             ->latest('id')
             ->value('agents_id');
 
-        if ($existingAgentId !== null && Agent::where('id', $existingAgentId)->notDeleted()->exists()) {
-            return (int) $existingAgentId;
-        }
-
-        $agentName = $lead->company->get(SalesAssistConfigurationEnum::AGENT_NAME->value)
-            ?? SalesAssistConfigurationEnum::DEFAULT_AGENT_NAME;
-
-        return Agent::where('name', $agentName)
-            ->fromApp($lead->app)
-            ->fromCompany($lead->company)
-            ->notDeleted()
-            ->value('id');
+        return $agentId !== null && Agent::where('id', $agentId)->notDeleted()->exists()
+            ? (int) $agentId
+            : null;
     }
 }
