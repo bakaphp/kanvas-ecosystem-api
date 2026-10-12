@@ -6,7 +6,7 @@ namespace Kanvas\Guild\Customers\Observers;
 
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
-use Kanvas\Guild\Customers\Actions\CreateSocialChannelsAfterPullAction;
+use Kanvas\Guild\Customers\Actions\CreateLeadSocialChannelsAction;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
@@ -104,7 +104,7 @@ class ContactObserver
                 return;
             }
 
-            new CreateSocialChannelsAfterPullAction(
+            new CreateLeadSocialChannelsAction(
                 $lead,
                 $people->app,
                 [],
