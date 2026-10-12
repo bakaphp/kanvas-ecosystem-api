@@ -107,6 +107,7 @@ class SalesManagerAgent extends SystemUserAgent
         $core[] = new ListTemplatesTool()->withContext($app, $company, $user);
         $core[] = new GetTemplateTool()->withContext($app, $company, $user);
         $core[] = new UpdateTemplateTool()->withContext($app, $company, $user);
+        $core = [...$core, ...$this->followThroughTools($agent)];
 
         return $this->mergeRegisteredTools(
             $core,

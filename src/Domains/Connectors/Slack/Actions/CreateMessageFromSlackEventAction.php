@@ -7,14 +7,12 @@ namespace Kanvas\Connectors\Slack\Actions;
 use Kanvas\Connectors\Slack\Client;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Slack\Exceptions\SlackIdentityUnavailableException;
+use Kanvas\Connectors\Slack\Services\SlackConversationChannelService;
 use Kanvas\Connectors\Slack\Services\SlackFileAttachmentService;
 use Kanvas\Connectors\Slack\Services\SlackMarkdownService;
 use Kanvas\Connectors\Slack\Services\SlackUserResolverService;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
-use Kanvas\Social\Channels\Actions\CreateChannelAction;
-use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
@@ -140,35 +138,17 @@ class CreateMessageFromSlackEventAction
     }
 
     /**
-     * A room has no owner outside Slack, so it hangs off the agent's user identity — it is the
-     * agent's room. A DM hangs off the human.
+     * A room or a group DM has no owner outside Slack, so it hangs off the agent's user identity — it
+     * is the agent's room. A DM hangs off the human.
      */
     private function resolveChannel(?Users $human): Channel
     {
-        $receiver = $this->webhookRequest->receiverWebhook;
-        $owner = $human ?? $this->agent->user ?? $receiver->user;
-        $slackChannelId = (string) ($this->event['channel'] ?? '');
-
-        $channel = new CreateChannelAction(
-            new ChannelDto(
-                apps: $receiver->app,
-                companies: $receiver->company,
-                users: $owner,
-                entity_id: $owner->getId(),
-                entity_namespace: Users::class,
-                name: 'Slack ' . $slackChannelId,
-                description: 'Slack conversation with ' . $this->agent->name,
-                slug: SessionChannelService::createChannelSlug(
-                    'slack',
-                    $this->teamId() . '-' . $slackChannelId
-                ),
-            ),
-        )->execute();
-
-        $channel->set(IntelligenceConfigurationEnum::AGENT_CHANNEL_TYPE->value, 'SLACK');
-        $channel->set(ConfigurationEnum::AGENT_ID->value, $this->agent->getId());
-
-        return $channel;
+        return new SlackConversationChannelService()->channelFor(
+            $this->agent,
+            $human ?? $this->agent->user ?? $this->webhookRequest->receiverWebhook->user,
+            $this->teamId(),
+            (string) ($this->event['channel'] ?? ''),
+        );
     }
 
     private function teamId(): string

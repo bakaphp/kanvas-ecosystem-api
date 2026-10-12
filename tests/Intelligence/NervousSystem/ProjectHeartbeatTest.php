@@ -344,4 +344,35 @@ class ProjectHeartbeatTest extends TestCase
             ),
         )->execute();
     }
+
+    public function testNoAttentionWhileATaskWaitsOnABookedWake(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planWithPendingTask($project, $app, $company, $user);
+
+        /** @var Task $task */
+        $task = $plan->tasks()->firstOrFail();
+        $task->status = TaskStatusEnum::WAITING->value;
+        $task->wake_at = now()->addDay();
+        $task->saveQuietly();
+
+        $this->assertFalse(new ProjectHeartbeatService()->needsAttention($project));
+    }
+
+    /** A wait whose wake never fired is idle work, not a plan: the PM is woken to recover it. */
+    public function testAnOverdueWakeNeedsAttention(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planWithPendingTask($project, $app, $company, $user);
+
+        /** @var Task $task */
+        $task = $plan->tasks()->firstOrFail();
+        $task->status = TaskStatusEnum::WAITING->value;
+        $task->wake_at = now()->subMinutes(5);
+        $task->saveQuietly();
+
+        $this->assertTrue(new ProjectHeartbeatService()->needsAttention($project));
+    }
 }

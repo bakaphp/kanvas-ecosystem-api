@@ -72,7 +72,11 @@ What the customer marker actually gates today (add to this list, don't invent a 
 - **`read_my_ledger`** — company-wide cross-entity recall; never on a customer surface.
 - **`ReadFileTool`** and the plan/task file tools — `read_file` reaches any file the company owns, so
   a prospect who talks the agent into a `filesystem_id` reads another prospect's quote. These are
-  **granted per agent from the catalog**, never baseline: only `ProjectManagerAgent` holds them
+  **granted per agent from the catalog**, never universal baseline. The task-level pair
+  (`attach_file_to_task`, `list_task_files`) rides on every `SystemUserAgent` through
+  `followThroughTools()` so a teammate's reply can be filed on the task it answers; they and the other
+  follow-through tools implement `RequiresSystemAgent`, so a customer-facing agent is refused them at
+  grant and at runtime. The plan-level pair stays PM-only; `ProjectManagerAgent` holds it
   intrinsically. Do not add them to `universalTools()` — a baseline addition silently rewrites the
   toolset of every curated handler (it turned a deliberately single-tool agent into a three-tool one
   in `NeuronDynamicSubAgentTest`) and reaches customer-facing agents before any marker can stop it.

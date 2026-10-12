@@ -18,7 +18,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ApproveNervousSystemPl
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemPlanTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CommentOnNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemProjectTool;
@@ -26,20 +25,17 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPla
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSystemMemberTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GrantAgentToolsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlanFilesTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemTaskFilesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadChannelWindowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Supadata\GetTranscriptionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\BuildAdminLinkTool;
@@ -427,14 +423,10 @@ class ProjectManagerAgent extends SystemUserAgent
             new FindAndAddNervousSystemMemberTool(),
             new AddNervousSystemTaskTool(),
             new AssignNervousSystemTaskTool(),
-            new UpdateNervousSystemTaskStatusTool(),
             new ReadNervousSystemPlanActivityTool(),
-            new GetNervousSystemTaskTool(),
             new CommentOnNervousSystemPlanTool(),
             new AttachFileToNervousSystemPlanTool(),
-            new AttachFileToNervousSystemTaskTool(),
             new ListNervousSystemPlanFilesTool(),
-            new ListNervousSystemTaskFilesTool(),
             new DeleteNervousSystemTaskTool(),
             new ReadChannelWindowTool(),
             new GetTranscriptionTool(),
@@ -467,7 +459,7 @@ class ProjectManagerAgent extends SystemUserAgent
                 ->forRequestingUser($requestingHuman);
         }
 
-        $core = [...$core, ...$this->scheduleTools($agent)];
+        $core = [...$core, ...$this->followThroughTools($agent)];
 
         // Opening a project is done FOR a human — the owner is who gets @mentioned when the board
         // can't move — so it keys on the human, not on the PM's own user.
