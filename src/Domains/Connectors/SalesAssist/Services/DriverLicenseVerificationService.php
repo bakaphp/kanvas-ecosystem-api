@@ -90,7 +90,7 @@ class DriverLicenseVerificationService
         if ($entity instanceof People) {
             $name = $entity->name;
         } elseif ($entity instanceof Message) {
-            $entityModel = $entity->entity();
+            $entityModel = $entity->preferredEntity(Lead::class);
             $name = $entityModel instanceof Lead ? $entityModel->people->name : '';
         }
 

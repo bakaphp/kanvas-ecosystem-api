@@ -65,7 +65,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                         'entity' => null,
                     ];
                 }
-                $lead = $message->entity();
+                $lead = $message->preferredEntity(Lead::class);
                 $message->addTag('engagement');
 
                 // Don't process messages from the phone owner
@@ -103,13 +103,13 @@ class AgentChannelResponderActivity extends KanvasActivity
                             'app' => $app,
                             'company' => $channel->company,
                             'channel' => $channel,
-                            'entity_namespace' => is_object($message->entity()) ? get_class($message->entity()) : null,
-                            'entity_id' => $message->entity()->getId(),
+                            'entity_namespace' => is_object($lead) ? get_class($lead) : null,
+                            'entity_id' => $lead->getId(),
                             'canal_id' => $message->message['chat_jid'],
                             'user' => [
-                                'name' => $message->entity()->people->getName(),
-                                'id' => $message->entity()->people->getId(),
-                                'email' => $message->entity()->people->getEmails()->first()?->value,
+                                'name' => $lead->people->getName(),
+                                'id' => $lead->people->getId(),
+                                'email' => $lead->people->getEmails()->first()?->value,
                             ],
                             'agent' => Agent::getById($agentId, $app),
                         ])
