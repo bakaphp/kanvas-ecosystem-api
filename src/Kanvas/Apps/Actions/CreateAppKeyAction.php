@@ -13,6 +13,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
+use Kanvas\Enums\StateEnums;
 
 class CreateAppKeyAction
 {
@@ -33,7 +34,8 @@ class CreateAppKeyAction
             'name' => [
                 'required',
                 Rule::unique('apps_keys')->where(function ($query) use ($data) {
-                    return $query->where('apps_id', $data['apps_id']);
+                    return $query->where('apps_id', $data['apps_id'])
+                        ->where('is_deleted', StateEnums::NO->getValue());
                 }),
             ],
         ]);
