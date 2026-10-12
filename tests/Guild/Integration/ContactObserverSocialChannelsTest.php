@@ -137,6 +137,22 @@ final class ContactObserverSocialChannelsTest extends TestCase
         $this->assertFalse($this->channelOpensForNewContact());
     }
 
+    public function testDoesNothingWhenTheCompanyHasNoAgents(): void
+    {
+        $agentIds = Agent::fromApp(app(Apps::class))
+            ->fromCompany(auth()->user()->getCurrentCompany())
+            ->notDeleted()
+            ->pluck('id');
+
+        Agent::whereIn('id', $agentIds)->update(['is_deleted' => 1]);
+
+        try {
+            $this->assertFalse($this->channelOpensForNewContact());
+        } finally {
+            Agent::whereIn('id', $agentIds)->update(['is_deleted' => 0]);
+        }
+    }
+
     public function testContactWithoutLeadSavesWithoutChannels(): void
     {
         $people = $this->createPerson();
