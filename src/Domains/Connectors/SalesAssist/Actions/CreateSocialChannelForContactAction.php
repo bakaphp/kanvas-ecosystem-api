@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
@@ -24,7 +25,7 @@ class CreateSocialChannelForContactAction
         protected readonly Contact $contact,
         protected readonly Apps $app,
         protected readonly array $params,
-        protected readonly ?Lead $leadOverride = null,
+        protected readonly Lead|People|null $entityOverride = null,
         protected readonly bool $sendPusherNotification = false,
     ) {
     }
@@ -43,9 +44,9 @@ class CreateSocialChannelForContactAction
             ];
         }
 
-        $lead = $this->leadOverride ?? LeadsRepository::getPeopleActiveLead($this->contact->people);
+        $entity = $this->entityOverride ?? LeadsRepository::getPeopleActiveLead($this->contact->people);
 
-        if (! $lead) {
+        if (! $entity) {
             return [
                 'error' => 'No lead associated with this contact',
             ];
@@ -66,7 +67,7 @@ class CreateSocialChannelForContactAction
         $result = $this->createChannelAndSession(
             channelKey: $communicationChannel,
             communicationChannel: $communicationChannel,
-            lead: $lead,
+            entity: $entity,
             agentId: (int) $this->params['agent_id']
         );
 
@@ -85,7 +86,7 @@ class CreateSocialChannelForContactAction
             $whatsappResult = $this->createChannelAndSession(
                 channelKey: 'whatsapp',
                 communicationChannel: $communicationChannel,
-                lead: $lead,
+                entity: $entity,
                 agentId: (int) $this->params['agent_id']
             );
             $isNewChannel = $isNewChannel || $whatsappResult['channel']->wasRecentlyCreated;
@@ -94,8 +95,8 @@ class CreateSocialChannelForContactAction
         }
 
         $crmNoteResult = null;
-        if ($this->leadOverride === null && $isNewChannel) {
-            $crmNoteResult = new CreateCrmNoteAction($lead, $this->app)->execute();
+        if ($this->entityOverride === null && $entity instanceof Lead && $isNewChannel) {
+            $crmNoteResult = new CreateCrmNoteAction($entity, $this->app)->execute();
         }
 
         return [
@@ -109,7 +110,7 @@ class CreateSocialChannelForContactAction
     private function createChannelAndSession(
         string $channelKey,
         string $communicationChannel,
-        Lead $lead,
+        Lead|People $entity,
         int $agentId
     ): array {
         $contactValue = $this->contact->value;
@@ -119,11 +120,11 @@ class CreateSocialChannelForContactAction
 
         $channelDto = ChannelDto::from([
             'apps' => $this->app,
-            'companies' => $lead->company,
-            'users' => $lead->user,
-            'entity_id' => $lead->getId(),
-            'entity_namespace' => Lead::class,
-            'name' => ucwords($communicationChannel) . ' ' . $lead->getId(),
+            'companies' => $entity->company,
+            'users' => $entity->user,
+            'entity_id' => $entity->getId(),
+            'entity_namespace' => $entity::class,
+            'name' => ucwords($communicationChannel) . ' ' . $entity->getId(),
             'slug' => SessionChannelService::createChannelSlug(
                 $channelKey,
                 $contactValue
@@ -136,10 +137,10 @@ class CreateSocialChannelForContactAction
             'agent' => Agent::getById($agentId),
             'channel' => $channel,
             'app' => $this->app,
-            'company' => $lead->company,
-            'entity_id' => $lead->getId(),
-            'entity_namespace' => Lead::class,
-            'user' => $lead->user->toArray(),
+            'company' => $entity->company,
+            'entity_id' => $entity->getId(),
+            'entity_namespace' => $entity::class,
+            'user' => $entity->user->toArray(),
             'canal_id' => SessionChannelService::createCanalId(
                 $communicationChannel,
                 $contactValue

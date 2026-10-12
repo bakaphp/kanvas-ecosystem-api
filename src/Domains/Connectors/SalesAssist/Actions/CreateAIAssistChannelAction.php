@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -22,7 +23,7 @@ use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 class CreateAIAssistChannelAction
 {
     public function __construct(
-        protected readonly Lead $lead,
+        protected readonly Lead|People $entity,
         protected readonly Apps $app,
         protected readonly int $agentId,
     ) {
@@ -33,12 +34,12 @@ class CreateAIAssistChannelAction
      * Agent precedence: explicit workflow param, then the company's configured agent, then the fallback.
      */
     public static function ifEnabled(
-        Lead $lead,
+        Lead|People $entity,
         Apps $app,
         array $params,
         int $fallbackAgentId
     ): ?self {
-        $enabled = (bool) ($lead->company->get(ConfigurationEnum::AI_ASSIST_ENABLED->value)
+        $enabled = (bool) ($entity->company->get(ConfigurationEnum::AI_ASSIST_ENABLED->value)
             ?? $app->get(ConfigurationEnum::AI_ASSIST_ENABLED->value)
             ?? false);
 
@@ -47,22 +48,22 @@ class CreateAIAssistChannelAction
         }
 
         $agentId = $params['ai_assist_agent_id']
-            ?? $lead->company->get(ConfigurationEnum::AI_ASSIST_AGENT_ID->value)
+            ?? $entity->company->get(ConfigurationEnum::AI_ASSIST_AGENT_ID->value)
             ?? $fallbackAgentId;
 
-        return new self($lead, $app, (int) $agentId);
+        return new self($entity, $app, (int) $agentId);
     }
 
     public function execute(): array
     {
-        $slug = 'ai-assist-' . $this->lead->getId();
+        $slug = $this->slug();
 
         $channelDto = ChannelDto::from([
             'apps' => $this->app,
-            'companies' => $this->lead->company,
-            'users' => $this->lead->user,
-            'entity_id' => $this->lead->getId(),
-            'entity_namespace' => Lead::class,
+            'companies' => $this->entity->company,
+            'users' => $this->entity->user,
+            'entity_id' => $this->entity->getId(),
+            'entity_namespace' => $this->entity::class,
             'name' => ChannelNameEnum::AI_ASSIST->value,
             'slug' => $slug,
         ]);
@@ -79,11 +80,11 @@ class CreateAIAssistChannelAction
             'agent' => Agent::getById($this->agentId),
             'channel' => $channel,
             'app' => $this->app,
-            'company' => $this->lead->company,
-            'entity_id' => $this->lead->getId(),
-            'entity_namespace' => Lead::class,
-            'user' => $this->lead->user->toArray(),
-            'canal_id' => 'ai-assist-' . $this->lead->getId(),
+            'company' => $this->entity->company,
+            'entity_id' => $this->entity->getId(),
+            'entity_namespace' => $this->entity::class,
+            'user' => $this->entity->user->toArray(),
+            'canal_id' => $slug,
         ]);
 
         $session = new CreateSessionAction($sessionDto)->execute();
@@ -96,23 +97,34 @@ class CreateAIAssistChannelAction
     }
 
     /**
+     * Lead and People ids overlap, and the session uuid and the chat deep-link are both built from
+     * this slug alone — so a People channel cannot reuse the lead's "ai-assist-{id}".
+     */
+    private function slug(): string
+    {
+        return $this->entity instanceof People
+            ? 'ai-assist-people-' . $this->entity->getId()
+            : 'ai-assist-' . $this->entity->getId();
+    }
+
+    /**
      * Seed the freshly-created channel with an intro message so the user knows what this channel is for.
      * Company config wins over app config; if neither is set, nothing is posted.
      */
     private function postGreetingMessage(Channel $channel): void
     {
-        $greeting = $this->lead->company->get(ConfigurationEnum::AI_ASSIST_GREETING_MSG->value)
+        $greeting = $this->entity->company->get(ConfigurationEnum::AI_ASSIST_GREETING_MSG->value)
             ?? $this->app->get(ConfigurationEnum::AI_ASSIST_GREETING_MSG->value);
 
         if (empty($greeting)) {
             return;
         }
 
-        $user = $this->lead->company->getAiAgentUser() ?? $this->lead->user;
+        $user = $this->entity->company->getAiAgentUser() ?? $this->entity->user;
 
         $messageInput = new MessageInput(
             app: $this->app,
-            company: $this->lead->company,
+            company: $this->entity->company,
             user: $user,
             type: MessageTypeService::getOrCreate($this->app, 'ai-assist'),
             message: AiChatMessagePayload::from([
@@ -130,10 +142,10 @@ class CreateAIAssistChannelAction
         $message = $createMessage->execute();
 
         $channel->addMessage($message);
-        $message->addEntity($this->lead);
+        $message->addEntity($this->entity);
 
-        if ($this->lead->people !== null) {
-            $message->addEntity($this->lead->people);
+        if ($this->entity instanceof Lead && $this->entity->people !== null) {
+            $message->addEntity($this->entity->people);
         }
     }
 }

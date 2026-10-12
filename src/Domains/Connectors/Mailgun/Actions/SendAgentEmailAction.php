@@ -81,7 +81,9 @@ class SendAgentEmailAction
         if ($entity instanceof Lead) {
             $subject = $entity->get('title_email_follow_up');
         } elseif ($entity instanceof People) {
-            $subject = LeadsRepository::getPeopleActiveLead($entity)?->get('title_email_follow_up');
+            // A person's thread can still be anchored on their active lead.
+            $subject = $entity->get('title_email_follow_up')
+                ?? LeadsRepository::getPeopleActiveLead($entity)?->get('title_email_follow_up');
         }
 
         // Prefer the thread anchor (lead's first-touch subject), then any frozen inbound subject.
@@ -89,11 +91,11 @@ class SendAgentEmailAction
 
         if ($threadSubject === '') {
             // No anchor and no stored subject anywhere → derive a fresh subject from the body.
-            // This is a brand-new thread, so no "Re:" prefix; anchor it on the lead so later
-            // follow-ups thread under it.
+            // This is a brand-new thread, so no "Re:" prefix; anchor it on the lead or person so
+            // later follow-ups thread under it.
             $subject = new GenerateEmailSubjectAction($content)->execute();
 
-            if ($entity instanceof Lead) {
+            if ($entity instanceof Lead || $entity instanceof People) {
                 $entity->set('title_email_follow_up', $subject);
             }
 
