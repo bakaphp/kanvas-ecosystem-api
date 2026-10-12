@@ -25,7 +25,8 @@ class PdfService
         UserInterface $user,
         string $html,
         ?string $fileName = null,
-        array $options = []
+        array $options = [],
+        ?CompanyInterface $company = null
     ): ModelsFilesystem {
         $fileName = $fileName ?? uniqid('pdf_', true) . '.pdf';
 
@@ -53,7 +54,11 @@ class PdfService
         try {
             $snappy->generateFromHtml($html, $tempFilePath);
 
-            return new FilesystemServices($app)->upload(
+            // The file must belong to the record's tenant. Without an explicit company the upload
+            // falls back to the uploader's current company, which is wrong whenever a cross-company
+            // user (staff, an agent user) acts on another company's record: the file row is saved
+            // under their company and the entity's `files` query filters it out.
+            return new FilesystemServices($app, $company)->upload(
                 new UploadedFile(
                     path: $tempFilePath,
                     originalName: $fileName,
@@ -94,7 +99,8 @@ class PdfService
             app: $app,
             user: $user,
             html: $renderTemplateHtml,
-            options: $options
+            options: $options,
+            company: $entity->company ?? null
         );
     }
 
@@ -162,7 +168,8 @@ class PdfService
             user: $user,
             html: $html,
             fileName: $fileName,
-            options: $options
+            options: $options,
+            company: $company
         );
     }
 }

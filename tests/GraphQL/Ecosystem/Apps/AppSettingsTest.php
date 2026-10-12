@@ -116,6 +116,35 @@ class AppSettingsTest extends TestCase
         ]);
     }
 
+    public function testSetAppSettingPreservesNumericStringPrecision(): void
+    {
+        $app = app(Apps::class);
+        $key = 'TEST_OAUTH_CLIENT_ID_PRECISION';
+        $value = '474083765751.10750363865122';
+
+        try {
+            $this->graphQL('
+                mutation($input: ModuleConfigInput!) {
+                    setAppSetting(input: $input)
+                }
+            ', [
+                'input' => [
+                    'key' => $key,
+                    'value' => $value,
+                    'entity_uuid' => $app->uuid,
+                    'public' => false,
+                ],
+            ], [], [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ])->assertJson(['data' => ['setAppSetting' => true]]);
+
+            $this->assertSame($value, $app->get($key));
+            $this->assertSame($value, $app->getAllSettings(fromRedis: false)[$key]);
+        } finally {
+            $app->del($key);
+        }
+    }
+
     public function testDeprecatedAdminAppSettings()
     {
         $app = app(Apps::class);
