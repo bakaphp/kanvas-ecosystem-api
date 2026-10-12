@@ -26,7 +26,7 @@ use Tests\TestCase;
  *
  * The channel assertion is the regression guard from #11228: the arm used to
  * resolve the incoming $entity, which on a sync pull is a stub Lead with id 0,
- * so CreateSocialChannelsAfterPullAction hit its `id === 0` guard and ReyRey
+ * so CreateLeadSocialChannelsAction hit its `id === 0` guard and ReyRey
  * dealers never got their SMS/email channels. That fix is preserved through the
  * rewrite that replaced findReynoldsLead() with FindLeadCandidatesAction, so the
  * guard has to keep holding against a different resolution path.
