@@ -72,8 +72,9 @@ pending turn rather than adding a second one. `is_un_response` alone cannot do t
 closes once the winning turn's model call has returned.
 
 **A `21610` from Twilio is an opt-out, not a fault.** The recipient texted STOP and Twilio
-auto-unsubscribed them; `AgentChannelResponderAction` swallows that code, records a lead note and
-opts out the phone contacts rather than retrying 3× into Sentry.
+auto-unsubscribed them; `AgentChannelResponderAction` swallows that code, records a note on the lead
+(or on the person, for a People channel) and opts out the phone contacts rather than retrying 3× into
+Sentry.
 
 **Outbound delivery status is a separate webhook.** `ProcessTwilioMessageStatusWebhookJob` handles
 carrier failures and controlled retries; it does not touch bursts.

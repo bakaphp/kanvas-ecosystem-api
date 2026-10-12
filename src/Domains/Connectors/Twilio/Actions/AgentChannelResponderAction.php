@@ -7,6 +7,8 @@ namespace Kanvas\Connectors\Twilio\Actions;
 use Baka\Support\Str;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Actions\RecordPeopleNoteAction;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
@@ -26,6 +28,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
     protected string $messageTypeVerb = 'twilio-sms';
     protected string $communicationChannel = 'sms';
+    protected bool $filesReplyOnPeopleAndLeadChannels = true;
 
     #[Override]
     public function execute(array $params = []): array
@@ -97,17 +100,23 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
     private function recordOptOutNote(string $to, string $body): void
     {
-        $entity = $this->message->entity(Lead::class);
+        $entity = $this->message->preferredEntity(Lead::class);
+        $note = "SMS not delivered: {$to} has opted out of messages (replied STOP). Attempted reply: \"{$body}\"";
+
+        if ($entity instanceof People) {
+            $entity->optOutPhoneContacts();
+            new RecordPeopleNoteAction($entity)->execute($note, 'sms-opt-out');
+
+            return;
+        }
+
         if (! $entity instanceof Lead) {
             return;
         }
 
         $entity->people?->optOutPhoneContacts();
 
-        new RecordLeadNoteAction($entity)->execute(
-            "SMS not delivered: {$to} has opted out of messages (replied STOP). Attempted reply: \"{$body}\"",
-            'sms-opt-out',
-        );
+        new RecordLeadNoteAction($entity)->execute($note, 'sms-opt-out');
     }
 
     protected function dispatchMessage(string $to, string $from, string $body): void

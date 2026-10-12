@@ -270,6 +270,12 @@ Connectors set two protected props on their class:
 - `$messageTypeVerb` — e.g. `'whatsapp'`, `'mailgun-email'`, `'respondio-text'`, `'twilio-sms'` (used by `createMessage()` for the outbound's `MessageType`)
 - `$communicationChannel` — e.g. `'whatsapp'`, `'email'`, `'sms'`, `'respondio'` (written to the outbound message's custom field)
 
+Opt-in: `$filesReplyOnPeopleAndLeadChannels = true` (Twilio, Mailgun). The person and their lead each
+own a channel for the same phone/address — same slug, told apart only by owner — and the reply is
+added to both, not just the one the turn ran on. A message with no lead of its own (a People channel)
+goes to the person's **last** lead. It only adds the message to those channels: the derived lead is
+not linked as an entity, so `preferredEntity()` on the reply still returns the person.
+
 ## Adding a new backend (e.g. Anthropic-direct)
 
 1. Add a new file `Actions/Chat/RunAnthropicChatAction.php` taking `(Agent $agent, ?Session $session, string $message, Users $user, ...)` and returning `string`.

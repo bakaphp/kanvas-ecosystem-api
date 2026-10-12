@@ -7,6 +7,8 @@ namespace Tests\Connectors\Integration\Twilio;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\AgentChannelResponderAction;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
@@ -49,6 +51,43 @@ class AgentChannelResponderOptOutTest extends TestCase
         $this->assertTrue($noteRecorded, 'an opt-out note should be recorded on the lead');
     }
 
+    /**
+     * A People channel has no lead to hang the note on: the note goes on the person and their
+     * phones are opted out all the same.
+     */
+    public function testUnsubscribedRecipientOnAPeopleChannelRecordsPeopleNote(): void
+    {
+        ['lead' => $lead, 'message' => $message, 'channel' => $channel, 'agent' => $agent] = $this->setupLeadMessageChannelAgent(asPeople: true);
+        $people = $lead->people;
+        $people->contacts()->create([
+            'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
+            'value' => '17073383454',
+            'weight' => 0,
+            'is_opt_out' => 0,
+        ]);
+
+        $action = new class ($channel, $message, $agent, null) extends AgentChannelResponderAction {
+            protected function dispatchMessage(string $to, string $from, string $body): void
+            {
+                throw new RestException('Unable to create record: Attempt to send to unsubscribed recipient', 21610, 400);
+            }
+        };
+
+        new ReflectionMethod($action, 'sendResponse')
+            ->invoke($action, '+17073383454', '+17076342748', 'Hi there, following up on your vehicle.');
+
+        $this->assertTrue(
+            Message::query()
+                ->whereHas('appModuleMessage', fn ($q) => $q->where('system_modules', People::class)->where('entity_id', $people->getId()))
+                ->where('message', 'like', '%opted out of messages%')
+                ->exists(),
+            'an opt-out note should be recorded on the person'
+        );
+        $this->assertTrue(
+            (bool) $people->contacts()->where('contacts_types_id', ContactTypeEnum::CELLPHONE->value)->firstOrFail()->is_opt_out
+        );
+    }
+
     public function testOtherTwilioErrorsAreRethrown(): void
     {
         $action = new class () extends AgentChannelResponderAction {
@@ -69,7 +108,7 @@ class AgentChannelResponderOptOutTest extends TestCase
             ->invoke($action, '+17073383454', '+17076342748', 'reply body');
     }
 
-    private function setupLeadMessageChannelAgent(): array
+    private function setupLeadMessageChannelAgent(bool $asPeople = false): array
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -89,6 +128,8 @@ class AgentChannelResponderOptOutTest extends TestCase
             ['name' => 'Leads', 'slug' => 'leads']
         );
 
+        $entity = $asPeople ? $lead->people : $lead;
+
         $message = Message::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
@@ -104,8 +145,8 @@ class AgentChannelResponderOptOutTest extends TestCase
             'message_types_id' => $messageType->getId(),
             'apps_id' => $app->getId(),
             'companies_id' => $company->getId(),
-            'system_modules' => Lead::class,
-            'entity_id' => $lead->getId(),
+            'system_modules' => $entity::class,
+            'entity_id' => $entity->getId(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
