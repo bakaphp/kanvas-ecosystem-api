@@ -6,9 +6,13 @@ namespace Tests\Ecosystem\Integration\Filesystem;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Templates\Actions\CreateTemplateAction;
+use Kanvas\Templates\DataTransferObject\TemplateInput;
 use Tests\TestCase;
 
 final class PdfServiceTest extends TestCase
@@ -73,6 +77,77 @@ final class PdfServiceTest extends TestCase
         }
 
         $this->assertSame([], array_diff($this->tempPdfs(), $before));
+    }
+
+    public function testHtmlToPdfStoresFileUnderGivenCompanyNotUploaderCompany(): void
+    {
+        $app = app(Apps::class);
+        $otherCompany = $this->makeOtherCompany($app);
+
+        $filesystem = PdfService::htmlToPdf(
+            app: $app,
+            user: Auth::user(),
+            html: '<p>Other tenant</p>',
+            company: $otherCompany
+        );
+
+        try {
+            $this->assertSame($otherCompany->getId(), (int) $filesystem->companies_id);
+            $this->assertNotSame(Auth::user()->getCurrentCompany()->getId(), (int) $filesystem->companies_id);
+        } finally {
+            new FilesystemServices($app)->delete($filesystem);
+        }
+    }
+
+    /**
+     * A credit-app PDF generated for a dealership's message by a staff user whose current company is
+     * another dealership was saved under the staff user's company, so the message's `files` query
+     * (filtered by the message's companies_id) never returned it.
+     */
+    public function testGeneratePdfFromTemplateStoresFileUnderEntityCompany(): void
+    {
+        $app = app(Apps::class);
+        $otherCompany = $this->makeOtherCompany($app);
+
+        new CreateTemplateAction(
+            TemplateInput::from([
+                'app' => $app,
+                'name' => 'pdf-service-entity-company-test',
+                'template' => '<p>Message {{ $entity->getId() }}</p>',
+            ])
+        )->execute();
+
+        $message = Message::factory()->withCompanyId($otherCompany->getId())->create();
+
+        $filesystem = PdfService::generatePdfFromTemplate(
+            $app,
+            Auth::user(),
+            'pdf-service-entity-company-test',
+            $message
+        );
+
+        try {
+            $message->addFile($filesystem, 'test-pdf');
+
+            $this->assertSame($otherCompany->getId(), (int) $filesystem->companies_id);
+            $this->assertSame(
+                [$filesystem->url],
+                $message->getFilesQueryBuilder()->pluck('url')->all()
+            );
+        } finally {
+            new FilesystemServices($app)->delete($filesystem);
+        }
+    }
+
+    private function makeOtherCompany(Apps $app): Companies
+    {
+        $company = Companies::factory()->create([
+            'users_id' => Auth::id(),
+            'is_active' => 1,
+        ]);
+        $company->associateApp($app);
+
+        return $company;
     }
 
     /**
