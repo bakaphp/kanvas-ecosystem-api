@@ -28,6 +28,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
     protected string $messageTypeVerb = 'twilio-sms';
     protected string $communicationChannel = 'sms';
+    protected bool $filesReplyOnPeopleAndLeadChannels = true;
 
     #[Override]
     public function execute(array $params = []): array
