@@ -171,6 +171,8 @@ class AgentReachOutAction
             return ['message' => 'All channels failed', 'errors' => $errors];
         }
 
+        $this->lead->moveToNextPipelineStage();
+
         if ($scheduledChannels !== []) {
             $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_SCHEDULED);
             $this->lead->set(AgentReachOutConfigEnum::CHANNELS_SENT->value, []);
