@@ -128,7 +128,7 @@ class CreateAgentRunPlanAction
         )->execute();
 
         /** @var Task $task */
-        $task = $plan->tasks()->firstOrFail();
+        $task = $plan->tasks->first();
         // Not on the DTO: TaskData has no agent, and the board's "whose work is this" column reads it.
         $task->agent_id = $this->agent->getId();
         // Born in_progress, so the transition never minted its attempt; the outcome row needs one.
