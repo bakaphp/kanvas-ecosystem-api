@@ -19,6 +19,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
     protected string $messageTypeVerb = 'mailgun-email';
     protected string $communicationChannel = 'email';
     protected bool $supportsHumanApproval = true;
+    protected bool $filesReplyOnPeopleAndLeadChannels = true;
 
     #[Override]
     public function execute(array $params = []): array

@@ -6,10 +6,12 @@ namespace Kanvas\Intelligence\Agents\Actions;
 
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
@@ -19,6 +21,8 @@ use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
@@ -50,6 +54,7 @@ class BaseAgentChannelReplyAction
     protected string $communicationChannel = '';
     protected bool $supportsHumanApproval = false;
     protected bool $respectsLeadAiMode = true;
+    protected bool $filesReplyOnPeopleAndLeadChannels = false;
 
     public function __construct(
         protected Channel $channel,
@@ -181,6 +186,10 @@ class BaseAgentChannelReplyAction
         );
         $channel->addMessage($newMessage);
 
+        if ($this->filesReplyOnPeopleAndLeadChannels) {
+            $this->fileReplyOnPeopleAndLeadChannels($newMessage, $channel, $entities);
+        }
+
         if ($lead instanceof Lead) {
             new MarkLeadMessagesAsRespondedAction($lead, $newMessage)->execute();
             new NotifyLeadStakeholdersService($lead)->onAgentReply($newMessage, isHuman: false);
@@ -211,6 +220,43 @@ class BaseAgentChannelReplyAction
         }
 
         return $newMessage;
+    }
+
+    /**
+     * The person and their lead each own a channel for the same phone or address, told apart only
+     * by owner — the slug is shared. The reply was added to whichever one the turn ran on; this
+     * files it on the others. A message with no lead of its own goes to the person's last lead.
+     *
+     * @param Collection<int, Model> $entities
+     */
+    private function fileReplyOnPeopleAndLeadChannels(Message $reply, Channel $source, Collection $entities): void
+    {
+        $lead = $entities->first(fn (Model $entity) => $entity instanceof Lead);
+        $people = $entities->first(fn (Model $entity) => $entity instanceof People) ?? $lead?->people;
+
+        if (! $people instanceof People) {
+            return;
+        }
+
+        $lead ??= LeadsRepository::getPeopleLastLead($people);
+
+        foreach (array_filter([$people, $lead]) as $owner) {
+            $ownerChannel = new CreateChannelAction(
+                ChannelDto::from([
+                    'apps' => $reply->app,
+                    'companies' => $reply->company,
+                    'users' => $owner->user ?? $reply->user,
+                    'entity_id' => $owner->getId(),
+                    'entity_namespace' => $owner::class,
+                    'name' => ucwords($this->communicationChannel) . ' ' . $owner->getId(),
+                    'slug' => $source->slug,
+                ])
+            )->execute();
+
+            if (! $ownerChannel->is($source)) {
+                $ownerChannel->addMessage($reply);
+            }
+        }
     }
 
     /**
