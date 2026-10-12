@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
+use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Silber\Bouncer\BouncerFacade as Bouncer;
+use Tests\Traits\AssertsIsDefaultOrdering;
 
 class OrderStatusCrudTest extends OrderBase
 {
+    use AssertsIsDefaultOrdering;
+
     public function setUp(): void
     {
         parent::setUp();
@@ -300,5 +304,99 @@ class OrderStatusCrudTest extends OrderBase
         $data = $response->json('data.createOrderStatus');
         $this->assertEquals('Second Status', $data['name']);
         $this->assertEquals(2, $data['sequence']);
+    }
+
+    public function testOrderStatusOrdersByIsDefault(): void
+    {
+        [$defaultId, $nonDefaultId] = $this->createDefaultThenNonDefaultStatusIds();
+
+        $query = '
+            query($ids: Mixed!, $order: SortOrder!) {
+                orderStatus(
+                    first: 10
+                    where: {column: ID, operator: IN, value: $ids}
+                    orderBy: [{column: IS_DEFAULT, order: $order}]
+                ) {
+                    data { id is_default }
+                }
+            }
+        ';
+
+        $this->assertOrdersByIsDefault(
+            $query,
+            'data.orderStatus.data',
+            $defaultId,
+            $nonDefaultId,
+            $this->orderStatusHeaders()
+        );
+    }
+
+    public function testOrderStatusFiltersByIsDefault(): void
+    {
+        [$defaultId, $nonDefaultId] = $this->createDefaultThenNonDefaultStatusIds();
+
+        $query = '
+            query($ids: Mixed!, $value: Mixed!) {
+                orderStatus(
+                    first: 10
+                    where: {AND: [
+                        {column: ID, operator: IN, value: $ids}
+                        {column: IS_DEFAULT, operator: EQ, value: $value}
+                    ]}
+                ) {
+                    data { id is_default }
+                }
+            }
+        ';
+
+        $this->assertFiltersByIsDefault(
+            $query,
+            'data.orderStatus.data',
+            $defaultId,
+            $nonDefaultId,
+            $this->orderStatusHeaders()
+        );
+    }
+
+    /**
+     * @return array{0: int, 1: int} [default status id, non-default status id created after it]
+     */
+    private function createDefaultThenNonDefaultStatusIds(): array
+    {
+        $suffix = Str::uuid()->toString();
+        $orderType = OrderTypes::create([
+            'name' => 'is-default-sort-type-' . $suffix,
+            'apps_id' => $this->apps->id,
+            'companies_id' => $this->company->id,
+        ]);
+
+        $default = OrderStatus::create([
+            'order_types_id' => $orderType->id,
+            'apps_id' => $this->apps->id,
+            'slug' => 'default-sort-' . $suffix,
+            'name' => 'Default Sort ' . $suffix,
+            'is_default' => true,
+            'is_final' => false,
+            'sequence' => 1,
+        ]);
+        $nonDefault = OrderStatus::create([
+            'order_types_id' => $orderType->id,
+            'apps_id' => $this->apps->id,
+            'slug' => 'plain-sort-' . $suffix,
+            'name' => 'Plain Sort ' . $suffix,
+            'is_default' => false,
+            'is_final' => false,
+            'sequence' => 2,
+        ]);
+
+        return [$default->id, $nonDefault->id];
+    }
+
+    private function orderStatusHeaders(): array
+    {
+        return [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $this->apps->key,
+        ];
     }
 }

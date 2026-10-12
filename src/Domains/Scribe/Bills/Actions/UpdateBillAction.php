@@ -15,6 +15,7 @@ use Kanvas\Scribe\Bills\Exceptions\InvalidBillTransitionException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillLine;
 use Kanvas\Scribe\Bills\Models\BillTaxLine;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class UpdateBillAction
 {
@@ -35,7 +36,7 @@ class UpdateBillAction
             );
         }
 
-        return DB::connection('accounting')->transaction(function (): Bill {
+        $bill = DB::connection('accounting')->transaction(function (): Bill {
             $bill = $this->bill;
             [$totals, $baseTotals] = $this->computeTotals();
             $fxRate = $this->data->fx_rate_to_base;
@@ -138,6 +139,16 @@ class UpdateBillAction
 
             return $bill;
         });
+
+        $bill->fireWorkflowAfterCommit(
+            WorkflowEnum::UPDATED->value,
+            [
+                'app' => $bill->app,
+                'entity' => 'bill',
+            ]
+        );
+
+        return $bill;
     }
 
     /**

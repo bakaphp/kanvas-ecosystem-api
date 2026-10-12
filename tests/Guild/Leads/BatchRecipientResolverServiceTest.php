@@ -4,16 +4,22 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Leads;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\BatchRecipientResolverService;
 use Tests\TestCase;
 
 class BatchRecipientResolverServiceTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem'];
+
     private function freshLead(Companies $company, ?int $peopleId = null): Lead
     {
         $factory = Lead::factory()
@@ -112,5 +118,61 @@ class BatchRecipientResolverServiceTest extends TestCase
         $result = new BatchRecipientResolverService()->resolve(new Collection([$lead]), 'email');
 
         $this->assertSame(1, $result['eligible_count']);
+    }
+
+    private function freshPerson(Companies $company): People
+    {
+        $person = People::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(auth()->user()->getId())
+            ->create();
+        $person->contacts()->delete();
+
+        return $person;
+    }
+
+    public function testResolvePeopleExcludesDoNotContactAndNoEmail(): void
+    {
+        $company = Companies::factory()->create();
+
+        $eligible = $this->freshPerson($company);
+        $eligible->addEmail('reachable@example.com');
+
+        $doNotContact = $this->freshPerson($company);
+        $doNotContact->addEmail('blocked@example.com');
+        $doNotContact->set('do_not_contact', 1);
+
+        $noContact = $this->freshPerson($company);
+
+        $result = new BatchRecipientResolverService()->resolvePeople(
+            new Collection([$eligible, $doNotContact, $noContact]),
+            'email',
+        );
+
+        $this->assertSame(3, $result['total_candidates']);
+        $this->assertSame(1, $result['eligible_count']);
+        $this->assertSame($eligible->getId(), $result['eligible'][0]['people_id']);
+        $this->assertNull($result['eligible'][0]['lead_id']);
+
+        $excludedIds = array_column($result['excluded'], 'people_id');
+        $this->assertContains($doNotContact->getId(), $excludedIds);
+        $this->assertContains($noContact->getId(), $excludedIds);
+    }
+
+    public function testResolvePeopleDedupsRepeatedIds(): void
+    {
+        $company = Companies::factory()->create();
+
+        $person = $this->freshPerson($company);
+        $person->addEmail('reachable@example.com');
+
+        $result = new BatchRecipientResolverService()->resolvePeople(
+            new Collection([$person, $person]),
+            'email',
+        );
+
+        $this->assertSame(1, $result['eligible_count']);
+        $this->assertSame('duplicate', $result['excluded'][0]['compliance_status']);
     }
 }

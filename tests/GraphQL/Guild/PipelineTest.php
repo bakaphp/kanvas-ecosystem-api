@@ -4,12 +4,19 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Testing\TestResponse;
 use Kanvas\Guild\Leads\Models\Lead;
 use Tests\TestCase;
+use Tests\Traits\AssertsIsDefaultOrdering;
 
 class PipelineTest extends TestCase
 {
+    use AssertsIsDefaultOrdering;
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'crm'];
+
     public function testGetPipeline(): void
     {
         $this->graphQL('
@@ -714,5 +721,43 @@ class PipelineTest extends TestCase
                     'restorePipelineStage' => true,
                 ],
             ]);
+    }
+
+    public function testPipelinesCanBeOrderedByIsDefault(): void
+    {
+        $defaultId = $this->createPipelineWithDefault('Pipeline Default ' . uniqid(), true);
+        $regularId = $this->createPipelineWithDefault('Pipeline Regular ' . uniqid(), false);
+
+        $this->assertOrdersByIsDefault(
+            'query($ids: Mixed!, $order: SortOrder!) {
+                pipelines(
+                    where: { column: ID, operator: IN, value: $ids }
+                    orderBy: [{ column: IS_DEFAULT, order: $order }]
+                ) {
+                    data { id is_default }
+                }
+            }',
+            'data.pipelines.data',
+            $defaultId,
+            $regularId
+        );
+    }
+
+    protected function createPipelineWithDefault(string $name, bool $isDefault): int
+    {
+        return (int) $this->graphQL('
+            mutation($input: PipelineInput!) {
+                createPipeline(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => [
+                'name' => $name,
+                'weight' => 0,
+                'is_default' => $isDefault,
+                'stages' => [],
+            ],
+        ])->assertGraphQLErrorFree()->json('data.createPipeline.id');
     }
 }

@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class PeopleTypeCrudTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'crm'];
+
     public function testCreatePeopleType(): void
     {
         $input = [
@@ -211,5 +216,42 @@ class PeopleTypeCrudTest extends TestCase
             }
         ', ['slug' => $typeSlug])
         ->assertSuccessful();
+    }
+
+    public function testPeopleTypesCanBeOrderedByIsDefault(): void
+    {
+        $this->createPeopleType('PeopleTypeDefault-' . fake()->unique()->uuid(), true);
+        $this->createPeopleType('PeopleTypeRegular-' . fake()->unique()->uuid(), false);
+
+        $query = '
+            query peopleTypes($orderBy: [QueryPeopleTypesOrderByOrderByClause!]) {
+                peopleTypes(orderBy: $orderBy) {
+                    data {
+                        name
+                        is_default
+                    }
+                }
+            }
+        ';
+
+        $descending = $this->graphQL($query, [
+            'orderBy' => [['column' => 'IS_DEFAULT', 'order' => 'DESC']],
+        ])->assertOk()->json('data.peopleTypes.data');
+
+        $ascending = $this->graphQL($query, [
+            'orderBy' => [['column' => 'IS_DEFAULT', 'order' => 'ASC']],
+        ])->assertOk()->json('data.peopleTypes.data');
+
+        $this->assertTrue($descending[0]['is_default']);
+        $this->assertFalse($ascending[0]['is_default']);
+    }
+
+    protected function createPeopleType(string $name, bool $isDefault): void
+    {
+        $this->graphQL('
+            mutation($input: PeopleTypeInput!) {
+                createPeopleType(input: $input) { id }
+            }
+        ', ['input' => ['name' => $name, 'is_default' => $isDefault]])->assertSuccessful();
     }
 }

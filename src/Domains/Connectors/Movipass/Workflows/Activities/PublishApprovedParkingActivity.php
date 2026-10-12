@@ -42,8 +42,10 @@ class PublishApprovedParkingActivity extends KanvasActivity implements WorkflowA
                     ]);
                 }
 
+                $publish = new PublishParkingApplicationAction($lead);
+
                 try {
-                    $product = new PublishParkingApplicationAction($lead)->execute();
+                    $product = $publish->execute();
                 } catch (ValidationException $e) {
                     Field::STATUS_REASON->writeTo($lead, $e->getMessage());
 
@@ -58,6 +60,7 @@ class PublishApprovedParkingActivity extends KanvasActivity implements WorkflowA
                     'lead' => $lead->getId(),
                     'status' => 'published',
                     'product_id' => $product->getId(),
+                    'ignored_fields' => $publish->ignoredFields(),
                 ];
             },
             company: $lead->company,

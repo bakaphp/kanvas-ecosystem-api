@@ -71,7 +71,7 @@ configuration **on that receiver**, as custom fields next to `approval_mode`:
 The invite role is a role **name** resolved in the app's Bouncer scope at approval time, before the
 Company is created, so a misspelled or not-yet-seeded role refuses the approval (`Cannot approve: role
 … does not exist`) instead of leaving a half-provisioned Company. Parking receivers get
-`parking_manager` from the rules command; run `kanvas:movipass-setup-roles {app}` first so it exists.
+`Parqueos` (`MovipassRolesEnum::PARKING_MANAGER`) from the rules command; run `kanvas:movipass-setup-roles {app}` first so it exists and holds the parking abilities.
 
 Values are a JSON list or a comma-separated string; an empty list falls back to the default. So a
 receiver for a different kind of account (a parking company, a fleet) declares its own keys with no

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTypes;
@@ -170,5 +171,72 @@ class OrderTypeStatusesTest extends TestCase
         $statuses = $response->json('data.orderTypes.data.0.statuses.data');
         $this->assertNotEmpty($statuses);
         $this->assertEquals('last', $statuses[0]['slug']);
+    }
+
+    public function testOrderTypeStatusesOrderByIsDefault(): void
+    {
+        $suffix = Str::uuid()->toString();
+        $orderType = OrderTypes::create([
+            'name' => 'is-default-nested-type-' . $suffix,
+            'apps_id' => $this->apps->id,
+            'companies_id' => $this->company->id,
+        ]);
+
+        OrderStatus::create([
+            'order_types_id' => $orderType->id,
+            'apps_id' => $this->apps->id,
+            'slug' => 'default-nested-' . $suffix,
+            'name' => 'Default Nested ' . $suffix,
+            'is_default' => true,
+            'is_final' => false,
+            'sequence' => 1,
+        ]);
+        OrderStatus::create([
+            'order_types_id' => $orderType->id,
+            'apps_id' => $this->apps->id,
+            'slug' => 'plain-nested-' . $suffix,
+            'name' => 'Plain Nested ' . $suffix,
+            'is_default' => false,
+            'is_final' => false,
+            'sequence' => 2,
+        ]);
+
+        $query = '
+            query($where: QueryOrderTypesWhereWhereConditions!, $order: SortOrder!) {
+                orderTypes(where: $where) {
+                    data {
+                        id
+                        statuses(orderBy: { column: IS_DEFAULT, order: $order }, first: 100) {
+                            data { is_default }
+                        }
+                    }
+                }
+            }
+        ';
+        $where = ['column' => 'ID', 'operator' => 'EQ', 'value' => $orderType->id];
+
+        $descending = array_column(
+            $this->graphQL($query, ['where' => $where, 'order' => 'DESC'])
+                ->assertSuccessful()
+                ->json('data.orderTypes.data.0.statuses.data'),
+            'is_default'
+        );
+        $ascending = array_column(
+            $this->graphQL($query, ['where' => $where, 'order' => 'ASC'])
+                ->assertSuccessful()
+                ->json('data.orderTypes.data.0.statuses.data'),
+            'is_default'
+        );
+
+        $this->assertTrue($descending[0]);
+        $this->assertFalse($ascending[0]);
+
+        $expectedDescending = $descending;
+        rsort($expectedDescending);
+        $this->assertSame($expectedDescending, $descending);
+
+        $expectedAscending = $ascending;
+        sort($expectedAscending);
+        $this->assertSame($expectedAscending, $ascending);
     }
 }

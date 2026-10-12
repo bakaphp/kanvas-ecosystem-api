@@ -32,7 +32,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
     #[Override]
     public function execute(array $params = []): array
     {
-        $entity = $this->message->entity();
+        $entity = $this->message->preferredEntity(Lead::class);
         if ($entity === null) {
             throw new ValidationException('No entity found');
         }
@@ -99,7 +99,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
     private function recordOptOutNote(string $to, string $body): void
     {
-        $entity = $this->message->entity();
+        $entity = $this->message->preferredEntity(Lead::class);
         $note = "SMS not delivered: {$to} has opted out of messages (replied STOP). Attempted reply: \"{$body}\"";
 
         if ($entity instanceof People) {

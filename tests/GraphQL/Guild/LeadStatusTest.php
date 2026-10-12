@@ -2,10 +2,15 @@
 
 namespace Tests\GraphQL\Guild;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class LeadStatusTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'crm'];
+
     public function testCreateLeadStatus(): void
     {
         $input = [
@@ -172,5 +177,52 @@ class LeadStatusTest extends TestCase
                 ],
             ],
         ])->assertSuccessful();
+    }
+
+    public function testLeadStatusesCanBeOrderedByIsDefault(): void
+    {
+        $this->createLeadStatus('StatusDefault-' . fake()->unique()->uuid(), 1);
+        $this->createLeadStatus('StatusRegular-' . fake()->unique()->uuid(), 0);
+
+        $query = '
+            query leadStatuses($orderBy: [QueryLeadStatusesOrderByOrderByClause!]) {
+                leadStatuses(orderBy: $orderBy) {
+                    data {
+                        name
+                        is_default
+                    }
+                }
+            }
+        ';
+
+        $descending = $this->graphQL($query, [
+            'orderBy' => [['column' => 'IS_DEFAULT', 'order' => 'DESC']],
+        ])->assertOk()->json('data.leadStatuses.data');
+
+        $ascending = $this->graphQL($query, [
+            'orderBy' => [['column' => 'IS_DEFAULT', 'order' => 'ASC']],
+        ])->assertOk()->json('data.leadStatuses.data');
+
+        $this->assertSame(1, $descending[0]['is_default']);
+        $this->assertSame(0, $ascending[0]['is_default']);
+    }
+
+    protected function createLeadStatus(string $name, int $isDefault): void
+    {
+        $this->graphQL(
+            '
+            mutation createLeadStatus($input: LeadStatusInput!) {
+                createLeadStatus(input: $input) {
+                    id
+                }
+            }
+            ',
+            [
+                'input' => [
+                    'name' => $name,
+                    'is_default' => $isDefault,
+                ],
+            ]
+        )->assertOk();
     }
 }

@@ -18,7 +18,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ApproveNervousSystemPl
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemPlanTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CommentOnNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemProjectTool;
@@ -26,20 +25,17 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPla
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSystemMemberTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GrantAgentToolsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlanFilesTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemTaskFilesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadChannelWindowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Supadata\GetTranscriptionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\BuildAdminLinkTool;
@@ -290,11 +286,12 @@ class ProjectManagerAgent extends SystemUserAgent
             - When you actually DID something this turn (created/assigned/moved work) or have a real
               change or ask to communicate, end with a short, plain-language status update: what you did
               (with the plans/tasks you touched) and what happens next. Be concise.
-            - DON'T MAKE NOISE. If this turn is a periodic check-in and NOTHING has changed since your
-              last update — no new messages, no status changes, nothing a human needs — post NOTHING.
+            - DON'T MAKE NOISE. If this turn is your periodic project check-in and NOTHING has changed
+              since your last update — no new messages, no status changes, nothing a human needs — post NOTHING.
               Reply with exactly NO_UPDATE and nothing else. Never re-post a status that just repeats
               what you already said. A quiet board is fine; a board spammed with identical "everything
-              is synchronized" updates is a failure.
+              is synchronized" updates is a failure. A scheduled task someone gave you is not a check-in:
+              do it and post the result.
 
             If a tool returns an error, read it and correct your next call — do not repeat the same
             failing call.
@@ -426,14 +423,10 @@ class ProjectManagerAgent extends SystemUserAgent
             new FindAndAddNervousSystemMemberTool(),
             new AddNervousSystemTaskTool(),
             new AssignNervousSystemTaskTool(),
-            new UpdateNervousSystemTaskStatusTool(),
             new ReadNervousSystemPlanActivityTool(),
-            new GetNervousSystemTaskTool(),
             new CommentOnNervousSystemPlanTool(),
             new AttachFileToNervousSystemPlanTool(),
-            new AttachFileToNervousSystemTaskTool(),
             new ListNervousSystemPlanFilesTool(),
-            new ListNervousSystemTaskFilesTool(),
             new DeleteNervousSystemTaskTool(),
             new ReadChannelWindowTool(),
             new GetTranscriptionTool(),
@@ -466,7 +459,7 @@ class ProjectManagerAgent extends SystemUserAgent
                 ->forRequestingUser($requestingHuman);
         }
 
-        $core = [...$core, ...$this->scheduleTools($agent)];
+        $core = [...$core, ...$this->followThroughTools($agent)];
 
         // Opening a project is done FOR a human — the owner is who gets @mentioned when the board
         // can't move — so it keys on the human, not on the PM's own user.

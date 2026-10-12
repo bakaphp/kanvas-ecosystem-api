@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Scheduling\Actions\DeliverScheduledMessageToChannelAction;
 use Kanvas\Social\Channels\Models\Channel;
@@ -116,7 +117,7 @@ class ContinueAgentTurnJob implements ShouldQueue
             return;
         }
 
-        if (trim($reply) !== '') {
+        if (! AgentTurnResponse::isNoOp($reply)) {
             new DeliverScheduledMessageToChannelAction(
                 channel: $channel,
                 text: $reply,

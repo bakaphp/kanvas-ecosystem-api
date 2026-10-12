@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Variants\Services;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Services\StorefrontProductUrlService;
 use Laravel\Scout\Builder as ScoutBuilder;
 
 class VariantSearchService
@@ -35,11 +36,14 @@ class VariantSearchService
             'variantAttributes.attribute',
         ]);
 
+        $storefront = new StorefrontProductUrlService($company, $app);
+
         return $variants->map(fn (Variants $variant) => [
             'id' => $variant->getId(),
             'name' => $variant->name,
             'sku' => $variant->sku,
             'product' => $variant->product?->name,
+            'url' => $variant->product === null ? null : $storefront->productUrl($variant->product),
             'is_published' => (bool) $variant->is_published,
             'stock' => $variant->getTotalQuantity(),
             'price' => $variant->defaultChannelPrice(),

@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Actions;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
@@ -56,7 +57,7 @@ class BaseAgentChannelReplyAction
         protected Agent $agent,
         protected ?Session $session = null,
     ) {
-        $lead = $this->session?->entity() ?? $this->message->entity();
+        $lead = $this->session?->entity() ?? $this->message->preferredEntity(Lead::class);
 
         if ($lead === null) {
             throw new Exception('No lead found for AI agent');
@@ -146,15 +147,17 @@ class BaseAgentChannelReplyAction
 
         $this->carryForwardAttachments($message, $newMessage);
 
-        $entity = $message->entity();
-        if ($entity instanceof Model) {
+        $entities = $message->entities();
+        foreach ($entities as $entity) {
             $newMessage->addEntity($entity);
-            // People-keyed history (EntityRollupMessageStore) queries by People;
-            // without this attachment the outbound disappears from cross-channel rollup
-            // and from the People profile UI.
-            if ($entity instanceof Lead && $entity->people !== null) {
-                $newMessage->addEntity($entity->people);
-            }
+        }
+
+        // People-keyed history (EntityRollupMessageStore) queries by People;
+        // without this attachment the outbound disappears from cross-channel rollup
+        // and from the People profile UI.
+        $lead = $entities->first(fn (Model $entity) => $entity instanceof Lead);
+        if ($lead?->people !== null && ! $entities->contains(fn (Model $entity) => $entity instanceof People)) {
+            $newMessage->addEntity($lead->people);
         }
 
         // Company in APPROVAL mode → hold as a draft and open an approval; a human signs off before
@@ -178,7 +181,6 @@ class BaseAgentChannelReplyAction
         );
         $channel->addMessage($newMessage);
 
-        $lead = $message->entity();
         if ($lead instanceof Lead) {
             new MarkLeadMessagesAsRespondedAction($lead, $newMessage)->execute();
             new NotifyLeadStakeholdersService($lead)->onAgentReply($newMessage, isHuman: false);

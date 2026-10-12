@@ -42,6 +42,7 @@ use Override;
  * @property string|null $branch
  * @property string|null $pull_request_url
  * @property int|null $continues_session_id
+ * @property int|null $retry_of_session_id
  * @property string|null $last_cursor
  * @property int $turn_offset
  * @property int|null $last_message_at
@@ -99,6 +100,16 @@ class AgentTaskSession extends BaseModel
     public function machine(): BelongsTo
     {
         return $this->belongsTo(AgentMachine::class, 'agent_machine_id', 'id');
+    }
+
+    public function retryOf(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'retry_of_session_id', 'id');
+    }
+
+    public function isRetry(): bool
+    {
+        return $this->retry_of_session_id !== null;
     }
 
     public function harnessName(): HarnessEnum

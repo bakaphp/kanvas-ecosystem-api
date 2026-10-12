@@ -29,7 +29,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             throw new ValidationException('No conversation found');
         }
 
-        $entity = $this->message->entity();
+        $entity = $this->message->preferredEntity(Lead::class);
         if ($entity === null) {
             throw new ValidationException('No entity found');
         }

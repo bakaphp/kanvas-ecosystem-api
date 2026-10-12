@@ -50,7 +50,7 @@ class SystemUserAgentMemoryTest extends TestCase
         $second->setThreadId('session-y');
         $second->chat(new UserMessage('When is the launch again?'));
 
-        $prompt = end($second->systemPrompts);
+        $prompt = end($second->modelInputs);
         $this->assertIsString($prompt);
         $this->assertStringContainsString('November 12', $prompt, 'The second session reads the first one back from memory');
         $this->assertStringContainsString('Earlier conversation', $prompt);

@@ -12,6 +12,7 @@ use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Coding\SelfHostedProgrammingAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\DispatchHarnessCodingTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\FindTeammateTool;
 use Kanvas\NervousSystem\Capability\Actions\SetAgentToolAction;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
@@ -48,7 +49,7 @@ class SystemOnlyToolGrantTest extends TestCase
     public function testACustomerFacingAgentIsRefused(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessageMatches('/only an internal system agent can hold it/');
+        $this->expectExceptionMessageMatches('/internal system agents only/');
 
         SetAgentToolAction::assertMayHold(
             $this->agentWithHandler(SalesAgent::class),
@@ -63,7 +64,7 @@ class SystemOnlyToolGrantTest extends TestCase
     public function testAnAgentThatDeclaresNeitherMarkerIsRefused(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessageMatches('/only an internal system agent can hold it/');
+        $this->expectExceptionMessageMatches('/internal system agents only/');
 
         SetAgentToolAction::assertMayHold(
             $this->agentWithHandler(null),
@@ -82,14 +83,30 @@ class SystemOnlyToolGrantTest extends TestCase
         $this->assertTrue(true);
     }
 
+    /** The staff directory, with phone numbers, is not for a prospect-facing agent either. */
+    public function testACustomerFacingAgentCannotBeGrantedTheFollowThroughTools(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        SetAgentToolAction::assertMayHold(
+            $this->agentWithHandler(SalesAgent::class),
+            $this->systemTool(FindTeammateTool::class),
+        );
+    }
+
     private function codingTool(): Tool
+    {
+        return $this->systemTool(DispatchHarnessCodingTaskTool::class);
+    }
+
+    private function systemTool(string $handler): Tool
     {
         $tool = new Tool();
         $tool->apps_id = 0;
-        $tool->name = 'dispatch_self_hosted_coding_task_' . random_int(1000, 9999);
-        $tool->description = 'Dispatch a coding job.';
+        $tool->name = 'system_tool_' . random_int(1000, 9999);
+        $tool->description = 'A tool for internal agents.';
         $tool->tool_type = ToolTypeEnum::SYSTEM->value;
-        $tool->handler = DispatchHarnessCodingTaskTool::class;
+        $tool->handler = $handler;
         $tool->frameworks = ['neuron'];
         $tool->version = '1.0.0';
         $tool->is_active = 1;

@@ -157,6 +157,10 @@ class SendEngageUsageReportAction
         $from = $this->request->from;
         $to = $this->request->to;
 
+        if ($from->isSameDay($to)) {
+            return $to->format('M j, Y');
+        }
+
         return $from->format('M j') . ' – ' . $to->format('M j, Y');
     }
 }

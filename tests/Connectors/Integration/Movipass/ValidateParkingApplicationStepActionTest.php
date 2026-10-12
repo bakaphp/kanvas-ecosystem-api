@@ -52,9 +52,9 @@ final class ValidateParkingApplicationStepActionTest extends TestCase
     {
         $result = new ValidateParkingApplicationStepAction($this->validCharacteristicsPayload(), Step::CHARACTERISTICS)->execute();
 
-        $this->assertSame('open_lot', $result[Field::STRUCTURE->value]);
+        $this->assertSame('ground_level', $result[Field::STRUCTURE->value]);
         $this->assertSame(4, $result[Field::CAMERA_COUNT->value]);
-        $this->assertTrue($result[Field::HAS_LIGHTING->value]);
+        $this->assertSame(['lighting', 'cameras', 'electronic_gate'], $result[Field::INFRASTRUCTURE->value]);
     }
 
     public function testLocationStepValidPayloadIsNormalized(): void
@@ -84,7 +84,7 @@ final class ValidateParkingApplicationStepActionTest extends TestCase
     {
         $result = new ValidateParkingApplicationStepAction($this->validOperationsPayload(), Step::OPERATIONS)->execute();
 
-        $this->assertSame(['movipass', 'cash'], $result[Field::PAYMENT_METHODS->value]);
+        $this->assertSame(['card', 'cash'], $result[Field::PAYMENT_METHODS->value]);
         $this->assertCount(2, $result[Field::CLOSURES->value]);
     }
 
@@ -262,7 +262,7 @@ final class ValidateParkingApplicationStepActionTest extends TestCase
         $this->expectException(ValidationException::class);
 
         new ValidateParkingApplicationStepAction([
-            Field::PAYMENT_METHODS->value => ['movipass', ['cash']],
+            Field::PAYMENT_METHODS->value => ['card', ['cash']],
         ], Step::OPERATIONS)->execute();
     }
 
@@ -323,10 +323,10 @@ final class ValidateParkingApplicationStepActionTest extends TestCase
     public function testNullClearsAnOptionalBooleanField(): void
     {
         $result = new ValidateParkingApplicationStepAction([
-            Field::HAS_LIGHTING->value => null,
+            Field::NUMBERED_SPACES->value => null,
         ])->execute();
 
-        $this->assertNull($result[Field::HAS_LIGHTING->value]);
+        $this->assertNull($result[Field::NUMBERED_SPACES->value]);
     }
 
     public function testInvalidBooleanIsRejected(): void
@@ -334,19 +334,19 @@ final class ValidateParkingApplicationStepActionTest extends TestCase
         $this->expectException(ValidationException::class);
 
         new ValidateParkingApplicationStepAction([
-            Field::HAS_LIGHTING->value => 'maybe',
+            Field::NUMBERED_SPACES->value => 'maybe',
         ])->execute();
     }
 
     public function testBooleanAcceptsYesNoOnOff(): void
     {
         $result = new ValidateParkingApplicationStepAction([
-            Field::HAS_LIGHTING->value => 'yes',
-            Field::HAS_CAMERAS->value => 'off',
+            Field::NUMBERED_SPACES->value => 'yes',
+            Field::CONTRACT_ACCEPTED->value => 'off',
         ])->execute();
 
-        $this->assertTrue($result[Field::HAS_LIGHTING->value]);
-        $this->assertFalse($result[Field::HAS_CAMERAS->value]);
+        $this->assertTrue($result[Field::NUMBERED_SPACES->value]);
+        $this->assertFalse($result[Field::CONTRACT_ACCEPTED->value]);
     }
 
     public function testCapacityTotalMustBeGreaterThanZero(): void
@@ -415,13 +415,50 @@ final class ValidateParkingApplicationStepActionTest extends TestCase
     public function testBooleansAreNormalizedFromStrings(): void
     {
         $result = new ValidateParkingApplicationStepAction([
-            Field::HAS_LIGHTING->value => 'true',
-            Field::HAS_CAMERAS->value => '0',
-            Field::CAMERA_COUNT->value => 2,
+            Field::NUMBERED_SPACES->value => 'true',
+            Field::CONTRACT_ACCEPTED->value => '0',
+        ])->execute();
+
+        $this->assertTrue($result[Field::NUMBERED_SPACES->value]);
+        $this->assertFalse($result[Field::CONTRACT_ACCEPTED->value]);
+    }
+
+    public function testInfrastructureKeepsEachValidOptionOnce(): void
+    {
+        $result = new ValidateParkingApplicationStepAction([
+            Field::INFRASTRUCTURE->value => ['valet', 'cameras', 'valet'],
         ], Step::CHARACTERISTICS)->execute();
 
-        $this->assertTrue($result[Field::HAS_LIGHTING->value]);
-        $this->assertFalse($result[Field::HAS_CAMERAS->value]);
+        $this->assertSame(['valet', 'cameras'], $result[Field::INFRASTRUCTURE->value]);
+    }
+
+    public function testInfrastructureMayBeEmpty(): void
+    {
+        $result = new ValidateParkingApplicationStepAction([
+            Field::INFRASTRUCTURE->value => [],
+        ])->execute();
+
+        $this->assertSame([], $result[Field::INFRASTRUCTURE->value]);
+    }
+
+    public function testInfrastructureRejectsAnUnknownOption(): void
+    {
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('parking_application_infrastructure must be one of');
+
+        new ValidateParkingApplicationStepAction([
+            Field::INFRASTRUCTURE->value => ['cameras', 'Garita de seguridad'],
+        ])->execute();
+    }
+
+    public function testInfrastructureRejectsATextInsteadOfAList(): void
+    {
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('parking_application_infrastructure must be a list');
+
+        new ValidateParkingApplicationStepAction([
+            Field::INFRASTRUCTURE->value => 'Garita de seguridad, Cámaras de seguridad',
+        ])->execute();
     }
 
     public function testScheduleBandCrossingMidnightIsAccepted(): void
@@ -625,22 +662,13 @@ final class ValidateParkingApplicationStepActionTest extends TestCase
         ], Step::OPERATIONS)->execute();
     }
 
-    public function testPaymentMethodsWithoutMovipassIsRejected(): void
-    {
-        $this->expectException(ValidationException::class);
-
-        new ValidateParkingApplicationStepAction([
-            Field::PAYMENT_METHODS->value => ['cash'],
-        ], Step::OPERATIONS)->execute();
-    }
-
-    public function testPaymentMethodsWithMovipassAndCashIsAccepted(): void
+    public function testPaymentMethodsAcceptTheGeneralPaymentMethodTypes(): void
     {
         $result = new ValidateParkingApplicationStepAction([
-            Field::PAYMENT_METHODS->value => ['movipass', 'cash'],
+            Field::PAYMENT_METHODS->value => ['card', 'cash'],
         ], Step::OPERATIONS)->execute();
 
-        $this->assertSame(['movipass', 'cash'], $result[Field::PAYMENT_METHODS->value]);
+        $this->assertSame(['card', 'cash'], $result[Field::PAYMENT_METHODS->value]);
     }
 
     public function testPaymentMethodsWithAnUnknownMethodIsRejected(): void
@@ -648,7 +676,7 @@ final class ValidateParkingApplicationStepActionTest extends TestCase
         $this->expectException(ValidationException::class);
 
         new ValidateParkingApplicationStepAction([
-            Field::PAYMENT_METHODS->value => ['movipass', 'bitcoin'],
+            Field::PAYMENT_METHODS->value => ['card', 'bitcoin'],
         ], Step::OPERATIONS)->execute();
     }
 
@@ -772,16 +800,10 @@ final class ValidateParkingApplicationStepActionTest extends TestCase
     private function validCharacteristicsPayload(): array
     {
         return [
-            Field::PARKING_TYPE->value => 'commercial',
-            Field::STRUCTURE->value => 'open_lot',
-            Field::HAS_LIGHTING->value => true,
-            Field::HAS_CAMERAS->value => true,
+            Field::PARKING_TYPE->value => 'mall',
+            Field::STRUCTURE->value => 'ground_level',
+            Field::INFRASTRUCTURE->value => ['lighting', 'cameras', 'electronic_gate'],
             Field::CAMERA_COUNT->value => 4,
-            Field::HAS_GUARD->value => false,
-            Field::HAS_ROOF->value => false,
-            Field::HAS_ACCESS_CONTROL->value => true,
-            Field::HAS_RESTROOMS->value => false,
-            Field::IS_24_7_SECURITY->value => false,
         ];
     }
 
@@ -830,7 +852,7 @@ final class ValidateParkingApplicationStepActionTest extends TestCase
                 ['type' => 'recurring', 'weekday' => 0],
                 ['type' => 'one_off', 'date' => '2026-12-25', 'reason' => 'Navidad'],
             ],
-            Field::PAYMENT_METHODS->value => ['movipass', 'cash'],
+            Field::PAYMENT_METHODS->value => ['card', 'cash'],
         ];
     }
 

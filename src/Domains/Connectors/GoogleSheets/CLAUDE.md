@@ -202,7 +202,7 @@ Acumatica connector). End to end, when Apex/Arc process an emailed invoice, the 
 3. `download_attachment` (Gmail) — saves the PDF to Kanvas, returns `filesystem_id`/`url`.
 4. `extract_invoice_data` (Accounting) — reads the PDF with AI, gets the real vendor/total/dates.
    The email body/subject is never the source of truth for these — always read the PDF.
-5. `create_ap_bill` / `create_ar_invoice` (Acumatica) with **`push_to_acumatica: false`**, plus
+5. `create_ap_bill` / `create_ar_invoice` with **`approve_immediately: false` / `issue_immediately: false`**, plus
    `source_email_message_id` and `source_attachment_filesystem_id` (from steps 2–3; the PDF is
    attached to the record via Kanvas Filesystem, not stored as a URL custom field) — creates the bill/invoice in Kanvas only (status `pending_approval` for bills, `draft` for
    invoices), giving back the **Kanvas bill/invoice id**. Does **not** push to Acumatica and does
@@ -219,7 +219,7 @@ Acumatica connector). End to end, when Apex/Arc process an emailed invoice, the 
 
 **The Acumatica push and the file attachment are out of scope of the automatic intake flow above**
 — `create_ap_bill`/`create_ar_invoice` still support pushing in one call (the default,
-`push_to_acumatica: true`) for the explicit "create and push this bill/invoice right now" request,
+`approve_immediately: true` / `issue_immediately: true`) for the explicit "create and approve/issue this bill/invoice right now" request,
 which is a different, still-supported use case from the automatic email flow. In the standard
 flow, the push happens later, through the Slack approval phase below.
 
