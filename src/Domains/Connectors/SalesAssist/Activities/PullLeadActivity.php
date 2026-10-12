@@ -20,6 +20,7 @@ use Kanvas\Connectors\Reynolds\Actions\FindLeadCandidatesAction;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum as ReynoldsConfigurationEnum;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum as ReynoldsCustomFieldEnum;
 use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelsAfterPullAction;
+use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Services\ContactRejectionService;
@@ -158,7 +159,8 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
 
         try {
             if ($resolvedLead instanceof Lead) {
-                $agentName = $company->get('sales_assist_agent_name') ?? 'Sally';
+                $agentName = $company->get(SalesAssistConfigurationEnum::AGENT_NAME->value)
+                    ?? SalesAssistConfigurationEnum::DEFAULT_AGENT_NAME;
                 $agent = Agent::where('name', $agentName)
                     ->fromApp($app)
                     ->fromCompany($company)
