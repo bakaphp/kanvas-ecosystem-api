@@ -22,11 +22,11 @@ class ClientCredential
 
     public static function get(Companies $company, UserInterface $user, AppInterface $app): self
     {
-        $dealer = Dealer::getById((int) $company->get(CustomFieldEnum::COMPANY->value), $app);
+        $dealer = Dealer::getById($company->get(CustomFieldEnum::COMPANY->value), $app);
 
         return new self(
             $dealer,
-            Dealer::getUser($dealer, (int) $user->get(ConfigurationEnum::getUserKey($company, $user)), $app)
+            Dealer::getUser($dealer, $user->get(ConfigurationEnum::getUserKey($company, $user)), $app)
         );
     }
 }

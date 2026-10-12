@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\VinSolution\Dealers;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\VinSolution\Client;
+use Kanvas\Connectors\VinSolution\Exceptions\VinSolutionException;
 use Kanvas\Exceptions\ModelNotFoundException;
 
 class Dealer
@@ -49,8 +50,10 @@ class Dealer
         return $dealers;
     }
 
-    public static function getById(int $id, AppInterface $app): Dealer
+    public static function getById(int|string $id, AppInterface $app): Dealer
     {
+        $id = self::normalizeId($id);
+
         return self::getAll($app)[$id]
             ?? throw new ModelNotFoundException("VinSolution dealer {$id} not found or not accessible for app {$app->getId()}");
     }
@@ -76,11 +79,27 @@ class Dealer
     /**
      * Get a individual user by its ID.
      */
-    public static function getUser(Dealer $dealer, int $userId, AppInterface $app): User
+    public static function getUser(Dealer $dealer, int|string $userId, AppInterface $app): User
     {
+        $userId = self::normalizeId($userId);
+
         $client = new Client($dealer->id, 0, $app);
         $response = $client->get('/gateway/v1/tenant/user/id/' . $userId . '?dealerId=' . $dealer->id);
 
         return new User($response);
+    }
+
+    private static function normalizeId(int|string $id): int
+    {
+        $value = (string) $id;
+        $normalized = ctype_digit($value)
+            ? filter_var(ltrim($value, '0'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])
+            : false;
+
+        if ($normalized === false) {
+            throw new VinSolutionException('VinSolution ID must be a positive integer within the supported range');
+        }
+
+        return $normalized;
     }
 }
