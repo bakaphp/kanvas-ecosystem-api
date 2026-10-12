@@ -38,6 +38,7 @@
         "laravel/ai": "^1.0.1",
         "laravel/cashier": "^16.0",
         "laravel/framework": "^13.0",
+        "laravel/mcp": "^1.0",
         "laravel/octane": "^2.0",
         "laravel/reverb": "^1.10",
         "laravel/sanctum": "^4.0",
