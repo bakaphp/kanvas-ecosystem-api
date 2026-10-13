@@ -28,6 +28,7 @@ enum ConfigurationEnum: string
     case AGENT_REACH_OUT_DEFAULT_AGENT_ID = 'agent_reach_out_default_agent_id';
     case MANLY_HONDA = 'manly_honda';
     case IGNORE_SUB_SOURCE = 'ignore_sub_source';
+    case CREATE_SOCIAL_CHANNELS_ON_CONTACT_SAVE = 'guild_create_social_channels_on_contact_save';
 
     /**
      * How long support mode waits for a human before the agent answers. Two sites read it — the

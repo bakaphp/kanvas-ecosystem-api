@@ -2,14 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\SalesAssist\Actions;
+namespace Kanvas\Guild\Customers\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Actions\CreateAIAssistChannelAction;
+use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelForContactAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 
-class CreateSocialChannelsAfterPullAction
+class CreateLeadSocialChannelsAction
 {
     public function __construct(
         protected readonly Lead $lead,
