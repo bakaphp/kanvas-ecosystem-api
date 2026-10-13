@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Observers;
 
 use Baka\Support\Str;
 use Kanvas\Guild\Customers\Actions\CreatePeopleByEmailAction;
+use Kanvas\Guild\Customers\Actions\CreatePeopleSocialChannelsAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Events\LeadCompanyUpdateEvent;
 use Kanvas\Guild\Leads\Events\LeadUpdateEvent;
@@ -144,6 +145,10 @@ class LeadObserver
                     $lead->company
                 );
             }
+        }
+
+        if ($lead->people !== null) {
+            new CreatePeopleSocialChannelsAction($lead->people, $lead)->execute();
         }
 
         KnowledgeIndexRequested::dispatchIfEnabled($lead);
