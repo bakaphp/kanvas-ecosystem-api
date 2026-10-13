@@ -93,6 +93,59 @@ Bug surfaced 2026-06-08 on lead 25628: agent had 46 People-keyed message rows av
 
 ## The agent never terminally exhausts a lead
 
+The lead's `ai_follow_up` custom field (set by `TriggerIntelligenceActivity` via
+`ApplyLeadAiModeAction`) gates only once it exists. An absent value means the triggers
+never configured the lead, so the remaining gates run. Once present it must be explicitly
+on per `Lead::isAiFollowUpEnabled()` — the shapes the legacy engine accepted — so OFF (`0`)
+and a `FollowUpTypeEnum::NO_FOLLOW_UP` (`3`) type both skip with `lead_follow_up_disabled`.
+This check applies even to forced runs; enabling it does not override a disabled
+lead type. `lead_has_follow_up` is the legacy mirror written by the trigger.
+
+The lead's resolved AI mode (`Lead::isAiMuted()`, key `ai_mode`) also gates: IDLE or
+OFF skips with `ai_mode_off`, pausable like `ai_mode_manual`. This is the same mute
+every channel responder and `AgentReachOutAction` honour; the follow-up agent is not
+allowed to speak for a lead whose AI is off.
+
+## Outbound SMS carries the opt-out clause on the first text
+
+`SmsOptOutNoticeService` is applied per SMS target before the message is persisted, so the
+stored row matches what shipped. "First" is judged on the lead's **SMS channel**
+(`SessionChannelService::createChannelSlug('sms', $phone)`), not the follow-up session's
+channel — the session may live on email/WhatsApp and a prior email must not suppress the
+clause on the first text. No SMS channel yet means nothing has ever been texted, so the
+clause is appended. `FollowUpOutcome::$message` reports the primary target's body as sent.
+
+## `after-follow-up` workflow — the CRM hook
+
+Once at least one channel shipped, the action fires `WorkflowEnum::AFTER_FOLLOW_UP`
+(`after-follow-up`) **on the Lead**, so a tenant can hang connector activities on it
+(mirror the touch as a note in Elead / VinSolutions / DealerSocket, etc.) without the engine
+knowing about any CRM. Rule type row: `database/migrations/Workflow/2026_10_13_120000_*`.
+Advance-only runs do not fire it; the `lead.follow_up.sent` ledger event covers those.
+
+Params the activity receives (besides the Lead entity and the app):
+
+| key | value |
+|---|---|
+| `message` | the persisted `Message` for the primary target |
+| `body` | the body as shipped on the primary target (opt-out clause included for SMS) |
+| `channels` | channel types dispatched this touch, e.g. `['sms']` or `['sms', 'email']` |
+| `template` | template name used, or `null` |
+| `stage_id` | the lead's stage after any advance |
+| `advanced_stage` | whether this touch moved the lead to the next stage |
+| `agent` | the follow-up `Agent` |
+| `company` | the lead's company (also what scopes rule lookup) |
+
+A failing tenant rule is reported and swallowed — the touch is already sent and bumped.
+
+Lead-type continued-follow-up defaults can veto execution before retry handling or
+stage advancement. `LeadConfigurationService::allowsContinuedFollowUp()` reads
+`*_con_fu_active_default`, `*_con_fu_cns_default`, or
+`*_con_fu_closed-sold_default` for the lead state. Missing settings allow the
+remaining gates to run; explicit false values skip with
+`lead_type_follow_up_disabled`, even for forced runs. First-message defaults are
+independent. This veto does not override the engine's open-leads-only restriction.
+
 `should_respond: false` + `advance_stage: false` from the LLM is treated as a **transient SKIP**, not a terminal exhaustion. The next cron tick re-evaluates the lead. The skip emits `lead.follow_up.skipped` with `reason: 'agent: <text>'` for ledger visibility — no `exhausted_at` set, no operator reset required.
 
 This was a real bug: the agent was using `should_respond: false` to mean "wait longer, customer is still digesting" and the action treated that as terminal exhaustion. Leads got stuck after a single agent timing-feedback decision. Fixed 2026-06-08.
@@ -171,7 +224,7 @@ Required config per stage:
 
 **Caveats unique to Pattern B:**
 - **One-hour lag without the "always advance" prompt nudge** — without it, send happens on tick N (`count=0→1`), advance happens on tick N+1 (`count=1≥1` fires the exhaust gate). The ledger then carries one `lead.follow_up.exhausted` per day-stage with `reason: max_retries`.
-- **Customer inbound pauses the day clock** — `followUpSilenceMinutesSince` uses `last_inbound_at` as the reference. A reply during Day 2 resets `silence_minutes`, so the Day 2 nudge waits another 24h. Usually desired (don't pile on the engaged customer). If you need strict calendar advance regardless of conversation activity, swap the silence reference to `stage_entered_at` — this is the only line that needs changing.
+- **The interval restarts on stage entry, follow-up, or customer inbound** — `followUpSilenceMinutesSince` uses the latest of these timestamps. Without any, it falls back to entity creation time. Missing or future references yield zero elapsed minutes. Resetting state on a stage change therefore starts the full next-stage interval.
 - **Last-stage exhaust is a no-op** — `moveToNextPipelineStage()` silently does nothing when there's no next stage. The lead just parks there exhausted.
 
 ### What the infra does NOT do today
