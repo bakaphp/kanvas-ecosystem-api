@@ -16,12 +16,15 @@ use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\AgentFollowUpResult;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ChannelConfig;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
@@ -33,6 +36,7 @@ use Kanvas\Intelligence\FollowUp\Enums\FollowUpModeEnum;
 use Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
@@ -41,6 +45,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Templates\Models\Templates;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use RuntimeException;
 use Throwable;
 
@@ -73,17 +78,18 @@ final class FollowUpLeadAction
             return $this->skip('unsupported_mode_v1');
         }
 
-        // TriggerIntelligenceActivity persists FOLLOW_UP_ON/OFF on the lead.
-        // Missing values preserve v2 behavior for apps without these triggers.
-        $configuration = new LeadConfigurationService();
-        $leadFollowUp = $this->lead->get($configuration->getFollowUpModeKey($this->lead));
-        if ($leadFollowUp !== null && filter_var($leadFollowUp, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === false) {
+        // `ai_follow_up` is written by ApplyLeadAiModeAction on leads the triggers
+        // touch. Absent = never configured, so we continue; once present it must be
+        // explicitly on (same shapes the legacy engine accepted) — OFF (0) and
+        // NO_FOLLOW_UP (3) both skip.
+        $aiFollowUp = $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
+        if ($aiFollowUp !== null && $aiFollowUp !== '' && ! $this->lead->isAiFollowUpEnabled()) {
             return $this->skip('lead_follow_up_disabled');
         }
 
         // Lead-type defaults can veto v2, including manual/forced runs.
         // Check before retries so disabled types cannot advance stages either.
-        if (! $configuration->allowsContinuedFollowUp($this->lead)) {
+        if (! new LeadConfigurationService()->allowsContinuedFollowUp($this->lead)) {
             return $this->skip('lead_type_follow_up_disabled');
         }
 
@@ -113,6 +119,12 @@ final class FollowUpLeadAction
         // Manual mode is pausable — humans toggle off, next tick resumes.
         if ((bool) $this->lead->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value)) {
             return $this->skip('ai_mode_manual');
+        }
+
+        // IDLE/OFF silences the agent on every outbound path (reach-out, channel
+        // responders); follow-ups are no exception. Pausable like manual mode.
+        if ($this->lead->isAiMuted()) {
+            return $this->skip('ai_mode_off');
         }
 
         // Channel resolution lives on the Lead's contacts
@@ -216,18 +228,28 @@ final class FollowUpLeadAction
         }
 
         $sentBody = null;
+        $primaryMessage = null;
         $channelsForBump = [];
         if ($result->shouldRespond && $result->message !== null) {
-            $sentBody = $this->resolveOutboundBody(
+            $resolvedBody = $this->resolveOutboundBody(
                 channelType: $channelType,
                 template: $template,
                 agentMessage: $result->message,
             );
 
             foreach ($targets as $target) {
-                $message = $this->persistMessage($session, $target->channelType, $sentBody);
-                $this->dispatchOutbound($target->channelType, $sentBody, $target->contact, $message);
+                $body = $this->withSmsOptOutNotice($target, $resolvedBody);
+                $message = $this->persistMessage($session, $target->channelType, $body);
+                $this->dispatchOutbound(
+                    $target->channelType,
+                    $body,
+                    $target->contact,
+                    $message
+                );
                 $channelsForBump[] = $target->channelType;
+                // The outcome reports the primary target's body as it actually shipped.
+                $sentBody ??= $body;
+                $primaryMessage ??= $message;
             }
 
             // One touch = one bump regardless of N channels dispatched.
@@ -245,6 +267,16 @@ final class FollowUpLeadAction
             $primary,
             $config->channelSelection,
         );
+
+        if ($primaryMessage !== null) {
+            $this->fireAfterFollowUpWorkflow(
+                $primaryMessage,
+                (string) $sentBody,
+                $channelsForBump,
+                $template?->name,
+                $advanced,
+            );
+        }
 
         return FollowUpOutcome::sent($sentBody);
     }
@@ -628,6 +660,65 @@ final class FollowUpLeadAction
         }
 
         return $message;
+    }
+
+    /**
+     * Tenant hook for CRM connectors (Elead, VinSolutions, DealerSocket...) to mirror the touch
+     * as a note or activity on their side. Fires only when something actually shipped; the
+     * `lead.follow_up.sent` ledger event already records advance-only runs. `company` is read by
+     * ProcessWorkflowEventAction to pick company-scoped rules, `app` is consumed before the
+     * params reach the activity.
+     */
+    private function fireAfterFollowUpWorkflow(
+        Message $message,
+        string $body,
+        array $channels,
+        ?string $templateName,
+        bool $advancedStage,
+    ): void {
+        try {
+            $this->lead->fireWorkflow(
+                WorkflowEnum::AFTER_FOLLOW_UP->value,
+                true,
+                [
+                    'app' => $this->app,
+                    'company' => $this->company,
+                    'agent' => $this->agent,
+                    'message' => $message,
+                    'body' => $body,
+                    'channels' => $channels,
+                    'template' => $templateName,
+                    'stage_id' => $this->lead->pipeline_stage_id,
+                    'advanced_stage' => $advancedStage,
+                ]
+            );
+        } catch (Throwable $e) {
+            // The touch is already sent and bumped; a broken tenant rule must not fail the run.
+            report($e);
+        }
+    }
+
+    /**
+     * The first outbound SMS of a conversation must carry the opt-out clause (same rule the
+     * Twilio responders apply). "First" is judged on the lead's SMS channel, not the session
+     * channel: the follow-up session may live on email/WhatsApp, and a prior email must not
+     * suppress the clause on the first text. No SMS channel yet means nothing has been texted.
+     */
+    private function withSmsOptOutNotice(ResolvedChannel $target, string $body): string
+    {
+        if ($target->channelType !== LeadCommunicationChannelEnum::SMS->value) {
+            return $body;
+        }
+
+        $smsChannel = Channel::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('slug', SessionChannelService::createChannelSlug('sms', (string) $target->contact->value))
+            ->first();
+
+        return $smsChannel === null
+            ? SmsOptOutNoticeService::appendTo($body)
+            : SmsOptOutNoticeService::appendIfFirstOutbound($smsChannel, $body);
     }
 
     private function dispatchOutbound(

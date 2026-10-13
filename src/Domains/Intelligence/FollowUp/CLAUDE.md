@@ -94,10 +94,49 @@ Bug surfaced 2026-06-08 on lead 25628: agent had 46 People-keyed message rows av
 ## The agent never terminally exhausts a lead
 
 The lead's `ai_follow_up` custom field (set by `TriggerIntelligenceActivity` via
-`ApplyLeadAiModeAction`) vetoes execution when explicitly off, with skip reason
-`lead_follow_up_disabled`. An absent value allows the remaining gates to run.
+`ApplyLeadAiModeAction`) gates only once it exists. An absent value means the triggers
+never configured the lead, so the remaining gates run. Once present it must be explicitly
+on per `Lead::isAiFollowUpEnabled()` — the shapes the legacy engine accepted — so OFF (`0`)
+and a `FollowUpTypeEnum::NO_FOLLOW_UP` (`3`) type both skip with `lead_follow_up_disabled`.
 This check applies even to forced runs; enabling it does not override a disabled
 lead type. `lead_has_follow_up` is the legacy mirror written by the trigger.
+
+The lead's resolved AI mode (`Lead::isAiMuted()`, key `ai_mode`) also gates: IDLE or
+OFF skips with `ai_mode_off`, pausable like `ai_mode_manual`. This is the same mute
+every channel responder and `AgentReachOutAction` honour; the follow-up agent is not
+allowed to speak for a lead whose AI is off.
+
+## Outbound SMS carries the opt-out clause on the first text
+
+`SmsOptOutNoticeService` is applied per SMS target before the message is persisted, so the
+stored row matches what shipped. "First" is judged on the lead's **SMS channel**
+(`SessionChannelService::createChannelSlug('sms', $phone)`), not the follow-up session's
+channel — the session may live on email/WhatsApp and a prior email must not suppress the
+clause on the first text. No SMS channel yet means nothing has ever been texted, so the
+clause is appended. `FollowUpOutcome::$message` reports the primary target's body as sent.
+
+## `after-follow-up` workflow — the CRM hook
+
+Once at least one channel shipped, the action fires `WorkflowEnum::AFTER_FOLLOW_UP`
+(`after-follow-up`) **on the Lead**, so a tenant can hang connector activities on it
+(mirror the touch as a note in Elead / VinSolutions / DealerSocket, etc.) without the engine
+knowing about any CRM. Rule type row: `database/migrations/Workflow/2026_10_13_120000_*`.
+Advance-only runs do not fire it; the `lead.follow_up.sent` ledger event covers those.
+
+Params the activity receives (besides the Lead entity and the app):
+
+| key | value |
+|---|---|
+| `message` | the persisted `Message` for the primary target |
+| `body` | the body as shipped on the primary target (opt-out clause included for SMS) |
+| `channels` | channel types dispatched this touch, e.g. `['sms']` or `['sms', 'email']` |
+| `template` | template name used, or `null` |
+| `stage_id` | the lead's stage after any advance |
+| `advanced_stage` | whether this touch moved the lead to the next stage |
+| `agent` | the follow-up `Agent` |
+| `company` | the lead's company (also what scopes rule lookup) |
+
+A failing tenant rule is reported and swallowed — the touch is already sent and bumped.
 
 Lead-type continued-follow-up defaults can veto execution before retry handling or
 stage advancement. `LeadConfigurationService::allowsContinuedFollowUp()` reads
