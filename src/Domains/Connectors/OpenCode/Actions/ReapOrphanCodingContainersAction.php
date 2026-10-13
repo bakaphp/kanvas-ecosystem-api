@@ -7,11 +7,10 @@ namespace Kanvas\Connectors\OpenCode\Actions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
-use Kanvas\Approvals\Enums\ApprovalStatusEnum;
-use Kanvas\Approvals\Models\ApprovalRequest;
-use Kanvas\Intelligence\AgentRuntime\Harness\Actions\RequestPushApprovalAction;
+use Kanvas\Connectors\OpenCode\Concerns\ListsAgentCodingContainers;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
+use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
 
@@ -24,15 +23,15 @@ use Throwable;
  * this task finish?".
  *
  * It also covers the disorderly paths: a launch that crashed between `docker run` and the row being
- * updated, a worker killed mid-flight, a database restored from backup. Containers are found by the
- * `kanvas.agent` **label**, not by name or published port — neither of which survives a partial launch.
+ * updated, a worker killed mid-flight, a database restored from backup.
  *
- * Scoped to this harness throughout. The label names an agent, not a runtime, so every container and
- * every workspace is additionally checked against an opencode session on this machine before anything
- * is removed — a machine that hosts other runtimes must not lose their containers to this sweep.
+ * Scoped to this harness throughout: every container (see `ListsAgentCodingContainers`) and every
+ * workspace is checked against an opencode session on this machine before anything is removed.
  */
 class ReapOrphanCodingContainersAction
 {
+    use ListsAgentCodingContainers;
+
     private const int WORKSPACE_RETENTION_HOURS = 24;
     private const int IDLE_GRACE_MINUTES = 60;
 
@@ -101,97 +100,20 @@ class ReapOrphanCodingContainersAction
 
     /**
      * Containers are labelled by AGENT, so "orphan" means the agent has nothing live in flight — not
-     * that one task ended. A container whose agent still has a running session is in use by it.
+     * that one task ended. A container whose agent finished recently is also kept, so the next task
+     * does not pay a cold start.
      *
-     * @return array<string, string> agent id => container name
+     * @return list<string> container names
      */
-    private function orphanContainers(object $client): array
+    private function orphanContainers(SshClient $client): array
     {
-        $output = $client->exec(
-            'docker ps -a --filter label=kanvas.agent --format ' . escapeshellarg('{{.Names}}|{{.Label "kanvas.agent"}}'),
-            60
-        );
+        $found = $this->agentContainers($client, $this->machine);
+        $busy = $this->busyAgentIds(array_keys($found), self::IDLE_GRACE_MINUTES);
 
-        $found = [];
-
-        foreach (preg_split('/\r?\n/', trim((string) $output)) ?: [] as $line) {
-            if (! str_contains($line, '|')) {
-                continue;
-            }
-
-            $parts = explode('|', $line, 2);
-            $agentId = trim($parts[1] ?? '');
-            $name = trim($parts[0]);
-
-            if ($agentId !== '') {
-                $found[$agentId] = $name;
-            }
-        }
-
-        if ($found === []) {
-            return [];
-        }
-
-        // The label alone is not proof it is ours. `kanvas.agent=<id>` says which agent a container
-        // belongs to, not which runtime started it — nothing stops a future one adopting the same
-        // label, and a stale row on a rebuilt box could carry any id. An agent with an opencode
-        // session on THIS machine is the thing we can actually verify, so anything else is left
-        // running. Forgetting to reap costs disk; reaping someone else's container costs their work.
-        $found = array_intersect_key($found, array_flip($this->codingAgentIds(array_keys($found))));
-
-        if ($found === []) {
-            return [];
-        }
-
-        // Three reasons to leave a container alone, and only the first is obvious:
-        //   - a session is running in it;
-        //   - the agent finished recently, and the next task would otherwise pay a cold start;
-        //   - a push is still waiting on a human. That one can sit for hours, and the container is
-        //     where the diff lives — reaping it turns "show me the change" into "No such container"
-        //     at exactly the moment someone is deciding whether to approve it.
-        $busy = AgentTaskSession::query()
-            ->whereIn('agent_id', array_keys($found))
-            ->where(
-                fn (Builder $query): Builder => $query->live()
-                    ->orWhere('heartbeat_at', '>', now()->subMinutes(self::IDLE_GRACE_MINUTES))
-                    ->orWhereIn('task_id', $this->tasksAwaitingPush())
-            )
-            ->pluck('agent_id')
-            ->all();
-
-        return array_diff_key($found, array_flip(array_map('strval', $busy)));
-    }
-
-    /**
-     * Of the agent ids found on containers, the ones this harness has actually run on this machine.
-     *
-     * Keyed as strings because they come back from a docker label.
-     *
-     * @param list<string> $agentIds
-     * @return list<string>
-     */
-    private function codingAgentIds(array $agentIds): array
-    {
-        return $this->machineSessions()
-            ->whereIn('agent_id', $agentIds)
-            ->distinct()
-            ->pluck('agent_id')
-            ->map(static fn (mixed $id): string => (string) $id)
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return list<int>
-     */
-    private function tasksAwaitingPush(): array
-    {
-        return ApprovalRequest::query()
-            ->where('approval_type', RequestPushApprovalAction::APPROVAL_TYPE)
-            ->where('status', ApprovalStatusEnum::PENDING->value)
-            ->pluck('entity_id')
-            ->map(static fn (mixed $id): int => (int) $id)
-            ->all();
+        return array_values(array_map(
+            static fn (array $container): string => $container['name'],
+            array_diff_key($found, array_flip($busy))
+        ));
     }
 
     /**
@@ -207,7 +129,7 @@ class ReapOrphanCodingContainersAction
      * @param list<string> $agentDirs
      * @return array{home: int, total: int, available: int}
      */
-    private function measureDisk(object $client, array $agentDirs): array
+    private function measureDisk(SshClient $client, array $agentDirs): array
     {
         if ($agentDirs === []) {
             return self::UNMEASURED;
