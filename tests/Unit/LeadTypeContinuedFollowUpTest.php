@@ -61,24 +61,28 @@ final class LeadTypeContinuedFollowUpTest extends TestCase
 
     public function testActionSkipsBeforeRetryAndSendEvenWhenForced(): void
     {
+        // [stored ai_follow_up, Lead::isAiFollowUpEnabled() when consulted, type setting, expected skip]
+        // An absent field ('' or null) never consults the helper; a present one must be enabled.
         $cases = [
-            [0, 1, 'lead_follow_up_disabled'],
-            [false, 1, 'lead_follow_up_disabled'],
-            ['0', 1, 'lead_follow_up_disabled'],
-            ['false', 1, 'lead_follow_up_disabled'],
-            ['off', 1, 'lead_follow_up_disabled'],
-            [null, 0, 'lead_type_follow_up_disabled'],
-            [1, 0, 'lead_type_follow_up_disabled'],
-            [null, 1, 'exhausted'],
-            [1, 1, 'exhausted'],
-            [true, 1, 'exhausted'],
-            ['1', 1, 'exhausted'],
+            [0, false, 1, 'lead_follow_up_disabled'],
+            [3, false, 1, 'lead_follow_up_disabled'],
+            ['off', false, 0, 'lead_follow_up_disabled'],
+            [null, null, 0, 'lead_type_follow_up_disabled'],
+            [1, true, 0, 'lead_type_follow_up_disabled'],
+            [null, null, 1, 'exhausted'],
+            ['', null, 1, 'exhausted'],
+            [1, true, 1, 'exhausted'],
         ];
 
         foreach ([false, true] as $force) {
-            foreach ($cases as [$leadSetting, $typeSetting, $reason]) {
+            foreach ($cases as [$stored, $enabled, $typeSetting, $reason]) {
                 $lead = $this->lead(['phone_con_fu_active_default' => $typeSetting]);
-                $lead->shouldReceive('get')->with('ai_follow_up')->once()->andReturn($leadSetting);
+                $lead->shouldReceive('get')->with('ai_follow_up')->once()->andReturn($stored);
+                if ($enabled === null) {
+                    $lead->shouldNotReceive('isAiFollowUpEnabled');
+                } else {
+                    $lead->shouldReceive('isAiFollowUpEnabled')->once()->andReturn($enabled);
+                }
                 if ($reason === 'exhausted') {
                     // Reaching this existing gate proves an absent/enabled lead setting
                     // passes both new gates without invoking any outbound transport.
