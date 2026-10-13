@@ -118,14 +118,13 @@ class FollowUpLeadActionTest extends TestCase
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // Gate 1a: closed lead (status >= 2) → lead_not_active (skip)
+    // Gate 1a: closed lead (leads_status_id outside the open set) → lead_not_active (skip)
     // A won/lost lead must not be nudged even in a non-terminal nudge stage.
     // ─────────────────────────────────────────────────────────────────────
     public function testSkipsWhenLeadIsNotOpen(): void
     {
         $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
-        $lead->status = 2; // closed (won/lost) → isOpen() false
-        $lead->saveOrFail();
+        $lead->close(); // leads_status_id outside the open set → hasOpenLeadStatus() false
 
         $outcome = new FollowUpLeadAction(
             app: $this->testApp,
@@ -147,8 +146,7 @@ class FollowUpLeadActionTest extends TestCase
             ['type' => 'sms', 'enabled' => true, 'template_name' => null],
         ];
         $lead = $this->seedLeadWithStageConfig($cfg);
-        $lead->status = 2;
-        $lead->saveOrFail();
+        $lead->close();
 
         $outcome = new FollowUpLeadAction(
             app: $this->testApp,

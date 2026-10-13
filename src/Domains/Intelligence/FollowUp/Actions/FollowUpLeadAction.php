@@ -78,12 +78,9 @@ final class FollowUpLeadAction
             return $this->skip('unsupported_mode_v1');
         }
 
-        // `ai_follow_up` is written by ApplyLeadAiModeAction on leads the triggers
-        // touch. Absent = never configured, so we continue; once present it must be
-        // explicitly on (same shapes the legacy engine accepted) — OFF (0) and
-        // NO_FOLLOW_UP (3) both skip.
-        $aiFollowUp = $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
-        if ($aiFollowUp !== null && $aiFollowUp !== '' && ! $this->lead->isAiFollowUpEnabled()) {
+        // Absent `ai_follow_up` means the triggers never configured the lead, so we continue; once
+        // present it must be explicitly on — OFF (0) and NO_FOLLOW_UP (3) both skip.
+        if (filled($this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value)) && ! $this->lead->isAiFollowUpEnabled()) {
             return $this->skip('lead_follow_up_disabled');
         }
 
@@ -93,10 +90,10 @@ final class FollowUpLeadAction
             return $this->skip('lead_type_follow_up_disabled');
         }
 
-        // Only follow up on open leads (status < 2). A closed lead (won/lost/
-        // inactive) sitting in a non-terminal stage must not keep getting nudged.
-        // Not bypassed by `force` — force only relaxes the silence gate.
-        if (! $this->lead->isOpen()) {
+        // Judged on `leads_status_id`, the column CRM pulls and the UI write — not `isOpen()`'s
+        // `status` column, which nothing writes. Not bypassed by `force`, which only relaxes the
+        // silence gate.
+        if (! $this->lead->hasOpenLeadStatus()) {
             return $this->skip('lead_not_active');
         }
 
@@ -231,11 +228,7 @@ final class FollowUpLeadAction
         $primaryMessage = null;
         $channelsForBump = [];
         if ($result->shouldRespond && $result->message !== null) {
-            $resolvedBody = $this->resolveOutboundBody(
-                channelType: $channelType,
-                template: $template,
-                agentMessage: $result->message,
-            );
+            $resolvedBody = $this->resolveOutboundBody($template, $result->message);
 
             foreach ($targets as $target) {
                 $body = $this->withSmsOptOutNotice($target, $resolvedBody);
@@ -574,11 +567,8 @@ final class FollowUpLeadAction
     // For templates with a `$agent_message` slot, render the template (agent
     // message wrapped). For static templates without the slot, send the agent
     // message directly — the template was a style guide only.
-    private function resolveOutboundBody(
-        string $channelType,
-        ?Templates $template,
-        string $agentMessage,
-    ): string {
+    private function resolveOutboundBody(?Templates $template, string $agentMessage): string
+    {
         if ($template === null) {
             return $agentMessage;
         }

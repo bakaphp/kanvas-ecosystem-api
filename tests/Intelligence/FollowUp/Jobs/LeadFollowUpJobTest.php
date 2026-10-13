@@ -5,14 +5,20 @@ declare(strict_types=1);
 namespace Tests\Intelligence\FollowUp\Jobs;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\CrmLeadSourceSynchronizer;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\FollowUp\Jobs\LeadFollowUpJob;
+use Kanvas\NervousSystem\Ledger\Models\Event;
+use Mockery;
+use RuntimeException;
+use Silber\Bouncer\BouncerFacade;
 use Tests\Stubs\FollowUp\FollowUpAgentStub;
 use Tests\TestCase;
 
@@ -101,7 +107,7 @@ class LeadFollowUpJobTest extends TestCase
 
         // No exception = right agent resolved (otherwise Agent::getByName
         // would throw ModelNotFoundException for the override).
-        $job->handle();
+        $job->handle(app(CrmLeadSourceSynchronizer::class));
 
         $this->assertSame('CustomNudgeAgent', $overrideAgent->name);
     }
@@ -164,7 +170,7 @@ class LeadFollowUpJobTest extends TestCase
         // No CustomNudgeAgent exists. If the job tried to resolve any name
         // other than FOLLOW_UP_ENGAGER, this would throw ModelNotFoundException.
         $job = new LeadFollowUpJob(app: $app, company: $company, lead: $lead);
-        $job->handle();
+        $job->handle(app(CrmLeadSourceSynchronizer::class));
 
         // Success = fallback resolved correctly.
         $this->assertTrue(true);
@@ -228,16 +234,88 @@ class LeadFollowUpJobTest extends TestCase
         // Simulate a leaked scope from a hypothetical previous job for a
         // different app/company. Set AFTER seeding so the seed itself doesn't
         // trip the bug (LeadObserver::created → CreateChannelAction → role lookup).
-        \Silber\Bouncer\BouncerFacade::scope()->to('app_999999_company_0');
+        BouncerFacade::scope()->to('app_999999_company_0');
 
-        new LeadFollowUpJob(app: $app, company: $company, lead: $lead)->handle();
+        new LeadFollowUpJob(app: $app, company: $company, lead: $lead)->handle(app(CrmLeadSourceSynchronizer::class));
 
         // After handle() the Bouncer scope is the job's app, NOT the leaked one.
-        $expectedScope = \Kanvas\AccessControlList\Enums\RolesEnums::getScope($app);
-        $this->assertSame($expectedScope, \Silber\Bouncer\BouncerFacade::scope()->get());
+        $expectedScope = RolesEnums::getScope($app);
+        $this->assertSame($expectedScope, BouncerFacade::scope()->get());
 
         // Container Apps binding now resolves to this job's app, not whatever
         // was bound before.
         $this->assertSame($app->getId(), app(Apps::class)->getId());
+    }
+
+    public function testHandleResolvesTheSynchronizerWithoutAnyBinding(): void
+    {
+        $this->assertInstanceOf(CrmLeadSourceSynchronizer::class, app(CrmLeadSourceSynchronizer::class));
+    }
+
+    public function testFailedCrmSyncSkipsTheTickBeforeTheActionRuns(): void
+    {
+        FollowUpAgentStub::reset();
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agentType = AgentType::factory()->withAppId($app->getId())
+            ->create(['provider' => 'neuron', 'handler' => FollowUpAgentStub::class]);
+        Agent::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create([
+            'name' => AgentEnum::FOLLOW_UP_ENGAGER->value,
+            'agent_type_id' => $agentType->getId(),
+            'user_id' => $user->getId(),
+            'role' => ['background' => [], 'steps' => [], 'output' => ''],
+        ]);
+
+        $pipeline = Pipeline::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'system_modules_id' => 0,
+            'name' => 'Test',
+            'is_default' => 0,
+        ]);
+        $stage = PipelineStage::create([
+            'pipelines_id' => $pipeline->getId(),
+            'name' => 'S',
+            'weight' => 1,
+            'config' => [
+                'follow_up' => [
+                    'enabled' => true,
+                    'mode' => 'time_based',
+                    'time_based' => ['interval_minutes' => 1],
+                    'max_retries' => 5,
+                    'exhausted_action' => 'stop',
+                    'channels' => [['type' => 'sms', 'enabled' => true, 'template_name' => null]],
+                ],
+                'stage_meta' => ['is_terminal' => false],
+            ],
+        ]);
+        $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
+            'pipeline_id' => $pipeline->getId(),
+            'pipeline_stage_id' => $stage->getId(),
+        ]);
+
+        $synchronizer = Mockery::mock(CrmLeadSourceSynchronizer::class);
+        $synchronizer->shouldReceive('canSync')->once()->andReturn(true);
+        $synchronizer->shouldReceive('sync')->once()->andThrow(new RuntimeException('CRM unreachable'));
+
+        new LeadFollowUpJob(app: $app, company: $company, lead: $lead)->handle($synchronizer);
+
+        $skip = Event::query()
+            ->where('apps_id', $app->getId())
+            ->where('event_type', 'lead.follow_up.skipped')
+            ->where('source_entity_id', $lead->getId())
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($skip, 'A failed CRM pull must land as a skipped ledger event.');
+        $this->assertSame('crm_sync_failed', $skip->payload['reason']);
+        $this->assertSame(
+            [],
+            FollowUpAgentStub::$lastReceivedMessages,
+            'The follow-up agent must never run on a lead whose CRM state could not be verified.'
+        );
     }
 }
