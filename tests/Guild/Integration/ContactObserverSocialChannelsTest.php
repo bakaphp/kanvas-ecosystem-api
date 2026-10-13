@@ -76,6 +76,24 @@ final class ContactObserverSocialChannelsTest extends TestCase
         $this->assertFalse($olderClosedLead->socialChannels()->where('slug', $slug)->exists());
     }
 
+    public function testNewLeadOpensChannelsForExistingContacts(): void
+    {
+        $people = $this->createPerson();
+        $olderActiveLead = $this->createLead($people, self::ACTIVE_STATUS_ID);
+
+        app(Apps::class)->del(ConfigurationEnum::CREATE_SOCIAL_CHANNELS_ON_CONTACT_SAVE->value);
+        $phone = $this->uniquePhone();
+        $people->addCellPhone($phone);
+        app(Apps::class)->set(ConfigurationEnum::CREATE_SOCIAL_CHANNELS_ON_CONTACT_SAVE->value, true);
+
+        $newLead = $this->createLead($people->fresh(), self::LOST_STATUS_ID);
+
+        $slug = SessionChannelService::createChannelSlug('sms', $phone);
+
+        $this->assertTrue($newLead->socialChannels()->where('slug', $slug)->exists());
+        $this->assertFalse($olderActiveLead->socialChannels()->where('slug', $slug)->exists());
+    }
+
     public function testSavingContactsAgainDoesNotDuplicateChannelsOrSessions(): void
     {
         $people = $this->createPerson();
