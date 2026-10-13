@@ -10,6 +10,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Throwable;
 
@@ -93,7 +94,8 @@ class CreatePeopleSocialChannelsAction
      */
     private function resolveSessionAgentId(Lead $lead): ?int
     {
-        $agentId = $lead->aiSession()
+        $agentId = Session::query()
+            ->whereIn('channel_id', $lead->socialChannels()->pluck('id'))
             ->where('canal_id', 'not like', SessionChannelService::createCanalId('ai-assist', '') . '%')
             ->latest('id')
             ->value('agents_id');

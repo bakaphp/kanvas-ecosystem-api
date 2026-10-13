@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Integration;
 
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
@@ -13,6 +14,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
@@ -103,7 +105,7 @@ final class ContactObserverSocialChannelsTest extends TestCase
         $people->addEmail('contact-observer-' . uniqid() . '@example.com');
 
         $channels = $lead->socialChannels()->count();
-        $sessions = $lead->aiSession()->count();
+        $sessions = $this->channelSessions($lead)->count();
 
         $contact->weight = 50;
         $contact->saveOrFail();
@@ -113,11 +115,29 @@ final class ContactObserverSocialChannelsTest extends TestCase
         $contact->saveOrFail();
 
         $this->assertSame($channels, $lead->socialChannels()->count());
-        $this->assertSame($sessions, $lead->aiSession()->count());
+        $this->assertSame($sessions, $this->channelSessions($lead)->count());
         $this->assertSame(
             $lead->socialChannels()->count(),
             $lead->socialChannels()->distinct()->count('slug')
         );
+    }
+
+    public function testSessionsAreKeyedToThePersonAndChannelsToTheLead(): void
+    {
+        $people = $this->createPerson();
+        $lead = $this->createLead($people, self::ACTIVE_STATUS_ID);
+
+        $phone = $this->uniquePhone();
+        $people->addCellPhone($phone);
+
+        $channel = $lead->socialChannels()
+            ->where('slug', SessionChannelService::createChannelSlug('sms', $phone))
+            ->firstOrFail();
+        $session = Session::query()->where('channel_id', $channel->getId())->firstOrFail();
+
+        $this->assertSame(People::class, $session->entity_namespace);
+        $this->assertSame((int) $people->getId(), (int) $session->entity_id);
+        $this->assertSame(0, $lead->aiSession()->count());
     }
 
     public function testReusesTheAgentTheLeadAlreadyTalksTo(): void
@@ -128,15 +148,15 @@ final class ContactObserverSocialChannelsTest extends TestCase
 
         $people->addCellPhone($this->uniquePhone());
 
-        $lead->aiSession()->update(['agents_id' => $existingAgent->getId()]);
-        $sessions = $lead->aiSession()->count();
+        $this->channelSessions($lead)->update(['agents_id' => $existingAgent->getId()]);
+        $sessions = $this->channelSessions($lead)->count();
 
         $people->addEmail('contact-observer-' . uniqid() . '@example.com');
 
-        $this->assertSame($sessions + 1, $lead->aiSession()->count());
+        $this->assertSame($sessions + 1, $this->channelSessions($lead)->count());
         $this->assertSame(
             [(int) $existingAgent->getId()],
-            $lead->aiSession()->distinct()->pluck('agents_id')->map(fn ($id) => (int) $id)->all()
+            $this->channelSessions($lead)->distinct()->pluck('agents_id')->map(fn ($id) => (int) $id)->all()
         );
     }
 
@@ -185,6 +205,11 @@ final class ContactObserverSocialChannelsTest extends TestCase
         return $lead->socialChannels()
             ->where('slug', SessionChannelService::createChannelSlug('sms', $phone))
             ->exists();
+    }
+
+    private function channelSessions(Lead $lead): Builder
+    {
+        return Session::query()->whereIn('channel_id', $lead->socialChannels()->pluck('id'));
     }
 
     private function createAgent(string $name): Agent
