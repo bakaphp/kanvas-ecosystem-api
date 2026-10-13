@@ -147,9 +147,12 @@ final class FollowUpLeadAction
                 . 'Eligible channels: ' . implode(', ', array_keys($channelOptions)) . ".\n";
             foreach ($channelOptions as $optionType => [$optionTarget, $optionTemplate, $optionMeta]) {
                 $prompt .= "\nCHANNEL OPTION: {$optionType}\n" . $this->buildAgentPrompt(
-                    $config, $optionType, $optionTemplate?->name,
+                    $config,
+                    $optionType,
+                    $optionTemplate?->name,
                     $optionTemplate !== null ? $this->renderTemplateForStyleReference($optionTemplate) : $this->renderDefaultStyleReference($optionType),
-                    $optionMeta, $silenceMin,
+                    $optionMeta,
+                    $silenceMin,
                 );
             }
             $prompt .= "\nReturn strict JSON with should_respond, advance_stage, message, reason, channel. "
