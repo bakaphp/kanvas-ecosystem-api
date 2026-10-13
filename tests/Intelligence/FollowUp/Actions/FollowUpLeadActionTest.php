@@ -28,7 +28,6 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
-use Mockery;
 use NeuronAI\RAG\Document;
 use ReflectionProperty;
 use Tests\Stubs\FollowUp\FollowUpAgentStub;
