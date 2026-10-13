@@ -341,8 +341,7 @@ class RunScheduledAgentActionJob implements ShouldQueue
 
         $ended = ($this->action->recurrence_ends_at !== null
                 && $next->greaterThan($this->action->recurrence_ends_at))
-            || ($this->action->max_occurrences !== null
-                && $occurrences >= $this->action->max_occurrences);
+            || $this->action->occurrenceCapReached($occurrences);
 
         $this->commit($ended
             ? [...$attributes, 'status' => ScheduledActionStatusEnum::COMPLETED->value]

@@ -203,6 +203,36 @@ class ScheduledActionSweepAndFireTest extends TestCase
         $this->assertSame(1, (int) $action->occurrences_count);
     }
 
+    /** A model asked for "every 30 minutes, no limit" passes max_occurrences 0 as often as it omits it. */
+    public function testAZeroOccurrenceCapMeansNoCap(): void
+    {
+        Notification::fake();
+        [$app, $company] = $this->context();
+
+        $action = $this->makeDue($this->makeReminder(cron: '*/30 * * * *', maxOccurrences: 0), Carbon::now()->subMinute());
+        $this->assertNull($action->max_occurrences, 'A zero cap is stored as no cap.');
+
+        new RunScheduledAgentActionJob($app, $company, $action)->handle();
+
+        $action->refresh();
+        $this->assertSame(ScheduledActionStatusEnum::PENDING->value, $action->status);
+        $this->assertSame(1, (int) $action->occurrences_count);
+    }
+
+    /** Rows written before the fix carry a literal 0; the re-arm must keep them going too. */
+    public function testARowAlreadyStoredWithAZeroCapKeepsRecurring(): void
+    {
+        Notification::fake();
+        [$app, $company] = $this->context();
+
+        $action = $this->makeDue($this->makeReminder(cron: '*/30 * * * *'), Carbon::now()->subMinute());
+        ScheduledAction::query()->whereKey($action->getKey())->update(['max_occurrences' => 0]);
+
+        new RunScheduledAgentActionJob($app, $company, $action->refresh())->handle();
+
+        $this->assertSame(ScheduledActionStatusEnum::PENDING->value, $action->refresh()->status);
+    }
+
     public function testAgentTaskFireWakesAgentAndCompletes(): void
     {
         [$app, $company, $user] = $this->context();
