@@ -24,6 +24,8 @@ enum CustomFieldEnum: string
     case CREDIT_APP_IMPORTER = 'credit_app_imported';
     case GET_DOCS_IMPORTER = 'get_docs_imported';
     case CO_BUYER_APP_IMPORTER = 'co_buyer_imported';
+    case CREDIT_APP_DATA = 'creditapp_data';
+    case CO_BUYER_APP_DATA = 'cobuyer_data';
     case ID_VERIFICATION = 'id_verification';
 
     /**

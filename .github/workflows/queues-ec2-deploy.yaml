@@ -48,6 +48,7 @@ jobs:
           host: ${{ secrets.AWS_QUEUE_EC2_HOST }}
           username: ${{ secrets.AWS_EC2_USERNAME }}
           key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
+          command_timeout: 30m
           script: |
             cd ${{ secrets.AWS_EC2_TARGET_DIR }}
 
@@ -73,6 +74,8 @@ jobs:
             # Restart every worker and the scheduler so they pick up new code — a queue:work
             # process serves the code and config:cache it booted with until it dies. Matched on
             # container name so it cannot miss one compose does not consider part of the project.
-            docker ps --format '{{.Names}}' | grep -E 'queue|scheduler' | xargs -r docker restart
+            # In parallel: `docker restart` is sequential and agent workers have a 300s stop grace,
+            # so one-by-one blows past the SSH command_timeout.
+            docker ps --format '{{.Names}}' | grep -E 'queue|scheduler' | xargs -r -P 0 -n 1 docker restart
 
             docker exec -i phpkanvas-ecosystem php artisan octane:reload

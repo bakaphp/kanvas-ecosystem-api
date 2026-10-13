@@ -118,6 +118,26 @@ final class ProcessSlackWebhookJobTest extends TestCase
         $this->assertSlackPostThreadTs(null);
     }
 
+    public function testGroupDirectMessageIsAnsweredAndAttributedLikeARoom(): void
+    {
+        $this->fakeSlackApi();
+
+        $result = $this->dispatch($this->messageEvent([
+            'channel' => 'G0001',
+            'channel_type' => 'mpim',
+            'text' => 'here is the deck you asked for',
+        ]));
+
+        $this->assertStringContainsString('Hola Mundo', $result['response']);
+
+        $inbound = $this->messagesOn('G0001')->first();
+        // Several people share a group DM, so like a room it belongs to the channel and names the speaker.
+        $this->assertInstanceOf(Channel::class, $inbound->entity());
+        $speakerName = trim($this->user->firstname . ' ' . $this->user->lastname);
+        $this->assertSame($speakerName . ': here is the deck you asked for', $inbound->message['content']);
+        $this->assertSlackReplyWasPosted();
+    }
+
     public function testEmptyAgentReplyReplacesThePlaceholderInsteadOfFailing(): void
     {
         $this->fakeSlackApi();

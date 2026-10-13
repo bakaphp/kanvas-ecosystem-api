@@ -41,8 +41,11 @@ type AttributesType {
 extend type Query @guard {
     attributesTypes(
         search: String @search
-        where: _ @whereConditions(columns: ["uuid", "id", "name"])
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        where: _ @whereConditions(columns: ["uuid", "id", "name", "is_default"])
+        orderBy: _
+            @orderBy(
+                columns: ["id", "created_at", "updated_at", "name", "is_default"]
+            )
     ): [AttributesType!]!
         @paginate(
             defaultCount: 25

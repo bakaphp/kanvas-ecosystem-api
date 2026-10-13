@@ -6,6 +6,7 @@ namespace App\Console\Commands\Connectors\Elead;
 
 use App\Console\Commands\Connectors\Concerns\CreatesDealerUsers;
 use App\Console\Commands\Connectors\Concerns\ResolvesConfiguredCompanies;
+use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
@@ -100,7 +101,13 @@ class SyncUsersCommand extends Command
                     $email = '';
                 }
 
-                if ($email === '') {
+                $generatedEmail = $email === '';
+                if ($generatedEmail) {
+                    $email = $this->generateEmployeeEmail($company, $employee);
+                }
+
+                if ($email === null) {
+                    $this->warn("Employee {$employee->id} has no email and no name to generate one — skipped");
                     $skipped++;
 
                     continue;
@@ -120,6 +127,15 @@ class SyncUsersCommand extends Command
                     continue;
                 }
 
+                // Two employees with the same name at one dealer generate the same address.
+                $mappedEmployeeId = $user->get($userKey);
+                if ($generatedEmail && $mappedEmployeeId && (string) $mappedEmployeeId !== (string) $employee->id) {
+                    $this->warn("{$email} is already mapped to eLeads employee {$mappedEmployeeId}, employee {$employee->id} skipped");
+                    $skipped++;
+
+                    continue;
+                }
+
                 if ($user->wasRecentlyCreated) {
                     $created++;
                 }
@@ -130,5 +146,32 @@ class SyncUsersCommand extends Command
         }
 
         $this->info("Mapped: {$matched} | Created: {$created} | Skipped: {$skipped}");
+    }
+
+    protected function generateEmployeeEmail(Companies $company, Employee $employee): ?string
+    {
+        $nameSlug = Str::slug($employee->firstName . $employee->lastName, '');
+        $companySlug = Str::slug((string) $company->name, '');
+        if ($nameSlug === '' || $companySlug === '') {
+            return null;
+        }
+
+        return strtolower($nameSlug . $companySlug . '@' . $this->companyEmailDomain($company, $companySlug));
+    }
+
+    /**
+     * The website is free text ("acme.com", "https://www.acme.com/"), so only its host is kept.
+     */
+    private function companyEmailDomain(Companies $company, string $companySlug): string
+    {
+        $website = Str::trimToNull((string) $company->website);
+        if ($website !== null) {
+            $host = parse_url(str_contains($website, '://') ? $website : 'https://' . $website, PHP_URL_HOST);
+            if (is_string($host) && str_contains($host, '.')) {
+                return preg_replace('/^www\./i', '', $host);
+            }
+        }
+
+        return $companySlug . '.io';
     }
 }

@@ -11,8 +11,12 @@ use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Commerce\ShoppingAssistantAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Commerce\AddToCartTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Commerce\FindMyOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Commerce\ListMyOrdersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Commerce\RemoveFromCartTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Commerce\UpdateCartItemTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Commerce\ViewCartTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CaptureConversationLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\StopContactTool;
@@ -115,6 +119,48 @@ final class ShoppingAssistantAgentTest extends TestCase
         $this->assertStringNotContainsString('shopping assistant: a knowledgeable', $instructions);
     }
 
+    public function testDefaultInstructionsCarryTheCommerceSupportRules(): void
+    {
+        $handler = new ShoppingAssistantAgent();
+        $handler->setConfiguration(agent: $this->makeAgent(Users::factory()->create()), user: $this->user);
+
+        $instructions = $handler->instructions();
+
+        $this->assertStringContainsString('not a general-purpose chatbot', $instructions);
+        $this->assertStringContainsString('Reply in the language the shopper writes in', $instructions);
+        $this->assertStringContainsString('Label every estimate as an estimate', $instructions);
+        $this->assertStringContainsString('never quietly swap the model', $instructions);
+        $this->assertStringContainsString('Never build or guess a link yourself', $instructions);
+        $this->assertStringContainsString('add_to_cart only after the shopper', $instructions);
+        $this->assertStringContainsString('guarantee that a refund, return, cancellation or claim', $instructions);
+        $this->assertStringContainsString('whether a delivery date is confirmed or estimated', $instructions);
+        $this->assertStringContainsString('conversation_summary', $instructions);
+        $this->assertStringContainsString('# TOOLS USAGE RULES', $instructions);
+    }
+
+    public function testRoleOverridesCannotRemoveTheGuardrailsOrToolRules(): void
+    {
+        $handler = new ShoppingAssistantAgent();
+        $handler->setConfiguration(
+            agent: $this->makeAgent(Users::factory()->create(), [
+                'role' => [
+                    'background' => 'You sell artisan coffee beans.',
+                    'steps' => 'Recommend a roast.',
+                    'output' => 'One sentence.',
+                ],
+            ]),
+            user: $this->user,
+        );
+
+        $instructions = $handler->instructions();
+
+        $this->assertStringContainsString('One sentence.', $instructions);
+        $this->assertStringContainsString('full card number, security code, password, one-time code', $instructions);
+        $this->assertStringContainsString('Never say you checked a product, price, order or system', $instructions);
+        $this->assertStringContainsString('Never claim "best price" or "lowest price"', $instructions);
+        $this->assertStringContainsString('# TOOLS USAGE RULES', $instructions);
+    }
+
     public function testToolsetIsStorefrontNotDealerOrBackOffice(): void
     {
         $handler = new ShoppingAssistantAgent();
@@ -125,6 +171,10 @@ final class ShoppingAssistantAgentTest extends TestCase
         foreach ([
             FindMyOrderTool::class,
             ListMyOrdersTool::class,
+            ViewCartTool::class,
+            AddToCartTool::class,
+            UpdateCartItemTool::class,
+            RemoveFromCartTool::class,
             InventorySearchTool::class,
             VariantDetailTool::class,
             HandOffTool::class,

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\DispatchHarnessTaskAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\Concerns\ReportsInternalDispatchFailure;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\SplitsReferenceSlugs;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
@@ -33,6 +36,7 @@ use Throwable;
 #[AgentTool(name: 'Continue Self-Hosted Coding Job', category: 'coding')]
 class ContinueHarnessCodingJobTool extends Tool implements RequiresSystemAgent
 {
+    use ReportsInternalDispatchFailure;
     use ReportsToolOutcome;
     use SplitsReferenceSlugs;
     use TrackByInputs;
@@ -123,11 +127,15 @@ class ContinueHarnessCodingJobTool extends Tool implements RequiresSystemAgent
                 continues: $previous,
                 referenceSlugs: $this->splitReferenceSlugs($references),
             )->execute();
-        } catch (Throwable $e) {
+        } catch (HarnessTransportException $e) {
+            return $this->internalFailure($e, 'The branch is untouched.');
+        } catch (ValidationException $e) {
             return $this->failed(
                 $e->getMessage(),
                 guidance: 'Nothing was started and the branch is untouched.'
             );
+        } catch (Throwable $e) {
+            return $this->internalFailure($e, 'The branch is untouched.');
         }
 
         return $this->ok(

@@ -26,9 +26,9 @@ its own approver, since different vendors are owned by different people on the f
 | `Enums\ApprovalQueueStatusEnum` | `pending` / `approved` / `rejected` / `expired`. |
 | `Models\ApprovalQueueItem` | The queue row itself — `action_type`, `target_type`, `target_id`, `payload`, `status`, `approved_by_users_id`, `approved_at`. |
 | `Actions\RequestApprovalAction` | Creates a pending queue row for any record type. |
-| `Actions\ResolveApprovalAction` | Dispatches on `action_type` to the domain action that actually carries out the approval (approve + push a bill, issue + push an invoice, …), then marks the row `approved`. |
+| `Actions\ResolveApprovalAction` | Legacy queue resolver that dispatches on `action_type` to the domain action that approves a bill or issues an invoice, then marks the row `approved`; the resulting status transition is handled by configured workflow activities. |
 | `Actions\ResolveApproverEmailAction` | Given `target_type`/`target_id` (or an `Organization` directly, via the static `resolveForOrganization()`), returns the `list<string>` of approver emails — its own `OrganizationApprover` Users first, falling back to `OrganizationApproverCustomFieldEnum` when none exist. The single place that maps a pending item to who may approve it. |
-| `Actions\NotifyApproverAction` | Best-effort Slack DM to an approver email — looks the person up in Slack by email, silently does nothing if Slack isn't configured or the email doesn't match a workspace member, never blocks the caller. Takes an optional `agentId` constructor arg to use a specific notifier agent instead of the app-level `ap-slack-notifier-agent-id` default (e.g. AR's own credit-memo push notification uses its own agent, since AP and AR can have different Slack bots connected). |
+| `Actions\NotifyApproverAction` | Best-effort Slack DM to an approver email — looks the person up in Slack by email, silently does nothing if Slack isn't configured or the email doesn't match a workspace member, never blocks the caller. Takes an optional `agentId` constructor arg to use a specific notifier agent instead of the app-level `ap-slack-notifier-agent-id` default. |
 
 `Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool` (`approve_pending_item`)
 is the one LLM-facing tool — generic by design, it never branches on bill-vs-invoice itself. A new
@@ -40,7 +40,7 @@ and `ResolveApproverEmailAction`; the tool and the queue itself never change.
 **Intake** (Apex/Arc, automatic, per their own agent guidance):
 
 1. Read the invoice email, extract the real data from the PDF.
-2. `create_ap_bill` / `create_ar_invoice` with `push_to_acumatica: false` — creates the bill/invoice
+2. `create_ap_bill` with `approve_immediately: false` / `create_ar_invoice` with `issue_immediately: false` — creates the bill/invoice
    in Kanvas only. `StoresApprovalSourceFields` stashes `source_email_message_id` as a custom field and
    attaches the invoice PDF through **Kanvas Filesystem** under the `source_invoice_pdf` field name
    (`ApprovalAttachmentFieldEnum::INVOICE_PDF`) — never as a custom-field URL. `ReadsApprovalSourceFields`
@@ -66,19 +66,18 @@ and `ResolveApproverEmailAction`; the tool and the queue itself never change.
 6. `approve_pending_item(target_type, target_id)` — resolves the record's vendor/customer approver
    emails via `ResolveApproverEmailAction`, checks the sender's email against that list
    (`VerifiesApprovalAuthority`) — any one of them may approve — finds the pending
-   `ApprovalQueueItem`, and calls `ResolveApprovalAction`, which approves the bill / issues the
-   invoice in Kanvas and pushes it to Acumatica in the same call.
+   `ApprovalQueueItem`, and approves the bill / issues the invoice in Kanvas. The status transition
+   is handled by configured workflow activities; the approval tool does not push to an ERP.
 7. On success, the agent's own guidance (in `AccountsPayableAgent`/`AccountsReceivableAgent`) drives
    the rest: `add_bill_note`/`add_invoice_note` records "Approved by {email} on {date}";
-   `attach_bill_file`/`attach_invoice_file` attaches the stashed PDF (only possible now, since it
-   needs an existing Acumatica push); `reply_to_email` replies inside the original email thread
+   `attach_bill_file`/`attach_invoice_file` adds any additional files; `gmail_reply_to_thread` replies inside
+   the original email thread
    with the same evidence, sent only to that vendor's/customer's approver — never to the vendor
    itself; and `update_google_sheet_cell` flips the sheet row to "Approved" with the date and
    approver's email.
 
-If the Acumatica push fails, the queue item is still **not** marked approved-and-clean — the agent
-is told to report the failure plainly instead of updating the sheet, so nothing shows "Approved"
-that isn't actually in Acumatica yet.
+External synchronization is asynchronous and workflow-owned. The approval result confirms only the
+Kanvas ledger transition; it does not claim that an external system has accepted the record.
 
 ## Who gets to approve — how the identity check actually works
 
@@ -103,7 +102,7 @@ that record until one is set.
 | `OrganizationApprover` rows | The real Kanvas Users who may approve this vendor's/customer's items — an Organization can have more than one. Takes priority over the legacy custom field below. | `AddApproverToOrganizationAction` when the approver already has a Kanvas User (it must already belong to the app). `LinkApproverEmailToOrganizationAction` when you only have their email — reuses an existing Kanvas User with that email or creates a minimal (unonboarded) one, and associates them with the app either way. `RemoveApproverFromOrganizationAction` soft-deletes the link, keeping the row for audit. Over GraphQL: `addOrganizationApprover` / `removeOrganizationApprover`, and `organization { approvers { user { email } } }` to read them. `app/Console/Commands/Scribe/ImportVendorApproversCommand.php` does this for a whole Vendor Name / Approver Email spreadsheet in one run. |
 | `Organization` custom field `ap_approver_email` (`OrganizationApproverCustomFieldEnum::APPROVER_EMAIL`) | Legacy fallback: the email of the person who approves this vendor's bills (AP) or this customer's invoices (AR), for organizations not yet migrated to `OrganizationApprover`. Looked up in Slack by email — no separate Slack user id to configure. | Per vendor/customer, via `$organization->set('ap_approver_email', 'name@company.com')`. |
 | `ap-slack-notifier-agent-id` (`ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID`) | The Kanvas `Agent` record id whose Slack bot token sends the DM — this is *deliberately* explicit, not auto-detected, because a tenant can have several agents connected to Slack and there is no reliable way to pick "the right one" automatically. This is the default `NotifyApproverAction` falls back to when no `agentId` is passed explicitly. | Kanvas admin panel → Settings → Agents → find the AP/AR agent (e.g. "Apex") → copy its id. Or run this GraphQL query (authenticated as an admin/owner): `query { agents(where: { column: NAME, operator: LIKE, value: "%Apex%" }) { data { id name } } }`. Set with `$app->set('ap-slack-notifier-agent-id', '123')`. |
-| `ar-slack-notifier-agent-id` (`Kanvas\Scribe\Invoices\Enums\ConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID`) | Same idea, scoped to AR — used when AR's Slack-connected agent (e.g. "Arc") is a different `Agent` record than AP's. `CreateArCreditMemoTool` passes this as `NotifyApproverAction`'s `agentId` for its Acumatica-push notification. | Set with `$app->set('ar-slack-notifier-agent-id', '123')`. |
+| `ar-slack-notifier-agent-id` (`Kanvas\Scribe\Invoices\Enums\ConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID`) | Same idea, scoped to AR — used when AR's Slack-connected agent (e.g. "Arc") is a different `Agent` record than AP's. | Set with `$app->set('ar-slack-notifier-agent-id', '123')`. |
 
 ### Sheet columns this flow expects
 
@@ -117,16 +116,15 @@ The tracking sheet (see `Connectors/GoogleSheets/CLAUDE.md`) needs these columns
 | D | Status (`Pending` → `Approved`) |
 | E | Approved Date |
 | F | Approved By (the approver's email) |
-| G | Acumatica Ref. (the `reference` from `approve_pending_item`'s result) |
+| G | External reference, when a downstream workflow makes one available (not returned by `approve_pending_item`) |
 
 ## Extending: adding a new approval type
 
 1. Wherever the new record is created in "pending" form, call `RequestApprovalAction` with a new
    `action_type` string (e.g. `'approve_expense'`) and the record's `target_type`/`target_id`.
 2. Add a matching case + a `resolveExpense()`-style private method in `ResolveApprovalAction` that
-   does whatever "approving this" actually means for that record type, and returns the same result
-   shape (`target_type`, `target_id`, `label`, `pushed`, `reference`, `push_error`, plus the source
-   fields if relevant).
+   does whatever "approving this" actually means for that record type and returns its identity plus
+   relevant source fields. Any external synchronization belongs in a downstream workflow activity.
 3. Add a matching case in `ResolveApproverEmailAction` mapping the new `target_type` to whichever
    `Organization` its approver email lives on.
 4. Nothing else changes — `ApprovePendingItemTool`, `NotifyApproverAction`, and the queue itself are

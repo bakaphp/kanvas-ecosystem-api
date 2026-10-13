@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
@@ -93,6 +94,15 @@ class NervousSystemAgentToolsTest extends TestCase
 
         // The plan's completion rolled up (1/1 done → 100).
         $this->assertSame(100, (int) $plan->refresh()->completion_pct);
+
+        // "Thanks, she did it" after the fact must not write a second completion.
+        $again = $tool((int) $task->id, 'done', 'shipped it');
+
+        $this->assertTrue($again['unchanged']);
+        $this->assertSame(1, DB::connection('intelligence')->table('nervous_system_events')
+            ->where('source_entity_id', $task->id)
+            ->where('event_type', 'plan.task.completed')
+            ->count());
     }
 
     public function testAddTaskToolAddsATask(): void

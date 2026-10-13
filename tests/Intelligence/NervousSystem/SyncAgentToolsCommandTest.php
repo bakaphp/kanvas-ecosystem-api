@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\UpsertLeadSourceTool;
@@ -14,11 +15,16 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\System\WhoIsUserTool;
 use Kanvas\Intelligence\Agents\Services\AgentToolDiscoveryService;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\NervousSystem\Capability\Models\ToolCategory;
+use PHPUnit\Framework\Attributes\Group;
 use stdClass;
 use Tests\TestCase;
 
 class SyncAgentToolsCommandTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'intelligence'];
+
     public function testDiscoverDerivesFrameworkAndCategoryFromNamespace(): void
     {
         $byClass = collect(new AgentToolDiscoveryService()->discover())->keyBy('class');
@@ -71,6 +77,33 @@ class SyncAgentToolsCommandTest extends TestCase
             ],
             'intelligence',
         );
+    }
+
+    #[Group('serial')]
+    public function testSyncUpdatesLegacyHandlerWithoutReplacingTheCatalogRow(): void
+    {
+        $entry = collect(new AgentToolDiscoveryService()->discover())
+            ->firstWhere('class', FindInvoiceTool::class);
+        $this->assertNotNull($entry, 'Find Invoice should be discovered');
+
+        Tool::query()->where('apps_id', 0)->where('handler', FindInvoiceTool::class)->delete();
+
+        $legacyTool = Tool::create([
+            'apps_id' => 0,
+            'name' => $entry['name'],
+            'description' => $entry['description'],
+            'handler' => 'Kanvas\\Intelligence\\Agents\\Neuron\\Tools\\Acumatica\\FindInvoiceTool',
+            'tool_type' => 'system',
+            'frameworks' => ['neuron'],
+            'version' => '1.0.0',
+            'is_active' => 1,
+            'is_deleted' => 0,
+        ]);
+
+        $this->artisan('kanvas:nervous-system:sync-tools')->assertSuccessful();
+
+        $this->assertSame(FindInvoiceTool::class, $legacyTool->fresh()->handler);
+        $this->assertSame(1, Tool::query()->where('name', $entry['name'])->where('apps_id', 0)->count());
     }
 
     public function testSyncIsIdempotent(): void

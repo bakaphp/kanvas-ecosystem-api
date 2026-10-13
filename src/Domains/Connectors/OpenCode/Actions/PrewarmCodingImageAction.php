@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenCode\Actions;
 
 use Baka\Contracts\AppInterface;
-use Baka\Support\Str;
-use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
+use Kanvas\Connectors\OpenCode\Services\CodingImageService;
 use Kanvas\Connectors\OpenCode\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -28,12 +27,7 @@ class PrewarmCodingImageAction
 
     public function execute(): string
     {
-        $image = Str::trimToNull((string) $this->app->get(ConfigurationEnum::IMAGE->value));
-
-        if ($image === null) {
-            throw new ValidationException('No opencode image configured (' . ConfigurationEnum::IMAGE->value . ')');
-        }
-
+        $image = CodingImageService::configuredFor($this->app);
         $client = SshClient::fromMachine($this->machine);
 
         try {

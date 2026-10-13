@@ -67,7 +67,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                 }
 
                 $chatJid = $message->message['chat_jid'] ?? null;
-                $lead = $message->entity();
+                $lead = $message->preferredEntity(Lead::class);
                 $message->addTag('engagement');
 
                 // Don't process messages from the phone owner

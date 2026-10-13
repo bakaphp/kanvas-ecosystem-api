@@ -23,7 +23,18 @@ class Str extends IlluminateStr
      */
     public static function jsonToArray(mixed $string): mixed
     {
-        return is_string($string) && self::isJson($string) ? json_decode($string, true) : $string;
+        if (! is_string($string) || ! self::isJson($string)) {
+            return $string;
+        }
+
+        $decoded = json_decode($string, true);
+
+        // A bare number is valid JSON; keep the string when decoding lost precision (OAuth ids, 64-bit ids).
+        if ((is_int($decoded) || is_float($decoded)) && json_encode($decoded) !== $string) {
+            return $string;
+        }
+
+        return $decoded;
     }
 
     /**

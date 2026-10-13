@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem\Agents\Coding;
 
+use App\Console\Commands\Concerns\ResolvesAppOption;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
@@ -25,6 +26,7 @@ use Throwable;
 class SetupCodingRuntimeCommand extends Command
 {
     use KanvasJobsTrait;
+    use ResolvesAppOption;
 
     protected $signature = 'kanvas:coding:setup
         {--app= : App id to configure}
@@ -174,13 +176,6 @@ class SetupCodingRuntimeCommand extends Command
         }
 
         return $missing === [] ? self::SUCCESS : self::FAILURE;
-    }
-
-    private function resolveApp(): ?Apps
-    {
-        $appId = $this->option('app');
-
-        return $appId === null ? null : Apps::query()->where('id', (int) $appId)->first();
     }
 
     private function resolveCompany(): ?Companies

@@ -20,10 +20,13 @@ use Kanvas\Users\Models\UserCompanyApps;
 use Throwable;
 
 /**
- * Weekly Engage usage report fan-out. Mails a per-rep leaderboard for the last seven complete days
+ * Engage usage report fan-out. Mails a per-rep leaderboard for the last seven complete days
  * to every company that has `engage_usage_report_enabled` set, inside an app that has it set too.
  * Both levels must be on: the app switch turns the module on for a product, the company switch
  * opts an individual tenant in, and either can turn it back off alone.
+ *
+ * `--daily` is a separate opt-in (`engage_usage_daily_report_enabled`, same two levels) that mails
+ * the previous day alone. It is independent of the weekly flag, so a tenant can get either or both.
  *
  * The window is resolved per company timezone, so a Monday-morning cron gives every tenant its own
  * Mon–Sun week rather than a UTC slice of one.
@@ -37,14 +40,16 @@ class SendEngageUsageReportCommand extends Command
         {--company= : Restrict to a single companies_id. Bypasses the per-company enabled gate.}
         {--from= : Range start (Y-m-d). Requires --to. Defaults to the last 7 complete days.}
         {--to= : Range end (Y-m-d). Requires --from.}
+        {--daily : Report the previous day to tenants with the daily flag, instead of the weekly run}
         {--channel=all : sms, email, or all}
         {--email= : Comma-separated address(es) to send to instead of the company\'s managers}
         {--dry-run : Build the leaderboard and print it without sending any email}';
 
-    protected $description = 'Email the weekly Engage usage leaderboard to each company\'s managers.';
+    protected $description = 'Email the weekly (or --daily) Engage usage leaderboard to each company\'s managers.';
 
-    /** Opt-in flag; must be set on BOTH the app and the company. */
+    /** Opt-in flags; each must be set on BOTH the app and the company. */
     private const string ENABLED_SETTING = 'engage_usage_report_enabled';
+    private const string DAILY_ENABLED_SETTING = 'engage_usage_daily_report_enabled';
 
     public function handle(): int
     {
@@ -175,8 +180,8 @@ class SendEngageUsageReportCommand extends Command
     }
 
     /**
-     * Last seven complete days in the company's timezone. The cron runs in the morning, so
-     * "yesterday" is the newest day with a full set of data.
+     * Last seven complete days (or just yesterday with --daily) in the company's timezone. The cron
+     * runs in the morning, so "yesterday" is the newest day with a full set of data.
      *
      * @return array{from: string, to: string, bucket: string, timezone: string}
      */
@@ -197,9 +202,10 @@ class SendEngageUsageReportCommand extends Command
         }
 
         $yesterday = Date::now($timezone)->subDay();
+        $start = $this->option('daily') ? $yesterday : $yesterday->copy()->subDays(6);
 
         return [
-            'from' => $yesterday->copy()->subDays(6)->format('Y-m-d'),
+            'from' => $start->format('Y-m-d'),
             'to' => $yesterday->format('Y-m-d'),
             'bucket' => 'DAY',
             'timezone' => $timezone,
@@ -243,7 +249,7 @@ class SendEngageUsageReportCommand extends Command
 
         $companies = $this->enabledIds(CompaniesSettings::query(), 'companies_id');
         if ($companies === []) {
-            $this->info(sprintf('No company has %s set.', self::ENABLED_SETTING));
+            $this->info(sprintf('No company has %s set.', $this->enabledSetting()));
 
             return [];
         }
@@ -254,7 +260,7 @@ class SendEngageUsageReportCommand extends Command
         $apps = $appId !== null ? [(int) $appId] : $this->enabledIds(AppsSettings::query(), 'apps_id');
 
         if ($apps === []) {
-            $this->info(sprintf('No app has %s set.', self::ENABLED_SETTING));
+            $this->info(sprintf('No app has %s set.', $this->enabledSetting()));
 
             return [];
         }
@@ -284,7 +290,7 @@ class SendEngageUsageReportCommand extends Command
     private function enabledIds(Builder $query, string $ownerColumn): array
     {
         return $query
-            ->where('name', self::ENABLED_SETTING)
+            ->where('name', $this->enabledSetting())
             // HashTableTrait upserts settings without touching is_deleted, so rows it writes carry
             // NULL rather than 0 — a plain `where('is_deleted', 0)` misses them.
             ->where(fn (Builder $scoped) => $scoped->whereNull('is_deleted')->orWhere('is_deleted', 0))
@@ -293,6 +299,11 @@ class SendEngageUsageReportCommand extends Command
             ->keys()
             ->map(fn (mixed $id): int => (int) $id)
             ->all();
+    }
+
+    private function enabledSetting(): string
+    {
+        return $this->option('daily') ? self::DAILY_ENABLED_SETTING : self::ENABLED_SETTING;
     }
 
     /**

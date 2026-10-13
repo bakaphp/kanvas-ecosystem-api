@@ -6,9 +6,12 @@ namespace Tests\GraphQL\ActionEngine;
 
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Tests\TestCase;
+use Tests\Traits\AssertsIsDefaultOrdering;
 
 class PipelineTest extends TestCase
 {
+    use AssertsIsDefaultOrdering;
+
     private function createPipeline(?array $overrides = []): array
     {
         $input = array_merge([
@@ -98,6 +101,32 @@ class PipelineTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testActionPipelinesSortByIsDefaultPutsDefaultFirst(): void
+    {
+        $default = $this->createPipeline([
+            'name' => 'Default Sort ' . uniqid('', true),
+            'is_default' => true,
+        ]);
+        $regular = $this->createPipeline([
+            'name' => 'Regular Sort ' . uniqid('', true),
+            'is_default' => false,
+        ]);
+
+        $this->assertOrdersByIsDefault(
+            'query($ids: Mixed!, $order: SortOrder!) {
+                actionPipelines(
+                    where: { column: ID, operator: IN, value: $ids }
+                    orderBy: [{ column: IS_DEFAULT, order: $order }]
+                ) {
+                    data { id is_default }
+                }
+            }',
+            'data.actionPipelines.data',
+            (int) $default['id'],
+            (int) $regular['id']
+        );
     }
 
     public function testGetActionPipelinesWithNullUpdatedAt(): void

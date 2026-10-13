@@ -5,16 +5,10 @@
   "parking_application_phone": "8095551234",
   "parking_application_email": "juan.perez@example.com",
   "parking_application_parking_name": "Parqueo Plaza Central",
-  "parking_application_parking_type": "commercial",
-  "parking_application_structure": "multilevel",
-  "parking_application_has_lighting": true,
-  "parking_application_has_cameras": true,
+  "parking_application_parking_type": "mall",
+  "parking_application_structure": "multi_story",
+  "parking_application_infrastructure": ["lighting", "cameras", "security_staff", "electronic_gate"],
   "parking_application_camera_count": 8,
-  "parking_application_has_guard": true,
-  "parking_application_has_roof": true,
-  "parking_application_has_access_control": true,
-  "parking_application_has_restrooms": false,
-  "parking_application_is_24_7_security": true,
   "parking_application_address": "Av. Winston Churchill 1020",
   "parking_application_city": "Santo Domingo",
   "parking_application_province": "Distrito Nacional",
@@ -56,7 +50,7 @@
     }
   ],
   "parking_application_payment_methods": [
-    "movipass",
+    "card",
     "cash"
   ],
   "parking_application_rate_hourly": 100,

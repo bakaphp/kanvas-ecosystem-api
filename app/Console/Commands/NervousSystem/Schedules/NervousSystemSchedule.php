@@ -19,6 +19,7 @@ use App\Console\Commands\NervousSystem\Metrics\SyncModelPricingCommand;
 use App\Console\Commands\NervousSystem\Plans\DetectStalledPlanTasksCommand;
 use App\Console\Commands\NervousSystem\Plans\NudgeInactivePlansCommand;
 use App\Console\Commands\NervousSystem\Plans\ProjectHeartbeatCommand;
+use App\Console\Commands\NervousSystem\Plans\RedeliverChildOutcomesCommand;
 use App\Console\Commands\NervousSystem\Plans\SweepStaleIntakeCommand;
 use App\Console\Commands\NervousSystem\Plans\SyncKanbanDeploymentsCommand;
 use App\Console\Commands\NervousSystem\Scheduling\SweepScheduledActionsCommand;
@@ -96,6 +97,13 @@ final class NervousSystemSchedule
             ->everyMinute()
             ->withoutOverlapping(5)
             ->runInBackground();
+
+        // Child outcomes whose after-commit wake was lost to a dying worker. Rare by construction,
+        // so a 5-min lag on the recovery costs nothing; the row's own 2-min age guard keeps it off
+        // outcomes whose dispatch simply has not run yet.
+        $schedule->command(RedeliverChildOutcomesCommand::class)
+            ->everyFiveMinutes()
+            ->withoutOverlapping(15);
 
         // Inactive-plan nudge — once a day, ping owners of open plans that have gone silent past the
         // 24h threshold. Daily (not the 5-min heartbeat cadence) because the signal is day-scale and the

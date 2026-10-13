@@ -38,7 +38,7 @@ class SendVoiceMessageActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function () use ($message, $app) {
-                $lead = $message->entity();
+                $lead = $message->entity(Lead::class);
 
                 if (! $lead instanceof Lead) {
                     return ['success' => false, 'message' => 'Message entity is not a Lead'];
