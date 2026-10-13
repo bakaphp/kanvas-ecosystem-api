@@ -93,6 +93,20 @@ Bug surfaced 2026-06-08 on lead 25628: agent had 46 People-keyed message rows av
 
 ## The agent never terminally exhausts a lead
 
+The lead's `ai_follow_up` custom field (set by `TriggerIntelligenceActivity` via
+`ApplyLeadAiModeAction`) vetoes execution when explicitly off, with skip reason
+`lead_follow_up_disabled`. An absent value allows the remaining gates to run.
+This check applies even to forced runs; enabling it does not override a disabled
+lead type. `lead_has_follow_up` is the legacy mirror written by the trigger.
+
+Lead-type continued-follow-up defaults can veto execution before retry handling or
+stage advancement. `LeadConfigurationService::allowsContinuedFollowUp()` reads
+`*_con_fu_active_default`, `*_con_fu_cns_default`, or
+`*_con_fu_closed-sold_default` for the lead state. Missing settings allow the
+remaining gates to run; explicit false values skip with
+`lead_type_follow_up_disabled`, even for forced runs. First-message defaults are
+independent. This veto does not override the engine's open-leads-only restriction.
+
 `should_respond: false` + `advance_stage: false` from the LLM is treated as a **transient SKIP**, not a terminal exhaustion. The next cron tick re-evaluates the lead. The skip emits `lead.follow_up.skipped` with `reason: 'agent: <text>'` for ledger visibility — no `exhausted_at` set, no operator reset required.
 
 This was a real bug: the agent was using `should_respond: false` to mean "wait longer, customer is still digesting" and the action treated that as terminal exhaustion. Leads got stuck after a single agent timing-feedback decision. Fixed 2026-06-08.
@@ -171,7 +185,7 @@ Required config per stage:
 
 **Caveats unique to Pattern B:**
 - **One-hour lag without the "always advance" prompt nudge** — without it, send happens on tick N (`count=0→1`), advance happens on tick N+1 (`count=1≥1` fires the exhaust gate). The ledger then carries one `lead.follow_up.exhausted` per day-stage with `reason: max_retries`.
-- **Customer inbound pauses the day clock** — `followUpSilenceMinutesSince` uses `last_inbound_at` as the reference. A reply during Day 2 resets `silence_minutes`, so the Day 2 nudge waits another 24h. Usually desired (don't pile on the engaged customer). If you need strict calendar advance regardless of conversation activity, swap the silence reference to `stage_entered_at` — this is the only line that needs changing.
+- **The interval restarts on stage entry, follow-up, or customer inbound** — `followUpSilenceMinutesSince` uses the latest of these timestamps. Without any, it falls back to entity creation time. Missing or future references yield zero elapsed minutes. Resetting state on a stage change therefore starts the full next-stage interval.
 - **Last-stage exhaust is a no-op** — `moveToNextPipelineStage()` silently does nothing when there's no next stage. The lead just parks there exhausted.
 
 ### What the infra does NOT do today
