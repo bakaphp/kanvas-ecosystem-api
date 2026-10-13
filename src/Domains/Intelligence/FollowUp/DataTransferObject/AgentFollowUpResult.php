@@ -9,8 +9,8 @@ use Spatie\LaravelData\Data;
 
 /**
  * Parsed JSON response from FollowUpAgent. Shape contract enforced via the
- * agent's instructions(): `{ should_respond, advance_stage, message?, reason? }`.
- * Booleans combine — neither true = exhaust with `agent: <reason>`.
+ * agent's instructions(): `{ should_respond, advance_stage, message?, reason?, channel? }`.
+ * Neither boolean true means a transient skip, not exhaustion.
  */
 class AgentFollowUpResult extends Data
 {
@@ -21,6 +21,7 @@ class AgentFollowUpResult extends Data
         public readonly bool $advanceStage,
         public readonly ?string $message = null,
         public readonly ?string $reason = null,
+        public readonly ?string $channel = null,
     ) {
     }
 
@@ -50,6 +51,9 @@ class AgentFollowUpResult extends Data
                 : null,
             reason: isset($decoded['reason']) && is_string($decoded['reason']) && $decoded['reason'] !== ''
                 ? $decoded['reason']
+                : null,
+            channel: isset($decoded['channel']) && is_string($decoded['channel'])
+                ? strtolower(trim($decoded['channel']))
                 : null,
         );
     }

@@ -9,8 +9,12 @@ use NeuronAI\Chat\History\InMemoryMessageStore;
 use NeuronAI\Chat\History\MessageStoreInterface;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\SystemMessage;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Providers\ProviderResponse;
+use NeuronAI\RAG\Document;
+use NeuronAI\RAG\Retrieval\RetrievalInterface;
+use NeuronAI\RAG\VectorStore\Filter\FilterExpression;
 use Override;
 use Tests\Stubs\Intelligence\FakeNeuronProvider;
 
@@ -63,11 +67,20 @@ class FollowUpAgentStub extends FollowUpAgent
 
     public static ?bool $lastPrivateUserTurn = null;
 
+    /** @var list<Document> */
+    public static array $knowledgeDocuments = [];
+
+    public static int $retrievalCalls = 0;
+    public static ?string $lastSystemPrompt = null;
+
     public static function reset(): void
     {
         self::$cannedResponse = '{"should_respond": false, "advance_stage": false, "message": null, "reason": "stub-default"}';
         self::$lastReceivedMessages = [];
         self::$throwOnChat = null;
+        self::$knowledgeDocuments = [];
+        self::$retrievalCalls = 0;
+        self::$lastSystemPrompt = null;
         self::$lastThreadId = null;
         self::$lastPrivateUserTurn = null;
     }
@@ -104,6 +117,16 @@ class FollowUpAgentStub extends FollowUpAgent
     {
         return new class (self::$cannedResponse) extends FakeNeuronProvider {
             #[Override]
+            public function systemPrompt(SystemMessage|string|null $prompt): AIProviderInterface
+            {
+                FollowUpAgentStub::$lastSystemPrompt = $prompt instanceof SystemMessage
+                    ? (string) $prompt->getContent()
+                    : $prompt;
+
+                return $this;
+            }
+
+            #[Override]
             public function chat(Message ...$messages): ProviderResponse
             {
                 FollowUpAgentStub::$lastReceivedMessages = $messages;
@@ -120,6 +143,19 @@ class FollowUpAgentStub extends FollowUpAgent
                 FollowUpAgentStub::$lastReceivedMessages = is_array($messages) ? $messages : [$messages];
 
                 return $this->respond(new AssistantMessage($this->response));
+            }
+        };
+    }
+
+    #[Override]
+    protected function retrieval(): RetrievalInterface
+    {
+        return new class () implements RetrievalInterface {
+            public function retrieve(Message $query, ?FilterExpression $filters = null): array
+            {
+                FollowUpAgentStub::$retrievalCalls++;
+
+                return FollowUpAgentStub::$knowledgeDocuments;
             }
         };
     }
