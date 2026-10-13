@@ -31,6 +31,7 @@ use Kanvas\Intelligence\FollowUp\Enums\ChannelSelectionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\ExhaustedActionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpModeEnum;
 use Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
@@ -70,6 +71,20 @@ final class FollowUpLeadAction
         // V1 ships time_based only; goal_based shape is reserved.
         if ($config->mode !== FollowUpModeEnum::TIME_BASED || $config->timeBased === null) {
             return $this->skip('unsupported_mode_v1');
+        }
+
+        // TriggerIntelligenceActivity persists FOLLOW_UP_ON/OFF on the lead.
+        // Missing values preserve v2 behavior for apps without these triggers.
+        $configuration = new LeadConfigurationService();
+        $leadFollowUp = $this->lead->get($configuration->getFollowUpModeKey($this->lead));
+        if ($leadFollowUp !== null && filter_var($leadFollowUp, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === false) {
+            return $this->skip('lead_follow_up_disabled');
+        }
+
+        // Lead-type defaults can veto v2, including manual/forced runs.
+        // Check before retries so disabled types cannot advance stages either.
+        if (! $configuration->allowsContinuedFollowUp($this->lead)) {
+            return $this->skip('lead_type_follow_up_disabled');
         }
 
         // Only follow up on open leads (status < 2). A closed lead (won/lost/
@@ -409,11 +424,9 @@ final class FollowUpLeadAction
         $templateBody = $context['template_body'] ?? null;
         $silenceMin = (int) $context['silence_minutes'];
 
-        $silenceLine = $silenceMin === PHP_INT_MAX
-            ? 'Silence since last inbound: no prior inbound on file (cold lead OR no message stream yet).'
-            : 'Silence since last inbound: ' . CarbonInterval::minutes($silenceMin)
-                ->cascade()
-                ->forHumans(['parts' => 1, 'syntax' => CarbonInterface::DIFF_ABSOLUTE]) . '.';
+        $silenceLine = 'Time since latest stage entry, follow-up or inbound (creation time if none): ' . CarbonInterval::minutes($silenceMin)
+            ->cascade()
+            ->forHumans(['parts' => 1, 'syntax' => CarbonInterface::DIFF_ABSOLUTE]) . '.';
 
         // Defensive ?? despite the docblock — production configs can carry
         // null/bad timezone values; see feedback_validate_timezone_strings.
