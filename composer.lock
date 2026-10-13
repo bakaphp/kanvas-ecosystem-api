@@ -8,22 +8,23 @@
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
-            "version": "4.49.0",
+            "version": "4.50.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/algolia/algoliasearch-client-php.git",
-                "reference": "0e8832da117e60ca2d8bfe0ee9d3271ea9471019"
+                "reference": "3b82fdb2e7730af8a58be6d485f2b5d8cf15c6bf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/algolia/algoliasearch-client-php/zipball/0e8832da117e60ca2d8bfe0ee9d3271ea9471019",
-                "reference": "0e8832da117e60ca2d8bfe0ee9d3271ea9471019",
+                "url": "https://api.github.com/repos/algolia/algoliasearch-client-php/zipball/3b82fdb2e7730af8a58be6d485f2b5d8cf15c6bf",
+                "reference": "3b82fdb2e7730af8a58be6d485f2b5d8cf15c6bf",
                 "shasum": ""
             },
             "require": {
                 "ext-curl": "*",
                 "ext-json": "*",
                 "ext-mbstring": "*",
+                "ext-zlib": "*",
                 "guzzlehttp/psr7": "^2.0 || ^3.0",
                 "php": ">=8.1 !=8.3.0",
                 "psr/http-message": "^1.1 || ^2.0",
@@ -70,9 +71,9 @@
             ],
             "support": {
                 "issues": "https://github.com/algolia/algoliasearch-client-php/issues",
-                "source": "https://github.com/algolia/algoliasearch-client-php/tree/4.49.0"
+                "source": "https://github.com/algolia/algoliasearch-client-php/tree/4.50.0"
             },
-            "time": "2026-09-09T15:24:38+00:00"
+            "time": "2026-10-12T14:57:42+00:00"
         },
         {
             "name": "algolia/scout-extended",
@@ -385,16 +386,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.400.1",
+            "version": "3.401.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "c0cf2c322bc1a344aaf39250da8856563532f82b"
+                "reference": "4a1b9615de78a69d91614d45966402cc28d4dfe3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c0cf2c322bc1a344aaf39250da8856563532f82b",
-                "reference": "c0cf2c322bc1a344aaf39250da8856563532f82b",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/4a1b9615de78a69d91614d45966402cc28d4dfe3",
+                "reference": "4a1b9615de78a69d91614d45966402cc28d4dfe3",
                 "shasum": ""
             },
             "require": {
@@ -476,9 +477,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.400.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.401.0"
             },
-            "time": "2026-10-09T18:11:15+00:00"
+            "time": "2026-10-12T18:06:22+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -2388,16 +2389,16 @@
         },
         {
             "name": "google/cloud-core",
-            "version": "v1.73.5",
+            "version": "v1.74.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-core.git",
-                "reference": "122a803b8ecb9c1cd4ea53330798572484eb7a3f"
+                "reference": "2ce0b5206407501dc3e6cf1536df3f8b4b30589f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/122a803b8ecb9c1cd4ea53330798572484eb7a3f",
-                "reference": "122a803b8ecb9c1cd4ea53330798572484eb7a3f",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/2ce0b5206407501dc3e6cf1536df3f8b4b30589f",
+                "reference": "2ce0b5206407501dc3e6cf1536df3f8b4b30589f",
                 "shasum": ""
             },
             "require": {
@@ -2449,9 +2450,9 @@
             ],
             "description": "Google Cloud PHP shared dependency, providing functionality useful to all components.",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.73.5"
+                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.74.0"
             },
-            "time": "2026-09-28T17:51:46+00:00"
+            "time": "2026-10-07T21:40:20+00:00"
         },
         {
             "name": "google/cloud-discoveryengine",
@@ -2554,16 +2555,16 @@
         },
         {
             "name": "google/cloud-storage",
-            "version": "v2.5.5",
+            "version": "v2.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-storage.git",
-                "reference": "d3ff3e5fe9bac09968b3c552d6ffe852c641fb71"
+                "reference": "58f908ce816d49b8a5f4ce482b94a7384aa3a59b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/d3ff3e5fe9bac09968b3c552d6ffe852c641fb71",
-                "reference": "d3ff3e5fe9bac09968b3c552d6ffe852c641fb71",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/58f908ce816d49b8a5f4ce482b94a7384aa3a59b",
+                "reference": "58f908ce816d49b8a5f4ce482b94a7384aa3a59b",
                 "shasum": ""
             },
             "require": {
@@ -2606,9 +2607,9 @@
             ],
             "description": "Cloud Storage Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v2.5.5"
+                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v2.6.0"
             },
-            "time": "2026-09-28T17:51:46+00:00"
+            "time": "2026-10-07T21:40:20+00:00"
         },
         {
             "name": "google/common-protos",
@@ -4162,16 +4163,16 @@
         },
         {
             "name": "laragraph/utils",
-            "version": "v2.3.1",
+            "version": "v2.3.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laragraph/utils.git",
-                "reference": "0c32d90566658ab5a1979b13e8ab6c13b375c91f"
+                "reference": "de97efc4d493a2eef33786afff7b94df89c7ab5d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laragraph/utils/zipball/0c32d90566658ab5a1979b13e8ab6c13b375c91f",
-                "reference": "0c32d90566658ab5a1979b13e8ab6c13b375c91f",
+                "url": "https://api.github.com/repos/laragraph/utils/zipball/de97efc4d493a2eef33786afff7b94df89c7ab5d",
+                "reference": "de97efc4d493a2eef33786afff7b94df89c7ab5d",
                 "shasum": ""
             },
             "require": {
@@ -4216,7 +4217,7 @@
                 "issues": "https://github.com/laragraph/utils/issues",
                 "source": "https://github.com/laragraph/utils"
             },
-            "time": "2026-03-04T07:16:49+00:00"
+            "time": "2026-10-12T13:34:26+00:00"
         },
         {
             "name": "laravel-notification-channels/expo",
@@ -4284,16 +4285,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v1.2.0",
+            "version": "v1.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "0020f8f529321211870385159d691915e19460d4"
+                "reference": "acd4d82d342eceb04d50229b3635b484474fbec5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/0020f8f529321211870385159d691915e19460d4",
-                "reference": "0020f8f529321211870385159d691915e19460d4",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/acd4d82d342eceb04d50229b3635b484474fbec5",
+                "reference": "acd4d82d342eceb04d50229b3635b484474fbec5",
                 "shasum": ""
             },
             "require": {
@@ -4362,7 +4363,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-10-07T19:23:23+00:00"
+            "time": "2026-10-12T17:40:55+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -6413,12 +6414,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/SpartnerNL/Laravel-Excel.git",
-                "reference": "050985813424582bf084b93eb8c3fee0fb12c6c4"
+                "reference": "30f17acbb89bf260173387349722eec2cc817016"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/SpartnerNL/Laravel-Excel/zipball/050985813424582bf084b93eb8c3fee0fb12c6c4",
-                "reference": "050985813424582bf084b93eb8c3fee0fb12c6c4",
+                "url": "https://api.github.com/repos/SpartnerNL/Laravel-Excel/zipball/30f17acbb89bf260173387349722eec2cc817016",
+                "reference": "30f17acbb89bf260173387349722eec2cc817016",
                 "shasum": ""
             },
             "require": {
@@ -6495,7 +6496,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-09-14T12:30:46+00:00"
+            "time": "2026-10-12T08:40:04+00:00"
         },
         {
             "name": "maennchen/zipstream-php",
@@ -7600,16 +7601,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "4.1.10",
+            "version": "4.1.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "f64b8a2d1ee7362d180545cd4dd632a3a2b9a029"
+                "reference": "e1d4790cadf829dea6fc5e35033d7fb24a05b352"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/f64b8a2d1ee7362d180545cd4dd632a3a2b9a029",
-                "reference": "f64b8a2d1ee7362d180545cd4dd632a3a2b9a029",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/e1d4790cadf829dea6fc5e35033d7fb24a05b352",
+                "reference": "e1d4790cadf829dea6fc5e35033d7fb24a05b352",
                 "shasum": ""
             },
             "require": {
@@ -7681,7 +7682,7 @@
             "description": "A unified layer for building AI-native applications in PHP.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/4.1.10"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/4.1.11"
             },
             "funding": [
                 {
@@ -7689,7 +7690,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-10T09:34:38+00:00"
+            "time": "2026-10-10T13:34:19+00:00"
         },
         {
             "name": "neuron-core/router",
@@ -7953,16 +7954,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.71.0",
+            "version": "v6.72.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "0dc7b93596132f5e0e17b88538e873f00aa6b820"
+                "reference": "58a7a159f22ded74fb30cbbd476d1e2a7f5b66df"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/0dc7b93596132f5e0e17b88538e873f00aa6b820",
-                "reference": "0dc7b93596132f5e0e17b88538e873f00aa6b820",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/58a7a159f22ded74fb30cbbd476d1e2a7f5b66df",
+                "reference": "58a7a159f22ded74fb30cbbd476d1e2a7f5b66df",
                 "shasum": ""
             },
             "require": {
@@ -8080,7 +8081,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2026-09-27T10:10:22+00:00"
+            "time": "2026-10-11T12:10:28+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -11758,21 +11759,21 @@
         },
         {
             "name": "setasign/fpdi",
-            "version": "v2.6.8",
+            "version": "v2.6.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Setasign/FPDI.git",
-                "reference": "881945be29a4996ad3d008eb18ddc01fa3df890c"
+                "reference": "d97ade6368aa0b51b6316d5dc16a567e2bf60167"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Setasign/FPDI/zipball/881945be29a4996ad3d008eb18ddc01fa3df890c",
-                "reference": "881945be29a4996ad3d008eb18ddc01fa3df890c",
+                "url": "https://api.github.com/repos/Setasign/FPDI/zipball/d97ade6368aa0b51b6316d5dc16a567e2bf60167",
+                "reference": "d97ade6368aa0b51b6316d5dc16a567e2bf60167",
                 "shasum": ""
             },
             "require": {
                 "ext-zlib": "*",
-                "php": ">=7.2 <=8.5.99999"
+                "php": ">=7.2 <=8.6.99999"
             },
             "conflict": {
                 "setasign/tfpdf": "<1.31"
@@ -11781,7 +11782,6 @@
                 "phpunit/phpunit": "^8.5.52",
                 "setasign/fpdf": "^1.9.0",
                 "setasign/tfpdf": "~1.33",
-                "squizlabs/php_codesniffer": "^3.5",
                 "tecnickcom/tcpdf": "^6.8"
             },
             "suggest": {
@@ -11818,7 +11818,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Setasign/FPDI/issues",
-                "source": "https://github.com/Setasign/FPDI/tree/v2.6.8"
+                "source": "https://github.com/Setasign/FPDI/tree/v2.6.9"
             },
             "funding": [
                 {
@@ -11826,7 +11826,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-11T10:37:24+00:00"
+            "time": "2026-10-13T07:36:28+00:00"
         },
         {
             "name": "shish/safe",
@@ -12133,16 +12133,16 @@
         },
         {
             "name": "smalot/pdfparser",
-            "version": "v2.12.5",
+            "version": "v2.13.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/smalot/pdfparser.git",
-                "reference": "2cfa0d92bd557875c9f52a75fde0e8392302a354"
+                "reference": "a71c6dd38e60a995fdb4d36e4433b8b3557c65dc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/smalot/pdfparser/zipball/2cfa0d92bd557875c9f52a75fde0e8392302a354",
-                "reference": "2cfa0d92bd557875c9f52a75fde0e8392302a354",
+                "url": "https://api.github.com/repos/smalot/pdfparser/zipball/a71c6dd38e60a995fdb4d36e4433b8b3557c65dc",
+                "reference": "a71c6dd38e60a995fdb4d36e4433b8b3557c65dc",
                 "shasum": ""
             },
             "require": {
@@ -12178,9 +12178,9 @@
             ],
             "support": {
                 "issues": "https://github.com/smalot/pdfparser/issues",
-                "source": "https://github.com/smalot/pdfparser/tree/v2.12.5"
+                "source": "https://github.com/smalot/pdfparser/tree/v2.13.1"
             },
-            "time": "2026-04-17T11:37:58+00:00"
+            "time": "2026-10-13T08:49:45+00:00"
         },
         {
             "name": "spatie/enum",
@@ -17471,16 +17471,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.12.2",
+            "version": "8.13.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/twilio/twilio-php",
-                "reference": "f7c4bfca157c8a2de71cb1670dff9c999c469a00"
+                "url": "https://github.com/twilio/twilio-php.git",
+                "reference": "0cb66196f3c017dae395661e0cf1fc8197cb6d34"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/f7c4bfca157c8a2de71cb1670dff9c999c469a00",
-                "reference": "f7c4bfca157c8a2de71cb1670dff9c999c469a00",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/0cb66196f3c017dae395661e0cf1fc8197cb6d34",
+                "reference": "0cb66196f3c017dae395661e0cf1fc8197cb6d34",
                 "shasum": ""
             },
             "require": {
@@ -17517,7 +17517,11 @@
                 "sms",
                 "twilio"
             ],
-            "time": "2026-09-28T08:43:54+00:00"
+            "support": {
+                "issues": "https://github.com/twilio/twilio-php/issues",
+                "source": "https://github.com/twilio/twilio-php/tree/8.13.0"
+            },
+            "time": "2026-10-12T11:56:40+00:00"
         },
         {
             "name": "typesense/typesense-php",
@@ -18008,16 +18012,16 @@
         },
         {
             "name": "webonyx/graphql-php",
-            "version": "v15.38.0",
+            "version": "v15.38.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/webonyx/graphql-php.git",
-                "reference": "47e6ba3f27d6e0e9da4c6ae4b6c8875921409e10"
+                "reference": "32edc67af119b709d020f93447729afd503fe56a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/47e6ba3f27d6e0e9da4c6ae4b6c8875921409e10",
-                "reference": "47e6ba3f27d6e0e9da4c6ae4b6c8875921409e10",
+                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/32edc67af119b709d020f93447729afd503fe56a",
+                "reference": "32edc67af119b709d020f93447729afd503fe56a",
                 "shasum": ""
             },
             "require": {
@@ -18072,7 +18076,7 @@
             ],
             "support": {
                 "issues": "https://github.com/webonyx/graphql-php/issues",
-                "source": "https://github.com/webonyx/graphql-php/tree/v15.38.0"
+                "source": "https://github.com/webonyx/graphql-php/tree/v15.38.1"
             },
             "funding": [
                 {
@@ -18084,7 +18088,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2026-10-06T18:57:32+00:00"
+            "time": "2026-10-12T14:31:33+00:00"
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",
@@ -19023,16 +19027,16 @@
         },
         {
             "name": "laravel/mcp",
-            "version": "v1.0.1",
+            "version": "v1.0.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/mcp.git",
-                "reference": "92987a9d03847801299ff4abe909ba7686147dde"
+                "reference": "26c7803551028653beab49af0e672ae38607b772"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/mcp/zipball/92987a9d03847801299ff4abe909ba7686147dde",
-                "reference": "92987a9d03847801299ff4abe909ba7686147dde",
+                "url": "https://api.github.com/repos/laravel/mcp/zipball/26c7803551028653beab49af0e672ae38607b772",
+                "reference": "26c7803551028653beab49af0e672ae38607b772",
                 "shasum": ""
             },
             "require": {
@@ -19050,6 +19054,7 @@
                 "symfony/process": "^7.4.5|^8.0.5"
             },
             "require-dev": {
+                "jasonmccreary/double": "^1.0",
                 "laravel/pint": "^1.20",
                 "orchestra/testbench": "^9.15|^10.8|^11.0",
                 "pestphp/pest": "^3.8.5|^4.3.2",
@@ -19093,7 +19098,7 @@
                 "issues": "https://github.com/laravel/mcp/issues",
                 "source": "https://github.com/laravel/mcp"
             },
-            "time": "2026-09-24T10:45:09+00:00"
+            "time": "2026-10-11T20:52:46+00:00"
         },
         {
             "name": "laravel/roster",
