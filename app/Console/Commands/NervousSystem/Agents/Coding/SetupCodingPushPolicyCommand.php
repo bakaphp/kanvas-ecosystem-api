@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem\Agents\Coding;
 
+use App\Console\Commands\Concerns\ResolvesAppOption;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\RequestPushApprovalAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\RequestSessionExtensionAction;
@@ -31,6 +31,7 @@ use Throwable;
 class SetupCodingPushPolicyCommand extends Command
 {
     use KanvasJobsTrait;
+    use ResolvesAppOption;
 
     protected $signature = 'kanvas:coding:setup-push-policy
         {--app= : App id}
@@ -48,7 +49,7 @@ class SetupCodingPushPolicyCommand extends Command
 
     public function handle(): int
     {
-        $app = Apps::query()->where('id', (int) $this->option('app'))->first();
+        $app = $this->resolveApp();
         $company = Companies::query()->where('id', (int) $this->option('company'))->first();
 
         if ($app === null || $company === null) {

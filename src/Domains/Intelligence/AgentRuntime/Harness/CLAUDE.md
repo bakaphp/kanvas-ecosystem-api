@@ -236,6 +236,22 @@ php artisan kanvas:coding:build-image --app=2 --machine=<id>   # until the image
 php artisan kanvas:coding:smoke-test --agent=<id> --repo=<slug> --task="..."
 ```
 
+**Upgrading opencode** is a `FROM` bump in `docker/opencode/Dockerfile` followed by one command, because
+a build alone is not an upgrade: a coding container lives for as long as its agent keeps getting work,
+and was created with whatever image was configured at the time.
+
+```bash
+php artisan kanvas:coding:upgrade-image --app=2 --all --dry-run   # what is still on the old image
+php artisan kanvas:coding:upgrade-image --app=2 --all             # build, point the app at the tag, replace idle containers
+php artisan kanvas:coding:upgrade-image --app=2 --all --force     # also the ones with a job running or a push awaiting approval
+```
+
+It targets the tag the Dockerfile builds (never the app's current setting — that is the version being
+left behind), builds on every selected machine, writes `opencode_image`, then removes each container
+not on that image. A container with a live session or a pending push approval is kept and listed;
+`EnsureAgentCodingContainerAction` compares the image on every dispatch, so it rolls over on its
+agent's next task anyway. `--force` removes those too and closes their sessions with a reason.
+
 The smoke test polls in the foreground and prints each tick. **Launch is asynchronous** — provisioning
 happens in `LaunchTaskSessionJob` on the `agent-runtime` queue, so the first few ticks print nothing
 while the container comes up, and a launch failure lands on the session row rather than in the
