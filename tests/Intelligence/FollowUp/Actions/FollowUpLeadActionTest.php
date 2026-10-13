@@ -7,6 +7,7 @@ namespace Tests\Intelligence\FollowUp\Actions;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event as EventFacade;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
@@ -21,6 +22,7 @@ use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpOutcomeKindEnum;
+use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Notifications\Templates\Blank;
@@ -60,6 +62,7 @@ class FollowUpLeadActionTest extends TestCase
         parent::setUp();
 
         Http::fake();
+        EventFacade::fake([KnowledgeIndexRequested::class]);
         FollowUpAgentStub::reset();
 
         $this->testApp = app(Apps::class);
@@ -299,6 +302,32 @@ class FollowUpLeadActionTest extends TestCase
     // ─────────────────────────────────────────────────────────────────────
     // Gate 6: silence below interval AND force=false → too_soon
     // ─────────────────────────────────────────────────────────────────────
+    public function testStageChangeRestartsIntervalBeforeCallingAgent(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['time_based']['interval_minutes'] = 4320;
+        [$lead, , $nextStage] = $this->seedLeadWithTwoStages($cfg);
+        $nextStage->config = $cfg;
+        $nextStage->saveOrFail();
+        $this->seedSessionAndChannel($lead, 'sms');
+        $lead->bumpFollowUp(['sms'], null);
+        $lead->pipeline_stage_id = $nextStage->id;
+        $lead->saveOrFail();
+        $lead->refresh();
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertNull($lead->getFollowUpLastAt());
+        $this->assertNotNull($lead->getFollowUpStageEnteredAt());
+        $this->assertSame('too_soon', $outcome->reason);
+        $this->assertSame(0, $lead->getFollowUpStateCount());
+    }
+
     public function testSkipsWhenSilenceBelowInterval(): void
     {
         // Default stage config enables sms — match the session channel so the
@@ -376,7 +405,7 @@ class FollowUpLeadActionTest extends TestCase
             agent: $this->seedFollowUpAgent(),
         )->execute();
 
-        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind, $outcome->reason ?? '');
         $this->assertSame('Hello Maria, just checking in.', $outcome->message);
         $this->assertTrue(
             FollowUpAgentStub::$lastPrivateUserTurn,
@@ -571,6 +600,7 @@ class FollowUpLeadActionTest extends TestCase
             ->create([
                 'pipeline_id' => $pipeline->getId(),
                 'pipeline_stage_id' => $stage->getId(),
+                'created_at' => Carbon::now()->subDays(30),
             ]);
     }
 
@@ -608,6 +638,7 @@ class FollowUpLeadActionTest extends TestCase
             ->create([
                 'pipeline_id' => $pipeline->getId(),
                 'pipeline_stage_id' => $stage1->getId(),
+                'created_at' => Carbon::now()->subDays(30),
             ]);
 
         return [$lead, $stage1, $stage2];
@@ -865,8 +896,7 @@ class FollowUpLeadActionTest extends TestCase
 
     public function testColdLeadPromptDoesNotLeakPhpIntMax(): void
     {
-        // Cold lead, no inbound history → silence should render as
-        // "no prior inbound on file", never the raw PHP_INT_MAX value.
+        // Cold leads use creation time when there is no activity or stage clock.
         $cfg = $this->defaultStageConfig();
         $cfg['follow_up']['channels'] = [
             ['type' => 'sms', 'enabled' => true, 'template_name' => null],
@@ -890,7 +920,7 @@ class FollowUpLeadActionTest extends TestCase
 
         $prompt = FollowUpAgentStub::lastPromptText();
         $this->assertStringNotContainsString('9223372036854775807', $prompt);
-        $this->assertStringContainsString('no prior inbound', $prompt);
+        $this->assertStringContainsString('creation time if none', $prompt);
     }
 
     public function testPromptIncludesRenderedTemplateAsToneReferenceWhenTemplateConfigured(): void
