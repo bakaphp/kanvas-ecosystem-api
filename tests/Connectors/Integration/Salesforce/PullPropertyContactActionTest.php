@@ -6,30 +6,39 @@ namespace Tests\Connectors\Integration\Salesforce;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Salesforce\Actions\PullPropertyContactAction;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Tests\TestCase;
 
 final class PullPropertyContactActionTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = [null, 'crm', 'ecosystem'];
+    protected $connectionsToTransact = [null, 'crm', 'ecosystem', 'inventory'];
+
+    private function freshVariant(Apps $app, Companies $company): Variants
+    {
+        $product = Products::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+
+        return Variants::factory()->withAppId($app->getId())->withProductId($product->getId())->create();
+    }
 
     public function testReusesTheSameBrokerAcrossTwoDifferentPropertyRelationships(): void
     {
         $app = app(Apps::class);
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
-        $product = Products::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $variant = $this->freshVariant($app, $company);
 
         // Same real broker, two different Location_Contact__c rows — Salesforce creates one per
         // property a broker manages, so this is the exact shape that used to produce a duplicate.
         $first = new PullPropertyContactAction(
             $app,
             $company,
-            $product,
+            $variant,
             ['Contact_Name__c' => 'Scott Young', 'Contact_Email__c' => 'scott.young@cbre.com'],
             'a0relationshipAAA',
         )->execute();
@@ -37,7 +46,7 @@ final class PullPropertyContactActionTest extends TestCase
         $second = new PullPropertyContactAction(
             $app,
             $company,
-            $product,
+            $variant,
             ['Contact_Name__c' => 'Scott Young', 'Contact_Email__c' => 'scott.young@cbre.com'],
             'a0relationshipBBB',
         )->execute();
@@ -50,12 +59,12 @@ final class PullPropertyContactActionTest extends TestCase
         $app = app(Apps::class);
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
-        $product = Products::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $variant = $this->freshVariant($app, $company);
 
         $first = new PullPropertyContactAction(
             $app,
             $company,
-            $product,
+            $variant,
             ['Contact_Name__c' => 'Scott Young', 'Contact_Email__c' => 'scott.young@cbre.com'],
             'a0relationshipCCC',
         )->execute();
@@ -63,7 +72,7 @@ final class PullPropertyContactActionTest extends TestCase
         $resynced = new PullPropertyContactAction(
             $app,
             $company,
-            $product,
+            $variant,
             ['Contact_Name__c' => 'Scott Young', 'Contact_Email__c' => 'scott.young@cbre.com'],
             'a0relationshipCCC',
         )->execute();
@@ -76,12 +85,12 @@ final class PullPropertyContactActionTest extends TestCase
         $app = app(Apps::class);
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
-        $product = Products::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $variant = $this->freshVariant($app, $company);
 
         $first = new PullPropertyContactAction(
             $app,
             $company,
-            $product,
+            $variant,
             ['Contact_Name__c' => 'No Email Broker'],
             'a0relationshipNoEmail',
         )->execute();
@@ -89,7 +98,7 @@ final class PullPropertyContactActionTest extends TestCase
         $resynced = new PullPropertyContactAction(
             $app,
             $company,
-            $product,
+            $variant,
             ['Contact_Name__c' => 'No Email Broker'],
             'a0relationshipNoEmail',
         )->execute();
@@ -106,14 +115,14 @@ final class PullPropertyContactActionTest extends TestCase
         $app = app(Apps::class);
         $user = static::$cachedUser;
         $companyA = $user->getCurrentCompany();
-        $companyB = \Kanvas\Companies\Models\Companies::factory()->create(['users_id' => $user->getId()]);
-        $productA = Products::factory()->withAppId($app->getId())->withCompanyId($companyA->getId())->create();
-        $productB = Products::factory()->withAppId($app->getId())->withCompanyId($companyB->getId())->create();
+        $companyB = Companies::factory()->create(['users_id' => $user->getId()]);
+        $variantA = $this->freshVariant($app, $companyA);
+        $variantB = $this->freshVariant($app, $companyB);
 
         $inCompanyA = new PullPropertyContactAction(
             $app,
             $companyA,
-            $productA,
+            $variantA,
             ['Contact_Name__c' => 'Shared Email Broker', 'Contact_Email__c' => 'shared.broker@example.com'],
             'a0relationshipCompanyA',
         )->execute();
@@ -121,7 +130,7 @@ final class PullPropertyContactActionTest extends TestCase
         $inCompanyB = new PullPropertyContactAction(
             $app,
             $companyB,
-            $productB,
+            $variantB,
             ['Contact_Name__c' => 'Shared Email Broker', 'Contact_Email__c' => 'shared.broker@example.com'],
             'a0relationshipCompanyB',
         )->execute();

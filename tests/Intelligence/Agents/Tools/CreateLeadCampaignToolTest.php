@@ -134,6 +134,36 @@ class CreateLeadCampaignToolTest extends TestCase
         $this->assertSame(['https://example.test/a.pdf', 'https://example.test/b.pdf'], $campaign->attachment_urls);
     }
 
+    public function testIsNotImportantByDefault(): void
+    {
+        Queue::fake();
+        $company = Companies::factory()->create();
+        $person = $this->freshPerson($company);
+        $person->addEmail('eligible@example.com');
+
+        $result = $this->tool($company)->__invoke(people_ids: [$person->getId()], message: 'Hello');
+
+        $this->assertFalse($result['important']);
+        $this->assertFalse((bool) Campaign::findOrFail($result['campaign_id'])->is_important);
+    }
+
+    public function testImportantFlagIsStoredOnTheCampaignWhenRequested(): void
+    {
+        Queue::fake();
+        $company = Companies::factory()->create();
+        $person = $this->freshPerson($company);
+        $person->addEmail('eligible@example.com');
+
+        $result = $this->tool($company)->__invoke(
+            people_ids: [$person->getId()],
+            message: 'Hello',
+            important: true,
+        );
+
+        $this->assertTrue($result['important']);
+        $this->assertTrue((bool) Campaign::findOrFail($result['campaign_id'])->is_important);
+    }
+
     public function testNonAdminIsRejected(): void
     {
         // A bare factory user has no roles → isAdmin() is false.
