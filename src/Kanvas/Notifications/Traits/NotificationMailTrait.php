@@ -32,6 +32,13 @@ trait NotificationMailTrait
             $mailMessage->cc($this->cc);
         }
 
+        if ($this->important) {
+            // Laravel's priority(1) sets X-Priority, X-MSMail-Priority and Importance headers —
+            // what every mail client reads as "marked important". Never set unless setImportant()
+            // was called explicitly; most mail is routine and must not carry this.
+            $mailMessage->priority(1);
+        }
+
         $this->applyAttachments($mailMessage);
 
         return $mailMessage;
