@@ -14,6 +14,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\CrmLeadSourceSynchronizer;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
@@ -44,7 +45,9 @@ use Kanvas\Workflow\Rules\Models\RuleAction;
 use Kanvas\Workflow\Rules\Models\RuleCondition;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
+use Mockery;
 use ReflectionProperty;
+use RuntimeException;
 use Tests\Stubs\FollowUp\FollowUpAgentStub;
 use Tests\Stubs\FollowUp\RecordingAfterFollowUpActivity;
 use Tests\TestCase;
@@ -118,14 +121,13 @@ class FollowUpLeadActionTest extends TestCase
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // Gate 1a: closed lead (status >= 2) → lead_not_active (skip)
+    // Gate 1a: closed lead (leads_status_id outside the open set) → lead_not_active (skip)
     // A won/lost lead must not be nudged even in a non-terminal nudge stage.
     // ─────────────────────────────────────────────────────────────────────
     public function testSkipsWhenLeadIsNotOpen(): void
     {
         $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
-        $lead->status = 2; // closed (won/lost) → isOpen() false
-        $lead->saveOrFail();
+        $lead->close(); // leads_status_id outside the open set → hasOpenLeadStatus() false
 
         $outcome = new FollowUpLeadAction(
             app: $this->testApp,
@@ -147,8 +149,7 @@ class FollowUpLeadActionTest extends TestCase
             ['type' => 'sms', 'enabled' => true, 'template_name' => null],
         ];
         $lead = $this->seedLeadWithStageConfig($cfg);
-        $lead->status = 2;
-        $lead->saveOrFail();
+        $lead->close();
 
         $outcome = new FollowUpLeadAction(
             app: $this->testApp,
@@ -645,6 +646,114 @@ class FollowUpLeadActionTest extends TestCase
         )->execute();
 
         $this->assertSame([], RecordingAfterFollowUpActivity::$calls);
+    }
+
+    /**
+     * CRM calls are billed per request, so the pull must sit behind every free gate: a lead that is
+     * too soon to nudge never reaches the synchronizer.
+     */
+    public function testTooSoonLeadNeverCostsACrmCall(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+        $lead->bumpFollowUp(['sms'], null);
+
+        $synchronizer = Mockery::mock(CrmLeadSourceSynchronizer::class);
+        $synchronizer->shouldNotReceive('canSync');
+        $synchronizer->shouldNotReceive('sync');
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+            synchronizer: $synchronizer,
+        )->execute();
+
+        $this->assertSame('too_soon', $outcome->reason);
+    }
+
+    public function testFailedCrmSyncSkipsBeforeTheAgentRuns(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+        FollowUpAgentStub::configure(shouldRespond: true, message: 'should never be composed');
+
+        $synchronizer = Mockery::mock(CrmLeadSourceSynchronizer::class);
+        $synchronizer->shouldReceive('canSync')->once()->andReturn(true);
+        $synchronizer->shouldReceive('sync')->once()->andThrow(new RuntimeException('CRM unreachable'));
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+            synchronizer: $synchronizer,
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertSame('crm_sync_failed', $outcome->reason);
+        $this->assertSame([], FollowUpAgentStub::$lastReceivedMessages, 'No agent turn on an unverified lead.');
+    }
+
+    public function testLeadClosedByTheCrmPullIsNotNudged(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+        FollowUpAgentStub::configure(shouldRespond: true, message: 'should never be composed');
+
+        $synchronizer = Mockery::mock(CrmLeadSourceSynchronizer::class);
+        $synchronizer->shouldReceive('canSync')->once()->andReturn(true);
+        // The real pull writes leads_status_id through the connector; stand in for that write.
+        $synchronizer->shouldReceive('sync')->once()->andReturnUsing(fn (Lead $l) => $l->close());
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+            synchronizer: $synchronizer,
+        )->execute();
+
+        $this->assertSame('lead_not_active', $outcome->reason, 'The gates a pull can flip must run again on its result.');
+        $this->assertSame([], FollowUpAgentStub::$lastReceivedMessages);
+    }
+
+    public function testSyncedOpenLeadProceedsToTheAgent(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+        FollowUpAgentStub::configure(shouldRespond: true, message: 'Hello Maria, just checking in.', reason: 'ok');
+
+        $synchronizer = Mockery::mock(CrmLeadSourceSynchronizer::class);
+        $synchronizer->shouldReceive('canSync')->once()->andReturn(true);
+        $synchronizer->shouldReceive('sync')->once();
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+            synchronizer: $synchronizer,
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind, $outcome->reason ?? '');
     }
 
     private function seedSmsChannelWithPriorOutbound(Lead $lead): Channel

@@ -20,6 +20,7 @@ enum ConfigurationEnum: string
     case GUILD_PREFERRED_CHANNEL_UUID = 'guild_prefered_channel_uuid';
     case AI_MODE = 'lead_ai_mode';
     case HAS_FOLLOW_UP = 'lead_has_follow_up';
+    case FOLLOW_UP_SOURCE_SYNCED_AT = 'guild_follow_up_source_synced_at';
     case AI_MODE_IS_MANUAL = 'lead_ai_mode_is_manual';
     case CONVERTED_TO_DEAL_ID = 'converted_to_deal_id';
     case OPEN_LEADS_STATUS_IDS = 'guild_open_leads_status_ids';
