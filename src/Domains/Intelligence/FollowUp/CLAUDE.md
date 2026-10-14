@@ -117,13 +117,18 @@ reflects a close.
 
 ## Third-party leads are pulled from their CRM before the follow-up runs
 
-A dealer CRM without webhooks never tells us a lead was closed or sold, so `LeadFollowUpJob`
-runs `SyncLeadSourceBeforeFollowUpAction` before building the action. "Where is this lead from
-and how do I ask it" lives in Guild: `Guild\Leads\Services\CrmLeadSourceSynchronizer`, a concrete
-class the job method-injects (no provider binding — the container resolves it by name, tests pass
-a mock to `handle()`). It dispatches on the company's CRM through the SalesAssist
-`PullLeadAction` exactly like the pull button, then re-applies `ApplyLeadClosingStatusAction` so a
-CRM close flips `ai_mode` / `ai_follow_up`.
+A dealer CRM without webhooks never tells us a lead was closed or sold, so the action asks it —
+**after every free gate has passed** (stage config, `ai_follow_up`, lead type, open status,
+exhaustion, hand-off, manual, mute, reachable channel, session, `too_soon`, template) and right
+before the agent call. CRM calls are billed per request (Elead), so a lead that would skip anyway
+must never cost one. `FollowUpLeadAction::syncLeadSource()` runs
+`SyncLeadSourceBeforeFollowUpAction` and then re-runs the three gates a pull can flip (open
+status, `ai_follow_up`, mute). "Where is this lead from and how do I ask it" lives in Guild:
+`Guild\Leads\Services\CrmLeadSourceSynchronizer`, a concrete class `LeadFollowUpJob`
+method-injects and hands to the action (no provider binding). It dispatches on the company's CRM
+through the SalesAssist `PullLeadAction` exactly like the pull button, then re-applies
+`ApplyLeadClosingStatusAction` so a CRM close flips `ai_mode` / `ai_follow_up`. The forced-run
+mutation passes no synchronizer, so a manual click never pulls.
 
 - `canSync()` requires the company to run a pull-capable connector (Elead, VinSolutions,
   DealerSocket, DriveCentric — Reynolds is webhook-only) AND the lead to carry that connector's
@@ -132,12 +137,12 @@ CRM close flips `ai_mode` / `ai_follow_up`.
 - Throttle: the lead custom field `guild_follow_up_source_synced_at` is stamped after a pull and
   skips the next one for `lead_follow_up_sync_interval_minutes` (company setting, default 55) —
   one CRM call per lead per tick, forced runs in between share it.
-- A failed pull skips the tick with `lead.follow_up.skipped` / `reason: crm_sync_failed` and is
-  reported; the next tick retries. Nudging a lead whose state could not be verified is the thing
-  the step exists to prevent. The Elead 404 case (opportunity gone) closes the lead inside the pull.
-- Tests swap the seam by passing a Mockery mock of `CrmLeadSourceSynchronizer` straight to
-  `handle()`; a bare lead on a company with no CRM config is simply not syncable, so the rest of
-  the suite needs nothing.
+- A failed pull skips with `reason: crm_sync_failed` and is reported; the next tick retries.
+  Nudging a lead whose state could not be verified is the thing the step exists to prevent. The
+  Elead 404 case (opportunity gone) closes the lead inside the pull.
+- Tests swap the seam by passing a Mockery mock of `CrmLeadSourceSynchronizer` to the action's
+  `synchronizer:` or to the job's `handle()`; a bare lead on a company with no CRM config is simply
+  not syncable, so the rest of the suite needs nothing.
 
 ## Outbound SMS carries the opt-out clause on the first text
 

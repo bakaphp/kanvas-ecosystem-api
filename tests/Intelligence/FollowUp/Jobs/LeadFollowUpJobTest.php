@@ -17,7 +17,6 @@ use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\FollowUp\Jobs\LeadFollowUpJob;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Mockery;
-use RuntimeException;
 use Silber\Bouncer\BouncerFacade;
 use Tests\Stubs\FollowUp\FollowUpAgentStub;
 use Tests\TestCase;
@@ -252,7 +251,11 @@ class LeadFollowUpJobTest extends TestCase
         $this->assertInstanceOf(CrmLeadSourceSynchronizer::class, app(CrmLeadSourceSynchronizer::class));
     }
 
-    public function testFailedCrmSyncSkipsTheTickBeforeTheActionRuns(): void
+    /**
+     * CRM calls are billed per request. A lead that fails a free gate (here: no session) must never
+     * reach the synchronizer — the pull sits behind every free gate inside the action.
+     */
+    public function testLeadThatFailsAFreeGateNeverCostsACrmCall(): void
     {
         FollowUpAgentStub::reset();
 
@@ -299,8 +302,8 @@ class LeadFollowUpJobTest extends TestCase
         ]);
 
         $synchronizer = Mockery::mock(CrmLeadSourceSynchronizer::class);
-        $synchronizer->shouldReceive('canSync')->once()->andReturn(true);
-        $synchronizer->shouldReceive('sync')->once()->andThrow(new RuntimeException('CRM unreachable'));
+        $synchronizer->shouldNotReceive('canSync');
+        $synchronizer->shouldNotReceive('sync');
 
         new LeadFollowUpJob(app: $app, company: $company, lead: $lead)->handle($synchronizer);
 
@@ -310,12 +313,7 @@ class LeadFollowUpJobTest extends TestCase
             ->where('source_entity_id', $lead->getId())
             ->latest('id')
             ->first();
-        $this->assertNotNull($skip, 'A failed CRM pull must land as a skipped ledger event.');
-        $this->assertSame('crm_sync_failed', $skip->payload['reason']);
-        $this->assertSame(
-            [],
-            FollowUpAgentStub::$lastReceivedMessages,
-            'The follow-up agent must never run on a lead whose CRM state could not be verified.'
-        );
+        $this->assertNotNull($skip);
+        $this->assertSame('no_session', $skip->payload['reason']);
     }
 }

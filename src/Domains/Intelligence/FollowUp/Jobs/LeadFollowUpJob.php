@@ -17,9 +17,7 @@ use Kanvas\Guild\Leads\Services\CrmLeadSourceSynchronizer;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
-use Kanvas\Intelligence\FollowUp\Actions\SyncLeadSourceBeforeFollowUpAction;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
-use Kanvas\Intelligence\FollowUp\Enums\LeadSourceSyncOutcomeEnum;
 
 /**
  * Per-lead wrapper. Resolves agent at handle() so config changes between
@@ -48,23 +46,12 @@ final class LeadFollowUpJob implements ShouldQueue
     }
 
     /**
-     * Method-injected so tests can hand in a fake. Third-party leads are pulled first: a CRM
-     * without webhooks never told us the lead was closed or sold, and a failed pull skips this
-     * tick rather than nudge an unverified lead.
+     * The synchronizer is method-injected so tests can hand in a fake; the action decides when to
+     * use it (only after every free gate, since CRM calls are billed).
      */
     public function handle(CrmLeadSourceSynchronizer $synchronizer): void
     {
         $this->overwriteAppService($this->app);
-
-        $sync = new SyncLeadSourceBeforeFollowUpAction($this->lead, $synchronizer)->execute();
-        if ($sync === LeadSourceSyncOutcomeEnum::FAILED) {
-            $this->lead->emitLedgerEvent('lead.follow_up.skipped', payload: [
-                'stage_id' => $this->lead->pipeline_stage_id,
-                'reason' => 'crm_sync_failed',
-            ]);
-
-            return;
-        }
 
         $agentName = $this->resolveAgentName();
 
@@ -81,6 +68,7 @@ final class LeadFollowUpJob implements ShouldQueue
             lead: $this->lead,
             agent: $agent,
             force: $this->force,
+            synchronizer: $synchronizer,
         )->execute();
     }
 
