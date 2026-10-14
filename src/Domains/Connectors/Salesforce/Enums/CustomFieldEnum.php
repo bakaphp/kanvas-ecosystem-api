@@ -12,6 +12,7 @@ enum CustomFieldEnum: string
     case SALESFORCE_OPPORTUNITY_ID = 'salesforce_opportunity_id';
     case SALESFORCE_LOCATION_ID = 'salesforce_location_id';
     case SALESFORCE_LOCATION_CONTACT_ID = 'salesforce_location_contact_id';
+    case SALESFORCE_PROJECT_ID = 'salesforce_project_id';
     case PROPERTY_BROKER_PEOPLE_ID = 'broker_people_id';
     case LEAD_FIELDS_MAP = 'salesforce_lead_fields_map';
     case CONTACT_FIELDS_MAP = 'salesforce_contact_fields_map';

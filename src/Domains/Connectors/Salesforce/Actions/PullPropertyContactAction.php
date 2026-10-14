@@ -12,14 +12,14 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationData;
-use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 
 class PullPropertyContactAction
 {
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
-        protected Products $product,
+        protected Variants $variant,
         protected array $payload,
         protected string $salesforceId,
     ) {
@@ -86,7 +86,7 @@ class PullPropertyContactAction
             )->execute();
         }
 
-        $this->product->set(CustomFieldEnum::PROPERTY_BROKER_PEOPLE_ID->value, (string) $people->getId());
+        $this->variant->set(CustomFieldEnum::PROPERTY_BROKER_PEOPLE_ID->value, (string) $people->getId());
 
         return $people;
     }
