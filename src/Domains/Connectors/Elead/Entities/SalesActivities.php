@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Elead\Entities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use DateTime;
+use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Client;
@@ -13,8 +15,27 @@ use Kanvas\Connectors\Elead\Support\EleadCache;
 
 class SalesActivities
 {
+    public const string DATE_FORMAT = 'Y-m-d\TH:i:s.v\Z';
+
+    public ?string $id = null;
     public ?string $activityId = null;
     public ?string $opportunityId = null;
+    public ?string $activityType = null;
+    public ?string $category = null;
+    public ?string $name = null;
+    public ?string $dueDate = null;
+    public ?string $completedDate = null;
+    public ?string $closedDate = null;
+    public ?string $outcome = null;
+    public ?string $createdBy = null;
+    public ?string $assignedTo = null;
+    public ?string $completedBy = null;
+    public ?string $upType = null;
+    public ?string $source = null;
+    public ?string $subSource = null;
+    public ?string $createdByUserId = null;
+    public ?string $assignedToUserId = null;
+    public ?string $completedByUserId = null;
     public ?Companies $company = null;
     public ?AppInterface $app = null;
 
@@ -26,6 +47,37 @@ class SalesActivities
         foreach ($data as $key => $value) {
             $this->{$key} = $value;
         }
+
+        // The schedule/complete endpoints answer with `activityId`, the history endpoints with `id`.
+        $this->activityId ??= $this->id;
+        $this->id ??= $this->activityId;
+    }
+
+    public static function fromResponse(AppInterface $app, Companies $company, array $response): self
+    {
+        $activity = new self();
+        $activity->company = $company;
+        $activity->app = $app;
+        $activity->assign($response);
+
+        return $activity;
+    }
+
+    public function dueDate(): ?Carbon
+    {
+        return $this->dueDate !== null ? Carbon::parse($this->dueDate)->utc() : null;
+    }
+
+    public function isActivityType(array $typeNames): bool
+    {
+        foreach ($typeNames as $typeName) {
+            if (Str::contains((string) $this->activityType, $typeName, ignoreCase: true)
+                || Str::contains((string) $this->name, $typeName, ignoreCase: true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -49,12 +101,7 @@ class SalesActivities
             $data,
         );
 
-        $newLead = new self();
-        $newLead->company = $company;
-        $newLead->app = $app;
-        $newLead->assign($response);
-
-        return $newLead;
+        return self::fromResponse($app, $company, $response);
     }
 
     /**
@@ -68,12 +115,7 @@ class SalesActivities
             $data,
         );
 
-        $newLead = new self();
-        $newLead->company = $company;
-        $newLead->app = $app;
-        $newLead->assign($response);
-
-        return $newLead;
+        return self::fromResponse($app, $company, $response);
     }
 
     /**
@@ -115,35 +157,23 @@ class SalesActivities
         return $response;
     }
 
-    /**
-     * Get activity outcomes.
-     */
-    public static function getActivityOutcomes(AppInterface $app, Companies $company, bool $fresh = false): array
-    {
-        $cache = new EleadCache($app, $company);
-
-        if (! $fresh) {
-            $cached = $cache->get('activity_outcomes', 'all');
-
-            if ($cached !== null) {
-                return $cached;
-            }
-        }
-
-        $client = new Client($app, $company);
-        $response = $client->get('/sales/v1/elead/activities/outcomes');
-
-        $cache->setReference('activity_outcomes', 'all', $response);
-
-        return $response;
-    }
-
     public static function getActivityOutcome(AppInterface $app, Companies $company, string $activityId): array
     {
         $client = new Client($app, $company);
         $response = $client->get("/sales/v1/elead/activities/{$activityId}/outcomes");
 
         return $response;
+    }
+
+    public static function findActivityTypeId(AppInterface $app, Companies $company, string $typeName): int|string|null
+    {
+        foreach (self::getActivityTypes($app, $company)['items'] ?? [] as $type) {
+            if (Str::contains((string) $type['name'], $typeName)) {
+                return $type['id'];
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -154,12 +184,7 @@ class SalesActivities
         $client = new Client($app, $company);
         $response = $client->get("/sales/v1/elead/activities/{$activityId}");
 
-        $activity = new self();
-        $activity->company = $company;
-        $activity->app = $app;
-        $activity->assign($response);
-
-        return $activity;
+        return self::fromResponse($app, $company, $response);
     }
 
     /**
@@ -220,34 +245,12 @@ class SalesActivities
     }
 
     /**
-     * Get activity history with search (includes both scheduled and completed activities).
-     * Retrieve activity history with comments by sales customer and opportunity identifier.
-     */
-    public static function getHistorySearch(
-        AppInterface $app,
-        Companies $company,
-        string $customerId,
-        string $opportunityId
-    ): array {
-        $client = new Client($app, $company);
-        $url = '/sales/v1/elead/activity-history/search';
-        $queryParams = [
-            'customerId' => $customerId,
-            'opportunityId' => $opportunityId,
-        ];
-
-        $url .= '?' . http_build_query($queryParams);
-
-        return $client->get($url);
-    }
-
-    /**
      * Update an existing activity.
      */
     public function update(array $updateData): array
     {
         if (! $this->activityId) {
-            throw new \InvalidArgumentException('Activity ID is required to update an activity');
+            throw new InvalidArgumentException('Activity ID is required to update an activity');
         }
 
         $client = new Client($this->app, $this->company);
@@ -288,12 +291,7 @@ class SalesActivities
             $data
         );
 
-        $activity = new self();
-        $activity->company = $company;
-        $activity->app = $app;
-        $activity->assign($response);
-
-        return $activity;
+        return self::fromResponse($app, $company, $response);
     }
 
     /**
@@ -342,12 +340,28 @@ class SalesActivities
         return $response;
     }
 
+    /**
+     * Open activities only; eLead caps the fromDate/toDate window at 31 days.
+     *
+     * @return self[]
+     */
     public static function getOpenActivitiesByOpportunityId(
         AppInterface $app,
         Companies $company,
         string $opportunityId,
-        array $queryParams = []
+        ?Carbon $from = null,
+        ?Carbon $to = null
     ): array {
+        $queryParams = ['openActivitiesOnly' => 'true'];
+
+        if ($from !== null) {
+            $queryParams['fromDate'] = $from->copy()->utc()->format('Y-m-d\TH:i:s\Z');
+        }
+
+        if ($to !== null) {
+            $queryParams['toDate'] = $to->copy()->utc()->format('Y-m-d\TH:i:s\Z');
+        }
+
         $activities = self::getHistoryByOpportunityId(
             $app,
             $company,
@@ -355,20 +369,10 @@ class SalesActivities
             $queryParams
         );
 
-        $openActivities = [];
-
-        if (isset($activities['items'])) {
-            foreach ($activities['items'] as $activity) {
-                if (isset($activity['outcome']) && $activity['outcome'] !== 'Completed') {
-                    $openActivities[] = $activity;
-                }
-            }
-        }
-
-        return [
-            'items' => $openActivities,
-            'links' => $activities['links'] ?? [],
-        ];
+        return array_map(
+            fn (array $item) => self::fromResponse($app, $company, $item),
+            $activities['items'] ?? []
+        );
     }
 
     public static function hasSalesAgentReachedOut(

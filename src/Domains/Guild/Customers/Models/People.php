@@ -25,7 +25,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Event\Events\Traits\EventResourceTrait;
+use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
@@ -83,7 +83,7 @@ class People extends BaseModel
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
-    use EventResourceTrait;
+    use HasEventResources;
     use HasLightHouseCache;
     use HasNotesChannelTrait;
     use HasTagsTrait;
