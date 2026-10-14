@@ -20,6 +20,7 @@ use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Event\Events\Contracts\EventResourceInterface;
 use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Guild\Agents\Models\Agent;
@@ -27,6 +28,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
+use Kanvas\Guild\Leads\Events\LeadCustomFieldSavedEvent;
 use Kanvas\Guild\Leads\Factories\LeadFactory;
 use Kanvas\Guild\Leads\Services\LeadVariantInterestProjectionService;
 use Kanvas\Guild\LeadSubSources\Models\LeadSubSource;
@@ -119,6 +121,15 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     public function getGraphTypeName(): string
     {
         return 'Lead';
+    }
+
+    #[Override]
+    public function set(string $name, mixed $value): AppsCustomFields
+    {
+        $customField = parent::set($name, $value);
+        LeadCustomFieldSavedEvent::dispatch($this, $name);
+
+        return $customField;
     }
 
     #[Override]

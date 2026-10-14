@@ -7,12 +7,14 @@ namespace App\Providers;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\CompaniesGroups;
+use Kanvas\Connectors\SalesAssist\Listeners\RecordLeadVehicleCustomFieldListener;
 use Kanvas\Connectors\ScrapperApi\Listeners\CartListener;
 use Kanvas\Guild\Customers\Listeners\UpdatePeopleMessageTimestampsListener;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
 use Kanvas\Guild\Customers\Observers\PeopleObserver;
+use Kanvas\Guild\Leads\Events\LeadCustomFieldSavedEvent;
 use Kanvas\Guild\Leads\Listeners\QueueVariantInterestReindexListener;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
@@ -107,6 +109,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         VariantSearchDocumentChanged::class => [
             QueueVariantInterestReindexListener::class,
+        ],
+        LeadCustomFieldSavedEvent::class => [
+            RecordLeadVehicleCustomFieldListener::class,
         ],
         MessageMentionsStoredEvent::class => [
             RespondToAgentMentionListener::class,
