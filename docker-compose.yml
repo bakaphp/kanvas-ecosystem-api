@@ -49,6 +49,8 @@ services:
             LARAVEL_SAIL: 1
             XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
             XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
+            BROWSER_WS_ENDPOINT: ${BROWSER_WS_ENDPOINT:-ws://browser:3000/playwright}
+            PLAYWRIGHT_MCP_URL: ${PLAYWRIGHT_MCP_URL:-http://playwright-mcp:8931/mcp}
         volumes:
             - ".:/var/www/html"
             - ../kanvas-core:/var/www/kanvas-core
@@ -400,6 +402,38 @@ services:
         restart: always
         networks:
             - sail
+
+    # Headless Chromium via Playwright Browser Server. Internal only: ws://browser:3000/playwright
+    # Image source: https://github.com/FredPeal/kanvas-playwright-server (tag = Playwright version)
+    browser:
+        image: ghcr.io/fredpeal/kanvas-playwright-browser:1.63.0
+        restart: unless-stopped
+        logging: *default-logging
+        init: true
+        shm_size: "2gb"
+        expose:
+            - "3000"
+        networks:
+            - sail
+
+    # Official @playwright/mcp server attached to the browser service. Internal only: http://playwright-mcp:8931/mcp
+    # Image source: https://github.com/FredPeal/kanvas-playwright-server (tag = @playwright/mcp version)
+    playwright-mcp:
+        image: ghcr.io/fredpeal/kanvas-playwright-mcp:0.0.80
+        restart: unless-stopped
+        logging: *default-logging
+        init: true
+        environment:
+            # The image reads these itself; point BROWSER_WS_ENDPOINT at any Browser Server, local or remote.
+            BROWSER_WS_ENDPOINT: ${BROWSER_WS_ENDPOINT:-ws://browser:3000/playwright}
+            PLAYWRIGHT_MCP_PORT: ${PLAYWRIGHT_MCP_PORT:-8931}
+        expose:
+            - "${PLAYWRIGHT_MCP_PORT:-8931}"
+        networks:
+            - sail
+        depends_on:
+            browser:
+                condition: service_healthy
 networks:
     sail:
         driver: bridge

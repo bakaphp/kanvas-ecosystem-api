@@ -37,6 +37,8 @@ interface BehavesAsKanvasAgent extends AgentInterface, ProvidesToolDependencies
 
     public function persistsTurnsToConversationStore(): bool;
 
+    public function closeToolResources(): void;
+
     public function resolvedModelName(): string;
 
     /**
