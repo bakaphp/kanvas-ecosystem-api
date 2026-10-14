@@ -7,6 +7,8 @@ namespace Tests\Insurance;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Actions\BuildQuoteRequestFromOrderAction;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
@@ -15,16 +17,37 @@ use Tests\TestCase;
 
 class BuildQuoteRequestFromOrderActionTest extends TestCase
 {
-    private function order(array $metadata, ?Variants $variant = null): Order
+    private function order(array $metadata, array $variants = []): Order
     {
-        $item = Mockery::mock(OrderItem::class)->makePartial();
-        $item->setRelation('variant', $variant);
+        $items = array_map(
+            function (Variants $variant): OrderItem {
+                $item = Mockery::mock(OrderItem::class)->makePartial();
+                $item->setRelation('variant', $variant);
+
+                return $item;
+            },
+            $variants
+        );
 
         $order = Mockery::mock(Order::class)->makePartial();
         $order->metadata = $metadata;
-        $order->setRelation('items', new Collection($variant !== null ? [$item] : []));
+        $order->setRelation('items', new Collection($items));
 
         return $order;
+    }
+
+    private function typedVariant(string $productTypeSlug): Variants
+    {
+        $productsType = Mockery::mock(ProductsTypes::class)->makePartial();
+        $productsType->slug = $productTypeSlug;
+
+        $product = Mockery::mock(Products::class)->makePartial();
+        $product->setRelation('productsType', $productsType);
+
+        $variant = Mockery::mock(Variants::class)->makePartial();
+        $variant->setRelation('product', $product);
+
+        return $variant;
     }
 
     public function testRebuildsTheRequestFromOrderMetadata(): void
@@ -32,7 +55,7 @@ class BuildQuoteRequestFromOrderActionTest extends TestCase
         $variant = Mockery::mock(Variants::class)->makePartial();
         $order = $this->order(
             ['insurance' => ['product' => 'A-PA', 'payload' => ['tipo' => 'APA']]],
-            $variant
+            [$variant]
         );
 
         $request = new BuildQuoteRequestFromOrderAction($order)->execute();
@@ -40,6 +63,25 @@ class BuildQuoteRequestFromOrderActionTest extends TestCase
         $this->assertSame('A-PA', $request->product);
         $this->assertSame(['tipo' => 'APA'], $request->payload);
         $this->assertSame($variant, $request->vehicle);
+    }
+
+    public function testPicksTheVehicleLineRatherThanWhicheverComesFirst(): void
+    {
+        $plan = $this->typedVariant('insurance-plan');
+        $vehicle = $this->typedVariant('vehicle');
+
+        $order = $this->order(['insurance' => ['product' => 'A-PA']], [$plan, $vehicle]);
+
+        $this->assertSame($vehicle, new BuildQuoteRequestFromOrderAction($order)->execute()->vehicle);
+    }
+
+    public function testFallsBackToTheOnlyLineWhenNoneIsTypedVehicle(): void
+    {
+        $only = $this->typedVariant('parking');
+
+        $order = $this->order(['insurance' => ['product' => 'A-PA']], [$only]);
+
+        $this->assertSame($only, new BuildQuoteRequestFromOrderAction($order)->execute()->vehicle);
     }
 
     public function testVehicleIsNullWhenTheOrderHasNoItems(): void
