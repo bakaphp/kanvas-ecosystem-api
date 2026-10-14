@@ -9,7 +9,9 @@ use Kanvas\Connectors\Elead\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Services\LeadUserService;
 use Kanvas\Connectors\Elead\Support\EleadCache;
+use Kanvas\Connectors\SalesAssist\Actions\RecordLeadVehicleNotesAction;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\Enums\LeadVehicleNoteEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\UserConfig;
 use Throwable;
@@ -73,6 +75,7 @@ class SyncLeadAction
                 LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value,
                 $vehicleOfInterest
             );
+            new RecordLeadVehicleNotesAction($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST)->execute();
 
             if (is_array($vehicleOfInterest) && count($vehicleOfInterest) && $lead->company->get('enable_vehicle_checklist')) {
                 if (isset($vehicleOfInterest['mileage'])) {
@@ -111,6 +114,7 @@ class SyncLeadAction
                 LeadCustomFieldEnum::TRADE_IN->value,
                 end($eLeadOpportunity->tradeIns)
             );
+            new RecordLeadVehicleNotesAction($lead, LeadVehicleNoteEnum::TRADE_IN)->execute();
         }
 
         if ($eLeadOpportunity->inShowRoom()) {
