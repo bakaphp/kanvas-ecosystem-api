@@ -35,6 +35,16 @@ class RecordLeadVehicleNotesAction
     }
 
     /**
+     * For writes that save the lead with all its custom fields at once, where either vehicle may have changed.
+     */
+    public static function recordAll(Lead $lead): void
+    {
+        foreach (LeadVehicleNoteEnum::cases() as $kind) {
+            new self($lead, $kind)->execute();
+        }
+    }
+
+    /**
      * @return list<Message>
      */
     public function execute(): array

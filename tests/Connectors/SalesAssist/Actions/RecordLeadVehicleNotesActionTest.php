@@ -7,16 +7,15 @@ namespace Tests\Connectors\SalesAssist\Actions;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\SalesAssist\Actions\RecordLeadVehicleNotesAction;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Connectors\SalesAssist\Enums\LeadVehicleNoteEnum;
+use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\Models\SystemModules;
 use Tests\TestCase;
 
-/**
- * Drives the notes through `Lead::set()`, the hook every save path ends in.
- */
 final class RecordLeadVehicleNotesActionTest extends TestCase
 {
     use DatabaseTransactions;
@@ -33,11 +32,11 @@ final class RecordLeadVehicleNotesActionTest extends TestCase
         );
     }
 
-    public function testSavingATradeInPostsTheAnnouncementAndTheRawValue(): void
+    public function testATradeInPostsTheAnnouncementAndTheRawValue(): void
     {
         $lead = $this->createLead();
 
-        $lead->set(LeadCustomFieldEnum::TRADE_IN->value, [
+        $this->save($lead, LeadVehicleNoteEnum::TRADE_IN, [
             'vin' => '1FTFW1E5XKFA00000',
             'year' => '2019',
             'make' => 'Ford',
@@ -57,21 +56,26 @@ final class RecordLeadVehicleNotesActionTest extends TestCase
         );
 
         $notes = $this->notes($lead);
-        $this->assertSame(['ai-control', 'message'], $notes->map(fn (Message $note): string => $note->messageType->verb)->all());
+        $this->assertSame(
+            [LeadMessageTypeEnum::AI_CONTROL->value, 'message'],
+            $notes->map(fn (Message $note): string => $note->messageType->verb)->all()
+        );
         foreach ($notes as $note) {
             $this->assertTrue($note->hasTag([LeadVehicleNoteEnum::TRADE_IN->value]));
             $this->assertSame($lead->getId(), $note->entity(Lead::class)?->getId());
         }
     }
 
-    public function testCustomFieldsSavedByACrmPullPostTheNote(): void
+    public function testAVehicleOfInterestPostsItsNotes(): void
     {
         $lead = $this->createLead();
 
-        $lead->setCustomFields([
-            LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value => ['yearFrom' => 2020, 'make' => 'Toyota', 'model' => 'Camry', 'trim' => 'LE'],
+        $this->save($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST, [
+            'yearFrom' => 2020,
+            'make' => 'Toyota',
+            'model' => 'Camry',
+            'trim' => 'LE',
         ]);
-        $lead->saveCustomFields();
 
         $this->assertSame(
             ['Vehicle of Interest Added', "Vehicle of Interest\n" . '{"yearFrom":2020,"make":"Toyota","model":"Camry","trim":"LE"}'],
@@ -83,8 +87,8 @@ final class RecordLeadVehicleNotesActionTest extends TestCase
     {
         $lead = $this->createLead();
 
-        $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, ['year' => 2024, 'make' => 'Honda', 'model' => 'Civic']);
-        $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, ['year' => 2024, 'make' => 'Honda', 'model' => 'Civic']);
+        $this->save($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST, ['year' => 2024, 'make' => 'Honda', 'model' => 'Civic']);
+        $this->save($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST, ['year' => 2024, 'make' => 'Honda', 'model' => 'Civic']);
 
         $this->assertCount(2, $this->notes($lead));
     }
@@ -93,8 +97,8 @@ final class RecordLeadVehicleNotesActionTest extends TestCase
     {
         $lead = $this->createLead();
 
-        $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, ['year' => 2024, 'make' => 'Honda', 'model' => 'Civic']);
-        $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, ['year' => 2025, 'make' => 'Honda', 'model' => 'Accord']);
+        $this->save($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST, ['year' => 2024, 'make' => 'Honda', 'model' => 'Civic']);
+        $this->save($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST, ['year' => 2025, 'make' => 'Honda', 'model' => 'Accord']);
 
         $this->assertSame(
             [
@@ -111,26 +115,34 @@ final class RecordLeadVehicleNotesActionTest extends TestCase
     {
         $lead = $this->createLead();
 
-        $lead->set(LeadCustomFieldEnum::TRADE_IN->value, []);
+        $this->save($lead, LeadVehicleNoteEnum::TRADE_IN, []);
 
         $this->assertCount(0, $this->notes($lead));
     }
 
-    public function testOtherCustomFieldsPostNothing(): void
+    public function testRecordAllAnnouncesOnlyTheVehiclesTheLeadHas(): void
     {
         $lead = $this->createLead();
+        $lead->set(LeadCustomFieldEnum::TRADE_IN->value, ['year' => 2018, 'make' => 'Nissan', 'model' => 'Altima']);
 
-        $lead->set(LeadCustomFieldEnum::TRADE_IN_DATA->value, ['year' => 2018, 'make' => 'Nissan', 'model' => 'Rogue']);
+        RecordLeadVehicleNotesAction::recordAll($lead);
 
-        $this->assertCount(0, $this->notes($lead));
+        $this->assertSame(
+            ['Trade In Added', "Trade In\n" . '{"year":2018,"make":"Nissan","model":"Altima"}'],
+            $this->contents($lead)
+        );
+    }
+
+    private function save(Lead $lead, LeadVehicleNoteEnum $kind, array $value): void
+    {
+        $lead->set($kind->customField(), $value);
+        new RecordLeadVehicleNotesAction($lead, $kind)->execute();
     }
 
     private function createLead(): Lead
     {
-        $company = auth()->user()->getCurrentCompany();
-
         return Lead::factory()
-            ->withAppAndCompany(app(Apps::class)->getId(), $company->getId())
+            ->withAppAndCompany(app(Apps::class)->getId(), auth()->user()->getCurrentCompany()->getId())
             ->create();
     }
 

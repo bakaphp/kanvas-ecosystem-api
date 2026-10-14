@@ -12,17 +12,6 @@ enum LeadVehicleNoteEnum: string
     case TRADE_IN = 'trade-in';
     case VEHICLE_OF_INTEREST = 'vehicle-of-interest';
 
-    public static function fromCustomField(string $name): ?self
-    {
-        foreach (self::cases() as $kind) {
-            if ($kind->customField() === $name) {
-                return $kind;
-            }
-        }
-
-        return null;
-    }
-
     public function label(): string
     {
         return match ($this) {
