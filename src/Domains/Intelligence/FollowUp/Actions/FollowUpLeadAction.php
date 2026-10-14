@@ -18,6 +18,7 @@ use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\CrmLeadSourceSynchronizer;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
@@ -33,6 +34,7 @@ use Kanvas\Intelligence\FollowUp\DataTransferObject\ResolvedChannel;
 use Kanvas\Intelligence\FollowUp\Enums\ChannelSelectionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\ExhaustedActionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpModeEnum;
+use Kanvas\Intelligence\FollowUp\Enums\LeadSourceSyncOutcomeEnum;
 use Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -63,6 +65,7 @@ final class FollowUpLeadAction
         protected readonly Lead $lead,
         protected readonly Agent $agent,
         protected readonly bool $force = false,
+        protected readonly ?CrmLeadSourceSynchronizer $synchronizer = null,
     ) {
     }
 
@@ -78,12 +81,7 @@ final class FollowUpLeadAction
             return $this->skip('unsupported_mode_v1');
         }
 
-        // `ai_follow_up` is written by ApplyLeadAiModeAction on leads the triggers
-        // touch. Absent = never configured, so we continue; once present it must be
-        // explicitly on (same shapes the legacy engine accepted) — OFF (0) and
-        // NO_FOLLOW_UP (3) both skip.
-        $aiFollowUp = $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
-        if ($aiFollowUp !== null && $aiFollowUp !== '' && ! $this->lead->isAiFollowUpEnabled()) {
+        if ($this->aiFollowUpDisabled()) {
             return $this->skip('lead_follow_up_disabled');
         }
 
@@ -93,10 +91,10 @@ final class FollowUpLeadAction
             return $this->skip('lead_type_follow_up_disabled');
         }
 
-        // Only follow up on open leads (status < 2). A closed lead (won/lost/
-        // inactive) sitting in a non-terminal stage must not keep getting nudged.
-        // Not bypassed by `force` — force only relaxes the silence gate.
-        if (! $this->lead->isOpen()) {
+        // Judged on `leads_status_id`, the column CRM pulls and the UI write — not `isOpen()`'s
+        // `status` column, which nothing writes. Not bypassed by `force`, which only relaxes the
+        // silence gate.
+        if (! $this->lead->hasOpenLeadStatus()) {
             return $this->skip('lead_not_active');
         }
 
@@ -160,6 +158,13 @@ final class FollowUpLeadAction
 
         if ($skipReason !== null) {
             return $this->skip($skipReason);
+        }
+
+        // Every free gate has passed; this is the last stop before money is spent (a CRM call,
+        // then the agent). Pull the lead's source state now, never earlier.
+        $sourceOutcome = $this->syncLeadSource();
+        if ($sourceOutcome !== null) {
+            return $sourceOutcome;
         }
 
         $prompt = $this->buildAgentPrompt(
@@ -231,11 +236,7 @@ final class FollowUpLeadAction
         $primaryMessage = null;
         $channelsForBump = [];
         if ($result->shouldRespond && $result->message !== null) {
-            $resolvedBody = $this->resolveOutboundBody(
-                channelType: $channelType,
-                template: $template,
-                agentMessage: $result->message,
-            );
+            $resolvedBody = $this->resolveOutboundBody($template, $result->message);
 
             foreach ($targets as $target) {
                 $body = $this->withSmsOptOutNotice($target, $resolvedBody);
@@ -574,11 +575,8 @@ final class FollowUpLeadAction
     // For templates with a `$agent_message` slot, render the template (agent
     // message wrapped). For static templates without the slot, send the agent
     // message directly — the template was a style guide only.
-    private function resolveOutboundBody(
-        string $channelType,
-        ?Templates $template,
-        string $agentMessage,
-    ): string {
+    private function resolveOutboundBody(?Templates $template, string $agentMessage): string
+    {
         if ($template === null) {
             return $agentMessage;
         }
@@ -660,6 +658,40 @@ final class FollowUpLeadAction
         }
 
         return $message;
+    }
+
+    /**
+     * Absent `ai_follow_up` means the triggers never configured the lead, so it passes; once
+     * present it must be explicitly on — OFF (0) and NO_FOLLOW_UP (3) both disable.
+     */
+    private function aiFollowUpDisabled(): bool
+    {
+        return filled($this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value))
+            && ! $this->lead->isAiFollowUpEnabled();
+    }
+
+    /**
+     * A CRM without webhooks never told us the lead was closed or sold, so ask it before we speak.
+     * CRM calls are billed per request (Elead), which is why this sits behind every free gate and
+     * why a lead that could not be verified skips the tick instead of being nudged. A pull can
+     * close or mute the lead, so the gates it can flip run again on its result.
+     */
+    private function syncLeadSource(): ?FollowUpOutcome
+    {
+        if ($this->synchronizer === null) {
+            return null;
+        }
+
+        $sync = new SyncLeadSourceBeforeFollowUpAction($this->lead, $this->synchronizer)->execute();
+
+        return match (true) {
+            $sync === LeadSourceSyncOutcomeEnum::FAILED => $this->skip('crm_sync_failed'),
+            $sync !== LeadSourceSyncOutcomeEnum::SYNCED => null,
+            ! $this->lead->hasOpenLeadStatus() => $this->skip('lead_not_active'),
+            $this->aiFollowUpDisabled() => $this->skip('lead_follow_up_disabled'),
+            $this->lead->isAiMuted() => $this->skip('ai_mode_off'),
+            default => null,
+        };
     }
 
     /**

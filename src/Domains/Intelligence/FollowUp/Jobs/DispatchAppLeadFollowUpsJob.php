@@ -16,7 +16,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 
 /**
  * Per-app fan-out. SQL pre-filters at STAGE level (enabled + non-terminal)
- * and to open leads (status < 2); remaining lead-level state is checked inside
+ * and to open leads (by status id); remaining lead-level state is checked inside
  * FollowUpLeadAction so each skip lands a clean ledger event with the specific
  * reason. Streams via cursor().
  */
@@ -44,15 +44,10 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
             ->fromApp($this->app)
             ->fromCompany($this->company)
             ->notDeleted()
-            // Open leads only (isOpen() === status < 2). null is treated as open
-            // to match the model (status column is nullable, default 0). The
-            // authoritative check is FollowUpLeadAction's isOpen() gate; this just
+            // Open leads only, by `leads_status_id` — the column CRM pulls and the UI write. The
+            // authoritative check is FollowUpLeadAction's hasOpenLeadStatus() gate; this just
             // avoids spawning jobs for already-closed leads.
-            ->where(
-                fn ($q) => $q
-                    ->whereNull('status')
-                    ->orWhere('status', '<', 2),
-            )
+            ->hasOpenLeadStatus($this->company)
             ->whereNotNull('pipeline_stage_id')
             ->whereHas(
                 'stage',

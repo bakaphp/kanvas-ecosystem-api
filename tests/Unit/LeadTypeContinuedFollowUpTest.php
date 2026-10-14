@@ -132,6 +132,7 @@ final class LeadTypeContinuedFollowUpTest extends TestCase
         $lead = Mockery::mock(Lead::class);
         $lead->shouldReceive('type')->andReturn($relation);
         $lead->shouldReceive('isOpen')->andReturn($state === 'active');
+        $lead->shouldReceive('hasOpenLeadStatus')->andReturn($state === 'active');
         $lead->shouldReceive('closeNotSold')->andReturn($state === 'cns');
         $lead->shouldReceive('closeSold')->andReturn($state === 'closed-sold');
 
