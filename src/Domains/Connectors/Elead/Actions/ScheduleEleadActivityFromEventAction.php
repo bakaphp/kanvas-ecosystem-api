@@ -4,18 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Actions;
 
-use Baka\Support\Str;
-use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Elead\Entities\SalesActivities;
-use Kanvas\Connectors\Elead\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Services\LeadUserService;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Workflow\Attributes\WorkflowAction;
 
-#[WorkflowAction]
 class ScheduleEleadActivityFromEventAction
 {
     public function __construct(
@@ -27,6 +22,11 @@ class ScheduleEleadActivityFromEventAction
 
     public function execute(): SalesActivities
     {
+        // Workflow retries and the `updated` rule must not schedule the same event twice.
+        if (! empty($this->event->get(CustomFieldEnum::ACTIVITY_ID->value))) {
+            return new UpdateEleadActivityFromEventAction($this->event, $this->lead, $this->params)->execute();
+        }
+
         $app = $this->event->app;
         $company = $this->event->company;
 
@@ -38,28 +38,21 @@ class ScheduleEleadActivityFromEventAction
         $activityTypeName = $this->params['activity_type_name']
             ?? $this->event->eventType?->name
             ?? 'Phone Call';
-        $activityTypes = SalesActivities::getActivityTypes($app, $company);
-        $activityTypeId = null;
-        foreach ($activityTypes['items'] as $type) {
-            if (Str::contains($type['name'], $activityTypeName)) {
-                $activityTypeId = $type['id'];
-
-                break;
-            }
-        }
+        $activityTypeId = SalesActivities::findActivityTypeId($app, $company, $activityTypeName);
 
         if ($activityTypeId === null) {
             throw new ValidationException("Activity type '{$activityTypeName}' not found in eLead");
         }
 
-        $dueDate = $this->resolveDueDate();
+        $startsAt = $this->event->startsAt()
+            ?? throw new ValidationException('Event has no start date to schedule in eLead');
 
         $salesUser = LeadUserService::resolve($this->lead);
-        $assignToEmployeeId = $salesUser?->get(ConfigurationEnum::getUserKey($company, $salesUser));
+        $assignToEmployeeId = $salesUser?->get(CustomFieldEnum::getUserKey($company));
 
         $data = [
             'opportunityId' => $opportunityId,
-            'dueDate' => $dueDate,
+            'dueDate' => $startsAt->format(SalesActivities::DATE_FORMAT),
             'activityName' => $this->params['activity_name'] ?? $this->event->name,
             'activityType' => $activityTypeId,
             'comments' => $this->params['comments'] ?? $this->event->description ?? '',
@@ -69,32 +62,12 @@ class ScheduleEleadActivityFromEventAction
             $data['assignToEmployeeId'] = $assignToEmployeeId;
         }
 
-        return SalesActivities::create($app, $company, $data);
-    }
+        $activity = SalesActivities::create($app, $company, $data);
 
-    protected function resolveDueDate(): string
-    {
-        $timezone = 'UTC';
-
-        /** @var \Kanvas\Event\Events\Models\EventVersion|null $version */
-        $version = $this->event->versions()->latest()->first();
-        if ($version?->start_at !== null) {
-            return $version->start_at->setTimezone($timezone)->format('Y-m-d\TH:i:s.v\Z');
-            //return $version->start_at->format('Y-m-d\TH:i:s.v\Z');
+        if ($activity->activityId !== null) {
+            $this->event->set(CustomFieldEnum::ACTIVITY_ID->value, $activity->activityId);
         }
 
-        if ($version !== null) {
-            $date = $version->dates()->first();
-            if ($date !== null) {
-                return Carbon::parse(
-                    $date->event_date->format('Y-m-d') . ' ' . ((string) ($date->start_time ?? '00:00'))
-                )->setTimezone($timezone)->format('Y-m-d\TH:i:s.v\Z');
-            }
-        }
-
-        return Carbon::now($timezone)
-            ->addHour()
-            ->setTimezone($timezone)
-            ->format('Y-m-d\TH:i:s.v\Z');
+        return $activity;
     }
 }

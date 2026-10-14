@@ -11,7 +11,6 @@ use Kanvas\Connectors\Elead\Services\LeadUserService;
 use Kanvas\Connectors\Elead\Support\EleadCache;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Users\Models\UserConfig;
 use Throwable;
 
 class SyncLeadAction
@@ -124,13 +123,10 @@ class SyncLeadAction
             if (! empty($eLeadOpportunity->salesTeam)) {
                 foreach ($eLeadOpportunity->salesTeam as $salesTeam) {
                     if ((bool)$salesTeam['isPrimary']) {
-                        $userConfig = UserConfig::where([
-                            'name' => CustomFieldEnum::getUserKey($this->lead->company),
-                            'value' => $salesTeam['id'],
-                        ])->first();
+                        $owner = LeadUserService::resolveByEleadUserId($this->lead->company, (string) $salesTeam['id']);
 
-                        if ($userConfig) {
-                            $lead->leads_owner_id = $userConfig->users_id;
+                        if ($owner !== null) {
+                            $lead->leads_owner_id = $owner->getId();
                             $lead->disableWorkflows();
                             $lead->saveOrFail();
                             $lead->enableWorkflows();
