@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\SalesAssist\Actions;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\SalesAssist\Actions\EnsureFirstMessageEnabledAction;
 use Kanvas\Connectors\SalesAssist\Exceptions\FirstMessageDisabledException;
@@ -24,6 +25,18 @@ final class EnsureFirstMessageEnabledActionTest extends TestCase
         $this->expectExceptionMessage('internet_first_fu_active_default');
 
         new EnsureFirstMessageEnabledAction($lead)->execute();
+    }
+
+    public function testDisabledFirstMessageIsReportedToLogsOnly(): void
+    {
+        Log::spy();
+
+        report(new FirstMessageDisabledException('First message disabled by lead type configuration [x]'));
+
+        Log::shouldHaveReceived('info')
+            ->once()
+            ->with('First message disabled by lead type configuration [x]', ['exception' => FirstMessageDisabledException::class]);
+        Log::shouldNotHaveReceived('error');
     }
 
     public function testAllowsWhenLeadTypeEnablesFirstMessage(): void
