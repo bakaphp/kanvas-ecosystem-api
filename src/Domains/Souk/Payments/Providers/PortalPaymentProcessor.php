@@ -283,7 +283,11 @@ class PortalPaymentProcessor
                     'data' => $consumerData,
                 ];
             } else {
-                return $this->requestUserValidation($payment, $validatedData);
+                return $this->requestUserValidation(
+                    $payment,
+                    $validatedData,
+                    metadataKey: 'validation_data'
+                );
             }
         } catch (EchoPayException $e) {
             if ($this->isEchoPayGatewayFailure($e)) {
@@ -296,7 +300,7 @@ class PortalPaymentProcessor
                 $payment,
                 'validate_auth_result',
                 [
-                    'enrollment_data' => $validatedData,
+                    'validation_data' => $validatedData,
                     'error' => $errorMessage,
                     'echopay_error' => $e->getErrorBody(),
                     'echopay_error_timestamp' => now()->toIso8601String(),
@@ -319,7 +323,7 @@ class PortalPaymentProcessor
                 $payment,
                 'validate_auth_result',
                 [
-                    'enrollment_data' => $validatedData,
+                    'validation_data' => $validatedData,
                     'error' => $errorMessage,
                 ],
                 $this->paymentFailure($e, $errorMessage)
@@ -359,8 +363,11 @@ class PortalPaymentProcessor
         return $hasValidEci;
     }
 
-    private function requestUserValidation(Payments $payment, array $enrollmentData): array
-    {
+    private function requestUserValidation(
+        Payments $payment,
+        array $enrollmentData,
+        string $metadataKey = 'enrollment_data'
+    ): array {
         $statusMap = [
             EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value => PaymentStatusEnum::PENDING_AUTHORIZATION->value,
             EnumsPaymentStatusEnum::AUTHENTICATION_FAILED->value => PaymentStatusEnum::FAILED->value,
@@ -377,7 +384,7 @@ class PortalPaymentProcessor
 
         $payment->status = $paymentStatus;
         $payment->addMetadata([
-            'enrollment_data' => $enrollmentData,
+            $metadataKey => $enrollmentData,
         ]);
         $payment->save();
 

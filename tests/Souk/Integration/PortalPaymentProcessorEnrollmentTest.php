@@ -81,6 +81,29 @@ final class PortalPaymentProcessorEnrollmentTest extends TestCase
         $this->assertSame('The cardholder could not be authenticated.', $log->error_message);
     }
 
+    public function testValidationResultDoesNotOverwriteTheEnrollmentResponse(): void
+    {
+        [$payment] = $this->seedPayment();
+
+        $this->requestUserValidation($payment, $this->enrollment('PENDING_AUTHENTICATION'));
+
+        $validation = $this->enrollment('AUTHENTICATION_SUCCESSFUL', null);
+        $validation['errorInformation'] = null;
+        unset($validation['paymentInformation'], $validation['submitTimeUtc']);
+
+        $this->requestUserValidation($payment, $validation, 'validation_data');
+
+        $metadata = $payment->refresh()->metadata;
+
+        $this->assertSame('PENDING_AUTHENTICATION', $metadata['enrollment_data']['status']);
+        $this->assertSame(
+            'https://centinelapi.cardinalcommerce.com/V2/Cruise/StepUp',
+            $metadata['enrollment_data']['consumerAuthenticationInformation']['stepUpUrl']
+        );
+        $this->assertSame('MASTERCARD', $metadata['enrollment_data']['paymentInformation']['card']['type']);
+        $this->assertSame('AUTHENTICATION_SUCCESSFUL', $metadata['validation_data']['status']);
+    }
+
     public function testAuthTransactionIdIsPersistedAtEnrollment(): void
     {
         [$payment, $order] = $this->seedPayment();
@@ -166,12 +189,15 @@ final class PortalPaymentProcessorEnrollmentTest extends TestCase
         return [$payment, $order];
     }
 
-    private function requestUserValidation(Payments $payment, array $enrollmentData): array
-    {
+    private function requestUserValidation(
+        Payments $payment,
+        array $enrollmentData,
+        string $metadataKey = 'enrollment_data'
+    ): array {
         $processor = new ReflectionClass(PortalPaymentProcessor::class)->newInstanceWithoutConstructor();
 
         return new ReflectionMethod($processor, 'requestUserValidation')
-            ->invoke($processor, $payment, $enrollmentData);
+            ->invoke($processor, $payment, $enrollmentData, $metadataKey);
     }
 
     private function enrollment(string $status, ?array $errorInformation = null): array
