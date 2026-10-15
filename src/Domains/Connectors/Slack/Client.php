@@ -19,6 +19,11 @@ class Client
 {
     private const string BASE_URL = 'https://slack.com/api/';
     private const int MAX_TEXT_LENGTH = 3000;
+    private const int HISTORY_PAGE_SIZE = 200;
+
+    // A backfill walks history and replies back to back, which is where Slack's Tier 3 limit bites.
+    // Slack says how long to wait; past this we would rather fail the job and let the queue retry.
+    private const int MAX_RETRY_AFTER_SECONDS = 30;
 
     // Slack's file download 302-chains through a couple of hosts (workspace host → signed CDN); a
     // handful of hops is plenty, and the cap stops a redirect loop from hanging the worker.
@@ -235,6 +240,48 @@ class Client
         return $this->call('conversations.info', ['channel' => $channelId])['channel'] ?? [];
     }
 
+    /**
+     * One page, newest first, of a room's top-level messages since $oldest (a Slack timestamp).
+     * Thread replies are not in it — only their root, with `reply_count` — see conversationsReplies().
+     *
+     * @return array{messages: array, next_cursor: string}
+     */
+    public function conversationsHistory(string $channelId, string $oldest, string $cursor = ''): array
+    {
+        $response = $this->call('conversations.history', array_filter([
+            'channel' => $channelId,
+            'oldest' => $oldest,
+            'limit' => (string) self::HISTORY_PAGE_SIZE,
+            'cursor' => $cursor === '' ? null : $cursor,
+        ]));
+
+        return [
+            'messages' => (array) ($response['messages'] ?? []),
+            'next_cursor' => (string) ($response['response_metadata']['next_cursor'] ?? ''),
+        ];
+    }
+
+    /**
+     * One page, oldest first, of a thread. Slack returns the root as the first message of the first
+     * page; the caller skips it.
+     *
+     * @return array{messages: array, next_cursor: string}
+     */
+    public function conversationsReplies(string $channelId, string $threadTs, string $cursor = ''): array
+    {
+        $response = $this->call('conversations.replies', array_filter([
+            'channel' => $channelId,
+            'ts' => $threadTs,
+            'limit' => (string) self::HISTORY_PAGE_SIZE,
+            'cursor' => $cursor === '' ? null : $cursor,
+        ]));
+
+        return [
+            'messages' => (array) ($response['messages'] ?? []),
+            'next_cursor' => (string) ($response['response_metadata']['next_cursor'] ?? ''),
+        ];
+    }
+
     public function lookupUserIdByEmail(string $email): ?string
     {
         try {
@@ -380,13 +427,21 @@ class Client
         return $scheme . '://' . $host . $path;
     }
 
-    private function call(string $method, array $params): array
+    private function call(string $method, array $params, bool $retryOnRateLimit = true): array
     {
         /** @var Response $response */
         $response = Http::withToken($this->botToken)
             ->asForm()
             ->timeout(30)
             ->post(self::BASE_URL . $method, $params);
+
+        $retryAfter = (int) $response->header('Retry-After');
+
+        if ($response->status() === 429 && $retryOnRateLimit && $retryAfter > 0 && $retryAfter <= self::MAX_RETRY_AFTER_SECONDS) {
+            sleep($retryAfter);
+
+            return $this->call($method, $params, retryOnRateLimit: false);
+        }
 
         $data = $response->json();
 

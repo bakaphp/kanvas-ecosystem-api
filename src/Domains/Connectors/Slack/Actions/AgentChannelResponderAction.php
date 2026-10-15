@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Slack\Actions;
 
 use Kanvas\Connectors\Slack\Client;
+use Kanvas\Connectors\Slack\Services\SlackThreadContextService;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
@@ -43,6 +44,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             AttachmentPromptBuilder::withAttachments($inboundText, $documentUrls),
             $this->message->files,
         );
+        $inboundText = $this->withThreadContext($inboundText);
 
         // Slack was ack'd the moment the event arrived; a turn with tool calls runs 10-30s after
         // that. Post a placeholder so the thread shows the agent working, not silence. The answer
@@ -135,5 +137,20 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             'response' => $responseText,
             'message_id' => $reply->getId(),
         ];
+    }
+
+    /**
+     * A tag inside a thread hands the agent the whole thread, not just the line that tagged it:
+     * the replies written without its handle are on the channel row and nowhere in its own history.
+     */
+    private function withThreadContext(string $inboundText): string
+    {
+        $thread = new SlackThreadContextService()->render($this->channel, $this->message);
+
+        if ($thread === null) {
+            return $inboundText;
+        }
+
+        return $thread . "\n\nLatest message, addressed to you:\n" . $inboundText;
     }
 }
