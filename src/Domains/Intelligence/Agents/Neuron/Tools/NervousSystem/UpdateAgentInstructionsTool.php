@@ -166,7 +166,7 @@ class UpdateAgentInstructionsTool extends Tool
      * Hires are included because they are otherwise unreachable — a fresh hire belongs to no project
      * yet, so a project-only rule would leave the agent that created it unable to correct it.
      */
-    private function mayRetune(Agent $target): bool
+    protected function mayRetune(Agent $target): bool
     {
         if ((int) $target->parent_id === $this->editor->getId()) {
             return true;
