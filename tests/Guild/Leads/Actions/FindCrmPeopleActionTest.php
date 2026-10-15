@@ -141,7 +141,12 @@ final class FindCrmPeopleActionTest extends TestCase
     public function testAPersonWithAnotherClientIdIsSomebodyElse(): void
     {
         $email = $this->uniqueEmail();
-        $this->createPeople('Ana', 'Perez', emails: [$email], clientId: $this->uniqueId());
+        $this->createPeople(
+            'Ana',
+            'Perez',
+            emails: [$email],
+            clientId: $this->uniqueId()
+        );
 
         $this->assertNull($this->find(
             ['client_id' => $this->uniqueId()],
@@ -182,7 +187,12 @@ final class FindCrmPeopleActionTest extends TestCase
     {
         $clientId = $this->uniqueId();
         $email = $this->uniqueEmail();
-        $this->createPeople('Ana', 'Perez', emails: [$email], clientId: $this->uniqueId());
+        $this->createPeople(
+            'Ana',
+            'Perez',
+            emails: [$email],
+            clientId: $this->uniqueId()
+        );
         $free = $this->createPeople('Ana', 'Perez', emails: [$email]);
 
         $match = $this->find(

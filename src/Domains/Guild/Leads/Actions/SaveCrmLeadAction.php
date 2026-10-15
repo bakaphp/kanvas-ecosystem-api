@@ -51,6 +51,8 @@ class SaveCrmLeadAction
             $lead->leads_owner_id = $this->ownerId;
         }
 
+        $lead->people_id = $this->people->getId();
+
         if ($info?->description !== null) {
             $lead->description = $info->description;
         }
@@ -70,7 +72,6 @@ class SaveCrmLeadAction
         $lead->users_id = $this->data->user->getId();
         $lead->companies_id = $this->data->company->getId();
         $lead->companies_branches_id = $this->data->branch->getId();
-        $lead->people_id = $this->people->getId();
         $lead->firstname = $this->people->firstname;
         $lead->lastname = $this->people->lastname;
         $lead->title = trim($this->people->firstname . ' ' . $this->people->lastname);

@@ -36,7 +36,12 @@ final class NameAndContactPeopleFinder
             return new Collection();
         }
 
-        return PeoplesRepository::getByAnyContact($app, $company, $emails, $phones)
+        return PeoplesRepository::getByAnyContact(
+            $app,
+            $company,
+            $emails,
+            $phones
+        )
             ->whereRaw("LOWER(TRIM(REGEXP_REPLACE(firstname, '[[:space:]]+', ' '))) = ?", [$customer->normalizedFirstname()])
             ->whereRaw("LOWER(TRIM(REGEXP_REPLACE(lastname, '[[:space:]]+', ' '))) = ?", [$customer->normalizedLastname()])
             ->get();

@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Leads\DataTransferObject;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmCustomer;
 use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmFollowers;
 use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmIdentity;
@@ -78,6 +79,16 @@ class CrmLeadSync extends Data
                 'request'
             );
         }
+    }
+
+    /**
+     * The company as a model, for what needs more than the interface (its users).
+     */
+    public function companyModel(): Companies
+    {
+        return $this->company instanceof Companies
+            ? $this->company
+            : Companies::getById($this->company->getId());
     }
 
     private static function assertRequired(array $data): void

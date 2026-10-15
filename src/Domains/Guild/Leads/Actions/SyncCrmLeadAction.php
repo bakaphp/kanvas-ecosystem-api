@@ -90,7 +90,12 @@ class SyncCrmLeadAction
         $followers->prepare();
         $participants->prepare();
 
-        return $this->write($plan, $ownerId, $participants, $followers);
+        return $this->write(
+            $plan,
+            $ownerId,
+            $participants,
+            $followers
+        );
     }
 
     /**
@@ -110,7 +115,7 @@ class SyncCrmLeadAction
         $salesperson = Str::trimToNull($info?->salesperson?->name);
         $ownerId = $salesperson === null
             ? null
-            : $this->driver->resolveOwnerId($salesperson, $this->data->company);
+            : $this->driver->resolveOwnerId($salesperson, $this->data->companyModel());
 
         if ($plan->createsLead()) {
             $this->requireValue(Str::trimToNull($info?->type?->name), 'lead.type.name');
@@ -167,7 +172,13 @@ class SyncCrmLeadAction
                 ];
             }
 
-            $lead = new SaveCrmLeadAction($this->data, $this->driver, $people, $plan->lead, $ownerId)->execute();
+            $lead = new SaveCrmLeadAction(
+                $this->data,
+                $this->driver,
+                $people,
+                $plan->lead,
+                $ownerId
+            )->execute();
             $participants->execute($lead);
         });
 
@@ -348,8 +359,18 @@ class SyncCrmLeadAction
             return null;
         }
 
-        $people = People::query()->where('id', $stored['people_id'])->notDeleted()->first();
-        $lead = Lead::query()->where('id', $stored['lead_id'])->notDeleted()->first();
+        $people = People::query()
+            ->where('id', $stored['people_id'])
+            ->fromApp($this->data->app)
+            ->fromCompany($this->data->company)
+            ->notDeleted()
+            ->first();
+        $lead = Lead::query()
+            ->where('id', $stored['lead_id'])
+            ->fromApp($this->data->app)
+            ->fromCompany($this->data->company)
+            ->notDeleted()
+            ->first();
 
         // Rows that are gone are not replayed; the request runs again.
         if (! $people instanceof People || ! $lead instanceof Lead) {

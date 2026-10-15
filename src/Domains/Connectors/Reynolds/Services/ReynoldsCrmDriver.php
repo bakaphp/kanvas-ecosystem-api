@@ -47,11 +47,9 @@ class ReynoldsCrmDriver implements CrmLeadDriver
         return $crmStatus === 'Open' ? 'Active' : $crmStatus;
     }
 
-    public function resolveOwnerId(?string $salespersonName, CompanyInterface $company): ?int
+    public function resolveOwnerId(?string $salespersonName, Companies $company): ?int
     {
-        $companyModel = $company instanceof Companies ? $company : Companies::getById($company->getId());
-
-        return SalespersonResolver::resolveUserId($salespersonName, $companyModel);
+        return SalespersonResolver::resolveUserId($salespersonName, $company);
     }
 
     /**

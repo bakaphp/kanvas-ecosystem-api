@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
+use Illuminate\Support\Collection;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Address;
@@ -37,8 +38,10 @@ class ApplyCrmCustomerAction
     public function execute(): array
     {
         $this->fillMiddlename();
-        $this->addEmails();
-        $this->addPhones();
+
+        $contacts = $this->people->contacts()->get();
+        $this->addEmails($contacts);
+        $this->addPhones($contacts);
 
         return $this->applyAddress();
     }
@@ -53,9 +56,12 @@ class ApplyCrmCustomerAction
         }
     }
 
-    private function addEmails(): void
+    /**
+     * @param Collection<int, Contact> $contacts the people's contacts before anything is added
+     */
+    private function addEmails(Collection $contacts): void
     {
-        $known = $this->knownContacts(fn (int $type): bool => Contact::isEmailType($type));
+        $known = $this->known($contacts, fn (int $type): bool => Contact::isEmailType($type));
 
         foreach ($this->customer->normalizedEmails() as $email) {
             if (! in_array($email, $known, true)) {
@@ -67,9 +73,12 @@ class ApplyCrmCustomerAction
     /**
      * A number already on the people under any phone type is not added again under another.
      */
-    private function addPhones(): void
+    /**
+     * @param Collection<int, Contact> $contacts the people's contacts before anything is added
+     */
+    private function addPhones(Collection $contacts): void
     {
-        $known = $this->knownContacts(fn (int $type): bool => Contact::isPhoneType($type));
+        $known = $this->known($contacts, fn (int $type): bool => Contact::isPhoneType($type));
         $phones = $this->customer->phones;
 
         $slots = [
@@ -85,7 +94,7 @@ class ApplyCrmCustomerAction
                 continue;
             }
 
-            $canonical = strlen($digits) > 10 ? substr($digits, -10) : $digits;
+            $canonical = Contact::normalizeValue($digits, ContactTypeEnum::CELLPHONE->value);
 
             if (! in_array($canonical, $known, true)) {
                 $this->people->addContact($typeName, $digits);
@@ -95,14 +104,14 @@ class ApplyCrmCustomerAction
     }
 
     /**
+     * @param Collection<int, Contact> $contacts
      * @param callable(int): bool $ofKind
      *
      * @return list<string> the contacts of that kind, in the form two of them are compared in
      */
-    private function knownContacts(callable $ofKind): array
+    private function known(Collection $contacts, callable $ofKind): array
     {
-        return $this->people->contacts()
-            ->get()
+        return $contacts
             ->filter(fn (Contact $contact): bool => $ofKind((int) $contact->contacts_types_id))
             ->map(fn (Contact $contact): string => Contact::normalizeValue($contact->value, (int) $contact->contacts_types_id))
             ->values()
@@ -131,9 +140,9 @@ class ApplyCrmCustomerAction
 
         $warnings = [];
         $state = Str::trimToNull($address->state);
-        $stateId = $this->stateId($state);
+        $usState = $this->usState($state);
 
-        if ($state !== null && $stateId === null) {
+        if ($state !== null && ! $usState instanceof States) {
             $warnings[] = ['code' => 'state_unmapped', 'field' => 'customer.address.state'];
         }
 
@@ -148,9 +157,9 @@ class ApplyCrmCustomerAction
             fn (?string $value): bool => $value !== null
         );
 
-        if ($stateId !== null) {
-            $values['state_id'] = $stateId;
-            $values['countries_id'] = (int) States::query()->where('id', $stateId)->value('countries_id');
+        if ($usState instanceof States) {
+            $values['state_id'] = (int) $usState->id;
+            $values['countries_id'] = (int) $usState->countries_id;
         }
 
         $current = $this->people->getDefaultAddress();
@@ -178,7 +187,7 @@ class ApplyCrmCustomerAction
      * The CRM sends a US state as its two letters, so it is looked up by code, then by name, among the
      * states of the United States. Other countries reuse the same codes.
      */
-    private function stateId(?string $state): ?int
+    private function usState(?string $state): ?States
     {
         if ($state === null) {
             return null;
@@ -190,15 +199,13 @@ class ApplyCrmCustomerAction
             return null;
         }
 
-        $id = States::query()
+        return States::query()
             ->where('countries_id', $countryId)
             ->where(
                 fn ($query) => $query
                     ->where('code', strtoupper($state))
                     ->orWhereRaw('LOWER(name) = ?', [mb_strtolower($state)])
             )
-            ->value('id');
-
-        return $id === null ? null : (int) $id;
+            ->first();
     }
 }

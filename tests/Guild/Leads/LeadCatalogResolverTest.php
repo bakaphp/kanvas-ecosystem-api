@@ -34,7 +34,7 @@ final class LeadCatalogResolverTest extends TestCase
         $resolver = $this->resolver();
         $name = $this->uniqueName('Walk-In');
 
-        $first = $resolver->typeId($name, null, 'Reynolds ProspectType: ' . $name);
+        $first = $resolver->typeId($name, description: 'Reynolds ProspectType: ' . $name);
         $second = $resolver->typeId($name);
 
         $this->assertGreaterThan(0, $first);
@@ -61,7 +61,7 @@ final class LeadCatalogResolverTest extends TestCase
         $resolver = $this->resolver();
         $name = $this->uniqueName('Cars.com');
 
-        $first = $resolver->sourceId($name, null, 'Reynolds ProviderName: ' . $name);
+        $first = $resolver->sourceId($name, description: 'Reynolds ProviderName: ' . $name);
 
         $this->assertSame($first, $resolver->sourceId($name));
         $this->assertCount(1, LeadSource::query()->where('name', $name)->get());

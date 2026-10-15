@@ -86,7 +86,12 @@ final class ReynoldsCrmDriverTest extends TestCase
             text_opt_status: ' Opted Out ',
             opt_out: 'y',
             opt_out_use: '0',
-            follow_up: new CrmFollowUp(phone: 'Y', mail: 'N', email: 'TRUE', text: null)
+            follow_up: new CrmFollowUp(
+                phone: 'Y',
+                mail: 'N',
+                email: 'TRUE',
+                text: null
+            )
         ));
 
         $this->assertSame(

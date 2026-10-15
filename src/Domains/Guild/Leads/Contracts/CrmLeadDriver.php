@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Contracts;
 
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmCustomer;
 use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmLeadInfo;
 use Kanvas\Guild\Leads\Enums\CrmTypeEnum;
@@ -36,7 +37,7 @@ interface CrmLeadDriver
      */
     public function resolveStatusName(?string $crmStatus): ?string;
 
-    public function resolveOwnerId(?string $salespersonName, CompanyInterface $company): ?int;
+    public function resolveOwnerId(?string $salespersonName, Companies $company): ?int;
 
     /**
      * @return array<string, mixed> custom fields to set on the people

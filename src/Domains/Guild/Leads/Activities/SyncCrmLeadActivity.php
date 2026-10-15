@@ -64,7 +64,12 @@ class SyncCrmLeadActivity extends KanvasActivity implements WorkflowActivityInte
         }
 
         $result = new SyncCrmLeadAction(
-            CrmLeadSync::from($app, $user, $user->getCurrentCompany(), $params)
+            CrmLeadSync::from(
+                $app,
+                $user,
+                $user->getCurrentCompany(),
+                $params
+            )
         )->execute();
 
         return [

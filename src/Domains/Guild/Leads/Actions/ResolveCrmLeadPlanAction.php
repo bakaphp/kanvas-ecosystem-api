@@ -45,14 +45,23 @@ class ResolveCrmLeadPlanAction
         $lead = $this->activeLead($match->people);
 
         if (! $lead instanceof Lead) {
-            return new CrmLeadPlan(CrmLeadSyncOutcomeEnum::CREATED_LEAD, $match->people, null, $match->ambiguous);
+            return new CrmLeadPlan(
+                outcome: CrmLeadSyncOutcomeEnum::CREATED_LEAD,
+                people: $match->people,
+                ambiguous: $match->ambiguous
+            );
         }
 
         $outcome = $this->data->identity->lead_id === null
             ? CrmLeadSyncOutcomeEnum::OPENED
             : CrmLeadSyncOutcomeEnum::ADOPTED;
 
-        return new CrmLeadPlan($outcome, $match->people, $lead, $match->ambiguous);
+        return new CrmLeadPlan(
+            outcome: $outcome,
+            people: $match->people,
+            lead: $lead,
+            ambiguous: $match->ambiguous
+        );
     }
 
     private function leadByCrmId(): ?Lead

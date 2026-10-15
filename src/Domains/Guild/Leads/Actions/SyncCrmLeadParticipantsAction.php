@@ -103,7 +103,12 @@ class SyncCrmLeadParticipantsAction
         );
 
         $people = new NameAndContactPeopleFinder()->find($this->data->app, $this->data->company, $customer)->first()
-            ?? new CreateCrmPeopleAction($this->data->app, $this->data->company, $this->data->user, $customer)->execute();
+            ?? new CreateCrmPeopleAction(
+                $this->data->app,
+                $this->data->company,
+                $this->data->user,
+                $customer
+            )->execute();
 
         new ApplyCrmCustomerAction($people, $customer, $this->data->app)->execute();
 

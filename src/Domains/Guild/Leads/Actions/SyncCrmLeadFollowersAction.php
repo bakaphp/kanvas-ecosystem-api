@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\DataTransferObject\CrmLeadSync;
 use Kanvas\Guild\Leads\Exceptions\CrmLeadSyncException;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -56,9 +55,7 @@ class SyncCrmLeadFollowersAction
      */
     private function resolve(array $emails, string $field): array
     {
-        $company = $this->data->company instanceof Companies
-            ? $this->data->company
-            : Companies::getById($this->data->company->getId());
+        $company = $this->data->companyModel();
         $users = [];
 
         foreach ($emails as $email) {

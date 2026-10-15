@@ -23,17 +23,4 @@ final readonly class CrmLeadSyncResult
         public array $warnings = []
     ) {
     }
-
-    public function asReplayed(): self
-    {
-        return new self(
-            $this->outcome,
-            $this->people,
-            $this->lead,
-            $this->peopleCreated,
-            $this->leadCreated,
-            true,
-            $this->warnings
-        );
-    }
 }

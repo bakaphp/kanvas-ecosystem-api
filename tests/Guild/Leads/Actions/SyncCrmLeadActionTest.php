@@ -25,9 +25,14 @@ use Kanvas\Guild\Leads\Enums\CrmLeadSyncOutcomeEnum;
 use Kanvas\Guild\Leads\Exceptions\CrmLeadSyncException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
+use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
 use Tests\TestCase;
 
+/**
+ * Serial: it sets and restores a company setting, which is Redis-backed and shared by every parallel process.
+ */
+#[Group('serial')]
 final class SyncCrmLeadActionTest extends TestCase
 {
     use DatabaseTransactions;
@@ -39,6 +44,8 @@ final class SyncCrmLeadActionTest extends TestCase
     protected $connectionsToTransact = [null, 'crm', 'ecosystem', 'intelligence'];
 
     private mixed $previousDealerNumber = null;
+
+    private array $lastIdentity = [];
 
     protected function setUp(): void
     {
@@ -223,6 +230,23 @@ final class SyncCrmLeadActionTest extends TestCase
 
         $this->assertSame(CrmLeadSyncOutcomeEnum::CREATED_ALL, $result->outcome);
         $this->assertNotSame($stranger->getId(), $result->people->getId());
+    }
+
+    /**
+     * A lead whose people was deleted has nobody to open it for: the people is made again and the lead
+     * pointed at it, not left attached to a row nothing can reach.
+     */
+    public function testALeadWhosePeopleIsGoneIsPointedAtTheNewPeople(): void
+    {
+        $first = $this->sync($this->payload());
+        $first->people->softDelete();
+
+        $result = $this->sync($this->payload(['identity' => $this->identity($first)]));
+
+        $this->assertSame(CrmLeadSyncOutcomeEnum::OPENED, $result->outcome);
+        $this->assertTrue($result->peopleCreated);
+        $this->assertNotSame($first->people->getId(), $result->people->getId());
+        $this->assertSame($result->people->getId(), (int) $first->lead->refresh()->people_id);
     }
 
     public function testAnUnresolvedSalespersonStopsTheCreateAndLeavesNothing(): void
@@ -609,10 +633,13 @@ final class SyncCrmLeadActionTest extends TestCase
     {
         $user = auth()->user();
 
-        return CrmLeadSync::from(app(Apps::class), $user, $user->getCurrentCompany(), $input);
+        return CrmLeadSync::from(
+            app(Apps::class),
+            $user,
+            $user->getCurrentCompany(),
+            $input
+        );
     }
-
-    private array $lastIdentity = [];
 
     private function identityValue(string $key): string
     {

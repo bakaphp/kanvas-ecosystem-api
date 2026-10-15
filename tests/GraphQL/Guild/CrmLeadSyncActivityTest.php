@@ -13,6 +13,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Guild\Leads\Activities\SyncCrmLeadActivity;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 use Workflow\Models\StoredWorkflow;
 
@@ -22,7 +23,10 @@ use Workflow\Models\StoredWorkflow;
  * Over HTTP the call carries the app key and no bearer token, so the acting user is the key's owner,
  * not the user the test is logged in as: both companies are configured, and the request names the
  * salesperson of whoever will act.
+ *
+ * Serial: it sets and restores a company setting, which is Redis-backed and shared by every parallel process.
  */
+#[Group('serial')]
 final class CrmLeadSyncActivityTest extends TestCase
 {
     use DatabaseTransactions;
@@ -139,7 +143,12 @@ final class CrmLeadSyncActivityTest extends TestCase
         $foreign = new Lead();
         $foreign->fill(['id' => 0, 'apps_id' => app(Apps::class)->getId(), 'companies_id' => 999999999]);
 
-        $activity = new SyncCrmLeadActivity(0, now()->toDateTimeString(), new StoredWorkflow(), []);
+        $activity = new SyncCrmLeadActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        );
         $data = $activity->execute($foreign, app(Apps::class), $this->params($user) + ['user' => $user]);
 
         $lead = Lead::getById($data['lead']['id'], app(Apps::class));
@@ -148,7 +157,12 @@ final class CrmLeadSyncActivityTest extends TestCase
 
     public function testItNeedsAnAuthenticatedUser(): void
     {
-        $activity = new SyncCrmLeadActivity(0, now()->toDateTimeString(), new StoredWorkflow(), []);
+        $activity = new SyncCrmLeadActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        );
 
         $this->expectExceptionMessage('authenticated user');
 
