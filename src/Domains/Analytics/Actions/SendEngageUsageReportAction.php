@@ -18,19 +18,13 @@ use Kanvas\Social\Enums\MessageChannelEnum;
 use Kanvas\Users\Repositories\UsersRepository;
 
 /**
- * Recipients are the company members holding the EngagementUsageReport role, and only them, so a
- * tenant can keep the report off its Admins and Owners. A company where nobody holds it (or an app
- * that never bootstrapped it — `kanvas:create-role EngagementUsageReport {app_id}`) falls back to
- * Managers → Admin → Owner, stopping at the first role that yields anyone: a single hardcoded role
- * would mean most tenants silently receive nothing, the failure mode nobody notices until someone
- * asks where their report went.
+ * Recipients are the company members holding the EngagementUsageReport role, and nobody else: a
+ * tenant decides who sees per-rep numbers by granting that one role, and a company where nobody
+ * holds it gets no mail. New apps receive the role from `CreateAppsAction::acl()`; older ones need
+ * `kanvas:create-role EngagementUsageReport {app_id}` before anyone can be assigned.
  */
 class SendEngageUsageReportAction
 {
-    private const array RECIPIENT_ROLES = [
-        RolesEnums::ENGAGEMENT_USAGE_REPORT,
-    ];
-
     public function __construct(
         protected readonly AppInterface $app,
         protected readonly Companies $company,
@@ -120,43 +114,29 @@ class SendEngageUsageReportAction
      */
     private function resolveRecipients(): EloquentCollection
     {
-        foreach (self::RECIPIENT_ROLES as $role) {
-            try {
-                $recipients = $this->activeMembersWithRole($role->value);
-            } catch (ModelNotFoundException) {
-                // Role not bootstrapped for this app — try the next one down.
-                continue;
-            }
+        try {
+            return UsersRepository::getCompanyAppUserByRole($this->company, $this->app, RolesEnums::ENGAGEMENT_USAGE_REPORT->value)
+                // Roles are app-wide, so only the company membership row says whether this user
+                // still belongs here; a removed, deactivated or banned member must not keep
+                // receiving the company's per-rep numbers.
+                ->where('users_associated_apps.is_deleted', 0)
+                ->where('users_associated_apps.is_active', 1)
+                ->where(
+                    fn (Builder $query) => $query->whereNull('users_associated_apps.banned')
+                        ->orWhere('users_associated_apps.banned', 0)
+                )
+                ->notDeleted()
+                ->whereNotNull('users.email')
+                ->where('users.email', '!=', '')
+                ->get();
+        } catch (ModelNotFoundException) {
+            Log::info('Engage usage report: EngagementUsageReport role not bootstrapped for app; run kanvas:create-role EngagementUsageReport {app_id}', [
+                'app_id' => $this->app->getId(),
+                'company_id' => $this->company->getId(),
+            ]);
 
-            if ($recipients->isNotEmpty()) {
-                return $recipients;
-            }
+            return new EloquentCollection();
         }
-
-        return new EloquentCollection();
-    }
-
-    /**
-     * @return EloquentCollection<int, mixed>
-     *
-     * @throws ModelNotFoundException when the role is not bootstrapped for the app
-     */
-    private function activeMembersWithRole(string $role): EloquentCollection
-    {
-        return UsersRepository::getCompanyAppUserByRole($this->company, $this->app, $role)
-            // Roles are app-wide, so only the company membership row says whether this user
-            // still belongs here; a removed, deactivated or banned member must not keep
-            // receiving the company's per-rep numbers.
-            ->where('users_associated_apps.is_deleted', 0)
-            ->where('users_associated_apps.is_active', 1)
-            ->where(
-                fn (Builder $query) => $query->whereNull('users_associated_apps.banned')
-                    ->orWhere('users_associated_apps.banned', 0)
-            )
-            ->notDeleted()
-            ->whereNotNull('users.email')
-            ->where('users.email', '!=', '')
-            ->get();
     }
 
     private function rangeLabel(): string

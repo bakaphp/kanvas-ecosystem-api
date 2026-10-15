@@ -58,7 +58,7 @@ class EngageUsageReportRecipientsTest extends TestCase
 
         $this->ensureReportRole();
         Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp));
-        Bouncer::assign(RolesEnums::MANAGER->value)->to($this->user);
+        Bouncer::assign(RolesEnums::ENGAGEMENT_USAGE_REPORT->value)->to($this->user);
 
         $this->seedActivity();
     }
@@ -70,7 +70,7 @@ class EngageUsageReportRecipientsTest extends TestCase
         Carbon::setTestNow();
 
         Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp));
-        Bouncer::retract(RolesEnums::MANAGER->value)->from($this->user);
+        Bouncer::retract(RolesEnums::ENGAGEMENT_USAGE_REPORT->value)->from($this->user);
         foreach ($this->members as [$member, $role]) {
             Bouncer::retract($role->value)->from($member);
         }
@@ -78,7 +78,7 @@ class EngageUsageReportRecipientsTest extends TestCase
         parent::tearDown();
     }
 
-    public function testSendsToAnActiveManager(): void
+    public function testSendsToAnActiveRoleHolder(): void
     {
         Notification::fake();
 
@@ -91,7 +91,7 @@ class EngageUsageReportRecipientsTest extends TestCase
      * @param  array<string, int>  $membership
      */
     #[DataProvider('inactiveMemberships')]
-    public function testDoesNotSendToAManagerNoLongerActiveInTheCompany(array $membership): void
+    public function testDoesNotSendToARoleHolderNoLongerActiveInTheCompany(array $membership): void
     {
         DB::table('users_associated_apps')
             ->where('users_id', $this->user->getId())
@@ -118,36 +118,33 @@ class EngageUsageReportRecipientsTest extends TestCase
         ];
     }
 
-    public function testReportRoleHoldersReplaceTheCascade(): void
+    public function testManagersAdminsAndOwnersDoNotReceiveItWithoutTheRole(): void
     {
-        $holder = $this->makeMember(RolesEnums::ENGAGEMENT_USAGE_REPORT);
-
-        Notification::fake();
-
-        $this->assertSame(1, $this->send());
-
-        Notification::assertSentTo($holder, EngageUsageReportNotification::class);
-        Notification::assertNotSentTo($this->user, EngageUsageReportNotification::class);
-    }
-
-    public function testFallsBackToTheCascadeWhenTheOnlyRoleHolderIsNoLongerActive(): void
-    {
-        $holder = $this->makeMember(RolesEnums::ENGAGEMENT_USAGE_REPORT);
-        DB::table('users_associated_apps')
-            ->where('users_id', $holder->getId())
-            ->where('apps_id', $this->kanvasApp->getId())
-            ->where('companies_id', $this->company->getId())
-            ->update(['is_active' => 0]);
+        $manager = $this->makeMember(RolesEnums::MANAGER);
+        $admin = $this->makeMember(RolesEnums::ADMIN);
+        $owner = $this->makeMember(RolesEnums::OWNER);
 
         Notification::fake();
 
         $this->assertSame(1, $this->send());
 
         Notification::assertSentTo($this->user, EngageUsageReportNotification::class);
-        Notification::assertNotSentTo($holder, EngageUsageReportNotification::class);
+        Notification::assertNotSentTo([$manager, $admin, $owner], EngageUsageReportNotification::class);
     }
 
-    public function testFallsBackToTheCascadeWhenTheRoleIsNotBootstrapped(): void
+    public function testSendsNothingWhenNobodyHoldsTheRole(): void
+    {
+        Bouncer::retract(RolesEnums::ENGAGEMENT_USAGE_REPORT->value)->from($this->user);
+        $this->makeMember(RolesEnums::MANAGER);
+
+        Notification::fake();
+
+        $this->assertSame(0, $this->send());
+
+        Notification::assertNothingSent();
+    }
+
+    public function testSendsNothingWhenTheRoleIsNotBootstrapped(): void
     {
         Bouncer::role()
             ->where('name', RolesEnums::ENGAGEMENT_USAGE_REPORT->value)
@@ -156,20 +153,9 @@ class EngageUsageReportRecipientsTest extends TestCase
 
         Notification::fake();
 
-        $this->assertSame(1, $this->send());
+        $this->assertSame(0, $this->send());
 
-        Notification::assertSentTo($this->user, EngageUsageReportNotification::class);
-    }
-
-    public function testOtherRolesNeverReceiveTheReport(): void
-    {
-        $developer = $this->makeMember(RolesEnums::DEVELOPER);
-
-        Notification::fake();
-
-        $this->assertSame(1, $this->send());
-
-        Notification::assertNotSentTo($developer, EngageUsageReportNotification::class);
+        Notification::assertNothingSent();
     }
 
     public function testDailyRunReportsYesterdayToACompanyWithTheDailyFlag(): void

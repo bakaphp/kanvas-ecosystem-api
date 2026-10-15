@@ -31,8 +31,8 @@ use Throwable;
  * The window is resolved per company timezone, so a Monday-morning cron gives every tenant its own
  * Mon–Sun week rather than a UTC slice of one.
  *
- * Recipients are the company members holding the EngagementUsageReport role, else its Managers,
- * else Admins, else Owners (see SendEngageUsageReportAction).
+ * Recipients are the company members holding the EngagementUsageReport role, and nobody else
+ * (see SendEngageUsageReportAction).
  */
 class SendEngageUsageReportCommand extends Command
 {
