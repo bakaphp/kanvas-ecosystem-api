@@ -1,0 +1,138 @@
+enum CrmType {
+    reynolds
+}
+
+enum CrmLeadSyncOutcome {
+    opened
+    adopted
+    created_lead
+    created_all
+}
+
+"""
+Every id under identity is the CRM's own. `null` in any section means the CRM did not give the value:
+nothing is cleared.
+"""
+input CrmLeadSyncInput {
+    request_id: ID!
+    "Kanvas branch id; defaults to the caller's current branch."
+    branch_id: ID
+    identity: CrmIdentityInput!
+    customer: CrmCustomerInput
+    lead: CrmLeadInfoInput
+    participants: CrmParticipantsInput
+    followers: CrmFollowersInput
+}
+
+input CrmIdentityInput {
+    type: CrmType!
+    client_id: ID!
+    lead_id: ID
+}
+
+input CrmCustomerInput {
+    firstname: String
+    middlename: String
+    lastname: String
+    language: String
+    phones: CrmPhonesInput
+    emails: [String!]
+    address: CrmAddressInput
+    consent: CrmConsentInput
+}
+
+input CrmPhonesInput {
+    cell: String
+    home: String
+    work: String
+}
+
+input CrmAddressInput {
+    address: String!
+    address_2: String
+    city: String
+    "Two-letter text; mapped to a state of the United States."
+    state: String
+    zip: String
+}
+
+"The CRM's consent values, raw. What each one means is decided per CRM."
+input CrmConsentInput {
+    text_opt_status: String
+    opt_out: String
+    opt_out_use: String
+    follow_up: CrmFollowUpInput
+}
+
+input CrmFollowUpInput {
+    phone: String
+    mail: String
+    email: String
+    text: String
+}
+
+input CrmLeadInfoInput {
+    type: CrmCatalogRefInput
+    source: CrmCatalogRefInput
+    "The CRM's own status label."
+    status: String
+    salesperson: CrmSalespersonInput
+    description: String
+}
+
+input CrmCatalogRefInput {
+    id: ID!
+    name: String
+}
+
+input CrmSalespersonInput {
+    id: ID
+    name: String
+}
+
+input CrmParticipantsInput {
+    add: [CrmParticipantAddInput!]
+    remove: [CrmParticipantRemoveInput!]
+}
+
+input CrmParticipantAddInput {
+    firstname: String!
+    lastname: String
+    phone: String
+    email: String
+    relationship_id: ID!
+}
+
+"Both ids are Kanvas'."
+input CrmParticipantRemoveInput {
+    people_id: ID!
+    relationship_id: ID!
+}
+
+"Followers are the company's users, named by email."
+input CrmFollowersInput {
+    attach: [String!]
+    detach: [String!]
+}
+
+type CrmLeadSyncWarning {
+    code: String!
+    field: String!
+}
+
+type CrmLeadSyncResult {
+    outcome: CrmLeadSyncOutcome!
+    people: People!
+    lead: Lead!
+    people_created: Boolean!
+    lead_created: Boolean!
+    replayed: Boolean!
+    warnings: [CrmLeadSyncWarning!]!
+}
+
+extend type Mutation @guard {
+    syncCrmLead(input: CrmLeadSyncInput!): CrmLeadSyncResult!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\CrmLeadMutation@sync"
+        )
+}
