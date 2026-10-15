@@ -18,16 +18,17 @@ use Kanvas\Social\Enums\MessageChannelEnum;
 use Kanvas\Users\Repositories\UsersRepository;
 
 /**
- * Recipients cascade Managers → Admin → Owner, stopping at the first role that yields anyone.
- * A single hardcoded role would mean most tenants silently receive nothing — the failure mode
- * nobody notices until someone asks where their report went.
+ * Recipients are the company members holding the EngagementUsageReport role, and only them, so a
+ * tenant can keep the report off its Admins and Owners. A company where nobody holds it (or an app
+ * that never bootstrapped it — `kanvas:create-role EngagementUsageReport {app_id}`) falls back to
+ * Managers → Admin → Owner, stopping at the first role that yields anyone: a single hardcoded role
+ * would mean most tenants silently receive nothing, the failure mode nobody notices until someone
+ * asks where their report went.
  */
 class SendEngageUsageReportAction
 {
     private const array RECIPIENT_ROLES = [
-        RolesEnums::MANAGER,
-        RolesEnums::ADMIN,
-        RolesEnums::OWNER,
+        RolesEnums::ENGAGEMENT_USAGE_REPORT,
     ];
 
     public function __construct(
@@ -121,24 +122,7 @@ class SendEngageUsageReportAction
     {
         foreach (self::RECIPIENT_ROLES as $role) {
             try {
-                $recipients = UsersRepository::getCompanyAppUserByRole(
-                    $this->company,
-                    $this->app,
-                    $role->value,
-                )
-                    // Roles are app-wide, so only the company membership row says whether this user
-                    // still belongs here; a removed, deactivated or banned member must not keep
-                    // receiving the company's per-rep numbers.
-                    ->where('users_associated_apps.is_deleted', 0)
-                    ->where('users_associated_apps.is_active', 1)
-                    ->where(
-                        fn (Builder $query) => $query->whereNull('users_associated_apps.banned')
-                            ->orWhere('users_associated_apps.banned', 0)
-                    )
-                    ->notDeleted()
-                    ->whereNotNull('users.email')
-                    ->where('users.email', '!=', '')
-                    ->get();
+                $recipients = $this->activeMembersWithRole($role->value);
             } catch (ModelNotFoundException) {
                 // Role not bootstrapped for this app — try the next one down.
                 continue;
@@ -150,6 +134,29 @@ class SendEngageUsageReportAction
         }
 
         return new EloquentCollection();
+    }
+
+    /**
+     * @return EloquentCollection<int, mixed>
+     *
+     * @throws ModelNotFoundException when the role is not bootstrapped for the app
+     */
+    private function activeMembersWithRole(string $role): EloquentCollection
+    {
+        return UsersRepository::getCompanyAppUserByRole($this->company, $this->app, $role)
+            // Roles are app-wide, so only the company membership row says whether this user
+            // still belongs here; a removed, deactivated or banned member must not keep
+            // receiving the company's per-rep numbers.
+            ->where('users_associated_apps.is_deleted', 0)
+            ->where('users_associated_apps.is_active', 1)
+            ->where(
+                fn (Builder $query) => $query->whereNull('users_associated_apps.banned')
+                    ->orWhere('users_associated_apps.banned', 0)
+            )
+            ->notDeleted()
+            ->whereNotNull('users.email')
+            ->where('users.email', '!=', '')
+            ->get();
     }
 
     private function rangeLabel(): string
