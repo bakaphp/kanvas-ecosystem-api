@@ -12,8 +12,6 @@ use Kanvas\Connectors\DriveCentric\DataTransferObject\Lead as LeadDTO;
 use Kanvas\Connectors\DriveCentric\Enums\CustomFieldEnums;
 use Kanvas\Connectors\DriveCentric\Exceptions\DriveCentricException;
 use Kanvas\Connectors\DriveCentric\Services\LeadService;
-use Kanvas\Connectors\SalesAssist\Actions\RecordLeadVehicleNotesAction;
-use Kanvas\Connectors\SalesAssist\Enums\LeadVehicleNoteEnum;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadCandidate;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -186,7 +184,6 @@ class PullLeadAction
             }
 
             $lead->set(CustomFieldEnums::VEHICLE_OF_INTEREST->value, $data);
-            new RecordLeadVehicleNotesAction($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST)->execute();
         }
     }
 
@@ -221,7 +218,6 @@ class PullLeadAction
         }
 
         $lead->set(CustomFieldEnums::TRADE_IN->value, $data);
-        new RecordLeadVehicleNotesAction($lead, LeadVehicleNoteEnum::TRADE_IN)->execute();
     }
 
     /**
