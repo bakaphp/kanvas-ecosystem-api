@@ -260,6 +260,39 @@ final class SyncCrmLeadActionTest extends TestCase
         $this->assertNothingWasCreated($email, $input['identity']['lead_id']);
     }
 
+    /**
+     * An owner that does not resolve only refuses a create: on a lead that already exists it is left as it is.
+     */
+    public function testAnUnresolvedSalespersonLeavesTheOwnerOfAnOpenedLead(): void
+    {
+        $first = $this->sync($this->payload());
+        $owner = (int) $first->lead->leads_owner_id;
+
+        $result = $this->sync([
+            'request_id' => 'req-' . uniqid(),
+            'identity' => $this->identity($first),
+            'lead' => ['salesperson' => ['id' => 1, 'name' => 'Nobody, Atall ' . uniqid()]],
+        ]);
+
+        $this->assertSame(CrmLeadSyncOutcomeEnum::OPENED, $result->outcome);
+        $this->assertSame($owner, (int) $result->lead->refresh()->leads_owner_id);
+    }
+
+    public function testAnUnresolvedSalespersonLeavesTheOwnerOfAnAdoptedLead(): void
+    {
+        $email = $this->uniqueEmail();
+        $people = $this->createPeople('Ana', 'Perez', $email);
+        $lead = $this->createLead($people, 'Active');
+        $owner = (int) $lead->leads_owner_id;
+        $input = $this->payload(['customer' => ['emails' => [$email]]]);
+        $input['lead']['salesperson'] = ['id' => 1, 'name' => 'Nobody, Atall ' . uniqid()];
+
+        $result = $this->sync($input);
+
+        $this->assertSame(CrmLeadSyncOutcomeEnum::ADOPTED, $result->outcome);
+        $this->assertSame($owner, (int) $lead->refresh()->leads_owner_id);
+    }
+
     public function testAMissingTypeNameStopsTheCreate(): void
     {
         $email = $this->uniqueEmail();
