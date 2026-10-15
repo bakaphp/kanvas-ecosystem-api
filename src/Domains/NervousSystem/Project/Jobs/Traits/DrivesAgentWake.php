@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Project\Jobs\Traits;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -13,6 +14,7 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Exceptions\RunInFlightException;
 use Throwable;
 
 /**
@@ -23,6 +25,18 @@ use Throwable;
  */
 trait DrivesAgentWake
 {
+    /**
+     * A wake deferred behind a busy thread is released, and a release counts as an attempt: six
+     * attempts leave room for deferrals, while a wake that actually throws still stops at three.
+     */
+    public int $tries = 6;
+
+    public int $maxExceptions = 3;
+
+    private const int WAKE_DEFER_MIN_SECONDS = 30;
+    private const int WAKE_DEFER_MAX_SECONDS = 600;
+    private const int WAKE_DEFER_SLACK_SECONDS = 5;
+
     /**
      * @param object $ledgerEntity a model using EmitsLedgerEventsForEntity (Project or Plan)
      * @param array<int, object> $tools board tools injected for this run only
@@ -38,7 +52,7 @@ trait DrivesAgentWake
         string $ledgerPrefix,
         array $failurePayload,
         array $tools = [],
-    ): array {
+    ): ?array {
         $startedAt = microtime(true);
 
         try {
@@ -52,7 +66,17 @@ trait DrivesAgentWake
                 // wake prompt — it would be re-read as "context" on the next wake and re-trigger this
                 // same wake, growing unboundedly (a 700KB+ nested-prompt runaway).
                 persistConversation: false,
+                // Nobody is reading this reply as it arrives: a failed wake must surface here as the
+                // failure it is, not be posted on the board as "I ran into a hiccup" and counted as a
+                // turn. A busy thread in particular has to reach the catch below to be deferred.
+                fallbackOnFailure: false,
             )->execute();
+        } catch (RunInFlightException $e) {
+            // Another turn is alive on this thread: not a failed wake, one that runs once the thread
+            // settles (KANVAS-ECOSYSTEM-6NS).
+            $this->deferUntilThreadSettles($e, $ledgerPrefix, $failurePayload);
+
+            return null;
         } catch (Throwable $e) {
             $ledgerEntity->emitLedgerEvent(
                 $ledgerPrefix . '.invocation_failed',
@@ -66,6 +90,27 @@ trait DrivesAgentWake
         }
 
         return [$response, (int) ((microtime(true) - $startedAt) * 1000)];
+    }
+
+    /**
+     * Back on the queue for when the other run's lease ends, with a little slack; never sooner than
+     * the poll the turn already spent waiting, never past the lease ceiling.
+     */
+    protected function deferUntilThreadSettles(RunInFlightException $e, string $ledgerPrefix, array $payload): void
+    {
+        $delay = max(
+            self::WAKE_DEFER_MIN_SECONDS,
+            min(self::WAKE_DEFER_MAX_SECONDS, ($e->leaseExpiresAt ?? time()) - time() + self::WAKE_DEFER_SLACK_SECONDS),
+        );
+
+        Log::info('Agent wake deferred; the thread is busy', [
+            ...$payload,
+            'ledger' => $ledgerPrefix,
+            'run_id' => $e->runId,
+            'delay_seconds' => $delay,
+        ]);
+
+        $this->release($delay);
     }
 
     /**
