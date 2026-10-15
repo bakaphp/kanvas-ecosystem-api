@@ -884,10 +884,7 @@ class SendMessageToLeadAction
             ->fromCompany($this->lead->company)
             ->notDeleted()
             ->where('is_active', true)
-            ->whereHas(
-                'action',
-                fn ($query) => $query->where('model_name', ProcessTwilioMessageStatusWebhookJob::class),
-            )
+            ->forJob(ProcessTwilioMessageStatusWebhookJob::class)
             ->first();
 
         return $receiver?->getUrl();
