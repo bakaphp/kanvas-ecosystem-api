@@ -55,13 +55,20 @@ class PullLeadAction
         return 'unknown';
     }
 
+    /**
+     * The eLead pull only syncs the given lead (status, owner, appointments) on its `entity_id`
+     * branch; with an empty request it falls into a customer search with no terms and touches nothing.
+     */
     private function executeElead(): array
     {
-        return (new EleadPullLeadAction(
+        return new EleadPullLeadAction(
             $this->lead->app,
             $this->lead->company,
             $this->lead->user
-        ))->execute([], $this->lead);
+        )->execute(
+            ['entity_id' => $this->lead->get(EleadCustomFieldEnum::LEAD_ID->value)],
+            $this->lead
+        );
     }
 
     private function executeVinSolution(): array

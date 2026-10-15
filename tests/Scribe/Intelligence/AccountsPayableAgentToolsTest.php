@@ -14,11 +14,13 @@ use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
 use Kanvas\Guild\Organizations\Actions\ImportVendorApproversFromRowsAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
+use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApplyApPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateApBillTool;
@@ -1210,11 +1212,27 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             new FindPurchaseOrderTool(),
             new MatchBillsForPaymentTool(),
             new CreateApBillTool(),
+            new ApplyApPaymentTool(),
         ];
 
         foreach ($tools as $tool) {
             $this->assertRunKeyFollowsInputs($tool);
         }
+    }
+
+    public function test_apply_ap_payment_posts_an_identical_repeat_once_per_turn(): void
+    {
+        $bill = $this->receivedBill('Repeat Payment Vendor');
+        $tool = new ApplyApPaymentTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $first = $tool->__invoke(bill_id: $bill->getId(), amount: 100.0, reference: 'WIRE-REPEAT');
+        $second = $tool->__invoke(bill_id: $bill->getId(), amount: 100.0, reference: 'WIRE-REPEAT');
+
+        $this->assertTrue($first['applied']);
+        $this->assertTrue($second['repeat_call']);
+        $this->assertSame(ToolOutcomeEnum::NOOP->value, $second['outcome']);
+        $this->assertSame($first['payment_id'], $second['payment_id']);
+        $this->assertSame(200.0, (float) $bill->fresh()->balance_due_native);
     }
 
     public function test_import_vendor_approvers_reports_file_not_found_for_unknown_filesystem_id(): void
