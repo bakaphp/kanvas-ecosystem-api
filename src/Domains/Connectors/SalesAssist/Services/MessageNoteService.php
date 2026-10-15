@@ -53,8 +53,9 @@ class MessageNoteService
         /**
          * @todo remove all previous code and just leave global file viewer
          */
-        if ($this->message->entity() instanceof Lead && $totalCount > 0) {
-            $linkPreview = $this->filesViewUrl($this->message->entity());
+        $lead = $this->message->entity(Lead::class);
+        if ($lead instanceof Lead && $totalCount > 0) {
+            $linkPreview = $this->filesViewUrl($lead);
         }
 
         return $linkPreview;

@@ -10,8 +10,12 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Imports\Actions\WriteImporterArrayToJsonlFileAction;
+use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
+use Kanvas\Inventory\Importer\Actions\FinishProductImportAction;
+use Kanvas\Inventory\Importer\Actions\RecordProductImportBatchAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob as ImporterJob;
+use Kanvas\Inventory\Importer\Models\ProductImportRun;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Regions\Models\Regions as BaseRegions;
@@ -59,6 +63,13 @@ class ImportMutation
             $region,
         )->execute();
 
+        new RecordProductImportBatchAction(
+            $app,
+            $company,
+            $user,
+            RecordProductImportBatchAction::variantSkusOf($req['input']),
+        )->execute();
+
         //so we can tie the job to pusher
         $jobUuid = Str::uuid()->toString();
         ImporterJob::dispatch(
@@ -72,5 +83,26 @@ class ImportMutation
         );
 
         return $jobUuid;
+    }
+
+    public function finish(mixed $root, array $req): ProductImportRun
+    {
+        $company = Companies::getById($req['companyId']);
+        $app = app(Apps::class);
+
+        CompaniesRepository::userAssociatedToCompany(
+            $company,
+            auth()->user()
+        );
+
+        $channel = ChannelRepository::getById((int) $req['channelId'], $company, $app);
+
+        $run = ProductImportRun::latestOpen($app, $company);
+
+        if ($run === null) {
+            throw new ValidationException('No product import in progress for this company; call importProduct first.');
+        }
+
+        return new FinishProductImportAction($run, $channel, (bool) ($req['force'] ?? false))->execute();
     }
 }

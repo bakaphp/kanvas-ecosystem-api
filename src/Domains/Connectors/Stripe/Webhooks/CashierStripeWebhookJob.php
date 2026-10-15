@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Stripe\Webhooks;
 
 use Illuminate\Http\Request;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Stripe\Webhooks\Concerns\VerifiesStripeSignature;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -14,10 +15,7 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
 use Laravel\Cashier\Cashier;
 use Laravel\Cashier\Http\Controllers\WebhookController;
 use Override;
-use Stripe\Exception\SignatureVerificationException;
 use Stripe\Stripe;
-use Stripe\Webhook;
-use UnexpectedValueException;
 
 #[WorkflowAction(
     name: 'Stripe Cashier Webhook',
@@ -28,6 +26,8 @@ use UnexpectedValueException;
 )]
 class CashierStripeWebhookJob extends ProcessWebhookJob
 {
+    use VerifiesStripeSignature;
+
     #[Override]
     public function execute(): array
     {
@@ -63,19 +63,9 @@ class CashierStripeWebhookJob extends ProcessWebhookJob
     #[Override]
     public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
     {
-        $secret = $receiver->app->get(ConfigurationEnum::STRIPE_WEBHOOK_SECRET->value);
-        $signature = $request->header('Stripe-Signature');
-
-        if (empty($secret) || ! is_string($signature) || $signature === '') {
-            return false;
-        }
-
-        try {
-            Webhook::constructEvent($request->getContent(), $signature, $secret);
-        } catch (SignatureVerificationException | UnexpectedValueException) {
-            return false;
-        }
-
-        return true;
+        return self::hasValidStripeSignature(
+            $request,
+            (string) $receiver->app->get(ConfigurationEnum::STRIPE_WEBHOOK_SECRET->value)
+        );
     }
 }

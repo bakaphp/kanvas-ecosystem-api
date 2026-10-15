@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\OrganizationNameNormalizerService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -16,10 +15,8 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
- * Resolves a vendor name (e.g. off an incoming invoice) to the Guild organizations it could be, with
- * each one's Acumatica vendor code. This is how the AP agent turns "Globex Supply Co" on a PDF into
- * the ERP vendor it should code the bill to. Matching is suffix-normalized + substring, so it returns
- * candidates to disambiguate rather than a single guess.
+ * Resolves a vendor name (e.g. off an incoming invoice) to matching Guild organizations. Matching is
+ * suffix-normalized + substring, so it returns candidates to disambiguate rather than a single guess.
  */
 #[AgentTool(name: 'Find Vendor', category: 'accounting')]
 class FindVendorTool extends Tool
@@ -29,8 +26,8 @@ class FindVendorTool extends Tool
 
     protected string $name = 'find_vendor';
 
-    protected ?string $description = 'Finds vendor organizations matching a name, each with its Acumatica vendor code (when '
-        . 'synced). Use this to resolve the vendor named on an invoice before matching a PO or coding a '
+    protected ?string $description = 'Finds vendor organizations matching a name. Use this to resolve the vendor named '
+        . 'on an invoice before matching a PO or coding a '
         . 'bill. Returns candidates — confirm the right one with the user if there is more than one.';
 
     /**
@@ -82,7 +79,6 @@ class FindVendorTool extends Tool
             'vendors' => $matches->map(fn (Organization $org): array => [
                 'organization_id' => $org->getId(),
                 'name' => $org->name,
-                'acumatica_vendor_code' => (string) $org->get(CustomFieldEnum::VENDOR_ID->value, '') ?: null,
             ])->all(),
         ];
 

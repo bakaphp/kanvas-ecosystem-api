@@ -10,7 +10,6 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
 use Kanvas\Guild\Organizations\Actions\ImportVendorApproversFromRowsAction;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -18,8 +17,11 @@ use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachBillFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
@@ -28,10 +30,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ResendBillAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendBillAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidApBillTool;
 use Kanvas\Scribe\Approvals\Enums\ApprovalAttachmentFieldEnum;
 use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Approvals\Enums\ApprovalCustomFieldEnum;
@@ -82,6 +82,18 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         new ReceiveBillAction($bill, $vendor, static::$cachedUser)->execute();
     }
 
+    private function receivedBill(string $vendorName): Bill
+    {
+        $vendor = $this->seedTestOrganization($vendorName);
+        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
+
+        return Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->latest('id')
+            ->firstOrFail();
+    }
+
     public function test_match_bills_for_payment_flags_the_exact_bill(): void
     {
         $vendor = $this->seedTestOrganization('Globex Supply');
@@ -112,11 +124,13 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
     public function test_list_open_purchase_orders_tool_returns_open_pos(): void
     {
+        $vendor = $this->seedTestOrganization('Open PO Vendor');
         $po = PurchaseOrder::create([
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $this->company->getId(),
             'order_type' => 'RO',
             'order_number' => 'PO900',
+            'vendor_organization_id' => $vendor->getId(),
             'vendor_code' => 'V0000505',
             'status' => 'N',
             'currency' => 'USD',
@@ -132,23 +146,22 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             'unit_cost' => 200,
         ]);
 
-        $result = new ListOpenPurchaseOrdersTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(vendor_code: 'V0000505');
+        $result = new ListOpenPurchaseOrdersTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(vendor_organization_id: $vendor->getId());
 
         $this->assertSame(1, (int) $result['count']);
         $this->assertSame('PO900', $result['purchase_orders'][0]['order_number']);
         $this->assertSame(1, (int) $result['purchase_orders'][0]['open_line_count']);
     }
 
-    public function test_find_vendor_tool_returns_acumatica_code(): void
+    public function test_find_vendor_tool_returns_native_organization_candidates(): void
     {
         $vendor = $this->seedTestOrganization('Globex Supply');
-        $vendor->set(CustomFieldEnum::VENDOR_ID->value, 'V0000505');
 
         $result = new FindVendorTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(name: 'Globex Supply Co');
 
         $this->assertGreaterThanOrEqual(1, (int) $result['count']);
-        $codes = array_column($result['vendors'], 'acumatica_vendor_code');
-        $this->assertContains('V0000505', $codes);
+        $this->assertSame($vendor->getId(), $result['vendors'][0]['organization_id']);
+        $this->assertArrayNotHasKey('acumatica_vendor_code', $result['vendors'][0]);
     }
 
     public function test_find_purchase_order_returns_full_detail_or_not_found(): void
@@ -158,6 +171,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             'companies_id' => $this->company->getId(),
             'order_type' => 'RO',
             'order_number' => 'PO4242',
+            'vendor_organization_id' => $this->seedTestOrganization('PO Detail Vendor')->getId(),
             'vendor_code' => 'V0000505',
             'status' => 'N',
             'currency' => 'USD',
@@ -175,7 +189,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $found = new FindPurchaseOrderTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(order_number: 'PO4242');
         $this->assertTrue($found['found']);
-        $this->assertSame('V0000505', $found['vendor_code']);
+        $this->assertNotEmpty($found['vendor_organization_id']);
         $this->assertCount(1, $found['lines']);
         $this->assertSame('RL-KP336', $found['lines'][0]['sku']);
 
@@ -212,23 +226,30 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame('bill_not_found', $result['reason']);
     }
 
-    public function test_add_bill_note_reports_not_pushed_when_bill_has_no_acumatica_ref(): void
+    public function test_void_ap_bill_reverses_it_in_the_kanvas_ledger(): void
     {
-        $vendor = $this->seedTestOrganization('Globex Supply');
-        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
+        $bill = $this->receivedBill('Void AP Vendor');
 
-        $bill = \Kanvas\Scribe\Bills\Models\Bill::query()
-            ->where('apps_id', $this->kanvasApp->getId())
-            ->where('companies_id', $this->company->getId())
-            ->latest('id')
-            ->first();
+        $result = new VoidApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: $bill->getId(), reason_code: 'requested_by_user');
+
+        $this->assertTrue($result['voided']);
+        $this->assertSame($bill->getId(), $result['bill_id']);
+        $this->assertSame(BillDocumentStatusEnum::VOIDED->value, $result['document_status']);
+        $this->assertSame(BillDocumentStatusEnum::VOIDED, $bill->fresh()->document_status);
+    }
+
+    public function test_add_bill_note_updates_the_kanvas_ledger_without_an_external_reference(): void
+    {
+        $bill = $this->receivedBill('Globex Supply');
 
         $result = new AddBillNoteTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(bill_id: (int) $bill->id, note: 'Called vendor.');
+            ->__invoke(bill_id: $bill->getId(), note: 'Called vendor.');
 
-        $this->assertFalse($result['note_added']);
-        $this->assertSame('bill_not_pushed', $result['reason']);
+        $this->assertTrue($result['note_added']);
+        $this->assertStringContainsString('Called vendor.', $bill->fresh()->internal_notes);
     }
 
     public function test_attach_bill_file_reports_not_found_for_unknown_bill(): void
@@ -241,23 +262,17 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame('bill_not_found', $result['reason']);
     }
 
-    public function test_attach_bill_file_reports_not_pushed_when_bill_has_no_acumatica_ref(): void
+    public function test_attach_bill_file_attaches_natively_without_an_external_reference(): void
     {
-        $vendor = $this->seedTestOrganization('Globex Supply');
-        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
+        $bill = $this->receivedBill('Globex Supply');
 
-        $bill = \Kanvas\Scribe\Bills\Models\Bill::query()
-            ->where('apps_id', $this->kanvasApp->getId())
-            ->where('companies_id', $this->company->getId())
-            ->latest('id')
-            ->first();
-
+        $file = $this->createFilesystemRow(url: 'https://cdn.example.test/invoice.pdf', name: 'invoice.pdf');
         $result = new AttachBillFileTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(bill_id: (int) $bill->id, file_url: 'https://example.test/invoice.pdf');
+            ->__invoke(bill_id: $bill->getId(), filesystem_id: $file->getId());
 
-        $this->assertFalse($result['file_attached']);
-        $this->assertSame('bill_not_pushed', $result['reason']);
+        $this->assertTrue($result['file_attached']);
+        $this->assertSame($file->getId(), $bill->fresh()->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value)->filesystem->getId());
     }
 
     public function test_create_ap_bill_requires_an_invoice_number(): void
@@ -309,7 +324,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame('BB-0G-M1', $bill->lines->first()->subaccount->sub_code);
     }
 
-    public function test_create_ap_bill_with_push_to_acumatica_false_stops_at_pending_approval(): void
+    public function test_create_ap_bill_with_approve_immediately_false_submits_for_native_approval(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
         $accountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
@@ -323,12 +338,12 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'Pending flow test',
                 invoice_number: 'PEND-1',
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $this->assertTrue($result['created']);
-        $this->assertFalse($result['pushed']);
         $this->assertSame('pending_approval', $result['document_status']);
+        $this->assertSame(750.0, (float) $result['remaining_balance']);
         $this->assertArrayNotHasKey('bill_ref', $result);
         $this->assertArrayNotHasKey('acumatica_bill_id', $result);
 
@@ -352,7 +367,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'Freight',
                 invoice_number: 'TC2609051',
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $first = $createInvoice();
@@ -384,7 +399,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'Freight',
                 invoice_number: 'DEL-1',
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $first = $createInvoice();
@@ -454,7 +469,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'Display name test',
                 invoice_number: 'DISP-1',
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $this->assertTrue($result['created']);
@@ -478,17 +493,16 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'No approver test',
                 invoice_number: 'NOAPP-1',
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $this->assertTrue($result['created']);
         $this->assertSame('NOT IN APPROVER LIST', $result['approved_by_flag']);
     }
 
-    public function test_create_ap_bill_treats_an_explicit_null_push_flag_as_the_default(): void
+    public function test_create_ap_bill_treats_an_explicit_null_approve_immediately_flag_as_the_default(): void
     {
-        // The LLM sends `"push_to_acumatica": null` for an omitted optional boolean, which used to
-        // TypeError against a non-nullable `bool $push_to_acumatica = true` (Sentry KANVAS-ECOSYSTEM-67Z).
+        // The LLM may send null for an omitted optional boolean, so normalize it before branching.
         $this->seedTestOrganization('Windwalk Games Corp');
         $accountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
         $accountCode = (string) Account::query()->where('id', $accountId)->value('account_number');
@@ -499,9 +513,9 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 vendor_name: 'Windwalk Games Corp',
                 amount: 2500.0,
                 gl_account_number: $accountCode,
-                memo: 'Null push flag test',
+                memo: 'Null approval flag test',
                 invoice_number: 'NULLFLAG-1',
-                push_to_acumatica: null,
+                approve_immediately: null,
             );
 
         $this->assertTrue($result['created']);
@@ -524,7 +538,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 memo: 'Due date test',
                 invoice_number: 'DUEDATE-1',
                 due_date: '2026-10-15',
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $this->assertTrue($result['created']);
@@ -552,7 +566,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                     ['gl_account_number' => $travelAccount, 'amount' => 100.0, 'description' => 'Flight'],
                     ['gl_account_number' => $officeAccount, 'amount' => 25.0, 'description' => 'Paper'],
                 ],
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $this->assertTrue($result['created']);
@@ -581,7 +595,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                     ['gl_account_number' => $travelAccount, 'amount' => 100.0],
                     ['gl_account_number' => 'DOES-NOT-EXIST', 'amount' => 25.0],
                 ],
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $this->assertFalse($result['created']);
@@ -598,7 +612,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 vendor_name: 'Windwalk Games Corp',
                 memo: 'Neither lines nor amount',
                 invoice_number: 'NOLINES-1',
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $this->assertFalse($result['created']);
@@ -620,7 +634,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'Missing attachment test',
                 invoice_number: 'NOATTACH-1',
-                push_to_acumatica: false,
+                approve_immediately: false,
                 source_email_message_id: 'MSG_NOATTACH_1',
             );
 
@@ -643,7 +657,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'Manual entry, no email',
                 invoice_number: 'MANUAL-1',
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $this->assertTrue($result['created']);
@@ -670,7 +684,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'Filesystem attachment test',
                 invoice_number: 'FSATTACH-1',
-                push_to_acumatica: false,
+                approve_immediately: false,
                 source_attachment_filesystem_id: $pdf->getId(),
             );
 
@@ -685,7 +699,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
     public function test_attach_bill_file_accepts_a_filesystem_id_someone_handed_the_agent(): void
     {
-        $bill = $this->pushedBill('Globex Supply');
+        $bill = $this->receivedBill('Globex Supply');
         $pdf = $this->createFilesystemRow(
             url: 'https://cdn.example.test/handed-to-agent.pdf',
             name: 'handed-to-agent.pdf',
@@ -695,7 +709,6 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(bill_id: $bill->getId(), filesystem_id: $pdf->getId());
 
-        // The Acumatica leg fails without a pushed bill GUID; the Kanvas-side attachment is the point.
         $this->assertTrue($result['file_attached']);
         $this->assertSame('handed-to-agent.pdf', $result['file_name']);
 
@@ -706,7 +719,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
     public function test_attach_bill_file_reports_an_unknown_filesystem_id_instead_of_attaching(): void
     {
-        $bill = $this->pushedBill('Globex Supply');
+        $bill = $this->receivedBill('Globex Supply');
 
         $result = new AttachBillFileTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -719,7 +732,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
     public function test_attach_bill_file_requires_a_filesystem_id_or_a_url(): void
     {
-        $bill = $this->pushedBill('Globex Supply');
+        $bill = $this->receivedBill('Globex Supply');
 
         $result = new AttachBillFileTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -735,7 +748,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
      */
     public function test_attach_bill_file_keeps_a_second_document_beside_the_source_invoice_pdf(): void
     {
-        $bill = $this->pushedBill('Globex Supply');
+        $bill = $this->receivedBill('Globex Supply');
         $invoicePdf = $this->createFilesystemRow(url: 'https://cdn.example.test/the-invoice.pdf', name: 'the-invoice.pdf');
         $w9 = $this->createFilesystemRow(url: 'https://cdn.example.test/vendor-w9.pdf', name: 'vendor-w9.pdf');
 
@@ -817,7 +830,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     /** A Filesystem attachment is the current shape and must win over any stale legacy custom field. */
     public function test_a_filesystem_attachment_wins_over_a_stale_legacy_custom_field(): void
     {
-        $bill = $this->pushedBill('Precedence Vendor');
+        $bill = $this->receivedBill('Precedence Vendor');
         $bill->set(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_URL->value, 'https://cdn.example.test/stale-legacy.pdf');
         $bill->set(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_FILENAME->value, 'stale-legacy.pdf');
 
@@ -833,25 +846,6 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $stored = $bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value);
         $this->assertNotNull($stored);
         $this->assertSame('https://cdn.example.test/current-invoice.pdf', $stored->filesystem->url);
-    }
-
-    private function pushedBill(string $vendorName): Bill
-    {
-        $vendor = $this->seedTestOrganization($vendorName);
-        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
-
-        /** @var Bill $bill */
-        $bill = Bill::query()
-            ->where('apps_id', $this->kanvasApp->getId())
-            ->where('companies_id', $this->company->getId())
-            ->latest('id')
-            ->first();
-
-        // attach_bill_file gates on the Acumatica ref; BILL_ID stays unset so the push leg fails fast
-        // (AcumaticaWriteException) instead of reaching the network.
-        $bill->set(CustomFieldEnum::BILL_REF->value, 'AP-' . $bill->getId());
-
-        return $bill;
     }
 
     public function test_resend_bill_attachment_resends_the_stored_pdf(): void
@@ -898,7 +892,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                     gl_account_number: $accountCode,
                     memo: 'Resend test',
                     invoice_number: 'RESEND-1',
-                    push_to_acumatica: false,
+                    approve_immediately: false,
                     source_email_message_id: 'MSG_RESEND_1',
                     source_attachment_filesystem_id: $pdf->getId(),
                 );
@@ -930,7 +924,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'No attachment on file',
                 invoice_number: 'RESEND-2',
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $result = new ResendBillAttachmentTool()
@@ -968,7 +962,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'Approval flow test',
                 invoice_number: 'APR-1',
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $result = new ApprovePendingItemTool()
@@ -994,7 +988,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'Approval flow test',
                 invoice_number: 'APR-1B',
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $result = new ApprovePendingItemTool()
@@ -1027,7 +1021,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'Approval flow test',
                 invoice_number: 'APR-2',
-                push_to_acumatica: false,
+                approve_immediately: false,
                 source_email_message_id: 'MSG_APR_2',
                 source_attachment_filesystem_id: $pdf->getId(),
             );
@@ -1117,7 +1111,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'Multi approver test',
                 invoice_number: 'MULTI-1',
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         $this->assertSame('', $created['approved_by_flag']);
@@ -1157,7 +1151,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 gl_account_number: $accountCode,
                 memo: 'Approval flow test',
                 invoice_number: 'APR-3',
-                push_to_acumatica: false,
+                approve_immediately: false,
             );
 
         // Mirrors an @mention/channel turn: setConfiguration() receives the agent's OWN user, distinct

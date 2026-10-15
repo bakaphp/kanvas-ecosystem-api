@@ -106,34 +106,25 @@ class FilesystemManagementMutation
             ->when(! $user->isAdmin(), function ($query) use ($user) {
                 $query->fromCompany($user->getCurrentCompany());
             })
-            ->notDeleted()
             ->firstOrFail();
 
         if ($fileEntity->filesystem->apps_id != $app->getId()) {
             return false;
         }
 
-        $systemModule = $fileEntity->systemModule->model_name;
-        $entityId = $fileEntity->entity_id;
+        $detached = $this->detachFileEntity($fileEntity);
 
-        $response = $fileEntity->softDelete();
+        // Only a row this call actually removed should re-run the entity's observer (image weights,
+        // counters); repairing a stale cache changes nothing on the entity.
+        if ($fileEntity->wasChanged('is_deleted')) {
+            $entity = $fileEntity->resolveEntity();
 
-        if ($response) {
-            $this->fireFileDeletedWorkflow($fileEntity->filesystem);
-        }
-
-        try {
-            $entityData = $systemModule::getById($entityId);
-            //@todo Set the same cache trait to all filesystem entities
-            if (method_exists($entityData, 'clearLightHouseCacheJob')) {
-                $entityData->clearLightHouseCacheJob();
+            if ($entity !== null && method_exists($entity, 'fireObserverEvent')) {
+                $entity->fireObserverEvent('saved');
             }
-            $entityData->fireObserverEvent('saved');
-        } catch (ModelNotFoundException $e) {
-            report($e);
         }
 
-        return $response;
+        return $detached;
     }
 
     public function deAttachFiles(mixed $rootValue, array $request): bool
@@ -146,7 +137,6 @@ class FilesystemManagementMutation
             ->when(! $user->isAdmin(), function ($query) use ($user) {
                 $query->fromCompany($user->getCurrentCompany());
             })
-            ->notDeleted()
             ->get();
 
         foreach ($fileEntities as $fileEntity) {
@@ -154,23 +144,33 @@ class FilesystemManagementMutation
                 continue;
             }
 
-            if ($fileEntity->softDelete()) {
+            if ($this->detachFileEntity($fileEntity)) {
                 $i++;
-                $this->fireFileDeletedWorkflow($fileEntity->filesystem);
-
-                try {
-                    $systemModule = $fileEntity->systemModule->model_name;
-                    $entityData = $systemModule::getById($fileEntity->entity_id);
-                    //@todo Set the same cache trait to all filesystem entities
-                    if (method_exists($entityData, 'clearLightHouseCacheJob')) {
-                        $entityData->clearLightHouseCacheJob();
-                    }
-                } catch (ModelNotFoundException $e) {
-                }
             }
         }
 
         return $i == count($request['uuids']);
+    }
+
+    /**
+     * A row the client still lists but that is already gone means the entity's `files` cache went
+     * stale: the detach is a no-op, but the cache has to be repaired rather than reported as an error.
+     */
+    private function detachFileEntity(FilesystemEntities $fileEntity): bool
+    {
+        if ($fileEntity->trashed()) {
+            $fileEntity->clearEntityLightHouseCache();
+
+            return true;
+        }
+
+        if (! $fileEntity->softDelete()) {
+            return false;
+        }
+
+        $this->fireFileDeletedWorkflow($fileEntity->filesystem);
+
+        return true;
     }
 
     private function fireFileDeletedWorkflow(?Filesystem $file): void
@@ -298,6 +298,11 @@ class FilesystemManagementMutation
         $filesystemService = new FilesystemServices(app(Apps::class));
 
         if ($filesystemService->delete($filesystem)) {
+            FilesystemEntities::where('filesystem_id', $filesystem->getKey())
+                ->notDeleted()
+                ->get()
+                ->each(fn (FilesystemEntities $fileEntity) => $fileEntity->softDelete());
+
             $deleted = (bool) $filesystem->delete();
 
             if ($deleted) {

@@ -42,10 +42,11 @@ final class DocumentPdfService
     public function generate(Users $user, ?string $fileName = null): Filesystem
     {
         $file = PdfService::htmlToPdf(
-            $this->document->app,
-            $user,
-            $this->render(),
-            $fileName ?? $this->fileName(),
+            app: $this->document->app,
+            user: $user,
+            html: $this->render(),
+            fileName: $fileName ?? $this->fileName(),
+            company: $this->document->company,
         );
 
         $this->document->addFile($file, $this->fieldName());

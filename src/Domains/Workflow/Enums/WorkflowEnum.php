@@ -54,6 +54,7 @@ enum WorkflowEnum: string
     case AFTER_LEGACY_FEED = 'after-legacy-feed';
     case SUBSCRIPTION_LIFECYCLE = 'subscription-lifecycle';
     case FOLLOW_UP_PROMPT = 'follow-up-prompt';
+    case AFTER_FOLLOW_UP = 'after-follow-up';
     case DEBUG = 'debug';
     case NOTIFICATION = 'notify';
     case AFTER_ONBOARDING = 'after-onboarding';

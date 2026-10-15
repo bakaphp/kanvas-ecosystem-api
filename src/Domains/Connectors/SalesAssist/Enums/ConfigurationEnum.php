@@ -71,4 +71,7 @@ enum ConfigurationEnum: string
     case LEGACY_CRM_CLIENT_ID = 'legacy-crm-client-id';
     case LEAD_DEALER_TAGS = 'lead-dealer-tags';
     case USER_DEALER_TAG = 'lead-dealer-tag';
+    case AGENT_NAME = 'sales_assist_agent_name';
+
+    public const string DEFAULT_AGENT_NAME = 'Sally';
 }

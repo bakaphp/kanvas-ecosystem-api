@@ -34,7 +34,7 @@ class PullLeadAction
         };
     }
 
-    private function detectConnector(): string
+    public function detectConnector(): string
     {
         if ($this->lead->company->get(EleadCustomFieldEnum::COMPANY->value) !== null) {
             return 'elead';

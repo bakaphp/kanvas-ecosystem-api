@@ -17,6 +17,7 @@ use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
 /**
@@ -51,6 +52,7 @@ use Override;
 #[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class Payment extends BaseModel
 {
+    use CanUseWorkflow;
     use HasLightHouseCache;
     use UuidTrait;
 

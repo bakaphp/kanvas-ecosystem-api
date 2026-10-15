@@ -8,11 +8,13 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
+use Kanvas\Social\Messages\Models\Message;
 use Mockery;
 use RuntimeException;
 use Spatie\ImageOptimizer\Image;
@@ -43,6 +45,26 @@ final class FilesystemTest extends TestCase
         $filesystemEntities = $attachFileSystem->execute('avatar');
         $this->assertInstanceOf(FilesystemEntities::class, $filesystemEntities);
         $this->assertEquals($fieldName, $filesystemEntities->field_name);
+    }
+
+    public function testAttachedFileLinksUnderTheEntityCompanyNotTheUploaderCompany(): void
+    {
+        $app = app(Apps::class);
+        $otherCompany = Companies::factory()->create([
+            'users_id' => Auth::id(),
+            'is_active' => 1,
+        ]);
+        $otherCompany->associateApp($app);
+
+        $message = Message::factory()->withCompanyId($otherCompany->getId())->create();
+        $fileSystem = new FilesystemServices($app)->upload(UploadedFile::fake()->image('doc.jpg'), Auth::user());
+
+        $this->assertNotSame($otherCompany->getId(), (int) $fileSystem->companies_id);
+
+        $link = new AttachFilesystemAction($fileSystem, $message)->execute('doc');
+
+        $this->assertSame($otherCompany->getId(), (int) $link->companies_id);
+        $this->assertSame([$fileSystem->url], $message->getFilesQueryBuilder()->pluck('url')->all());
     }
 
     public function testGetFiles()

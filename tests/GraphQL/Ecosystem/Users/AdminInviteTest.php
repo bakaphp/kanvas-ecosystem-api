@@ -61,7 +61,6 @@ class AdminInviteTest extends TestCase
                     'firstname' => fake()->firstName(),
                     'lastname' => fake()->lastName(),
                     'custom_fields' => [],
-
                 ],
             ]
         );
@@ -83,7 +82,6 @@ class AdminInviteTest extends TestCase
                     'password' => fake()->password(8),
                     'invite_hash' => $invite['invite_hash'],
                     'phone_number' => fake()->phoneNumber(),
-
                 ],
             ]
         )->assertSuccessful()
@@ -168,7 +166,6 @@ class AdminInviteTest extends TestCase
                     }
                 }',
             [
-
             ]
         )
         ->assertSuccessful()
@@ -211,7 +208,6 @@ class AdminInviteTest extends TestCase
                     }
                 }',
             [
-
                     'hash' => $invite['invite_hash'],
             ]
         )
@@ -279,6 +275,63 @@ class AdminInviteTest extends TestCase
 
         Bouncer::scope()->to($scope);
         $this->assertTrue($user->isAn(RolesEnums::USER->value));
+    }
+
+    public function testReinviteExistingAdminDoesNotFailOnDuplicateKeyName(): void
+    {
+        Notification::fake();
+
+        $app = app(Apps::class);
+        $email = fake()->email();
+        $inviteMutation = '
+            mutation inviteAdmin($data: AdminInviteInput!) {
+                inviteAdmin(input: $data) {
+                    id
+                    email
+                    invite_hash
+                }
+            }';
+
+        $invite = $this->graphQL($inviteMutation, [
+            'data' => [
+                'email' => $email,
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+            ],
+        ])->assertSuccessful()->json('data.inviteAdmin');
+
+        $userId = $this->graphQL(
+            '
+            mutation processAdminInvite($data: CompleteInviteInput!) {
+                processAdminInvite(input: $data) {
+                    id
+                }
+            }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'password' => fake()->password(8),
+                    'invite_hash' => $invite['invite_hash'],
+                ],
+            ]
+        )->assertSuccessful()->json('data.processAdminInvite.id');
+
+        $user = Users::getById($userId);
+        $this->assertCount(1, $app->getUserKeys($user));
+
+        $this->graphQL($inviteMutation, [
+            'data' => [
+                'email' => $email,
+                'firstname' => $user->firstname,
+                'lastname' => $user->lastname,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJsonMissing(['message' => 'The name has already been taken.'])
+        ->assertJsonPath('data.inviteAdmin.email', $email);
+
+        $this->assertCount(1, $app->getUserKeys($user));
     }
 
     public function testProcessAdminInviteDefaultsToAdminRole(): void

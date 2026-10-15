@@ -8,7 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\ScheduleEleadActivityFromEventAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Event\Events\Models\Event;
-use Kanvas\Event\Events\Models\EventResource;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -36,7 +36,8 @@ class ScheduleActivityFromEventActivity extends KanvasActivity
             integration: IntegrationsEnum::ELEAD,
             additionalParams: $params,
             integrationOperation: function ($event, $app, $integrationCompany, $additionalParams) {
-                $lead = $this->findLeadFromEvent($event);
+                /** @var Lead|null $lead */
+                $lead = $event->linkedResource(Lead::class);
                 if (! $lead) {
                     return $this->failWorkflow([
                         'error' => 'No Lead found linked to this Event',
@@ -44,12 +45,18 @@ class ScheduleActivityFromEventActivity extends KanvasActivity
                     ]);
                 }
 
-                $action = new ScheduleEleadActivityFromEventAction(
-                    $event,
-                    $lead,
-                    $additionalParams
-                );
-                $result = $action->execute();
+                try {
+                    $result = new ScheduleEleadActivityFromEventAction(
+                        $event,
+                        $lead,
+                        $additionalParams
+                    )->execute();
+                } catch (ValidationException $e) {
+                    return $this->failWorkflow([
+                        'error' => $e->getMessage(),
+                        'event_id' => $event->getId(),
+                    ]);
+                }
 
                 return [
                     'message' => 'Activity scheduled successfully in eLead',
@@ -60,20 +67,5 @@ class ScheduleActivityFromEventActivity extends KanvasActivity
             },
             company: $company,
         );
-    }
-
-    protected function findLeadFromEvent(Event $event): ?Lead
-    {
-        $resource = EventResource::where('event_id', $event->getId())
-            ->where('apps_id', $event->apps_id)
-            ->where('companies_id', $event->companies_id)
-            ->where('resources_type', Lead::class)
-            ->first();
-
-        if ($resource) {
-            return Lead::find($resource->resources_id);
-        }
-
-        return null;
     }
 }

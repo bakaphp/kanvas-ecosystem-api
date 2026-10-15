@@ -13,6 +13,7 @@ use Kanvas\Inventory\Products\Actions\RemoveAttributeAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Services\StorefrontProductUrlService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -501,6 +502,7 @@ trait ManagesCatalogProducts
             'product_id' => (int) $product->getId(),
             'name' => $product->name,
             'slug' => $product->slug,
+            'url' => StorefrontProductUrlService::forProduct($product)->productUrl($product),
             'description' => $product->description,
             'short_description' => $product->short_description,
             'upc' => $product->upc,

@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Models;
 
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Filesystem\Observers\FilesystemEntitiesObserver;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -25,6 +28,7 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  * @property string $updated_at
  * @property int $is_deleted
  */
+#[ObservedBy([FilesystemEntitiesObserver::class])]
 class FilesystemEntities extends BaseModel
 {
     use UuidTrait;
@@ -62,5 +66,29 @@ class FilesystemEntities extends BaseModel
     public function createdAt(): Carbon
     {
         return ! empty($this->created_at) ? $this->created_at : now();
+    }
+
+    /**
+     * Resolved without app/company scopes on purpose: the row already pins the entity, and the
+     * callers (observers, queue workers) may not have the entity's app bound.
+     */
+    public function resolveEntity(): ?Model
+    {
+        $modelName = $this->systemModule?->model_name;
+
+        if ($modelName === null || ! class_exists($modelName)) {
+            return null;
+        }
+
+        return $modelName::query()->whereKey($this->entity_id)->first();
+    }
+
+    public function clearEntityLightHouseCache(): void
+    {
+        $entity = $this->resolveEntity();
+
+        if ($entity !== null && method_exists($entity, 'clearLightHouseCache')) {
+            $entity->clearLightHouseCache(withKanvasConfiguration: false);
+        }
     }
 }

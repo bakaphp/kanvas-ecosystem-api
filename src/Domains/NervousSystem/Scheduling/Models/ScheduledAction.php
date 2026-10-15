@@ -106,6 +106,15 @@ class ScheduledAction extends BaseModel
      * re-arm after downtime advances to the next FUTURE slot rather than replaying
      * missed ones (no catch-up storm).
      */
+    /**
+     * Zero is "no cap": a model asked for an unlimited cadence passes 0 as often as it omits the
+     * field, and rows written before the create action normalised it still carry the literal 0.
+     */
+    public function occurrenceCapReached(int $occurrences): bool
+    {
+        return $this->max_occurrences > 0 && $occurrences >= $this->max_occurrences;
+    }
+
     public function nextRunAt(Carbon $after): CarbonImmutable
     {
         $next = new CronExpression((string) $this->recurrence_cron)

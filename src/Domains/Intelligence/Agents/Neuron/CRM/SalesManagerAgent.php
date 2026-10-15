@@ -8,7 +8,9 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddLeadNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddPeopleToCampaignTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddPersonNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateLeadCampaignTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindLeadsByTraitsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPeopleBulkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPersonTool;
@@ -17,6 +19,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetLeadAnalyticsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetMessageUsageReportTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetSalesSummaryTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ImportPeopleListTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadLeadActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadOrganizationActivityTool;
@@ -28,6 +31,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetLeadStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TagLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UploadFileToLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\UploadFileToMessageTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\CreateTemplateTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\GetTemplateTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\ListTemplatesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\UpdateTemplateTool;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Override;
 
@@ -93,6 +100,14 @@ class SalesManagerAgent extends SystemUserAgent
         $core[] = new UploadFileToLeadTool()->withContext($app, $company, $user);
         $core[] = new UploadFileToMessageTool()->withContext($app, $company, $user);
         $core[] = new SendBatchMessageTool()->withContext($app, $company, $user)->forRequestingUser($user);
+        $core[] = new ImportPeopleListTool()->withContext($app, $company, $user)->forRequestingUser($user);
+        $core[] = new CreateLeadCampaignTool()->withContext($app, $company, $user)->forRequestingUser($user);
+        $core[] = new AddPeopleToCampaignTool()->withContext($app, $company, $user)->forRequestingUser($user);
+        $core[] = new CreateTemplateTool()->withContext($app, $company, $user);
+        $core[] = new ListTemplatesTool()->withContext($app, $company, $user);
+        $core[] = new GetTemplateTool()->withContext($app, $company, $user);
+        $core[] = new UpdateTemplateTool()->withContext($app, $company, $user);
+        $core = [...$core, ...$this->followThroughTools($agent)];
 
         return $this->mergeRegisteredTools(
             $core,

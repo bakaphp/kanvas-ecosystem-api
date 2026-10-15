@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasFileUploadToolProperties;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
@@ -22,7 +23,7 @@ use Override;
  * verifier can treat as an artifact.
  */
 #[AgentTool(name: 'Attach File To Task', category: 'nervous_system')]
-class AttachFileToNervousSystemTaskTool extends Tool
+class AttachFileToNervousSystemTaskTool extends Tool implements RequiresSystemAgent
 {
     use AttachesFileToEntity;
     use HasFileUploadToolProperties;

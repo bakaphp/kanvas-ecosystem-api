@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Stripe\Services;
 use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Stripe\Support\StripeAccount;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Stripe\Checkout\Session;
@@ -20,8 +21,7 @@ class StripeCheckoutService
         protected AppInterface $app,
         protected ?Companies $company = null
     ) {
-        $stripeKey = $company ? $company->get(ConfigurationEnum::STRIPE_SECRET_KEY->value) : null;
-        $this->stripe = new StripeClient($stripeKey ?? $this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
+        $this->stripe = StripeAccount::resolve($app, $company)->client();
     }
 
     /**

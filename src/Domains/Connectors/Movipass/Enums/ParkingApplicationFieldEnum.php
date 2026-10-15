@@ -8,6 +8,7 @@ use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Crypt;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as CorporateField;
+use Kanvas\Souk\Payments\Enums\PaymentMethodTypesEnum;
 
 enum ParkingApplicationFieldEnum: string
 {
@@ -36,14 +37,8 @@ enum ParkingApplicationFieldEnum: string
     case PARKING_TYPE = 'parking_application_parking_type';
     case PARKING_TYPE_OTHER = 'parking_application_parking_type_other';
     case STRUCTURE = 'parking_application_structure';
-    case HAS_LIGHTING = 'parking_application_has_lighting';
-    case HAS_CAMERAS = 'parking_application_has_cameras';
+    case INFRASTRUCTURE = 'parking_application_infrastructure';
     case CAMERA_COUNT = 'parking_application_camera_count';
-    case HAS_GUARD = 'parking_application_has_guard';
-    case HAS_ROOF = 'parking_application_has_roof';
-    case HAS_ACCESS_CONTROL = 'parking_application_has_access_control';
-    case HAS_RESTROOMS = 'parking_application_has_restrooms';
-    case IS_24_7_SECURITY = 'parking_application_is_24_7_security';
 
     case ADDRESS = 'parking_application_address';
     case CITY = 'parking_application_city';
@@ -123,7 +118,7 @@ enum ParkingApplicationFieldEnum: string
             in_array($this, self::DATE_TIME_TYPE_FIELDS, true) => ParkingApplicationFieldTypeEnum::DATE_TIME,
             $this === self::SCHEDULE => ParkingApplicationFieldTypeEnum::SCHEDULE,
             $this === self::CLOSURES => ParkingApplicationFieldTypeEnum::CLOSURES,
-            $this === self::PAYMENT_METHODS => ParkingApplicationFieldTypeEnum::PAYMENT_METHODS,
+            $this === self::PAYMENT_METHODS, $this === self::INFRASTRUCTURE => ParkingApplicationFieldTypeEnum::OPTION_LIST,
             in_array($this, self::TEXT_TYPE_FIELDS, true) => ParkingApplicationFieldTypeEnum::TEXT,
             default => ParkingApplicationFieldTypeEnum::STRING,
         };
@@ -133,10 +128,21 @@ enum ParkingApplicationFieldEnum: string
     {
         return match ($this) {
             self::APPLICANT_TYPE => ['natural', 'juridica'],
-            self::PARKING_TYPE => ['public', 'private', 'commercial', 'residential', 'mixed', 'other'],
-            self::STRUCTURE => ['open_lot', 'covered', 'multilevel', 'underground'],
+            self::PARKING_TYPE => ['residential', 'open_air', 'roofed', 'private', 'mall', 'corporate', 'hotel', 'healthcare', 'other'],
+            self::STRUCTURE => ['ground_level', 'multi_story', 'underground', 'mixed'],
             self::BANK_ACCOUNT_TYPE => ['savings', 'checking'],
-            self::PAYMENT_METHODS => ['movipass', 'cash'],
+            self::PAYMENT_METHODS => array_column(PaymentMethodTypesEnum::cases(), 'value'),
+            self::INFRASTRUCTURE => [
+                'checkpoint',
+                'security_staff',
+                'cameras',
+                'electronic_gate',
+                'occupancy_sensors',
+                'plate_reader',
+                'lighting',
+                'ramps',
+                'valet',
+            ],
             default => null,
         };
     }
@@ -187,14 +193,8 @@ enum ParkingApplicationFieldEnum: string
         self::PARKING_TYPE,
         self::PARKING_TYPE_OTHER,
         self::STRUCTURE,
-        self::HAS_LIGHTING,
-        self::HAS_CAMERAS,
+        self::INFRASTRUCTURE,
         self::CAMERA_COUNT,
-        self::HAS_GUARD,
-        self::HAS_ROOF,
-        self::HAS_ACCESS_CONTROL,
-        self::HAS_RESTROOMS,
-        self::IS_24_7_SECURITY,
     ];
 
     private const array LOCATION_FIELDS = [
@@ -285,13 +285,6 @@ enum ParkingApplicationFieldEnum: string
     ];
 
     private const array BOOLEAN_TYPE_FIELDS = [
-        self::HAS_LIGHTING,
-        self::HAS_CAMERAS,
-        self::HAS_GUARD,
-        self::HAS_ROOF,
-        self::HAS_ACCESS_CONTROL,
-        self::HAS_RESTROOMS,
-        self::IS_24_7_SECURITY,
         self::COORDINATES_PENDING_VALIDATION,
         self::NUMBERED_SPACES,
         self::IS_24_7,

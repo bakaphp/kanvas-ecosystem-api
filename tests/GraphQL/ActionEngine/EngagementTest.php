@@ -4,9 +4,19 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\ActionEngine;
 
+use Illuminate\Testing\TestResponse;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Support\Setup;
+use Kanvas\Apps\Actions\CreateAppKeyAction;
 use Kanvas\Apps\Actions\SyncEmailTemplateAction;
+use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\RegisterUsersAction;
+use Kanvas\Auth\DataTransferObject\RegisterInput;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\StateEnums;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 class EngagementTest extends TestCase
@@ -849,5 +859,210 @@ class EngagementTest extends TestCase
             $this->assertEquals($requestId, $history['entity_uuid']);
             $this->assertArrayHasKey('stage', $history);
         }
+    }
+
+    public function testContinueOnAppKeyOnlyBorrowsTheParentEngagementUser(): void
+    {
+        $app = app(Apps::class);
+        $rep = auth()->user();
+        $company = $rep->getCurrentCompany();
+        [$leadId, $peopleId] = $this->createLeadWithCreditApp($rep);
+
+        $parentId = $this->startEngagementAsRep($leadId, $peopleId, fake()->uuid());
+        $keyOwner = $this->registerHumanInCompany($company, $app);
+        $appKey = $this->createAppKeyFor($keyOwner, $app);
+
+        $response = $this->continueEngagement(
+            [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => fake()->uuid(),
+                'source' => 'api',
+                'status' => 'submitted',
+                'action' => 'credit-app',
+                'data' => [],
+                'parent_id' => $parentId,
+            ],
+            [AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $appKey]
+        );
+
+        $engagementId = $response->json('data.continueLeadEngagement.id');
+
+        $this->assertEquals($rep->getId(), $response->json('data.continueLeadEngagement.user.id'));
+        $this->assertNotEquals($keyOwner->getId(), $response->json('data.continueLeadEngagement.user.id'));
+
+        $engagement = Engagement::getById($engagementId, $app);
+        $this->assertEquals($rep->getId(), $engagement->users_id);
+        $this->assertEquals($rep->getId(), $engagement->message->users_id);
+    }
+
+    public function testContinueOnAppKeyOnlyFallsBackToTheRequestIdChain(): void
+    {
+        $app = app(Apps::class);
+        $rep = auth()->user();
+        $company = $rep->getCurrentCompany();
+        [$leadId, $peopleId] = $this->createLeadWithCreditApp($rep);
+
+        $requestId = fake()->uuid();
+        $this->startEngagementAsRep($leadId, $peopleId, $requestId);
+        $keyOwner = $this->registerHumanInCompany($company, $app);
+        $appKey = $this->createAppKeyFor($keyOwner, $app);
+
+        $response = $this->continueEngagement(
+            [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => $requestId,
+                'source' => 'api',
+                'status' => 'opened',
+                'action' => 'credit-app',
+                'data' => [],
+            ],
+            [AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $appKey]
+        );
+
+        $this->assertEquals($rep->getId(), $response->json('data.continueLeadEngagement.user.id'));
+    }
+
+    public function testContinueWithBearerKeepsTheLoggedInUserEvenWithAnAppKey(): void
+    {
+        $app = app(Apps::class);
+        $rep = auth()->user();
+        $company = $rep->getCurrentCompany();
+        [$leadId, $peopleId] = $this->createLeadWithCreditApp($rep);
+
+        $parentId = $this->startEngagementAsRep($leadId, $peopleId, fake()->uuid());
+        $keyOwner = $this->registerHumanInCompany($company, $app);
+        $appKey = $this->createAppKeyFor($keyOwner, $app);
+
+        $password = fake()->password(12);
+        $manager = $this->registerHumanInCompany($company, $app, $password);
+        $token = $this->graphQL('
+            mutation($data: LoginInput!) {
+                login(data: $data) { token }
+            }
+        ', [
+            'data' => [
+                'email' => $manager->email,
+                'password' => $password,
+            ],
+        ])->assertSuccessful()->json('data.login.token');
+
+        // The guard is built once at boot with that request; Laravel's own guards get the per-request
+        // instance through this rebinding, our custom one is registered without it.
+        $guard = auth()->guard('api');
+        $guard->forgetUser();
+        app()->refresh('request', $guard, 'setRequest');
+
+        $response = $this->continueEngagement(
+            [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => fake()->uuid(),
+                'source' => 'api',
+                'status' => 'submitted',
+                'action' => 'credit-app',
+                'data' => [],
+                'parent_id' => $parentId,
+            ],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $appKey,
+                'Authorization' => 'Bearer ' . $token,
+            ]
+        );
+
+        $this->assertEquals($manager->getId(), $response->json('data.continueLeadEngagement.user.id'));
+    }
+
+    /**
+     * @return array{0: int|string, 1: int|string}
+     */
+    private function createLeadWithCreditApp(Users $rep): array
+    {
+        $lead = $this->createLeadAndGetResponse();
+
+        new Setup(
+            app(Apps::class),
+            $rep,
+            $rep->getCurrentCompany(),
+            [[
+                'id' => 7,
+                'name' => 'credit-app',
+                'description' => 'Credit App',
+                'title' => 'Credit App',
+                'enable' => true,
+                'icon' => '',
+                'reasonEn' => 'apply for financing',
+                'reasonEs' => 'apply for financing',
+                'form_fields' => '{"personal":{"type":"object","required":1}}',
+                'form_config' => '{"require_credit-app_signature":true}',
+            ]]
+        )->run();
+
+        return [$lead['data']['createLead']['id'], $lead['data']['createLead']['people']['id']];
+    }
+
+    private function startEngagementAsRep(int|string $leadId, int|string $peopleId, string $requestId): int|string
+    {
+        return $this->graphQL('
+            mutation($input: CreateEngagementInput!) {
+                startLeadEngagement(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => $requestId,
+                'source' => 'kanvas-ai',
+                'status' => 'sent',
+                'action' => 'credit-app',
+                'data' => [],
+            ],
+        ])->assertSuccessful()->json('data.startLeadEngagement.id');
+    }
+
+    private function continueEngagement(array $input, array $headers): TestResponse
+    {
+        return $this->graphQL('
+            mutation($input: CreateEngagementInput!) {
+                continueLeadEngagement(input: $input) {
+                    id
+                    user { id }
+                }
+            }
+        ', ['input' => $input], [], $headers)->assertSuccessful();
+    }
+
+    /**
+     * apps_keys is keyed on (apps_id, users_id), so each key needs its own owner; and the owner's
+     * current company must be the lead's company, because the key-only path resolves the tenant from
+     * the key's user.
+     */
+    private function registerHumanInCompany(Companies $company, Apps $app, ?string $password = null): Users
+    {
+        $human = new RegisterUsersAction(RegisterInput::from([
+            'email' => fake()->unique()->safeEmail(),
+            'password' => $password ?? fake()->password(12),
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+        ]))->execute();
+
+        $branch = $company->branch()->first();
+        $company->associateUser($human, StateEnums::YES->getValue(), $branch);
+        $company->associateUserApp($human, $app, StateEnums::YES->getValue());
+        $human->default_company = $company->getId();
+        $human->default_company_branch = (int) $branch->getId();
+        $human->saveOrFail();
+        $human->set(Companies::cacheKey(), $company->getId());
+
+        return $human;
+    }
+
+    private function createAppKeyFor(Users $owner, Apps $app): string
+    {
+        return new CreateAppKeyAction(
+            new AppKeyInput('engagement-continue-' . fake()->unique()->uuid(), $app, $owner),
+            createUserInApp: false
+        )->execute()->client_secret_id;
     }
 }

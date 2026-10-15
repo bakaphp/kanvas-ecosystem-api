@@ -12,7 +12,8 @@ RunImportSourcesCommand (every 15 min)
   → ImportSource::isDue()  → queueRun() → RunImportSourceJob (queue: imports)
       → RunImportSourceAction
           download → repair → filter → merge + dedupe by handler   (MergeImportFilesAction)
-          → unpublish SKUs no longer in the feed                   (opt-in)
+          → stamp the feed's SKUs on a product import run, finish it   (opt-in: unpublish_missing)
+              = unpublish what the feed no longer sends
           → FilesystemImports row
               → FilesystemImportObserver → {model}::getImportHandler() → the normal importer
 ```
@@ -90,6 +91,12 @@ is only safe when the feed is complete, so `RunImportSourceAction` skips the run
 unpublishing anything — when a required file is missing or empty, or when the merge produced zero
 rows. A missing file must never read as "every car was sold". Keep that invariant ahead of any
 refactor of the download/skip logic.
+
+The sweep itself is the shared product-import run (`RecordProductImportBatchAction` →
+`FinishProductImportAction`, also used by `importProduct`/`finishProductImport` and SuperCarros), so
+it adds a second guard: a feed that matches under half of what the channel has published unpublishes
+nothing and says so in the run message. Runs are one per company — an FTP source and a dealer script
+importing the same company at the same time would close each other's run.
 
 The same reasoning is why `FtpRemoteFileClient::downloadTo()` checks `stream_copy_to_stream`'s return:
 a copy that dies mid-transfer would otherwise report success and merge a truncated feed.

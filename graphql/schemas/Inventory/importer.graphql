@@ -22,6 +22,19 @@ input ImporterProductInput {
     tags: [TagInput!]
 }
 
+type ProductImportRun {
+    id: ID!
+    status: String!
+    channel: Channel @belongsTo(relation: "channel")
+    batches_count: Int!
+    skus_count: Int!
+    published_count: Int!
+    unpublished_count: Int!
+    skipped_reason: String
+    started_at: DateTime!
+    finished_at: DateTime
+}
+
 extend type Mutation @guard {
     importProduct(
         input: [ImporterProductInput!]!
@@ -30,5 +43,17 @@ extend type Mutation @guard {
     ): String!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ImportMutation@product"
+        )
+    """
+    Call once after the last importProduct batch. Unpublishes, in the channel, every variant that
+    was published before the first batch and that no batch sent — without waiting for the queued
+    import jobs. Skipped (nothing unpublished) when the batches matched under half of what is
+    published (channels with 10+ published variants only), or when the company sets
+    product_import_unpublish_missing = 0. force: true skips the half check for a confirmed
+    large clearance.
+    """
+    finishProductImport(companyId: Int!, channelId: ID!, force: Boolean = false): ProductImportRun!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ImportMutation@finish"
         )
 }

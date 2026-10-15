@@ -376,9 +376,10 @@ class ProjectMentionRoutingTest extends TestCase
         $mention = new WakeAgentForProjectJob($project, WakeAgentForProjectJob::REASON_MENTION);
         $ingest = new WakeAgentForProjectJob($project, WakeAgentForProjectJob::REASON_INGEST);
 
-        // A mention re-queues every 15s on collision, so its budget must span the 600s lock TTL.
+        // A mention re-queues every 15s on collision, so its budget must span the 600s lock TTL. Any
+        // other wake keeps room for a few deferrals behind a busy thread on top of its exceptions.
         $this->assertSame(41, $mention->tries);
-        $this->assertSame(3, $ingest->tries);
+        $this->assertSame(6, $ingest->tries);
 
         // ...but a wake that's actually FAILING must not spend that budget on 41 LLM calls.
         $this->assertSame(3, $mention->maxExceptions);

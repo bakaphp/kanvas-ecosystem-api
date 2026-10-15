@@ -12,7 +12,7 @@ use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Actions\Outreach\PersistToolOutboundMessageAction;
+use Kanvas\Intelligence\Agents\Actions\Outreach\PersistOutboundMessageAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\HasConversationHuman;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
@@ -23,15 +23,16 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Send Email', category: 'crm')]
+#[AgentTool(name: 'Send Email To Lead', category: 'crm')]
 class SendEmailTool extends Tool
 {
     use HasConversationHuman;
     use ResolvesLeadForTool;
 
-    protected string $name = 'send_email';
+    protected string $name = 'send_lead_email';
 
-    protected ?string $description = 'Send an email to the prospect/customer on this lead, at the email address already on file. '
+    protected ?string $description = 'LEADS ONLY: requires a lead_id. Send an email to the prospect/customer on that lead, at the email address already on file. '
+        . 'It cannot email a person who has no lead or a teammate. '
         . 'Use it when they ask you to email them something (a quote, a summary, confirmation details, links, next steps) '
         . 'or when what they need is too long to send over chat/SMS. '
         . 'You cannot choose the primary recipient — the email always goes to the address on the lead. '
@@ -107,7 +108,7 @@ class SendEmailTool extends Tool
         if ($subject === '' || $body === '') {
             return [
                 'status' => 'error',
-                'message' => 'Both subject and body are required — write the email before calling send_email.',
+                'message' => 'Both subject and body are required — write the email before calling send_lead_email.',
             ];
         }
 
@@ -152,8 +153,8 @@ class SendEmailTool extends Tool
             ];
         }
 
-        $persisted = new PersistToolOutboundMessageAction(
-            lead: $lead,
+        $persisted = new PersistOutboundMessageAction(
+            entity: $lead,
             user: $this->contextUser() ?? $lead->company->getAiAgentUserOrFail(),
             channelType: LeadCommunicationChannelEnum::EMAIL->value,
             recipient: $contact->value,
@@ -365,12 +366,12 @@ class SendEmailTool extends Tool
 
         if ($contacts === null || $contacts->isEmpty()) {
             return 'This lead has no email address on file. Ask the person for the email address they want it sent to, '
-                . 'save it with update_lead, then retry send_email.';
+                . 'save it with update_lead, then retry send_lead_email.';
         }
 
         if ($contacts->contains(fn (Contact $contact): bool => ! $contact->isOptedOut())) {
             return 'The email address on file bounced or is invalid, so we cannot write to it. '
-                . 'Ask the person to confirm a working email address, save it with update_lead, then retry send_email.';
+                . 'Ask the person to confirm a working email address, save it with update_lead, then retry send_lead_email.';
         }
 
         return 'This person opted out of email. Do not email them and do not ask them for another address. '

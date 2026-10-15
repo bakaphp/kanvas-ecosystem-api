@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Souk\Services\StorefrontProductUrlService;
 use Laravel\Scout\Builder;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
@@ -98,8 +99,9 @@ class InventorySearchTool extends Tool
         }
 
         $products->load('variants');
+        $storefront = new StorefrontProductUrlService($this->company, $this->app);
 
-        return $products->map(function (Products $product) {
+        return $products->map(function (Products $product) use ($storefront) {
             $variants = $product->variants;
             $totalStock = $variants->sum(fn ($variant) => $variant->getTotalQuantity());
             $isAvailable = $totalStock > 0 && $product->is_published;
@@ -111,6 +113,7 @@ class InventorySearchTool extends Tool
                 // accessor when no `en` translation exists.
                 'name' => $product->getTranslation('name', 'en') ?: $product->name,
                 'slug' => $product->slug,
+                'url' => $storefront->productUrl($product),
                 'is_published' => (bool) $product->is_published,
                 'is_available' => $isAvailable,
                 'total_stock' => $totalStock,

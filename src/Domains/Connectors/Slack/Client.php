@@ -246,9 +246,13 @@ class Client
         }
     }
 
-    public function openDirectMessageChannel(string $userId): string
+    /**
+     * One user opens a DM; several open a group DM (needs the `mpim:write` scope). The bot is a member
+     * either way.
+     */
+    public function openDirectMessageChannel(string ...$userIds): string
     {
-        $channel = $this->call('conversations.open', ['users' => $userId])['channel'] ?? [];
+        $channel = $this->call('conversations.open', ['users' => implode(',', $userIds)])['channel'] ?? [];
 
         return (string) (is_array($channel) ? $channel['id'] ?? '' : '');
     }

@@ -8,25 +8,24 @@ use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Connectors\OpenCode\Services\CodingPolicy;
 use Kanvas\Intelligence\AgentRuntime\Harness\Concerns\PostsSessionActivity;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\CodingOutcome;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
+use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\VerifyHarnessDiffJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
-use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
-use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
-use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
-use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
 use Kanvas\NervousSystem\Plan\Models\Plan;
-use Kanvas\NervousSystem\Plan\Models\Task;
 use Throwable;
 
 /**
- * Closes a session: collect the diff, take the handoff out of the container, mirror the outcome onto
+ * Closes a session: collect the diff, take the handoff out of the container, record the outcome on
  * the Task and the Plan, and tell whoever asked.
  *
- * Runs exactly once per session — the poller stops as soon as this is called.
+ * Runs once per session — the poller stops as soon as this is called — with one exception: a
+ * completed run whose diff could not be read parks as `verifying_diff` and comes back through here
+ * with the diff once `VerifyHarnessDiffJob` has it, or with a failure reason once it gives up.
  *
  * **It does not stop the container.** A finished job is the moment someone wants to look at the diff,
  * ask a follow-up, or approve the push — and all three need the runtime that was just removed. Killing
@@ -43,32 +42,53 @@ class FinalizeHarnessSessionAction
         private readonly AgentTaskSession $session,
         private readonly ?HarnessTick $tick = null,
         private readonly ?string $failureReason = null,
+        /** The diff already in hand, when the verification job is resuming a parked run. */
+        private readonly ?HarnessDiff $diff = null,
+        /** The runtime went quiet and was given up on: not a verdict on the work, so it may be retried. */
+        private readonly bool $silence = false,
     ) {
     }
 
     public function execute(): AgentTaskSession
     {
         $status = $this->resolveStatus();
-        $diff = HarnessFactory::diffOrEmpty($this->session);
+        $resuming = $this->session->harnessStatus() === HarnessStatusEnum::VERIFYING_DIFF;
 
-        if ($status === HarnessStatusEnum::COMPLETED) {
+        if ($status === HarnessStatusEnum::COMPLETED && ! $resuming) {
             $this->captureHandoff();
         }
 
         // Read AFTER the handoff, because the handoff is usually where the claim lives.
-        $status = $this->demoteEmptyRun($status, $diff);
+        $diff = $this->diff ?? HarnessFactory::diffOrNull($this->session);
+
+        // "Could not read the diff" is not "no changes". Recording it as empty turned a workspace
+        // hiccup into a failed run with a post-mortem a person then chased.
+        if ($status === HarnessStatusEnum::COMPLETED && $diff === null) {
+            $this->parkForDiffVerification();
+
+            return $this->session;
+        }
+
+        $diff ??= new HarnessDiff();
+        $emptyRun = $status === HarnessStatusEnum::COMPLETED && $diff->isEmpty();
+
+        if ($emptyRun) {
+            $status = $this->failEmptyRun();
+        }
 
         $this->session->status = $status->value;
         $this->session->completed_at = Carbon::now();
         $this->session->touchHeartbeat();
         $this->session->saveOrFail();
 
-        $this->mirrorOntoTask($status, $diff);
-        $approval = $this->requestPushApproval($status, $diff);
-        // No policy configured means no one asked to be consulted, so the branch goes up the way an
-        // engineer's would. `requestPushApproval` returns null in exactly that case.
-        $push = $approval === null ? $this->pushBranch($status, $diff) : null;
-        $this->announce($status, $diff, $approval !== null, $push);
+        if ($this->retryable($emptyRun, $diff) && $this->retry()) {
+            return $this->session;
+        }
+
+        $outcome = $this->outcome($status, $diff);
+
+        new RecordCodingOutcomeAction($this->session, $outcome)->execute();
+        $this->announce($status, $diff, $outcome);
 
         return $this->session;
     }
@@ -83,14 +103,11 @@ class FinalizeHarnessSessionAction
      *
      * Reporting it as failed is the safe direction. A genuine no-op task — investigate this, confirm
      * that — gets marked failed and a human sees why in one line, which is cheap. A fabricated success
-     * is not: it is trusted, built on, and found out much later.
+     * is not: it is trusted, built on, and found out much later. Branchless runs are held to the same
+     * rule.
      */
-    private function demoteEmptyRun(HarnessStatusEnum $status, HarnessDiff $diff): HarnessStatusEnum
+    private function failEmptyRun(): HarnessStatusEnum
     {
-        if ($status !== HarnessStatusEnum::COMPLETED || ! $diff->isEmpty() || $this->session->branch === null) {
-            return $status;
-        }
-
         $this->session->error_message = 'The agent reported its work as done, but no file in the '
             . 'workspace changed. Nothing was committed or pushed. This is usually the model answering '
             . 'in prose instead of calling its editing tools — re-run it, and say only what to change.';
@@ -99,49 +116,82 @@ class FinalizeHarnessSessionAction
     }
 
     /**
-     * Pushes the branch when nothing is waiting to be asked.
-     *
-     * @return array{pushed: bool, branch?: string, files?: int, error?: string, pull_request?: string, pull_request_error?: string}|null
+     * One more try when the run produced nothing at all: a model that answered in prose instead of
+     * editing, or a runtime that never spoke. Once — the second empty run blocks the task like any
+     * other failure. Never for a run that made edits, that a person stopped, or whose diff merely
+     * could not be read: those are verdicts, not blanks.
      */
-    private function pushBranch(HarnessStatusEnum $status, HarnessDiff $diff): ?array
+    private function retryable(bool $emptyRun, HarnessDiff $diff): bool
     {
-        if ($status !== HarnessStatusEnum::COMPLETED || $this->session->branch === null || $diff->isEmpty()) {
-            return null;
+        if ($this->session->isRetry() || ! $diff->isEmpty()) {
+            return false;
         }
 
-        return new PushSessionAction($this->session)->execute();
+        return $emptyRun || ($this->silence && $this->session->usage()->totalTokens() === 0);
     }
 
     /**
-     * What a person needs to know: where the work is, or why it is not where they expected.
-     *
-     * @param array{pushed: bool, branch?: string, files?: int, error?: string, pull_request?: string, pull_request_error?: string}|null $push
+     * A retry that cannot start (no capacity, no machine) is not a reason to lose the first run's
+     * ending: it falls through to the ordinary failure, which a person then sees.
      */
-    private function outcomeLine(bool $awaitingApproval, ?array $push): string
+    private function retry(): bool
     {
-        if ($awaitingApproval) {
-            return 'Waiting on your approval to push `' . (string) $this->session->branch . '`.';
+        try {
+            new RetryHarnessSessionAction($this->session)->execute();
+
+            return true;
+        } catch (Throwable $e) {
+            report($e);
+
+            return false;
+        }
+    }
+
+    private function outcome(HarnessStatusEnum $status, HarnessDiff $diff): CodingOutcome
+    {
+        $reason = $this->failureReason ?? $this->session->error_message ?? 'No reason reported.';
+
+        return match ($status) {
+            HarnessStatusEnum::COMPLETED => $this->completedOutcome($diff),
+            HarnessStatusEnum::CANCELLED => CodingOutcome::cancelled($diff, $reason),
+            default => CodingOutcome::failed($diff, $reason),
+        };
+    }
+
+    /**
+     * No policy configured means no one asked to be consulted, so the branch goes up the way an
+     * engineer's would. A branchless run (attach mode) has nothing to push and is reviewed in place.
+     */
+    private function completedOutcome(HarnessDiff $diff): CodingOutcome
+    {
+        $approval = $this->requestPushApproval($diff);
+
+        if ($approval !== null) {
+            return CodingOutcome::awaitingPush($diff, $approval, $this->session->branch);
         }
 
-        if ($push === null) {
-            return $this->reviewLine();
+        if ($this->session->branch === null) {
+            return CodingOutcome::reviewOnly($diff);
         }
 
-        if (($push['pushed'] ?? false) === true) {
-            $branch = 'Pushed to `' . (string) ($push['branch'] ?? $this->session->branch) . '`.';
+        return CodingOutcome::fromPush(new PushSessionAction($this->session)->execute(), $diff, $this->session->branch);
+    }
 
-            if (isset($push['pull_request'])) {
-                return $branch . ' Pull request open for review: ' . (string) $push['pull_request'];
-            }
+    private function parkForDiffVerification(): void
+    {
+        $this->session->status = HarnessStatusEnum::VERIFYING_DIFF->value;
+        $this->session->touchHeartbeat();
+        $this->session->saveOrFail();
 
-            return isset($push['pull_request_error'])
-                ? $branch . ' No pull request was opened (' . (string) $push['pull_request_error'] . ').'
-                : $branch;
-        }
+        $this->postToPlan(
+            $this->session,
+            'The agent reported done, but the workspace has not confirmed what changed yet. Checking again '
+            . 'for a few minutes before recording the result.',
+            'coding_job_verifying_diff',
+        );
 
-        // Said out loud, because the work exists and everyone will assume it is on the branch.
-        return 'The work is done but the push FAILED: ' . (string) ($push['error'] ?? 'unknown reason')
-            . "\nIt is still in the workspace on branch `" . (string) $this->session->branch . '`.';
+        VerifyHarnessDiffJob::dispatch($this->session->app, $this->session->getId())
+            ->delay(Carbon::now()->addSeconds(VerifyHarnessDiffJob::INTERVAL_SECONDS));
     }
 
     private function resolveStatus(): HarnessStatusEnum
@@ -150,6 +200,10 @@ class FinalizeHarnessSessionAction
             $current = $this->session->harnessStatus();
 
             return $current->isTerminal() ? $current : HarnessStatusEnum::FAILED;
+        }
+
+        if ($this->session->harnessStatus() === HarnessStatusEnum::VERIFYING_DIFF && $this->diff !== null) {
+            return HarnessStatusEnum::COMPLETED;
         }
 
         return match ($this->tick?->status) {
@@ -189,70 +243,18 @@ class FinalizeHarnessSessionAction
         }
     }
 
-    private function mirrorOntoTask(HarnessStatusEnum $status, HarnessDiff $diff): void
-    {
-        /** @var Task|null $task */
-        $task = $this->session->task;
-
-        if ($task === null) {
-            return;
-        }
-
-        $taskStatus = match ($status) {
-            HarnessStatusEnum::COMPLETED => TaskStatusEnum::DONE,
-            HarnessStatusEnum::CANCELLED => TaskStatusEnum::SKIPPED,
-            default => TaskStatusEnum::BLOCKED,
-        };
-
-        new UpdateTaskStatusAction(
-            task: $task,
-            newStatus: $taskStatus,
-            result: $taskStatus === TaskStatusEnum::DONE ? [
-                'summary' => $diff->summary(),
-                'files' => $diff->paths(),
-                'branch' => $this->session->branch,
-                'handoff' => $this->session->handoff,
-            ] : null,
-            blockedReason: $taskStatus === TaskStatusEnum::BLOCKED
-                ? ($this->failureReason ?? $this->session->error_message ?? 'The coding session failed.')
-                : null,
-            fromSync: true,
-        )->execute();
-
-        $this->closePlan($task, $status);
-    }
-
     /**
-     * `UpdateTaskStatusAction` moves the task and rolls up the percentage but never the plan's own
-     * status, and `saveQuietly` fires no model events — so without the explicit broadcast the board
-     * shows a finished task under a plan still marked active until someone refreshes.
+     * A finished job with a branch and a diff is not done — it is waiting on a person. Asking here,
+     * rather than leaving it to whoever notices, is what makes the push gate real.
      */
-    private function closePlan(Task $task, HarnessStatusEnum $status): void
+    private function requestPushApproval(HarnessDiff $diff): ?ApprovalRequest
     {
-        /** @var Plan|null $plan */
-        $plan = $task->plan;
-
-        if ($plan === null) {
-            return;
-        }
-
-        $previousStatus = $plan->status;
-        $plan->status = match ($status) {
-            HarnessStatusEnum::COMPLETED => PlanStatusEnum::DONE->value,
-            HarnessStatusEnum::CANCELLED => PlanStatusEnum::CANCELLED->value,
-            default => PlanStatusEnum::FAILED->value,
-        };
-
-        if ($status === HarnessStatusEnum::COMPLETED) {
-            $plan->completed_at = Carbon::now();
-        }
-
-        $plan->saveQuietly();
-
         try {
-            $plan->broadcastChange(PlanChangeTypeEnum::UPDATED, previousStatus: $previousStatus);
+            return new RequestPushApprovalAction($this->session, $diff)->execute();
         } catch (Throwable $e) {
             report($e);
+
+            return null;
         }
     }
 
@@ -264,34 +266,8 @@ class FinalizeHarnessSessionAction
      * AGENT's user — so the person who asked heard nothing at all. `AnnouncesPlanOutcome` resolves
      * `origin_users_id` instead, and is shared with the other pollers so the fix cannot drift again.
      */
-    /**
-     * A finished job with a branch and a diff is not done — it is waiting on a person. Asking here,
-     * rather than leaving it to whoever notices, is what makes the push gate real.
-     */
-    private function requestPushApproval(HarnessStatusEnum $status, HarnessDiff $diff): ?ApprovalRequest
+    private function announce(HarnessStatusEnum $status, HarnessDiff $diff, CodingOutcome $outcome): void
     {
-        if ($status !== HarnessStatusEnum::COMPLETED) {
-            return null;
-        }
-
-        try {
-            return new RequestPushApprovalAction($this->session, $diff)->execute();
-        } catch (Throwable $e) {
-            report($e);
-
-            return null;
-        }
-    }
-
-    /**
-     * @param array{pushed: bool, branch?: string, files?: int, error?: string, pull_request?: string, pull_request_error?: string}|null $push
-     */
-    private function announce(
-        HarnessStatusEnum $status,
-        HarnessDiff $diff,
-        bool $awaitingApproval = false,
-        ?array $push = null
-    ): void {
         /** @var Plan|null $plan */
         $plan = $this->session->plan;
 
@@ -299,11 +275,7 @@ class FinalizeHarnessSessionAction
             return;
         }
 
-        $title = match ($status) {
-            HarnessStatusEnum::COMPLETED => '✅ Coding job finished',
-            HarnessStatusEnum::CANCELLED => '🛑 Coding job stopped',
-            default => '⚠️ Coding job failed',
-        };
+        $title = $outcome->kind->headline();
 
         $detail = match ($status) {
             HarnessStatusEnum::COMPLETED => 'Changes: ' . $diff->summary()
@@ -311,22 +283,20 @@ class FinalizeHarnessSessionAction
                     static fn (string $path): string => '· ' . $path,
                     $diff->paths()
                 )))
-                . "\n\n" . $this->outcomeLine($awaitingApproval, $push),
-            default => $this->failureReason ?? $this->session->error_message ?? 'No reason reported.',
+                . "\n\n" . $outcome->line(),
+            default => $outcome->line(),
         };
 
         $body = $title . "\n\n" . $detail . "\n\n" . $this->costLine();
 
-        $this->postToPlanBoard($plan, $body, 'coding_job_result', 'coding-job-alert');
+        $this->postToPlanBoard(
+            $plan,
+            $body,
+            'coding_job_result',
+            'coding-job-alert',
+        );
         $this->alsoPostToOriginConversation($plan, $body, 'coding_job_result');
         $this->notifyTheAsker($plan, $title, $body);
-    }
-
-    private function reviewLine(): string
-    {
-        return $this->session->branch === null
-            ? 'Nothing has been pushed — the diff is waiting on the workspace for review.'
-            : 'Nothing has been pushed — the work is on branch `' . $this->session->branch . '` for review.';
     }
 
     private function costLine(): string

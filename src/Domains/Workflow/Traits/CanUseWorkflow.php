@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Traits;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Actions\ProcessWorkflowEventAction;
 use Kanvas\Workflow\SyncWorkflowStub;
@@ -24,6 +25,17 @@ trait CanUseWorkflow
         $processWorkflow = new ProcessWorkflowEventAction($app, $this);
 
         return $processWorkflow->execute($event, $params);
+    }
+
+    /**
+     * A connector activity may push this record to a third party, so it must not run against (or be
+     * rolled back with) a write that has not committed on the model's own connection yet.
+     */
+    public function fireWorkflowAfterCommit(string $event, array $params = []): void
+    {
+        DB::connection($this->getConnectionName())->afterCommit(
+            fn () => $this->fireWorkflow($event, params: $params)
+        );
     }
 
     /**
