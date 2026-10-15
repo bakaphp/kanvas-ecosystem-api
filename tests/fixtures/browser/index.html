@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Browser Tool Test</title>
+</head>
+<body>
+    <main>
+        <h1>Browser Tool Test</h1>
+        <form id="search-form">
+            <label for="search">Search</label>
+            <input id="search" name="search" type="search" placeholder="Search terms">
+            <button type="submit">Submit search</button>
+        </form>
+        <p id="result" aria-live="polite">No search submitted.</p>
+        <div style="position: relative; width: 220px; height: 60px;">
+            <button id="covered-action" type="button">Covered action</button>
+            <div id="click-interceptor" style="position: absolute; inset: 0; z-index: 2;"></div>
+        </div>
+        <p id="covered-result" aria-live="polite">Covered action pending.</p>
+    </main>
+    <script>
+        document.getElementById('search-form').addEventListener('submit', (event) => {
+            event.preventDefault();
+            document.getElementById('result').textContent =
+                `Search result: ${document.getElementById('search').value}`;
+        });
+        document.getElementById('covered-action').addEventListener('click', () => {
+            document.getElementById('covered-result').textContent = 'Covered action clicked.';
+        });
+    </script>
+</body>
+</html>

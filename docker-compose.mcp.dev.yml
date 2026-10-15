@@ -1,0 +1,4 @@
+services:
+  playwright-mcp:
+    ports:
+      - "127.0.0.1:${PLAYWRIGHT_MCP_PORT:-8931}:${PLAYWRIGHT_MCP_PORT:-8931}"
