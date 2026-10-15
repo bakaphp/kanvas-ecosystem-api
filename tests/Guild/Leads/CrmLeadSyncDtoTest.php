@@ -9,8 +9,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Leads\DataTransferObject\CrmLeadSync;
 use Kanvas\Guild\Leads\Enums\CrmTypeEnum;
+use Kanvas\Guild\Leads\Exceptions\CrmLeadSyncException;
 use Tests\TestCase;
-use Throwable;
 
 final class CrmLeadSyncDtoTest extends TestCase
 {
@@ -120,7 +120,7 @@ final class CrmLeadSyncDtoTest extends TestCase
 
     public function testAnUnknownCrmTypeIsRejected(): void
     {
-        $this->expectException(Throwable::class);
+        $this->expectException(CrmLeadSyncException::class);
 
         $this->build(['identity' => ['type' => 'not-a-crm', 'client_id' => '1']]);
     }

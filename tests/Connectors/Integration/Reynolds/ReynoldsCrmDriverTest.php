@@ -8,7 +8,9 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Reynolds\Services\ReynoldsCrmDriver;
 use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmCatalogRef;
+use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmConsent;
 use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmCustomer;
+use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmFollowUp;
 use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmLeadInfo;
 use Kanvas\Guild\Leads\Enums\CrmTypeEnum;
 use Mockery;
@@ -75,6 +77,49 @@ final class ReynoldsCrmDriverTest extends TestCase
             $driver->customerCustomFields(new CrmCustomer(language: 'es'))
         );
         $this->assertSame([], $driver->customerCustomFields(new CrmCustomer()));
+    }
+
+    public function testConsentBecomesTheFieldsTheWebhookWrites(): void
+    {
+        $driver = new ReynoldsCrmDriver();
+        $customer = new CrmCustomer(consent: new CrmConsent(
+            text_opt_status: ' Opted Out ',
+            opt_out: 'y',
+            opt_out_use: '0',
+            follow_up: new CrmFollowUp(phone: 'Y', mail: 'N', email: 'TRUE', text: null)
+        ));
+
+        $this->assertSame(
+            [
+                'REYNOLDS_CONSENT_PHONE' => 'Y',
+                'REYNOLDS_CONSENT_MAIL' => 'N',
+                'REYNOLDS_CONSENT_EMAIL' => 'Y',
+                'REYNOLDS_CONSENT_OPT_OUT' => 'Y',
+                'REYNOLDS_CONSENT_OPT_OUT_USE' => 'N',
+                'REYNOLDS_TEXT_OPT_STATUS' => 'Opted Out',
+            ],
+            $driver->customerCustomFields($customer)
+        );
+    }
+
+    public function testOnlyAnExplicitYesIsAnOptOutRequest(): void
+    {
+        $driver = new ReynoldsCrmDriver();
+
+        foreach (['Y', 'y', '1', 'true'] as $yes) {
+            $this->assertTrue($driver->requestsDoNotContact($this->optOut($yes)), $yes);
+        }
+
+        foreach (['N', 'n', '0', '', null] as $no) {
+            $this->assertFalse($driver->requestsDoNotContact($this->optOut($no)), (string) $no);
+        }
+
+        $this->assertFalse($driver->requestsDoNotContact(new CrmCustomer()));
+    }
+
+    private function optOut(?string $value): CrmCustomer
+    {
+        return new CrmCustomer(consent: new CrmConsent(opt_out: $value));
     }
 
     public function testTypeAndStatusBecomeLeadFieldsButTheSourceDoesNot(): void

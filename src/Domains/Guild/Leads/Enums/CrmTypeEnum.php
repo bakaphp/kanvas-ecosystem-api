@@ -8,8 +8,8 @@ use Kanvas\Connectors\Reynolds\Services\ReynoldsCrmDriver;
 use Kanvas\Guild\Leads\Contracts\CrmLeadDriver;
 
 /**
- * The CRMs a lead sync can talk about. A new CRM is a case here, the same value in the GraphQL
- * `CrmType` enum, and a driver class. The driver is built fresh on every call: it has no state, and
+ * The CRMs a lead sync can talk about. A new CRM is a case here, which is the value a request sends as
+ * `identity.type`, and a driver class. The driver is built fresh on every call: it has no state, and
  * a cached instance would outlive a request under Octane.
  */
 enum CrmTypeEnum: string

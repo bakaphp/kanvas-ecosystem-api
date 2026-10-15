@@ -8,6 +8,8 @@ use Baka\Support\Str;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Guild\Customers\Actions\ApplyDoNotContactAction;
+use Kanvas\Guild\Customers\Enums\ConsentMatchEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Contracts\CrmLeadDriver;
 use Kanvas\Guild\Leads\DataTransferObject\CrmLeadPlan;
@@ -172,6 +174,7 @@ class SyncCrmLeadAction
         try {
             $this->writeCustomFields($people, $lead);
             $followers->execute($lead);
+            $this->applyDoNotContact($people, $lead);
         } catch (Throwable $exception) {
             $this->compensate($plan, $people, $lead);
 
@@ -191,6 +194,29 @@ class SyncCrmLeadAction
             false,
             $warnings
         );
+    }
+
+    /**
+     * An opt-out reported by the CRM is honored person-wide like any other, and before the workflows
+     * fire so a new lead is never contacted. It runs after the lead exists so that lead is flagged
+     * too, and it only ever silences: nothing here lifts one. A failure is not swallowed, since a
+     * missed opt-out leaves the person contactable; the request can be sent again.
+     */
+    private function applyDoNotContact(People $people, Lead $lead): void
+    {
+        $customer = $this->data->customer;
+
+        if ($customer === null || ! $this->driver->requestsDoNotContact($customer)) {
+            return;
+        }
+
+        new ApplyDoNotContactAction(
+            people: $people,
+            sourceChannel: 'crm_sync:' . $this->data->identity->type->value,
+            lead: $lead,
+            reason: 'The CRM reports the customer opted out',
+            match: ConsentMatchEnum::EXACT
+        )->execute();
     }
 
     /**

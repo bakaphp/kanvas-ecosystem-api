@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Reynolds\Services;
 
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
+use Baka\Traits\ScalarCoercionTrait;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
@@ -15,6 +17,8 @@ use Kanvas\Guild\Leads\Enums\CrmTypeEnum;
 
 class ReynoldsCrmDriver implements CrmLeadDriver
 {
+    use ScalarCoercionTrait;
+
     public function type(): CrmTypeEnum
     {
         return CrmTypeEnum::REYNOLDS;
@@ -50,12 +54,33 @@ class ReynoldsCrmDriver implements CrmLeadDriver
         return SalespersonResolver::resolveUserId($salespersonName, $companyModel);
     }
 
+    /**
+     * The language, and the consent values stored the way the webhook stores them (Y or N) so the
+     * push back to Reynolds reads the same fields. The text opt status has no webhook counterpart and
+     * is kept as the CRM wrote it. A value the CRM did not send is not written.
+     */
     public function customerCustomFields(CrmCustomer $customer): array
     {
+        $consent = $customer->consent;
+
         return array_filter(
-            [CustomFieldEnum::LANGUAGE->value => $customer->language],
+            [
+                CustomFieldEnum::LANGUAGE->value => $customer->language,
+                CustomFieldEnum::CONSENT_PHONE->value => self::ynOrNull($consent?->follow_up?->phone),
+                CustomFieldEnum::CONSENT_MAIL->value => self::ynOrNull($consent?->follow_up?->mail),
+                CustomFieldEnum::CONSENT_EMAIL->value => self::ynOrNull($consent?->follow_up?->email),
+                CustomFieldEnum::CONSENT_TEXT->value => self::ynOrNull($consent?->follow_up?->text),
+                CustomFieldEnum::CONSENT_OPT_OUT->value => self::ynOrNull($consent?->opt_out),
+                CustomFieldEnum::CONSENT_OPT_OUT_USE->value => self::ynOrNull($consent?->opt_out_use),
+                CustomFieldEnum::TEXT_OPT_STATUS->value => Str::trimToNull($consent?->text_opt_status),
+            ],
             fn (mixed $value): bool => $value !== null && $value !== ''
         );
+    }
+
+    public function requestsDoNotContact(CrmCustomer $customer): bool
+    {
+        return self::ynOrNull($customer->consent?->opt_out) === 'Y';
     }
 
     /**
