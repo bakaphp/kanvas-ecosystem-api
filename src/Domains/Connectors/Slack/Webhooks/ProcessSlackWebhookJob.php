@@ -186,9 +186,9 @@ class ProcessSlackWebhookJob extends SlackWebhookJob
      */
     private function isAddressed(array $event): bool
     {
-        // An edit or a deletion is a correction to the record, never a new request — even in a DM,
-        // where every real message is for the agent.
-        if ((string) ($event['subtype'] ?? '') !== '') {
+        // Corrections stay silent even in a DM, where every real message is for the agent. Only
+        // corrections: `file_share` and `thread_broadcast` are real messages and must not be caught here.
+        if (EventTypeEnum::isCorrection((string) ($event['subtype'] ?? ''))) {
             return false;
         }
 
