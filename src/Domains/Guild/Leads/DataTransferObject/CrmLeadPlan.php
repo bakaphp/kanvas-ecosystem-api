@@ -28,6 +28,11 @@ final readonly class CrmLeadPlan
 
     public function createsLead(): bool
     {
-        return ! $this->lead instanceof Lead;
+        return in_array($this->outcome, [CrmLeadSyncOutcomeEnum::CREATED_LEAD, CrmLeadSyncOutcomeEnum::CREATED_ALL], true);
+    }
+
+    public function hasLead(): bool
+    {
+        return $this->outcome !== CrmLeadSyncOutcomeEnum::PEOPLE_ONLY;
     }
 }

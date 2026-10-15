@@ -39,20 +39,20 @@ class ResolveCrmLeadPlanAction
         $match = new FindCrmPeopleAction($this->data, $this->driver)->execute();
 
         if ($match === null) {
-            return new CrmLeadPlan(CrmLeadSyncOutcomeEnum::CREATED_ALL);
+            return new CrmLeadPlan($this->withoutLeadId() ? CrmLeadSyncOutcomeEnum::PEOPLE_ONLY : CrmLeadSyncOutcomeEnum::CREATED_ALL);
         }
 
         $lead = $this->activeLead($match->people);
 
         if (! $lead instanceof Lead) {
             return new CrmLeadPlan(
-                outcome: CrmLeadSyncOutcomeEnum::CREATED_LEAD,
+                outcome: $this->withoutLeadId() ? CrmLeadSyncOutcomeEnum::PEOPLE_ONLY : CrmLeadSyncOutcomeEnum::CREATED_LEAD,
                 people: $match->people,
                 ambiguous: $match->ambiguous
             );
         }
 
-        $outcome = $this->data->identity->lead_id === null
+        $outcome = $this->withoutLeadId()
             ? CrmLeadSyncOutcomeEnum::OPENED
             : CrmLeadSyncOutcomeEnum::ADOPTED;
 
@@ -62,6 +62,15 @@ class ResolveCrmLeadPlanAction
             lead: $lead,
             ambiguous: $match->ambiguous
         );
+    }
+
+    /**
+     * A lead is never created without the CRM's id for it: with no id the call opens a lead that
+     * already exists, and otherwise only the people is made.
+     */
+    private function withoutLeadId(): bool
+    {
+        return $this->data->identity->lead_id === null;
     }
 
     private function leadByCrmId(): ?Lead

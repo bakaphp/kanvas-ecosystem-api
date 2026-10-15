@@ -208,6 +208,99 @@ final class SyncCrmLeadActionTest extends TestCase
         $this->assertContains('lead_id_missing', array_column($result->warnings, 'code'));
     }
 
+    /**
+     * A lead is never created without the CRM's id for it: with nothing to open only the people is made.
+     */
+    public function testWithoutAProspectIdAndNoLeadToOpenOnlyThePeopleIsCreated(): void
+    {
+        $email = $this->uniqueEmail();
+        $input = $this->payload(['customer' => ['emails' => [$email]]]);
+        $input['identity']['lead_id'] = null;
+        unset($input['lead']);
+
+        $result = $this->sync($input);
+
+        $this->assertSame(CrmLeadSyncOutcomeEnum::PEOPLE_ONLY, $result->outcome);
+        $this->assertNull($result->lead);
+        $this->assertTrue($result->peopleCreated);
+        $this->assertFalse($result->leadCreated);
+        $this->assertSame($input['identity']['client_id'], (string) $result->people->get(CustomFieldEnum::CLIENT_ID->value));
+        $this->assertSame([$email], $result->people->getEmails()->pluck('value')->all());
+        $this->assertSame(0, Lead::query()->where('people_id', $result->people->getId())->count());
+        $this->assertContains('lead_id_missing', array_column($result->warnings, 'code'));
+    }
+
+    public function testWithoutAProspectIdAClosedLeadIsNotReplacedByANewOne(): void
+    {
+        $email = $this->uniqueEmail();
+        $people = $this->createPeople('Ana', 'Perez', $email);
+        $closed = $this->createLead($people, 'Closed');
+        $input = $this->payload(['customer' => ['emails' => [$email]]]);
+        $input['identity']['lead_id'] = null;
+
+        $result = $this->sync($input);
+
+        $this->assertSame(CrmLeadSyncOutcomeEnum::PEOPLE_ONLY, $result->outcome);
+        $this->assertNull($result->lead);
+        $this->assertFalse($result->peopleCreated);
+        $this->assertSame($people->getId(), $result->people->getId());
+        $this->assertSame($input['identity']['client_id'], (string) $people->refresh()->get(CustomFieldEnum::CLIENT_ID->value));
+        $this->assertSame(
+            [$closed->getId()],
+            Lead::query()->where('people_id', $people->getId())->notDeleted()->pluck('id')->map(fn ($id) => (int) $id)->all()
+        );
+    }
+
+    public function testAPeopleOnlyCallNeedsNothingOfALead(): void
+    {
+        $input = $this->payload();
+        $input['identity']['lead_id'] = null;
+        $input['lead'] = ['type' => null, 'source' => null, 'salesperson' => ['name' => 'Nobody, Atall']];
+
+        $result = $this->sync($input);
+
+        $this->assertSame(CrmLeadSyncOutcomeEnum::PEOPLE_ONLY, $result->outcome);
+    }
+
+    public function testParticipantsAndFollowersAreSkippedWithAWarningWhenThereIsNoLead(): void
+    {
+        $input = $this->payload();
+        $input['identity']['lead_id'] = null;
+        $input['participants'] = ['add' => [['firstname' => 'Marco', 'relationship_id' => '999999999']]];
+        $input['followers'] = ['attach' => ['nobody.' . uniqid() . '@example.com']];
+
+        $result = $this->sync($input);
+
+        $this->assertSame(CrmLeadSyncOutcomeEnum::PEOPLE_ONLY, $result->outcome);
+        $this->assertContains(['code' => 'lead_required', 'field' => 'participants'], $result->warnings);
+        $this->assertContains(['code' => 'lead_required', 'field' => 'followers'], $result->warnings);
+    }
+
+    public function testAnOptOutIsHonoredEvenWhenThereIsNoLead(): void
+    {
+        $input = $this->payload();
+        $input['identity']['lead_id'] = null;
+        $input['customer']['consent'] = ['opt_out' => 'Y'];
+
+        $result = $this->sync($input);
+
+        $this->assertNull($result->lead);
+        $this->assertTrue((bool) $result->people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
+    }
+
+    public function testThePeopleOnlyAnswerIsReplayedToo(): void
+    {
+        $input = $this->payload();
+        $input['identity']['lead_id'] = null;
+
+        $first = $this->sync($input);
+        $replay = $this->sync($input);
+
+        $this->assertTrue($replay->replayed);
+        $this->assertNull($replay->lead);
+        $this->assertSame($first->people->getId(), $replay->people->getId());
+    }
+
     public function testALeadWhoseCustomerHasAnotherClientIdIsRefused(): void
     {
         $first = $this->sync($this->payload());

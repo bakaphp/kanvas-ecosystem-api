@@ -83,12 +83,12 @@ class SyncCrmLeadAction
     private function run(): CrmLeadSyncResult
     {
         $plan = new ResolveCrmLeadPlanAction($this->data, $this->driver)->execute();
-        $followers = new SyncCrmLeadFollowersAction($this->data);
-        $participants = new SyncCrmLeadParticipantsAction($this->data, $plan->lead);
+        $followers = $plan->hasLead() ? new SyncCrmLeadFollowersAction($this->data) : null;
+        $participants = $plan->hasLead() ? new SyncCrmLeadParticipantsAction($this->data, $plan->lead) : null;
 
         $ownerId = $this->validate($plan);
-        $followers->prepare();
-        $participants->prepare();
+        $followers?->prepare();
+        $participants?->prepare();
 
         return $this->write(
             $plan,
@@ -100,7 +100,8 @@ class SyncCrmLeadAction
 
     /**
      * What a create needs is only checked when the plan creates: opening or adopting a lead works with
-     * whatever the CRM managed to send. Errors that stop a create the dealer expected go to Sentry.
+     * whatever the CRM managed to send, and a plan with no lead needs nothing of one. Errors that stop a
+     * create the dealer expected go to Sentry.
      */
     private function validate(CrmLeadPlan $plan): ?int
     {
@@ -113,7 +114,7 @@ class SyncCrmLeadAction
         }
 
         $salesperson = Str::trimToNull($info?->salesperson?->name);
-        $ownerId = $salesperson === null
+        $ownerId = $salesperson === null || ! $plan->hasLead()
             ? null
             : $this->driver->resolveOwnerId($salesperson, $this->data->companyModel());
 
@@ -148,8 +149,8 @@ class SyncCrmLeadAction
     private function write(
         CrmLeadPlan $plan,
         ?int $ownerId,
-        SyncCrmLeadParticipantsAction $participants,
-        SyncCrmLeadFollowersAction $followers
+        ?SyncCrmLeadParticipantsAction $participants,
+        ?SyncCrmLeadFollowersAction $followers
     ): CrmLeadSyncResult {
         $people = $plan->people;
         $lead = $plan->lead;
@@ -172,19 +173,24 @@ class SyncCrmLeadAction
                 ];
             }
 
-            $lead = new SaveCrmLeadAction(
-                $this->data,
-                $this->driver,
-                $people,
-                $plan->lead,
-                $ownerId
-            )->execute();
-            $participants->execute($lead);
+            if ($plan->hasLead()) {
+                $lead = new SaveCrmLeadAction(
+                    $this->data,
+                    $this->driver,
+                    $people,
+                    $plan->lead,
+                    $ownerId
+                )->execute();
+                $participants?->execute($lead);
+            }
         });
 
         try {
             $this->writeCustomFields($people, $lead);
-            $followers->execute($lead);
+            if ($lead instanceof Lead) {
+                $followers?->execute($lead);
+            }
+
             $this->applyDoNotContact($people, $lead);
         } catch (Throwable $exception) {
             $this->compensate($plan, $people, $lead);
@@ -192,7 +198,7 @@ class SyncCrmLeadAction
             throw $exception;
         }
 
-        if ($plan->createsLead()) {
+        if ($plan->createsLead() && $lead instanceof Lead) {
             $this->fireWorkflows($lead);
         }
 
@@ -213,7 +219,7 @@ class SyncCrmLeadAction
      * too, and it only ever silences: nothing here lifts one. A failure is not swallowed, since a
      * missed opt-out leaves the person contactable; the request can be sent again.
      */
-    private function applyDoNotContact(People $people, Lead $lead): void
+    private function applyDoNotContact(People $people, ?Lead $lead): void
     {
         $customer = $this->data->customer;
 
@@ -245,7 +251,34 @@ class SyncCrmLeadAction
             $warnings[] = ['code' => 'lead_id_missing', 'field' => 'identity.lead_id'];
         }
 
+        if (! $plan->hasLead()) {
+            $warnings = [...$warnings, ...$this->skippedLeadSections()];
+        }
+
         return $warnings;
+    }
+
+    /**
+     * Participants and followers belong to a lead, so with no lead they are not applied, and the caller
+     * is told rather than left to think they were.
+     *
+     * @return list<array{code: string, field: string}>
+     */
+    private function skippedLeadSections(): array
+    {
+        $participants = $this->data->participants;
+        $followers = $this->data->followers;
+        $skipped = [];
+
+        if (($participants?->add ?? []) !== [] || ($participants?->remove ?? []) !== []) {
+            $skipped[] = ['code' => 'lead_required', 'field' => 'participants'];
+        }
+
+        if (($followers?->attach ?? []) !== [] || ($followers?->detach ?? []) !== []) {
+            $skipped[] = ['code' => 'lead_required', 'field' => 'followers'];
+        }
+
+        return $skipped;
     }
 
     /**
@@ -253,17 +286,17 @@ class SyncCrmLeadAction
      * custom field behind; then the identity goes first, since it is what lets the next request find
      * these rows again.
      */
-    private function writeCustomFields(People $people, Lead $lead): void
+    private function writeCustomFields(People $people, ?Lead $lead): void
     {
         $customerFields = $this->customerFields();
-        $leadFields = $this->leadFields();
+        $leadFields = $lead instanceof Lead ? $this->leadFields() : [];
         $clientField = $this->driver->clientIdField();
 
         if ($clientField !== null) {
             $people->set($clientField, $this->data->identity->client_id);
         }
 
-        if ($this->data->identity->lead_id !== null) {
+        if ($lead instanceof Lead && $this->data->identity->lead_id !== null) {
             $lead->set($this->driver->leadIdField(), $this->data->identity->lead_id);
         }
 
@@ -272,7 +305,7 @@ class SyncCrmLeadAction
         }
 
         foreach ($leadFields as $name => $value) {
-            $lead->set($name, $value);
+            $lead?->set($name, $value);
         }
     }
 
@@ -297,11 +330,11 @@ class SyncCrmLeadAction
      * custom fields so the identity does not outlive the row. Each step is best effort and reported:
      * a failure in one must not stop the rest. Edits to rows that already existed are left in place.
      */
-    private function compensate(CrmLeadPlan $plan, People $people, Lead $lead): void
+    private function compensate(CrmLeadPlan $plan, People $people, ?Lead $lead): void
     {
         $created = [];
 
-        if ($plan->createsLead()) {
+        if ($plan->createsLead() && $lead instanceof Lead) {
             $created[] = $lead;
         }
 
@@ -365,15 +398,17 @@ class SyncCrmLeadAction
             ->fromCompany($this->data->company)
             ->notDeleted()
             ->first();
-        $lead = Lead::query()
-            ->where('id', $stored['lead_id'])
-            ->fromApp($this->data->app)
-            ->fromCompany($this->data->company)
-            ->notDeleted()
-            ->first();
+        $lead = $stored['lead_id'] === null
+            ? null
+            : Lead::query()
+                ->where('id', $stored['lead_id'])
+                ->fromApp($this->data->app)
+                ->fromCompany($this->data->company)
+                ->notDeleted()
+                ->first();
 
         // Rows that are gone are not replayed; the request runs again.
-        if (! $people instanceof People || ! $lead instanceof Lead) {
+        if (! $people instanceof People || ($stored['lead_id'] !== null && ! $lead instanceof Lead)) {
             return null;
         }
 
@@ -396,7 +431,7 @@ class SyncCrmLeadAction
         return [
             'outcome' => $result->outcome->value,
             'people_id' => $result->people->getId(),
-            'lead_id' => $result->lead->getId(),
+            'lead_id' => $result->lead?->getId(),
             'people_created' => $result->peopleCreated,
             'lead_created' => $result->leadCreated,
             'warnings' => $result->warnings,

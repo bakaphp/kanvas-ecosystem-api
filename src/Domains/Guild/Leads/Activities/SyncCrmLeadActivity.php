@@ -22,6 +22,10 @@ use Override;
  *
  *   request_id   string, required. The same id sent twice gives the same result.
  *   identity     { type, client_id, lead_id }, type and client_id required. The ids are the CRM's own.
+ *                A lead is never created without lead_id: with it null the call opens the customer's
+ *                most recent active lead, and if there is none it only finds or creates the people
+ *                (outcome people_only, lead null). Participants and followers need a lead and are
+ *                reported as skipped (lead_required) then.
  *   branch_id    Kanvas branch id, optional; the caller's current branch otherwise.
  *   customer     { firstname, middlename, lastname, language, phones{cell,home,work}, emails[],
  *                  address{address,address_2,city,state,zip}, consent{text_opt_status, opt_out,
@@ -32,8 +36,8 @@ use Override;
  *
  * Every section is optional and a null means "the CRM did not give it": nothing is cleared.
  *
- * The answer is `outcome` (opened, adopted, created_lead, created_all), `people` and `lead` as
- * `{id, uuid}`, `people_created`, `lead_created`, `replayed` and `warnings[{code, field}]`. A refusal
+ * The answer is `outcome` (opened, adopted, created_lead, created_all, people_only), `people` and `lead`
+ * (null for people_only) as `{id, uuid}`, `people_created`, `lead_created`, `replayed` and `warnings[{code, field}]`. A refusal
  * is thrown with `extensions.reason` and `extensions.field`, which `runWorkflowFromEntity` passes on.
  *
  * Deliberately not wrapped in `executeIntegration`: it turns a thrown error into a status array and
@@ -75,7 +79,7 @@ class SyncCrmLeadActivity extends KanvasActivity implements WorkflowActivityInte
         return [
             'outcome' => $result->outcome->value,
             'people' => ['id' => $result->people->getId(), 'uuid' => $result->people->uuid],
-            'lead' => ['id' => $result->lead->getId(), 'uuid' => $result->lead->uuid],
+            'lead' => $result->lead === null ? null : ['id' => $result->lead->getId(), 'uuid' => $result->lead->uuid],
             'people_created' => $result->peopleCreated,
             'lead_created' => $result->leadCreated,
             'replayed' => $result->replayed,

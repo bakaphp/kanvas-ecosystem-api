@@ -16,7 +16,7 @@ final readonly class CrmLeadSyncResult
     public function __construct(
         public CrmLeadSyncOutcomeEnum $outcome,
         public People $people,
-        public Lead $lead,
+        public ?Lead $lead,
         public bool $peopleCreated,
         public bool $leadCreated,
         public bool $replayed = false,

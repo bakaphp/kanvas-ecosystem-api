@@ -107,6 +107,20 @@ final class CrmLeadSyncActivityTest extends TestCase
         $this->assertSame('identity.client_id', $response->json('errors.0.extensions.field'));
     }
 
+    public function testWithoutALeadIdTheAnswerIsThePeopleAndNoLead(): void
+    {
+        $params = $this->params();
+        $params['identity']['lead_id'] = null;
+
+        $data = $this->callActivity($params)->json('data.runWorkflowFromEntity');
+
+        $this->assertSame('people_only', $data['outcome']);
+        $this->assertNull($data['lead']);
+        $this->assertTrue($data['people_created']);
+        $this->assertFalse($data['lead_created']);
+        $this->assertNotEmpty($data['people']['uuid']);
+    }
+
     public function testAnUnknownCrmTypeIsRefused(): void
     {
         $params = $this->params();
