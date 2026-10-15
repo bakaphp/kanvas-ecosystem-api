@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Insurance;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\UniversalSeguros\Providers\UniversalSegurosProvider;
 use Kanvas\Connectors\UniversalSeguros\Services\UniversalSegurosService;
@@ -519,7 +520,7 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
         $accessory = $this->createVehicleProduct(auth()->user(), null, 'accessory');
         $lead = $this->selectedLeadWithVehicle($plan, $accessory->getId());
 
-        $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'does not belong to this account');
+        $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'no longer available');
     }
 
     public function testAVehicleOwnedByAnotherUserIsRefused(): void
@@ -539,7 +540,7 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
         $vehicle->saveQuietly();
         $lead = $this->selectedLeadWithVehicle($plan, $vehicle->getId());
 
-        $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'does not belong to this account');
+        $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'no longer available');
     }
 
     public function testADeletedVehicleIsRefused(): void
@@ -548,7 +549,22 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
         $this->vehicle()->is_deleted = 1;
         $this->vehicle()->saveQuietly();
 
-        $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'does not belong to this account');
+        $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'no longer available');
+    }
+
+    public function testAVehicleWithSeveralVariantsAlwaysUsesTheFirstOne(): void
+    {
+        $lead = $this->selectedLead($this->sellablePlan());
+        $first = $this->vehicle()->variants()->orderBy('id')->firstOrFail();
+        $extra = $first->replicate(['uuid', 'slug']);
+        $extra->sku = 'extra-' . uniqid();
+        $extra->uuid = (string) Str::uuid();
+        $extra->slug = Str::slug($extra->sku);
+        $extra->saveQuietly();
+
+        $order = $this->contractAction($lead, ['customer' => self::COMPLETE_CUSTOMER])->execute()->fresh();
+
+        $this->assertSame($first->getId(), (int) $order->items()->orderBy('id')->firstOrFail()->variant_id);
     }
 
     public function testAVehicleWithoutAVariantIsRefused(): void

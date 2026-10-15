@@ -112,14 +112,14 @@ class ReadInsuranceOrderAction
     private function itemVariantTyped(InsuranceProductTypeEnum $type): ?Variants
     {
         return $this->order->items->first(
-            fn ($item): bool => $item->variant?->product?->productsType?->slug === $type->value
+            fn ($item): bool => $type->isTypeOf($item->variant?->product)
         )?->variant;
     }
 
     private function firstNonPlanVariant(): ?Variants
     {
         return $this->order->items->first(
-            fn ($item): bool => $item->variant?->product?->productsType?->slug !== InsuranceProductTypeEnum::PLAN->value
+            fn ($item): bool => ! InsuranceProductTypeEnum::PLAN->isTypeOf($item->variant?->product)
         )?->variant;
     }
 

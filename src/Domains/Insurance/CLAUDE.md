@@ -240,7 +240,8 @@ teaching a generic Souk action about Guild leads would cross domains the wrong w
   (`InsuranceQuoteSignature`, HMAC-SHA256 over user | plan | provider | quote number | total | tax | vehicle product id, keyed with `app.key`);
   conversion refuses a lead whose signature no longer matches ("no longer valid, select again"). Even a valid lead only
   supplies *which* quote: total, tax and premium on the Order come from `provider->getQuote()` read at contract time. Rotating
-  `APP_KEY` invalidates every open lead's signature, which just means customers select again.
+  `APP_KEY` invalidates every open lead's signature, which just means customers select again. The same happens to leads
+  signed before the vehicle product id joined the signature: they have no vehicle anyway, so they must be selected again.
 - **The insurer is told before anything is charged.** Inside the conversion the customer is PUT onto the quote
   (`PushCustomerToQuoteAction`, the same code `AttachQuoteToOrderAction` uses) and the quote is re-read, **before the Order
   exists**. An insurer rejection of the customer surfaces as a `ValidationException` pre-payment and creates no Order.

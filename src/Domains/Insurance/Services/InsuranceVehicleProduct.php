@@ -12,7 +12,7 @@ class InsuranceVehicleProduct
 {
     public static function isVehicle(?Products $product): bool
     {
-        return $product?->productsType?->slug === InsuranceProductTypeEnum::VEHICLE->value;
+        return InsuranceProductTypeEnum::VEHICLE->isTypeOf($product);
     }
 
     public static function isOwnedBy(?Products $product, AppInterface $app, int $userId): bool

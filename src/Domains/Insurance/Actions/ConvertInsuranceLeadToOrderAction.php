@@ -239,14 +239,15 @@ class ConvertInsuranceLeadToOrderAction
             ->notDeleted()
             ->first();
 
-        if (
-            ! InsuranceVehicleProduct::isVehicle($product)
-            || ! InsuranceVehicleProduct::isOwnedBy($product, $this->contract->app, $this->contract->user->getId())
-        ) {
+        if (! InsuranceVehicleProduct::isVehicle($product)) {
+            throw new InsuranceValidationException('This vehicle is no longer available');
+        }
+
+        if (! InsuranceVehicleProduct::isOwnedBy($product, $this->contract->app, $this->contract->user->getId())) {
             throw new InsuranceValidationException('The vehicle does not belong to this account');
         }
 
-        return $product->variants()->notDeleted()->first()
+        return $product->variants()->notDeleted()->orderBy('id')->first()
             ?? throw new InsuranceValidationException('This vehicle is incomplete, review it and try again');
     }
 

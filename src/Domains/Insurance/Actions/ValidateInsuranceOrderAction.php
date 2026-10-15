@@ -75,7 +75,7 @@ class ValidateInsuranceOrderAction
 
     private function isTyped(OrderItem $item, InsuranceProductTypeEnum $type): bool
     {
-        return $item->variant?->product?->productsType?->slug === $type->value;
+        return $type->isTypeOf($item->variant?->product);
     }
 
     private function assertChargedAmounts(OrderItem $vehicleItem, float $planPrice): void
