@@ -709,6 +709,12 @@ unused and broken until 6A1. `GuardsRepeatCallsTest` fails if a guarded tool for
 Opt in per tool. A status poll or job check is *supposed* to return something different on the second
 identical call — guarding those would hide real progress.
 
+The same guard fits a **write whose identical repeat is a duplicate**, with `rememberFailures: false`
+so a refused attempt stays retryable: `reply_to_coding_pull_request` (one comment per PR per turn) and
+`apply_ar_payment` / `apply_ap_payment` (`AbstractApplyPaymentTool`, KANVAS-ECOSYSTEM-6P5 — ten
+payments posted in one turn before the per-name budget killed it). Pair it with `TrackByInputs` when the
+tool is also driven once per row, and keep the two apart on a shared-destination write (see the PR tool).
+
 Reference/coverage: [`HumanResourcesAgentToolsTest::testBulkCreateToolsBudgetRunsPerInputsNotPerToolName`](../../../../tests/GraphQL/HumanResources/HumanResourcesAgentToolsTest.php),
 plus the per-domain equivalents in [`AccountsReceivableAgentToolsTest`](../../../../tests/Scribe/Intelligence/AccountsReceivableAgentToolsTest.php),
 [`AccountsPayableAgentToolsTest`](../../../../tests/Scribe/Intelligence/AccountsPayableAgentToolsTest.php),
