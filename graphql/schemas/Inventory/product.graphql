@@ -313,6 +313,7 @@ extend type Query @guard {
         hasCustomFields: _
             @whereHasConditions(
                 relation: "customFields"
+                handler: "App\\GraphQL\\Ecosystem\\Handlers\\CompanyScopedCustomFieldsHandler"
                 columns: ["name", "value"]
             )
         orderBy: _
