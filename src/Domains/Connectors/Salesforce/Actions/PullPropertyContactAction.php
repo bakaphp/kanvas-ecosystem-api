@@ -76,12 +76,16 @@ class PullPropertyContactAction
 
         $companyName = trim((string) ($this->payload['Company_Name__c'] ?? ''));
         if ($companyName !== '') {
+            // runWorkflow: false — an Organization pulled FROM Salesforce must not trigger a
+            // CREATED workflow that could be wired to PushOrganizationActivity, which would push
+            // this same, minimally-populated Organization straight back as a duplicate Account.
             new CreateOrganizationAction(
                 new OrganizationData(
                     company: $this->company,
                     user: $this->company->user,
                     app: $this->app,
                     name: $companyName,
+                    runWorkflow: false,
                 ),
             )->execute();
         }
