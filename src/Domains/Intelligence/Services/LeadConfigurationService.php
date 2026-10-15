@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Services;
 
+use Baka\Contracts\CompanyInterface;
+use Carbon\Exceptions\InvalidFormatException;
+use Illuminate\Support\Carbon;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 
 class LeadConfigurationService
@@ -86,6 +90,30 @@ class LeadConfigurationService
         // Legacy defaults are optional; only an explicit false value vetoes v2.
         return ! array_key_exists($key, $config)
             || filter_var($config[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== false;
+    }
+
+    /**
+     * An unparseable value is treated as unset so a typo in the setting never silences every lead.
+     */
+    public function getFollowUpStartDate(CompanyInterface $company): ?Carbon
+    {
+        $value = $company->get(ConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value);
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value);
+        } catch (InvalidFormatException) {
+            return null;
+        }
+    }
+
+    public function isCreatedBeforeFollowUpStartDate(Lead $lead): bool
+    {
+        $startDate = $this->getFollowUpStartDate($lead->company);
+
+        return $startDate !== null && $startDate->greaterThan($lead->created_at);
     }
 
     public function getFollowUpActiveDefaultKey(Lead $lead): string
