@@ -24,6 +24,7 @@ class InsuranceQuoteRequest
         public readonly string $product,
         public readonly array $payload = [],
         public readonly ?Variants $vehicle = null,
+        public readonly bool $rebuildVehicle = false,
     ) {
     }
 }

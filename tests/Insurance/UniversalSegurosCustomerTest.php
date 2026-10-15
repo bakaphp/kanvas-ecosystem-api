@@ -6,6 +6,7 @@ namespace Tests\Insurance;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Connectors\UniversalSeguros\DataTransferObject\QuoteRequest;
 use Kanvas\Connectors\UniversalSeguros\Enums\ProductEnum;
 use Kanvas\Connectors\UniversalSeguros\Mappers\ClienteMapper;
 use Kanvas\Connectors\UniversalSeguros\Providers\UniversalSegurosProvider;
@@ -43,6 +44,18 @@ class UniversalSegurosCustomerTest extends TestCase
         'nationality' => 'Dominicana',
         'occupation' => 'Ingeniera',
         'country_of_residence' => 'Republica Dominicana',
+        'address_province' => 'Distrito Nacional',
+        'address_municipality' => 'Santo Domingo de Guzman',
+        'address_sector' => 'Naco',
+        'address_building' => 'Torre 1',
+        'address_street' => 'Calle 5',
+        'politically_exposed' => false,
+        'has_pep_relative' => false,
+    ];
+
+    private const VERIFIED_CLIENTE_KEYS = [
+        'nombre', 'apellido', 'genero', 'fechaNacimiento', 'tipoDocumento', 'numeroDocumento', 'telefono',
+        'nacionalidad', 'correo', 'estadoCivil', 'ocupacion', 'imagenPasaporteUrl', 'direccion', 'debidaDiligencia',
     ];
 
     private function provider(MockInterface $service): UniversalSegurosProvider
@@ -59,7 +72,53 @@ class UniversalSegurosCustomerTest extends TestCase
         $required = ClienteMapper::requiredFields();
 
         $this->assertContainsOnlyInstancesOf(InsuranceCustomerFieldEnum::class, $required);
-        $this->assertCount(count(InsuranceCustomerFieldEnum::cases()), $required);
+        $this->assertNotContains(InsuranceCustomerFieldEnum::NATIONALITY, $required);
+        $this->assertContains(InsuranceCustomerFieldEnum::ADDRESS_PROVINCE, $required);
+        $this->assertContains(InsuranceCustomerFieldEnum::POLITICALLY_EXPOSED, $required);
+    }
+
+    public function testTheClienteHasExactlyTheKeysOfTheVerifiedPostmanPayload(): void
+    {
+        $cliente = ClienteMapper::map(InsuranceCustomer::fromArray(self::CUSTOMER));
+
+        $this->assertSame(self::VERIFIED_CLIENTE_KEYS, array_keys($cliente));
+        $this->assertSame(['provincia', 'municipio', 'sector', 'edificio', 'calle'], array_keys($cliente['direccion']));
+        $this->assertSame(
+            ['politicamenteExpuesto', 'poseeUnFamiliarPep', 'cargo', 'nombreFamiliar', 'parentescoFamiliar', 'cargoFamiliar'],
+            array_keys($cliente['debidaDiligencia'])
+        );
+        $this->assertFalse($cliente['debidaDiligencia']['politicamenteExpuesto']);
+        $this->assertNull($cliente['imagenPasaporteUrl']);
+    }
+
+    public function testTheWireBodyCarriesTheVerifiedKeysAndNoLegacyExtras(): void
+    {
+        $cliente = QuoteRequest::make(
+            ProductEnum::PARA_TU_AUTO,
+            ['cliente' => ClienteMapper::map(InsuranceCustomer::fromArray(self::CUSTOMER))]
+        )->toArray()['data']['cliente'];
+
+        $this->assertArrayNotHasKey('paisResidencia', $cliente);
+        $this->assertArrayNotHasKey('requiereComprobanteFiscal', $cliente);
+        $this->assertArrayNotHasKey('imagenPasaporteUrl', $cliente);
+        $this->assertSame('Naco', $cliente['direccion']['sector']);
+        $this->assertFalse($cliente['debidaDiligencia']['politicamenteExpuesto']);
+    }
+
+    public function testAnEmptyNationalityIsAcceptedAndSentEmpty(): void
+    {
+        $customer = InsuranceCustomer::fromArray(array_diff_key(self::CUSTOMER, ['nationality' => 1]));
+
+        $this->assertSame('', ClienteMapper::map($customer)['nacionalidad']);
+        $this->assertSame([], $customer->missing(ClienteMapper::requiredFields()));
+    }
+
+    public function testBooleanFieldsKeepAnExplicitFalse(): void
+    {
+        $customer = InsuranceCustomer::fromArray(['politically_exposed' => false, 'has_pep_relative' => 'true']);
+
+        $this->assertSame('false', $customer->get(InsuranceCustomerFieldEnum::POLITICALLY_EXPOSED));
+        $this->assertTrue($customer->isTrue(InsuranceCustomerFieldEnum::HAS_PEP_RELATIVE));
     }
 
     public function testMapsTheCanonicalCustomerToUniversalsClienteBlock(): void
@@ -70,10 +129,29 @@ class UniversalSegurosCustomerTest extends TestCase
         $this->assertSame('Perez', $cliente['apellido']);
         $this->assertSame('F', $cliente['genero']);
         $this->assertSame('C', $cliente['estadoCivil']);
-        $this->assertSame('1990-05-17', $cliente['fechaNacimiento']);
+        $this->assertSame('1990-05-17T00:00:00.000Z', $cliente['fechaNacimiento']);
         $this->assertSame('8095550100', $cliente['telefono']);
         $this->assertSame('00100000001', $cliente['numeroDocumento']);
         $this->assertSame('ana@example.com', $cliente['correo']);
+    }
+
+    public function testAPoliticallyExposedCustomerMustGiveTheirJobTitle(): void
+    {
+        $exposed = InsuranceCustomer::fromArray(['politically_exposed' => true] + self::CUSTOMER);
+
+        $this->assertContains(InsuranceCustomerFieldEnum::JOB_TITLE, ClienteMapper::requiredFields($exposed));
+
+        try {
+            $exposed->assertHas(ClienteMapper::requiredFields($exposed));
+            $this->fail('expected the job title to be required');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('job title', $e->getMessage());
+        }
+
+        $this->assertNotContains(
+            InsuranceCustomerFieldEnum::JOB_TITLE,
+            ClienteMapper::requiredFields(InsuranceCustomer::fromArray(self::CUSTOMER))
+        );
     }
 
     public function testAnUnspecifiedSexCannotBeSentToUniversal(): void

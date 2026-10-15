@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\GraphQL\Insurance\Queries;
 
 use App\GraphQL\Concerns\ResolvesActingContext;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use InvalidArgumentException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Contracts\CatalogProviderInterface;
@@ -13,7 +15,9 @@ use Kanvas\Insurance\DataTransferObject\CanonicalQuoteInput;
 use Kanvas\Insurance\DataTransferObject\InsuranceQuoteRequest;
 use Kanvas\Insurance\DataTransferObject\InsuranceSearchEntry;
 use Kanvas\Insurance\DataTransferObject\InsuranceSearchFailure;
+use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
+use Kanvas\Insurance\Services\InsurancePlanProductResolver;
 use Kanvas\Insurance\Services\InsuranceQuoteBinding;
 use Kanvas\Insurance\Services\InsuranceSearchService;
 
@@ -83,9 +87,15 @@ class InsuranceQuery
             );
         }
 
+        $variantIds = $this->planVariantIds($ctx->app, $ctx->company, $result->entries);
+
         return [
             'entries' => array_map(
-                fn (InsuranceSearchEntry $entry, int $index): array => $this->presentEntry($entry, $index + 1),
+                fn (InsuranceSearchEntry $entry, int $index): array => $this->presentEntry(
+                    $entry,
+                    $index + 1,
+                    $variantIds[$entry->planId] ?? null
+                ),
                 $result->entries,
                 array_keys($result->entries)
             ),
@@ -93,7 +103,24 @@ class InsuranceQuery
         ];
     }
 
-    protected function presentEntry(InsuranceSearchEntry $entry, int $rank): array
+    protected function planVariantIds(AppInterface $app, CompanyInterface $company, array $entries): array
+    {
+        $plans = InsurancePlan::query()
+            ->with('insurer')
+            ->whereIn('id', array_map(fn (InsuranceSearchEntry $entry): int => $entry->planId, $entries))
+            ->get();
+
+        $resolver = new InsurancePlanProductResolver($app, InsuranceProviderFactory::credentialCompany($app, $company));
+        $variantIds = [];
+
+        foreach ($plans as $plan) {
+            $variantIds[$plan->getId()] = $resolver->variantFor($plan)?->getId();
+        }
+
+        return $variantIds;
+    }
+
+    protected function presentEntry(InsuranceSearchEntry $entry, int $rank, ?int $variantId): array
     {
         $quote = $entry->quote;
 
@@ -107,6 +134,7 @@ class InsuranceQuery
                 'type' => $entry->category->value,
                 'deductible' => $entry->deductible,
                 'validity_days' => $entry->validityDays,
+                'variant_id' => $variantId,
             ],
             'quote_number' => $quote->quoteNumber,
             'price' => $entry->price(),

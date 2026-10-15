@@ -6,7 +6,13 @@ namespace Tests\Insurance;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\UniversalSeguros\Providers\UniversalSegurosProvider;
+use Kanvas\Connectors\UniversalSeguros\Services\UniversalSegurosService;
+use Kanvas\Insurance\Actions\SyncInsuranceProductsAction;
+use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Services\InsuranceQuoteBinding;
+use Kanvas\Inventory\Products\Models\Products;
+use Mockery;
 use RuntimeException;
 use Tests\Insurance\Concerns\BuildsSearchCatalog;
 use Tests\TestCase;
@@ -16,7 +22,7 @@ class InsuranceSearchGraphQLTest extends TestCase
     use DatabaseTransactions;
     use BuildsSearchCatalog;
 
-    protected $connectionsToTransact = [null, 'commerce'];
+    protected $connectionsToTransact = [null, 'commerce', 'inventory'];
 
     private const SEARCH = '
         query($input: CanonicalQuoteInput!) {
@@ -24,7 +30,7 @@ class InsuranceSearchGraphQLTest extends TestCase
                 entries {
                     rank
                     insurer { name }
-                    plan { id name type }
+                    plan { id name type variant_id }
                     quote_number
                     price
                     can_emit
@@ -84,11 +90,39 @@ class InsuranceSearchGraphQLTest extends TestCase
             (string) InsuranceQuoteBinding::planIdFor(app(Apps::class)->getId(), $user->getId(), 'Q-PROMO')
         );
         $this->assertTrue($data['entries'][0]['can_emit']);
+        $this->assertNull($data['entries'][0]['plan']['variant_id']);
         $this->assertSame('Cheap', $data['entries'][1]['plan']['name']);
         $this->assertSame(2, $data['entries'][1]['rank']);
 
         $this->assertCount(1, $data['failures']);
         $this->assertSame('UNAVAILABLE', $data['failures'][0]['reason']);
+    }
+
+    public function testASeededPlanExposesTheVariantThatSellsIt(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $this->pinPlatformCompany($company->getId());
+        $app = app(Apps::class);
+
+        new SyncInsuranceProductsAction(
+            new UniversalSegurosProvider($app, $company, Mockery::mock(UniversalSegurosService::class)),
+            $app,
+            $company
+        )->execute();
+        $company->set(InsuranceCustomFieldEnum::INSURER_COMPANY_ID->value, $company->getId());
+
+        $this->bindFakeProvider(UniversalSegurosProvider::NAME, fn (string $code) => $this->quoteResult('Q-' . $code));
+        $insurer = $this->seedInsurer($company, UniversalSegurosProvider::NAME);
+        $this->seedPlan($insurer, 'A-PA', ['name' => 'Para Tu Auto']);
+        $this->seedPlan($insurer, 'NOT-SEEDED', ['name' => 'Unseeded']);
+
+        $data = $this->graphQL(self::SEARCH, $this->variables())->assertSuccessful()->json('data.insuranceSearch');
+
+        $byName = array_column(array_column($data['entries'], 'plan'), null, 'name');
+        $expected = Products::query()->where('slug', 'universal_seguros-a-pa')->where('companies_id', $company->getId())->firstOrFail()->variants()->firstOrFail()->getId();
+        $this->assertSame((string) $expected, $byName['Para Tu Auto']['variant_id']);
+        $this->assertNull($byName['Unseeded']['variant_id']);
     }
 
     public function testCommissionAndScoreAreNotPartOfTheCustomerSchema(): void

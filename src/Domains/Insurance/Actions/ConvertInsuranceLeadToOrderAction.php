@@ -26,9 +26,8 @@ use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceCommissionCalculator;
 use Kanvas\Insurance\Services\InsuranceOrderPipeline;
-use Kanvas\Insurance\Services\InsuranceProductSlug;
+use Kanvas\Insurance\Services\InsurancePlanProductResolver;
 use Kanvas\Insurance\Services\InsuranceQuoteSignature;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Regions\Services\RegionResolutionService;
@@ -184,16 +183,7 @@ class ConvertInsuranceLeadToOrderAction
             return $customer;
         }
 
-        $missing = $customer->missing($provider->requiredCustomerFields());
-
-        if ($missing !== []) {
-            throw new ValidationException(
-                'We need more information to issue this policy: ' . implode(
-                    ', ',
-                    array_map(fn (InsuranceCustomerFieldEnum $field): string => $field->label(), $missing)
-                )
-            );
-        }
+        $customer->assertHas($provider->requiredCustomerFields($customer));
 
         return $customer;
     }
@@ -215,9 +205,10 @@ class ConvertInsuranceLeadToOrderAction
         InsuranceProviderInterface $provider,
         InsuranceCustomer $customer
     ): QuoteResult {
-        $quote = new PushCustomerToQuoteAction(
+        return new ConfirmQuoteWithInsurerAction(
             $provider,
             (string) $this->quoteNumberOf($lead),
+            (string) $plan->external_code,
             $provider instanceof CustomerDataProviderInterface
                 ? new InsuranceQuoteRequest(
                     product: (string) $plan->external_code,
@@ -225,35 +216,11 @@ class ConvertInsuranceLeadToOrderAction
                 )
                 : null
         )->execute();
-
-        if (! $quote->success) {
-            throw new ValidationException('The quote is no longer valid');
-        }
-
-        if ($quote->productCode !== null && $quote->productCode !== $plan->external_code) {
-            throw new ValidationException('This quote was issued for a different plan');
-        }
-
-        if (($quote->total ?? 0) <= 0) {
-            throw new ValidationException('This quote carries no price');
-        }
-
-        return $quote;
     }
 
     private function variantFor(InsurancePlan $plan): Variants
     {
-        $insurerCompanyId = (int) $this->credentialCompany()->get(InsuranceCustomFieldEnum::INSURER_COMPANY_ID->value);
-
-        $product = Products::query()
-            ->where('apps_id', $this->contract->app->getId())
-            ->where('slug', InsuranceProductSlug::for($plan->insurer->provider, (string) $plan->external_code))
-            ->where('is_published', 1)
-            ->notDeleted()
-            ->orderByRaw('companies_id = ? desc', [$insurerCompanyId])
-            ->first();
-
-        $variant = $product?->variants()->notDeleted()->first();
+        $variant = new InsurancePlanProductResolver($this->contract->app, $this->credentialCompany())->variantFor($plan);
 
         return $variant ?? throw new ValidationException('This plan is not available for purchase right now');
     }

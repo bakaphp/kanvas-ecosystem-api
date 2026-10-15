@@ -6,12 +6,11 @@ namespace Kanvas\Insurance\Actions;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Insurance\DataTransferObject\CanonicalVehicle;
+use Kanvas\Insurance\Enums\InsuranceProductTypeEnum;
 use Kanvas\Inventory\Products\Models\Products;
 
 class ListCanonicalVehiclesAction
 {
-    private const VEHICLE_PRODUCT_TYPE = 'vehicle';
-
     public function __construct(
         protected AppInterface $app,
     ) {
@@ -26,7 +25,7 @@ class ListCanonicalVehiclesAction
             ->notDeleted()
             ->whereHas(
                 'productsType',
-                fn ($type) => $type->where('slug', self::VEHICLE_PRODUCT_TYPE)
+                fn ($type) => $type->where('slug', InsuranceProductTypeEnum::VEHICLE->value)
             );
 
         foreach ($query->cursor() as $product) {

@@ -77,6 +77,13 @@ class InsuranceFlowSimulationTest extends TestCase
         'nationality' => 'Dominicana',
         'occupation' => 'Ingeniera',
         'country_of_residence' => 'Republica Dominicana',
+        'address_province' => 'Distrito Nacional',
+        'address_municipality' => 'Santo Domingo de Guzman',
+        'address_sector' => 'Naco',
+        'address_building' => 'Torre 1',
+        'address_street' => 'Calle 5',
+        'politically_exposed' => false,
+        'has_pep_relative' => false,
     ];
 
     private Apps $kanvasApp;

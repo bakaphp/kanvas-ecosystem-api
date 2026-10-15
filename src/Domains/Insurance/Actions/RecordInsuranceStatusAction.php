@@ -26,7 +26,7 @@ class RecordInsuranceStatusAction
     {
         $this->order->set(InsuranceCustomFieldEnum::STATUS->value, $this->status->value);
 
-        if (! $this->isInsuranceTyped()) {
+        if (! InsuranceOrderTypeEnum::INSURANCE->isTypeOf($this->order)) {
             return;
         }
 
@@ -37,12 +37,6 @@ class RecordInsuranceStatusAction
         } finally {
             $this->order->unsetRelation('orderStatus');
         }
-    }
-
-    private function isInsuranceTyped(): bool
-    {
-        return $this->order->order_types_id !== null
-            && $this->order->orderType?->name === InsuranceOrderTypeEnum::INSURANCE->value;
     }
 
     private function mirror(): void

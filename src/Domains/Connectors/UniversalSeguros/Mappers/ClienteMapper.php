@@ -13,9 +13,9 @@ use Kanvas\Insurance\Enums\SexEnum;
 
 class ClienteMapper
 {
-    public static function requiredFields(): array
+    public static function requiredFields(?InsuranceCustomer $customer = null): array
     {
-        return [
+        $required = [
             InsuranceCustomerFieldEnum::FIRST_NAME,
             InsuranceCustomerFieldEnum::LAST_NAME,
             InsuranceCustomerFieldEnum::EMAIL,
@@ -25,10 +25,19 @@ class ClienteMapper
             InsuranceCustomerFieldEnum::MARITAL_STATUS,
             InsuranceCustomerFieldEnum::DOCUMENT_TYPE,
             InsuranceCustomerFieldEnum::DOCUMENT_NUMBER,
-            InsuranceCustomerFieldEnum::NATIONALITY,
             InsuranceCustomerFieldEnum::OCCUPATION,
-            InsuranceCustomerFieldEnum::COUNTRY_OF_RESIDENCE,
+            InsuranceCustomerFieldEnum::ADDRESS_PROVINCE,
+            InsuranceCustomerFieldEnum::ADDRESS_MUNICIPALITY,
+            InsuranceCustomerFieldEnum::ADDRESS_SECTOR,
+            InsuranceCustomerFieldEnum::ADDRESS_STREET,
+            InsuranceCustomerFieldEnum::POLITICALLY_EXPOSED,
         ];
+
+        if ($customer?->isTrue(InsuranceCustomerFieldEnum::POLITICALLY_EXPOSED)) {
+            $required[] = InsuranceCustomerFieldEnum::JOB_TITLE;
+        }
+
+        return $required;
     }
 
     public static function map(InsuranceCustomer $customer): array
@@ -37,16 +46,46 @@ class ClienteMapper
             'nombre' => $customer->get(InsuranceCustomerFieldEnum::FIRST_NAME),
             'apellido' => $customer->get(InsuranceCustomerFieldEnum::LAST_NAME),
             'genero' => self::gender($customer),
-            'fechaNacimiento' => $customer->get(InsuranceCustomerFieldEnum::BIRTH_DATE),
+            'fechaNacimiento' => self::birthDate($customer),
             'tipoDocumento' => self::documentType($customer),
             'numeroDocumento' => $customer->get(InsuranceCustomerFieldEnum::DOCUMENT_NUMBER),
             'telefono' => preg_replace('/\D/', '', (string) $customer->get(InsuranceCustomerFieldEnum::PHONE)),
-            'nacionalidad' => $customer->get(InsuranceCustomerFieldEnum::NATIONALITY),
+            'nacionalidad' => $customer->get(InsuranceCustomerFieldEnum::NATIONALITY) ?? '',
             'correo' => $customer->get(InsuranceCustomerFieldEnum::EMAIL),
             'estadoCivil' => self::maritalStatus($customer),
             'ocupacion' => $customer->get(InsuranceCustomerFieldEnum::OCCUPATION),
-            'paisResidencia' => $customer->get(InsuranceCustomerFieldEnum::COUNTRY_OF_RESIDENCE),
+            'imagenPasaporteUrl' => null,
+            'direccion' => self::address($customer),
+            'debidaDiligencia' => self::dueDiligence($customer),
         ];
+    }
+
+    private static function address(InsuranceCustomer $customer): array
+    {
+        return [
+            'provincia' => $customer->get(InsuranceCustomerFieldEnum::ADDRESS_PROVINCE),
+            'municipio' => $customer->get(InsuranceCustomerFieldEnum::ADDRESS_MUNICIPALITY),
+            'sector' => $customer->get(InsuranceCustomerFieldEnum::ADDRESS_SECTOR),
+            'edificio' => $customer->get(InsuranceCustomerFieldEnum::ADDRESS_BUILDING) ?? '',
+            'calle' => $customer->get(InsuranceCustomerFieldEnum::ADDRESS_STREET),
+        ];
+    }
+
+    private static function dueDiligence(InsuranceCustomer $customer): array
+    {
+        return [
+            'politicamenteExpuesto' => $customer->isTrue(InsuranceCustomerFieldEnum::POLITICALLY_EXPOSED),
+            'poseeUnFamiliarPep' => $customer->isTrue(InsuranceCustomerFieldEnum::HAS_PEP_RELATIVE),
+            'cargo' => $customer->get(InsuranceCustomerFieldEnum::JOB_TITLE) ?? '',
+            'nombreFamiliar' => $customer->get(InsuranceCustomerFieldEnum::PEP_RELATIVE_NAME) ?? '',
+            'parentescoFamiliar' => $customer->get(InsuranceCustomerFieldEnum::PEP_RELATIVE_RELATIONSHIP) ?? '',
+            'cargoFamiliar' => $customer->get(InsuranceCustomerFieldEnum::PEP_RELATIVE_JOB_TITLE) ?? '',
+        ];
+    }
+
+    private static function birthDate(InsuranceCustomer $customer): string
+    {
+        return $customer->get(InsuranceCustomerFieldEnum::BIRTH_DATE) . 'T00:00:00.000Z';
     }
 
     private static function gender(InsuranceCustomer $customer): string

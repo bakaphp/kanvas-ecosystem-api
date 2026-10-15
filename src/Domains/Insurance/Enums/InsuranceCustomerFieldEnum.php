@@ -18,6 +18,17 @@ enum InsuranceCustomerFieldEnum: string
     case NATIONALITY = 'nationality';
     case OCCUPATION = 'occupation';
     case COUNTRY_OF_RESIDENCE = 'country_of_residence';
+    case ADDRESS_PROVINCE = 'address_province';
+    case ADDRESS_MUNICIPALITY = 'address_municipality';
+    case ADDRESS_SECTOR = 'address_sector';
+    case ADDRESS_BUILDING = 'address_building';
+    case ADDRESS_STREET = 'address_street';
+    case POLITICALLY_EXPOSED = 'politically_exposed';
+    case HAS_PEP_RELATIVE = 'has_pep_relative';
+    case JOB_TITLE = 'job_title';
+    case PEP_RELATIVE_NAME = 'pep_relative_name';
+    case PEP_RELATIVE_RELATIONSHIP = 'pep_relative_relationship';
+    case PEP_RELATIVE_JOB_TITLE = 'pep_relative_job_title';
 
     public function customFieldKey(): string
     {
@@ -27,5 +38,10 @@ enum InsuranceCustomerFieldEnum: string
     public function label(): string
     {
         return str_replace('_', ' ', $this->value);
+    }
+
+    public function isBoolean(): bool
+    {
+        return in_array($this, [self::POLITICALLY_EXPOSED, self::HAS_PEP_RELATIVE], true);
     }
 }

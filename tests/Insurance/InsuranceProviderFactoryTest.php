@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Insurance;
 
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\Eloquent\Collection;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\UniversalSeguros\Providers\UniversalSegurosProvider;
@@ -35,10 +36,10 @@ class InsuranceProviderFactoryTest extends TestCase
 
     public function testAnOrderThatWasNeverQuotedHasNoProviderToResolve(): void
     {
-        $order = Mockery::mock(Order::class);
-        $order->shouldReceive('get')
-            ->with(InsuranceCustomFieldEnum::PROVIDER->value)
-            ->andReturn(null);
+        $order = Mockery::mock(Order::class)->makePartial();
+        $order->metadata = [];
+        $order->setRelation('items', new Collection());
+        $order->shouldReceive('get')->andReturn(null);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('quote it first');

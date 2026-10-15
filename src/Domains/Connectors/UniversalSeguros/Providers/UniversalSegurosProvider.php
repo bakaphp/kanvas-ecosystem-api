@@ -46,8 +46,10 @@ use Kanvas\Insurance\DataTransferObject\VehicleInsuranceProfile;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceDocumentTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
+use Kanvas\Insurance\Exceptions\InsuranceValidationException;
 use Kanvas\Insurance\Services\CatalogCache;
 use Kanvas\Insurance\Services\InsuranceVehicleModelResolver;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 
@@ -131,13 +133,29 @@ class UniversalSegurosProvider implements
         ProductEnum $product,
         ?string $vehicleModelId
     ): array {
-        $profile = $input->profile;
-        $missing = array_keys(array_filter([
+        return $this->vehiculoFor($input->vehicle, $input->profile, $product, $vehicleModelId);
+    }
+
+    protected function missingVehicleFields(
+        CanonicalVehicle $vehicle,
+        VehicleInsuranceProfile $profile,
+        ?string $vehicleModelId
+    ): array {
+        return array_keys(array_filter([
             'vehicle model' => ! is_numeric($vehicleModelId),
-            'year' => $input->vehicle->year === null,
+            'year' => $vehicle->year === null,
             'fuel_type' => $profile->fuelType === null,
             'estimated_value' => $profile->estimatedValue === null,
         ]));
+    }
+
+    protected function vehiculoFor(
+        CanonicalVehicle $vehicle,
+        VehicleInsuranceProfile $profile,
+        ProductEnum $product,
+        ?string $vehicleModelId
+    ): array {
+        $missing = $this->missingVehicleFields($vehicle, $profile, $vehicleModelId);
 
         if ($missing !== []) {
             throw new ValidationException('Universal Seguros quote needs: ' . implode(', ', $missing));
@@ -147,7 +165,7 @@ class UniversalSegurosProvider implements
 
         return array_filter([
             'idModelo' => (int) $vehicleModelId,
-            'anio' => $input->vehicle->year,
+            'anio' => $vehicle->year,
             'esCeroKm' => $profile->isZeroKm ?? false,
             'combustible' => $profile->fuelType?->universalValue(),
             'cumpleRequisitos' => true,
@@ -166,14 +184,14 @@ class UniversalSegurosProvider implements
         return $this->toQuoteResult(
             $this->service->updateQuote(
                 $quoteNumber,
-                QuoteRequest::make($product, $this->payloadForUpdate($quoteNumber, $request))
+                QuoteRequest::make($product, $this->payloadForUpdate($quoteNumber, $request, $product))
             )
         );
     }
 
-    public function requiredCustomerFields(): array
+    public function requiredCustomerFields(?InsuranceCustomer $customer = null): array
     {
-        return ClienteMapper::requiredFields();
+        return ClienteMapper::requiredFields($customer);
     }
 
     public function customerBlock(InsuranceCustomer $customer): array
@@ -347,9 +365,14 @@ class UniversalSegurosProvider implements
         return $entries;
     }
 
-    protected function payloadForUpdate(string $quoteNumber, InsuranceQuoteRequest $request): array
+    protected function payloadForUpdate(string $quoteNumber, InsuranceQuoteRequest $request, ProductEnum $product): array
     {
         $payload = $this->payloadWithVehicle($request);
+        $vehicleProduct = $request->vehicle?->product;
+
+        if (! isset($payload['vehiculo']) && $request->rebuildVehicle && $vehicleProduct !== null) {
+            $payload['vehiculo'] = $this->vehiculoFromProduct($vehicleProduct, $product);
+        }
 
         if (! isset($payload['vehiculo'])) {
             $current = $this->service->getQuote($quoteNumber);
@@ -369,6 +392,23 @@ class UniversalSegurosProvider implements
         );
 
         return $payload;
+    }
+
+    protected function vehiculoFromProduct(Products $vehicleProduct, ProductEnum $product): array
+    {
+        $canonical = CanonicalVehicle::fromProduct($vehicleProduct);
+        $modelId = new InsuranceVehicleModelResolver()->resolve($this->app, self::NAME, $canonical);
+
+        $profile = VehicleInsuranceProfile::fromProduct($vehicleProduct);
+        $missing = $this->missingVehicleFields($canonical, $profile, $modelId);
+
+        if ($missing !== []) {
+            throw new InsuranceValidationException(
+                'We need more information about the vehicle: ' . str_replace('_', ' ', implode(', ', $missing))
+            );
+        }
+
+        return $this->vehiculoFor($canonical, $profile, $product, $modelId);
     }
 
     protected function payloadWithVehicle(InsuranceQuoteRequest $request): array

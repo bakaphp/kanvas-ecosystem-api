@@ -12,31 +12,29 @@ class AttachQuoteToOrderAction
 {
     public function __construct(
         protected Order $order,
-        protected string $providerName,
-        protected string $quoteNumber,
     ) {
     }
 
     public function execute(): QuoteResult
     {
+        $data = new ReadInsuranceOrderAction($this->order)->execute();
+
         $provider = InsuranceProviderFactory::make(
-            $this->providerName,
+            (string) $data->provider,
             $this->order->app,
             $this->order->company
         );
 
         $quote = new PushCustomerToQuoteAction(
             $provider,
-            $this->quoteNumber,
-            empty($this->order->metadata['insurance']['cliente'])
-                ? null
-                : new BuildQuoteRequestFromOrderAction($this->order)->execute()
+            (string) $data->quoteNumber,
+            $data->hasCustomerData() ? $data->quoteRequest($provider) : null
         )->execute();
 
         new StampInsuranceQuoteAction(
             order: $this->order,
             providerName: $provider->name(),
-            productCode: (string) ($this->order->metadata['insurance']['product'] ?? ''),
+            productCode: (string) $data->productCode,
             quote: $quote,
             commission: $quote->commission,
         )->execute();

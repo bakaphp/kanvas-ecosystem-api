@@ -97,6 +97,7 @@ type InsuranceSearchPlan {
     type: InsuranceCoverageCategory!
     deductible: Float
     validity_days: Int
+    variant_id: ID
 }
 
 type InsuranceSearchEntry {
@@ -144,6 +145,17 @@ input InsuranceCustomerInput {
     nationality: String
     occupation: String
     country_of_residence: String
+    address_province: String
+    address_municipality: String
+    address_sector: String
+    address_building: String
+    address_street: String
+    politically_exposed: Boolean
+    has_pep_relative: Boolean
+    job_title: String
+    pep_relative_name: String
+    pep_relative_relationship: String
+    pep_relative_job_title: String
 }
 
 input ContractInsurancePlanInput {

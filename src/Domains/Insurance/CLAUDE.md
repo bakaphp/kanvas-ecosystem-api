@@ -84,8 +84,9 @@ Setup stays on the generic `integrationCompany` mutation.
 
 ## Everything past "I'll take this one"
 
-The Order is created carrying `metadata.insurance.{provider, quote_number}`. From
-there:
+The Order is created either by the cart (`createOrderFromCart`, new shape, see "Order shape and the cart
+path") or by `contractInsurancePlan`/legacy FE orders carrying `metadata.insurance.{provider, quote_number}`.
+Whatever the origin, everything reads the order through `ReadInsuranceOrderAction`. From there:
 
 | Step | Runs as | Trigger |
 |---|---|---|
@@ -282,6 +283,68 @@ card velocity protection.
   (`max_cards_daily`, `ban_cards_daily`, `corporate_*`). It is off until configured; nothing is set in code.
 - **Legacy orders** created before the type existed (or by the FE with `metadata.insurance`) stay typeless and keep working;
   the mirror is a no-op for them.
+
+## Order shape and the cart path
+
+An insurance order (`order_type = insurance`) has two items, like the other verticals: the **vehicle** (a Kanvas
+product typed `vehicle`, price 0, owned by the buyer through `products.users_id`) and the **plan** (the seeded product
+`{provider}-{code}`, type `insurance-plan`, price = insurer total). Data with no home in items or order fields lives in
+`metadata.data.*`, flat, with no `insurance` key:
+
+```json
+{ "data": { "quote_number": "355898", "customer": { "first_name": "Ana", "last_name": "Perez", "email": "...", "phone": "...",
+  "birth_date": "1990-05-17", "sex": "female", "marital_status": "single", "document_type": "national_id",
+  "document_number": "001...", "nationality": "...", "occupation": "...", "address_province": "...",
+  "address_municipality": "...", "address_sector": "...", "address_building": "...", "address_street": "...",
+  "politically_exposed": false, "has_pep_relative": false } } }
+```
+
+Lifecycle stays in the `insurance_*` custom fields. The FE sends `createOrderFromCart` with `order_type: "insurance"`,
+`items: [{variant_id: <vehicle variant>, quantity: 1, price: 0}, {variant_id: <plan variant>, quantity: 1, price: <quote total>}]`
+and `metadata.data.{quote_number, customer}`. `insuranceSearch` exposes `plan.variant_id` (the seeded product's variant, null
+when the plan is not seeded/published) so the FE can build the plan line. Souk knows nothing about insurance.
+
+- **The reader.** `ReadInsuranceOrderAction` returns an `InsuranceOrderData` (provider, product code, quote number, vehicle
+  variant, plan variant, customer snapshot, legacy payload/cliente). Provider and product come from the plan item
+  (`InsurancePlanProductResolver::identify`: the `insurance_provider`/`insurance_product_code` attributes stamped on the seeded
+  product, falling back to matching `InsuranceProductSlug` against the local plans), then the `insurance_*` custom fields.
+  A legacy order (`metadata.insurance` present) keeps reading that blob first and ignores `metadata.data`. The insurer-shaped
+  request is rebuilt by `InsuranceOrderData::quoteRequest($provider)` (`provider->customerBlock(customer)`; the Universal
+  adapter rebuilds `vehiculo` from the vehicle product only for the new shape (`InsuranceQuoteRequest::rebuildVehicle`); incomplete vehicle data (model id, year, fuel type, estimated value) is refused with a customer-safe reason about the vehicle. Legacy orders keep echoing the vehicle stored in the insurer's quote).
+  `InsuranceProviderFactory::forOrder` prefers the stamped provider field, then the reader. Nothing else reads `metadata.insurance`.
+- **Validation at creation = `AttachInsuranceQuoteActivity`.** Orders are generic, so there is no creation hook: the order is
+  committed and the existing rule `Order created -> AttachInsuranceQuoteActivity` is the validate-and-attach step
+  (`ValidateInsuranceOrderAction`). For a typed, non-legacy order it checks exactly one vehicle item (typed `vehicle`, owned by the
+  order's user) and one plan item (resolving to an active plan of an active insurer, priced at the insurer total), no other items,
+  quantity 1, the amounts that will be charged (the vehicle line priced 0, the order total equal to the plan price, no tax, shipping or
+  discount; the payment is held for the order total while Report sends the insurer's total), `metadata.data.quote_number` bound to that
+  user **and** plan by `InsuranceQuoteBinding` (an expired binding gets its own reason), the quote not already carried by another order
+  with an insurance status other than failed/cancelled, and a customer complete for the insurer (canonical names only; `job_title` too
+  when `politically_exposed`). Then it pushes the customer
+  to the quote, re-reads it and compares the plan price (`ConfirmQuoteWithInsurerAction`, shared with `contractInsurancePlan`), and
+  stamps QUOTED (`StampInsuranceQuoteAction` + `RecordInsuranceStatusAction`), plan id and the normalized `metadata.data` snapshot.
+- **A failed validation cannot reject a committed order.** The activity sets `insurance_failure_reason` (customer-safe, canonical
+  field names, never insurer text; the insurer's own text only goes in the workflow message), records `FAILED` (the order moves to
+  the final `failed` status), releases any held payment and returns `failWorkflow`. Expected validation failures never throw or report. An unexpected throwable
+  (provider or transport fault, anything raised before or inside `executeIntegration`) is caught, reported, recorded as `FAILED` with the
+  generic unavailable reason and returned as `failWorkflow`; it is not rethrown (the order is already committed) and it does not void a
+  hold by itself: a later Report on the unstamped order does, per the rules above. The FE reads
+  `insurance_failure_reason` after the mutation returns. If a failed order still gets a held payment, `ReportInsurancePaymentActivity`
+  finds no stamped quote number and voids the hold; nothing is captured.
+- **The rule must be `is_async = false`.** For the cart path, `Order created -> AttachInsuranceQuoteActivity` has to be configured per
+  environment and app with `is_async = false` (`ProcessWorkflowEventAction` runs a non-async rule inline through `SyncWorkflowStub`
+  inside the request, after commit). The insurer calls take about 9 s each (PUT + re-read), so the creation request waits for them.
+  If the rule is async the order is created unvalidated and stamped later; if it is missing the order stays unvalidated with no
+  quote number, and a held payment is voided by Report. Neither charges the customer for a policy that was not validated.
+- **Legacy and other types are untouched.** Orders without the `insurance` type, and orders carrying `metadata.insurance`, take the
+  old Attach path (provider/quote from the blob, `executeIntegration`, exceptions propagate as before). Typeless orders without the
+  blob are skipped. Customer fields beyond the legacy ones (address, due diligence) are required only on the new shape and on the
+  `contractInsurancePlan` path, never for legacy orders.
+- **Customer fields.** Added canonical `address_province/municipality/sector/building/street`, `politically_exposed`,
+  `has_pep_relative`, `job_title`, `pep_relative_name/relationship/job_title`, all optional in GraphQL. Universal requires the address
+  (building optional) and `politically_exposed`; nationality and country of residence are no longer required.
+- **Not done yet (path A).** `contractInsurancePlan` still writes `metadata.insurance` and a single plan item; it will reuse the
+  reader, `InsuranceOrderMetadata::apply` and `ConfirmQuoteWithInsurerAction` to produce the two-item shape.
 
 ## Open items
 

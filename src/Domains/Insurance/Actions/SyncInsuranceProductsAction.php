@@ -13,6 +13,7 @@ use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\Contracts\ProductCatalogProviderInterface;
 use Kanvas\Insurance\DataTransferObject\InsuranceProduct;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceProductTypeEnum;
 use Kanvas\Insurance\Services\InsuranceProductSlug;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
@@ -21,7 +22,7 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 
 class SyncInsuranceProductsAction
 {
-    public const PRODUCT_TYPE_SLUG = 'insurance-plan';
+    public const PRODUCT_TYPE_SLUG = InsuranceProductTypeEnum::PLAN->value;
 
     public function __construct(
         protected InsuranceProviderInterface&ProductCatalogProviderInterface $provider,

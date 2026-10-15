@@ -27,4 +27,5 @@ enum InsuranceCustomFieldEnum: string
     case ORDER_ID = 'insurance_order_id';
     case LEAD_ID = 'insurance_lead_id';
     case QUOTE_SIGNATURE = 'insurance_quote_signature';
+    case FAILURE_REASON = 'insurance_failure_reason';
 }

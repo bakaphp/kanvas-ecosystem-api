@@ -18,7 +18,7 @@ class FakeCustomerProvider extends FakeCanonicalProvider implements CustomerData
 
     public ?string $rejectCustomerWith = null;
 
-    public function requiredCustomerFields(): array
+    public function requiredCustomerFields(?InsuranceCustomer $customer = null): array
     {
         return [
             InsuranceCustomerFieldEnum::FIRST_NAME,

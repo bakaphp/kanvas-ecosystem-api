@@ -6,8 +6,10 @@ namespace Kanvas\Insurance\Providers;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use InvalidArgumentException;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Insurance\Actions\ReadInsuranceOrderAction;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
@@ -38,9 +40,10 @@ class InsuranceProviderFactory
      */
     public static function forOrder(Order $order): InsuranceProviderInterface
     {
-        $providerName = (string) $order->get(InsuranceCustomFieldEnum::PROVIDER->value);
+        $providerName = Str::trimToNull((string) $order->get(InsuranceCustomFieldEnum::PROVIDER->value))
+            ?? new ReadInsuranceOrderAction($order)->execute()->provider;
 
-        if ($providerName === '') {
+        if ($providerName === null) {
             throw new InvalidArgumentException('Order has no insurance provider — quote it first.');
         }
 

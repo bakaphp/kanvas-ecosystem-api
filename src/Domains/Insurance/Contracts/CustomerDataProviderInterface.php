@@ -8,7 +8,7 @@ use Kanvas\Insurance\DataTransferObject\InsuranceCustomer;
 
 interface CustomerDataProviderInterface
 {
-    public function requiredCustomerFields(): array;
+    public function requiredCustomerFields(?InsuranceCustomer $customer = null): array;
 
     public function customerBlock(InsuranceCustomer $customer): array;
 }

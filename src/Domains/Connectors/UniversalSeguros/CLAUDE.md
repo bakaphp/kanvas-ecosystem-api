@@ -219,6 +219,10 @@ Cross-field rules they enforce and the doc omits:
   | `1FMCUOGXXDUA25874sodfaojk` (letter `O`) | **quotes green** — complete and express modes | `500`, unknown VIN |
   | `1FMCU0GXXDUA25874` (digit `0`) | `400 "El chasis del vehículo no puede ser asegurado"` | the only seeded VIN |
 
+  Measured 2026-10-15: `1FMCUOGXXDUA25874sodfao` (letter `O`) quotes green on A-PA with `idModelo` 1059, once the token
+  carries the product scope. Reported good by the owner on 2026-10-14 but **not measured here**: `1FMCU0GXXDUA89652`
+  (digit `0`, different serial). Confirm with a live quote before relying on it for emission.
+
   Note the `O`-vs-`0` at position 6 — the two differ by one character and the wrong one is a
   silent `500`. The old claim that *only* `1FMCU0GXXDUA25874` is seeded no longer holds, and the
   quote path is no longer blocked: **A-PA quotes end-to-end today**. Issuance is still unproven —
@@ -249,6 +253,33 @@ Cross-field rules they enforce and the doc omits:
   from `ProductEnum::emitScope()` so a new product can't ship without its emit scope. The old
   hardcoded string covered only 3 of 5 — A-PC and A-PT would have died at emit time, *after* the
   customer paid. Regression: `tests/Connectors/UniversalSeguros/ConfigurationScopesTest.php`.
+
+## `403 "Acceso prohibido"` is a missing product scope, not a rate limit
+
+Measured 2026-10-15 against QA. A-PA answered `403 {"title":"Forbidden","detail":"Acceso prohibido"}` with a valid
+login and a payload that returned 200 from Postman. The token carried only the three base scopes; adding
+`unit.serviceplattform.emitir.paratuauto` made the same request quote (quote `355898`). **The product scope is
+required to quote, not only to emit.** Retrying never fixes it.
+
+The QA client `Unit.ServicePlattform.Movipass` is only allowed some of them. Requested one at a time on top of the base
+scopes: `emitir.paratuauto` (A-PA), `emitir.porloqueconduces` (A-KM) and `emitir.paratusegurodeley` (A-PL) are granted;
+`emitir.porsichocas` (A-PC) and `emitir.porsipierdestuauto` (A-PT) answer `400 invalid_scope`.
+
+Consequence: `ConfigurationEnum::defaultScopes()` asks for all eight, and the IDP refuses the **whole** request when one
+is not grantable, so with that client the default can never log in. Every company needs `universal_seguros_scopes`
+set to the base scopes plus only the products its client may sell. A-PC and A-PT cannot be quoted with these credentials
+until Universal grants them. Compare the `scope` claim of the token (decode the JWT payload) before suspecting the network.
+
+## The verified `cliente` shape
+
+Verified by the owner's Postman call: `nombre, apellido, genero, fechaNacimiento` (ISO datetime with `Z`; we send `YYYY-MM-DDT00:00:00.000Z`),
+`tipoDocumento` (`Cedula`), `numeroDocumento, telefono, nacionalidad` (an EMPTY string is accepted), `correo, estadoCivil, ocupacion,
+imagenPasaporteUrl` (null, omitted on the wire), `direccion {provincia, municipio, sector, edificio, calle}` and
+`debidaDiligencia {politicamenteExpuesto, poseeUnFamiliarPep, cargo, nombreFamiliar, parentescoFamiliar, cargoFamiliar}`.
+`ClienteMapper::map` emits exactly those keys. `paisResidencia` and `requiereComprobanteFiscal` are not in the verified payload, so
+they are now nullable on the `Cliente` DTO and omitted unless a caller sets them. Required canonical fields: names, email, phone,
+birth date, sex, marital status, document, occupation, address (province, municipality, sector, street; building optional) and
+`politically_exposed`. The rest of the `fechaNacimiento`/enum notes below were written before this payload and are superseded where they differ.
 
 ## The `cliente` block and the quote PUT
 
