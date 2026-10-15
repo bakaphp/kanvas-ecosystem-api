@@ -26,10 +26,10 @@ use Kanvas\Guild\Leads\Enums\CrmLeadSyncSettingEnum;
 use Kanvas\Guild\Leads\Exceptions\CrmLeadSyncException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
-use PHPUnit\Framework\Attributes\Group;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
 use Tests\TestCase;
 

@@ -6,8 +6,8 @@ namespace Kanvas\Guild\Leads\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmCustomer;
 use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmFollowers;
 use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmIdentity;
