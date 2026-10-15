@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Actions;
 
+use Baka\Users\Contracts\UserInterface;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -16,7 +17,9 @@ use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\Actions\UpdateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventData;
 use Kanvas\Event\Events\Models\Event;
+use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventType;
+use Kanvas\Event\Support\Setup;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 
@@ -33,6 +36,7 @@ class PullAppointmentsAction
     protected const string EVENT_TYPE_NAME = 'Appointment';
 
     protected ?int $durationMinutes = null;
+    protected bool $eventSetupEnsured = false;
 
     public function __construct(
         protected Lead $lead
@@ -121,6 +125,7 @@ class PullAppointmentsAction
         $app = $this->lead->app;
         $company = $this->lead->company;
         $user = LeadUserService::resolveByEleadUserId($company, $activity->assignedToUserId) ?? $this->lead->user;
+        $this->ensureEventSetup($user);
         $type = EventType::fromApp($app)->fromCompany($company)->where('name', self::EVENT_TYPE_NAME)->first();
 
         $data = [
@@ -152,6 +157,30 @@ class PullAppointmentsAction
         $event->set(CustomFieldEnum::ACTIVITY_ID->value, $activity->id);
 
         return $event;
+    }
+
+    /**
+     * The event DTO resolves the company's default category, status, class and theme with
+     * firstOrFail(), so a dealer onboarded before the Event setup existed cannot hold a single
+     * appointment until it runs. Setup is firstOrCreate throughout, so running it here is safe.
+     */
+    protected function ensureEventSetup(UserInterface $user): void
+    {
+        if ($this->eventSetupEnsured) {
+            return;
+        }
+
+        $app = $this->lead->app;
+        $company = $this->lead->company;
+
+        $hasDefaults = EventCategory::fromApp($app)->fromCompany($company)->where('is_default', 1)->exists()
+            && EventType::fromApp($app)->fromCompany($company)->where('name', self::EVENT_TYPE_NAME)->exists();
+
+        if (! $hasDefaults) {
+            new Setup($app, $user, $company)->run();
+        }
+
+        $this->eventSetupEnsured = true;
     }
 
     protected function reschedule(Event $event, Carbon $start, Carbon $end): void

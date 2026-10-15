@@ -7,12 +7,14 @@ namespace Tests\Connectors\Integration\ELead;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Actions\PullAppointmentsAction;
 use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\EventResource;
+use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -190,16 +192,46 @@ final class PullAppointmentsActionTest extends TestCase
         $this->assertTrue($fresh->versions()->latest()->first()->start_at->equalTo($appointment->dueDate()));
     }
 
+    public function testProvisionsTheEventSetupForACompanyThatNeverHadIt(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = Companies::factory()->create(['users_id' => $user->getId(), 'is_active' => 1]);
+        $company->associateApp($app);
+        $this->assertSame(0, EventType::fromApp($app)->fromCompany($company)->count());
+
+        $lead = Lead::factory()
+            ->withUserId($user->getId())
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create();
+        $lead->set(CustomFieldEnum::OPPORTUNITY_ID->value, 'opp-' . Str::uuid());
+        $appointment = $this->activity($lead);
+        [$from, $to] = $this->window();
+
+        $synced = new PullAppointmentsAction($lead)->apply([$appointment], $from, $to);
+
+        $this->assertArrayHasKey($appointment->id, $synced);
+        $type = EventType::fromApp($app)->fromCompany($company)->where('name', 'Appointment')->first();
+        $this->assertNotNull($type, 'the pull should have provisioned the Appointment event type');
+        $this->assertSame($type->getId(), (int) $synced[$appointment->id]->event_type_id);
+    }
+
     public function testCompanyConfiguredActivityTypesDecideWhatCountsAsAnAppointment(): void
     {
         $lead = $this->createLead();
+        // Company settings write to Redis and never roll back, so the override is removed afterwards.
         $lead->company->set(ConfigurationEnum::ELEAD_APPOINTMENT_ACTIVITY_TYPES->value, 'Showroom Visit, Demo Drive');
         [$from, $to] = $this->window();
 
         $visit = $this->activity($lead, ['activityType' => 'Showroom Visit', 'name' => 'Visit']);
         $plain = $this->activity($lead, ['activityType' => 'Appointment', 'name' => 'Appointment']);
 
-        $synced = new PullAppointmentsAction($lead)->apply([$visit, $plain], $from, $to);
+        try {
+            $synced = new PullAppointmentsAction($lead)->apply([$visit, $plain], $from, $to);
+        } finally {
+            $lead->company->del(ConfigurationEnum::ELEAD_APPOINTMENT_ACTIVITY_TYPES->value);
+        }
 
         $this->assertSame([$visit->id], array_keys($synced));
     }
