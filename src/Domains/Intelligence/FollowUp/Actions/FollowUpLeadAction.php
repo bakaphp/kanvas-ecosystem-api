@@ -87,8 +87,14 @@ final class FollowUpLeadAction
 
         // Lead-type defaults can veto v2, including manual/forced runs.
         // Check before retries so disabled types cannot advance stages either.
-        if (! new LeadConfigurationService()->allowsContinuedFollowUp($this->lead)) {
+        $leadConfiguration = new LeadConfigurationService();
+        if (! $leadConfiguration->allowsContinuedFollowUp($this->lead)) {
             return $this->skip('lead_type_follow_up_disabled');
+        }
+
+        // Company cutoff: leads older than the follow-up start date are never nudged, forced runs included.
+        if ($leadConfiguration->isCreatedBeforeFollowUpStartDate($this->lead)) {
+            return $this->skip('lead_created_before_follow_up_start_date');
         }
 
         // Judged on `leads_status_id`, the column CRM pulls and the UI write — not `isOpen()`'s
