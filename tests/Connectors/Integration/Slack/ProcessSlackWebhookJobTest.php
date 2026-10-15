@@ -522,6 +522,31 @@ final class ProcessSlackWebhookJobTest extends TestCase
         Http::assertNotSent(fn ($request) => str_contains($request->url(), 'chat.postMessage'));
     }
 
+    /**
+     * Slack marks a message that carries a file with `subtype: file_share`. It is a real message, not
+     * a correction — a DM with a picture must still be answered (regression: it came back "Ingested").
+     */
+    public function testADirectMessageWithAFileIsStillAnswered(): void
+    {
+        $this->fakeSlackApi();
+
+        $result = $this->dispatch($this->messageEvent([
+            'channel' => self::DM_CHANNEL,
+            'channel_type' => 'im',
+            'subtype' => 'file_share',
+            'text' => 'puedes ver imagenes?',
+            'files' => [[
+                'id' => 'F0C9M30TEL9',
+                'filetype' => 'jpg',
+                'file_access' => 'check_file_info',
+                'user' => null,
+            ]],
+        ]));
+
+        $this->assertStringContainsString('Hola Mundo', $result['response']);
+        $this->assertSlackReplyWasPosted();
+    }
+
     public function testAnEditedDirectMessageIsRecordedButNotAnsweredAgain(): void
     {
         $this->fakeSlackApi();

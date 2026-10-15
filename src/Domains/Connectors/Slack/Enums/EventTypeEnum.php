@@ -22,6 +22,14 @@ enum EventTypeEnum: string
     }
 
     /**
+     * An edit or a deletion corrects a message already on record; it is never a new request.
+     */
+    public static function isCorrection(?string $subtype): bool
+    {
+        return in_array($subtype, [self::MESSAGE_CHANGED->value, self::MESSAGE_DELETED->value], true);
+    }
+
+    /**
      * Message subtypes that are room housekeeping, not conversation.
      */
     public static function isNoise(?string $subtype): bool
