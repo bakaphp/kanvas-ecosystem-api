@@ -72,8 +72,8 @@ class SelectInsurancePlanAction
             return new CreateLeadAction($this->newLeadData($customFields))->execute();
         }
 
-        if ($this->selection->vehicleProductId === null) {
-            $existing->del(InsuranceCustomFieldEnum::VEHICLE_PRODUCT_ID->value);
+        if ($this->selection->vehicleVariantId === null) {
+            $existing->del(InsuranceCustomFieldEnum::VEHICLE_VARIANT_ID->value);
         }
 
         return new UpdateLeadAction(
@@ -162,7 +162,7 @@ class SelectInsurancePlanAction
             ),
             InsuranceCustomFieldEnum::CAN_EMIT->value => $quote->canEmit === null ? null : (int) $quote->canEmit,
             InsuranceCustomFieldEnum::INSPECTION_STATUS->value => $quote->inspectionStatus,
-            InsuranceCustomFieldEnum::VEHICLE_PRODUCT_ID->value => $this->selection->vehicleProductId,
+            InsuranceCustomFieldEnum::VEHICLE_VARIANT_ID->value => $this->selection->vehicleVariantId,
             InsuranceCustomFieldEnum::QUOTE_SIGNATURE->value => InsuranceQuoteSignature::sign(
                 userId: $this->selection->user->getId(),
                 planId: $plan->getId(),
@@ -170,7 +170,7 @@ class SelectInsurancePlanAction
                 quoteNumber: $quote->quoteNumber,
                 total: (float) $quote->total,
                 tax: (float) $quote->tax,
-                vehicleProductId: (int) $this->selection->vehicleProductId,
+                vehicleVariantId: (int) $this->selection->vehicleVariantId,
             ),
         ], fn (mixed $value): bool => $value !== null && $value !== '');
     }

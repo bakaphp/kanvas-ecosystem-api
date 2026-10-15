@@ -120,19 +120,24 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
         return $this->vehicle ??= $this->createVehicleProduct(auth()->user());
     }
 
-    private function selectedLead(InsurancePlan $plan, string $quoteNumber = 'QN-1'): Lead
+    private function variantIdOf(Products $product): int
     {
-        return $this->selectedLeadWithVehicle($plan, $this->vehicle()->getId(), $quoteNumber);
+        return (int) $product->variants()->orderBy('id')->firstOrFail()->getId();
     }
 
-    private function selectedLeadWithVehicle(InsurancePlan $plan, ?int $vehicleProductId, string $quoteNumber = 'QN-1'): Lead
+    private function selectedLead(InsurancePlan $plan, string $quoteNumber = 'QN-1'): Lead
+    {
+        return $this->selectedLeadWithVehicle($plan, $this->variantIdOf($this->vehicle()), $quoteNumber);
+    }
+
+    private function selectedLeadWithVehicle(InsurancePlan $plan, ?int $vehicleVariantId, string $quoteNumber = 'QN-1'): Lead
     {
         InsuranceQuoteBinding::bind(
             app(Apps::class)->getId(),
             auth()->user()->getId(),
             $quoteNumber,
             $plan->getId(),
-            $vehicleProductId
+            $vehicleVariantId
         );
 
         $id = $this->graphQL(self::SELECT, ['input' => ['plan_id' => $plan->getId(), 'quote_number' => $quoteNumber]])
@@ -503,14 +508,14 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
     {
         $lead = $this->selectedLead($this->sellablePlan());
 
-        $this->assertSame($this->vehicle()->getId(), (int) $lead->get(InsuranceCustomFieldEnum::VEHICLE_PRODUCT_ID->value));
+        $this->assertSame($this->variantIdOf($this->vehicle()), (int) $lead->get(InsuranceCustomFieldEnum::VEHICLE_VARIANT_ID->value));
     }
 
     public function testASearchDoneWithTypedInDataCannotBeContracted(): void
     {
         $lead = $this->selectedLeadWithVehicle($this->sellablePlan(), null);
 
-        $this->assertEmpty($lead->get(InsuranceCustomFieldEnum::VEHICLE_PRODUCT_ID->value));
+        $this->assertEmpty($lead->get(InsuranceCustomFieldEnum::VEHICLE_VARIANT_ID->value));
         $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'Register your vehicle first');
     }
 
@@ -518,7 +523,7 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
     {
         $plan = $this->sellablePlan();
         $accessory = $this->createVehicleProduct(auth()->user(), null, 'accessory');
-        $lead = $this->selectedLeadWithVehicle($plan, $accessory->getId());
+        $lead = $this->selectedLeadWithVehicle($plan, $this->variantIdOf($accessory));
 
         $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'no longer available');
     }
@@ -527,7 +532,7 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
     {
         $plan = $this->sellablePlan();
         $foreign = $this->createVehicleProduct($this->createUser());
-        $lead = $this->selectedLeadWithVehicle($plan, $foreign->getId());
+        $lead = $this->selectedLeadWithVehicle($plan, $this->variantIdOf($foreign));
 
         $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'does not belong to this account');
     }
@@ -538,9 +543,9 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
         $vehicle = $this->createVehicleProduct(auth()->user());
         $vehicle->apps_id = app(Apps::class)->getId() + 9999;
         $vehicle->saveQuietly();
-        $lead = $this->selectedLeadWithVehicle($plan, $vehicle->getId());
+        $lead = $this->selectedLeadWithVehicle($plan, $this->variantIdOf($vehicle));
 
-        $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'no longer available');
+        $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'does not belong to this account');
     }
 
     public function testADeletedVehicleIsRefused(): void
@@ -552,34 +557,34 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
         $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'no longer available');
     }
 
-    public function testAVehicleWithSeveralVariantsAlwaysUsesTheFirstOne(): void
+    public function testTheSignedVariantIsTheOneOrdered(): void
     {
-        $lead = $this->selectedLead($this->sellablePlan());
         $first = $this->vehicle()->variants()->orderBy('id')->firstOrFail();
         $extra = $first->replicate(['uuid', 'slug']);
         $extra->sku = 'extra-' . uniqid();
         $extra->uuid = (string) Str::uuid();
         $extra->slug = Str::slug($extra->sku);
         $extra->saveQuietly();
+        $lead = $this->selectedLeadWithVehicle($this->sellablePlan(), $extra->getId());
 
         $order = $this->contractAction($lead, ['customer' => self::COMPLETE_CUSTOMER])->execute()->fresh();
 
-        $this->assertSame($first->getId(), (int) $order->items()->orderBy('id')->firstOrFail()->variant_id);
+        $this->assertSame($extra->getId(), (int) $order->items()->orderBy('id')->firstOrFail()->variant_id);
     }
 
-    public function testAVehicleWithoutAVariantIsRefused(): void
+    public function testADeletedVariantIsRefused(): void
     {
         $lead = $this->selectedLead($this->sellablePlan());
         $this->vehicle()->variants()->update(['is_deleted' => 1]);
 
-        $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'This vehicle is incomplete');
+        $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'no longer available');
     }
 
     public function testEditingTheVehicleOfTheLeadInvalidatesTheSignedQuote(): void
     {
         $lead = $this->selectedLead($this->sellablePlan());
         $other = $this->createVehicleProduct(auth()->user());
-        $lead->set(InsuranceCustomFieldEnum::VEHICLE_PRODUCT_ID->value, $other->getId());
+        $lead->set(InsuranceCustomFieldEnum::VEHICLE_VARIANT_ID->value, $this->variantIdOf($other));
 
         $this->assertRefusedBeforeAnyOrderOrInsurerCall($lead, 'no longer valid');
     }
@@ -591,7 +596,7 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
         $second = $this->selectedLeadWithVehicle($plan, null, 'QN-2');
 
         $this->assertSame($first->getId(), $second->getId());
-        $this->assertEmpty($second->fresh()->get(InsuranceCustomFieldEnum::VEHICLE_PRODUCT_ID->value));
+        $this->assertEmpty($second->fresh()->get(InsuranceCustomFieldEnum::VEHICLE_VARIANT_ID->value));
         $this->assertRefusedBeforeAnyOrderOrInsurerCall($second, 'Register your vehicle first');
     }
 

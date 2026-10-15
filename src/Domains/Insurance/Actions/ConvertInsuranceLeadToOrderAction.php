@@ -31,7 +31,6 @@ use Kanvas\Insurance\Services\InsuranceOrderPipeline;
 use Kanvas\Insurance\Services\InsurancePlanProductResolver;
 use Kanvas\Insurance\Services\InsuranceQuoteSignature;
 use Kanvas\Insurance\Services\InsuranceVehicleProduct;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Regions\Services\RegionResolutionService;
@@ -173,7 +172,7 @@ class ConvertInsuranceLeadToOrderAction
             quoteNumber: (string) $this->quoteNumberOf($lead),
             total: (float) $lead->get(InsuranceCustomFieldEnum::TOTAL->value),
             tax: (float) $lead->get(InsuranceCustomFieldEnum::TAX->value),
-            vehicleProductId: (int) $lead->get(InsuranceCustomFieldEnum::VEHICLE_PRODUCT_ID->value),
+            vehicleVariantId: (int) $lead->get(InsuranceCustomFieldEnum::VEHICLE_VARIANT_ID->value),
         );
 
         if (! $signed) {
@@ -227,28 +226,27 @@ class ConvertInsuranceLeadToOrderAction
 
     private function vehicleVariantOf(Lead $lead): Variants
     {
-        $productId = (int) $lead->get(InsuranceCustomFieldEnum::VEHICLE_PRODUCT_ID->value);
+        $variantId = (int) $lead->get(InsuranceCustomFieldEnum::VEHICLE_VARIANT_ID->value);
 
-        if ($productId === 0) {
+        if ($variantId === 0) {
             throw new InsuranceValidationException('Register your vehicle first and search for insurance again');
         }
 
-        $product = Products::query()
-            ->where('id', $productId)
+        $variant = Variants::query()
+            ->where('id', $variantId)
             ->where('apps_id', $this->contract->app->getId())
             ->notDeleted()
             ->first();
 
-        if (! InsuranceVehicleProduct::isVehicle($product)) {
+        if (! InsuranceVehicleProduct::isVehicle($variant?->product)) {
             throw new InsuranceValidationException('This vehicle is no longer available');
         }
 
-        if (! InsuranceVehicleProduct::isOwnedBy($product, $this->contract->app, $this->contract->user->getId())) {
+        if (! InsuranceVehicleProduct::isOwnedBy($variant->product, $this->contract->app, $this->contract->user->getId())) {
             throw new InsuranceValidationException('The vehicle does not belong to this account');
         }
 
-        return $product->variants()->notDeleted()->orderBy('id')->first()
-            ?? throw new InsuranceValidationException('This vehicle is incomplete, review it and try again');
+        return $variant;
     }
 
     private function planVariantFor(InsurancePlan $plan): Variants

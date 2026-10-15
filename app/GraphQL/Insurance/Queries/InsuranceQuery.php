@@ -83,7 +83,7 @@ class InsuranceQuery
                 $ctx->user->getId(),
                 $entry->quote->quoteNumber,
                 $entry->planId,
-                $canonicalInput->vehicleProductId
+                $canonicalInput->vehicleVariantId
             );
         }
 

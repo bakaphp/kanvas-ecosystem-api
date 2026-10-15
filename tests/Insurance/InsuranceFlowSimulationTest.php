@@ -482,7 +482,7 @@ class InsuranceFlowSimulationTest extends TestCase
                 $this->kanvasUser->getId(),
                 self::QUOTE,
                 $plan->getId(),
-                $vehicle->getId()
+                $vehicle->variants()->firstOrFail()->getId()
             );
         }
 
@@ -542,7 +542,7 @@ class InsuranceFlowSimulationTest extends TestCase
             }',
             ['input' => [
                 'category' => 'FULL',
-                'vehicle' => ['product_id' => $vehicle->getId()],
+                'vehicle' => ['variant_id' => $vehicle->variants()->firstOrFail()->getId()],
             ]]
         );
 

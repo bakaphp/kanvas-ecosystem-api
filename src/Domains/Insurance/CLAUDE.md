@@ -221,12 +221,12 @@ come from `InsuranceProviderFactory::credentialCompany`, so a marketplace client
   quotes are stored, with `raw` stripped. The signature excludes `ip_address`, which the server always overwrites from the request.
 - **Quote binding.** At response time each returned `(quote_number, plan_id)` is bound to the requesting user in a short-lived
   cache entry (`InsuranceQuoteBinding`, `insurance.quote_binding_ttl`), never inside the shared plan-quote cache. When the search
-  input carried `vehicle.product_id`, that id is bound with the quote (`vehicleProductIdFor`); a search with typed-in data binds none
+  input carried `vehicle.variant_id`, that id is bound with the quote (`vehicleVariantIdFor`); a search with typed-in data binds none
   and still works, it just cannot be contracted.
 - **Selecting.** `selectInsurancePlan(plan_id, quote_number)` requires that binding, re-reads the quote from the insurer (never
   trusts client prices), rejects it when the quote's product code differs from the plan's `external_code`, then creates or updates
   a Guild **Lead** (the pre-payment quote; an Order only appears on payment) carrying the `insurance_*` custom fields, including
-  `insurance_vehicle_product_id` from the binding (removed again when a re-select has none).
+  `insurance_vehicle_variant_id` from the binding (removed again when a re-select has none).
   Idempotent per (customer people, plan) while the lead is open. No `variantInterest`: insurance plans are not Inventory variants.
 ## Contracting: `contractInsurancePlan` turns the Lead into the Order
 
@@ -237,11 +237,11 @@ teaching a generic Souk action about Guild leads would cross domains the wrong w
 
 - **The Lead is identity, the insurer is the price.** A customer can write `insurance_*` custom fields on their own lead with
   `updateLead`, so those fields are never trusted for money. `SelectInsurancePlanAction` stamps `insurance_quote_signature`
-  (`InsuranceQuoteSignature`, HMAC-SHA256 over user | plan | provider | quote number | total | tax | vehicle product id, keyed with `app.key`);
+  (`InsuranceQuoteSignature`, HMAC-SHA256 over user | plan | provider | quote number | total | tax | vehicle variant id, keyed with `app.key`);
   conversion refuses a lead whose signature no longer matches ("no longer valid, select again"). Even a valid lead only
   supplies *which* quote: total, tax and premium on the Order come from `provider->getQuote()` read at contract time. Rotating
   `APP_KEY` invalidates every open lead's signature, which just means customers select again. The same happens to leads
-  signed before the vehicle product id joined the signature: they have no vehicle anyway, so they must be selected again.
+  signed before the vehicle variant id joined the signature: they have no vehicle anyway, so they must be selected again.
 - **The insurer is told before anything is charged.** Inside the conversion the customer is PUT onto the quote
   (`PushCustomerToQuoteAction`, the same code `AttachQuoteToOrderAction` uses) and the quote is re-read, **before the Order
   exists**. An insurer rejection of the customer surfaces as a `ValidationException` pre-payment and creates no Order.
@@ -251,9 +251,9 @@ teaching a generic Souk action about Guild leads would cross domains the wrong w
 - **Tenant and owner checks.** The lead is looked up `getByIdFromCompanyApp`, must belong to the acting user, and its plan
   must still be active in the credential company's catalog. The plan line is the seeded Product `InsuranceProductSlug::for(provider, code)`
   and must be published, so an un-granted line is not sellable.
-- **The vehicle is a registered product.** The signed `insurance_vehicle_product_id` must point to a non-deleted product of the app,
-  typed `vehicle`, with `products.users_id` equal to the acting user (`InsuranceVehicleProduct`, also used by the validator), and
-  it needs a variant. Otherwise the contract is refused with a customer-safe message before any insurer call or order. No lead
+- **The vehicle is a registered product.** The signed `insurance_vehicle_variant_id` must point to a non-deleted variant of the app
+  whose product is typed `vehicle`, with `products.users_id` equal to the acting user (`InsuranceVehicleProduct`, also used by the
+  validator). The signed variant is the order line, never a guess. Otherwise the contract is refused with a customer-safe message before any insurer call or order. No lead
   vehicle (search done with typed-in data) means "register your vehicle first". Vehicle products are never created implicitly.
 - **Idempotent, closed-aware, retry-safe.** The Order carries `reference = insurance-lead-{lead id}`; a repeat call (or a retry
   after the Order was created but the Lead writes failed - Order is `commerce`, Lead is `crm` + custom fields in `ecosystem`, so

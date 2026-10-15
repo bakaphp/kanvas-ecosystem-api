@@ -13,14 +13,14 @@ class InsuranceQuoteBinding
         int $userId,
         string $quoteNumber,
         int $planId,
-        ?int $vehicleProductId = null
+        ?int $vehicleVariantId = null
     ): void {
-        if ($vehicleProductId === null) {
+        if ($vehicleVariantId === null) {
             Cache::forget(self::vehicleKey($appId, $userId, $quoteNumber));
         } else {
             Cache::put(
                 self::vehicleKey($appId, $userId, $quoteNumber),
-                $vehicleProductId,
+                $vehicleVariantId,
                 (int) config('insurance.quote_binding_ttl', 1800)
             );
         }
@@ -49,7 +49,7 @@ class InsuranceQuoteBinding
         return $planId === null ? null : (int) $planId;
     }
 
-    public static function vehicleProductIdFor(int $appId, int $userId, string $quoteNumber): ?int
+    public static function vehicleVariantIdFor(int $appId, int $userId, string $quoteNumber): ?int
     {
         $productId = Cache::get(self::vehicleKey($appId, $userId, $quoteNumber));
 

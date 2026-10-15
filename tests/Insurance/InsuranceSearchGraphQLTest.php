@@ -111,15 +111,15 @@ class InsuranceSearchGraphQLTest extends TestCase
         $vehicle = $this->createVehicleProduct($user);
 
         $withProduct = $this->variables();
-        $withProduct['input']['vehicle'] = ['product_id' => $vehicle->getId()];
+        $withProduct['input']['vehicle'] = ['variant_id' => $vehicle->variants()->firstOrFail()->getId()];
         $this->graphQL(self::SEARCH, $withProduct)->assertSuccessful();
 
         $appId = app(Apps::class)->getId();
-        $this->assertSame($vehicle->getId(), InsuranceQuoteBinding::vehicleProductIdFor($appId, $user->getId(), 'Q-CHEAP'));
+        $this->assertSame($vehicle->variants()->firstOrFail()->getId(), InsuranceQuoteBinding::vehicleVariantIdFor($appId, $user->getId(), 'Q-CHEAP'));
 
         $this->graphQL(self::SEARCH, $this->variables())->assertSuccessful();
 
-        $this->assertNull(InsuranceQuoteBinding::vehicleProductIdFor($appId, $user->getId(), 'Q-CHEAP'));
+        $this->assertNull(InsuranceQuoteBinding::vehicleVariantIdFor($appId, $user->getId(), 'Q-CHEAP'));
     }
 
     public function testASeededPlanExposesTheVariantThatSellsIt(): void

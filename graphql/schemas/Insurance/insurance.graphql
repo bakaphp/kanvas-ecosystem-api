@@ -58,7 +58,7 @@ enum InsuranceSearchFailureReason {
 }
 
 input InsuranceVehicleInput {
-    product_id: ID
+    variant_id: ID
     brand: String
     model: String
     version: String

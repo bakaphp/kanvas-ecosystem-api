@@ -13,7 +13,7 @@ class InsuranceQuoteSignature
         string $quoteNumber,
         float $total,
         float $tax,
-        int $vehicleProductId = 0,
+        int $vehicleVariantId = 0,
     ): string {
         return hash_hmac(
             'sha256',
@@ -24,7 +24,7 @@ class InsuranceQuoteSignature
                 $quoteNumber,
                 number_format($total, 4, '.', ''),
                 number_format($tax, 4, '.', ''),
-                $vehicleProductId,
+                $vehicleVariantId,
             ]),
             (string) config('app.key')
         );
@@ -38,7 +38,7 @@ class InsuranceQuoteSignature
         string $quoteNumber,
         float $total,
         float $tax,
-        int $vehicleProductId = 0,
+        int $vehicleVariantId = 0,
     ): bool {
         return $signature !== '' && hash_equals(
             self::sign(
@@ -48,7 +48,7 @@ class InsuranceQuoteSignature
                 quoteNumber: $quoteNumber,
                 total: $total,
                 tax: $tax,
-                vehicleProductId: $vehicleProductId,
+                vehicleVariantId: $vehicleVariantId,
             ),
             $signature
         );

@@ -12,7 +12,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Enums\InsuranceCoverageCategoryEnum;
 use Kanvas\Insurance\Enums\InsuranceUnderwritingFieldEnum;
 use Kanvas\Insurance\Enums\VehicleFuelTypeEnum;
-use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 
 class CanonicalQuoteInput
 {
@@ -23,15 +23,15 @@ class CanonicalQuoteInput
         public readonly VehicleInsuranceProfile $profile,
         public readonly InsuranceCoverageCategoryEnum $category,
         public readonly array $underwriting = [],
-        public readonly ?int $vehicleProductId = null,
+        public readonly ?int $vehicleVariantId = null,
     ) {
     }
 
     public static function fromMultiple(AppInterface $app, CompanyInterface $company, array $data): self
     {
         $vehicleData = (array) ($data['vehicle'] ?? []);
-        [$vehicle, $profile] = isset($vehicleData['product_id'])
-            ? self::fromProductId((int) $vehicleData['product_id'], $app, $company)
+        [$vehicle, $profile] = isset($vehicleData['variant_id'])
+            ? self::fromVariantId((int) $vehicleData['variant_id'], $app, $company)
             : self::fromAttributes($vehicleData);
 
         if (! $vehicle->isIdentifiable()) {
@@ -45,7 +45,7 @@ class CanonicalQuoteInput
             profile: $profile,
             category: InsuranceCoverageCategoryEnum::from((string) $data['category']),
             underwriting: self::underwritingFrom((array) ($data['underwriting'] ?? [])),
-            vehicleProductId: isset($vehicleData['product_id']) ? (int) $vehicleData['product_id'] : null,
+            vehicleVariantId: isset($vehicleData['variant_id']) ? (int) $vehicleData['variant_id'] : null,
         );
     }
 
@@ -82,9 +82,9 @@ class CanonicalQuoteInput
         ]));
     }
 
-    private static function fromProductId(int $productId, AppInterface $app, CompanyInterface $company): array
+    private static function fromVariantId(int $variantId, AppInterface $app, CompanyInterface $company): array
     {
-        $product = Products::getByIdFromCompanyApp($productId, $company, $app);
+        $product = Variants::getByIdFromCompanyApp($variantId, $company, $app)->product;
 
         return [CanonicalVehicle::fromProduct($product), VehicleInsuranceProfile::fromProduct($product)];
     }
