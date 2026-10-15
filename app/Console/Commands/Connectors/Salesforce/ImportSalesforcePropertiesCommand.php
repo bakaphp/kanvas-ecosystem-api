@@ -36,9 +36,10 @@ use Throwable;
  * product/attribute filtering (`hasAttributeValues`/`variantAttributeValue`), not by narrowing the
  * SOQL at import time.
  *
- * The per-record upsert runs inside a queued closure (not a dedicated Job class) so this
- * GAGroup-only fixture doesn't grow a permanent class in the shared Salesforce connector — the
- * command stays the only place that knows about Project__c/Location__c/Location_Contact__c.
+ * The orchestration (grouping locations by project, batching, progress logging) runs inside a
+ * queued closure rather than a dedicated Job class, since it's specific to this bulk-import shape;
+ * the per-object field mapping it calls into (PullProjectAction, PullPropertyAction and friends)
+ * are ordinary connector Actions, reusable outside this command.
  */
 class ImportSalesforcePropertiesCommand extends Command
 {
@@ -144,8 +145,10 @@ class ImportSalesforcePropertiesCommand extends Command
                     continue;
                 }
 
+                $previousDone = $done;
+
                 try {
-                    $product = self::importProject(
+                    self::importProject(
                         $app,
                         $company,
                         $user,
@@ -164,13 +167,13 @@ class ImportSalesforcePropertiesCommand extends Command
                         'error' => $e->getMessage(),
                     ]);
                     report($e);
-                    $product = null;
                 }
 
                 $done += count($projectLocations);
-                unset($product);
 
-                if ($done % 100 < count($projectLocations) || $done === $totalLocations) {
+                // Projects are batches of varying size, so "every 100" means "crossed a multiple
+                // of 100" rather than the per-record `% 100 === 0` the old per-location loop used.
+                if (intdiv($previousDone, 100) !== intdiv($done, 100) || $done === $totalLocations) {
                     Log::info('Salesforce properties import progress', [
                         'companies_id' => $company->getId(),
                         'done' => $done,
