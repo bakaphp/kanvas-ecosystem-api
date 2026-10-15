@@ -13,10 +13,19 @@ class InsuranceQuoteSignature
         string $quoteNumber,
         float $total,
         float $tax,
+        int $vehicleProductId = 0,
     ): string {
         return hash_hmac(
             'sha256',
-            implode('|', [$userId, $planId, $provider, $quoteNumber, number_format($total, 4, '.', ''), number_format($tax, 4, '.', '')]),
+            implode('|', [
+                $userId,
+                $planId,
+                $provider,
+                $quoteNumber,
+                number_format($total, 4, '.', ''),
+                number_format($tax, 4, '.', ''),
+                $vehicleProductId,
+            ]),
             (string) config('app.key')
         );
     }
@@ -29,9 +38,18 @@ class InsuranceQuoteSignature
         string $quoteNumber,
         float $total,
         float $tax,
+        int $vehicleProductId = 0,
     ): bool {
         return $signature !== '' && hash_equals(
-            self::sign($userId, $planId, $provider, $quoteNumber, $total, $tax),
+            self::sign(
+                userId: $userId,
+                planId: $planId,
+                provider: $provider,
+                quoteNumber: $quoteNumber,
+                total: $total,
+                tax: $tax,
+                vehicleProductId: $vehicleProductId,
+            ),
             $signature
         );
     }

@@ -15,12 +15,14 @@ use Kanvas\Inventory\Products\Models\Products;
 use Mockery;
 use RuntimeException;
 use Tests\Insurance\Concerns\BuildsSearchCatalog;
+use Tests\Insurance\Concerns\CreatesVehicleProducts;
 use Tests\TestCase;
 
 class InsuranceSearchGraphQLTest extends TestCase
 {
     use DatabaseTransactions;
     use BuildsSearchCatalog;
+    use CreatesVehicleProducts;
 
     protected $connectionsToTransact = [null, 'commerce', 'inventory'];
 
@@ -96,6 +98,28 @@ class InsuranceSearchGraphQLTest extends TestCase
 
         $this->assertCount(1, $data['failures']);
         $this->assertSame('UNAVAILABLE', $data['failures'][0]['reason']);
+    }
+
+    public function testTheVehicleProductOfTheSearchTravelsWithTheBoundQuote(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $this->pinPlatformCompany($company->getId());
+        $suffix = uniqid();
+        $this->bindFakeProvider('ok_' . $suffix, fn (string $code) => $this->quoteResult('Q-' . $code, 200.0, 20.0));
+        $this->seedPlan($this->seedInsurer($company, 'ok_' . $suffix), 'CHEAP');
+        $vehicle = $this->createVehicleProduct($user);
+
+        $withProduct = $this->variables();
+        $withProduct['input']['vehicle'] = ['product_id' => $vehicle->getId()];
+        $this->graphQL(self::SEARCH, $withProduct)->assertSuccessful();
+
+        $appId = app(Apps::class)->getId();
+        $this->assertSame($vehicle->getId(), InsuranceQuoteBinding::vehicleProductIdFor($appId, $user->getId(), 'Q-CHEAP'));
+
+        $this->graphQL(self::SEARCH, $this->variables())->assertSuccessful();
+
+        $this->assertNull(InsuranceQuoteBinding::vehicleProductIdFor($appId, $user->getId(), 'Q-CHEAP'));
     }
 
     public function testASeededPlanExposesTheVariantThatSellsIt(): void

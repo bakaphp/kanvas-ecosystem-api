@@ -385,6 +385,76 @@ class InsuranceCartOrderTest extends TestCase
         $this->assertCount(0, $this->insurer->updates);
     }
 
+    public function testTheContractPathBuildsTheSameOrderAsTheCartPath(): void
+    {
+        $this->bindQuote();
+        $cartOrder = $this->createFromCart();
+        $this->runAttach($cartOrder);
+
+        $contractQuote = $this->quote . '1';
+        InsuranceQuoteBinding::bind(
+            $this->kanvasApp->getId(),
+            $this->kanvasUser->getId(),
+            $contractQuote,
+            $this->plan->getId(),
+            $this->vehicle->getId()
+        );
+        $leadId = $this->graphQL(
+            'mutation($input: SelectInsurancePlanInput!) { selectInsurancePlan(input: $input) { id } }',
+            ['input' => ['plan_id' => $this->plan->getId(), 'quote_number' => $contractQuote]]
+        )->json('data.selectInsurancePlan.id');
+        $response = $this->graphQL(
+            'mutation($input: ContractInsurancePlanInput!) { contractInsurancePlan(input: $input) { id } }',
+            ['input' => ['lead_id' => $leadId, 'customer' => self::CUSTOMER]]
+        );
+        $contractId = $response->json('data.contractInsurancePlan.id');
+        $this->assertNotNull($contractId, json_encode($response->json()));
+
+        $cartOrder = $cartOrder->fresh();
+        $contractOrder = Order::findOrFail($contractId);
+        $cart = new ReadInsuranceOrderAction($cartOrder)->execute();
+        $contract = new ReadInsuranceOrderAction($contractOrder)->execute();
+
+        $this->assertFalse($contract->legacy);
+        $this->assertSame($cart->provider, $contract->provider);
+        $this->assertSame($cart->productCode, $contract->productCode);
+        $this->assertSame($this->quote, $cart->quoteNumber);
+        $this->assertSame($contractQuote, $contract->quoteNumber);
+        $this->assertSame($cart->vehicle?->getId(), $contract->vehicle?->getId());
+        $this->assertSame($cart->plan?->getId(), $contract->plan?->getId());
+        $this->assertSame($cart->customer?->toArray(), $contract->customer?->toArray());
+        $this->assertSame($this->itemShape($cartOrder), $this->itemShape($contractOrder));
+        $this->assertSame(array_keys($cartOrder->metadata), array_keys($contractOrder->metadata));
+        $this->assertSame(array_keys($cartOrder->metadata['data']), array_keys($contractOrder->metadata['data']));
+        $this->assertSame($cartOrder->orderType->name, $contractOrder->orderType->name);
+        $this->assertSame($cartOrder->orderStatus->slug, $contractOrder->orderStatus->slug);
+
+        foreach (['total_gross_amount', 'tax_amount', 'discount_amount', 'shipping_price_gross_amount'] as $column) {
+            $this->assertEquals((float) $cartOrder->{$column}, (float) $contractOrder->{$column}, $column);
+        }
+
+        foreach ([
+            InsuranceCustomFieldEnum::PROVIDER,
+            InsuranceCustomFieldEnum::PRODUCT_CODE,
+            InsuranceCustomFieldEnum::STATUS,
+            InsuranceCustomFieldEnum::TOTAL,
+            InsuranceCustomFieldEnum::PLAN_ID,
+        ] as $field) {
+            $this->assertEquals($cartOrder->get($field->value), $contractOrder->get($field->value), $field->value);
+        }
+    }
+
+    private function itemShape(Order $order): array
+    {
+        return $order->items()->orderBy('id')->get()
+            ->map(fn ($item): array => [
+                (int) $item->variant_id,
+                (float) $item->unit_price_gross_amount,
+                (float) $item->quantity,
+            ])
+            ->all();
+    }
+
     public function testAQuoteBoundToAnotherPlanIsRejected(): void
     {
         $other = $this->seedPlan($this->plan->insurer, 'A-KM');

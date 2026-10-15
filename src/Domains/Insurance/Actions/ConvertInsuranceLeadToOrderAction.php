@@ -16,18 +16,22 @@ use Kanvas\Insurance\Contracts\CustomerDataProviderInterface;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\DataTransferObject\InsuranceCustomer;
 use Kanvas\Insurance\DataTransferObject\InsuranceLeadContract;
-use Kanvas\Insurance\DataTransferObject\InsuranceQuoteRequest;
+use Kanvas\Insurance\DataTransferObject\InsuranceOrderData;
 use Kanvas\Insurance\DataTransferObject\QuoteResult;
 use Kanvas\Insurance\Enums\InsuranceCatalogStatusEnum;
 use Kanvas\Insurance\Enums\InsuranceCustomerFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
+use Kanvas\Insurance\Exceptions\InsuranceValidationException;
 use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceCommissionCalculator;
+use Kanvas\Insurance\Services\InsuranceOrderMetadata;
 use Kanvas\Insurance\Services\InsuranceOrderPipeline;
 use Kanvas\Insurance\Services\InsurancePlanProductResolver;
 use Kanvas\Insurance\Services\InsuranceQuoteSignature;
+use Kanvas\Insurance\Services\InsuranceVehicleProduct;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Regions\Services\RegionResolutionService;
@@ -78,6 +82,7 @@ class ConvertInsuranceLeadToOrderAction
 
         $plan = $this->planOf($lead);
         $this->assertUntampered($lead, $plan);
+        $vehicle = $this->vehicleVariantOf($lead);
 
         $provider = InsuranceProviderFactory::make(
             $plan->insurer->provider,
@@ -85,12 +90,19 @@ class ConvertInsuranceLeadToOrderAction
             $this->credentialCompany()
         );
         $customer = $this->confirmedCustomer($lead, $provider);
-        $variant = $this->variantFor($plan);
+        $orderData = new InsuranceOrderData(
+            provider: $provider->name(),
+            productCode: (string) $plan->external_code,
+            quoteNumber: (string) $this->quoteNumberOf($lead),
+            vehicle: $vehicle,
+            plan: $this->planVariantFor($plan),
+            customer: $customer,
+        );
         $wonStatus = $this->wonStatus();
         $region = $this->region();
-        $quote = $this->attachedQuote($lead, $plan, $provider, $customer);
+        $quote = $this->attachedQuote($plan, $provider, $orderData);
 
-        $order = $this->createOrder($lead, $plan, $provider, $customer, $variant, $region, $quote);
+        $order = $this->createOrder($lead, $plan, $provider, $orderData, $region, $quote);
 
         return $this->finishLead($lead, $order, $wonStatus);
     }
@@ -161,6 +173,7 @@ class ConvertInsuranceLeadToOrderAction
             quoteNumber: (string) $this->quoteNumberOf($lead),
             total: (float) $lead->get(InsuranceCustomFieldEnum::TOTAL->value),
             tax: (float) $lead->get(InsuranceCustomFieldEnum::TAX->value),
+            vehicleProductId: (int) $lead->get(InsuranceCustomFieldEnum::VEHICLE_PRODUCT_ID->value),
         );
 
         if (! $signed) {
@@ -200,25 +213,44 @@ class ConvertInsuranceLeadToOrderAction
     }
 
     private function attachedQuote(
-        Lead $lead,
         InsurancePlan $plan,
         InsuranceProviderInterface $provider,
-        InsuranceCustomer $customer
+        InsuranceOrderData $orderData
     ): QuoteResult {
         return new ConfirmQuoteWithInsurerAction(
             $provider,
-            (string) $this->quoteNumberOf($lead),
+            (string) $orderData->quoteNumber,
             (string) $plan->external_code,
-            $provider instanceof CustomerDataProviderInterface
-                ? new InsuranceQuoteRequest(
-                    product: (string) $plan->external_code,
-                    payload: ['cliente' => $provider->customerBlock($customer)]
-                )
-                : null
+            $orderData->quoteRequest($provider)
         )->execute();
     }
 
-    private function variantFor(InsurancePlan $plan): Variants
+    private function vehicleVariantOf(Lead $lead): Variants
+    {
+        $productId = (int) $lead->get(InsuranceCustomFieldEnum::VEHICLE_PRODUCT_ID->value);
+
+        if ($productId === 0) {
+            throw new InsuranceValidationException('Register your vehicle first and search for insurance again');
+        }
+
+        $product = Products::query()
+            ->where('id', $productId)
+            ->where('apps_id', $this->contract->app->getId())
+            ->notDeleted()
+            ->first();
+
+        if (
+            ! InsuranceVehicleProduct::isVehicle($product)
+            || ! InsuranceVehicleProduct::isOwnedBy($product, $this->contract->app, $this->contract->user->getId())
+        ) {
+            throw new InsuranceValidationException('The vehicle does not belong to this account');
+        }
+
+        return $product->variants()->notDeleted()->first()
+            ?? throw new InsuranceValidationException('This vehicle is incomplete, review it and try again');
+    }
+
+    private function planVariantFor(InsurancePlan $plan): Variants
     {
         $variant = new InsurancePlanProductResolver($this->contract->app, $this->credentialCompany())->variantFor($plan);
 
@@ -246,12 +278,12 @@ class ConvertInsuranceLeadToOrderAction
         Lead $lead,
         InsurancePlan $plan,
         InsuranceProviderInterface $provider,
-        InsuranceCustomer $customer,
-        Variants $variant,
+        InsuranceOrderData $orderData,
         Regions $region,
         QuoteResult $quote,
     ): Order {
         $app = $this->contract->app;
+        $customer = $orderData->customer;
 
         $order = new CreateOrderAction(
             new OrderData(
@@ -271,9 +303,9 @@ class ConvertInsuranceLeadToOrderAction
                 status: OrderStatusEnum::PENDING->value,
                 checkoutToken: '',
                 currency: $region->currency,
-                items: [$this->orderItem($variant, $plan, $quote)],
+                items: $this->orderItems($orderData, $plan, $quote),
                 email: $customer->get(InsuranceCustomerFieldEnum::EMAIL),
-                metadata: ['insurance' => $this->insuranceMetadata($lead, $plan, $provider, $customer, $quote)],
+                metadata: InsuranceOrderMetadata::apply(null, $quote->quoteNumber, $customer),
                 fulfillmentStatus: OrderStatusEnum::PENDING->value,
                 paymentGatewayName: ['manual'],
                 reference: $this->referenceFor($lead),
@@ -301,37 +333,22 @@ class ConvertInsuranceLeadToOrderAction
         return $order;
     }
 
-    private function orderItem(Variants $variant, InsurancePlan $plan, QuoteResult $quote): array
+    private function orderItems(InsuranceOrderData $orderData, InsurancePlan $plan, QuoteResult $quote): array
     {
         return [
-            'id' => $variant->getId(),
-            'name' => $plan->insurer->name . ' - ' . $plan->name,
-            'quantity' => 1,
-            'price' => (float) $quote->total,
-            'tax' => (float) $quote->tax,
+            [
+                'id' => $orderData->vehicle->getId(),
+                'name' => $orderData->vehicle->product->name,
+                'quantity' => 1,
+                'price' => 0.0,
+            ],
+            [
+                'id' => $orderData->plan->getId(),
+                'name' => $plan->insurer->name . ' - ' . $plan->name,
+                'quantity' => 1,
+                'price' => (float) $quote->total,
+            ],
         ];
-    }
-
-    private function insuranceMetadata(
-        Lead $lead,
-        InsurancePlan $plan,
-        InsuranceProviderInterface $provider,
-        InsuranceCustomer $customer,
-        QuoteResult $quote
-    ): array {
-        $metadata = [
-            'provider' => $provider->name(),
-            'product' => $plan->external_code,
-            'quote_number' => $quote->quoteNumber,
-            'plan_id' => $plan->getId(),
-            'lead_id' => $lead->getId(),
-        ];
-
-        if ($provider instanceof CustomerDataProviderInterface) {
-            $metadata['cliente'] = $provider->customerBlock($customer);
-        }
-
-        return $metadata;
     }
 
     private function referenceFor(Lead $lead): string

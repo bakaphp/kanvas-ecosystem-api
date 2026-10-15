@@ -15,7 +15,7 @@ use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsurancePlanProductResolver;
 use Kanvas\Insurance\Services\InsuranceQuoteBinding;
-use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Insurance\Services\InsuranceVehicleProduct;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
 
@@ -99,14 +99,7 @@ class ValidateInsuranceOrderAction
 
     private function assertOwnsVehicle(OrderItem $item): void
     {
-        $product = $item->variant?->product;
-
-        if (
-            ! $product instanceof Products
-            || (int) $product->apps_id !== $this->order->app->getId()
-            || (bool) $product->is_deleted
-            || (int) $product->users_id !== (int) $this->order->users_id
-        ) {
+        if (! InsuranceVehicleProduct::isOwnedBy($item->variant?->product, $this->order->app, (int) $this->order->users_id)) {
             throw new InsuranceValidationException('The vehicle does not belong to this account');
         }
     }

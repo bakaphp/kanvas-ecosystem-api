@@ -23,6 +23,7 @@ class CanonicalQuoteInput
         public readonly VehicleInsuranceProfile $profile,
         public readonly InsuranceCoverageCategoryEnum $category,
         public readonly array $underwriting = [],
+        public readonly ?int $vehicleProductId = null,
     ) {
     }
 
@@ -44,6 +45,7 @@ class CanonicalQuoteInput
             profile: $profile,
             category: InsuranceCoverageCategoryEnum::from((string) $data['category']),
             underwriting: self::underwritingFrom((array) ($data['underwriting'] ?? [])),
+            vehicleProductId: isset($vehicleData['product_id']) ? (int) $vehicleData['product_id'] : null,
         );
     }
 

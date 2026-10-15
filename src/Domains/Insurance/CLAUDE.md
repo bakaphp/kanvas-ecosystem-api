@@ -84,8 +84,8 @@ Setup stays on the generic `integrationCompany` mutation.
 
 ## Everything past "I'll take this one"
 
-The Order is created either by the cart (`createOrderFromCart`, new shape, see "Order shape and the cart
-path") or by `contractInsurancePlan`/legacy FE orders carrying `metadata.insurance.{provider, quote_number}`.
+The Order is created either by the cart (`createOrderFromCart`, see "Order shape and the cart path"), by
+`contractInsurancePlan` (same shape, built by the backend) or, for legacy FE orders, with `metadata.insurance.{provider, quote_number}`.
 Whatever the origin, everything reads the order through `ReadInsuranceOrderAction`. From there:
 
 | Step | Runs as | Trigger |
@@ -169,7 +169,7 @@ Report and Emit share that rule through `FailsReleasingHeldPayment`: a Validatio
 ## The customer
 
 Universal validates the customer and chassis on the quote before it can be emitted (§4.3 step 1), so the
-order carries the customer under `metadata.insurance.cliente` (the insurer-shaped block) beside
+order carries the customer snapshot under `metadata.data.customer` (canonical keys; the adapter builds the insurer block). Legacy orders carry `metadata.insurance.cliente` (the insurer-shaped block) beside
 `metadata.insurance.product` and `metadata.insurance.payload`. `AttachQuoteToOrderAction` PUTs it onto the
 quote through the opt-in `QuoteUpdateProviderInterface` *before* re-reading the prices, so the stamped
 totals are the final ones. The PUT replaces the whole quote, which is why `payload` has to be stored too.
@@ -220,10 +220,13 @@ come from `InsuranceProviderFactory::credentialCompany`, so a marketplace client
 - **Cache.** One entry per (app, credential company, plan, vehicle signature), TTL `insurance.search_cache_ttl`; only successful
   quotes are stored, with `raw` stripped. The signature excludes `ip_address`, which the server always overwrites from the request.
 - **Quote binding.** At response time each returned `(quote_number, plan_id)` is bound to the requesting user in a short-lived
-  cache entry (`InsuranceQuoteBinding`, `insurance.quote_binding_ttl`), never inside the shared plan-quote cache.
+  cache entry (`InsuranceQuoteBinding`, `insurance.quote_binding_ttl`), never inside the shared plan-quote cache. When the search
+  input carried `vehicle.product_id`, that id is bound with the quote (`vehicleProductIdFor`); a search with typed-in data binds none
+  and still works, it just cannot be contracted.
 - **Selecting.** `selectInsurancePlan(plan_id, quote_number)` requires that binding, re-reads the quote from the insurer (never
   trusts client prices), rejects it when the quote's product code differs from the plan's `external_code`, then creates or updates
-  a Guild **Lead** (the pre-payment quote; an Order only appears on payment) carrying the `insurance_*` custom fields.
+  a Guild **Lead** (the pre-payment quote; an Order only appears on payment) carrying the `insurance_*` custom fields, including
+  `insurance_vehicle_product_id` from the binding (removed again when a re-select has none).
   Idempotent per (customer people, plan) while the lead is open. No `variantInterest`: insurance plans are not Inventory variants.
 ## Contracting: `contractInsurancePlan` turns the Lead into the Order
 
@@ -234,19 +237,23 @@ teaching a generic Souk action about Guild leads would cross domains the wrong w
 
 - **The Lead is identity, the insurer is the price.** A customer can write `insurance_*` custom fields on their own lead with
   `updateLead`, so those fields are never trusted for money. `SelectInsurancePlanAction` stamps `insurance_quote_signature`
-  (`InsuranceQuoteSignature`, HMAC-SHA256 over user | plan | provider | quote number | total | tax, keyed with `app.key`);
+  (`InsuranceQuoteSignature`, HMAC-SHA256 over user | plan | provider | quote number | total | tax | vehicle product id, keyed with `app.key`);
   conversion refuses a lead whose signature no longer matches ("no longer valid, select again"). Even a valid lead only
   supplies *which* quote: total, tax and premium on the Order come from `provider->getQuote()` read at contract time. Rotating
   `APP_KEY` invalidates every open lead's signature, which just means customers select again.
 - **The insurer is told before anything is charged.** Inside the conversion the customer is PUT onto the quote
   (`PushCustomerToQuoteAction`, the same code `AttachQuoteToOrderAction` uses) and the quote is re-read, **before the Order
   exists**. An insurer rejection of the customer surfaces as a `ValidationException` pre-payment and creates no Order.
-  `StampInsuranceQuoteAction` (shared with Attach) then writes the `insurance_*` fields and status `QUOTED`.
-  `AttachInsuranceQuoteActivity` therefore skips any order whose insurance status is already set; it still does the work for
-  legacy orders created by the FE with `metadata.insurance` and no status.
+  The request is the one the cart path sends (`InsuranceOrderData::quoteRequest`, built in memory from the vehicle, plan and
+  customer). `StampInsuranceQuoteAction` (shared with Attach) then writes the `insurance_*` fields and status `QUOTED`.
+  `AttachInsuranceQuoteActivity` therefore skips any order whose insurance status is already set.
 - **Tenant and owner checks.** The lead is looked up `getByIdFromCompanyApp`, must belong to the acting user, and its plan
-  must still be active in the credential company's catalog. The Order line is the seeded Product `InsuranceProductSlug::for(provider, code)`
+  must still be active in the credential company's catalog. The plan line is the seeded Product `InsuranceProductSlug::for(provider, code)`
   and must be published, so an un-granted line is not sellable.
+- **The vehicle is a registered product.** The signed `insurance_vehicle_product_id` must point to a non-deleted product of the app,
+  typed `vehicle`, with `products.users_id` equal to the acting user (`InsuranceVehicleProduct`, also used by the validator), and
+  it needs a variant. Otherwise the contract is refused with a customer-safe message before any insurer call or order. No lead
+  vehicle (search done with typed-in data) means "register your vehicle first". Vehicle products are never created implicitly.
 - **Idempotent, closed-aware, retry-safe.** The Order carries `reference = insurance-lead-{lead id}`; a repeat call (or a retry
   after the Order was created but the Lead writes failed - Order is `commerce`, Lead is `crm` + custom fields in `ecosystem`, so
   no single transaction can span them) finds that Order, re-links the Lead (`insurance_order_id`) and sets it `Won`. A Lead no
@@ -256,6 +263,9 @@ teaching a generic Souk action about Guild leads would cross domains the wrong w
   knows its own field names. Values resolve as: `customer` input > Lead custom fields `insurance_customer_*` > the Lead's
   People profile (name, email, phone, dob). Anything supplied is stored on the Lead, so a retry only needs what is still
   missing. Missing fields fail with canonical names before any Order or payment exists.
+- **Order shape.** Identical to the cart path (see "Order shape and the cart path"): item 1 the vehicle variant at price 0, item 2 the
+  plan variant at the insurer total read at contract time, no tax/shipping/discount, `metadata.data.{quote_number, customer}`
+  built by `InsuranceOrderMetadata::apply`, and no `metadata.insurance`. The insurer's tax stays in `insurance_tax`.
 - **Workflow.** The Order `created` event fires from the action after the `insurance_*` fields are stamped. The order carries
   the `insurance` order type, so a rule can filter on it.
 
@@ -343,8 +353,6 @@ when the plan is not seeded/published) so the FE can build the plan line. Souk k
 - **Customer fields.** Added canonical `address_province/municipality/sector/building/street`, `politically_exposed`,
   `has_pep_relative`, `job_title`, `pep_relative_name/relationship/job_title`, all optional in GraphQL. Universal requires the address
   (building optional) and `politically_exposed`; nationality and country of residence are no longer required.
-- **Not done yet (path A).** `contractInsurancePlan` still writes `metadata.insurance` and a single plan item; it will reuse the
-  reader, `InsuranceOrderMetadata::apply` and `ConfirmQuoteWithInsurerAction` to produce the two-item shape.
 
 ## Open items
 

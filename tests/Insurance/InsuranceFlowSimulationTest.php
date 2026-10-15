@@ -34,6 +34,7 @@ use Kanvas\Insurance\Models\InsuranceVehicleModelMap;
 use Kanvas\Insurance\Models\Insurer;
 use Kanvas\Insurance\Services\InsuranceQuoteBinding;
 use Kanvas\Insurance\Services\VehicleKeyNormalizer;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
@@ -49,12 +50,14 @@ use Mockery\MockInterface;
 use RuntimeException;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\Insurance\Concerns\BuildsSearchCatalog;
+use Tests\Insurance\Concerns\CreatesVehicleProducts;
 use Tests\Insurance\Concerns\SeedsInsuranceOrderPipeline;
 use Tests\TestCase;
 
 class InsuranceFlowSimulationTest extends TestCase
 {
     use BuildsSearchCatalog;
+    use CreatesVehicleProducts;
     use DatabaseTransactions;
     use HasIntegrationCompany;
     use SeedsInsuranceOrderPipeline;
@@ -469,10 +472,18 @@ class InsuranceFlowSimulationTest extends TestCase
         $insurer = $this->seedInsurer($company, UniversalSegurosProvider::NAME);
         $plan = $this->seedPlan($insurer, 'A-PA');
 
+        $vehicle = $this->registeredVehicle($insurer);
+
         if ($viaSearch) {
-            $this->searchFor($insurer, $plan->getId());
+            $this->searchFor($vehicle, $plan->getId());
         } else {
-            InsuranceQuoteBinding::bind($this->kanvasApp->getId(), $this->kanvasUser->getId(), self::QUOTE, $plan->getId());
+            InsuranceQuoteBinding::bind(
+                $this->kanvasApp->getId(),
+                $this->kanvasUser->getId(),
+                self::QUOTE,
+                $plan->getId(),
+                $vehicle->getId()
+            );
         }
 
         $leadId = $this->graphQL(
@@ -495,7 +506,7 @@ class InsuranceFlowSimulationTest extends TestCase
         return Order::findOrFail($orderId);
     }
 
-    private function searchFor(Insurer $insurer, int $expectedPlanId): void
+    private function registeredVehicle(Insurer $insurer): Products
     {
         $model = 'Corolla ' . uniqid();
         InsuranceVehicleModelMap::query()->create([
@@ -511,6 +522,17 @@ class InsuranceFlowSimulationTest extends TestCase
             'active' => true,
         ]);
 
+        return $this->createVehicleProduct($this->kanvasUser, [
+            ['name' => 'brand', 'value' => 'Toyota'],
+            ['name' => 'model', 'value' => $model],
+            ['name' => 'year', 'value' => '2022'],
+            ['name' => 'combustible', 'value' => 'gasoline_diesel'],
+            ['name' => 'valor_estimado', 'value' => '1000000'],
+        ]);
+    }
+
+    private function searchFor(Products $vehicle, int $expectedPlanId): void
+    {
         $response = $this->graphQL(
             'query($input: CanonicalQuoteInput!) {
                 insuranceSearch(input: $input) {
@@ -520,13 +542,7 @@ class InsuranceFlowSimulationTest extends TestCase
             }',
             ['input' => [
                 'category' => 'FULL',
-                'vehicle' => [
-                    'brand' => 'Toyota',
-                    'model' => $model,
-                    'year' => 2022,
-                    'fuel_type' => 'GASOLINE_DIESEL',
-                    'estimated_value' => 1000000,
-                ],
+                'vehicle' => ['product_id' => $vehicle->getId()],
             ]]
         );
 
@@ -564,7 +580,9 @@ class InsuranceFlowSimulationTest extends TestCase
         $order = $this->contractedOrder(viaSearch: true);
 
         $this->assertCount(1, $this->calls['quote']);
-        $this->assertSame(UniversalSegurosProvider::NAME, $order->metadata['insurance']['provider']);
+        $this->assertArrayNotHasKey('insurance', $order->metadata);
+        $this->assertSame(self::QUOTE, $order->metadata['data']['quote_number']);
+        $this->assertSame(2, $order->items()->count());
         $this->assertSame(UniversalSegurosProvider::NAME, $order->fresh()->get(InsuranceCustomFieldEnum::PROVIDER->value));
         $this->assertSame(InsuranceStatusEnum::QUOTED->value, $this->insuranceStatus($order));
 

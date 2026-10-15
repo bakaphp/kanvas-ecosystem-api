@@ -74,16 +74,16 @@ class InsuranceQuery
         $input = $request['input'];
         $input['underwriting']['ip_address'] = request()->ip();
 
-        $result = app(InsuranceSearchService::class)->execute(
-            CanonicalQuoteInput::fromMultiple($ctx->app, $ctx->company, $input)
-        );
+        $canonicalInput = CanonicalQuoteInput::fromMultiple($ctx->app, $ctx->company, $input);
+        $result = app(InsuranceSearchService::class)->execute($canonicalInput);
 
         foreach ($result->entries as $entry) {
             InsuranceQuoteBinding::bind(
                 $ctx->app->getId(),
                 $ctx->user->getId(),
                 $entry->quote->quoteNumber,
-                $entry->planId
+                $entry->planId,
+                $canonicalInput->vehicleProductId
             );
         }
 

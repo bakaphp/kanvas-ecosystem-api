@@ -22,6 +22,7 @@ class InsurancePlanSelection
         public readonly UserInterface $user,
         public readonly InsurancePlan $plan,
         public readonly string $quoteNumber,
+        public readonly ?int $vehicleProductId = null,
     ) {
     }
 
@@ -54,6 +55,7 @@ class InsurancePlanSelection
             user: $user,
             plan: $plan,
             quoteNumber: $quoteNumber,
+            vehicleProductId: InsuranceQuoteBinding::vehicleProductIdFor($app->getId(), $user->getId(), $quoteNumber),
         );
     }
 }

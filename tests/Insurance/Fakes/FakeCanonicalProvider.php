@@ -15,6 +15,8 @@ class FakeCanonicalProvider implements CanonicalQuoteProviderInterface
 {
     public array $calls = [];
 
+    public int $reads = 0;
+
     public float $total = 116.0;
 
     public function __construct(
@@ -42,6 +44,8 @@ class FakeCanonicalProvider implements CanonicalQuoteProviderInterface
 
     public function getQuote(string $quoteNumber): QuoteResult
     {
+        $this->reads++;
+
         return new QuoteResult(
             success: true,
             message: 'ok',
