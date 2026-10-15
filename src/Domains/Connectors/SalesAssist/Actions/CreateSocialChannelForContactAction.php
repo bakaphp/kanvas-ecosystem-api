@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
@@ -137,8 +138,10 @@ class CreateSocialChannelForContactAction
             'channel' => $channel,
             'app' => $this->app,
             'company' => $lead->company,
-            'entity_id' => $lead->getId(),
-            'entity_namespace' => Lead::class,
+            // The channel belongs to the lead; the session belongs to the person, who keeps one
+            // conversation across leads. FollowUpLeadAction resolves its session by People.
+            'entity_id' => $this->contact->peoples_id,
+            'entity_namespace' => People::class,
             'user' => $lead->user->toArray(),
             'canal_id' => SessionChannelService::createCanalId(
                 $communicationChannel,
