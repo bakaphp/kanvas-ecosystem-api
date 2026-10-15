@@ -27,7 +27,7 @@ class LeadRefTool extends Tool
     protected string $name = 'get_lead_ref';
 
     protected ?string $description = 'Get the full reference data of the lead including personal info (age), owner, tags,
-        vehicle of interest, trade-in vehicle, company, contacts (emails, phones), address, photo, and whether this is a new or a
+        company, contacts (emails, phones), address, photo, and whether this is a new or a
         returning customer (use get_past_opportunities for the details of a returning one).
         Call this once at the start of the conversation to know who you are talking to. Do not call it again.';
 
@@ -55,6 +55,8 @@ class LeadRefTool extends Tool
         $company = $lead->company;
         $people = $lead->people;
 
+        $additional_context_information = $lead->get(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value);
+
         return [
             'lead_id' => $lead->id,
             'lead_uuid' => $lead->uuid,
@@ -72,8 +74,7 @@ class LeadRefTool extends Tool
                 'name' => trim($lead->owner->firstname . ' ' . $lead->owner->lastname),
                 'email' => $lead->owner->email,
             ] : null,
-            'vehicle_interest' => $lead->get(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value),
-            'vehicle_trade_in' => $lead->get(LeadCustomFieldEnum::TRADE_IN->value),
+            'vehicle_interest' => $additional_context_information,
             'tags' => $lead->tags()->pluck('name')->all(),
             'people' => $people ? [
                 'id' => $people->id,

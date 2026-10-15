@@ -15,9 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\SalesAssist\Actions\RecordLeadVehicleNotesAction;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
-use Kanvas\Connectors\SalesAssist\Enums\LeadVehicleNoteEnum;
 use Kanvas\Connectors\VinSolution\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Connectors\VinSolution\DataTransferObject\People;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
@@ -289,7 +287,6 @@ class PullLeadAction
                 }
 
                 $lead->set(CustomFieldEnum::VEHICLE_OF_INTEREST->value, $vehicleOfInterest);
-                new RecordLeadVehicleNotesAction($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST)->execute();
             }
 
             if (
@@ -349,7 +346,6 @@ class PullLeadAction
 
             if ($vehicleTradeIn !== null) {
                 $lead->set(LeadCustomFieldEnum::TRADE_IN->value, $vehicleTradeIn);
-                new RecordLeadVehicleNotesAction($lead, LeadVehicleNoteEnum::TRADE_IN)->execute();
             }
         } catch (Throwable $e) {
             $message = $e->getMessage();
