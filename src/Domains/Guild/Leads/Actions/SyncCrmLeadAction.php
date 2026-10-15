@@ -198,6 +198,10 @@ class SyncCrmLeadAction
             throw $exception;
         }
 
+        if ($lead instanceof Lead) {
+            $warnings = [...$warnings, ...new OpenCrmLeadChannelsAction($this->data, $lead)->execute()];
+        }
+
         if ($plan->createsLead() && $lead instanceof Lead) {
             $this->fireWorkflows($lead);
         }

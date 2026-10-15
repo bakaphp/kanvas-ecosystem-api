@@ -22,10 +22,14 @@ use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmLeadInfo;
 use Kanvas\Guild\Leads\DataTransferObject\CrmLeadSync;
 use Kanvas\Guild\Leads\DataTransferObject\CrmLeadSyncResult;
 use Kanvas\Guild\Leads\Enums\CrmLeadSyncOutcomeEnum;
+use Kanvas\Guild\Leads\Enums\CrmLeadSyncSettingEnum;
 use Kanvas\Guild\Leads\Exceptions\CrmLeadSyncException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
 use PHPUnit\Framework\Attributes\Group;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -41,7 +45,7 @@ final class SyncCrmLeadActionTest extends TestCase
      * ecosystem is not optional: custom fields are written on that connection. intelligence is where a
      * do-not-contact hand-off writes.
      */
-    protected $connectionsToTransact = [null, 'crm', 'ecosystem', 'intelligence'];
+    protected $connectionsToTransact = [null, 'crm', 'ecosystem', 'intelligence', 'social'];
 
     private mixed $previousDealerNumber = null;
 
@@ -736,6 +740,119 @@ final class SyncCrmLeadActionTest extends TestCase
         $this->assertSame($webhookLead->people_id, $result->people->getId());
         $this->assertSame($input['identity']['client_id'], (string) $result->people->get(CustomFieldEnum::CLIENT_ID->value));
         $this->assertSame($nameRecId, (string) $result->people->get(CustomFieldEnum::NAME_REC_ID->value));
+    }
+
+    /**
+     * @return array<string, array{0: mixed}>
+     */
+    public static function onValues(): array
+    {
+        return ['true' => [true], 'one' => [1], 'string one' => ['1'], 'string true' => ['true']];
+    }
+
+    /**
+     * @return array<string, array{0: mixed}>
+     */
+    public static function offValues(): array
+    {
+        return ['false' => [false], 'zero' => [0], 'string false' => ['false'], 'empty' => ['']];
+    }
+
+    #[DataProvider('onValues')]
+    public function testTheChannelsAreOpenedWhenTheCustomFieldIsOn(mixed $value): void
+    {
+        $this->createSallyAgent();
+
+        $result = $this->withChannelsSetting($value, fn () => $this->sync($this->payload()));
+
+        $names = $result->lead->socialChannels()->pluck('name')->all();
+        $this->assertContains('Sms ' . $result->lead->getId(), $names);
+        $this->assertContains('Email ' . $result->lead->getId(), $names);
+        $this->assertNotContains('social_channels_skipped', array_column($result->warnings, 'code'));
+    }
+
+    #[DataProvider('offValues')]
+    public function testTheChannelsAreNotOpenedByTheSyncWhenTheCustomFieldIsOff(mixed $value): void
+    {
+        $this->createSallyAgent();
+
+        $result = $this->withChannelsSetting($value, fn () => $this->sync($this->payload()));
+
+        $names = $result->lead->socialChannels()->pluck('name')->all();
+        $this->assertNotContains('Sms ' . $result->lead->getId(), $names);
+        $this->assertNotContains('Email ' . $result->lead->getId(), $names);
+    }
+
+    public function testTheChannelsAreOpenedForAnAdoptedLeadToo(): void
+    {
+        $this->createSallyAgent();
+        $email = $this->uniqueEmail();
+        $people = $this->createPeople('Ana', 'Perez', $email);
+        $lead = $this->createLead($people, 'Active');
+
+        $result = $this->withChannelsSetting(true, fn () => $this->sync($this->payload(['customer' => ['emails' => [$email]]])));
+
+        $this->assertSame(CrmLeadSyncOutcomeEnum::ADOPTED, $result->outcome);
+        $names = $lead->refresh()->socialChannels()->pluck('name')->all();
+        $this->assertContains('Sms ' . $lead->getId(), $names, 'the cell phone the CRM added opens an sms channel');
+        $this->assertContains('Email ' . $lead->getId(), $names);
+    }
+
+    public function testWithoutAnAgentTheChannelsAreSkippedWithAWarningAndTheSyncStillSucceeds(): void
+    {
+        $result = $this->withChannelsSetting(true, fn () => $this->sync($this->payload()));
+
+        $this->assertSame(CrmLeadSyncOutcomeEnum::CREATED_ALL, $result->outcome);
+        $this->assertContains(['code' => 'social_channels_skipped', 'field' => 'agent'], $result->warnings);
+    }
+
+    public function testNoChannelsAreOpenedWhenThereIsNoLead(): void
+    {
+        $this->createSallyAgent();
+        $input = $this->payload();
+        $input['identity']['lead_id'] = null;
+
+        $result = $this->withChannelsSetting(true, fn () => $this->sync($input));
+
+        $this->assertSame(CrmLeadSyncOutcomeEnum::PEOPLE_ONLY, $result->outcome);
+        $this->assertNotContains('social_channels_skipped', array_column($result->warnings, 'code'));
+    }
+
+    private function createSallyAgent(): void
+    {
+        $app = app(Apps::class);
+        $agentType = AgentType::factory()
+            ->withAppId($app->getId())
+            ->create(['name' => 'Crm Sync Test ' . uniqid()]);
+
+        Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($this->company()->getId())
+            ->create([
+                'name' => 'Sally',
+                'agent_type_id' => $agentType->getId(),
+                'user_id' => auth()->user()->getId(),
+            ]);
+    }
+
+    /**
+     * @template T
+     *
+     * @param callable(): T $callback
+     *
+     * @return T
+     */
+    private function withChannelsSetting(mixed $value, callable $callback): mixed
+    {
+        $company = $this->company();
+        $setting = CrmLeadSyncSettingEnum::CREATE_SOCIAL_CHANNELS->value;
+        $company->set($setting, $value);
+
+        try {
+            return $callback();
+        } finally {
+            $company->del($setting);
+        }
     }
 
     private function sync(array $input, ?ReynoldsCrmDriver $driver = null): CrmLeadSyncResult
