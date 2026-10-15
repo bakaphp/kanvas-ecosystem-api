@@ -72,6 +72,22 @@ class LeadConfigurationService
         return $this->findConfigKeyBySuffix($lead, 'con_fu_active_default');
     }
 
+    public function allowsContinuedFollowUp(Lead $lead): bool
+    {
+        $config = $lead->type()->first()?->config ?? [];
+        if ($config === []) {
+            return true;
+        }
+
+        $key = $lead->isOpen()
+            ? $this->getFollowUpActiveDefaultKey($lead)
+            : $this->getFollowUpDefaultKey($lead);
+
+        // Legacy defaults are optional; only an explicit false value vetoes v2.
+        return ! array_key_exists($key, $config)
+            || filter_var($config[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== false;
+    }
+
     public function getFollowUpActiveDefaultKey(Lead $lead): string
     {
         return $this->findConfigKeyBySuffix($lead, 'con_fu_active_default');

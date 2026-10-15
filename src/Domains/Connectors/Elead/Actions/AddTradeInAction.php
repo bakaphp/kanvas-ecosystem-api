@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Actions;
 
+use Baka\Support\Arr;
 use Kanvas\Connectors\Elead\DataTransferObject\TradeIn;
 use Kanvas\Guild\Leads\Models\Lead;
 
@@ -16,35 +17,33 @@ class AddTradeInAction
 
     public function execute(array $message): TradeIn
     {
-        $syncLead = new SyncLeadAction($this->lead);
-        $eLead = $syncLead->execute();
+        $eLead = new SyncLeadAction($this->lead)->execute();
 
-        $formData = $message['data']['form'];
-        $files = $this->lead->getFiles();
-        $filesLinks = '';
-
-        if (count($files) > 0) {
-            foreach ($files as $file) {
-                $filesLinks .= $file->url;
-            }
-        }
-
-        //clean up milage
-        $number = str_replace(',', '', $message['data']['form']['mileage']);
+        $formData = $this->resolveFormData($message['data'] ?? []);
+        $mileage = str_replace(',', '', (string) ($formData['mileage'] ?? $formData['odometer'] ?? '0'));
 
         $tradeIn = new TradeIn(
-            (int) $formData['year'],
+            (int) ($formData['year'] ?? 0),
             $formData['make'] ?? '',
             $formData['model'] ?? '',
             isset($formData['trim']) ? substr($formData['trim'], 0, 50) : '',
-            $formData['vin'],
-            (int) $number ?? 0,
-            $formData['int_color'] ?? '',
-            $formData['ext_color'] ?? ''
+            $formData['vin'] ?? '',
+            (int) $mileage,
+            $formData['int_color'] ?? $formData['interior_color'] ?? '',
+            $formData['ext_color'] ?? $formData['exterior_color'] ?? ''
         );
 
         $eLead->addTradeIn($tradeIn);
 
         return $tradeIn;
+    }
+
+    /**
+     * Web forms send `data.form` keyed by field; the browser extension sends `data` as a
+     * `[{label, value}]` list (VIN, Odometer, Exterior color, ...).
+     */
+    protected function resolveFormData(array $data): array
+    {
+        return $data['form'] ?? Arr::fromLabelValuePairs($data);
     }
 }

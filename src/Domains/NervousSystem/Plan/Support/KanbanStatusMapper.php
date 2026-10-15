@@ -53,6 +53,7 @@ final class KanbanStatusMapper
             TaskStatusEnum::SKIPPED => KanbanTransition::ARCHIVE,
             TaskStatusEnum::PENDING => KanbanTransition::UNBLOCK, // best-effort; only legal from blocked
             TaskStatusEnum::IN_PROGRESS => null,                 // running is agent-driven, observed on ingest
+            TaskStatusEnum::WAITING => null,                     // no board column for a wait; it stays where it was
         };
     }
 

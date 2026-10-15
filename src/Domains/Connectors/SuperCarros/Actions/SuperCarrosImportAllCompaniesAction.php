@@ -19,7 +19,7 @@ class SuperCarrosImportAllCompaniesAction
 {
     public function __construct(
         protected AppInterface $app,
-        protected bool $unpublishAllBeforeImport = false,
+        protected bool $unpublishMissing = false,
         protected ?float $weight = null,
         protected ?UserInterface $user = null,
         protected ?Regions $region = null,
@@ -64,15 +64,12 @@ class SuperCarrosImportAllCompaniesAction
                 // Each company resolves its own access key + customer id from its settings,
                 // so customerId is left null here on purpose.
                 $result = new SuperCarrosVehicleInventoryImportAction(
-                    $this->app,
-                    $company,
-                    $user,
-                    $region,
-                    null,
-                    null,
-                    $this->unpublishAllBeforeImport,
-                    null,
-                    $this->weight,
+                    app: $this->app,
+                    company: $company,
+                    user: $user,
+                    region: $region,
+                    unpublishMissing: $this->unpublishMissing,
+                    weight: $this->weight,
                 )->execute();
 
                 $aggregate['total_processed'] += (int) $result['total_processed'];

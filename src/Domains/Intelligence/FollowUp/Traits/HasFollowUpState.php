@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\FollowUp\Traits;
 
 use Baka\Support\DateHelper;
+use DateTimeInterface;
 use Illuminate\Support\Carbon;
 
 /**
@@ -58,10 +59,20 @@ trait HasFollowUpState
 
     public function followUpSilenceMinutesSince(?Carbon $lastInboundAt): int
     {
-        $reference = $this->getFollowUpLastAt() ?? $lastInboundAt;
+        $reference = null;
+        foreach ([$this->getFollowUpStageEnteredAt(), $this->getFollowUpLastAt(), $lastInboundAt] as $candidate) {
+            if ($candidate !== null && ($reference === null || $candidate->greaterThan($reference))) {
+                $reference = $candidate;
+            }
+        }
 
-        // Carbon ^3 returns float; abs() so a future reference doesn't yield negative.
-        return $reference ? (int) abs(Carbon::now()->diffInMinutes($reference)) : PHP_INT_MAX;
+        $createdAt = $this->created_at;
+        $reference ??= $createdAt instanceof DateTimeInterface
+            ? Carbon::instance($createdAt)
+            : DateHelper::tryParseCarbon($createdAt);
+
+        // Missing or future timestamps must not make a follow-up immediately due.
+        return $reference !== null ? max(0, (int) $reference->diffInMinutes(Carbon::now())) : 0;
     }
 
     /**

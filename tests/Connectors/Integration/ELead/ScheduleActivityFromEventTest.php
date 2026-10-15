@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\ScheduleEleadActivityFromEventAction;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Actions\SyncPeopleAction;
+use Kanvas\Connectors\Elead\Actions\UpdateEleadActivityFromEventAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventCategory;
@@ -143,6 +144,33 @@ final class ScheduleActivityFromEventTest extends TestCase
         )->execute();
 
         $this->assertNotNull($result->activityId);
+    }
+
+    public function testScheduleStoresTheActivityIdAndNeverSchedulesTwice(): void
+    {
+        $data = $this->createEventWithLead();
+        $event = $data['event'];
+        $lead = $data['lead'];
+        $params = ['activity_type_name' => 'Phone Call'];
+
+        $first = new ScheduleEleadActivityFromEventAction($event, $lead, $params)->execute();
+        $this->assertSame($first->activityId, $event->get(CustomFieldEnum::ACTIVITY_ID->value));
+
+        $again = new ScheduleEleadActivityFromEventAction($event, $lead, $params)->execute();
+        $this->assertSame($first->activityId, $again->activityId);
+
+        $updated = new UpdateEleadActivityFromEventAction($event, $lead)->execute();
+        $this->assertSame($first->activityId, $updated->activityId);
+    }
+
+    public function testUpdateFailsWhenTheEventWasNeverScheduled(): void
+    {
+        $data = $this->createEventWithLead();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Event has no eLead activity to update');
+
+        new UpdateEleadActivityFromEventAction($data['event'], $data['lead'])->execute();
     }
 
     public function testScheduleActivityFailsWithoutOpportunityId(): void

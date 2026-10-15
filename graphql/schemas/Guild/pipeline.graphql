@@ -99,7 +99,6 @@ extend type Query @guard {
                     "weight"
                     "slug"
                     "name"
-                    "weight"
                     "is_default"
                 ]
             )

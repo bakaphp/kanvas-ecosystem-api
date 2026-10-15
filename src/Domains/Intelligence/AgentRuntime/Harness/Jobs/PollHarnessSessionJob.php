@@ -262,7 +262,8 @@ class PollHarnessSessionJob implements ShouldQueue
                 $session,
                 'The coding session became unreachable: ' . $e->getMessage(),
                 HarnessStatusEnum::FAILED,
-                interrupt: false
+                interrupt: false,
+                silence: true,
             );
 
             return;
@@ -280,7 +281,8 @@ class PollHarnessSessionJob implements ShouldQueue
         AgentTaskSession $session,
         string $reason,
         HarnessStatusEnum $status,
-        bool $interrupt = true
+        bool $interrupt = true,
+        bool $silence = false,
     ): void {
         if ($interrupt) {
             HarnessFactory::interrupt($session);
@@ -290,6 +292,6 @@ class PollHarnessSessionJob implements ShouldQueue
         $session->error_message = $reason;
         $session->saveOrFail();
 
-        new FinalizeHarnessSessionAction($session, null, $reason)->execute();
+        new FinalizeHarnessSessionAction($session, failureReason: $reason, silence: $silence)->execute();
     }
 }

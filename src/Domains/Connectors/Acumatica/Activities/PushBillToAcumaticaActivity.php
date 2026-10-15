@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
+use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -39,6 +40,10 @@ class PushBillToAcumaticaActivity extends KanvasActivity
 
         if ($entity->source === IntegrationsEnum::ACUMATICA->value || $entity->get(CustomFieldEnum::BILL_ID->value) !== null) {
             return ['status' => 'skipped', 'reason' => 'already_in_acumatica', 'bill_id' => $entity->getId()];
+        }
+
+        if ($entity->document_status !== BillDocumentStatusEnum::RECEIVED) {
+            return ['status' => 'skipped', 'reason' => 'not_approved', 'bill_id' => $entity->getId()];
         }
 
         return $this->executeIntegration(

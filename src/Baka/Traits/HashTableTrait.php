@@ -80,7 +80,7 @@ trait HashTableTrait
         $settingsModelClass = get_class($this->settingsModel);
         $primaryKey = $this->getSettingsPrimaryKey();
 
-        $value = Str::isJson($value) ? json_decode($value, true) : $value;
+        $value = Str::jsonToArray($value);
 
         // Use upsert for atomic insert/update
         $settingsModelClass::upsert(

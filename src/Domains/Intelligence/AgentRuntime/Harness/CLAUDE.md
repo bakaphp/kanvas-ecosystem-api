@@ -29,6 +29,14 @@ which can be queried from Task custom fields, and custom fields live on a differ
 
 **A task has many sessions.** A retry is a new row. Do not mutate the old one.
 
+**A run that produced nothing is retried once, by the finalizer.** `retry_of_session_id` marks the
+second try. The triggers are exactly two — a completed run with an empty diff, or silence from the
+runtime (poller gave up / sweeper) with zero tokens in and out — and a session that is already a retry
+never retries again. A run a person stopped, a run that made edits, and a run whose diff merely could
+not be read are verdicts, not blanks, and go straight to the ordinary ending. The task, plan, parent
+link and `current_attempt_id` are untouched by a retry: to the task it is still one attempt, and the
+parent keeps waiting. Same model unless the tenant set `coding_fallback_model`.
+
 ## Things that will bite you
 
 - **`TaskStatusEnum::BLOCKED` is terminal.** Every poller's first guard is `isTerminal()`, so a task
@@ -192,6 +200,7 @@ session provisions, the turn runs, and the model answers from opencode's own hos
 | `coding_max_concurrent_sessions` | no | Per app. |
 | `coding_max_session_cost_usd` | no | Per session ceiling; default $10. `0` = uncapped. |
 | `coding_max_session_minutes` | no | Active minutes before the poller interrupts the run; default 180 (3h). Company wins over app. Ticks spent waiting on a human answer/permission don't count. |
+| `coding_fallback_model` | no | The model the one retry of an empty run uses. Unset = the same model. Same provider either way. Company wins over app. |
 | `opencode_static_endpoint` / `_password` | no | Attach mode only. Leave unset for the real path, or provisioning attaches instead of launching. |
 
 **Agent-level** (custom fields, `AgentCustomFieldEnum`):
@@ -226,6 +235,22 @@ php artisan kanvas:coding:setup --app=2 --machine=<id> --provider=oai --model=gp
 php artisan kanvas:coding:build-image --app=2 --machine=<id>   # until the image is in a registry
 php artisan kanvas:coding:smoke-test --agent=<id> --repo=<slug> --task="..."
 ```
+
+**Upgrading opencode** is a `FROM` bump in `docker/opencode/Dockerfile` followed by one command, because
+a build alone is not an upgrade: a coding container lives for as long as its agent keeps getting work,
+and was created with whatever image was configured at the time.
+
+```bash
+php artisan kanvas:coding:upgrade-image --app=2 --all --dry-run   # what is still on the old image
+php artisan kanvas:coding:upgrade-image --app=2 --all             # build, point the app at the tag, replace idle containers
+php artisan kanvas:coding:upgrade-image --app=2 --all --force     # also the ones with a job running or a push awaiting approval
+```
+
+It targets the tag the Dockerfile builds (never the app's current setting — that is the version being
+left behind), builds on every selected machine, writes `opencode_image`, then removes each container
+not on that image. A container with a live session or a pending push approval is kept and listed;
+`EnsureAgentCodingContainerAction` compares the image on every dispatch, so it rolls over on its
+agent's next task anyway. `--force` removes those too and closes their sessions with a reason.
 
 The smoke test polls in the foreground and prints each tick. **Launch is asynchronous** — provisioning
 happens in `LaunchTaskSessionJob` on the `agent-runtime` queue, so the first few ticks print nothing

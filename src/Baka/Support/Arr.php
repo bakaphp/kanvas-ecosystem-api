@@ -29,6 +29,24 @@ class Arr extends IlluminateArr
     }
 
     /**
+     * `[{label: 'Exterior color', value: 'white'}]` → `['exterior_color' => 'white']`.
+     */
+    public static function fromLabelValuePairs(array $items): array
+    {
+        $data = [];
+
+        foreach ($items as $item) {
+            if (! is_array($item) || ! isset($item['label'])) {
+                continue;
+            }
+
+            $data[str_replace(' ', '_', Str::lowerTrim((string) $item['label']))] = $item['value'] ?? null;
+        }
+
+        return $data;
+    }
+
+    /**
      * Byte size of an array once JSON-encoded. Useful when an API caps payload
      * size in bytes (Algolia 10KB records, OneSignal 2048, Expo 4KiB, ...).
      */

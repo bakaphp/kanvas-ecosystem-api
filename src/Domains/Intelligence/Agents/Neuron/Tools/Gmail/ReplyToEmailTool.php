@@ -21,17 +21,19 @@ use Throwable;
  * choice, and never the thread's original external sender — so this can't be used to leak
  * internal notes out.
  */
-#[AgentTool(name: 'Reply To Email', category: 'productivity')]
+#[AgentTool(name: 'Gmail Reply To Thread', category: 'productivity')]
 class ReplyToEmailTool extends Tool
 {
     use HasKanvasContext;
 
-    protected string $name = 'reply_to_email';
+    protected string $name = 'gmail_reply_to_thread';
 
-    protected ?string $description = 'Replies inside an existing email thread with an internal note (e.g. "Approved by X '
-        . 'on Y"), as an audit trail. Always sent only to the approver configured on target_id\'s '
-        . 'vendor/customer — never to the thread\'s original external sender. Commonly used right after '
-        . 'approve_pending_item succeeds, using the message_id of the original email.';
+    protected ?string $description = 'Gmail only: replies inside an existing thread of the company\'s connected Gmail '
+        . 'inbox with an internal note (e.g. "Approved by X on Y"), as an audit trail on a bill or invoice. '
+        . 'Always sent only to the approver configured on target_id\'s vendor/customer — never to the thread\'s '
+        . 'original external sender. Commonly used right after approve_pending_item succeeds, using the Gmail '
+        . 'message_id of the original email. It is NOT a general way to send or answer email: you cannot choose '
+        . 'the recipient.';
 
     /**
      * @return array<int, ToolProperty>

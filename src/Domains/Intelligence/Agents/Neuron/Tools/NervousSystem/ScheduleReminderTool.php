@@ -88,7 +88,8 @@ class ScheduleReminderTool extends Tool
             new ToolProperty(
                 name: 'max_occurrences',
                 type: PropertyType::INTEGER,
-                description: 'Optional cap on how many times a recurring reminder fires.',
+                description: 'Optional cap on how many times a recurring reminder fires. Omit it for a reminder '
+                    . 'that keeps going; do not pass 0.',
                 required: false,
             ),
             new ToolProperty(

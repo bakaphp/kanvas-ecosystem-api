@@ -16,5 +16,5 @@ enum ParkingApplicationFieldTypeEnum: string
     case DATE_TIME = 'date_time';
     case SCHEDULE = 'schedule';
     case CLOSURES = 'closures';
-    case PAYMENT_METHODS = 'payment_methods';
+    case OPTION_LIST = 'option_list';
 }

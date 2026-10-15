@@ -116,7 +116,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                 }
 
                 $channelEntity = $channel->entityData();
-                $messageEntity = $message->entity();
+                $messageEntity = $message->preferredEntity(Lead::class);
 
                 $messageContext['channel_entity_class'] = $channelEntity ? $channelEntity::class : null;
                 $messageContext['message_entity_class'] = $messageEntity ? $messageEntity::class : null;

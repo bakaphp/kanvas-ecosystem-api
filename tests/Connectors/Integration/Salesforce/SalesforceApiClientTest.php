@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Salesforce;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\Salesforce\Services\SalesforceApiClient;
 use Kanvas\Exceptions\ValidationException;
@@ -92,6 +93,41 @@ final class SalesforceApiClientTest extends TestCase
         $client = $this->makeClient(fn (int $seconds) => null);
 
         $this->expectException(ValidationException::class);
+
+        $client->query('SELECT Id FROM Account');
+    }
+
+    public function testConnectionResetIsRetriedInsteadOfFailingTheWholeRecord(): void
+    {
+        Http::fake([
+            self::INSTANCE_URL . '/services/data/' . self::API_VERSION . '/query*' => Http::sequence()
+                ->pushFailedConnection('cURL error 35: Recv failure: Connection reset by peer')
+                ->push(['totalSize' => 0, 'done' => true, 'records' => []], 200),
+        ]);
+
+        $waited = [];
+        $client = $this->makeClient(function (int $seconds) use (&$waited) {
+            $waited[] = $seconds;
+        });
+
+        $result = $client->query('SELECT Id FROM Account');
+
+        $this->assertTrue($result['done']);
+        $this->assertNotEmpty($waited, 'A connection reset should trigger a wait before retrying.');
+        Http::assertSentCount(2);
+    }
+
+    public function testConnectionResetThrowsAfterExhaustingRetries(): void
+    {
+        Http::fake([
+            self::INSTANCE_URL . '/services/data/' . self::API_VERSION . '/query*' => Http::failedConnection(
+                'cURL error 35: Recv failure: Connection reset by peer',
+            ),
+        ]);
+
+        $client = $this->makeClient(fn (int $seconds) => null);
+
+        $this->expectException(ConnectionException::class);
 
         $client->query('SELECT Id FROM Account');
     }

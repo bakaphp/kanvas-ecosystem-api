@@ -6,6 +6,7 @@ namespace App\Console\Commands\Connectors\NetSuite;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\NetSuite\Actions\SyncAllNetSuiteCustomerItemsListAction;
 
@@ -33,9 +34,21 @@ class ReconcileCustomerItemsCommand extends Command
         }
 
         $output = new SyncAllNetSuiteCustomerItemsListAction(
-            $app,
-            (bool) $this->option('dry-run'),
-            $companyIds
+            app: $app,
+            dryRun: (bool) $this->option('dry-run'),
+            onlyBuyerIds: $companyIds,
+            onProgress: fn (array $entry, int $current, int $total) => $this->line(sprintf(
+                '[%d/%d] %s (#%d) — missing %d — last sync %s — %s',
+                $current,
+                $total,
+                $entry['company_name'],
+                $entry['company_id'],
+                $entry['missing_count'],
+                $this->lastSyncLabel($entry['last_sync']),
+                $entry['error'] !== null
+                    ? $entry['error']['status'] . ': ' . $entry['error']['message']
+                    : ($entry['synced'] ? 'synced' : 'ok')
+            ))
         )->execute();
 
         $rows = array_map(function (array $entry): array {
@@ -50,13 +63,28 @@ class ReconcileCustomerItemsCommand extends Command
                 $entry['product_count'],
                 $entry['channel_count'],
                 $entry['missing_count'],
+                $entry['last_sync']['ns_items'] ?? '—',
+                $entry['last_sync']['not_found'] ?? '—',
+                $this->lastSyncLabel($entry['last_sync']),
                 $entry['synced'] ? 'yes' : 'no',
                 $status,
             ];
         }, $output['results']);
 
         $this->table(
-            ['ID', 'Name', 'Channel', 'Products', 'In Channel', 'Missing', 'Synced', 'Status'],
+            [
+                'ID',
+                'Name',
+                'Channel',
+                'Products',
+                'In Channel',
+                'Missing',
+                'NS Items',
+                'Not Found',
+                'Last Sync',
+                'Synced',
+                'Status',
+            ],
             $rows
         );
 
@@ -69,5 +97,12 @@ class ReconcileCustomerItemsCommand extends Command
         ));
 
         return $output['total_errors'] > 0 ? 1 : 0;
+    }
+
+    protected function lastSyncLabel(?array $lastSync): string
+    {
+        return isset($lastSync['at'])
+            ? Carbon::parse($lastSync['at'])->format('Y-m-d H:i')
+            : '—';
     }
 }

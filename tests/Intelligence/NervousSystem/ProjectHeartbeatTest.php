@@ -57,8 +57,12 @@ class ProjectHeartbeatTest extends TestCase
         )->execute();
     }
 
-    private function planWithPendingTask(Project $project, Apps $app, Companies $company, Users $user): Plan
-    {
+    private function planWithPendingTask(
+        Project $project,
+        Apps $app,
+        Companies $company,
+        Users $user,
+    ): Plan {
         $plan = new CreatePlanAction(
             new PlanData(
                 app: $app,
@@ -81,7 +85,12 @@ class ProjectHeartbeatTest extends TestCase
     {
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
-        $this->planWithPendingTask($project, $app, $company, $user);
+        $this->planWithPendingTask(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
 
         $this->assertTrue(new ProjectHeartbeatService()->needsAttention($project));
     }
@@ -122,7 +131,12 @@ class ProjectHeartbeatTest extends TestCase
     {
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
-        $plan = $this->planWithPendingTask($project, $app, $company, $user);
+        $plan = $this->planWithPendingTask(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
 
         /** @var Task $task */
         $task = $plan->tasks()->firstOrFail();
@@ -137,7 +151,12 @@ class ProjectHeartbeatTest extends TestCase
     {
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
-        $this->planWithPendingTask($project, $app, $company, $user);
+        $this->planWithPendingTask(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
 
         Bus::fake([WakeAgentForProjectJob::class]);
 
@@ -168,7 +187,12 @@ class ProjectHeartbeatTest extends TestCase
     {
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
-        $this->planWithPendingTask($project, $app, $company, $user);
+        $this->planWithPendingTask(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
 
         // Not due for another hour, even though it has waiting work.
         $project->next_heartbeat_at = now()->addHour();
@@ -220,7 +244,12 @@ class ProjectHeartbeatTest extends TestCase
     {
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
-        $this->planWithPendingTask($project, $app, $company, $user);
+        $this->planWithPendingTask(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
         $service = new ProjectHeartbeatService();
 
         Bus::fake([WakeAgentForProjectJob::class]);
@@ -249,7 +278,12 @@ class ProjectHeartbeatTest extends TestCase
     {
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
-        $this->planWithPendingTask($project, $app, $company, $user);
+        $this->planWithPendingTask(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
         $service = new ProjectHeartbeatService();
 
         Bus::fake([WakeAgentForProjectJob::class]);
@@ -260,7 +294,12 @@ class ProjectHeartbeatTest extends TestCase
         $this->assertSame(1, $project->heartbeat_backoff_level);
 
         $this->travel(15)->minutes();
-        $this->planWithPendingTask($project, $app, $company, $user);
+        $this->planWithPendingTask(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
 
         $this->assertTrue($service->tick($project), 'New stuck work is not held behind the old backoff.');
         $this->assertSame(0, $project->heartbeat_backoff_level);
@@ -270,7 +309,12 @@ class ProjectHeartbeatTest extends TestCase
     {
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
-        $plan = $this->planWithPendingTask($project, $app, $company, $user);
+        $plan = $this->planWithPendingTask(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
         $service = new ProjectHeartbeatService();
 
         Bus::fake([WakeAgentForProjectJob::class]);
@@ -294,7 +338,12 @@ class ProjectHeartbeatTest extends TestCase
     {
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
-        $this->planWithPendingTask($project, $app, $company, $user);
+        $this->planWithPendingTask(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
         $project->heartbeat_max_backoff_minutes = 0;
         $project->saveQuietly();
         $service = new ProjectHeartbeatService();
@@ -310,7 +359,12 @@ class ProjectHeartbeatTest extends TestCase
     {
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
-        $this->planWithPendingTask($project, $app, $company, $user);
+        $this->planWithPendingTask(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
         $project->heartbeat_max_backoff_minutes = 240;
         $project->saveQuietly();
         $service = new ProjectHeartbeatService();
@@ -343,5 +397,46 @@ class ProjectHeartbeatTest extends TestCase
                 ['heartbeat_max_backoff_minutes' => 90]
             ),
         )->execute();
+    }
+
+    public function testNoAttentionWhileATaskWaitsOnABookedWake(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planWithPendingTask(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
+
+        /** @var Task $task */
+        $task = $plan->tasks()->firstOrFail();
+        $task->status = TaskStatusEnum::WAITING->value;
+        $task->wake_at = now()->addDay();
+        $task->saveQuietly();
+
+        $this->assertFalse(new ProjectHeartbeatService()->needsAttention($project));
+    }
+
+    /** A wait whose wake never fired is idle work, not a plan: the PM is woken to recover it. */
+    public function testAnOverdueWakeNeedsAttention(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planWithPendingTask(
+            $project,
+            $app,
+            $company,
+            $user,
+        );
+
+        /** @var Task $task */
+        $task = $plan->tasks()->firstOrFail();
+        $task->status = TaskStatusEnum::WAITING->value;
+        $task->wake_at = now()->subMinutes(5);
+        $task->saveQuietly();
+
+        $this->assertTrue(new ProjectHeartbeatService()->needsAttention($project));
     }
 }

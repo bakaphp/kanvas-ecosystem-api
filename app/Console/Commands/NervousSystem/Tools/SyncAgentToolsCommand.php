@@ -70,6 +70,21 @@ class SyncAgentToolsCommand extends Command
                 'apps_id' => 0,
             ];
 
+            $legacyTools = $this->findLegacyTools($entry['name'], $entry['class']);
+            if ($legacyTools->isNotEmpty()) {
+                foreach ($legacyTools as $legacyTool) {
+                    $legacyTool->handler = $entry['class'];
+                    if ($force) {
+                        $legacyTool->fill($attributes);
+                    }
+                    $legacyTool->save();
+                }
+
+                $updated[] = $entry['name'];
+
+                continue;
+            }
+
             if ($force) {
                 $tool = Tool::updateOrCreate($identity, $attributes);
                 match (true) {
@@ -88,7 +103,7 @@ class SyncAgentToolsCommand extends Command
         }
 
         $this->report('created', $created);
-        if ($force) {
+        if ($force || $updated !== []) {
             $this->report('updated', $updated);
         }
 
@@ -99,6 +114,26 @@ class SyncAgentToolsCommand extends Command
         $this->info('Syncing Agent Tools Done!');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Find catalog rows for a renamed tool whose old handler no longer resolves. Updating these rows
+     * in place preserves every existing agent, type and module grant attached to their ids.
+     *
+     * @return Collection<int, Tool>
+     */
+    private function findLegacyTools(string $name, string $handler): Collection
+    {
+        $names = array_unique([$name, Str::slug($name)]);
+
+        return Tool::query()
+            ->where('apps_id', 0)
+            ->whereIn('name', $names)
+            ->whereNotNull('handler')
+            ->where('handler', '!=', $handler)
+            ->get()
+            ->filter(fn (Tool $tool): bool => ! class_exists((string) $tool->handler))
+            ->values();
     }
 
     /**

@@ -68,6 +68,18 @@ class EngagementRepository
         )->first();
     }
 
+    public static function findLatestForLeadEntity(Lead $lead, string $entityUuid): ?Engagement
+    {
+        return Engagement::query()
+            ->where('leads_id', $lead->getId())
+            ->where('entity_uuid', $entityUuid)
+            ->fromApp($lead->app)
+            ->fromCompany($lead->company)
+            ->notDeleted()
+            ->orderByDesc('id')
+            ->first();
+    }
+
     public static function findEngagementForLeadBuilder(
         Lead $lead,
         string $actionSlug,

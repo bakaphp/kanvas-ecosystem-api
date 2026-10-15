@@ -15,7 +15,6 @@ final class CreateAppsActionTest extends TestCase
 {
     /**
      * Test Create Apps Action.
-     *
      */
     public function testCreateAppsAction(): void
     {
@@ -67,6 +66,7 @@ final class CreateAppsActionTest extends TestCase
             RolesEnums::MANAGER,
             RolesEnums::DEVELOPER,
             RolesEnums::INVENTORY_MANAGER,
+            RolesEnums::ENGAGEMENT_USAGE_REPORT,
         ] as $role) {
             $this->assertTrue(
                 Role::where('name', $role->value)->where('scope', $scope)->exists(),

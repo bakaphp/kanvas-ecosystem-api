@@ -51,7 +51,7 @@ class ProcessAdminInviteAction
         DB::beginTransaction();
 
         try {
-            $user = $this->user ?? (new CreateUserAction($dto))->execute();
+            $user = $this->user ?? new CreateUserAction($dto)->execute();
             $app = $invite->app;
             $company = $user->getCurrentCompany();
 
@@ -67,18 +67,19 @@ class ProcessAdminInviteAction
                 isActive: StateEnums::YES->getValue()
             );
 
-            //create user admin key
-            (new CreateAppKeyAction(
-                data: new AppKeyInput(
-                    $app->name . ' ' . $user->displayname . ' Key',
-                    $app,
-                    $user
-                ),
-                createUserInApp: false
-            ))->execute();
+            if ($app->getUserKeys($user)->isEmpty()) {
+                new CreateAppKeyAction(
+                    data: new AppKeyInput(
+                        $app->name . ' ' . $user->displayname . ' Key',
+                        $app,
+                        $user
+                    ),
+                    createUserInApp: false
+                )->execute();
+            }
 
             //use action instead of $app to save profile data.
-            (new RegisterUsersAppAction($user, $app))->execute($user->password);
+            new RegisterUsersAppAction($user, $app)->execute($user->password);
 
             //Set password to null to avoid auto-assign.
             $user->password = null;

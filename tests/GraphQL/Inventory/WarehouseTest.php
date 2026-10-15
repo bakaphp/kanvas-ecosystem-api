@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Illuminate\Support\Str;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
+use Tests\Traits\AssertsIsDefaultOrdering;
 
 class WarehouseTest extends TestCase
 {
+    use AssertsIsDefaultOrdering;
     use InventoryCases;
 
     /**
      * testCreateWarehouse.
-     *
      */
     public function testCreateWarehouse(): void
     {
@@ -28,7 +30,6 @@ class WarehouseTest extends TestCase
 
     /**
      * testFindWarehouse.
-     *
      */
     public function testFindWarehouse(): void
     {
@@ -62,7 +63,6 @@ class WarehouseTest extends TestCase
 
     /**
      * testUpdateWareHouse.
-     *
      */
     public function testUpdateWarehouse(): void
     {
@@ -93,7 +93,7 @@ class WarehouseTest extends TestCase
                 'location' => 'Test Location Updated',
                 'is_default' => true,
                 'is_published' => 0,
-            ]
+            ],
         ])->assertJson([
             'data' => ['updateWarehouse' => [
                 'id' => $warehouseResponse['id'],
@@ -102,7 +102,7 @@ class WarehouseTest extends TestCase
                 'location' => 'Test Location Updated',
                 'is_default' => true,
                 'is_published' => 0,
-            ]]
+            ]],
         ]);
     }
 
@@ -130,7 +130,52 @@ class WarehouseTest extends TestCase
             }', [
             'id' => $warehouseResponse['id'],
         ])->assertJson([
-            'data' => ['deleteWarehouse' => true]
+            'data' => ['deleteWarehouse' => true],
         ]);
+    }
+
+    public function testWarehousesOrderByIsDefault(): void
+    {
+        $regionId = $this->createRegion()->json('data.createRegion.id');
+        $suffix = Str::uuid()->toString();
+
+        $defaultId = (int) $this->graphQLData(
+            $this->createWarehouses($regionId, [
+                'regions_id' => $regionId,
+                'name' => 'Default Sort Warehouse ' . $suffix,
+                'location' => 'Test Location',
+                'is_default' => true,
+                'is_published' => true,
+            ]),
+            'createWarehouse'
+        )['id'];
+        $nonDefaultId = (int) $this->graphQLData(
+            $this->createWarehouses($regionId, [
+                'regions_id' => $regionId,
+                'name' => 'Plain Sort Warehouse ' . $suffix,
+                'location' => 'Test Location',
+                'is_default' => false,
+                'is_published' => true,
+            ]),
+            'createWarehouse'
+        )['id'];
+
+        $query = '
+            query($ids: Mixed!, $order: SortOrder!) {
+                warehouses(
+                    where: {column: ID, operator: IN, value: $ids}
+                    orderBy: [{column: IS_DEFAULT, order: $order}]
+                ) {
+                    data { id is_default }
+                }
+            }
+        ';
+
+        $this->assertOrdersByIsDefault(
+            $query,
+            'data.warehouses.data',
+            $defaultId,
+            $nonDefaultId
+        );
     }
 }

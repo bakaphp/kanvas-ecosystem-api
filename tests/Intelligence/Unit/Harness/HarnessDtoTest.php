@@ -198,6 +198,7 @@ class HarnessDtoTest extends TestCase
             'awaiting_answer' => TaskStatusEnum::IN_PROGRESS,
             'awaiting_permission' => TaskStatusEnum::IN_PROGRESS,
             'awaiting_extension' => TaskStatusEnum::IN_PROGRESS,
+            'verifying_diff' => TaskStatusEnum::IN_PROGRESS,
             'completed' => TaskStatusEnum::DONE,
             'failed' => TaskStatusEnum::BLOCKED,
             'cancelled' => TaskStatusEnum::SKIPPED,

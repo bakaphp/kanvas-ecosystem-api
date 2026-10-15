@@ -28,6 +28,16 @@ trait LoadsParkingApplicationFixture
         return $lead;
     }
 
+    protected function attachFixturePhotos(Lead $lead): void
+    {
+        $lead->addMultipleFilesFromUrl([
+            ['url' => 'https://picsum.photos/seed/parqueo-entrada/1200/800.jpg', 'name' => 'entrada.jpg'],
+            ['url' => 'https://picsum.photos/seed/parqueo-espacios/1200/800.jpg', 'name' => 'espacios.jpg'],
+            ['url' => 'https://picsum.photos/seed/parqueo-seguridad/1200/800.jpg', 'name' => 'seguridad.jpg'],
+            ['url' => 'https://picsum.photos/seed/parqueo-acceso/1200/800.jpg', 'name' => 'acceso.jpg'],
+        ]);
+    }
+
     protected function fixtureFields(): array
     {
         return json_decode(

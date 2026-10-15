@@ -183,8 +183,6 @@ extend type Query @guard {
                     "updated_at"
                     "weight"
                     "name"
-                    "weight"
-                    "is_default"
                 ]
             )
     ): [CompanyAction!]!
