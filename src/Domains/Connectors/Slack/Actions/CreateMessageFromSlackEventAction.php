@@ -4,55 +4,62 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Slack\Actions;
 
+use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Slack\Client;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Slack\Exceptions\SlackIdentityUnavailableException;
 use Kanvas\Connectors\Slack\Services\SlackConversationChannelService;
 use Kanvas\Connectors\Slack\Services\SlackFileAttachmentService;
 use Kanvas\Connectors\Slack\Services\SlackMarkdownService;
-use Kanvas\Connectors\Slack\Services\SlackUserResolverService;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\Models\ReceiverWebhookCall;
+use Kanvas\Workflow\Models\ReceiverWebhook;
+use Override;
 
-class CreateMessageFromSlackEventAction
+/**
+ * One Slack event from the agent's app becomes one row on the Kanvas channel that mirrors the Slack
+ * conversation. Every message in a room the bot was invited to comes through here; only the ones
+ * addressed to the agent (a DM, a group DM, a tag) are allowed to wake it, and only those fire the
+ * workflows that do so.
+ */
+class CreateMessageFromSlackEventAction extends BaseCreateMessageFromSlackAction
 {
+    /**
+     * @param list<string> $tags
+     */
     public function __construct(
-        protected readonly ReceiverWebhookCall $webhookRequest,
+        protected readonly ReceiverWebhook $receiver,
         protected readonly Agent $agent,
+        protected readonly string $teamId,
         protected readonly array $event,
+        protected readonly bool $addressed = true,
+        protected readonly array $tags = [],
+        protected readonly ?Carbon $occurredAt = null,
     ) {
     }
 
     public function execute(): ?Message
     {
-        $receiver = $this->webhookRequest->receiverWebhook;
-        $app = $receiver->app;
-        $company = $receiver->company;
-
         $client = Client::getInstanceByAgent($this->agent);
         $slackChannelId = (string) ($this->event['channel'] ?? '');
         $isDirectMessage = ($this->event['channel_type'] ?? '') === 'im';
-        $threadTs = $this->replyThreadTs();
+        $text = $this->text();
+        $files = $this->event['files'] ?? [];
+
+        if (! $this->addressed && trim($text) === '' && $files === []) {
+            return null;
+        }
 
         try {
-            $speaker = new SlackUserResolverService($client, $app, $company)
-                ->resolve((string) ($this->event['user'] ?? ''));
+            $speaker = $this->resolveSpeaker($client, (string) ($this->event['user'] ?? ''));
         } catch (SlackIdentityUnavailableException) {
             // We couldn't reach Slack to identify the sender (rate limit / transient API error).
             // In a DM there's no identity to proceed on, so skip this turn silently — the next
             // message resolves, and a successful lookup is cached. Never post the "get invited"
             // message here: that misreads a transient failure as a missing account. In a room the
-            // speaker is only used for attribution, so answer anyway with an unknown speaker.
+            // speaker is only used for attribution, so record it anyway with an unknown speaker.
             if ($isDirectMessage) {
                 return null;
             }
@@ -67,74 +74,76 @@ class CreateMessageFromSlackEventAction
             $client->postMessage(
                 $slackChannelId,
                 "I can't find a Kanvas account for your Slack email. Ask an admin to invite you, then message me again.",
-                $threadTs,
+                (string) ($this->event['thread_ts'] ?? ''),
             );
 
             return null;
         }
 
         $channel = $this->resolveChannel($isDirectMessage ? $speaker : null);
-        $entity = $isDirectMessage ? $speaker : $channel;
-        $author = $speaker ?? $receiver->user;
 
-        $messageType = new CreateMessageTypeAction(
-            new MessageTypeInput(
-                $app->getId(),
-                0,
-                'slack',
-                'slack',
-            )
-        )->execute();
-
-        // In a room the conversation entity is the channel, not any one person, so the agent has no
-        // built-in sense of who's speaking this turn. Attribute the message so it — and the stored
-        // history other speakers share — knows. A DM's entity is already the user, so it needs none.
-        $text = $this->text();
-        if (! $isDirectMessage && $speaker !== null) {
-            $speakerName = trim($speaker->firstname . ' ' . $speaker->lastname);
-            if ($speakerName !== '') {
-                $text = $speakerName . ': ' . $text;
-            }
+        if (! $isDirectMessage) {
+            $this->nameChannelAfterSlack($channel, $client, $slackChannelId);
         }
 
-        $messageInput = new MessageInput(
-            app: $app,
-            company: $company,
-            user: $author,
-            message: [
-                ...AiChatMessagePayload::from([
-                    'content' => $text,
-                    'from_me' => false,
-                    'from_ia' => false,
-                    'raw_data' => $this->event,
-                    'message_id' => (string) ($this->event['ts'] ?? ''),
-                    'chat_jid' => SessionChannelService::createCanalId(
-                        'slack',
-                        $this->teamId() . ':' . $slackChannelId . ':' . $threadTs
-                    ),
-                ])->toArray(),
-                'slack_channel' => $slackChannelId,
-                'slack_thread_ts' => $threadTs,
-                'slack_user' => $this->event['user'] ?? null,
-                'slack_team' => $this->teamId(),
-            ],
-            type: $messageType,
-            is_public: 1,
+        $author = $speaker ?? $this->receiver->user;
+
+        $message = $this->writeMessage(
+            channel: $channel,
+            author: $author,
+            payload: $this->basePayload(
+                $this->attributed($text, $isDirectMessage, $speaker),
+                $slackChannelId,
+                $this->event,
+                $speaker,
+            ),
+            type: $this->messageType('slack'),
+            isPublic: $this->addressed ? 1 : 0,
+            fireWorkflows: $this->addressed,
+            parent: $this->threadRoot($channel, $this->event),
+            occurredAt: $this->occurredAt,
+            entity: $isDirectMessage ? $speaker : $channel,
         );
 
-        $message = new CreateMessageAction(
-            $messageInput,
-            SystemModulesRepository::getByModelName($entity::class, $app),
-            $entity->getId(),
-        )->execute();
+        $message->addTag($this->addressed ? 'engagement' : self::INGEST_TAG);
 
-        $channel->addMessage($message);
-        $message->addTag('engagement');
-        $channel->addCategory('ai-agent', $app, $author, $company);
+        foreach ($this->tags as $tag) {
+            $message->addTag($tag);
+        }
 
-        SlackFileAttachmentService::attachAll($message, $client, $this->event['files'] ?? null);
+        $channel->addCategory('ai-agent', $this->receiver->app, $author, $this->receiver->company);
+
+        SlackFileAttachmentService::attachAll($message, $client, $files);
 
         return $message;
+    }
+
+    #[Override]
+    protected function receiver(): ReceiverWebhook
+    {
+        return $this->receiver;
+    }
+
+    #[Override]
+    protected function teamId(): string
+    {
+        return $this->teamId;
+    }
+
+    /**
+     * In a room the conversation entity is the channel, not any one person, so the agent has no
+     * built-in sense of who's speaking this turn. Attribute the message so it — and the stored
+     * history other speakers share — knows. A DM's entity is already the user, so it needs none.
+     */
+    private function attributed(string $text, bool $isDirectMessage, ?Users $speaker): string
+    {
+        if ($isDirectMessage || $speaker === null) {
+            return $text;
+        }
+
+        $speakerName = trim($speaker->firstname . ' ' . $speaker->lastname);
+
+        return $speakerName === '' ? $text : $speakerName . ': ' . $text;
     }
 
     /**
@@ -145,27 +154,10 @@ class CreateMessageFromSlackEventAction
     {
         return new SlackConversationChannelService()->channelFor(
             $this->agent,
-            $human ?? $this->agent->user ?? $this->webhookRequest->receiverWebhook->user,
-            $this->teamId(),
+            $human ?? $this->agent->user ?? $this->receiver->user,
+            $this->teamId,
             (string) ($this->event['channel'] ?? ''),
         );
-    }
-
-    private function teamId(): string
-    {
-        return (string) ($this->webhookRequest->payload['team_id'] ?? '');
-    }
-
-    /**
-     * Reply where the human spoke: in their thread if they opened one, otherwise at the top level —
-     * for DMs and channels alike. We never force a channel reply into its own thread, so the
-     * conversation stays in the main channel unless the user themselves threaded it.
-     *
-     * Empty string = post at the top level (the client drops an empty thread_ts).
-     */
-    private function replyThreadTs(): string
-    {
-        return (string) ($this->event['thread_ts'] ?? '');
     }
 
     /**
@@ -174,7 +166,7 @@ class CreateMessageFromSlackEventAction
      */
     private function text(): string
     {
-        $botUserId = (string) ($this->webhookRequest->receiverWebhook->configuration[ConfigurationEnum::BOT_USER_ID->value] ?? '');
+        $botUserId = (string) ($this->receiver->configuration[ConfigurationEnum::BOT_USER_ID->value] ?? '');
         $text = (string) ($this->event['text'] ?? '');
 
         if ($botUserId !== '') {
