@@ -31,8 +31,10 @@ class AddOrganizationNoteTool extends Tool
         . 'account\'s notes thread. Use this to record what the account bought, what they use, what they '
         . 'asked for, or the outcome of a call — anything that belongs to the whole account rather than to '
         . 'one contact or one lead. Identify the account by organization_id when you have it, otherwise by '
-        . 'organization_name. A note about one contact belongs on that person instead, and a note about a '
-        . 'single opportunity belongs on that lead.';
+        . 'organization_name. A document the person sent with the request (a meeting transcript, a file '
+        . 'dropped in the chat) goes in filesystem_ids so it is attached to the note, never as a URL in the '
+        . 'text. A note about one contact belongs on that person instead, and a note about a single '
+        . 'opportunity belongs on that lead.';
 
     /**
      * @return array<int, ToolProperty>
@@ -60,14 +62,19 @@ class AddOrganizationNoteTool extends Tool
                     . 'a candidate list rather than guessed at.',
                 required: false,
             ),
+            $this->noteFilesProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $note, ?int $organization_id = null, ?string $organization_name = null): array
-    {
+    public function __invoke(
+        string $note,
+        ?int $organization_id = null,
+        ?string $organization_name = null,
+        array|int|string|null $filesystem_ids = null,
+    ): array {
         $note = trim($note);
 
         if ($note === '') {
@@ -92,6 +99,7 @@ class AddOrganizationNoteTool extends Tool
             $note,
             'organization_id',
             'the account\'s notes thread',
+            $this->normalizeIds($filesystem_ids),
         );
 
         // Confirms WHICH account matched when the model resolved it by name.

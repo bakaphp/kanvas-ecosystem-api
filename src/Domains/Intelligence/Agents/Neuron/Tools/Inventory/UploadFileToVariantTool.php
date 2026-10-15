@@ -35,7 +35,9 @@ class UploadFileToVariantTool extends Tool
     protected ?string $description = 'Attach a document or image to one specific product variant (a single SKU) — a photo of '
         . 'that colour/size, its own spec sheet, a certificate. Normally you pass `content` — the full '
         . 'text of the document you wrote — plus a `file_name` ending in .md, .txt, .csv or .json. Pass '
-        . '`file_url` instead when the file or image already exists at a public URL. Use variant_search '
+        . '`file_url` instead when the file or image already exists at a public URL, or `filesystem_id` '
+        . 'for a file already in Kanvas (the id in an "Attached file on this message" marker). Use '
+        . 'variant_search '
         . 'or variant_detail to get the variant_id first. If the file describes the whole product rather '
         . 'than one SKU, use upload_file_to_product. Only an administrator can do this.';
 
@@ -64,6 +66,7 @@ class UploadFileToVariantTool extends Tool
         ?string $file_name = null,
         ?string $content = null,
         ?string $file_url = null,
+        ?int $filesystem_id = null,
     ): array {
         if ($denied = $this->requireAdminOrError()) {
             return $denied;
@@ -83,6 +86,7 @@ class UploadFileToVariantTool extends Tool
                 fileUrl: $file_url,
                 content: $content,
                 fileName: $file_name,
+                filesystemId: $filesystem_id,
             ),
         ];
     }
