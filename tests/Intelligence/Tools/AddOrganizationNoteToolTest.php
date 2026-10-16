@@ -6,15 +6,18 @@ namespace Tests\Intelligence\Tools;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
+use Tests\Traits\MakesFilesystemRows;
 
 final class AddOrganizationNoteToolTest extends TestCase
 {
     use DatabaseTransactions;
+    use MakesFilesystemRows;
 
     protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence', 'social'];
 
@@ -55,6 +58,54 @@ final class AddOrganizationNoteToolTest extends TestCase
 
         $this->assertSame('success', $result['status']);
         $this->assertSame($organization->getId(), $result['organization_id']);
+    }
+
+    public function testFilesHandedOverWithTheNoteAreAttachedToIt(): void
+    {
+        $organization = $this->seedOrganization('Transcript Corp');
+        $companyId = auth()->user()->getCurrentCompany()->getId();
+        $transcript = $this->makeFilesystemRow($companyId, 'Pasted text(3).txt');
+        $deck = $this->makeFilesystemRow($companyId, 'priorities.pdf');
+
+        $result = $this->tool()->__invoke(
+            note: 'Meeting summary with Janny — priorities P0 to P1 recorded.',
+            organization_id: $organization->getId(),
+            filesystem_ids: [$transcript->getId(), $deck->getId()],
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame(
+            [$transcript->getId(), $deck->getId()],
+            array_column($result['files_attached'], 'filesystem_id'),
+        );
+        $this->assertSame([], $result['files_unavailable']);
+
+        $note = $this->latestNote($organization);
+
+        $this->assertNotNull($note);
+        $this->assertSame((int) $note->getId(), $result['message_id']);
+        $this->assertEqualsCanonicalizing(
+            ['Pasted text(3).txt', 'priorities.pdf'],
+            $note->getFiles()->pluck('name')->all(),
+        );
+    }
+
+    public function testAnotherCompanysFileIsReportedRatherThanAttached(): void
+    {
+        $organization = $this->seedOrganization('Foreign File Corp');
+        $foreign = $this->makeFilesystemRow(Companies::factory()->create()->getId(), 'theirs.pdf');
+
+        $result = $this->tool()->__invoke(
+            note: 'Call summary.',
+            organization_id: $organization->getId(),
+            filesystem_ids: $foreign->getId(),
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame([], $result['files_attached']);
+        $this->assertSame($foreign->getId(), $result['files_unavailable'][0]['filesystem_id']);
+        $this->assertStringContainsString('could not be attached', $result['message']);
+        $this->assertCount(0, $this->latestNote($organization)->getFiles());
     }
 
     public function testEmptyNoteIsRejected(): void

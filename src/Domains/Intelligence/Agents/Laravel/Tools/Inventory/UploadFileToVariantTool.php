@@ -38,7 +38,8 @@ class UploadFileToVariantTool implements KanvasToolInterface
         return 'Attach a document or image to one specific product variant (a single SKU) — a photo of that '
             . 'colour/size, its own spec sheet, a certificate. Normally you pass content — the full text of the '
             . 'document you wrote — plus a file_name ending in .md, .txt, .csv or .json. Pass file_url instead '
-            . 'when the file or image already exists at a public URL. If the file describes the whole product '
+            . 'when the file or image already exists at a public URL, or filesystem_id for a file already in '
+            . 'Kanvas (the id in an "Attached file on this message" marker). If the file describes the whole product '
             . 'rather than one SKU, use upload_file_to_product. Only an administrator can do this.';
     }
 

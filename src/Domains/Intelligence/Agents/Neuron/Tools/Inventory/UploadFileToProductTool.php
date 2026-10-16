@@ -36,7 +36,8 @@ class UploadFileToProductTool extends Tool
     protected ?string $description = 'Attach a document or image to a product — a spec sheet, manual, warranty terms, '
         . 'datasheet or product photo. Normally you pass `content` — the full text of the document you '
         . 'wrote — plus a `file_name` ending in .md, .txt, .csv or .json. Pass `file_url` instead when the '
-        . 'file or image already exists at a public URL. Use list_available_products or inventory_search '
+        . 'file or image already exists at a public URL, or `filesystem_id` for a file already in Kanvas '
+        . '(the id in an "Attached file on this message" marker). Use list_available_products or inventory_search '
         . 'to get the product_id first. To attach to one specific variant instead of the whole product, '
         . 'use upload_file_to_variant. Only an administrator can do this.';
 
@@ -65,6 +66,7 @@ class UploadFileToProductTool extends Tool
         ?string $file_name = null,
         ?string $content = null,
         ?string $file_url = null,
+        ?int $filesystem_id = null,
     ): array {
         if ($denied = $this->requireAdminOrError()) {
             return $denied;
@@ -84,6 +86,7 @@ class UploadFileToProductTool extends Tool
                 fileUrl: $file_url,
                 content: $content,
                 fileName: $file_name,
+                filesystemId: $filesystem_id,
             ),
         ];
     }
