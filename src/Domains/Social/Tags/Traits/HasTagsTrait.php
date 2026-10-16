@@ -7,11 +7,13 @@ namespace Kanvas\Social\Tags\Traits;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Kanvas\Social\Tags\Actions\CreateTagAction;
 use Kanvas\Social\Tags\DataTransferObjects\Tag;
 use Kanvas\Social\Tags\Models\Tag as ModelsTag;
 use Kanvas\Social\Tags\Models\TagEntity;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 trait HasTagsTrait
 {
@@ -55,33 +57,10 @@ trait HasTagsTrait
         ?UserInterface $user = null,
         ?CompanyInterface $company = null
     ): void {
-        if (empty($tag)) {
-            return;
-        }
+        $attached = $this->attachTag($tag, $app, $user, $company);
 
-        $app = $this->app ?? $app;
-        $user = $this->user ?? $user;
-        $company = $company ?? $this->company;
-
-        $tag = new CreateTagAction(
-            new Tag(
-                $app,
-                $user,
-                $company,
-                $tag
-            )
-        )->execute();
-
-        // Never attach()/detach(): a custom pivot inherits the PARENT's connection, so the write lands
-        // in a different transaction than every other TagEntity write on social — and lock-waits on it.
-        if (! $this->tags()->wherePivot('tags_id', $tag->getId())->exists()) {
-            TagEntity::create([
-                'tags_id' => $tag->getId(),
-                'entity_id' => $this->taggableKey(),
-                'taggable_type' => $this->getMorphClass(),
-                'users_id' => $user->getId(),
-                'is_deleted' => 0,
-            ]);
+        if ($attached !== null) {
+            $this->fireAfterAddTag($attached, $app);
         }
     }
 
@@ -123,8 +102,80 @@ trait HasTagsTrait
         ?UserInterface $user = null,
         ?CompanyInterface $company = null
     ): void {
+        $heldTagIds = $this->tagEntitiesQuery()->pluck('tags_id')->map(fn ($id) => (int) $id)->all();
         $this->deleteTagEntities();
-        $this->addTags(ModelsTag::normalizeNames($tags), $app, $user, $company);
+
+        foreach (ModelsTag::normalizeNames($tags) as $tag) {
+            $attached = $this->attachTag($tag, $app, $user, $company);
+
+            // A sync re-attaches every tag it keeps; only the ones the entity did not already hold are new.
+            if ($attached !== null && ! in_array($attached->getId(), $heldTagIds, true)) {
+                $this->fireAfterAddTag($attached, $app);
+            }
+        }
+    }
+
+    /**
+     * The tag, or null when it was empty or the entity already held it.
+     */
+    protected function attachTag(
+        string|int $tag,
+        ?AppInterface $app = null,
+        ?UserInterface $user = null,
+        ?CompanyInterface $company = null
+    ): ?ModelsTag {
+        if (empty($tag)) {
+            return null;
+        }
+
+        $app = $this->app ?? $app;
+        $user = $this->user ?? $user;
+        $company = $company ?? $this->company;
+
+        $tag = new CreateTagAction(
+            new Tag(
+                $app,
+                $user,
+                $company,
+                $tag
+            )
+        )->execute();
+
+        // Never attach()/detach(): a custom pivot inherits the PARENT's connection, so the write lands
+        // in a different transaction than every other TagEntity write on social — and lock-waits on it.
+        if ($this->tags()->wherePivot('tags_id', $tag->getId())->exists()) {
+            return null;
+        }
+
+        TagEntity::create([
+            'tags_id' => $tag->getId(),
+            'entity_id' => $this->taggableKey(),
+            'taggable_type' => $this->getMorphClass(),
+            'users_id' => $user->getId(),
+            'is_deleted' => 0,
+        ]);
+
+        return $tag;
+    }
+
+    protected function fireAfterAddTag(ModelsTag $tag, ?AppInterface $app = null): void
+    {
+        if (! method_exists($this, 'fireWorkflow')) {
+            return;
+        }
+
+        $this->fireWorkflow(
+            WorkflowEnum::AFTER_ADD_TAG->value,
+            true,
+            ['tag' => $tag->name, 'tag_id' => $tag->getId(), 'app' => $this->app ?? $app]
+        );
+    }
+
+    protected function tagEntitiesQuery(): Builder
+    {
+        return TagEntity::query()
+            ->where('entity_id', $this->taggableKey())
+            ->where('taggable_type', $this->getMorphClass());
     }
 
     /**
@@ -134,9 +185,7 @@ trait HasTagsTrait
      */
     protected function deleteTagEntities(?array $tagIds = null): void
     {
-        $ids = TagEntity::query()
-            ->where('entity_id', $this->taggableKey())
-            ->where('taggable_type', $this->getMorphClass())
+        $ids = $this->tagEntitiesQuery()
             ->when($tagIds !== null, fn ($query) => $query->whereIn('tags_id', $tagIds))
             ->pluck('id');
 

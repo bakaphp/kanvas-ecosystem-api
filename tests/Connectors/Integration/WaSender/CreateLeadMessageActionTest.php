@@ -53,6 +53,7 @@ final class CreateLeadMessageActionTest extends TestCase
 
         $this->assertInstanceOf(Lead::class, $lead);
         $this->assertTrue($message->tags()->where('name', 'engagement')->exists());
+        $this->assertTrue($lead->tags()->where('name', 'engaged')->exists());
         $this->assertSame('whatsapp', (string) $lead->get(LeadsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value));
         $this->assertTrue((bool) $lead->get(LeadsConfigurationEnum::IS_ENGAGEMENT->value));
     }

@@ -160,6 +160,30 @@ class Lead
         );
     }
 
+    public function updateStatus(string $status, string $subStatus): array
+    {
+        if ($this->id === null || $this->app === null || $this->company === null) {
+            throw new ELeadException('Cannot update status for an Elead opportunity without its id and configuration');
+        }
+
+        $response = $this->client()->put(
+            '/sales/v2/elead/opportunities/' . $this->id . '/status',
+            [
+                'status' => $status,
+                'subStatus' => $subStatus,
+            ],
+        );
+
+        new EleadCache($this->app, $this->company)->invalidate('lead', $this->id);
+
+        return $response;
+    }
+
+    protected function client(): Client
+    {
+        return new Client($this->app, $this->company);
+    }
+
     public function undoSalesStep(string $step): void
     {
         $client = new Client($this->app, $this->company);
