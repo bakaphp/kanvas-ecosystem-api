@@ -102,11 +102,8 @@ class PullProjectContactAction
             $people->people_types_id = $peopleType->getId();
             $people->saveOrFail();
 
-            $this->replaceRelationshipTags(
-                $people,
-                $this->product,
-                ["{$role} - {$this->product->name} #{$this->product->getId()}"],
-            );
+            $suffix = $this->relationshipTagSuffix($this->product);
+            $this->replaceRelationshipTags($people, $this->product, ["{$role} - {$this->product->name}{$suffix}"]);
         }
 
         return $people;
