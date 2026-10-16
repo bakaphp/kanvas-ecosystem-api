@@ -406,5 +406,4 @@ class MultiProviderSearchTest extends TestCase
         );
         $this->assertSame([], $second->failures);
     }
-
 }
