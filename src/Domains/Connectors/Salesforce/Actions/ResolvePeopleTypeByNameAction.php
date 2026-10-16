@@ -18,12 +18,13 @@ use Kanvas\Guild\Customers\Models\PeopleType;
  * pull actions always reuse the same PeopleType row for the same role text instead of drifting on
  * casing/whitespace across imports — `CreatePeopleTypeAction` itself always inserts, it never dedupes.
  *
- * people_types' only unique constraint is on (slug, apps_id, companies_id), and SlugTrait
- * auto-disambiguates a slug collision with a suffix rather than failing — so two calls that both
- * miss the lookup before either commits (a bulk import processing many contacts that share a role)
- * don't collide on that constraint, they each happily insert their own row under the same `name`.
- * Same shape as `Connectors\Odoo\Actions\PullOrganizationAction`'s lock: serialize on the name
- * instead of relying on a DB constraint that doesn't actually cover it.
+ * people_types' only unique constraint is on (slug, apps_id, companies_id), and SlugTrait computes
+ * that slug deterministically from the name with no collision handling at all — so two calls that
+ * both miss the lookup before either commits (a bulk import processing many contacts that share a
+ * role) both try to insert the same slug, and the second one fatals with
+ * UniqueConstraintViolationException instead of just creating a duplicate. Same shape as
+ * `Connectors\Odoo\Actions\PullOrganizationAction`'s lock: serialize on the name so only one caller
+ * ever reaches the insert for a given role.
  */
 class ResolvePeopleTypeByNameAction
 {
