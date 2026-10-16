@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Unit\Elead;
 
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -22,21 +25,20 @@ final class SetOpportunityStatusActivityTest extends TestCase
 {
     use MockeryPHPUnitIntegration;
 
-    public function testUpdateStatusSendsStatusPayloadAndInvalidatesOpportunityCache(): void
+    public function testUpdateSubStatusPostsTheSubStatusAndInvalidatesOpportunityCache(): void
     {
         $app = Mockery::mock(Apps::class);
         $company = Mockery::mock(Companies::class);
         $company->shouldReceive('getId')->once()->andReturn(123);
 
         $client = Mockery::mock(Client::class);
-        $response = ['status' => 'Active', 'subStatus' => 'Engaged'];
-        $client->shouldReceive('put')
+        $client->shouldReceive('post')
             ->once()
             ->with(
-                '/sales/v2/elead/opportunities/opportunity-456/status',
-                ['status' => 'Active', 'subStatus' => 'Engaged']
+                '/sales/v2/elead/opportunities/opportunity-456/subStatus/update',
+                ['subStatus' => 'Contact Made']
             )
-            ->andReturn($response);
+            ->andReturn([]);
 
         $lead = new class () extends EleadLead {
             public Client $clientMock;
@@ -55,7 +57,25 @@ final class SetOpportunityStatusActivityTest extends TestCase
             ->once()
             ->with('elead:123:lead:opportunity-456');
 
-        $this->assertSame($response, $lead->updateStatus('Active', 'Engaged'));
+        $lead->updateSubStatus('Contact Made');
+    }
+
+    public function testRecognisesElead400InvalidSubStatus(): void
+    {
+        $request = new Request('POST', '/sales/v2/elead/opportunities/opportunity-456/subStatus/update');
+        $invalid = new ClientException(
+            'Bad Request',
+            $request,
+            new Response(400, [], '{"code":"InvalidSubStatus","message":"Invalid Opportunity SubStatus."}')
+        );
+        $notFound = new ClientException(
+            'Not Found',
+            $request,
+            new Response(404, [], 'The resource you are looking for has been removed')
+        );
+
+        $this->assertTrue(EleadLead::isInvalidSubStatusResponse($invalid));
+        $this->assertFalse(EleadLead::isInvalidSubStatusResponse($notFound));
     }
 
     public function testActivityReturnsGracefullyWhenEntityHasNoLead(): void

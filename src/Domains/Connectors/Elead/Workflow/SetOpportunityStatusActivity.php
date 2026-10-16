@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Workflow;
 
+use GuzzleHttp\Exception\ClientException;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -17,7 +18,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 #[WorkflowAction(
     name: 'Elead Set Opportunity Status',
-    description: 'Updates status and subStatus of an Elead opportunity',
+    description: 'Updates the sub-status of an Elead opportunity (param subStatus, default "Contact Made"); Elead has no write for the main status',
     integration: IntegrationsEnum::ELEAD,
 )]
 class SetOpportunityStatusActivity extends KanvasActivity
@@ -42,8 +43,7 @@ class SetOpportunityStatusActivity extends KanvasActivity
             ]);
         }
 
-        $status = (string) ($params['status'] ?? 'Active');
-        $subStatus = (string) ($params['subStatus'] ?? 'Engaged');
+        $subStatus = (string) ($params['subStatus'] ?? 'Contact Made');
 
         return $this->executeIntegration(
             entity: $entity,
@@ -55,21 +55,31 @@ class SetOpportunityStatusActivity extends KanvasActivity
                 Apps $app,
                 mixed $integrationCompany,
                 array $additionalParams
-            ) use ($lead, $company, $status, $subStatus): array {
+            ) use ($lead, $company, $subStatus): array {
                 $opportunityId = $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value);
                 $opportunity = empty($opportunityId)
                     ? new SyncLeadAction($lead)->execute()
                     : EleadLead::getById($app, $company, (string) $opportunityId);
 
-                $response = $opportunity->updateStatus($status, $subStatus);
+                try {
+                    $opportunity->updateSubStatus($subStatus);
+                } catch (ClientException $e) {
+                    if (! EleadLead::isInvalidSubStatusResponse($e)) {
+                        throw $e;
+                    }
+
+                    return $this->failWorkflow([
+                        'error' => 'Sub-status "' . $subStatus . '" is not configured for this Elead dealer',
+                        'lead_id' => $lead->getId(),
+                        'opportunity_id' => $opportunity->id,
+                    ]);
+                }
 
                 return [
-                    'message' => 'Elead opportunity status updated successfully',
+                    'message' => 'Elead opportunity sub-status updated successfully',
                     'lead_id' => $lead->getId(),
                     'opportunity_id' => $opportunity->id,
-                    'status' => $status,
                     'subStatus' => $subStatus,
-                    'response' => $response,
                 ];
             },
             company: $company,
