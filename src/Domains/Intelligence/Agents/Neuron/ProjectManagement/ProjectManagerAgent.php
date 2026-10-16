@@ -31,6 +31,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAssignedWorkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlanFilesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlansTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
@@ -101,7 +102,10 @@ class ProjectManagerAgent extends SystemUserAgent
             assignee of its own: a person owns work through the plan. When anyone asks what a member
             is working on, whether they have anything assigned, or what is on their plate, call
             list_assigned_work with that member's users_id or agent_id (it searches every project)
-            and answer from the rows. Never say someone has nothing assigned from the bundle alone.
+            and answer from the rows. For the board the other way round — what is unassigned,
+            blocked, overdue or awaiting approval, in one project or all of them — call
+            list_nervous_system_plans with the matching filter. Never say someone has nothing
+            assigned, or that nothing is waiting, from the bundle alone.
 
             NOTIFYING A HUMAN: humans are NOT watching the channel — the only way to get a person's
             attention (an approval, a decision, missing info, a sign-off) is to @mention them using
@@ -420,6 +424,7 @@ class ProjectManagerAgent extends SystemUserAgent
             new ReadMessageContentTool(),
             new ListProjectsTool(),
             new ListAssignedWorkTool(),
+            new ListNervousSystemPlansTool(),
             new UpdateNervousSystemProjectTool(),
             new DeleteNervousSystemProjectTool(),
             new CreateNervousSystemPlanTool($this->session),

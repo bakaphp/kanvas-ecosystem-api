@@ -10,6 +10,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Support\MentionHandle;
@@ -21,10 +22,8 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 
 /**
- * Everything one member owns across the company's boards, so "what is Audry working on?" is a lookup
- * rather than a guess. The context bundle a PM reads each turn lists one project and omits a plan's
- * human assignee entirely, so without this a PM answered that question from a view that could not
- * contain the answer.
+ * Everything one member owns across the company's boards. The context bundle a PM reads each turn
+ * covers one project, so "what is X working on?" needs a lookup that crosses them.
  *
  * A human owns work through Plan.assigned_users_id (or is owed an answer through
  * Task.waiting_on_users_id); an agent through Plan.agent_id / Task.agent_id. Tasks have no human
@@ -55,11 +54,36 @@ class ListAssignedWorkTool extends Tool
     protected function properties(): array
     {
         return [
-            new ToolProperty(name: 'users_id', type: PropertyType::INTEGER, description: 'The HUMAN member (users_id from the members list). Omit when asking about an agent.', required: false),
-            new ToolProperty(name: 'agent_id', type: PropertyType::INTEGER, description: 'The AGENT member (agent_id from the members list). Omit when asking about a human.', required: false),
-            new ToolProperty(name: 'project_id', type: PropertyType::INTEGER, description: 'Restrict to one project. Omit to search every project in the company.', required: false),
-            new ToolProperty(name: 'include_closed', type: PropertyType::BOOLEAN, description: 'When true, also return done/failed/cancelled plans and their tasks. Default false (open work only).', required: false),
-            new ToolProperty(name: 'limit', type: PropertyType::INTEGER, description: 'Max plans to return (default 25, max 100).', required: false),
+            new ToolProperty(
+                name: 'users_id',
+                type: PropertyType::INTEGER,
+                description: 'The HUMAN member (users_id from the members list). Omit when asking about an agent.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'agent_id',
+                type: PropertyType::INTEGER,
+                description: 'The AGENT member (agent_id from the members list). Omit when asking about a human.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'project_id',
+                type: PropertyType::INTEGER,
+                description: 'Restrict to one project. Omit to search every project in the company.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'include_closed',
+                type: PropertyType::BOOLEAN,
+                description: 'When true, also return done/failed/cancelled plans and their tasks. Default false (open work only).',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'limit',
+                type: PropertyType::INTEGER,
+                description: 'Max plans to return (default 25, max 100).',
+                required: false,
+            ),
         ];
     }
 
@@ -118,8 +142,12 @@ class ListAssignedWorkTool extends Tool
         ];
     }
 
-    private function plansQuery(?int $usersId, ?int $agentId, ?int $projectId, bool $includeClosed): Builder
-    {
+    private function plansQuery(
+        ?int $usersId,
+        ?int $agentId,
+        ?int $projectId,
+        bool $includeClosed,
+    ): Builder {
         return Plan::query()
             ->fromApp($this->app)
             ->fromCompany($this->company)
@@ -151,7 +179,8 @@ class ListAssignedWorkTool extends Tool
 
         $tasks = $plan->tasks
             ->when(! $ownsPlan, fn ($tasks) => $tasks->where('agent_id', $agentId))
-            ->when(! $includeClosed, fn ($tasks) => $tasks->filter(fn (Task $task): bool => ! $task->isTerminal()))
+            // Blocked is terminal to a worker but open to the PM; only done/skipped tasks leave the list.
+            ->when(! $includeClosed, fn ($tasks) => $tasks->whereNotIn('status', TaskStatusEnum::completedStatusValues()))
             ->values()
             ->map(fn (Task $task): array => [
                 'task_id' => $task->getId(),
@@ -187,8 +216,7 @@ class ListAssignedWorkTool extends Tool
         return Task::query()
             ->fromApp($this->app)
             ->fromCompany($this->company)
-            ->notDeleted()
-            ->open()
+            ->waiting()
             ->where('waiting_on_users_id', $usersId)
             ->when(
                 $projectId !== null,
