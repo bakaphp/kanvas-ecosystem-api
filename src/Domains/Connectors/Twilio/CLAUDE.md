@@ -77,3 +77,11 @@ opts out the phone contacts rather than retrying 3× into Sentry.
 
 **Outbound delivery status is a separate webhook.** `ProcessTwilioMessageStatusWebhookJob` handles
 carrier failures and controlled retries; it does not touch bursts.
+
+**Two receivers, two Twilio URLs.** The status receiver is only ever reached through the
+`statusCallback` set per outbound message; the Messaging Service's *incoming-message* URL must point
+at the inbound receiver. A tenant who pastes the status URL there sends every customer reply to the
+status job. Twilio only reports `received` for inbound texts, so the status job re-files such a
+payload as a call on the company's inbound receiver (422 when there is none). That keeps the
+conversation alive, but the Twilio console is still wrong — a `re-routed` result in the receiver
+history is the tell.

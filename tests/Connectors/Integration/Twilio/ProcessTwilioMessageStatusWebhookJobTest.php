@@ -13,6 +13,7 @@ use Kanvas\Connectors\Twilio\Jobs\RetryMessageAttemptJob;
 use Kanvas\Connectors\Twilio\Models\MessageAttempt;
 use Kanvas\Connectors\Twilio\Models\MessageDeliveryEvent;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioMessageStatusWebhookJob;
+use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -82,6 +83,72 @@ final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
         $this->assertSame('delivered', $attempt->current_status);
         $this->assertNotNull($attempt->terminal_at);
         $this->assertSame(1, MessageDeliveryEvent::query()->where('attempt_id', $attempt->getId())->count());
+    }
+
+    public function testReroutesInboundTextThatReachedTheStatusReceiver(): void
+    {
+        Queue::fake();
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $statusReceiver = $this->createReceiver($app, $company->getId(), $user);
+        $inboundReceiver = $this->createReceiver(
+            $app,
+            $company->getId(),
+            $user,
+            ProcessTwilioWebhookJob::class,
+        );
+        $payload = $this->inboundTextPayload('SM-inbound-on-status-receiver');
+        $webhookCall = ReceiverWebhookCall::create([
+            'receiver_webhooks_id' => $statusReceiver->getId(),
+            'url' => $statusReceiver->getUrl(),
+            'headers' => ['x-twilio-signature' => ['abc']],
+            'payload' => $payload,
+            'raw_payload' => http_build_query($payload),
+        ]);
+
+        $result = new ProcessTwilioMessageStatusWebhookJob($webhookCall)->execute();
+
+        $inboundCall = ReceiverWebhookCall::query()
+            ->where('receiver_webhooks_id', $inboundReceiver->getId())
+            ->firstOrFail();
+        $this->assertSame($payload, $inboundCall->payload);
+        $this->assertSame($webhookCall->raw_payload, $inboundCall->raw_payload);
+        $this->assertSame($inboundCall->getId(), $result['inbound_call_id']);
+        $this->assertSame($inboundReceiver->getId(), $result['inbound_receiver_id']);
+        Queue::assertPushed(ProcessTwilioWebhookJob::class, 1);
+        $this->assertSame(
+            0,
+            MessageAttempt::query()->where('message_sid', 'SM-inbound-on-status-receiver')->count(),
+        );
+    }
+
+    public function testRejectsInboundTextWhenTheCompanyHasNoInboundReceiver(): void
+    {
+        Queue::fake();
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $statusReceiver = $this->createReceiver($app, $company->getId(), $user);
+        $webhookCall = ReceiverWebhookCall::create([
+            'receiver_webhooks_id' => $statusReceiver->getId(),
+            'url' => $statusReceiver->getUrl(),
+            'headers' => [],
+            'payload' => $this->inboundTextPayload('SM-inbound-no-receiver'),
+        ]);
+
+        $job = new ProcessTwilioMessageStatusWebhookJob($webhookCall);
+        $result = $job->execute();
+
+        $this->assertSame(422, $result['status']);
+        $this->assertSame(422, $job->getFailedReturnHttpCode());
+        Queue::assertNotPushed(ProcessTwilioWebhookJob::class);
+        $this->assertSame(
+            0,
+            MessageAttempt::query()->where('message_sid', 'SM-inbound-no-receiver')->count(),
+        );
     }
 
     public function testPersistsCallbackWhenParentMessageHasNotBeenLinkedYet(): void
@@ -275,11 +342,31 @@ final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
         );
     }
 
-    private function createReceiver(Apps $app, int $companyId, Users $user): ReceiverWebhook
+    private function inboundTextPayload(string $sid): array
     {
+        return [
+            'To' => '+12295550100',
+            'Body' => 'Hi how are you?',
+            'From' => '+14045550199',
+            'SmsSid' => $sid,
+            'NumMedia' => '0',
+            'SmsStatus' => 'received',
+            'AccountSid' => 'AC123',
+            'MessageSid' => $sid,
+            'SmsMessageSid' => $sid,
+            'MessagingServiceSid' => 'MG123',
+        ];
+    }
+
+    private function createReceiver(
+        Apps $app,
+        int $companyId,
+        Users $user,
+        string $jobClass = ProcessTwilioMessageStatusWebhookJob::class,
+    ): ReceiverWebhook {
         $action = WorkflowAction::firstOrCreate(
-            ['model_name' => ProcessTwilioMessageStatusWebhookJob::class],
-            ['name' => 'ProcessTwilioMessageStatusWebhookJob'],
+            ['model_name' => $jobClass],
+            ['name' => class_basename($jobClass)],
         );
 
         return ReceiverWebhook::factory()

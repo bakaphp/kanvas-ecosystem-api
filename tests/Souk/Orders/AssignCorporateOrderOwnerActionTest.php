@@ -67,7 +67,7 @@ final class AssignCorporateOrderOwnerActionTest extends TestCase
         );
     }
 
-    public function testReassignsProcessedPasoRapidoCardOrderToItsCreator(): void
+    public function testReassignsPasoRapidoCardOrderToItsCreator(): void
     {
         $order = $this->makeProcessedPasoRapidoCardOrder((string) $this->creator->getId());
         $peopleId = $order->people_id;
@@ -85,7 +85,7 @@ final class AssignCorporateOrderOwnerActionTest extends TestCase
         $this->assertSame($companyId, $order->companies_id);
     }
 
-    public function testReassignsProcessedPasoRapidoWalletBulkOrderToItsCreator(): void
+    public function testReassignsPasoRapidoWalletBulkOrderToItsCreator(): void
     {
         $order = $this->makeOrder([
             'user_company_id' => $this->corporateCompany->getId(),
@@ -143,48 +143,34 @@ final class AssignCorporateOrderOwnerActionTest extends TestCase
         $this->assertWarningLoggedFor($order);
     }
 
-    public function testLeavesFailedPasoRapidoCardRechargeUntouched(): void
+    public function testReassignsPasoRapidoCardOrderEvenWhenRechargeFailed(): void
     {
         $order = $this->makeProcessedPasoRapidoCardOrder((string) $this->creator->getId());
         $order->set(PasoRapidoCustomFieldEnum::PASO_RAPIDO_PAYMENT_STATUS->value, PaymentStatusEnum::FAILED->value);
 
-        $this->assertNull(new AssignCorporateOrderOwnerAction($order)->execute());
-        $this->assertSame($this->systemUser->getId(), (int) $order->refresh()->users_id);
+        $this->assertNotNull(new AssignCorporateOrderOwnerAction($order)->execute());
+        $this->assertSame($this->creator->getId(), (int) $order->refresh()->users_id);
     }
 
-    public function testLeavesUnpaidPasoRapidoCardOrderUntouched(): void
+    public function testReassignsPasoRapidoCardOrderThatIsNotPaid(): void
     {
         $order = $this->makeProcessedPasoRapidoCardOrder((string) $this->creator->getId());
         $order->payment_status = PaymentStatusEnum::PROCESSING->value;
         $order->saveQuietly();
 
-        $this->assertNull(new AssignCorporateOrderOwnerAction($order)->execute());
-        $this->assertSame($this->systemUser->getId(), (int) $order->refresh()->users_id);
+        $this->assertNotNull(new AssignCorporateOrderOwnerAction($order)->execute());
+        $this->assertSame($this->creator->getId(), (int) $order->refresh()->users_id);
     }
 
-    public function testLeavesFullyFailedPasoRapidoBulkRechargeUntouched(): void
-    {
-        $order = $this->makeOrder([
-            'user_company_id' => $this->corporateCompany->getId(),
-            'data' => ['is_bulk_recharge' => true, 'created_by_user_id' => (string) $this->creator->getId()],
-            'corporate_recharge_results' => [
-                '941001' => ['status' => 'failed', 'amount' => 500.0, 'reversed' => true],
-            ],
-        ], OrderTypeEnum::PASO_RAPIDO->value, 'refunded');
-
-        $this->assertNull(new AssignCorporateOrderOwnerAction($order)->execute());
-        $this->assertSame($this->systemUser->getId(), (int) $order->refresh()->users_id);
-    }
-
-    public function testLeavesPasoRapidoBulkOrderNotYetRechargedUntouched(): void
+    public function testReassignsPasoRapidoBulkOrderWithoutSuccessfulRecharges(): void
     {
         $order = $this->makeOrder([
             'user_company_id' => $this->corporateCompany->getId(),
             'data' => ['is_bulk_recharge' => true, 'created_by_user_id' => (string) $this->creator->getId()],
         ], OrderTypeEnum::PASO_RAPIDO->value);
 
-        $this->assertNull(new AssignCorporateOrderOwnerAction($order)->execute());
-        $this->assertSame($this->systemUser->getId(), (int) $order->refresh()->users_id);
+        $this->assertNotNull(new AssignCorporateOrderOwnerAction($order)->execute());
+        $this->assertSame($this->creator->getId(), (int) $order->refresh()->users_id);
     }
 
     public function testIgnoresNonCorporateOrdersWithoutWarning(): void
@@ -214,7 +200,7 @@ final class AssignCorporateOrderOwnerActionTest extends TestCase
         );
     }
 
-    public function testActivityReassignsProcessedPasoRapidoOrder(): void
+    public function testActivityReassignsPasoRapidoOrder(): void
     {
         $this->setIntegration(
             $this->kanvasApp,
