@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Zoho\Workflows;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
@@ -49,27 +48,15 @@ class ZohoPullLeadActivity extends KanvasActivity implements WorkflowActivityInt
             return ['error' => 'Zoho lead id is required', 'lead' => null];
         }
 
-        $localLead = Lead::getByCustomField(
+        $localLead = Lead::getByCustomFieldTransactionSafe(
             CustomFieldEnum::ZOHO_LEAD_ID->value,
             $zohoLeadId,
-            $company
+            $company,
+        ) ?? Lead::getByCustomField(
+            CustomFieldEnum::ZOHO_LEAD_ID->value,
+            $zohoLeadId,
+            $company,
         );
-
-        if (! $localLead) {
-            $table = (new Lead())->getTable();
-            $localLead = Lead::query()
-                ->join(
-                    DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields',
-                    'apps_custom_fields.entity_id',
-                    '=',
-                    $table . '.id'
-                )
-                ->where('apps_custom_fields.companies_id', $company->getId())
-                ->where('apps_custom_fields.name', CustomFieldEnum::ZOHO_LEAD_ID->value)
-                ->where('apps_custom_fields.value', $zohoLeadId)
-                ->select($table . '.*')
-                ->first();
-        }
 
         if ($localLead instanceof Lead) {
             return ['lead' => $localLead->toArray(), 'synced' => false];

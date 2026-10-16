@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Connectors\Zoho;
 
 use Baka\Contracts\AppInterface;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -43,7 +42,6 @@ final class ZohoPullLeadActivityTest extends TestCase
         $lead = $this->createLead();
         $lead->set('ai_mode', 'manual');
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
         $activity = new class ($lead) extends ZohoPullLeadActivity {
             public bool $syncRequested = false;
 
@@ -63,10 +61,7 @@ final class ZohoPullLeadActivityTest extends TestCase
             }
         };
 
-        $entity = new Model();
-        $entity->companies_id = $company->getId();
-
-        $result = $activity->execute($entity, $app, ['entity_id' => 'zoho-remote-456']);
+        $result = $activity->execute($lead, $app, ['entity_id' => 'zoho-remote-456']);
 
         $this->assertTrue($activity->syncRequested);
         $this->assertSame($lead->getId(), $result['lead']['id']);
