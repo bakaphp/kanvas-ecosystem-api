@@ -26,7 +26,8 @@ class AddPersonNoteTool extends Tool
     protected ?string $description = 'Write a note on a contact (person) so the team sees it in that contact\'s notes thread. '
         . 'Use this to record what a contact asked for, what you did for them, or why something changed — '
         . 'anything that belongs on the person rather than on a single lead or deal. '
-        . 'Use find_person to get the person_id first. '
+        . 'Use find_person to get the person_id first. A document the person sent with the request goes '
+        . 'in filesystem_ids so it is attached to the note, never as a URL in the text. '
         . 'A note about one opportunity belongs on that lead instead, and a note about the whole '
         . 'account belongs on the organization.';
 
@@ -49,13 +50,14 @@ class AddPersonNoteTool extends Tool
                 description: 'The note text, written for a human teammate to read.',
                 required: true,
             ),
+            $this->noteFilesProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $person_id, string $note): array
+    public function __invoke(int $person_id, string $note, array|int|string|null $filesystem_ids = null): array
     {
         $note = trim($note);
 
@@ -81,6 +83,7 @@ class AddPersonNoteTool extends Tool
             $note,
             'person_id',
             'the contact\'s notes thread',
+            $this->normalizeIds($filesystem_ids),
         );
     }
 }

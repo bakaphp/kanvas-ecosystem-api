@@ -54,7 +54,7 @@ trait ReadsActivityForEntity
      */
     protected function customerSurfaceRefusal(): ?array
     {
-        if (! $this->contextAgent()?->conversesWithCustomer()) {
+        if (! $this->isCustomerSurface()) {
             return null;
         }
 

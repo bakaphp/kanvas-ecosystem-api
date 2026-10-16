@@ -53,6 +53,15 @@ trait HasKanvasContext
     }
 
     /**
+     * Whether the counterparty this turn is a prospect rather than staff. Tools whose payload carries
+     * the team's internal notes refuse on it; each family phrases the refusal in its own dialect.
+     */
+    protected function isCustomerSurface(): bool
+    {
+        return (bool) $this->contextAgent()?->conversesWithCustomer();
+    }
+
+    /**
      * The acting user when one is set. Registry-resolved tools only get withContext() when all three
      * dependencies were available, so a tool that writes attributed records needs the null path.
      */

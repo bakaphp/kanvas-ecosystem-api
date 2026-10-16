@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\DriveCentric\Actions;
 
-use Kanvas\Connectors\SalesAssist\Actions\RecordLeadVehicleNotesAction;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
-use Kanvas\Connectors\SalesAssist\Enums\LeadVehicleNoteEnum;
 use Kanvas\Guild\Leads\Models\Lead as LeadModel;
 use Kanvas\Social\Messages\Models\Message;
 
@@ -28,7 +26,6 @@ class AddVehicleOfInterestToDealAction
         }
 
         $this->lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, $vehicleOfInterest);
-        new RecordLeadVehicleNotesAction($this->lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST)->execute();
 
         $pushLeadAction = new PushLeadAction($this->lead);
 

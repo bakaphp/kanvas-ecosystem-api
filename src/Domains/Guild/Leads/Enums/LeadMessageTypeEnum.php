@@ -10,5 +10,4 @@ enum LeadMessageTypeEnum: string
     case AI_ASSIST = 'ai_assist';
     case INTERNAL = 'internal';
     case CONVERSATION_SUMMARY = 'summary';
-    case AI_CONTROL = 'ai-control';
 }

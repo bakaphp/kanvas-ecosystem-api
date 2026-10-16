@@ -41,6 +41,9 @@ final class StrJsonToArrayTest extends TestCase
             'beyond 64-bit' => ['18446744073709551616'],
             'scientific notation' => ['1e20'],
             'trailing zero decimal' => ['42.50'],
+            'zoho lead id, exact in PHP but not in JavaScript' => ['2896936000576627379'],
+            'first integer JavaScript cannot hold' => ['9007199254740992'],
+            'negative beyond the JavaScript range' => ['-9007199254740992'],
         ];
     }
 
@@ -48,6 +51,19 @@ final class StrJsonToArrayTest extends TestCase
     public function testNumbersThatWouldLosePrecisionStayStrings(string $value): void
     {
         $this->assertSame($value, Str::jsonToArray($value));
+    }
+
+    public function testTheLargestJavaScriptSafeIntegerStillDecodes(): void
+    {
+        $this->assertSame(Str::JSON_SAFE_INTEGER_MAX, Str::jsonToArray('9007199254740991'));
+        $this->assertSame(-Str::JSON_SAFE_INTEGER_MAX, Str::jsonToArray('-9007199254740991'));
+    }
+
+    public function testAZohoIdRoundTripsThroughJsonAsAString(): void
+    {
+        $encoded = json_encode(['value' => Str::jsonToArray('2896936000576627379')]);
+
+        $this->assertSame('{"value":"2896936000576627379"}', $encoded);
     }
 
     public function testNonJsonAndNonStringsPassThrough(): void
