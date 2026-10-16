@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Actions;
 
+use Bouncer;
 use Exception;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
@@ -13,6 +15,7 @@ use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Jobs\CreateSystemModuleJob;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Actions\CreateDefaultCompanyForUserAction;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Roles\Models\Roles;
@@ -54,6 +57,7 @@ class CreateAppsAction
 
             $this->systemModules($app);
             $this->acl($app);
+            $this->createOwnerCompany($app);
             CreateSystemModuleJob::dispatch($app);
             (new CreateAppKeyAction(new AppKeyInput(
                 'Default',
@@ -141,6 +145,30 @@ class CreateAppsAction
         foreach ($modules as $module) {
             $createSystemModules = new CreateInCurrentAppAction($app);
             $createSystemModules->execute($module);
+        }
+    }
+
+    /**
+     * Registers the creating user into their brand-new app with a default company, the same
+     * bootstrap a self-registering user gets. `CompaniesObserver::created()` and
+     * `AssignCompanyAction`'s role lookup both resolve the app via `app(Apps::class)` rather than
+     * an explicit parameter, so the container binding (and the Bouncer scope the new app's roles
+     * were just created under, in acl()) must point at $app for the duration of the call — then
+     * restored, since this runs inside a synchronous request and the binding would otherwise leak
+     * into whatever the container resolves next on this worker.
+     */
+    protected function createOwnerCompany(Apps $app): void
+    {
+        $previousApp = app(Apps::class);
+
+        App::scoped(Apps::class, fn () => $app);
+        Bouncer::scope()->to(RolesEnums::getScope($app));
+
+        try {
+            new CreateDefaultCompanyForUserAction($this->user, name: $app->name)->execute();
+        } finally {
+            App::scoped(Apps::class, fn () => $previousApp);
+            Bouncer::scope()->to(RolesEnums::getScope($previousApp));
         }
     }
 
