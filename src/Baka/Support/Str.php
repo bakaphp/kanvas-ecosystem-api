@@ -26,6 +26,12 @@ class Str extends IlluminateStr
      */
     public static function jsonToArray(mixed $string): mixed
     {
+        // phpredis serializes scalars, so a custom field written as an int comes back from the hash
+        // as an int and never reaches the string guards below.
+        if (is_int($string) && self::isBeyondJsonSafeInteger($string)) {
+            return (string) $string;
+        }
+
         if (! is_string($string) || ! self::isJson($string)) {
             return $string;
         }
@@ -37,13 +43,20 @@ class Str extends IlluminateStr
             return $string;
         }
 
-        // The API emits an int as a JSON number and JavaScript parses it into a double, so a 19-digit
-        // Zoho id that PHP holds exactly loses its low digits in the browser.
-        if (is_int($decoded) && abs($decoded) > self::JSON_SAFE_INTEGER_MAX) {
+        if (is_int($decoded) && self::isBeyondJsonSafeInteger($decoded)) {
             return $string;
         }
 
         return $decoded;
+    }
+
+    /**
+     * The API emits an int as a JSON number and JavaScript parses it into a double, so a 19-digit
+     * Zoho id that PHP holds exactly loses its low digits in the browser.
+     */
+    public static function isBeyondJsonSafeInteger(int $value): bool
+    {
+        return abs($value) > self::JSON_SAFE_INTEGER_MAX;
     }
 
     /**

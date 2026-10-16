@@ -53,6 +53,17 @@ final class StrJsonToArrayTest extends TestCase
         $this->assertSame($value, Str::jsonToArray($value));
     }
 
+    /**
+     * phpredis serializes scalars, so a custom field stored as an int comes back as an int, not JSON.
+     */
+    public function testAnIntegerBeyondTheJavaScriptRangeBecomesAString(): void
+    {
+        $this->assertSame('2896936000576711333', Str::jsonToArray(2896936000576711333));
+        $this->assertSame('-2896936000576711333', Str::jsonToArray(-2896936000576711333));
+        $this->assertSame((string) PHP_INT_MAX, Str::jsonToArray(PHP_INT_MAX));
+        $this->assertSame(Str::JSON_SAFE_INTEGER_MAX, Str::jsonToArray(Str::JSON_SAFE_INTEGER_MAX));
+    }
+
     public function testTheLargestJavaScriptSafeIntegerStillDecodes(): void
     {
         $this->assertSame(Str::JSON_SAFE_INTEGER_MAX, Str::jsonToArray('9007199254740991'));
