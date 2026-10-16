@@ -9,6 +9,8 @@ use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Users\Models\UserCompanyApps;
 use Tests\TestCase;
 
 final class CreateAppsActionTest extends TestCase
@@ -73,5 +75,39 @@ final class CreateAppsActionTest extends TestCase
                 'Missing default role ' . $role->value . ' for scope ' . $scope
             );
         }
+    }
+
+    public function testCreateAppsActionAutoRegistersTheCreatingUserWithADefaultCompany(): void
+    {
+        $user = auth()->user();
+        $appName = 'Owner Company app ' . fake()->unique()->uuid();
+
+        $app = new CreateAppsAction(
+            AppInput::from([
+                'url' => 'owner-company.com',
+                'is_actived' => '1',
+                'ecosystem_auth' => '1',
+                'payments_active' => '1',
+                'is_public' => '1',
+                'domain_based' => '1',
+                'name' => $appName,
+                'description' => 'Kanvas Application',
+                'domain' => 'owner-company.com',
+            ]),
+            $user
+        )->execute();
+
+        $company = Companies::where('users_id', $user->getId())
+            ->where('name', $appName)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($company, 'No default company named after the app was created for the app-creating user.');
+        $this->assertTrue(
+            UserCompanyApps::where('apps_id', $app->getId())
+                ->where('companies_id', $company->getId())
+                ->exists(),
+            'The default company was not associated to the newly created app.'
+        );
     }
 }
