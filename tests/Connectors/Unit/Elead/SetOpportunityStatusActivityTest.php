@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Unit\Elead;
 
+use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Client;
@@ -49,7 +50,7 @@ final class SetOpportunityStatusActivityTest extends TestCase
         $lead->company = $company;
         $lead->clientMock = $client;
 
-        \Illuminate\Support\Facades\Redis::shouldReceive('del')
+        Redis::shouldReceive('del')
             ->once()
             ->with('elead:123:lead:opportunity-456');
 
@@ -63,7 +64,7 @@ final class SetOpportunityStatusActivityTest extends TestCase
         $message->shouldReceive('getId')->andReturn(789);
         $message->shouldReceive('entity')->with(Lead::class)->andReturn(null);
 
-        $result = (new SetOpportunityStatusActivity())->execute($message, $app, []);
+        $result = new SetOpportunityStatusActivity()->execute($message, $app, []);
 
         $this->assertSame([
             'error' => 'No Lead found for this entity',
@@ -81,7 +82,7 @@ final class SetOpportunityStatusActivityTest extends TestCase
         $lead->company = $company;
         $lead->shouldReceive('getId')->andReturn(101);
 
-        $result = (new SetOpportunityStatusActivity())->execute($lead, $app, []);
+        $result = new SetOpportunityStatusActivity()->execute($lead, $app, []);
 
         $this->assertSame([
             'error' => 'Company not found in Elead',

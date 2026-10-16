@@ -11,7 +11,6 @@ use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EleadLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -37,10 +36,10 @@ class SetOpportunityStatusActivity extends KanvasActivity
 
         $company = $lead->company;
         if (! $company instanceof Companies || ! $company->get(CustomFieldEnum::COMPANY->value)) {
-            return [
+            return $this->failWorkflow([
                 'error' => 'Company not found in Elead',
                 'lead_id' => $lead->getId(),
-            ];
+            ]);
         }
 
         $status = (string) ($params['status'] ?? 'Active');
@@ -51,7 +50,12 @@ class SetOpportunityStatusActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::ELEAD,
             additionalParams: $params,
-            integrationOperation: function (Model $entity, Apps $app, mixed $integrationCompany, array $additionalParams) use ($lead, $company, $status, $subStatus): array {
+            integrationOperation: function (
+                Model $entity,
+                Apps $app,
+                mixed $integrationCompany,
+                array $additionalParams
+            ) use ($lead, $company, $status, $subStatus): array {
                 $opportunityId = $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value);
                 $opportunity = empty($opportunityId)
                     ? new SyncLeadAction($lead)->execute()
@@ -78,18 +82,12 @@ class SetOpportunityStatusActivity extends KanvasActivity
             return $entity;
         }
 
-        if ($entity instanceof Message) {
-            $lead = $entity->entity(Lead::class);
-
-            return $lead instanceof Lead ? $lead : null;
+        if (! method_exists($entity, 'entity')) {
+            return null;
         }
 
-        if (method_exists($entity, 'entity')) {
-            $lead = $entity->entity(Lead::class);
+        $lead = $entity->entity(Lead::class);
 
-            return $lead instanceof Lead ? $lead : null;
-        }
-
-        return null;
+        return $lead instanceof Lead ? $lead : null;
     }
 }

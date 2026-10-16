@@ -47,7 +47,7 @@ final class AgentInboxWebhookJobTest extends TestCase
     use DatabaseTransactions;
     use HasIntegrationCompany;
 
-    protected $connectionsToTransact = [null, 'social', 'crm', 'workflow'];
+    protected $connectionsToTransact = [null, 'social', 'crm', 'workflow', 'intelligence', 'ecosystem'];
 
     private const string DOMAIN = 'agents.kanvas.test';
 

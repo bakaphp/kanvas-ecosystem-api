@@ -32,6 +32,7 @@ final class TagsTest extends TestCase
     public function testAddingANewTagFiresTheAfterAddTagWorkflowOnce(): void
     {
         $app = app(Apps::class);
+        $appId = $app->getId();
         $company = auth()->user()->getCurrentCompany();
         $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
         $entity = Mockery::mock($people)->makePartial();
@@ -43,7 +44,8 @@ final class TagsTest extends TestCase
                 true,
                 Mockery::on(fn (array $params): bool => $params['tag'] === 'engaged'
                     && isset($params['tag_id'])
-                    && $params['app'] === $app)
+                    && $params['app'] instanceof Apps
+                    && $params['app']->getId() === $appId)
             );
 
         $entity->addTag('engaged');

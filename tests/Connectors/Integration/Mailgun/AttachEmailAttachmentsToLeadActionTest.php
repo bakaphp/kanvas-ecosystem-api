@@ -23,7 +23,7 @@ class AttachEmailAttachmentsToLeadActionTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = [null, 'social', 'crm', 'workflow'];
+    protected $connectionsToTransact = [null, 'social', 'crm', 'workflow', 'ecosystem'];
 
     private const string SIGNING_KEY = 'test-mailgun-webhook-signing-key';
 
