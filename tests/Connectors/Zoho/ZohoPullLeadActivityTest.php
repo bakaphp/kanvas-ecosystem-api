@@ -44,7 +44,7 @@ final class ZohoPullLeadActivityTest extends TestCase
         $lead->set('ai_mode', 'manual');
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
-        $activity = new class($lead) extends ZohoPullLeadActivity {
+        $activity = new class ($lead) extends ZohoPullLeadActivity {
             public bool $syncRequested = false;
 
             public function __construct(private Lead $lead)
