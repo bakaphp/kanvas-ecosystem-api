@@ -79,7 +79,7 @@ class UniversalSegurosProvider implements
         'seguroLey' => 'Auto Exceso',
         'asistenciaVehicular' => false,
         'autoSustituto' => 'No',
-        'fraccionamientoPago' => 'M',
+        'fraccionamientoPago' => 'A',
         'formaPago' => 't/c',
     ];
 

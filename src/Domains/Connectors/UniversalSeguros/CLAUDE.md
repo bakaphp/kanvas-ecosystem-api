@@ -196,6 +196,13 @@ Cross-field rules they enforce and the doc omits:
   a clean `400` naming the allowed values (`CP, PU, M, T, C, A`); omitting `formaPago` returns a
   bare `500`. Send both (`M` / `t/c` for individual policies). This is the second field after
   `ceroDeducible` where their doc and their runtime disagree — trust the runtime.
+- **One quote already prices every payment period.** The response carries `data.primas`: one entry per `fraccionamientoPago`
+  (`A` annual, `S` semiannual, `T` quarterly, `M` monthly, `PU` single payment) with `prima`, `impuesto` and `cobro`, and
+  `terminos.totalCobro` is the `cobro` of the period we sent. Measured 2026-10-16 (same vehicle): `A` 50,979, `S` 26,509, `T` 12,745,
+  `M` 4,756 (twelve of them cost more than the annual). We send `A` by default (`DEFAULT_TERMINOS`) because the flow charges once
+  and reports one payment; `M` charged a single month of a twelve month plan and nothing collects the rest. Letting the user pick
+  another period needs the choice carried into select, contract and the cart metadata, and the signed price to follow it. It is
+  on hold until Universal confirms who collects the remaining installments. `primas` is read nowhere yet.
 - **Always send `vehiculo.inspeccion`, including for A-PL.** Their doc says Seguro de Ley needs
   no inspection, and `requiresInspection()` reflects that for *document upload* — but omitting
   the block from the quote body returns `500`. With the block present the same request returns

@@ -536,6 +536,7 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertNotSame($searchedQuote, $quote, 'every order must own a quote that no other user shares');
         $this->assertStringStartsWith($requestIdPrefix, (string) $this->universal->quotes[$quote]['data']['requestId']);
         $this->assertSame('Ana', $this->universal->quotes[$quote]['data']['cliente']['nombre']);
+        $this->assertSame('A', $this->universal->quotes[$quote]['data']['terminos']['fraccionamientoPago']);
         $this->assertSame(2, $this->universal->callCount('quote'));
     }
 
