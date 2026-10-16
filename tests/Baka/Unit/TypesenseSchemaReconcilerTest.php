@@ -385,6 +385,66 @@ final class TypesenseSchemaReconcilerTest extends TestCase
         $this->assertTrue($drift[0]['widening']);
     }
 
+    public function testReportsAFieldWithWrongFacetFlag(): void
+    {
+        $reconciler = $this->reconciler($this->liveFieldList([
+            ['name' => 'items', 'type' => 'object[]'],
+            ['name' => 'items.unit_price_net_amount', 'type' => 'float[]', 'optional' => true, 'facet' => false],
+            ['name' => 'items.quantity', 'type' => 'float[]', 'optional' => true],
+        ]));
+
+        $model = $this->model([
+            ['name' => 'items', 'type' => 'object[]'],
+            ['name' => 'items.unit_price_net_amount', 'type' => 'float[]', 'optional' => true, 'facet' => true],
+            ['name' => 'items.quantity', 'type' => 'float[]', 'optional' => true],
+        ]);
+
+        $drift = $reconciler->drift($model);
+
+        $this->assertCount(1, $drift);
+        $this->assertSame('items.unit_price_net_amount', $drift[0]['name']);
+        $this->assertSame('float[] (facet: false)', $drift[0]['from']);
+        $this->assertSame('float[] (facet: true)', $drift[0]['to']);
+        $this->assertTrue($drift[0]['widening']);
+    }
+
+    public function testAlignedFacetIsNotDrift(): void
+    {
+        $reconciler = $this->reconciler($this->liveFieldList([
+            ['name' => 'items', 'type' => 'object[]'],
+            ['name' => 'items.unit_price_net_amount', 'type' => 'float[]', 'optional' => true, 'facet' => true],
+            ['name' => 'items.quantity', 'type' => 'float[]', 'optional' => true],
+        ]));
+
+        $model = $this->model([
+            ['name' => 'items', 'type' => 'object[]'],
+            ['name' => 'items.unit_price_net_amount', 'type' => 'float[]', 'optional' => true, 'facet' => true],
+            ['name' => 'items.quantity', 'type' => 'float[]', 'optional' => true],
+        ]);
+
+        $this->assertSame([], $reconciler->drift($model));
+    }
+
+    public function testRemovingFacetIsNotWidening(): void
+    {
+        $reconciler = $this->reconciler($this->liveFieldList([
+            ['name' => 'items', 'type' => 'object[]'],
+            ['name' => 'items.unit_price_net_amount', 'type' => 'float[]', 'optional' => true, 'facet' => true],
+            ['name' => 'items.quantity', 'type' => 'float[]', 'optional' => true],
+        ]));
+
+        $model = $this->model([
+            ['name' => 'items', 'type' => 'object[]'],
+            ['name' => 'items.unit_price_net_amount', 'type' => 'float[]', 'optional' => true, 'facet' => false],
+            ['name' => 'items.quantity', 'type' => 'float[]', 'optional' => true],
+        ]);
+
+        $drift = $reconciler->drift($model);
+
+        $this->assertCount(1, $drift);
+        $this->assertFalse($drift[0]['widening']);
+    }
+
     private function model(?array $fields = null): Model
     {
         $fields ??= [
