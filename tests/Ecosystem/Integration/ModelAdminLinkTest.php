@@ -7,6 +7,7 @@ namespace Tests\Ecosystem\Integration;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\AdminLinks\Enums\AdminLinkIdentifierEnum;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Services\AdminLinkRecordResolver;
 use Kanvas\AdminLinks\Services\AdminLinkService;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
@@ -17,9 +18,12 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
+use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\NervousSystem\Project\Models\Project;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Rules\Models\Rule;
@@ -43,12 +47,15 @@ final class ModelAdminLinkTest extends TestCase
             'organization' => [Organization::class, AdminLinkSectionEnum::ORGANIZATION],
             'product' => [Products::class, AdminLinkSectionEnum::PRODUCT],
             'variant' => [Variants::class, AdminLinkSectionEnum::PRODUCT_VARIANT],
+            'category' => [Categories::class, AdminLinkSectionEnum::CATEGORY],
+            'channel' => [Channels::class, AdminLinkSectionEnum::CHANNEL],
             'order' => [Order::class, AdminLinkSectionEnum::ORDER],
             'project' => [Project::class, AdminLinkSectionEnum::AGENT_PROJECT],
             'agent' => [Agent::class, AdminLinkSectionEnum::AGENT],
             'agent_swarm' => [AgentSwarm::class, AdminLinkSectionEnum::AGENT_SWARM],
             'workflow_receiver' => [ReceiverWebhook::class, AdminLinkSectionEnum::WORKFLOW_RECEIVER],
             'rule' => [Rule::class, AdminLinkSectionEnum::RULE],
+            'message' => [Message::class, AdminLinkSectionEnum::MESSAGE],
         ];
     }
 
@@ -78,12 +85,39 @@ final class ModelAdminLinkTest extends TestCase
         $model->forceFill(['id' => 42, 'uuid' => self::UUID, 'slug' => 'a-slug']);
         $model->setRelation('app', $app);
 
-        $expected = $section->identifier() === AdminLinkIdentifierEnum::ID ? '42' : self::UUID;
+        $expected = match ($section->identifier()) {
+            AdminLinkIdentifierEnum::ID => '42',
+            AdminLinkIdentifierEnum::SLUG => 'a-slug',
+            default => self::UUID,
+        };
 
         $this->assertSame(
             self::HOST . '/projects/' . rawurlencode($app->key) . '/' . $section->segment() . '/' . $expected,
             $model->adminUrl()
         );
+    }
+
+    /**
+     * build_admin_link links through the record the resolver hands back, and reports one it cannot
+     * link as a record that does not exist. Categories sat in the resolver's map without the trait,
+     * and every category came back missing with this suite green.
+     */
+    public function testEveryModelTheResolverFindsIsProvenLinkable(): void
+    {
+        $linked = array_column(self::linkedModels(), 1);
+        $resolver = new AdminLinkRecordResolver();
+
+        foreach (AdminLinkSectionEnum::cases() as $section) {
+            if (! $resolver->supports($section)) {
+                continue;
+            }
+
+            $this->assertContains(
+                $section,
+                $linked,
+                $section->name . ' is in the resolver\'s map but not in linkedModels().'
+            );
+        }
     }
 
     /**

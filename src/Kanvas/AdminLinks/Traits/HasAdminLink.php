@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\AdminLinks\Traits;
 
 use Kanvas\AdminLinks\DataTransferObject\AdminLinkMeta;
-use Kanvas\AdminLinks\Enums\AdminLinkIdentifierEnum;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Services\AdminLinkService;
 
@@ -30,7 +29,8 @@ trait HasAdminLink
         $section = $this->adminLinkSection();
         $identifier = $this->adminLinkIdentifier();
 
-        if ($this->app === null || $identifier === null) {
+        // A slug is the client's own text and can be empty; that is no identifier, not a bad one.
+        if ($this->app === null || $identifier === null || $identifier === '') {
             return new AdminLinkMeta(
                 url: null,
                 requiresCompany: $section->requiresCompany(),
@@ -48,22 +48,6 @@ trait HasAdminLink
 
     public function adminLinkIdentifier(): string|int|null
     {
-        return match ($this->adminLinkSection()->identifier()) {
-            AdminLinkIdentifierEnum::UUID,
-            AdminLinkIdentifierEnum::EITHER => $this->adminLinkRawAttribute('uuid'),
-            AdminLinkIdentifierEnum::SLUG => $this->adminLinkRawAttribute('slug'),
-            AdminLinkIdentifierEnum::ID => $this->getId(),
-        };
-    }
-
-    /**
-     * Read straight off the attribute bag — `$this->uuid` on a model without the
-     * column would fall through Eloquent's __get into relation resolution.
-     */
-    private function adminLinkRawAttribute(string $key): ?string
-    {
-        $value = $this->getAttributes()[$key] ?? null;
-
-        return $value !== null ? (string) $value : null;
+        return $this->adminLinkSection()->identifier()->of($this);
     }
 }
