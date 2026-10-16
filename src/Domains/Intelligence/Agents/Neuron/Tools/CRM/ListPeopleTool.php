@@ -82,6 +82,7 @@ class ListPeopleTool extends Tool
                 'contacts',
                 'organizations' => fn ($q): mixed => $q->select('organizations.id', 'name'),
                 'peopleType',
+                'tags',
             ])
             ->orderByDesc('id')
             ->limit($limit)
@@ -95,6 +96,10 @@ class ListPeopleTool extends Tool
                 'email' => $this->primaryEmail($person),
                 'organization' => $person->organizations->first()?->name,
                 'people_type' => $person->peopleType?->name,
+                // Full tag list, not just the one that matched: a person can carry several
+                // "{role} - {location} #{variant_id}" tags, and the model needs to read all of
+                // them to tell which relationship answers the question asked.
+                'tags' => $person->tags->pluck('name')->all(),
             ])->all(),
         ];
     }

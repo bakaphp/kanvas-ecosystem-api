@@ -137,4 +137,70 @@ final class PullPropertyContactActionTest extends TestCase
 
         $this->assertNotSame($inCompanyA->getId(), $inCompanyB->getId());
     }
+
+    public function testRoleAndInterestLevelBecomeTagsScopedToTheVariant(): void
+    {
+        $app = app(Apps::class);
+        $user = static::$cachedUser;
+        $company = $user->getCurrentCompany();
+        $variant = $this->freshVariant($app, $company);
+
+        $people = new PullPropertyContactAction(
+            $app,
+            $company,
+            $variant,
+            [
+                'Contact_Name__c' => 'Laura Ibarra',
+                'Contact_Email__c' => 'laura.ibarra@example.com',
+                'Location_Contact_Type__c' => 'Potential Tenant',
+                'Interest_Level__c' => 'Strong Interest',
+            ],
+            'a0relationshipTagged',
+        )->execute();
+
+        $tagNames = $people->tags->pluck('name')->all();
+
+        $this->assertContains("Potential Tenant - {$variant->name} #Variants:{$variant->getId()}", $tagNames);
+        $this->assertContains(
+            "Interest: Strong Interest - {$variant->name} #Variants:{$variant->getId()}",
+            $tagNames,
+        );
+    }
+
+    public function testResyncingWithAChangedInterestLevelReplacesTheTagInsteadOfStacking(): void
+    {
+        $app = app(Apps::class);
+        $user = static::$cachedUser;
+        $company = $user->getCurrentCompany();
+        $variant = $this->freshVariant($app, $company);
+
+        $payload = [
+            'Contact_Name__c' => 'Pedro Luna',
+            'Contact_Email__c' => 'pedro.luna@example.com',
+            'Location_Contact_Type__c' => 'Interested Party',
+            'Interest_Level__c' => 'Strong Interest',
+        ];
+
+        new PullPropertyContactAction($app, $company, $variant, $payload, 'a0relationshipInterestChange')->execute();
+
+        $payload['Interest_Level__c'] = 'No Longer Interested';
+        $people = new PullPropertyContactAction(
+            $app,
+            $company,
+            $variant,
+            $payload,
+            'a0relationshipInterestChange',
+        )->execute();
+
+        $tagNames = $people->tags->pluck('name')->all();
+
+        $this->assertContains(
+            "Interest: No Longer Interested - {$variant->name} #Variants:{$variant->getId()}",
+            $tagNames,
+        );
+        $this->assertNotContains(
+            "Interest: Strong Interest - {$variant->name} #Variants:{$variant->getId()}",
+            $tagNames,
+        );
+    }
 }
