@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Actions;
 
-use Bouncer;
+use Baka\Traits\KanvasJobsTrait;
 use Exception;
-use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
@@ -24,6 +23,8 @@ use Kanvas\Users\Models\Users;
 
 class CreateAppsAction
 {
+    use KanvasJobsTrait;
+
     public function __construct(
         protected AppInput $data,
         protected Users $user
@@ -161,14 +162,12 @@ class CreateAppsAction
     {
         $previousApp = app(Apps::class);
 
-        App::scoped(Apps::class, fn () => $app);
-        Bouncer::scope()->to(RolesEnums::getScope($app));
+        $this->overwriteAppService($app);
 
         try {
             new CreateDefaultCompanyForUserAction($this->user, name: $app->name)->execute();
         } finally {
-            App::scoped(Apps::class, fn () => $previousApp);
-            Bouncer::scope()->to(RolesEnums::getScope($previousApp));
+            $this->overwriteAppService($previousApp);
         }
     }
 
