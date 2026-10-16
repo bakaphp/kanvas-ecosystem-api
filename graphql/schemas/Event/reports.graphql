@@ -4,7 +4,11 @@ type OpenEventTrackingRow {
     event_date: String
     counts: Mixed!
     total_inscribed: Int!
+    "The version's total target."
     goal: Int!
+    "Registrations expected by now, on the goal curve for the weeks left before the event."
+    goal_to_date: Int!
+    "total_inscribed as a percentage of goal_to_date, not of goal. color is judged on the same basis."
     goal_percentage: Float!
     color: String!
 }
@@ -60,6 +64,38 @@ type OrganizationEventActivity {
     first_event_date: Date
     last_event_date: Date
     had_prior_activity: Boolean!
+    "Distinct people in the 12 months up to today, whatever from_date / to_date say."
+    participants_last_year: Int!
+    "Distinct people ever, whatever from_date / to_date say."
+    participants_total: Int!
+    "One entry per calendar year from from_date (or the first year with activity) to to_date (or this year), zeros included."
+    by_year: [OrganizationActivityYear!]!
+}
+
+type OrganizationEventParticipant {
+    people_id: ID!
+    name: String!
+    registration_type: String
+}
+
+"One event version a client company's people registered for."
+type OrganizationEventHistoryEntry {
+    event_version_id: ID!
+    event_name: String!
+    version_name: String!
+    event_date: Date
+    registrations: Int!
+    "Distinct people."
+    participants: Int!
+    people: [OrganizationEventParticipant!]!
+}
+
+type OrganizationActivityYear {
+    year: Int!
+    "Registrations that year."
+    count: Int!
+    "Distinct people that year."
+    participants: Int!
 }
 
 extend type Query @guard {
@@ -112,6 +148,18 @@ extend type Query @guard {
     ): [CompanyConcentration!]!
         @field(
             resolver: "App\\GraphQL\\Event\\Queries\\Reports\\EventParticipantConcentrationQuery"
+        )
+
+    "A client company's participation history, newest first. Pair it with organizations(where: { column: ID }) for the company itself and peoples(hasOrganization: ...) for its contacts."
+    organizationEventHistory(
+        organization_id: ID!
+        from_date: Date
+        to_date: Date
+        "Max versions returned. Default 100, cap 500."
+        limit: Int = 100
+    ): [OrganizationEventHistoryEntry!]!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Reports\\OrganizationEventHistoryQuery"
         )
 
     organizationsEventActivity(

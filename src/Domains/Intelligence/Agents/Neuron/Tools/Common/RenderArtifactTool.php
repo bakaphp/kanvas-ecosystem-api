@@ -12,24 +12,32 @@ use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
  * Only useful where the reply renders `kanvas-artifact` blocks (the admin userChat) — anywhere else the
  * reader gets raw JSON. HasKanvasAgentBehavior::getTools() drops it off those surfaces, catalog grant or not.
+ *
+ * Budgeted per inputs: a rich reply (a quarterly report) renders more than 10 distinct blocks, and a
+ * per-name budget aborted the whole turn on the 11th (KANVAS-ECOSYSTEM-6H4).
  */
-#[AgentTool(name: 'Render Artifact', category: 'ecosystem')]
+#[AgentTool(
+    name: 'Render Artifact',
+    description: 'Render structured data (a balance, a record, a list, a metric, a sequence) as a visual component block in the chat reply.',
+    category: 'ecosystem',
+)]
 class RenderArtifactTool extends Tool
 {
     use DecodesJsonObjectParam;
     use ReportsToolOutcome;
+    use TrackByInputs;
+
+    protected string $name = 'render_artifact';
 
     public function __construct()
     {
-        parent::__construct(
-            name: 'render_artifact',
-            description: self::describe(),
-        );
+        $this->description = self::describe();
     }
 
     #[Override]
@@ -103,8 +111,10 @@ class RenderArtifactTool extends Tool
             . 'balance, a record, a list, a metric or a sequence, call this and paste the returned block into your '
             . 'reply verbatim — visual by default, without being asked. This overrides a plain-text output '
             . 'rule for that data. Use only real values your tools returned; never invent or pad numbers. Keep prose '
-            . 'around blocks short. Several blocks per reply are fine. Confirmations of a completed action are prose '
-            . 'first, then at most one block. Never use it for source code. If nothing fits, plain markdown is fine.'
+            . 'around blocks short. One block per reply is the norm: put the whole answer into a single component (a '
+            . 'table with every row, one actions list) rather than one block per paragraph; a multi-section report may '
+            . 'use one per section. A greeting, a short answer or a confirmation of a completed action is prose first, '
+            . 'then at most one block. Never use it for source code. If nothing fits, plain markdown is fine.'
             . "\nComponents:\n" . $components;
     }
 }

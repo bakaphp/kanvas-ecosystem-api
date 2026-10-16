@@ -10,9 +10,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Actions\ApproveCorporateApplicationAction;
 use Kanvas\Companies\CorporateApplications\Actions\RejectCorporateApplicationAction;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationEmailEnum as Email;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Companies\Models\Companies;
@@ -118,6 +120,51 @@ final class CorporateApplicationApprovalTest extends TestCase
         $this->assertEquals($lead->email, $invite->get('contact_email'));
     }
 
+    public function testApproveInvitesWithTheAdminRoleByDefault(): void
+    {
+        $lead = $this->makePendingApplication();
+        Notification::fake();
+
+        $result = new ApproveCorporateApplicationAction($lead, $this->kanvasApp)->execute();
+
+        $invite = UsersInvite::where('invite_hash', $result['invite_hash'])->firstOrFail();
+        $this->assertSame(
+            RolesRepository::getByNameFromApp(RolesEnums::ADMIN->value, $this->kanvasApp)->id,
+            (int) $invite->role_id
+        );
+    }
+
+    public function testApproveInvitesWithTheRoleConfiguredOnTheReceiver(): void
+    {
+        $this->receiver->set(Field::RECEIVER_INVITE_ROLE_KEY, RolesEnums::USER->value);
+        $lead = $this->makePendingApplication();
+        Notification::fake();
+
+        $result = new ApproveCorporateApplicationAction($lead, $this->kanvasApp)->execute();
+
+        $invite = UsersInvite::where('invite_hash', $result['invite_hash'])->firstOrFail();
+        $this->assertSame(
+            RolesRepository::getByNameFromApp(RolesEnums::USER->value, $this->kanvasApp)->id,
+            (int) $invite->role_id
+        );
+    }
+
+    public function testApproveRefusesAnUnknownReceiverRoleBeforeCreatingTheCompany(): void
+    {
+        $this->receiver->set(Field::RECEIVER_INVITE_ROLE_KEY, 'role-that-does-not-exist');
+        $lead = $this->makePendingApplication();
+        Notification::fake();
+
+        try {
+            new ApproveCorporateApplicationAction($lead, $this->kanvasApp)->execute();
+            $this->fail('Approval should refuse an unknown role');
+        } catch (ValidationException $e) {
+            $this->assertSame('Cannot approve: role role-that-does-not-exist does not exist in this app', $e->getMessage());
+        }
+
+        $this->assertEmpty($lead->fresh()->get(Field::COMPANY_ID->value));
+    }
+
     public function testApproveIsIdempotent(): void
     {
         $lead = $this->makePendingApplication();
@@ -157,7 +204,41 @@ final class CorporateApplicationApprovalTest extends TestCase
 
         Notification::assertSentOnDemand(
             Blank::class,
-            fn (Blank $notification): bool => $notification->getTemplateName() === RejectCorporateApplicationAction::DEFAULT_TEMPLATE
+            fn (Blank $notification): bool => $notification->getTemplateName() === Email::REJECTED->defaultTemplate()
+        );
+    }
+
+    public function testTheReceiverTemplateWinsOverTheAppTemplate(): void
+    {
+        $this->kanvasApp->set(ConfigurationEnum::CORPORATE_REJECTED_TEMPLATE->value, 'corporate-rejected-custom');
+        $this->receiver->set(Email::REJECTED->receiverKey(), 'parking-rejected');
+
+        try {
+            $lead = $this->makePendingApplication();
+            Notification::fake();
+
+            new RejectCorporateApplicationAction($lead, $this->kanvasApp, 'Fotos ilegibles')->execute();
+
+            Notification::assertSentOnDemand(
+                Blank::class,
+                fn (Blank $notification): bool => $notification->getTemplateName() === 'parking-rejected'
+            );
+        } finally {
+            $this->kanvasApp->del(ConfigurationEnum::CORPORATE_REJECTED_TEMPLATE->value);
+        }
+    }
+
+    public function testApproveSendsTheWelcomeTemplateOfTheReceiver(): void
+    {
+        $this->receiver->set(Email::WELCOME->receiverKey(), 'parking-welcome');
+        $lead = $this->makePendingApplication();
+        Notification::fake();
+
+        new ApproveCorporateApplicationAction($lead, $this->kanvasApp)->execute();
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => $notification->getTemplateName() === 'parking-welcome'
         );
     }
 

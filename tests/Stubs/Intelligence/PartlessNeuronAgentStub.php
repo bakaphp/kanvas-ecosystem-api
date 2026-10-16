@@ -8,6 +8,7 @@ use ErrorException;
 use Generator;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Providers\AIProviderInterface;
+use NeuronAI\Providers\ProviderResponse;
 use Override;
 
 /**
@@ -22,7 +23,7 @@ class PartlessNeuronAgentStub extends SalesNeuronAgentStub
     {
         return new class () extends FakeNeuronProvider {
             #[Override]
-            public function chat(Message ...$messages): Message
+            public function chat(Message ...$messages): ProviderResponse
             {
                 throw new ErrorException('Undefined array key "parts"');
             }

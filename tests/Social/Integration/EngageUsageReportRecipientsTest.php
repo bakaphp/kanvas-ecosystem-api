@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Analytics\Actions\SendEngageUsageReportAction;
 use Kanvas\Analytics\DataTransferObject\AnalyticsRequest;
@@ -16,6 +17,7 @@ use Kanvas\Analytics\Enums\AnalyticsBucketEnum;
 use Kanvas\Analytics\Notifications\EngageUsageReportNotification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -38,9 +40,15 @@ class EngageUsageReportRecipientsTest extends TestCase
     private Companies $company;
     private Users $user;
 
+    /** @var array<int, array{0: Users, 1: RolesEnums}> */
+    private array $members = [];
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Noon UTC keeps "yesterday" the same date in every tenant timezone the --daily window uses.
+        Carbon::setTestNow(Carbon::now('UTC')->setTime(12, 0));
 
         $this->kanvasApp = app(Apps::class);
         /** @var Users $user */
@@ -48,21 +56,29 @@ class EngageUsageReportRecipientsTest extends TestCase
         $this->user = $user;
         $this->company = Companies::getById($user->getCurrentCompany()->getId());
 
+        $this->ensureReportRole();
         Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp));
-        Bouncer::assign(RolesEnums::MANAGER->value)->to($this->user);
+        Bouncer::assign(RolesEnums::ENGAGEMENT_USAGE_REPORT->value)->to($this->user);
 
         $this->seedActivity();
     }
 
     protected function tearDown(): void
     {
+        $this->company->del('engage_usage_report_enabled');
+        $this->company->del('engage_usage_daily_report_enabled');
+        Carbon::setTestNow();
+
         Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp));
-        Bouncer::retract(RolesEnums::MANAGER->value)->from($this->user);
+        Bouncer::retract(RolesEnums::ENGAGEMENT_USAGE_REPORT->value)->from($this->user);
+        foreach ($this->members as [$member, $role]) {
+            Bouncer::retract($role->value)->from($member);
+        }
 
         parent::tearDown();
     }
 
-    public function testSendsToAnActiveManager(): void
+    public function testSendsToAnActiveRoleHolder(): void
     {
         Notification::fake();
 
@@ -75,7 +91,7 @@ class EngageUsageReportRecipientsTest extends TestCase
      * @param  array<string, int>  $membership
      */
     #[DataProvider('inactiveMemberships')]
-    public function testDoesNotSendToAManagerNoLongerActiveInTheCompany(array $membership): void
+    public function testDoesNotSendToARoleHolderNoLongerActiveInTheCompany(array $membership): void
     {
         DB::table('users_associated_apps')
             ->where('users_id', $this->user->getId())
@@ -100,6 +116,127 @@ class EngageUsageReportRecipientsTest extends TestCase
             'deactivated' => [['is_active' => 0]],
             'banned' => [['banned' => 1]],
         ];
+    }
+
+    public function testManagersAdminsAndOwnersDoNotReceiveItWithoutTheRole(): void
+    {
+        $manager = $this->makeMember(RolesEnums::MANAGER);
+        $admin = $this->makeMember(RolesEnums::ADMIN);
+        $owner = $this->makeMember(RolesEnums::OWNER);
+
+        Notification::fake();
+
+        $this->assertSame(1, $this->send());
+
+        Notification::assertSentTo($this->user, EngageUsageReportNotification::class);
+        Notification::assertNotSentTo([$manager, $admin, $owner], EngageUsageReportNotification::class);
+    }
+
+    public function testSendsNothingWhenNobodyHoldsTheRole(): void
+    {
+        Bouncer::retract(RolesEnums::ENGAGEMENT_USAGE_REPORT->value)->from($this->user);
+        $this->makeMember(RolesEnums::MANAGER);
+
+        Notification::fake();
+
+        $this->assertSame(0, $this->send());
+
+        Notification::assertNothingSent();
+    }
+
+    public function testSendsNothingWhenTheRoleIsNotBootstrapped(): void
+    {
+        Bouncer::role()
+            ->where('name', RolesEnums::ENGAGEMENT_USAGE_REPORT->value)
+            ->where('scope', RolesEnums::getScope($this->kanvasApp))
+            ->delete();
+
+        Notification::fake();
+
+        $this->assertSame(0, $this->send());
+
+        Notification::assertNothingSent();
+    }
+
+    public function testDailyRunReportsYesterdayToACompanyWithTheDailyFlag(): void
+    {
+        $this->company->set('engage_usage_daily_report_enabled', true);
+
+        Notification::fake();
+
+        $this->artisan('kanvas:analytics:send-engage-usage-report', [
+            '--daily' => true,
+            '--app' => $this->kanvasApp->getId(),
+        ])->assertSuccessful();
+
+        $yesterday = Carbon::now($this->company->timezone ?: config('app.timezone'))->subDay();
+
+        Notification::assertSentTo(
+            $this->user,
+            EngageUsageReportNotification::class,
+            fn (EngageUsageReportNotification $notification): bool => $notification->getData()['from'] === $yesterday->toDateString()
+                && $notification->getData()['to'] === $yesterday->toDateString()
+                && $notification->getData()['range_label'] === $yesterday->format('M j, Y'),
+        );
+    }
+
+    public function testDailyRunSkipsACompanyWithOnlyTheWeeklyFlag(): void
+    {
+        $this->company->set('engage_usage_report_enabled', true);
+
+        Notification::fake();
+
+        $this->artisan('kanvas:analytics:send-engage-usage-report', [
+            '--daily' => true,
+            '--app' => $this->kanvasApp->getId(),
+        ])->assertSuccessful();
+
+        Notification::assertNotSentTo($this->user, EngageUsageReportNotification::class);
+    }
+
+    /**
+     * The membership row goes through the default handle for the same reason the inactive-member
+     * tests edit it there: the recipient query must see it inside this test's transaction.
+     */
+    private function makeMember(RolesEnums $role): Users
+    {
+        $user = Users::factory()->create();
+
+        DB::table('users_associated_apps')->insert([
+            'users_id' => $user->getId(),
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'email' => $user->email,
+            'displayname' => $user->displayname,
+            'password' => '',
+            'user_role' => strtolower($role->value),
+            'user_active' => 1,
+            'is_active' => 1,
+            'is_deleted' => 0,
+            'created_at' => Carbon::now(),
+        ]);
+
+        Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp));
+        Bouncer::assign($role->value)->to($user);
+        $this->members[] = [$user, $role];
+
+        return $user;
+    }
+
+    /**
+     * The role is created per app by `CreateAppsAction::acl()`; the test app predates it.
+     */
+    private function ensureReportRole(): void
+    {
+        try {
+            new CreateRoleAction(
+                name: RolesEnums::ENGAGEMENT_USAGE_REPORT->value,
+                title: 'Engagement Usage Report Recipient',
+                app: $this->kanvasApp,
+            )->execute();
+        } catch (ValidationException) {
+            // Already there from a prior run on a database that keeps roles across tests.
+        }
     }
 
     private function send(): int
@@ -141,6 +278,8 @@ class EngageUsageReportRecipientsTest extends TestCase
             'people_id' => $lead->people_id,
             'message_types_id' => $type->id,
             'message' => ['from_me' => true],
+            // Yesterday, so the --daily window and the seven-day window both count it.
+            'created_at' => Carbon::now()->subDay(),
         ]);
     }
 }

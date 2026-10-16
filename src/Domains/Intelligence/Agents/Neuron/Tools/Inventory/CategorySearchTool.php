@@ -22,15 +22,11 @@ class CategorySearchTool extends Tool
     use HasKanvasContext;
     use ListsCatalogReferenceData;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'category_search',
-            description: 'Search the product categories of this company by name, and get their ids. Use this to '
-                . 'find the category_ids to pass to set_product_categories. A company can have thousands of '
-                . 'categories, so always search by keyword rather than listing them all.',
-        );
-    }
+    protected string $name = 'category_search';
+
+    protected ?string $description = 'Search the product categories of this company by name, and get their ids. Use this to '
+        . 'find the category_ids to pass to set_product_categories. A company can have thousands of '
+        . 'categories, so always search by keyword rather than listing them all.';
 
     /**
      * @return array<int, ToolProperty>

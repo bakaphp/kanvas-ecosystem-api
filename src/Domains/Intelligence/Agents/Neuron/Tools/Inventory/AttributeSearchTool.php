@@ -22,16 +22,12 @@ class AttributeSearchTool extends Tool
     use HasKanvasContext;
     use ListsCatalogReferenceData;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'attribute_search',
-            description: 'Search the product attributes this company can use — the spec fields like Colour, Size '
-                . 'or Material — and see which values each one allows. Use this before set_product_attributes or '
-                . 'set_variant_attributes to reuse an existing attribute name and its allowed values rather than '
-                . 'inventing a new near-duplicate. A company can have thousands, so search by keyword.',
-        );
-    }
+    protected string $name = 'attribute_search';
+
+    protected ?string $description = 'Search the product attributes this company can use — the spec fields like Colour, Size '
+        . 'or Material — and see which values each one allows. Use this before set_product_attributes or '
+        . 'set_variant_attributes to reuse an existing attribute name and its allowed values rather than '
+        . 'inventing a new near-duplicate. A company can have thousands, so search by keyword.';
 
     /**
      * @return array<int, ToolProperty>

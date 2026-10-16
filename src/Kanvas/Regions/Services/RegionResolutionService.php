@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Regions\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Regions\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -54,6 +55,23 @@ class RegionResolutionService
         }
 
         return Regions::getDefault($company, $this->app);
+    }
+
+    /**
+     * RegionMiddleware binds the request's region (X-Kanvas-Region header / geo-ip) on
+     * multi-country apps; without it fall back to the company's configured default.
+     */
+    public function forCurrentRequestOrFail(CompanyInterface $company): Regions
+    {
+        $region = app()->bound(Regions::class) ? app(Regions::class) : $this->forCompany($company);
+
+        if (! $region instanceof Regions) {
+            throw new ValidationException(
+                'No default region configured for company ' . $company->getId() . ', set a default region for the company'
+            );
+        }
+
+        return $region;
     }
 
     protected function fromUserProfile(?UserInterface $user): ?Regions

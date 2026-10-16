@@ -24,5 +24,13 @@ enum ConfigurationEnum: string
     case STALE_PAYMENT_TTL_MINUTES = 'souk_stale_payment_ttl_minutes';
     case DEFAULT_COMMISSION_RATE = 'default_commission_rate';
     case DISABLE_ORDER_ITEM_STOCK_VALIDATION = 'souk_disable_order_item_stock_validation';
+    case ENFORCE_EXACT_PAYMENT_AMOUNT = 'souk_enforce_exact_payment_amount';
     case ALLOW_ORDER_CORRECTION_ON_FINAL_STATUS = 'souk_allow_order_correction_on_final_status';
+
+    /**
+     * Where a product lives on the store's own site, as a template: `https://shop.example.com/products/{slug}`
+     * (`{id}` also works; a bare base URL gets `/{slug}` appended). Company setting first, app setting as
+     * the fallback, so a multi-store app can set one default and let a store override it.
+     */
+    case STOREFRONT_PRODUCT_URL = 'souk_storefront_product_url';
 }

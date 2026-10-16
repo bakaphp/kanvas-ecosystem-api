@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Event\Reports\DataTransferObject\OrganizationEventActivity;
 use Kanvas\Event\Reports\Enums\OrgActivityFilterEnum;
 use Kanvas\Event\Reports\Enums\OrgActivityOrderEnum;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Organizations\Models\Organization;
 
 class OrganizationEventActivityRepository
 {
@@ -55,7 +57,12 @@ class OrganizationEventActivityRepository
 
         $orgs = self::loadOrganizationsWithPeople($app, $company);
 
-        $rows = self::aggregatePerOrganization($orgs, $peopleStats, $fromDate);
+        $rows = self::aggregatePerOrganization(
+            $orgs,
+            $peopleStats,
+            $fromDate,
+            $toDate
+        );
 
         $rows = self::applyActivityFilter($rows, $activity);
 
@@ -81,7 +88,7 @@ class OrganizationEventActivityRepository
      *
      * @param  list<string>|null  $includeParticipantTypes
      * @param  list<string>  $excludeParticipantTypes
-     * @return array<int, array{count_in_window:int,first_in_window:?string,last_in_window:?string,first_ever:?string,last_ever:?string}>
+     * @return array<int, array{count_in_window:int,first_in_window:?string,last_in_window:?string,first_ever:?string,last_ever:?string,count_last_year:int,years:array<int,int>}>
      */
     protected static function buildPeopleStats(
         AppInterface $app,
@@ -93,31 +100,7 @@ class OrganizationEventActivityRepository
         ?array $includeParticipantTypes,
         array $excludeParticipantTypes,
     ): array {
-        // One row per participation. event_date = MIN(event_date) of the version
-        // (canonical date for the registration), matching OpenEventsTrackingRepository.
-        $versionDates = DB::connection('event')
-            ->table('event_version_dates')
-            ->where('is_deleted', 0)
-            ->selectRaw('event_version_id, MIN(event_date) as event_date')
-            ->groupBy('event_version_id');
-
-        $query = DB::connection('event')
-            ->table('event_version_participants as evp')
-            ->joinSub($versionDates, 'evd', 'evd.event_version_id', '=', 'evp.event_version_id')
-            ->join('participants as p', function ($join) use ($app, $company) {
-                $join->on('p.id', '=', 'evp.participant_id')
-                    ->where('p.is_deleted', 0)
-                    ->where('p.apps_id', $app->getId())
-                    ->where('p.companies_id', $company->getId());
-            })
-            ->join('event_versions as ev', function ($join) {
-                $join->on('ev.id', '=', 'evp.event_version_id')
-                    ->where('ev.is_deleted', 0);
-            })
-            ->leftJoin('events as e', 'e.id', '=', 'ev.event_id')
-            ->leftJoin('participant_types as pt', 'pt.id', '=', 'evp.participant_type_id')
-            ->where('evp.is_deleted', 0)
-            ->whereNotNull('p.people_id');
+        $query = self::participations($app->getId(), $company->getId());
 
         if ($eventTypeId !== null) {
             $query->where('e.event_type_id', $eventTypeId);
@@ -135,6 +118,8 @@ class OrganizationEventActivityRepository
             ->get();
 
         $stats = [];
+        $lastYearFrom = Carbon::now()->subYear()->toDateString();
+        $today = Carbon::now()->toDateString();
 
         foreach ($rows as $row) {
             $slug = $row->participant_type_name !== '' ? Str::slug((string) $row->participant_type_name) : '';
@@ -155,7 +140,13 @@ class OrganizationEventActivityRepository
                     'last_in_window' => null,
                     'first_ever' => null,
                     'last_ever' => null,
+                    'count_last_year' => 0,
+                    'years' => [],
                 ];
+            }
+
+            if ($date !== null && $date >= $lastYearFrom && $date <= $today) {
+                $stats[$peopleId]['count_last_year']++;
             }
 
             if ($date !== null) {
@@ -165,6 +156,12 @@ class OrganizationEventActivityRepository
 
             if (self::dateInWindow($date, $fromDate, $toDate)) {
                 $stats[$peopleId]['count_in_window']++;
+
+                if ($date !== null) {
+                    $year = (int) substr($date, 0, 4);
+                    $stats[$peopleId]['years'][$year] = ($stats[$peopleId]['years'][$year] ?? 0) + 1;
+                }
+
                 if ($date !== null) {
                     $stats[$peopleId]['first_in_window'] = self::minDate($stats[$peopleId]['first_in_window'], $date);
                     $stats[$peopleId]['last_in_window'] = self::maxDate($stats[$peopleId]['last_in_window'], $date);
@@ -173,6 +170,107 @@ class OrganizationEventActivityRepository
         }
 
         return $stats;
+    }
+
+    /**
+     * One client company's participation history: every event version its people registered
+     * for, newest first, with who went.
+     *
+     * The company's people come from the `crm` pivot and their registrations from the `event`
+     * database, so the two are resolved in separate queries and joined in PHP.
+     *
+     * @return list<array{event_version_id:int, event_name:string, version_name:string, event_date:?string, registrations:int, participants:int, people:list<array{people_id:int, name:string, registration_type:?string}>}>
+     */
+    public static function historyFor(
+        Organization $organization,
+        ?Carbon $fromDate,
+        ?Carbon $toDate,
+        int $limit = 100
+    ): array {
+        $peopleIds = DB::connection('crm')
+            ->table('organizations_peoples')
+            ->where('organizations_id', $organization->getId())
+            ->pluck('peoples_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->all();
+
+        if ($peopleIds === []) {
+            return [];
+        }
+
+        $rows = self::participations((int) $organization->apps_id, (int) $organization->companies_id)
+            ->whereIn('p.people_id', $peopleIds)
+            ->select([
+                'ev.id as event_version_id',
+                'e.name as event_name',
+                'ev.name as version_name',
+                'evd.event_date',
+                'p.people_id',
+                'pt.name as registration_type',
+            ])
+            ->get()
+            ->filter(fn ($row) => $fromDate === null && $toDate === null
+                || self::dateInWindow($row->event_date !== null ? (string) $row->event_date : null, $fromDate, $toDate));
+
+        $names = People::query()
+            ->whereIn('id', $rows->pluck('people_id')->unique()->all())
+            ->get(['id', 'firstname', 'middlename', 'lastname'])
+            ->mapWithKeys(fn (People $people) => [$people->getId() => $people->getName()]);
+
+        return $rows
+            ->groupBy('event_version_id')
+            ->map(fn (Collection $registrations) => [
+                'event_version_id' => (int) $registrations->first()->event_version_id,
+                'event_name' => (string) ($registrations->first()->event_name ?? ''),
+                'version_name' => (string) ($registrations->first()->version_name ?? ''),
+                'event_date' => $registrations->first()->event_date !== null ? (string) $registrations->first()->event_date : null,
+                'registrations' => $registrations->count(),
+                'participants' => $registrations->pluck('people_id')->unique()->count(),
+                'people' => $registrations
+                    ->map(fn ($row) => [
+                        'people_id' => (int) $row->people_id,
+                        'name' => (string) ($names[(int) $row->people_id] ?? ''),
+                        'registration_type' => $row->registration_type,
+                    ])
+                    ->values()
+                    ->all(),
+            ])
+            ->sortByDesc(fn (array $version) => $version['event_date'] ?? '')
+            ->take($limit)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * One row per live registration of the tenant, with the version's canonical date — the
+     * earliest of its `event_version_dates`, matching OpenEventsTrackingRepository.
+     */
+    protected static function participations(int $appId, int $companyId): Builder
+    {
+        $versionDates = DB::connection('event')
+            ->table('event_version_dates')
+            ->where('is_deleted', 0)
+            ->selectRaw('event_version_id, MIN(event_date) as event_date')
+            ->groupBy('event_version_id');
+
+        return DB::connection('event')
+            ->table('event_version_participants as evp')
+            ->joinSub($versionDates, 'evd', 'evd.event_version_id', '=', 'evp.event_version_id')
+            ->join('participants as p', function ($join) use ($appId, $companyId) {
+                $join->on('p.id', '=', 'evp.participant_id')
+                    ->where('p.is_deleted', 0)
+                    ->where('p.apps_id', $appId)
+                    ->where('p.companies_id', $companyId);
+            })
+            ->join('event_versions as ev', function ($join) {
+                $join->on('ev.id', '=', 'evp.event_version_id')
+                    ->where('ev.is_deleted', 0);
+            })
+            ->leftJoin('events as e', 'e.id', '=', 'ev.event_id')
+            ->leftJoin('participant_types as pt', 'pt.id', '=', 'evp.participant_type_id')
+            ->where('evp.is_deleted', 0)
+            ->whereNotNull('p.people_id');
     }
 
     /**
@@ -219,13 +317,14 @@ class OrganizationEventActivityRepository
 
     /**
      * @param  array<int, array{id:int,name:string,people_ids:array<int,int>}>  $orgs
-     * @param  array<int, array{count_in_window:int,first_in_window:?string,last_in_window:?string,first_ever:?string,last_ever:?string}>  $peopleStats
+     * @param  array<int, array{count_in_window:int,first_in_window:?string,last_in_window:?string,first_ever:?string,last_ever:?string,count_last_year:int,years:array<int,int>}>  $peopleStats
      * @return Collection<int, OrganizationEventActivity>
      */
     protected static function aggregatePerOrganization(
         array $orgs,
         array $peopleStats,
         ?Carbon $fromDate,
+        ?Carbon $toDate,
     ): Collection {
         $rows = collect();
         $fromStr = $fromDate?->toDateString();
@@ -236,6 +335,9 @@ class OrganizationEventActivityRepository
             $firstEver = null;
             $lastEver = null;
             $hadPrior = false;
+            $peopleLastYear = 0;
+            $peopleTotal = 0;
+            $years = [];
 
             foreach (array_unique($org['people_ids']) as $peopleId) {
                 if (! isset($peopleStats[$peopleId])) {
@@ -246,6 +348,14 @@ class OrganizationEventActivityRepository
                 $count += $s['count_in_window'];
                 if ($s['count_in_window'] > 0) {
                     $uniquePeople++;
+                }
+                $peopleTotal++;
+                if ($s['count_last_year'] > 0) {
+                    $peopleLastYear++;
+                }
+                foreach ($s['years'] as $year => $yearCount) {
+                    $years[$year]['count'] = ($years[$year]['count'] ?? 0) + $yearCount;
+                    $years[$year]['participants'] = ($years[$year]['participants'] ?? 0) + 1;
                 }
                 $firstEver = self::minDate($firstEver, $s['first_ever']);
                 $lastEver = self::maxDate($lastEver, $s['last_ever']);
@@ -263,6 +373,9 @@ class OrganizationEventActivityRepository
                 first_event_date: $firstEver,
                 last_event_date: $lastEver,
                 had_prior_activity: $hadPrior,
+                participants_last_year: $peopleLastYear,
+                participants_total: $peopleTotal,
+                by_year: self::yearSeries($years, $fromDate, $toDate),
             ));
         }
 
@@ -304,6 +417,34 @@ class OrganizationEventActivityRepository
             OrgActivityOrderEnum::FIRST_DATE_ASC => $rows->sortBy(fn ($r) => $r->first_event_date ?? '9999-12-31'),
             OrgActivityOrderEnum::NAME_ASC => $rows->sortBy(fn ($r) => mb_strtolower($r->organization_name)),
         };
+    }
+
+    /**
+     * Every year of the window, zeros included, so each company row carries the same columns.
+     * Without a from_date the series starts at the company's first active year.
+     *
+     * @param  array<int, array{count:int, participants:int}>  $years
+     * @return list<array{year:int, count:int, participants:int}>
+     */
+    protected static function yearSeries(array $years, ?Carbon $fromDate, ?Carbon $toDate): array
+    {
+        $first = $fromDate?->year ?? ($years === [] ? null : min(array_keys($years)));
+
+        if ($first === null) {
+            return [];
+        }
+
+        $series = [];
+
+        for ($year = $first; $year <= ($toDate ?? Carbon::now())->year; $year++) {
+            $series[] = [
+                'year' => $year,
+                'count' => $years[$year]['count'] ?? 0,
+                'participants' => $years[$year]['participants'] ?? 0,
+            ];
+        }
+
+        return $series;
     }
 
     protected static function dateInWindow(?string $date, ?Carbon $from, ?Carbon $to): bool

@@ -21,13 +21,13 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\LedgerConfigurationEnum;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
+use Kanvas\NervousSystem\Plan\Concerns\TruncatesTitle;
 use Kanvas\NervousSystem\Plan\Enums\PlanBlockedNeedsEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Observers\PlanObserver;
-use Kanvas\NervousSystem\Plan\Traits\TruncatesTitleTrait;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Services\ProjectMentionTriggerService;
@@ -95,7 +95,7 @@ class Plan extends BaseModel implements HandlesAgentMention
     use EmitsLedgerEventsForEntity;
     use HasLightHouseCache;
     use HasTagsTrait;
-    use TruncatesTitleTrait;
+    use TruncatesTitle;
     use UuidTrait;
 
     protected $cascadeDeletes = ['tasks', 'children'];
@@ -312,6 +312,23 @@ class Plan extends BaseModel implements HandlesAgentMention
     public function getStringIdAttribute(): string
     {
         return (string) $this->id;
+    }
+
+    /**
+     * The human who asked for this plan, when one was recorded. Not `user`: an agent-owned run's user
+     * is the agent's own account.
+     */
+    public function asker(): ?Users
+    {
+        if ($this->origin_users_id === null) {
+            return null;
+        }
+
+        try {
+            return Users::getById((int) $this->origin_users_id);
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**

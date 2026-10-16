@@ -31,4 +31,10 @@ class RespondIOHandler extends BaseIntegration
 
         return true;
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [ConfigurationEnum::BEARER_TOKEN->value];
+    }
 }

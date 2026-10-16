@@ -26,15 +26,11 @@ class UpdateOrganizationTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_organization',
-            description: 'Update a customer organization (company / account). Identify it by organization_id. Only '
-                . 'the fields you provide are changed — name, email, phone, address, state or organization_type_id; '
-                . 'the rest are left as-is. Use create_organization to make a new one.',
-        );
-    }
+    protected string $name = 'update_organization';
+
+    protected ?string $description = 'Update a customer organization (company / account). Identify it by organization_id. Only '
+        . 'the fields you provide are changed — name, email, phone, address, state or organization_type_id; '
+        . 'the rest are left as-is. Use create_organization to make a new one.';
 
     /**
      * @return array<int, ToolProperty>

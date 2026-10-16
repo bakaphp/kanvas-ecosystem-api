@@ -66,8 +66,7 @@ class RollupLocalAgentUsageActionTest extends TestCase
             'agent' => 'Test\\Agent',
             'content' => 'hi',
             'attachments' => '[]',
-            'tool_calls' => '[]',
-            'tool_results' => '[]',
+            'steps' => '[]',
             'usage' => $usage !== null ? json_encode($usage) : '[]',
             'meta' => '[]',
             'created_at' => $at,
@@ -113,6 +112,41 @@ class RollupLocalAgentUsageActionTest extends TestCase
         $this->assertSame(50, $snapshot->cache_read_tokens);
         $this->assertSame(20, $snapshot->cache_write_tokens);
         $this->assertSame(1, $snapshot->total_sessions);
+
+        Carbon::setTestNow();
+    }
+
+    /**
+     * laravel/ai 1.x counts cache reads and writes inside `input_tokens`; they are priced at their own
+     * rate, so the rollup must not bill them a second time at the base rate.
+     */
+    public function testLaravelAiOneXUsageSubtractsCachedTokensFromInput(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 6, 9, 12));
+        $app = app(Apps::class);
+
+        $agent = $this->makeAgent('laravel');
+        $conv = $this->makeConversation($agent);
+
+        $this->makeMessage($conv, 'assistant', [
+            'input_tokens' => 1000,
+            'output_tokens' => 10,
+            'cache_read_input_tokens' => 600,
+            'cache_write_input_tokens' => 100,
+            'reasoning_tokens' => null,
+        ], Carbon::create(2026, 6, 9, 10));
+
+        new RollupLocalAgentUsageAction($app, Carbon::create(2026, 6, 9))->execute();
+
+        $snapshot = AgentUsageSnapshot::query()
+            ->where('agent_id', $agent->getId())
+            ->where('snapshot_date', '2026-06-09')
+            ->firstOrFail();
+
+        $this->assertSame(300, $snapshot->input_tokens);
+        $this->assertSame(10, $snapshot->output_tokens);
+        $this->assertSame(600, $snapshot->cache_read_tokens);
+        $this->assertSame(100, $snapshot->cache_write_tokens);
 
         Carbon::setTestNow();
     }

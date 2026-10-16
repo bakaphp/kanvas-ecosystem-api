@@ -13,7 +13,6 @@ use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Enums\ProjectMemberRoleEnum;
 use Kanvas\NervousSystem\Project\Enums\ProjectStatusEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -35,23 +34,23 @@ use Throwable;
  *    project with the same title is reused, mirroring create_nervous_system_plan.
  */
 #[AgentTool(name: 'Create Project', category: 'nervous_system')]
-class CreateNervousSystemProjectTool extends Tool implements HasRunKey
+class CreateNervousSystemProjectTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
 
+    protected string $name = 'create_nervous_system_project';
+
+    protected ?string $description = 'Open a NEW project — its own board, channel and heartbeat — when a request is a '
+        . 'separate stream of work that does not belong on a project you already run. You become its '
+        . 'PM unless you pass agent_id. Give it an objective (the definition of done) whenever you '
+        . 'know one — a project with no definition of done cannot be managed. It starts active unless '
+        . 'you pass a status. Do NOT use this for work that fits an existing project — create a '
+        . 'plan on that project instead.';
+
     public function __construct(
         private readonly ?Agent $callingAgent = null,
     ) {
-        parent::__construct(
-            name: 'create_nervous_system_project',
-            description: 'Open a NEW project — its own board, channel and heartbeat — when a request is a '
-                . 'separate stream of work that does not belong on a project you already run. You become its '
-                . 'PM unless you pass agent_id. Give it an objective (the definition of done) whenever you '
-                . 'know one — a project with no definition of done cannot be managed. It starts active unless '
-                . 'you pass a status. Do NOT use this for work that fits an existing project — create a '
-                . 'plan on that project instead.',
-        );
     }
 
     /**

@@ -72,7 +72,7 @@ class LaravelOrderReportToolsTest extends TestCase
                 'provider_amount' => 90.0,
             ]);
 
-        Order::factory()
+        $orderB = Order::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
             ->withUserId($user->getId())
@@ -98,20 +98,22 @@ class LaravelOrderReportToolsTest extends TestCase
                 'total_net_amount' => 30.0,
             ]);
 
-        $payment = new Payments();
-        $payment->apps_id = $app->getId();
-        $payment->companies_id = $company->getId();
-        $payment->users_id = $user->getId();
-        $payment->payment_methods_id = 1;
-        $payment->payable_id = $orderA->getId();
-        $payment->payable_type = Order::class;
-        $payment->payment_date = now()->toDateString();
-        $payment->payment_method = 'card';
-        $payment->amount = 100.0;
-        $payment->currency = 'USD';
-        $payment->status = 'paid';
-        $payment->is_deleted = false;
-        $payment->saveOrFail();
+        foreach ([[$orderA, 'card'], [$orderB, 'cash']] as [$paidOrder, $method]) {
+            $payment = new Payments();
+            $payment->apps_id = $app->getId();
+            $payment->companies_id = $company->getId();
+            $payment->users_id = $user->getId();
+            $payment->payment_methods_id = 1;
+            $payment->payable_id = $paidOrder->getId();
+            $payment->payable_type = Order::class;
+            $payment->payment_date = now()->toDateString();
+            $payment->payment_method = $method;
+            $payment->amount = 100.0;
+            $payment->currency = 'USD';
+            $payment->status = 'paid';
+            $payment->is_deleted = false;
+            $payment->saveOrFail();
+        }
 
         return [$app, $company];
     }
@@ -190,6 +192,25 @@ class LaravelOrderReportToolsTest extends TestCase
             now()->startOfMonth()->toDateString(),
             $result['series'][count($result['series']) - 1]['period']
         );
+    }
+
+    public function test_order_trend_paid_anchor_counts_only_paid_orders(): void
+    {
+        [$app, $company] = $this->seedOrders();
+
+        $result = $this->invokeTool(
+            new OrderTrendTool()->withContext($app, $company),
+            [
+                'group_by' => 'month',
+                'order_types' => ['movipass', 'paso_rapido'],
+                'date_anchor' => 'paid',
+                'timezone' => 'America/Santo_Domingo',
+            ]
+        );
+
+        $this->assertSame('paid', $result['date_anchor']);
+        $this->assertSame('America/Santo_Domingo', $result['timezone']);
+        $this->assertSame(2, (int) $result['total_orders']);
     }
 
     public function test_order_fulfillment_stats_reports_the_paid_backlog(): void

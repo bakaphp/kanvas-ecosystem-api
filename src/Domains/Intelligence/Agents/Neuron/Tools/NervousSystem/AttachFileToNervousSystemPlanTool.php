@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasFileUploadToolProperties;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\Intelligence\Agents\Traits\AttachesFileToEntity;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,7 +22,7 @@ use Override;
  * not a handoff.
  */
 #[AgentTool(name: 'Attach File To Plan', category: 'nervous_system')]
-class AttachFileToNervousSystemPlanTool extends Tool implements HasRunKey
+class AttachFileToNervousSystemPlanTool extends Tool
 {
     use AttachesFileToEntity;
     use HasFileUploadToolProperties;
@@ -31,17 +30,14 @@ class AttachFileToNervousSystemPlanTool extends Tool implements HasRunKey
     use ResolvesPlanForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'attach_file_to_plan',
-            description: 'Attach a document to a plan, so every task on it inherits the file as an input. Use '
-                . 'this whenever work depends on a document — attach it once here instead of describing it or '
-                . 'pasting a URL into the plan description, which hands the worker nothing it can open. Pass '
-                . '`content` with text you wrote plus a `file_name`, or `file_url` for a file that already '
-                . 'exists at a public URL. Also the right place for a plan-level final report.',
-        );
-    }
+    protected string $name = 'attach_file_to_plan';
+
+    protected ?string $description = 'Attach a document to a plan, so every task on it inherits the file as an input. Use '
+        . 'this whenever work depends on a document — attach it once here instead of describing it or '
+        . 'pasting a URL into the plan description, which hands the worker nothing it can open. Pass '
+        . '`content` with text you wrote plus a `file_name`, or `file_url` for a file that already '
+        . 'exists at a public URL, or `filesystem_id` for a file already in Kanvas (the id in an '
+        . '"Attached file on this message" marker). Also the right place for a plan-level final report.';
 
     /**
      * @return array<int, ToolProperty>
@@ -68,6 +64,7 @@ class AttachFileToNervousSystemPlanTool extends Tool implements HasRunKey
         ?string $file_name = null,
         ?string $content = null,
         ?string $file_url = null,
+        ?int $filesystem_id = null,
     ): array {
         $plan = $this->resolvePlanOrError($plan_id);
 
@@ -83,6 +80,7 @@ class AttachFileToNervousSystemPlanTool extends Tool implements HasRunKey
                 fileUrl: $file_url,
                 content: $content,
                 fileName: $file_name,
+                filesystemId: $filesystem_id,
             ),
         ];
     }

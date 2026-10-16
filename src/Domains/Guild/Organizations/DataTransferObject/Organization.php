@@ -24,6 +24,7 @@ class Organization extends Data
         public readonly ?string $state = null,
         public readonly ?string $zip = null,
         public readonly ?OrganizationType $organizationType = null,
+        public readonly bool $runWorkflow = true,
     ) {
     }
 }

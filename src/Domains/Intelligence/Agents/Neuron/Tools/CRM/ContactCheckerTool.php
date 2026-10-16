@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Blade;
 use InvalidArgumentException;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
@@ -20,16 +21,14 @@ use function Laravel\Ai\agent;
 #[AgentTool(name: 'Contact Checker', category: 'crm')]
 class ContactCheckerTool extends Tool
 {
+    protected string $name = 'check_contact_status';
+
+    protected ?string $description = 'Analyze if the lead has already been contacted based on a note or message, returning contact status and confidence.';
     protected Agent $agent;
     protected Model $lead;
 
     public function __construct(protected Message $message)
     {
-        parent::__construct(
-            name: 'check_contact_status',
-            description: 'Analyze if the lead has already been contacted based on a note or message, returning contact status and confidence.',
-        );
-
         $this->lead = $this->getLeadFromMessage($message);
         $agentName = 'ContactCheckerAgent';
         $this->agent = Agent::fromApp($this->lead->app)
@@ -81,7 +80,7 @@ class ContactCheckerTool extends Tool
             throw new InvalidArgumentException('Message is not associated with a Notes channel linked to an entity');
         }
 
-        $lead = $message->entity();
+        $lead = $message->preferredEntity(Lead::class);
 
         return $lead;
     }

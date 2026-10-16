@@ -11,6 +11,8 @@ use Cron\CronExpression;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\AppKey;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
@@ -104,6 +106,15 @@ class ScheduledAction extends BaseModel
      * re-arm after downtime advances to the next FUTURE slot rather than replaying
      * missed ones (no catch-up storm).
      */
+    /**
+     * Zero is "no cap": a model asked for an unlimited cadence passes 0 as often as it omits the
+     * field, and rows written before the create action normalised it still carry the literal 0.
+     */
+    public function occurrenceCapReached(int $occurrences): bool
+    {
+        return $this->max_occurrences > 0 && $occurrences >= $this->max_occurrences;
+    }
+
     public function nextRunAt(Carbon $after): CarbonImmutable
     {
         $next = new CronExpression((string) $this->recurrence_cron)
@@ -130,6 +141,25 @@ class ScheduledAction extends BaseModel
     public function scopeForUser(Builder $query, int $usersId): Builder
     {
         return $query->where('users_id', $usersId);
+    }
+
+    /**
+     * A schedule is private to its recipient: a company member must not see or control a
+     * coworker's reminders. Only a key-only (super admin) request, the same condition
+     * `fromCompany` widens on, sees every user's rows. Fails closed when no user is
+     * authenticated so a misconfigured guard can never widen the list.
+     */
+    public function scopeFromUser(Builder $query, mixed $user = null): Builder
+    {
+        if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
+            return $query;
+        }
+
+        $userId = $user instanceof Users ? $user->getId() : auth()->id();
+
+        return $userId !== null
+            ? $query->forUser((int) $userId)
+            : $query->whereRaw('1 = 0');
     }
 
     /**

@@ -30,18 +30,14 @@ class CreateGoogleSheetTabTool extends Tool
     use ResolvesGoogleSheetsServiceForTool;
     use ResolvesSpreadsheetIdForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_google_sheet_tab',
-            description: 'Adds a new tab (worksheet) to an EXISTING Google Sheets document — e.g. a "Q3 Invoices" '
-                . 'tab alongside the ones already there. This does NOT create a new spreadsheet: use '
-                . 'create_google_spreadsheet for that. Requires the sheet link — unlike the other sheets tools it '
-                . 'will not fall back to a default document. Does not touch or remove any existing tab. Works on '
-                . 'any sheet the Google account this agent is connected to can open; where the app uses a shared '
-                . 'service account instead, the sheet must be shared with that account as an Editor.',
-        );
-    }
+    protected string $name = 'create_google_sheet_tab';
+
+    protected ?string $description = 'Adds a new tab (worksheet) to an EXISTING Google Sheets document — e.g. a "Q3 Invoices" '
+        . 'tab alongside the ones already there. This does NOT create a new spreadsheet: use '
+        . 'create_google_spreadsheet for that. Requires the sheet link — unlike the other sheets tools it '
+        . 'will not fall back to a default document. Does not touch or remove any existing tab. Works on '
+        . 'any sheet the Google account this agent is connected to can open; where the app uses a shared '
+        . 'service account instead, the sheet must be shared with that account as an Editor.';
 
     /**
      * @return array<int, ToolProperty>

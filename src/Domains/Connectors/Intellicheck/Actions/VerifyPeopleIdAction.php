@@ -42,7 +42,9 @@ class VerifyPeopleIdAction
         bool $sendNotification = true,
         ?Engagement $parentEngagement = null,
         ?array $images = null,
-        bool $reuseExistingEngagement = false
+        bool $reuseExistingEngagement = false,
+        ?Engagement $engagement = null,
+        bool $sendEmail = true
     ): array {
         // An in-store scan carries no IPQS block; the fraud rules only apply to remote ones.
         $isShowRoom = ! isset($verificationData['ipqs']);
@@ -111,15 +113,17 @@ class VerifyPeopleIdAction
         }
         $people->del('get_docs_drivers_license');
 
-        $engagement = null;
+        $reportEngagement = null;
 
         if ($sendNotification) {
-            $engagement = $this->sendNotification(
+            $reportEngagement = $this->sendNotification(
                 reportData: $reportData,
                 isShowRoom: $isShowRoom,
                 parentEngagement: $parentEngagement,
                 images: $images,
-                reuseExistingEngagement: $reuseExistingEngagement
+                reuseExistingEngagement: $reuseExistingEngagement,
+                engagement: $engagement,
+                sendEmail: $sendEmail
             );
         }
 
@@ -130,7 +134,7 @@ class VerifyPeopleIdAction
             'data' => $reportData,
             'resultsFromIntellicheck' => $resultsFromIntellicheck,
             'getDocsDriversLicense' => $getDocsDriversLicense ?? null,
-            'engagement_id' => $engagement?->getId(),
+            'engagement_id' => $reportEngagement?->getId(),
         ];
     }
 
@@ -144,34 +148,41 @@ class VerifyPeopleIdAction
         bool $isShowRoom,
         ?Engagement $parentEngagement,
         ?array $images,
-        bool $reuseExistingEngagement
+        bool $reuseExistingEngagement,
+        ?Engagement $engagement = null,
+        bool $sendEmail = true
     ): ?Engagement {
         $cacheKey = 'intellicheck_report_' . $this->lead->getId() . '_' . $this->people->getId();
 
-        if (Cache::has($cacheKey)) {
-            return null;
-        }
+        // A regeneration must not claim the window, or a real scan arriving right after it gets no
+        // report, no PDF and no engagement at all.
+        if ($sendEmail) {
+            if (Cache::has($cacheKey)) {
+                return null;
+            }
 
-        Cache::put($cacheKey, true, now()->addMinutes(3));
+            Cache::put($cacheKey, true, now()->addMinutes(3));
 
-        if (! $this->lead->company->get('disable_id_verification_email', false)) {
-            $notification = new Blank(
-                'id-verification-report',
-                $this->templateData($reportData, $isShowRoom),
-                ['mail'],
-                $this->lead,
-            );
-            $notification->setSubject($reportData['name'] . ' - ID Verification Report');
+            if (! $this->lead->company->get('disable_id_verification_email', false)) {
+                $notification = new Blank(
+                    'id-verification-report',
+                    $this->templateData($reportData, $isShowRoom),
+                    ['mail'],
+                    $this->lead,
+                );
+                $notification->setSubject($reportData['name'] . ' - ID Verification Report');
 
-            Notification::send($this->reportRecipients(), $notification);
+                Notification::send($this->reportRecipients(), $notification);
+            }
         }
 
         return $this->generateReportPdf(
-            $reportData,
-            $isShowRoom,
-            $parentEngagement,
-            $images,
-            $reuseExistingEngagement
+            reportData: $reportData,
+            isShowRoom: $isShowRoom,
+            parentEngagement: $parentEngagement,
+            images: $images,
+            reuseExistingEngagement: $reuseExistingEngagement,
+            engagement: $engagement
         );
     }
 
@@ -180,7 +191,8 @@ class VerifyPeopleIdAction
         bool $isShowRoom,
         ?Engagement $parentEngagement,
         ?array $images,
-        bool $reuseExistingEngagement
+        bool $reuseExistingEngagement,
+        ?Engagement $engagement = null
     ): ?Engagement {
         try {
             $pdfReport = PdfService::generatePdfFromTemplate(
@@ -191,7 +203,7 @@ class VerifyPeopleIdAction
                 $this->templateData($reportData, $isShowRoom)
             );
 
-            $engagement = $this->resolveEngagement($parentEngagement, $reuseExistingEngagement);
+            $engagement ??= $this->resolveEngagement($parentEngagement, $reuseExistingEngagement);
 
             if ($engagement === null) {
                 return null;

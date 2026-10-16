@@ -655,7 +655,7 @@ class CreateEngagementAction
         array $data
     ): void {
         if ($action === 'get-deposit' && isset($data['amount']) && (float) $data['amount'] > 0) {
-            $stripeCheckout = new StripePaymentLinkService($lead->app, $lead->company);
+            $stripeCheckout = $this->stripePaymentLinkService($lead);
 
             $vehicleOfInterest = (array) $lead->get('vehicle_of_interest');
             $stockNumber = trim((string) ($vehicleOfInterest['stockNumber'] ?? '')) ?: 'N/A';
@@ -714,12 +714,20 @@ class CreateEngagementAction
             }
             $paymentShortLink = Url::getShortUrl($paymentLinkFullLink, $lead->app);
 
+            $messageData['data']['link'] = $paymentShortLink;
+
+            //@todo brya0x remove the action_link/preview_link override once clients read data.link
             $messageData['normal_action_link'] = $messageData['action_link'] ?? '';
             $messageData['action_link'] = $paymentShortLink;
             $messageData['preview_link'] = $paymentShortLink;
             $message->message = $messageData;
             $message->saveOrFail();
         }
+    }
+
+    protected function stripePaymentLinkService(Lead $lead): StripePaymentLinkService
+    {
+        return new StripePaymentLinkService($lead->app, $lead->company);
     }
 
     /**

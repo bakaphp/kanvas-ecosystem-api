@@ -170,7 +170,7 @@ class CalculateCustomTaxActionTest extends TestCase
         ], $settings);
 
         $app = Mockery::mock(Apps::class)->makePartial();
-        $app->shouldReceive('get')->andReturnUsing(fn (string $key) => $settings[$key] ?? null);
+        $app->shouldReceive('get')->andReturnUsing(fn (string $key, mixed $default = null) => $settings[$key] ?? $default);
 
         $product = Mockery::mock(Products::class)->makePartial();
         $product->shouldReceive('get')->andReturnUsing(

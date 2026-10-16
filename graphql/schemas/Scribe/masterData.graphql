@@ -57,8 +57,8 @@ type ScribePaymentTerm {
     name: String!
     net_days: Int!
     discount_days: Int
-    discount_percent: Float
-    is_active: Boolean!
+    discount_percent: Float @rename(attribute: "discount_pct")
+    is_default: Boolean!
     company: Company! @belongsTo(relation: "company")
     created_at: DateTime!
     updated_at: DateTime!
@@ -143,7 +143,12 @@ extend type Query @guard {
         )
 
     scribePaymentTerms(
-        where: _ @whereConditions(columns: ["name", "net_days", "is_active"])
+        where: _
+            @whereConditions(
+                columns: ["name", "net_days", "is_default"]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "name", "net_days", "created_at", "is_default"])
     ): [ScribePaymentTerm!]!
         @paginate(
             model: "Kanvas\\Scribe\\PaymentTerms\\Models\\PaymentTerm"

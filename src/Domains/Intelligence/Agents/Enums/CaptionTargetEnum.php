@@ -10,10 +10,10 @@ namespace Kanvas\Intelligence\Agents\Enums;
  */
 enum CaptionTargetEnum: string
 {
-    // Kanvas\Social\Messages\Models\Message — SalesAssistKanvasMessageHistory reads message.attachment_descriptions
+    // Kanvas\Social\Messages\Models\Message — EntityRollupMessageStore reads message.attachment_descriptions
     case SOCIAL_MESSAGE = 'social_message';
 
-    // intelligence.agent_conversation_messages — KanvasMessageHistory reads the attachments column
+    // intelligence.agent_conversation_messages — ConversationMessageStore reads the attachments column
     case CONVERSATION_MESSAGE = 'conversation_message';
 
     // Kanvas\Intelligence\Agents\Models\AgentHistory — KanvasLaravelAgent::messages() reads input.content,

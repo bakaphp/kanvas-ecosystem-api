@@ -336,6 +336,15 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
         $this->assertStringStartsWith('2026-01-20', $result['sold_at']);
     }
 
+    public function testMapperTurnsBlankOrMissingCategoriesIntoAnEmptyList(): void
+    {
+        $action = $this->makeAction();
+
+        $this->assertSame([], $action->mapper(['categories' => 'Categories'], ['Categories' => ''])['categories']);
+        $this->assertSame([], $action->mapper(['categories' => 'Categories'], ['Categories' => ' , '])['categories']);
+        $this->assertSame([], $action->mapper(['categories' => 'No Such Column'], [])['categories']);
+    }
+
     public function testMapperFlattensAttributeGroupsKeepingFromProduct(): void
     {
         $result = $this->makeAction()->mapper(

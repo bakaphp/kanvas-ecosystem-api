@@ -92,7 +92,7 @@ class CreateAgentAction
         $tool = new CreateToolAction(new ToolData(
             app: $this->agent->app,
             name: Str::slug($agent->name),
-            description: $agent->soul ?? $agent->description ?? $agent->name,
+            description: $agent->summary(),
             frameworks: [$framework],
             toolType: ToolTypeEnum::SUB_AGENT,
         ))->execute();

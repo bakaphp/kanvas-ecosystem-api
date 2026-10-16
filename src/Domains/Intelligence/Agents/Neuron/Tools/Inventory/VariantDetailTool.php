@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Services\StorefrontProductUrlService;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -16,16 +17,12 @@ use Throwable;
 #[AgentTool(name: 'Variant Detail', category: 'inventory')]
 class VariantDetailTool extends Tool
 {
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'variant_detail',
-            description: 'Get the full detail of a single product variant: identifiers (SKU, EAN, barcode), '
-                . 'descriptions, weight, publish state, parent product, inventory per warehouse '
-                . '(stock, price, cost, flags) including the channels priced on each warehouse, attributes and media. '
-                . 'Use this after inventory_search/variant_search when the user wants the deep details of one specific variant.',
-        );
-    }
+    protected string $name = 'variant_detail';
+
+    protected ?string $description = 'Get the full detail of a single product variant: identifiers (SKU, EAN, barcode), '
+        . 'descriptions, weight, publish state, parent product, inventory per warehouse '
+        . '(stock, price, cost, flags) including the channels priced on each warehouse, attributes and media. '
+        . 'Use this after inventory_search/variant_search when the user wants the deep details of one specific variant.';
 
     #[Override]
     protected function properties(): array
@@ -50,7 +47,7 @@ class VariantDetailTool extends Tool
         }
 
         $variant->load([
-            'product:id,name,slug,is_published',
+            'product:id,name,slug,is_published,apps_id,companies_id',
             'status:id,name',
             'variantWarehouses.warehouse:id,name',
             'variantWarehouses.status:id,name',
@@ -76,6 +73,7 @@ class VariantDetailTool extends Tool
                 'id' => $variant->product->getId(),
                 'name' => $variant->product->name,
                 'slug' => $variant->product->slug,
+                'url' => StorefrontProductUrlService::forProduct($variant->product)->productUrl($variant->product),
                 'is_published' => (bool) $variant->product->is_published,
             ],
             'inventory' => $variant->variantWarehouses->map(fn ($vw) => [

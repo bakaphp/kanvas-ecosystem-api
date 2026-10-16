@@ -27,16 +27,12 @@ class ReassignLeadOwnerTool extends Tool
     use HasKanvasContext;
     use ResolvesCompanyUserForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'reassign_lead_owner',
-            description: 'Change the owner (assigned sales rep) of a lead. Provide the lead_id and the new owner\'s '
-                . 'name or email. Use search_leads first to find the lead_id and confirm the current owner. If the '
-                . 'name matches several people the tool returns the candidates — ask which one, then call again with '
-                . 'their email. Only users of this company can be assigned.',
-        );
-    }
+    protected string $name = 'reassign_lead_owner';
+
+    protected ?string $description = 'Change the owner (assigned sales rep) of a lead. Provide the lead_id and the new owner\'s '
+        . 'name or email. Use search_leads first to find the lead_id and confirm the current owner. If the '
+        . 'name matches several people the tool returns the candidates — ask which one, then call again with '
+        . 'their email. Only users of this company can be assigned.';
 
     /**
      * @return array<int, ToolProperty>

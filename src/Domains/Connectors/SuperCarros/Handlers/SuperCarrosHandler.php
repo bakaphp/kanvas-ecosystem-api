@@ -58,4 +58,13 @@ class SuperCarrosHandler extends BaseIntegration
 
         return true;
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::ACCESS_KEY->value,
+            ConfigurationEnum::CUSTOMER_ID->value,
+        ];
+    }
 }

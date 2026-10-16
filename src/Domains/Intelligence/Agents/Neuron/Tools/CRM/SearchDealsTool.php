@@ -7,8 +7,8 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesUpdatedWindow;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,23 +22,23 @@ use Override;
  * prospect must never be able to search other prospects' deals; see Agents/CLAUDE.md audience rule).
  */
 #[AgentTool(name: 'Search Deals', category: 'crm')]
-class SearchDealsTool extends Tool implements HasRunKey
+class SearchDealsTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesUpdatedWindow;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'search_deals',
-            description: 'Find deals for ONE contact by (partial) name, email, phone, or deal title. Use this whenever '
-                . 'you need to locate a deal but do not have its deal_id — e.g. "find the deal for Ana", "which deal '
-                . 'is this email on", "look up deals for Acme". Returns deal_id, title, contact, owner, pipeline stage '
-                . 'and status so you can act on the right one. Filter by status (open/closed/all) and by owner. '
-                . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_deals_bulk instead and '
-                . 'pass every name in a single call; do not call this tool once per row.',
-        );
-    }
+    protected string $name = 'search_deals';
+
+    protected ?string $description = 'Find deals for ONE contact by (partial) name, email, phone, or deal title. Use this whenever '
+        . 'you need to locate a deal but do not have its deal_id — e.g. "find the deal for Ana", "which deal '
+        . 'is this email on", "look up deals for Acme". Returns deal_id, title, contact, owner, pipeline stage '
+        . 'and status so you can act on the right one. Filter by status (open/closed/all) and by owner. '
+        . 'THIS IS ALSO THE TOOL FOR "which deals moved today": pass updated_since ("today", "yesterday", '
+        . '"last_7_days", or a YYYY-MM-DD date), on its own or with owner. Day boundaries are resolved in '
+        . 'the company timezone. '
+        . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_deals_bulk instead and '
+        . 'pass every name in a single call; do not call this tool once per row.';
 
     /**
      * @return array<int, ToolProperty>
@@ -50,8 +50,9 @@ class SearchDealsTool extends Tool implements HasRunKey
             new ToolProperty(
                 name: 'query',
                 type: PropertyType::STRING,
-                description: 'The text to search for: a contact name, email, phone number, or deal title.',
-                required: true,
+                description: 'The text to search for: a contact name, email, phone number, or deal title. Omit '
+                    . 'it when filtering by owner or updated_since instead.',
+                required: false,
             ),
             new ToolProperty(
                 name: 'status',
@@ -63,6 +64,20 @@ class SearchDealsTool extends Tool implements HasRunKey
                 name: 'owner',
                 type: PropertyType::STRING,
                 description: 'Filter to a deal owner (sales rep) by partial name or email. Omit for all owners.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'updated_since',
+                type: PropertyType::STRING,
+                description: 'Only deals whose record changed on/after this point: "today", "yesterday", '
+                    . '"this_week", "last_7_days", "this_month", "last_30_days", or an explicit YYYY-MM-DD '
+                    . 'date. Resolved in the company timezone.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'updated_until',
+                type: PropertyType::STRING,
+                description: 'Only deals whose record changed on/before this YYYY-MM-DD date (inclusive).',
                 required: false,
             ),
             new ToolProperty(
@@ -78,14 +93,31 @@ class SearchDealsTool extends Tool implements HasRunKey
      * @return array<string, mixed>
      */
     public function __invoke(
-        string $query,
+        ?string $query = null,
         ?string $status = null,
         ?string $owner = null,
+        ?string $updated_since = null,
+        ?string $updated_until = null,
         ?int $limit = null,
     ): array {
-        $query = trim($query);
-        if ($query === '') {
-            return ['count' => 0, 'deals' => [], 'error' => 'Provide a name, email, phone, or deal title to search for.'];
+        $query = trim((string) $query);
+        $owner = trim((string) $owner);
+
+        $window = $this->resolveUpdatedWindow($updated_since, $updated_until);
+
+        if ($window['error'] !== null) {
+            return ['count' => 0, 'deals' => [], 'error' => $window['error']];
+        }
+
+        // An owner or a date window narrows the book on its own — demanding a query on top of them is
+        // what made "which deals did <rep> move today" unanswerable.
+        if ($query === '' && $owner === '' && $window['from'] === null && $window['to'] === null) {
+            return [
+                'count' => 0,
+                'deals' => [],
+                'error' => 'Provide a name, email, phone or deal title to search for, or filter by owner '
+                    . 'or updated_since ("today", "yesterday", "last_7_days", or a YYYY-MM-DD date).',
+            ];
         }
 
         $status = strtolower($status ?? 'open');
@@ -96,20 +128,27 @@ class SearchDealsTool extends Tool implements HasRunKey
             ->fromApp($this->app)
             ->fromCompany($this->company)
             ->notDeleted()
-            ->when($status === 'open', fn ($q) => $q->where(
-                fn ($s) => $s->whereNull('status')->orWhere('status', '<', 2),
-            ))
-            ->when($status === 'closed', fn ($q) => $q->where('status', '>=', 2))
-            ->where(function ($q) use ($like): void {
-                $q->where('title', 'like', $like)
-                    ->orWhereHas(
-                        'people',
-                        fn ($p) => $p->where('firstname', 'like', $like)
-                            ->orWhere('lastname', 'like', $like)
-                            ->orWhereHas('contacts', fn ($c) => $c->where('value', 'like', $like)),
-                    );
+            ->havingDealState($status, $this->company)
+            ->when($query !== '', function ($q) use ($like): void {
+                $q->where(function ($inner) use ($like): void {
+                    $inner->where('title', 'like', $like)
+                        ->orWhereHas(
+                            'people',
+                            fn ($p) => $p->where('firstname', 'like', $like)
+                                ->orWhere('lastname', 'like', $like)
+                                ->orWhereHas('contacts', fn ($c) => $c->where('value', 'like', $like)),
+                        );
+                });
             })
-            ->when($owner !== null && $owner !== '', function ($q) use ($owner): void {
+            ->when(
+                $window['from'] !== null,
+                fn ($q) => $q->where('updated_at', '>=', $window['from']),
+            )
+            ->when(
+                $window['to'] !== null,
+                fn ($q) => $q->where('updated_at', '<', $window['to']),
+            )
+            ->when($owner !== '', function ($q) use ($owner): void {
                 // owner is a Users relation on the `ecosystem` connection — resolve ids first
                 // instead of whereHas(), which would try to join `users` on the `crm` connection.
                 $ownerIds = Users::query()
@@ -122,23 +161,25 @@ class SearchDealsTool extends Tool implements HasRunKey
 
                 $q->whereIn('owner_id', $ownerIds);
             })
-            ->with(['owner', 'people', 'pipelineStage'])
+            ->with(['owner', 'people', 'pipelineStage', 'leadStatus'])
             ->orderByDesc('updated_at')
             ->limit($limit)
             ->get();
 
         return [
             'count' => $deals->count(),
+            'updated_window' => $window['label'],
+            'timezone' => $window['timezone'],
             'deals' => $deals->map(fn (Deal $deal): array => [
                 'deal_id' => $deal->getId(),
                 'title' => $deal->title,
                 'contact' => $deal->people?->getName(),
-                'owner' => $deal->owner
-                    ? trim($deal->owner->firstname . ' ' . $deal->owner->lastname)
-                    : null,
+                'owner' => $deal->owner?->fullName(),
                 'stage' => $deal->pipelineStage?->name,
-                'is_open' => $deal->status === null || $deal->status < 2,
-                'last_updated' => $deal->updated_at?->toDateString(),
+                'status' => $deal->statusName(),
+                'is_open' => $deal->hasOpenStatus(),
+                'last_updated' => $deal->updated_at?->copy()->setTimezone($window['timezone'])->toDateString(),
+                'last_updated_at' => $deal->updated_at?->copy()->setTimezone($window['timezone'])->toIso8601String(),
             ])->all(),
         ];
     }

@@ -18,6 +18,16 @@ class SalesEmailEnvelopeNeuronAgentStub extends KanvasGenericNeuronAgent
     public const string SUBJECT = 'Eliminating fragile agent workflows';
     public const string BODY = "Hi Max,\n\nLet's talk.\n\nSally Castro | Kanvas";
 
+    public static ?bool $lastPrivateUserTurn = null;
+
+    #[Override]
+    public function setPrivateUserTurn(bool $private): void
+    {
+        self::$lastPrivateUserTurn = $private;
+
+        parent::setPrivateUserTurn($private);
+    }
+
     #[Override]
     protected function provider(): AIProviderInterface
     {

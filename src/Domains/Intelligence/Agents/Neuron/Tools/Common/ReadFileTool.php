@@ -8,7 +8,6 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FileTextExtractor;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -26,10 +25,16 @@ use Throwable;
  * Every refusal is phrased as an instruction because a model with no way to read its input does not
  * stop, it guesses — plan 31241 reported a breakdown of 158 records from a file of 52.
  */
-#[AgentTool(name: 'Read File', category: 'ecosystem')]
-class ReadFileTool extends Tool implements HasRunKey
+#[AgentTool(
+    name: 'Read File',
+    description: 'Read the text of a file stored in Kanvas by filesystem_id or file_url (CSV, PDF, spreadsheets, JSON), in chunks for long files.',
+    category: 'ecosystem',
+)]
+class ReadFileTool extends Tool
 {
     use HasKanvasContext;
+
+    protected string $name = 'read_file';
 
     private const int CHUNK = 40000;
 
@@ -46,15 +51,12 @@ class ReadFileTool extends Tool implements HasRunKey
 
     public function __construct()
     {
-        parent::__construct(
-            name: 'read_file',
-            description: 'Read the text of a file stored in Kanvas, by filesystem_id (preferred) or by its '
-                . 'file_url. Use it whenever work references a document, spreadsheet or export — a CSV of '
-                . 'employees, a PDF contract, a JSON payload. Supported: '
-                . implode(', ', FileTextExtractor::supportedExtensions()) . '. Long files come back in chunks: '
-                . 'start at offset 0 and pass the returned next_offset until has_more is false. If the file '
-                . 'cannot be read you will be told why — report that, never estimate or invent its contents.',
-        );
+        $this->description = 'Read the text of a file stored in Kanvas, by filesystem_id (preferred) or by its '
+            . 'file_url. Use it whenever work references a document, spreadsheet or export — a CSV of '
+            . 'employees, a PDF contract, a JSON payload. Supported: '
+            . implode(', ', FileTextExtractor::supportedExtensions()) . '. Long files come back in chunks: '
+            . 'start at offset 0 and pass the returned next_offset until has_more is false. If the file '
+            . 'cannot be read you will be told why — report that, never estimate or invent its contents.';
 
         $this->turn = new stdClass();
         $this->turn->calls = 0;

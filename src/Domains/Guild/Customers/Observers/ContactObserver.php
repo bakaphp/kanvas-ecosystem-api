@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Observers;
 
+use Kanvas\Guild\Customers\Actions\CreatePeopleSocialChannelsAction;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -22,11 +23,16 @@ class ContactObserver
     public function created(Contact $contact): void
     {
         $this->runWorkflow($contact);
+        $this->createSocialChannels($contact);
     }
 
     public function updated(Contact $contact): void
     {
         $this->runWorkflow($contact);
+
+        if ($contact->wasChanged(['value', 'contacts_types_id'])) {
+            $this->createSocialChannels($contact);
+        }
     }
 
     private function cleanPhoneNumber(Contact $contact): void
@@ -38,7 +44,10 @@ class ContactObserver
 
     private function runWorkflow(Contact $contact): void
     {
-        if (! $contact->people->company->isAIEnabled()) {
+        // `people` resolves to null when the person is soft-deleted, which happens on import of
+        // historical records that were deleted at the source. A contact with no reachable person
+        // has no workflow context, so there is nothing to fire.
+        if ($contact->people?->company?->isAIEnabled() !== true) {
             return;
         }
 
@@ -50,5 +59,17 @@ class ContactObserver
                'app' => $contact->people->app,
             ]
         );
+    }
+
+    /**
+     * A contact added after the lead was pulled has no channel to talk on until the next pull.
+     */
+    private function createSocialChannels(Contact $contact): void
+    {
+        if ($contact->people === null) {
+            return;
+        }
+
+        new CreatePeopleSocialChannelsAction($contact->people)->execute();
     }
 }

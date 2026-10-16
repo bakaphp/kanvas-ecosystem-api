@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
 use Kanvas\Intelligence\Agents\Neuron\Factories\NeuronAgentFactory;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Agent\AgentHandler;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -36,12 +35,10 @@ class DynamicSubAgentTool extends Tool
         private readonly ?Lead $currentLead = null,
         private readonly ?string $threadId = null,
     ) {
-        parent::__construct(
-            Str::snake($this->agentRecord->name),
-            $this->agentRecord->soul
-                ?? $this->agentRecord->description
-                ?? $this->agentRecord->name,
-        );
+        $this->name = Str::snake($this->agentRecord->name);
+        $this->description = $this->agentRecord->soul
+            ?? $this->agentRecord->description
+            ?? $this->agentRecord->name;
 
         $this->setMaxRuns(3);
     }
@@ -61,24 +58,24 @@ class DynamicSubAgentTool extends Tool
 
     public function __invoke(string $request): string
     {
+        // A sub-agent always runs under the parent's thread, suffixed, so its memory follows the
+        // conversation that delegated to it. Without a parent thread it gets an address of its own.
+        $parentThread = $this->threadId !== null && $this->threadId !== ''
+            ? $this->threadId
+            : 'sub-agent:' . Str::uuid()->toString();
+
         $agent = NeuronAgentFactory::fromAgent(
             agent: $this->agentRecord,
             entity: $this->entity,
             user: $this->user,
+            threadId: $parentThread . ':sub-agent:' . $this->agentRecord->getId(),
         );
 
         $agent->setSession($this->session);
         $agent->setCurrentLead($this->currentLead);
 
-        if ($this->threadId !== null && $this->threadId !== '') {
-            $agent->setThreadId($this->threadId . ':sub-agent:' . $this->agentRecord->getId());
-        }
+        $message = $agent->chat(new UserMessage($request))->getMessage();
 
-        $response = $agent->chat(new UserMessage($request));
-        $message = $response instanceof AgentHandler
-            ? $response->getMessage()
-            : $response;
-
-        return ChatHelper::extractTextFromResponse($message->getContent() ?? '');
+        return ChatHelper::extractTextFromResponse($message?->getContent() ?? '');
     }
 }

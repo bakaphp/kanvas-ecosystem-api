@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use Kanvas\Intelligence\AgentRuntime\Contracts\SessionTranscriptReader;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\ParsedMessage;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\ParsedSessionTranscript;
+use Kanvas\Intelligence\Agents\Helpers\ConversationStepsHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
 use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
@@ -129,6 +130,8 @@ abstract class BaseCollectSessionTranscriptsAction
                 'apps_id' => $appId,
                 'companies_id' => $companyId,
                 'user_id' => $resolvedUserId,
+                'participant_type' => $agent->getMorphClass(),
+                'participant_id' => $agent->getId(),
                 'title' => Str::limit($title, 250, ''),
                 'meta' => json_encode($sessionMeta, JSON_THROW_ON_ERROR),
                 'created_at' => $transcript->startedAt ?? now(),
@@ -174,6 +177,10 @@ abstract class BaseCollectSessionTranscriptsAction
             if ($conversation->user_id === null && $resolvedUserId !== null) {
                 $updates['user_id'] = $resolvedUserId;
             }
+            if ($conversation->participant_type === null) {
+                $updates['participant_type'] = $agent->getMorphClass();
+                $updates['participant_id'] = $agent->getId();
+            }
             $conversation->update($updates);
         }
 
@@ -184,10 +191,14 @@ abstract class BaseCollectSessionTranscriptsAction
         $persisted = 0;
         $highestRuntimeId = $conversation->meta['runtime_last_message_id'] ?? null;
         $rows = [];
-        $agentTag = $agent->uuid;
 
         foreach ($transcript->messages as $msg) {
-            $rows[] = $this->buildMessageRow($transcript, $msg, $agentTag);
+            $rows[] = $this->buildMessageRow(
+                $transcript,
+                $msg,
+                $agent,
+                $resolvedUserId,
+            );
             $highestRuntimeId = $this->maxRuntimeId($highestRuntimeId, $msg->runtimeMessageId);
 
             if (count($rows) >= self::INSERT_CHUNK) {
@@ -215,7 +226,8 @@ abstract class BaseCollectSessionTranscriptsAction
     private function buildMessageRow(
         ParsedSessionTranscript $transcript,
         ParsedMessage $msg,
-        string $agentTag,
+        Agent $agent,
+        ?int $userId,
     ): array {
         $meta = array_filter([
             'runtime_message_id' => $msg->runtimeMessageId,
@@ -238,16 +250,26 @@ abstract class BaseCollectSessionTranscriptsAction
         // insertOrIgnore is a query-builder call — it bypasses Eloquent's Baka\Casts\Json
         // cast on the model, so JSON columns must be pre-encoded here. Matching the
         // KanvasConversationStore convention of empty `'[]'` for unused columns.
+        $steps = ConversationStepsHelper::forRow(
+            $msg->role,
+            (string) $msg->content,
+            $msg->toolCalls ?? [],
+            $msg->toolResults ?? [],
+            (string) ($msg->reasoningContent ?? ''),
+        );
+
         return [
             'id' => $this->composeMessageId($transcript->sessionId, (string) $msg->runtimeMessageId),
             'conversation_id' => $transcript->sessionId,
-            'user_id' => null,
-            'agent' => $agentTag,
+            'user_id' => $userId,
+            'participant_type' => $agent->getMorphClass(),
+            'participant_id' => $agent->getId(),
+            'agent' => $agent->uuid,
             'role' => $msg->role,
             'content' => $msg->content,
             'attachments' => '[]',
-            'tool_calls' => json_encode($msg->toolCalls ?? [], JSON_THROW_ON_ERROR),
-            'tool_results' => json_encode($msg->toolResults ?? [], JSON_THROW_ON_ERROR),
+            'steps' => json_encode($steps, JSON_THROW_ON_ERROR),
+            'status' => AgentConversationMessage::STATUS_COMPLETED,
             'usage' => $msg->tokenCount !== null
                 ? json_encode(['token_count' => $msg->tokenCount], JSON_THROW_ON_ERROR)
                 : '[]',

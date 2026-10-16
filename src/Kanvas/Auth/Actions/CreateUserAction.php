@@ -17,8 +17,7 @@ use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Auth\Services\RegistrationAbuseReportService;
 use Kanvas\Auth\Services\RegistrationVelocityService;
-use Kanvas\Companies\Actions\CreateCompaniesAction;
-use Kanvas\Companies\DataTransferObject\Company;
+use Kanvas\Companies\Actions\CreateDefaultCompanyForUserAction;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
@@ -349,25 +348,7 @@ class CreateUserAction
 
     protected function createCompany(Users $user): CompanyInterface
     {
-        $createCompany = new CreateCompaniesAction(
-            new Company(
-                user: $user,
-                name: $user->defaultCompanyName ?? $user->displayname . 'CP',
-                email: $user->email
-            )
-        );
-
-        $company = $createCompany->execute();
-        $branch = $company->branch()->firstOrFail();
-
-        $user->default_company = (int) $company->id;
-        $user->default_company_branch = (int) $branch->id;
-        $user->saveOrFail();
-
-        $action = new AssignCompanyAction($user, $branch);
-        $action->execute();
-
-        return $company;
+        return new CreateDefaultCompanyForUserAction($user)->execute();
     }
 
     public function disableWorkflow(): void

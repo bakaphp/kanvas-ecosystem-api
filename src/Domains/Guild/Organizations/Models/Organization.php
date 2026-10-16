@@ -17,9 +17,10 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
+use Kanvas\Analytics\Reporting\Observers\ReportSourceObserver;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Event\Events\Traits\EventResourceTrait;
+use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
@@ -55,14 +56,14 @@ use Override;
  * @property int $total_employees
  * @property int|null $merged_into_organization_id
  */
-#[ObservedBy([OrganizationObserver::class])]
+#[ObservedBy([OrganizationObserver::class, ReportSourceObserver::class])]
 class Organization extends BaseModel implements BillableInterface, PayeeInterface, ProvidesAgentContext
 {
     use HasAdminLink;
     use BillableTrait;
     use CanUseWorkflow;
     use DatabaseSearchableTrait;
-    use EventResourceTrait;
+    use HasEventResources;
     use HasLightHouseCache;
     use HasNotesChannelTrait;
     use HasTagsTrait;

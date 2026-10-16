@@ -17,13 +17,9 @@ class CompanyIsHolidayTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct(
-    ) {
-        parent::__construct(
-            name: 'check_company_holiday',
-            description: 'Check if today is a holiday, whether the company stays open on it (working day), and whether the company recognizes it for the AI to acknowledge.',
-        );
-    }
+    protected string $name = 'check_company_holiday';
+
+    protected ?string $description = 'Check if today is a holiday, whether the company stays open on it (working day), and whether the company recognizes it for the AI to acknowledge.';
 
     #[Override]
     protected function properties(): array

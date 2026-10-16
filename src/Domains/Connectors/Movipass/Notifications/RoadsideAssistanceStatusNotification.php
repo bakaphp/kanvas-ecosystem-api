@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Notifications;
 
-use Baka\Users\Contracts\UserInterface;
-use Illuminate\Notifications\AnonymousNotifiable;
+use Kanvas\Notifications\Concerns\PushesTitleAndMessageFromData;
 use Kanvas\Souk\Orders\Models\Order;
 use Override;
 
 class RoadsideAssistanceStatusNotification extends CustomOrderNotification
 {
+    use PushesTitleAndMessageFromData;
+
     public function __construct(
         Order $order,
         string $title,
@@ -43,22 +44,6 @@ class RoadsideAssistanceStatusNotification extends CustomOrderNotification
         ];
 
         parent::__construct($order, $data, $via);
-    }
-
-    public function toOneSignal(UserInterface|AnonymousNotifiable $notifiable): array
-    {
-        if (! ($notifiable instanceof UserInterface)) {
-            return [];
-        }
-
-        return [
-            'user_id' => $notifiable->getId(),
-            'message' => $this->data['message'] ?? '',
-            'title' => $this->data['title'] ?? '',
-            'subtitle' => '',
-            'apps_id' => $this->data['app']->getId(),
-            'data' => $this->getData(),
-        ];
     }
 
     // The title/message come per-event from the constructor, not from a stored push

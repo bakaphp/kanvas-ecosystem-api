@@ -76,6 +76,26 @@ final class AddTradeInActionTest extends TestCase
         $this->assertSame(1, $lead->get(LeadCustomFieldEnum::TRADE_IN_IMPORTED->value)['active']);
     }
 
+    public function testStoresExtensionLabelValueListAsKeyedForm(): void
+    {
+        $lead = $this->buildFreshLead();
+
+        $result = new AddTradeInAction($lead)->execute([
+            'verb' => 'add-trade',
+            'status' => 'submitted',
+            'data' => [
+                ['label' => 'VIN', 'value' => '1G1ZD5ST0MF012345'],
+                ['label' => 'Odometer', 'value' => '42,000'],
+            ],
+        ]);
+
+        $lead->refresh();
+
+        $expected = ['vin' => '1G1ZD5ST0MF012345', 'odometer' => '42,000'];
+        $this->assertSame($expected, $result['tradein_data']);
+        $this->assertSame($expected, $lead->get(LeadCustomFieldEnum::TRADE_IN_DATA->value));
+    }
+
     private function buildFreshLead(): Lead
     {
         $user = auth()->user();

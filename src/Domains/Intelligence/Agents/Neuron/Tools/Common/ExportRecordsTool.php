@@ -22,23 +22,26 @@ use Throwable;
  * so a new domain is a new exporter class, not a new tool. Company-scoped. For the specialized
  * data-quality exports use export_changes / export_bounces.
  */
-#[AgentTool(name: 'Export Records', category: 'common')]
+#[AgentTool(
+    name: 'Export Records',
+    description: 'Generate a downloadable CSV of a list of Kanvas records (leads, people, orders, ...) with fixed columns per record type, and return its file URL and row count.',
+    category: 'common',
+)]
 class ExportRecordsTool extends Tool
 {
     use DecodesJsonObjectParam;
     use HasKanvasContext;
 
+    protected string $name = 'export_records';
+
     public function __construct()
     {
-        parent::__construct(
-            name: 'export_records',
-            description: 'Generate a downloadable CSV of a list of records and return its file URL + row count. '
-                . 'Use when the user asks to "download", "export", "give me a CSV/file/list" of any of these. '
-                . 'The columns are fixed per record_type; when the user wants their OWN columns, or the rows '
-                . 'come from them rather than from Kanvas, use export_table instead. '
-                . 'record_type and its filters (pass filters as an object): '
-                . new RecordExporterRegistry()->describe() . '.',
-        );
+        $this->description = 'Generate a downloadable CSV of a list of records and return its file URL + row count. '
+            . 'Use when the user asks to "download", "export", "give me a CSV/file/list" of any of these. '
+            . 'The columns are fixed per record_type; when the user wants their OWN columns, or the rows '
+            . 'come from them rather than from Kanvas, use export_table instead. '
+            . 'record_type and its filters (pass filters as an object): '
+            . new RecordExporterRegistry()->describe() . '.';
     }
 
     /**

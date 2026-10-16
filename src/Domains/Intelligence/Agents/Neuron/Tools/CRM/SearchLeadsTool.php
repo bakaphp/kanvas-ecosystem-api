@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\LinksRecordsToAdmin;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesUpdatedWindow;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -28,26 +30,27 @@ use Override;
  * and paging 2,000 rows to count them is not an answer.
  */
 #[AgentTool(name: 'Search Leads', category: 'crm')]
-class SearchLeadsTool extends Tool implements HasRunKey
+class SearchLeadsTool extends Tool
 {
     use HasKanvasContext;
+    use LinksRecordsToAdmin;
+    use ResolvesUpdatedWindow;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'search_leads',
-            description: 'Find leads by (partial) name, email, phone, or lead title — or audit the whole book. '
-                . 'Use it whenever you need a lead_id you do not have ("find the lead for Ana", "which lead has '
-                . 'this email"), and also to answer questions about contact data quality: pass missing_contact '
-                . '("email", "phone", "either" or "both") to get every lead whose contact is missing that, with '
-                . 'no query needed. The reply carries total_matching — the FULL count, not capped by limit — so '
-                . 'you can answer "how many" in one call without paging. Returns lead_id, contact name, email, '
-                . 'phone, owner, stage and status. Filter by status (open/closed/all) and by owner name/email. '
-                . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_leads_bulk instead '
-                . 'and pass every name in a single call; do not call this tool once per row.',
-        );
-    }
+    protected string $name = 'search_leads';
+
+    protected ?string $description = 'Find leads by (partial) name, email, phone, or lead title — or audit the whole book. '
+        . 'Use it whenever you need a lead_id you do not have ("find the lead for Ana", "which lead has '
+        . 'this email"), and also to answer questions about contact data quality: pass missing_contact '
+        . '("email", "phone", "either" or "both") to get every lead whose contact is missing that, with '
+        . 'no query needed. The reply carries total_matching — the FULL count, not capped by limit — so '
+        . 'you can answer "how many" in one call without paging. Returns lead_id, contact name, email, '
+        . 'phone, owner, stage and status. Filter by status (open/closed/all) and by owner name/email. '
+        . 'THIS IS ALSO THE TOOL FOR "what changed today": pass updated_since ("today", "yesterday", '
+        . '"last_7_days", or a YYYY-MM-DD date) — on its own, or with owner, to answer "which leads did '
+        . '<rep> touch today". Day boundaries are resolved in the company timezone. '
+        . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_leads_bulk instead '
+        . 'and pass every name in a single call; do not call this tool once per row.';
 
     /**
      * @return array<int, ToolProperty>
@@ -85,10 +88,35 @@ class SearchLeadsTool extends Tool implements HasRunKey
                 required: false,
             ),
             new ToolProperty(
+                name: 'updated_since',
+                type: PropertyType::STRING,
+                description: 'Only leads whose record changed on/after this point: "today", "yesterday", '
+                    . '"this_week", "last_7_days", "this_month", "last_30_days", or an explicit YYYY-MM-DD '
+                    . 'date. Resolved in the company timezone. Use it for "what was updated today" — on its '
+                    . 'own it needs no query.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'updated_until',
+                type: PropertyType::STRING,
+                description: 'Only leads whose record changed on/before this YYYY-MM-DD date (inclusive). '
+                    . 'Pair it with updated_since to bound a range; omit for "up to now".',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'sort',
+                type: PropertyType::STRING,
+                description: 'Order of the list: "newest" (default, most recently updated first) or "oldest" '
+                    . '(least recently updated first). "oldest" with status "open" answers "which open leads '
+                    . 'have gone longest without activity" in ONE call; never page backwards with '
+                    . 'updated_until to find them.',
+                required: false,
+            ),
+            new ToolProperty(
                 name: 'limit',
                 type: PropertyType::INTEGER,
-                description: 'Max leads to LIST, most recently updated first. Defaults to 25, max 100. It does '
-                    . 'not cap total_matching, so a count is right even when the list is truncated.',
+                description: 'Max leads to LIST. Defaults to 25, max 100. It does not cap total_matching, so a '
+                    . 'count is right even when the list is truncated.',
                 required: false,
             ),
         ];
@@ -102,32 +130,41 @@ class SearchLeadsTool extends Tool implements HasRunKey
         ?string $missing_contact = null,
         ?string $status = null,
         ?string $owner = null,
+        ?string $updated_since = null,
+        ?string $updated_until = null,
+        ?string $sort = null,
         ?int $limit = null,
     ): array {
         $query = trim((string) $query);
         $missing = strtolower(trim((string) $missing_contact));
+        $owner = trim((string) $owner);
+        $sort = strtolower(trim((string) $sort)) ?: 'newest';
 
-        if ($query === '' && $missing === '') {
-            return [
-                'count' => 0,
-                'total_matching' => 0,
-                'leads' => [],
-                'error' => 'Give me either a query (a name, email, phone or lead title) or missing_contact '
-                    . '("email", "phone", "either", "both") to audit by. Both empty would return the whole book '
-                    . 'in no particular order.',
-            ];
+        if (! in_array($sort, ['newest', 'oldest'], true)) {
+            return self::miss(sprintf('sort must be "newest" or "oldest" — got "%s".', $sort));
+        }
+
+        $window = $this->resolveUpdatedWindow($updated_since, $updated_until);
+
+        if ($window['error'] !== null) {
+            return self::miss($window['error']);
+        }
+
+        // An owner, a date window or an explicit order narrows the book on its own; requiring a query on
+        // top of them makes "which leads did <rep> touch today" and "the oldest open leads" unanswerable.
+        if ($query === '' && $missing === '' && $owner === '' && $window['from'] === null && $window['to'] === null && $sort === 'newest') {
+            return self::miss('Give me at least one filter: a query (name, email, phone or lead title), '
+                . 'missing_contact ("email", "phone", "either", "both"), an owner, updated_since '
+                . '("today", "yesterday", "last_7_days", or a YYYY-MM-DD date), or sort "oldest" for the '
+                . 'leads longest without activity. All empty would return the whole book in no '
+                . 'particular order.');
         }
 
         if ($missing !== '' && ! in_array($missing, ['email', 'phone', 'either', 'both'], true)) {
-            return [
-                'count' => 0,
-                'total_matching' => 0,
-                'leads' => [],
-                'error' => sprintf(
-                    'missing_contact must be "email", "phone", "either" or "both" — got "%s".',
-                    $missing,
-                ),
-            ];
+            return self::miss(sprintf(
+                'missing_contact must be "email", "phone", "either" or "both" — got "%s".',
+                $missing,
+            ));
         }
 
         $limit = max(1, min(100, $limit ?? 25));
@@ -136,7 +173,8 @@ class SearchLeadsTool extends Tool implements HasRunKey
             $query,
             $missing,
             strtolower($status ?? 'open'),
-            (string) $owner,
+            $owner,
+            $window,
         );
 
         // Counted before the limit, because the question is usually "how many" and the list is the
@@ -144,8 +182,8 @@ class SearchLeadsTool extends Tool implements HasRunKey
         $total = (clone $base)->count();
 
         $leads = $base
-            ->with(['owner', 'people.contacts', 'stage'])
-            ->orderByDesc('updated_at')
+            ->with(['owner', 'people.contacts', 'stage', 'status'])
+            ->orderBy('updated_at', $sort === 'oldest' ? 'asc' : 'desc')
             ->limit($limit)
             ->get();
 
@@ -153,11 +191,16 @@ class SearchLeadsTool extends Tool implements HasRunKey
             'count' => $leads->count(),
             'total_matching' => $total,
             'truncated' => $total > $leads->count(),
+            'updated_window' => $window['label'],
+            'timezone' => $window['timezone'],
+            'sort' => $sort,
             'leads' => $leads->map(fn (Lead $lead): array => $this->present($lead))->all(),
         ];
     }
 
     /**
+     * @param array{from: ?Carbon, to: ?Carbon, timezone: string, label: ?string, error: ?string} $window
+     *
      * @return Builder<Lead>
      */
     private function baseQuery(
@@ -165,15 +208,13 @@ class SearchLeadsTool extends Tool implements HasRunKey
         string $missing,
         string $status,
         string $owner,
+        array $window,
     ): Builder {
         return Lead::query()
             ->fromApp($this->app)
             ->fromCompany($this->company)
             ->notDeleted()
-            ->when($status === 'open', fn (Builder $q): Builder => $q->where(
-                fn (Builder $s): Builder => $s->whereNull('status')->orWhere('status', '<', 2),
-            ))
-            ->when($status === 'closed', fn (Builder $q): Builder => $q->where('status', '>=', 2))
+            ->havingLeadState($status, $this->company)
             ->when($query !== '', fn (Builder $q): Builder => $q->where(
                 fn (Builder $inner): Builder => $inner
                     ->where('title', 'like', '%' . $query . '%')
@@ -189,7 +230,15 @@ class SearchLeadsTool extends Tool implements HasRunKey
                     ),
             ))
             ->when($missing !== '', fn (Builder $q): Builder => $this->applyMissingContact($q, $missing))
-            ->when($owner !== '', fn (Builder $q): Builder => $this->applyOwner($q, $owner));
+            ->when($owner !== '', fn (Builder $q): Builder => $this->applyOwner($q, $owner))
+            ->when(
+                $window['from'] !== null,
+                fn (Builder $q): Builder => $q->where('updated_at', '>=', $window['from']),
+            )
+            ->when(
+                $window['to'] !== null,
+                fn (Builder $q): Builder => $q->where('updated_at', '<', $window['to']),
+            );
     }
 
     /**
@@ -257,6 +306,14 @@ class SearchLeadsTool extends Tool implements HasRunKey
     }
 
     /**
+     * @return array{count: int, total_matching: int, leads: list<never>, error: string}
+     */
+    private static function miss(string $error): array
+    {
+        return ['count' => 0, 'total_matching' => 0, 'leads' => [], 'error' => $error];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function present(Lead $lead): array
@@ -266,16 +323,17 @@ class SearchLeadsTool extends Tool implements HasRunKey
 
         return [
             'lead_id' => $lead->getId(),
+            'admin_url' => $this->adminUrlOf($lead),
             'title' => $lead->title,
             'contact' => $lead->people?->getName(),
             'email' => $this->firstContactValue($contacts, Contact::EMAIL_TYPES),
             'phone' => $this->firstContactValue($contacts, Contact::PHONE_TYPES),
-            'owner' => $owner !== null
-                ? trim((string) $owner->firstname . ' ' . (string) $owner->lastname)
-                : null,
+            'owner' => $owner?->fullName(),
             'stage' => $lead->stage?->name,
-            'is_open' => $lead->isOpen(),
-            'last_updated' => $lead->updated_at?->toDateString(),
+            'status' => $lead->statusName(),
+            'is_open' => $lead->hasOpenLeadStatus(),
+            'last_updated' => $lead->updated_at?->copy()->setTimezone($this->companyTimezone())->toDateString(),
+            'last_updated_at' => $lead->updated_at?->copy()->setTimezone($this->companyTimezone())->toIso8601String(),
         ];
     }
 

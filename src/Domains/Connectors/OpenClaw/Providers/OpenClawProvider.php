@@ -27,6 +27,7 @@ use Kanvas\Connectors\OpenClaw\Jobs\RestartAgentContainerJob;
 use Kanvas\Connectors\OpenClaw\Jobs\SyncDeploymentCredentialsJob;
 use Kanvas\Connectors\OpenClaw\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\OpenClaw\Jobs\UpdateOpenClawOnMachineJob;
+use Kanvas\Connectors\OpenClaw\Services\DockerComposeBuilderService;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
@@ -174,6 +175,12 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
     public function updateConfig(AgentDeployment $deployment, string $config): bool
     {
         return new UpdateDeploymentConfigAction($deployment, $config)->execute();
+    }
+
+    #[Override]
+    public function costDefaultsPatch(string $currentConfig): string
+    {
+        return new DockerComposeBuilderService()->costDefaultsPatch($currentConfig);
     }
 
     #[Override]

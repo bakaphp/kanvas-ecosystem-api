@@ -10,6 +10,7 @@ use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
+use Kanvas\Workflow\Integrations\Actions\RemoveIntegrationCompanyAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany as ModelsIntegrationsCompany;
@@ -96,7 +97,7 @@ class IntegrationsMutation
             auth()->user()
         );
 
-        return $integrationCompany->delete();
+        return new RemoveIntegrationCompanyAction($integrationCompany, app(Apps::class))->execute();
     }
 
     public function integrationCompanyIsActive(mixed $root, array $request): bool

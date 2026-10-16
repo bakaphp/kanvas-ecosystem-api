@@ -24,17 +24,13 @@ class UpdateLeadDescriptionTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_lead_description',
-            description: 'Set the Description field on a lead\'s profile (the main "Description" box, not an Activity '
-                . 'note). Use this when asked to record something on the lead itself — e.g. a DNC / Do-Not-Contact '
-                . 'note, a status remark, or context the whole team should see on the record. Pass mode="append" to '
-                . 'add to the existing description instead of replacing it (use append when you don\'t want to lose '
-                . 'what is already there). Use search_leads to get the lead_id first.',
-        );
-    }
+    protected string $name = 'update_lead_description';
+
+    protected ?string $description = 'Set the Description field on a lead\'s profile (the main "Description" box, not an Activity '
+        . 'note). Use this when asked to record something on the lead itself — e.g. a DNC / Do-Not-Contact '
+        . 'note, a status remark, or context the whole team should see on the record. Pass mode="append" to '
+        . 'add to the existing description instead of replacing it (use append when you don\'t want to lose '
+        . 'what is already there). Use search_leads to get the lead_id first.';
 
     /**
      * @return array<int, ToolProperty>

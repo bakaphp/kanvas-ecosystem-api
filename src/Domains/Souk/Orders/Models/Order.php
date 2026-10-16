@@ -11,6 +11,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -43,6 +44,7 @@ use Kanvas\Souk\Orders\Factories\OrderFactory;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Services\B2BConfigurationService;
+use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
 use Kanvas\Souk\Traits\PayableTrait;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -85,6 +87,7 @@ use Spatie\LaravelData\DataCollection;
  * @property string|null $language_code
  * @property string $status
  * @property string|null $payment_status
+ * @property Carbon|null $paid_at
  * @property string|null $fulfillment_status
  * @property string|null $shipping_method_name
  * @property int|null $shipping_method_id
@@ -135,7 +138,18 @@ class Order extends BaseModel implements PayableInterface
         'payment_gateway_names' => Json::class,
         'metadata' => Json::class,
         'private_metadata' => Json::class,
+        'paid_at' => 'datetime',
     ];
+
+    protected function paymentStatus(): Attribute
+    {
+        return Attribute::set(fn (?string $value, array $attributes): array => [
+            'payment_status' => $value,
+            'paid_at' => $value === PaymentStatusEnum::PAID->value
+                ? ($attributes['paid_at'] ?? $this->freshTimestampString())
+                : null,
+        ]);
+    }
 
     #[Override]
     public function adminLinkSection(): AdminLinkSectionEnum
@@ -964,9 +978,9 @@ class Order extends BaseModel implements PayableInterface
 
         $this->total_gross_amount = $orderTotal;
         $this->discount_amount = $discountAmount;
-        $this->total_net_amount = $orderTotal - $discountAmount;
         $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
         $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
+        $this->total_net_amount = $orderTotal - $discountAmount + $this->chargedShippingAmount();
 
         if ($this->commission_rate !== null) {
             $netAmount = (float) $this->total_net_amount;
@@ -977,6 +991,15 @@ class Order extends BaseModel implements PayableInterface
         if ($autoSave) {
             $this->saveOrFail();
         }
+    }
+
+    protected function chargedShippingAmount(): float
+    {
+        if (empty($this->metadata['shipping'][ShippingConditionEnum::PROVIDER->value] ?? null)) {
+            return 0.0;
+        }
+
+        return (float) $this->shipping_price_net_amount;
     }
 
     #[Override]

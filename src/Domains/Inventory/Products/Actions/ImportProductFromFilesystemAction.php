@@ -358,8 +358,10 @@ class ImportProductFromFilesystemAction
 
             $result[$targetKey] = FilesystemRowMapper::resolve($value, $data);
 
-            if ($targetKey === 'categories' && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
-                $result[$targetKey] = $this->mapCategories($result[$targetKey]);
+            if ($targetKey === 'categories') {
+                $result[$targetKey] = is_array($result[$targetKey])
+                    ? $result[$targetKey]
+                    : $this->mapCategories((string) $result[$targetKey]);
             } elseif ($targetKey === 'tags' || $targetKey === 'product_tags') {
                 $result[$targetKey] = Tag::normalizeNames($result[$targetKey]);
             } elseif (($targetKey === 'files' || $targetKey === 'product_files') && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
@@ -414,6 +416,6 @@ class ImportProductFromFilesystemAction
                 'name' => $categoryName,
                 'slug' => Str::slug($categoryName),
             ];
-        }, array_filter($categories));
+        }, array_values(array_filter($categories, fn (string $name) => $name !== '')));
     }
 }

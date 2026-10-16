@@ -10,11 +10,12 @@ use Kanvas\Connectors\Mcp\Services\McpConnectionService;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Contracts\RequiresMcpConnection;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\HasConversationHuman;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Mcp\RemoteMcpToolkit;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
@@ -47,6 +48,18 @@ use ReflectionParameter;
 trait MergesRegisteredTools
 {
     /**
+     * Names of the tools the registry resolved for this agent, kept apart by where they come from: an
+     * MCP toolkit expands to many large schemas and is what tool search exists to keep out of the
+     * prompt; a catalog grant is one small tool the agent may use on every turn.
+     *
+     * @var list<string>
+     */
+    protected array $mcpToolNames = [];
+
+    /** @var list<string> */
+    protected array $catalogToolNames = [];
+
+    /**
      * @return list<object>
      */
     protected function resolveRegisteredTools(
@@ -70,6 +83,10 @@ trait MergesRegisteredTools
         // which for a HasKanvasContext tool means an unscoped query. Fill it here so a tool is
         // tenant-bound whether the subclass hardcoded it or the registry resolved it.
         $baseline = array_map(fn (object $tool): object => $this->fillKanvasContext($tool), $baseline);
+        $baseline = array_values(array_filter(
+            $baseline,
+            fn (object $tool): bool => $this->keepIfSystemAgent($tool, $agent) !== null,
+        ));
 
         if ($agent === null) {
             return array_values($baseline);
@@ -92,6 +109,7 @@ trait MergesRegisteredTools
             }
 
             $baseline[] = $instance;
+            $this->recordRegistryToolNames($instance);
 
             if ($registered->handler !== null) {
                 $seenHandlers[$registered->handler] = true;
@@ -99,6 +117,40 @@ trait MergesRegisteredTools
         }
 
         return $this->applyWorkerBoundary(array_values($baseline));
+    }
+
+    private function recordRegistryToolNames(object $instance): void
+    {
+        $fromToolkit = $instance instanceof ToolkitInterface;
+
+        foreach ($this->expandToolkits([$instance]) as $tool) {
+            $name = self::toolName($tool);
+
+            if ($name === null) {
+                continue;
+            }
+
+            if ($fromToolkit) {
+                $this->mcpToolNames[] = $name;
+            } else {
+                $this->catalogToolNames[] = $name;
+            }
+        }
+    }
+
+    /**
+     * The two tool trees name themselves differently (Neuron `getName()`, Laravel `name()`); a toolkit
+     * answers to neither.
+     */
+    private static function toolName(object $tool): ?string
+    {
+        $name = match (true) {
+            method_exists($tool, 'getName') => $tool->getName(),
+            method_exists($tool, 'name') => $tool->name(),
+            default => null,
+        };
+
+        return is_string($name) ? $name : null;
     }
 
     /**
@@ -128,17 +180,13 @@ trait MergesRegisteredTools
         return array_values(array_filter(
             $tools,
             static function (object $tool) use ($verifying): bool {
-                // The two tool trees name themselves differently; a tool that answers to neither is
-                // kept under the worker policy — silently dropping something unidentifiable is the
-                // worse failure there. Under the verifier it is dropped, because an unidentifiable
-                // tool cannot be shown to be read-only and the allow-list must fail closed.
-                $name = match (true) {
-                    method_exists($tool, 'getName') => $tool->getName(),
-                    method_exists($tool, 'name') => $tool->name(),
-                    default => null,
-                };
+                // A tool that answers to neither name is kept under the worker policy — silently
+                // dropping something unidentifiable is the worse failure there. Under the verifier it
+                // is dropped, because an unidentifiable tool cannot be shown to be read-only and the
+                // allow-list must fail closed.
+                $name = self::toolName($tool);
 
-                if (! is_string($name)) {
+                if ($name === null) {
                     return ! $verifying;
                 }
 
@@ -235,7 +283,7 @@ trait MergesRegisteredTools
 
         $ctor = new ReflectionClass($tool->handler)->getConstructor();
         if ($ctor === null || $ctor->getNumberOfParameters() === 0) {
-            return $this->keepIfConnected($this->fillKanvasContext(new $tool->handler()));
+            return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $tool->handler())));
         }
 
         $candidates = $this->dependencyCandidates();
@@ -256,7 +304,31 @@ trait MergesRegisteredTools
             }
         }
 
-        return $this->keepIfConnected($this->fillKanvasContext(new $tool->handler(...$args)));
+        return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $tool->handler(...$args))));
+    }
+
+    /**
+     * A tool marked `RequiresSystemAgent` runs code on our machines with the agent's git token, so it
+     * is withheld from anything that is not an internal system agent.
+     *
+     * Applied to the hardcoded baseline as well as the registry path — `keepIfConnected` covers only
+     * the latter, and the harness tools are hardcoded on `SelfHostedProgrammingAgent`, so a
+     * registry-only filter would never see them.
+     *
+     * **No agent means no tool**, matching `keepIfConnected`. Nothing legitimate reaches here without
+     * one — `SelfHostedProgrammingAgent::tools()` returns an empty set when its agent is null, and the
+     * registry path runs only after the null check above. So "we cannot tell who this is for" is a
+     * state that should withhold a shell, not hand one over.
+     */
+    private function keepIfSystemAgent(?object $tool, ?Agent $agent = null): ?object
+    {
+        if (! $tool instanceof RequiresSystemAgent) {
+            return $tool;
+        }
+
+        $agent ??= $this->firstCandidateOfType($this->dependencyCandidates(), Agent::class);
+
+        return $agent instanceof Agent && $agent->conversesWithUser() ? $tool : null;
     }
 
     /**
@@ -337,7 +409,7 @@ trait MergesRegisteredTools
 
         // A self-service tool acts AS the caller, so it needs the same human the admin guard needs —
         // withContext() above carried actingUser(), which on a SystemUserAgent is the agent itself.
-        if (in_array(RequiresHumanCaller::class, $uses, true)) {
+        if (in_array(HasConversationHuman::class, $uses, true)) {
             $human = method_exists($this, 'requestingHuman')
                 ? $this->requestingHuman()
                 : (property_exists($this, 'user') ? $this->user : null);

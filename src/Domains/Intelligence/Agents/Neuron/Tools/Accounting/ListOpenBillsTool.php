@@ -23,16 +23,12 @@ class ListOpenBillsTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_open_bills',
-            description: 'Lists individual open bills (received, balance_due > 0) with vendor, bill number, total, '
-                . 'balance due, due date and days overdue. Use this when the user asks what we owe, which bills '
-                . 'are outstanding or due soon, or wants a specific vendor\'s unpaid bills. Set only_overdue to '
-                . 'focus on past-due obligations.',
-        );
-    }
+    protected string $name = 'list_open_bills';
+
+    protected ?string $description = 'Lists individual open bills (received, balance_due > 0) with vendor, bill number, total, '
+        . 'balance due, due date and days overdue. Use this when the user asks what we owe, which bills '
+        . 'are outstanding or due soon, or wants a specific vendor\'s unpaid bills. Set only_overdue to '
+        . 'focus on past-due obligations.';
 
     /**
      * @return array<int, ToolProperty>

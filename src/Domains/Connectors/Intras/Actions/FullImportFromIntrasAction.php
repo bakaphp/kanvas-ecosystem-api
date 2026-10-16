@@ -65,6 +65,14 @@ class FullImportFromIntrasAction
             $this->agencyId,
         )->execute();
 
+        // After events and facilitators — it resolves both sides through their legacy-id maps.
+        $results['event_version_facilitators'] = new PullEventVersionFacilitatorsFromIntrasAction(
+            $this->app,
+            $this->company,
+            $this->user,
+            $this->agencyId,
+        )->execute();
+
         $results['registrations'] = new PullRegistrationsFromIntrasAction(
             $this->app,
             $this->company,
@@ -73,11 +81,34 @@ class FullImportFromIntrasAction
             $this->agencyId,
         )->execute();
 
+        // After organizations — resolves each pool's company through its legacy-id map.
+        $results['entitlements'] = new PullEntitlementsFromIntrasAction(
+            $this->app,
+            $this->company,
+            $this->user,
+            $this->agencyId,
+        )->execute();
+
         $results['plans'] = new PullPlansFromIntrasAction(
             $this->app,
             $this->company,
             $this->user,
             $this->agencyId,
+        )->execute();
+
+        // After events, participants and registrations — resolves all three by legacy id.
+        $results['courtesy_passes'] = new PullCourtesyPassesFromIntrasAction(
+            $this->app,
+            $this->company,
+            $this->user,
+            $this->agencyId,
+        )->execute();
+
+        // Last — it stamps provenance onto entities every earlier step created.
+        $results['audit_provenance'] = new PullAuditProvenanceFromIntrasAction(
+            $this->app,
+            $this->company,
+            $this->user,
         )->execute();
 
         $results['leads'] = new PullLeadsFromIntrasAction(

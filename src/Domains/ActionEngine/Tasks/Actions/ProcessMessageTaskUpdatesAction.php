@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\ActionEngine\Tasks\Actions;
 
 use Illuminate\Database\Eloquent\Builder;
-use InvalidArgumentException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
@@ -17,7 +17,6 @@ use Kanvas\ActionEngine\Tasks\Traits\IdentifiesCoBuyerTaskItems;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
-use Throwable;
 
 class ProcessMessageTaskUpdatesAction
 {
@@ -43,8 +42,13 @@ class ProcessMessageTaskUpdatesAction
         $verb = $messageData['verb'] ?? null;
         $status = $messageData['status'] ?? null;
 
+        // A chat reply carries the channel verb (twilio-sms, whatsapp, ...) and no status; it is
+        // not an engagement, so it is skipped rather than failing the activity that pushes its note.
         if (! $verb || ! $status) {
-            throw new InvalidArgumentException('Verb and status are required to set task engagement status.');
+            return [
+                'success' => false,
+                'message' => 'Verb and status are required to set task engagement status.',
+            ];
         }
 
         $results = [];
@@ -60,8 +64,16 @@ class ProcessMessageTaskUpdatesAction
             ];
         }
 
-        // Handle regular task items
-        $taskListItems = $this->findTaskListItems($messageData);
+        $companyAction = $this->resolveCompanyAction($verb);
+
+        if ($companyAction === null) {
+            return [
+                'success' => false,
+                'message' => "Verb '{$verb}' is not a checklist action for this company.",
+            ];
+        }
+
+        $taskListItems = $this->findTaskListItems($messageData, $companyAction);
 
         if ($taskListItems->count() === 0) {
             return [
@@ -84,13 +96,24 @@ class ProcessMessageTaskUpdatesAction
         ];
     }
 
-    protected function findTaskListItems(array $messageData): Builder
+    protected function resolveCompanyAction(string $verb): ?CompanyAction
+    {
+        $action = Action::where('slug', $verb)->first();
+
+        if ($action === null) {
+            return null;
+        }
+
+        try {
+            return CompanyAction::getByAction($action, $this->lead->company, $this->lead->app);
+        } catch (ModelNotFoundException) {
+            return null;
+        }
+    }
+
+    protected function findTaskListItems(array $messageData, CompanyAction $companyAction): Builder
     {
         $verb = $messageData['verb'];
-
-        $action = Action::where('slug', $verb)->firstOrFail();
-        $companyAction = CompanyAction::getByAction($action, $this->lead->company, $this->lead->app);
-
         $checkListId = $this->getCheckListId($messageData);
 
         $query = TaskListItem::where('companies_action_id', $companyAction->getId())
@@ -212,13 +235,11 @@ class ProcessMessageTaskUpdatesAction
 
     protected function findTaskListItemByFilename(string $filename): ?TaskListItem
     {
-        $checkListId = $this->getCheckListId($this->message->getMessage());
-        $verb = $this->message->getMessage()['verb'];
+        $messageData = $this->message->getMessage();
+        $checkListId = $this->getCheckListId($messageData);
+        $companyAction = $this->resolveCompanyAction((string) $messageData['verb']);
 
-        try {
-            $action = Action::where('slug', $verb)->firstOrFail();
-            $companyAction = CompanyAction::getByAction($action, $this->lead->company, $this->lead->app);
-        } catch (Throwable $e) {
+        if ($companyAction === null) {
             return null;
         }
 

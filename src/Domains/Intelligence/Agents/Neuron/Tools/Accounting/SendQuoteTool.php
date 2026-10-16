@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesScribeQuoteForTool;
 use Kanvas\Scribe\Quotes\Actions\SendQuoteAction;
 use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteTransitionException;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -19,22 +18,18 @@ use Override;
 
 /** Moves a draft quote to SENT: allocates its quote number and freezes the customer snapshot. Does not email anything. */
 #[AgentTool(name: 'Send Quote', category: 'accounting')]
-class SendQuoteTool extends Tool implements HasRunKey
+class SendQuoteTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesScribeQuoteForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'send_quote',
-            description: 'Marks a draft quote as SENT — this is what assigns its quote number, freezes the '
-                . 'customer details onto it, and sets the validity date. It does NOT email the customer: '
-                . 'generate_quote_pdf gives you the file to hand over. Once sent, the quote can only be '
-                . 'accepted, rejected, expired, or revised.',
-        );
-    }
+    protected string $name = 'send_quote';
+
+    protected ?string $description = 'Marks a draft quote as SENT — this is what assigns its quote number, freezes the '
+        . 'customer details onto it, and sets the validity date. It does NOT email the customer: '
+        . 'generate_quote_pdf gives you the file to hand over. Once sent, the quote can only be '
+        . 'accepted, rejected, expired, or revised.';
 
     /**
      * @return array<int, ToolProperty>

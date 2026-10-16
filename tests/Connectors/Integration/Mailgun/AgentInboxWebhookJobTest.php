@@ -116,7 +116,7 @@ final class AgentInboxWebhookJobTest extends TestCase
             'stripped-text' => 'Where are we on the Acme deal?',
         ]);
 
-        $this->assertStringContainsString('Hola Mundo', (string) ($result['response'] ?? ''));
+        $this->assertStringContainsString('Hola Mundo', (string) ($result['response'] ?? ''), 'job result: ' . json_encode($result));
 
         $inbound = Message::query()
             ->where('apps_id', $this->kanvasApp->getId())
@@ -362,7 +362,7 @@ final class AgentInboxWebhookJobTest extends TestCase
             'Message-Id' => '<ordinary-' . Str::random(10) . '@outside.test>',
         ]);
 
-        $this->assertStringContainsString('Hola Mundo', (string) ($result['response'] ?? ''));
+        $this->assertStringContainsString('Hola Mundo', (string) ($result['response'] ?? ''), 'job result: ' . json_encode($result));
     }
 
     public function testTheAgentsOwnMailIsIgnored(): void

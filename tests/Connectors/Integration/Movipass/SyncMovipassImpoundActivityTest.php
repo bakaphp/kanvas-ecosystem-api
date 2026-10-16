@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Movipass;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
@@ -14,6 +15,7 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Jobs\GenerateOrderReceiptPdfJob;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -347,6 +349,8 @@ final class SyncMovipassImpoundActivityTest extends TestCase
             []
         );
 
+        Bus::fake([GenerateOrderReceiptPdfJob::class]);
+
         $result = $activity->execute($order, $app, [
             'currentEventTypeName' => WorkflowEnum::STATUS_TRANSITION->value,
             'to_status' => MovipassOrderStatusEnum::RELEASED->value,
@@ -354,5 +358,10 @@ final class SyncMovipassImpoundActivityTest extends TestCase
 
         $order->refresh();
         $this->assertNotNull($order->metadata['data']['release_date']);
+        Bus::assertDispatched(
+            GenerateOrderReceiptPdfJob::class,
+            fn (GenerateOrderReceiptPdfJob $job) => $job->order->is($order)
+                && $job->receipt == OrderTypeEnum::IMPOUND_LOT->pdfReceipt()
+        );
     }
 }

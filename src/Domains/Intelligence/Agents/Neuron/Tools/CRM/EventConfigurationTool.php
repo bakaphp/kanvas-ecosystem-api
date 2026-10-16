@@ -22,15 +22,11 @@ class EventConfigurationTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_event_configuration',
-            description: 'List the company-scoped Event catalog IDs required by create_calendar_event: themes, theme areas, '
-                . 'statuses, types, classes, and categories. Call this before creating an appointment, choose the most '
-                . 'appropriate records, and pass their IDs unchanged. Never invent an Event configuration ID.',
-        );
-    }
+    protected string $name = 'get_event_configuration';
+
+    protected ?string $description = 'List the company-scoped Event catalog IDs required by create_calendar_event: themes, theme areas, '
+        . 'statuses, types, classes, and categories. Call this before creating an appointment, choose the most '
+        . 'appropriate records, and pass their IDs unchanged. Never invent an Event configuration ID.';
 
     #[Override]
     protected function properties(): array

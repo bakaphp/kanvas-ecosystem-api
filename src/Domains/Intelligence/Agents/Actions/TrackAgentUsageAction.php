@@ -21,6 +21,7 @@ class TrackAgentUsageAction
         protected float $durationMs,
         protected ?string $sessionId = null,
         protected ?int $userId = null,
+        protected int $threadWaitMs = 0,
     ) {
     }
 
@@ -45,35 +46,26 @@ class TrackAgentUsageAction
 
         $now = now();
 
-        AgentPerformanceMetric::create([
-            'apps_id' => $this->app->getId(),
-            'agent_id' => $this->agent->getId(),
-            'agent_history_id' => $history->getId(),
-            'metric_type' => 'duration_ms',
-            'value' => $this->durationMs,
-            'period_start' => $now,
-            'period_end' => $now,
-        ]);
+        $metrics = [
+            'duration_ms' => $this->durationMs,
+            'input_chars' => mb_strlen($this->message),
+            'output_chars' => mb_strlen($this->response),
+        ];
+        if ($this->threadWaitMs > 0) {
+            $metrics['thread_wait_ms'] = $this->threadWaitMs;
+        }
 
-        AgentPerformanceMetric::create([
-            'apps_id' => $this->app->getId(),
-            'agent_id' => $this->agent->getId(),
-            'agent_history_id' => $history->getId(),
-            'metric_type' => 'input_chars',
-            'value' => mb_strlen($this->message),
-            'period_start' => $now,
-            'period_end' => $now,
-        ]);
-
-        AgentPerformanceMetric::create([
-            'apps_id' => $this->app->getId(),
-            'agent_id' => $this->agent->getId(),
-            'agent_history_id' => $history->getId(),
-            'metric_type' => 'output_chars',
-            'value' => mb_strlen($this->response),
-            'period_start' => $now,
-            'period_end' => $now,
-        ]);
+        foreach ($metrics as $type => $value) {
+            AgentPerformanceMetric::create([
+                'apps_id' => $this->app->getId(),
+                'agent_id' => $this->agent->getId(),
+                'agent_history_id' => $history->getId(),
+                'metric_type' => $type,
+                'value' => $value,
+                'period_start' => $now,
+                'period_end' => $now,
+            ]);
+        }
 
         return $history;
     }

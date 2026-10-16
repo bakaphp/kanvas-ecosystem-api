@@ -21,17 +21,13 @@ class TakeDealMessageTool extends Tool
     use ResolvesDealForTool;
     use TakesMessageForEntity;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'take_deal_message',
-            description: 'Take a message for the team about a deal and make sure they get it. '
-                . 'Use this when the customer wants to leave a message or ask someone to follow up on their deal '
-                . '("tell my rep to call me", "have someone reach me about the quote"). '
-                . 'The message is saved as a note on the deal and the deal owner is notified. '
-                . 'This does NOT transfer the conversation.',
-        );
-    }
+    protected string $name = 'take_deal_message';
+
+    protected ?string $description = 'Take a message for the team about a deal and make sure they get it. '
+        . 'Use this when the customer wants to leave a message or ask someone to follow up on their deal '
+        . '("tell my rep to call me", "have someone reach me about the quote"). '
+        . 'The message is saved as a note on the deal and the deal owner is notified. '
+        . 'This does NOT transfer the conversation.';
 
     /**
      * @return array<int, ToolProperty>

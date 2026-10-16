@@ -6,11 +6,10 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Kanvas\Connectors\FinancialModelingPrep\Client;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Laravel\Concerns\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
-use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
@@ -20,11 +19,6 @@ use Throwable;
 class FmpCompanySearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;
-
-    public function name(): string
-    {
-        return Str::slug(AgentTool::fromClass($this)?->name ?? class_basename($this), '_');
-    }
 
     public function instructions(): string
     {

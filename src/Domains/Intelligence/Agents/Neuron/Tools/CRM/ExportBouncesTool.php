@@ -22,23 +22,19 @@ class ExportBouncesTool extends Tool
 {
     use HasKanvasContext;
 
+    protected string $name = 'export_bounces';
+
+    protected ?string $description = 'Generates a downloadable CSV of every dead / bouncing email (hard bounce / invalid). '
+        . 'Returns a file URL and row count. Use for "export the bad emails", "download the bounce list". '
+        . 'granularity picks per_email (one row per bad address) or per_person; pass include_soft_bounce '
+        . 'to also include recoverable soft bounces.';
+
     private const array STATUS_LABEL = [
         'valid' => 'Valid',
         'soft_bounce' => 'At risk',
         'hard_bounce' => 'Bounced',
         'invalid' => 'Invalid',
     ];
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'export_bounces',
-            description: 'Generates a downloadable CSV of every dead / bouncing email (hard bounce / invalid). '
-                . 'Returns a file URL and row count. Use for "export the bad emails", "download the bounce list". '
-                . 'granularity picks per_email (one row per bad address) or per_person; pass include_soft_bounce '
-                . 'to also include recoverable soft bounces.',
-        );
-    }
 
     /**
      * @return array<int, ToolProperty>

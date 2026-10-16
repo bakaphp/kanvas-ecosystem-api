@@ -194,6 +194,7 @@ return [
         App\Providers\CartServiceProvider::class,
         App\Providers\PaymentProcessorServiceProvider::class,
         App\Providers\InsuranceProviderServiceProvider::class,
+        App\Providers\ShippingProviderServiceProvider::class,
     ],
 
     /*

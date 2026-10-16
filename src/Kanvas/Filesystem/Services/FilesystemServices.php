@@ -6,6 +6,7 @@ namespace Kanvas\Filesystem\Services;
 
 use Baka\Contracts\CompanyInterface;
 use Baka\Http\SafeUrl;
+use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
 use Baka\Support\TempFile;
 use Exception;
@@ -24,6 +25,7 @@ use Kanvas\Users\Models\Users;
 use League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility;
 use RuntimeException;
 use Symfony\Component\Mime\MimeTypes;
+use Throwable;
 
 class FilesystemServices
 {
@@ -180,6 +182,27 @@ class FilesystemServices
     public function delete(ModelsFilesystem $file): bool
     {
         return $this->storage->delete($file->path);
+    }
+
+    /**
+     * Files already managed by Kanvas should be read through the app's configured storage client.
+     * Besides avoiding a second public HTTP hop, this keeps local/private S3 endpoints compatible
+     * with the SSRF guard, which correctly rejects RFC1918 and container-only hostnames.
+     */
+    public static function readBytes(ModelsFilesystem $file): string
+    {
+        try {
+            $bytes = new self($file->app, $file->company)->getStorageByDisk()->get($file->path);
+
+            if ($bytes !== null && $bytes !== '') {
+                return $bytes;
+            }
+        } catch (Throwable) {
+            // Legacy/external Filesystem rows may not belong to the configured bucket. Their public
+            // URL remains supported, with the same SSRF validation and response-size cap as before.
+        }
+
+        return SafeUrlFetcher::fetch($file->url);
     }
 
     public function getFileLocalPath(ModelsFilesystem $filesystem): string

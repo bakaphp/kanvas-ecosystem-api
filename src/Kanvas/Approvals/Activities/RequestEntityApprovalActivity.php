@@ -6,8 +6,7 @@ namespace Kanvas\Approvals\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Approvals\Enums\ApprovalOriginEnum;
-use Kanvas\Approvals\Models\ApprovalRequest;
+use Kanvas\Approvals\Concerns\OpensApprovalWithSupersede;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
@@ -39,6 +38,8 @@ use Override;
 )]
 class RequestEntityApprovalActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    use OpensApprovalWithSupersede;
+
     public $tries = 3;
 
     #[Override]
@@ -56,23 +57,11 @@ class RequestEntityApprovalActivity extends KanvasActivity implements WorkflowAc
             return ['requested' => false, 'reason' => 'missing approval_type param'];
         }
 
-        $pending = $entity->pendingApproval($approvalType);
-
-        if ($pending !== null) {
-            if (! ($params['auto_reject_stale_pending'] ?? false)) {
-                return ['requested' => false, 'reason' => 'already pending'];
-            }
-
-            $entity->supersedePendingApproval($approvalType);
-        }
-
-        /** @var ApprovalRequest|null $request */
-        $request = $entity->requestApproval(
+        return $this->openOrSupersede(
+            $entity,
             $approvalType,
-            payload: (array) ($params['payload'] ?? []),
-            origin: ApprovalOriginEnum::SYSTEM,
+            (array) ($params['payload'] ?? []),
+            $params,
         );
-
-        return ['requested' => $request !== null, 'approval_request_id' => $request?->getId()];
     }
 }

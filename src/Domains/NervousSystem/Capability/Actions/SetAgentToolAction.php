@@ -7,6 +7,7 @@ namespace Kanvas\NervousSystem\Capability\Actions;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Models\AgentTool;
 use Kanvas\NervousSystem\Capability\Models\Tool;
@@ -43,6 +44,20 @@ class SetAgentToolAction
                 'Agent "%s" talks to customers, so it cannot be given the MCP server "%s".',
                 $agent->name,
                 $tool->name,
+            ));
+        }
+
+        // Refused unless the agent is positively an internal system agent — "not marked
+        // customer-facing" is not good enough when the thing being handed over is a shell, source
+        // access, or the staff directory.
+        $handler = (string) $tool->handler;
+
+        if ($handler !== '' && is_a($handler, RequiresSystemAgent::class, true) && ! $agent->conversesWithUser()) {
+            throw new ValidationException(sprintf(
+                'Tool "%s" is for internal system agents only: it reaches the company\'s staff, tasks or '
+                    . 'machines. Agent "%s" is not one.',
+                $tool->name,
+                $agent->name,
             ));
         }
     }

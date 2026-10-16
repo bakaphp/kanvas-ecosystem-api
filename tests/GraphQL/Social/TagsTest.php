@@ -370,6 +370,11 @@ class TagsTest extends TestCase
                         taggables {
                             tags_id
                             entity_id
+                            system_module_name
+                            system_module {
+                                uuid
+                                name
+                            }
                         }
                     }
                 }
@@ -392,6 +397,11 @@ class TagsTest extends TestCase
                                 [
                                     'tags_id' => $tag['id'],
                                     'entity_id' => $message['id'],
+                                    'system_module_name' => $systemModule->name,
+                                    'system_module' => [
+                                        'uuid' => $systemModule->uuid,
+                                        'name' => $systemModule->name,
+                                    ],
                                 ],
                             ],
                         ],
@@ -440,14 +450,90 @@ class TagsTest extends TestCase
                                             'id' => $tag['id'],
                                             'name' => $input['name'],
                                             'weight' => $input['weight'],
-                                        ]
+                                        ],
                                      ],
-                                ]
+                                ],
                             ],
                         ],
                     ],
                 ],
             ]);
+    }
+
+    /**
+     * `taggables.system_module` used to fatal with `Call to undefined method TagEntity::system_module()`
+     * (Sentry KANVAS-ECOSYSTEM-60E) and `system_module_name` with a non-null violation (KANVAS-ECOSYSTEM-5GS).
+     * A row whose taggable_type is not a registered system module must resolve both to null, not error.
+     */
+    public function testTaggableWithoutSystemModuleResolvesToNull(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $tag = new Tag();
+        $tag->apps_id = $app->getId();
+        $tag->companies_id = $user->getCurrentCompany()->getId();
+        $tag->users_id = $user->getId();
+        $tag->name = 'no-module-tag-' . fake()->unique()->uuid();
+        $tag->weight = 0;
+        $tag->save();
+
+        TagEntity::create([
+            'tags_id' => $tag->getId(),
+            'entity_id' => 1,
+            'taggable_type' => 'Tests\\Fixtures\\NotASystemModule',
+            'users_id' => $user->getId(),
+            'is_deleted' => 0,
+        ]);
+
+        try {
+            $this->graphQL(/** @lang GRAPHQL */
+                '
+                query tags($where: QueryTagsWhereWhereConditions) {
+                    tags(where: $where) {
+                        data {
+                            id
+                            taggables {
+                                entity_id
+                                system_module_name
+                                system_module {
+                                    uuid
+                                }
+                            }
+                        }
+                    }
+                }
+            ',
+                [
+                    'where' => [
+                        'value' => $tag->getId(),
+                        'column' => 'ID',
+                        'operator' => 'EQ',
+                    ],
+                ]
+            )->assertSuccessful()
+                ->assertJson([
+                    'data' => [
+                        'tags' => [
+                            'data' => [
+                                [
+                                    'id' => (string) $tag->getId(),
+                                    'taggables' => [
+                                        [
+                                            'entity_id' => '1',
+                                            'system_module_name' => null,
+                                            'system_module' => null,
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ]);
+        } finally {
+            TagEntity::where('tags_id', $tag->getId())->delete();
+            $tag->forceDelete();
+        }
     }
 
     public function testDetachTagFromMessage()

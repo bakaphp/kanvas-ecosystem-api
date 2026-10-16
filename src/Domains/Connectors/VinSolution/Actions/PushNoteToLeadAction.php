@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Actions;
 
+use Baka\Support\Str;
 use Baka\Support\Url;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\Connectors\SalesAssist\Services\MessageNoteService;
@@ -28,6 +29,13 @@ class PushNoteToLeadAction
 
     public function execute(?string $note = null): array
     {
+        $note = Str::trimToNull($note ?? $this->getNote($this->message->getMessage()));
+
+        // A message with no engagement has no card text to push; that's a skip, not a fault.
+        if ($note === null) {
+            return [];
+        }
+
         $vinCompany = Dealer::getById($this->lead->company->get(ConfigurationEnum::COMPANY->value), $this->lead->app);
 
         $vinUser = LeadUserService::resolve($this->lead);
@@ -59,8 +67,6 @@ class PushNoteToLeadAction
             $vinLeadId
         );
 
-        $note = $note === null ? $this->getNote($this->message->getMessage()) : $note;
-
         $vinLead->addNotes(
             $vinCompany,
             $user,
@@ -74,8 +80,6 @@ class PushNoteToLeadAction
 
     protected function getNote(array $message): ?string
     {
-        //$note = null;
-
         try {
             $linkPreview = Url::getShortUrl($message['link'] ?? '', $this->lead->app);
         } catch (Throwable $e) {
@@ -86,12 +90,6 @@ class PushNoteToLeadAction
         if ($newLink = $messageNote->generateFileLinks()) {
             $linkPreview = $newLink;
         }
-
-        //$messageService = new MessagesServices($this->entity);
-        //$note = $messageService->getDisplayCardMessage() . ' ' . $linkPreview;
-
-        //improvement to get the message from the message service
-        //this is the parent msg engagement
 
         try {
             $parentEngagement = $this->message->getEngagement();
@@ -107,8 +105,7 @@ class PushNoteToLeadAction
         }
 
         $engagementMessage = new MessageNotificationTextService($currentEngagement ?: $parentEngagement);
-        $note = $engagementMessage->cardText() . ' ' . $linkPreview;
 
-        return $note;
+        return $engagementMessage->cardText() . ' ' . $linkPreview;
     }
 }

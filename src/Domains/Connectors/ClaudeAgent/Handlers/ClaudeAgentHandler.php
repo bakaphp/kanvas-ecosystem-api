@@ -41,4 +41,10 @@ class ClaudeAgentHandler extends BaseIntegration
 
         return true;
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [ConfigurationEnum::API_KEY->value];
+    }
 }

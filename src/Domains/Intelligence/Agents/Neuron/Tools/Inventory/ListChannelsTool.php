@@ -22,15 +22,11 @@ class ListChannelsTool extends Tool
     use HasKanvasContext;
     use ListsCatalogReferenceData;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_channels',
-            description: 'List the company\'s sales channels, default first. Selling prices are held per channel, '
-                . 'so use this to get a channel_id before calling set_variant_channel_price. The cart reads the '
-                . 'price from the default channel, and only while that channel is published.',
-        );
-    }
+    protected string $name = 'list_channels';
+
+    protected ?string $description = 'List the company\'s sales channels, default first. Selling prices are held per channel, '
+        . 'so use this to get a channel_id before calling set_variant_channel_price. The cart reads the '
+        . 'price from the default channel, and only while that channel is published.';
 
     /**
      * @return array<int, ToolProperty>

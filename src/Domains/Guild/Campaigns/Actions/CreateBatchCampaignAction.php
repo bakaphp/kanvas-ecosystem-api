@@ -8,7 +8,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Guild\Campaigns\Enums\CampaignRecipientStatusEnum;
 use Kanvas\Guild\Campaigns\Enums\CampaignStatusEnum;
 use Kanvas\Guild\Campaigns\Jobs\ProcessLeadCampaignJob;
 use Kanvas\Guild\Campaigns\Models\Campaign;
@@ -23,8 +22,14 @@ use Kanvas\Users\Models\Users;
 class CreateBatchCampaignAction
 {
     /**
-     * @param  array<int, array<string, mixed>>  $eligibleRecipients  Resolver eligible rows (lead_id, people_id).
+     * @param  array<int, array<string, mixed>>  $eligibleRecipients  Resolver eligible rows (lead_id, people_id) —
+     *     exactly one of the two is non-null per row (resolve()'s rows always carry a lead_id,
+     *     resolvePeople()'s always carry a people_id and a null lead_id).
      * @param  array<string, mixed>  $criteria
+     * @param  list<string>  $attachmentUrls  Shared by every recipient in this campaign — the same
+     *     file(s) go to everyone, there's no per-recipient attachment.
+     * @param  ?string  $templateName  A `templates` row name (see TemplatesRepository::getByName()) —
+     *     null keeps the sender's own default rather than forcing one here.
      */
     public function __construct(
         private readonly Apps $app,
@@ -35,6 +40,9 @@ class CreateBatchCampaignAction
         private readonly ?string $subject,
         private readonly array $eligibleRecipients,
         private readonly array $criteria = [],
+        private readonly array $attachmentUrls = [],
+        private readonly ?string $templateName = null,
+        private readonly bool $important = false,
         private readonly ?Carbon $scheduledAt = null,
     ) {
     }
@@ -50,6 +58,9 @@ class CreateBatchCampaignAction
             $campaign->subject = $this->subject;
             $campaign->message = $this->message;
             $campaign->criteria = $this->criteria;
+            $campaign->attachment_urls = $this->attachmentUrls !== [] ? $this->attachmentUrls : null;
+            $campaign->template_name = $this->templateName;
+            $campaign->is_important = $this->important;
             $campaign->scheduled_at = $this->scheduledAt;
             $campaign->status = $this->scheduledAt !== null
                 ? CampaignStatusEnum::SCHEDULED->value
@@ -58,14 +69,11 @@ class CreateBatchCampaignAction
             $campaign->saveOrFail();
 
             foreach ($this->eligibleRecipients as $row) {
-                $recipient = new CampaignRecipient();
-                $recipient->apps_id = $this->app->getId();
-                $recipient->companies_id = $this->company->getId();
-                $recipient->lead_campaigns_id = $campaign->getId();
-                $recipient->leads_id = (int) $row['lead_id'];
-                $recipient->peoples_id = ((int) ($row['people_id'] ?? 0)) ?: null;
-                $recipient->status = CampaignRecipientStatusEnum::PENDING->value;
-                $recipient->saveOrFail();
+                CampaignRecipient::pending(
+                    $campaign,
+                    isset($row['lead_id']) ? (int) $row['lead_id'] : null,
+                    ((int) ($row['people_id'] ?? 0)) ?: null,
+                )->saveOrFail();
             }
 
             return $campaign;

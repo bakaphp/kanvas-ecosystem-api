@@ -18,15 +18,11 @@ class DeleteTemplateTool extends Tool
     use HasKanvasContext;
     use ManagesTemplatesTrait;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'delete_template',
-            description: 'Delete a template you previously created. Only templates you created can be deleted — you '
-                . 'cannot remove system templates or ones created by others. Pass the template_id returned by '
-                . 'create_template.',
-        );
-    }
+    protected string $name = 'delete_template';
+
+    protected ?string $description = 'Delete a template you previously created. Only templates you created can be deleted — you '
+        . 'cannot remove system templates or ones created by others. Pass the template_id returned by '
+        . 'create_template.';
 
     /**
      * @return array<int, ToolProperty>

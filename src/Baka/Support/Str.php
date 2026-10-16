@@ -10,6 +10,9 @@ class Str extends IlluminateStr
 {
     public const int BROADCAST_CHANNEL_MAX_LENGTH = 164;
 
+    /** 2^53 - 1: the largest integer a JSON consumer in JavaScript holds exactly. */
+    public const int JSON_SAFE_INTEGER_MAX = 9007199254740991;
+
     /**
      * Given a string remove all any special characters.
      */
@@ -23,7 +26,37 @@ class Str extends IlluminateStr
      */
     public static function jsonToArray(mixed $string): mixed
     {
-        return is_string($string) && self::isJson($string) ? json_decode($string, true) : $string;
+        // phpredis serializes scalars, so a custom field written as an int comes back from the hash
+        // as an int and never reaches the string guards below.
+        if (is_int($string) && self::isBeyondJsonSafeInteger($string)) {
+            return (string) $string;
+        }
+
+        if (! is_string($string) || ! self::isJson($string)) {
+            return $string;
+        }
+
+        $decoded = json_decode($string, true);
+
+        // A bare number is valid JSON; keep the string when decoding lost precision (OAuth ids, 64-bit ids).
+        if ((is_int($decoded) || is_float($decoded)) && json_encode($decoded) !== $string) {
+            return $string;
+        }
+
+        if (is_int($decoded) && self::isBeyondJsonSafeInteger($decoded)) {
+            return $string;
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * The API emits an int as a JSON number and JavaScript parses it into a double, so a 19-digit
+     * Zoho id that PHP holds exactly loses its low digits in the browser.
+     */
+    public static function isBeyondJsonSafeInteger(int $value): bool
+    {
+        return abs($value) > self::JSON_SAFE_INTEGER_MAX;
     }
 
     /**
@@ -113,6 +146,21 @@ class Str extends IlluminateStr
     public static function trimmedStringOrNull(mixed $value): ?string
     {
         return self::trimToNull(is_string($value) ? $value : null);
+    }
+
+    /**
+     * Splits a comma-separated value into trimmed parts, dropping blanks — `"a, ,b"` → `['a', 'b']`.
+     * The shape agent tools take for lists, since a tool schema can't safely declare an array of
+     * scalars for every provider.
+     *
+     * @return list<string>
+     */
+    public static function commaList(?string $value): array
+    {
+        return array_values(array_filter(
+            array_map(trim(...), explode(',', (string) $value)),
+            static fn (string $part): bool => $part !== ''
+        ));
     }
 
     /**

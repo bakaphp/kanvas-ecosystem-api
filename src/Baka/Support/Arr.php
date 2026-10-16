@@ -9,6 +9,44 @@ use Illuminate\Support\Arr as IlluminateArr;
 class Arr extends IlluminateArr
 {
     /**
+     * The key as the array spells it: an exact match, else the first key equal under strcasecmp.
+     * External payloads (form builders, Zoho api_names) and the humans mapping them disagree on
+     * casing, so a lookup by the caller's spelling misses rows that are there.
+     */
+    public static function keyIgnoringCase(array $array, string $key): int|string|null
+    {
+        if (array_key_exists($key, $array)) {
+            return $key;
+        }
+
+        foreach (array_keys($array) as $candidate) {
+            if (strcasecmp((string) $candidate, $key) === 0) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * `[{label: 'Exterior color', value: 'white'}]` → `['exterior_color' => 'white']`.
+     */
+    public static function fromLabelValuePairs(array $items): array
+    {
+        $data = [];
+
+        foreach ($items as $item) {
+            if (! is_array($item) || ! isset($item['label'])) {
+                continue;
+            }
+
+            $data[str_replace(' ', '_', Str::lowerTrim((string) $item['label']))] = $item['value'] ?? null;
+        }
+
+        return $data;
+    }
+
+    /**
      * Byte size of an array once JSON-encoded. Useful when an API caps payload
      * size in bytes (Algolia 10KB records, OneSignal 2048, Expo 4KiB, ...).
      */

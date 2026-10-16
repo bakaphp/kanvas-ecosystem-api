@@ -9,10 +9,12 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddLeadNoteTool;
 use Tests\TestCase;
+use Tests\Traits\MakesFilesystemRows;
 
 class AddLeadNoteToolTest extends TestCase
 {
     use DatabaseTransactions;
+    use MakesFilesystemRows;
     use ReadsLeadNotes;
 
     protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence', 'social'];
@@ -53,6 +55,29 @@ class AddLeadNoteToolTest extends TestCase
         $this->assertNotNull($note);
         $this->assertSame($user->getId(), (int) $note->users_id);
         $this->assertTrue($note->tags()->where('name', 'agent-note')->exists());
+    }
+
+    public function testAFileHandedOverWithTheNoteIsAttachedToIt(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create();
+        $file = $this->makeFilesystemRow($company->getId(), 'call-transcript.txt');
+
+        $result = new AddLeadNoteTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(lead_id: $lead->getId(), note: 'Call summary attached.', filesystem_ids: [$file->getId()]);
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame([$file->getId()], array_column($result['files_attached'], 'filesystem_id'));
+
+        $note = $this->latestLeadNote($lead);
+
+        $this->assertNotNull($note);
+        $this->assertSame((int) $note->getId(), $result['message_id']);
+        $this->assertContains('call-transcript.txt', $note->getFiles()->pluck('name')->all());
     }
 
     public function testEmptyNoteIsRejected(): void

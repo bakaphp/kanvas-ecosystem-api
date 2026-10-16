@@ -6,6 +6,7 @@ namespace App\Console\Commands\CustomerSuccess;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
@@ -135,7 +136,7 @@ class DraftMonthlyCustomerUpdatesCommand extends Command
      */
     private function processOne(Apps $app, Organization $organization, array &$tally): void
     {
-        $label = '  ' . $organization->name . ' (' . $organization->getId() . ')';
+        $label = $this->label($organization);
 
         $recipients = $this->audience->recipients($organization);
 
@@ -149,8 +150,7 @@ class DraftMonthlyCustomerUpdatesCommand extends Command
         $agent = $this->resolveAgent($app, $organization);
 
         if ($agent === null) {
-            $tally['failed']++;
-            $this->line($label . ' <fg=red>— no Customer Update Agent in company ' . $organization->companies_id . '.</>');
+            $this->recordFailure($tally, $organization, 'no Customer Update Agent in company ' . $organization->companies_id . '.');
 
             return;
         }
@@ -163,8 +163,12 @@ class DraftMonthlyCustomerUpdatesCommand extends Command
                 windowDays: $this->windowDays,
             )->execute();
         } catch (Throwable $e) {
-            $tally['failed']++;
-            $this->line($label . ' <fg=red>— drafting failed: ' . $e->getMessage() . '</>');
+            $this->recordFailure(
+                $tally,
+                $organization,
+                'drafting failed: ' . $e->getMessage(),
+                $e
+            );
 
             return;
         }
@@ -184,17 +188,59 @@ class DraftMonthlyCustomerUpdatesCommand extends Command
             return;
         }
 
-        $note = new RequestCustomerUpdateApprovalAction($result->draft, $agent->user, $recipients)->execute();
+        try {
+            $note = new RequestCustomerUpdateApprovalAction($result->draft, $agent->user, $recipients)->execute();
+        } catch (Throwable $e) {
+            $this->recordFailure(
+                $tally,
+                $organization,
+                'posting the approval card failed: ' . $e->getMessage(),
+                $e
+            );
+
+            return;
+        }
 
         if ($note === null) {
-            $tally['failed']++;
-            $this->line($label . ' <fg=red>— could not post to the account notes.</>');
+            $this->recordFailure($tally, $organization, 'could not post to the account notes.');
 
             return;
         }
 
         $tally['drafted']++;
         $this->line($label . ' <fg=green>— card #' . $note->getId() . '</> for ' . implode(', ', $recipients));
+    }
+
+    /**
+     * The console output is discarded on the cron, so without this the only trace of a failed account is
+     * the scheduler's bare "exit code 1" (KANVAS-ECOSYSTEM-6D7).
+     *
+     * @param array<string, int> $tally
+     */
+    private function recordFailure(
+        array &$tally,
+        Organization $organization,
+        string $reason,
+        ?Throwable $exception = null
+    ): void {
+        $tally['failed']++;
+        $this->line($this->label($organization) . ' <fg=red>— ' . $reason . '</>');
+
+        Log::error('Monthly customer update failed for an account', [
+            'apps_id' => $organization->apps_id,
+            'companies_id' => $organization->companies_id,
+            'organization_id' => $organization->getId(),
+            'reason' => $reason,
+        ]);
+
+        if ($exception !== null) {
+            report($exception);
+        }
+    }
+
+    private function label(Organization $organization): string
+    {
+        return '  ' . $organization->name . ' (' . $organization->getId() . ')';
     }
 
     /**

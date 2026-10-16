@@ -17,13 +17,9 @@ class SimilarVehiclesTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'find_similar_vehicles',
-            description: 'Find similar vehicles in inventory based on the lead\'s vehicle of interest (make and model).',
-        );
-    }
+    protected string $name = 'find_similar_vehicles';
+
+    protected ?string $description = 'Find similar vehicles in inventory based on the lead\'s vehicle of interest (make and model).';
 
     #[Override]
     protected function properties(): array

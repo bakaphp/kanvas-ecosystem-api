@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\NervousSystem\Mutations;
 
 use App\GraphQL\Concerns\ResolvesActingContext;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\NervousSystem\Scheduling\Actions\CancelScheduledActionAction;
 use Kanvas\NervousSystem\Scheduling\Actions\PauseScheduledActionAction;
 use Kanvas\NervousSystem\Scheduling\Actions\ResumeScheduledActionAction;
@@ -33,12 +34,20 @@ class ScheduledActionMutation
     {
         $ctx = $this->actingContext();
 
-        /** @var ScheduledAction $action */
-        $action = ScheduledAction::getByIdFromCompanyApp(
-            (int) $request['id'],
-            $ctx->company,
-            $ctx->app
-        );
+        /** @var ScheduledAction|null $action */
+        $action = ScheduledAction::query()
+            ->where('id', (int) $request['id'])
+            ->notDeleted()
+            ->fromApp($ctx->app)
+            ->fromCompany($ctx->company)
+            ->fromUser($ctx->user)
+            ->first();
+
+        if ($action === null) {
+            throw new ModelNotFoundException(
+                sprintf('No scheduled action found with ID %s for the current user', $request['id'])
+            );
+        }
 
         return $action;
     }

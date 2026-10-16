@@ -12,6 +12,9 @@ Per-connector `CLAUDE.md` (load when working in that connector's tree):
 - [`TypeSafe/CLAUDE.md`](TypeSafe/CLAUDE.md) — TypeSafe Jev "System One": calibrated typed decisions (Noul/Choice/Score) standing in front of an LLM that stays as the fallback. The per-decision `OFF|SHADOW|LIVE` rollout switch, the jaggedness rules that decide what may and may not be asked (no math, no text, one judgement per question, adversarial inbound text), Noul-vs-Choice, and why the model id is pinned.
 - [`Twilio/CLAUDE.md`](Twilio/CLAUDE.md) — inbound SMS/MMS: the consent halt, the shared burst debounce and its
   config table, why nothing in the webhook replies, and the support-mode delayed turn.
+- [`SalesAssist/CLAUDE.md`](SalesAssist/CLAUDE.md) — dealer CRM lead notes (VinSolution, Elead, Reynolds, DealerSocket, DriveCentric): the two
+  note-writing activities and which messages each one handles, why a company sees no conversation notes (missing comment
+  rule, or the Message → Lead row-order bug), how to wire the comment rule without double notes, and the lookup query.
 - [`Yusen/CLAUDE.md`](Yusen/CLAUDE.md) — 3PL Item Balance XML → discrepancy report: the exact POST Yusen makes (multipart vs raw body), why the connector writes no stock (a per-source warehouse double-counts `Variants::setTotalQuantity()`), the lot-summing assumption and its `multi_record_items` tripwire, and the synthetic-fixture rule.
 
 ## Known duplication — flagged, not yet resolved
@@ -41,6 +44,30 @@ connector from an unrelated PR. Do it as its own change, with the Salesforce sui
 a third CRM connector lands and makes it three copies.
 
 ## Hard rules specific to this tree
+
+### An external-id lookup must use `withTrashed()` — dropping `notDeleted()` does nothing
+
+Models like `People` use `Baka\Traits\SoftDeletesTrait`, which registers a **global scope** that
+appends `is_deleted = 0` to every query. So an importer that resolves "legacy id X is this Kanvas
+row" cannot reach a row it previously imported flagged deleted:
+
+```php
+// WRONG — the global scope re-adds `is_deleted = 0`, the lookup returns null,
+// and the importer creates ANOTHER row. Once per run, forever.
+$existing = People::where('id', $peopleId)->fromApp($app)->fromCompany($company)->first();
+
+// CORRECT
+$existing = People::withTrashed()->where('id', $peopleId)->fromApp($app)->fromCompany($company)->first();
+```
+
+Removing an explicit `->notDeleted()` is **not** a fix, and a comment saying it is will outlive the
+person who wrote it. Real incident: the Intras importer reached 74 People rows for 24 soft-deleted
+participants in one agency, and the bug was invisible at the aggregate level because 718 live
+participants mapped 1:1. See `ParticipantDedupByLegacyIdTest`.
+
+The rule generalises: **if an importer can write a row in a soft-deleted state, every lookup that
+must find that row again needs `withTrashed()`** — otherwise the external-id map silently degrades
+into "create a duplicate".
 
 ### An inbound channel that answers must debounce — use the shared burst layer
 
@@ -129,6 +156,24 @@ New connectors put workflow activities in `src/Domains/Connectors/{ConnectorName
 ### `executeIntegration` requires `additionalParams`
 
 All calls to `$this->executeIntegration()` in workflow activities must include `additionalParams: $params`. Without it, the system cannot retry the activity with the correct parameters.
+
+### A handler must declare the company settings it writes, or disconnect leaves them live
+
+`removeIntegrationCompany` (the admin's disconnect) runs `RemoveIntegrationCompanyAction`, which
+instantiates the row's handler and calls `BaseIntegration::teardown()`. The default teardown deletes
+the keys returned by `companySettingKeys()` from the company — nothing else. Connector code reads
+credentials straight from `$company->get(...)` and never consults `integration_companies`, so an
+undeclared key means the tenant pressed disconnect and the integration kept working.
+
+- Declare **every** `$this->company->set()` key `setup()` can write, optional ones included; `del()` on
+  a missing key is a no-op. A key built at runtime (Shopify's per-region credential, VinSolution's
+  per-user key) is returned from the method, or handled in a `teardown()` override that calls
+  `parent::teardown()` first.
+- App-level settings (`$this->app->set()`) are shared by every company on the app and are
+  deliberately **not** torn down.
+- `tests/Connectors/HandlersDeclareSettingKeysTest.php` fails CI for a handler that writes
+  `$this->company->set(` without a `companySettingKeys()` override. Setups that write through a
+  Service (Shopify, Mercury, DealerSocket) are not caught by it — declare those by hand.
 
 ### Always seed the `integrations` row
 

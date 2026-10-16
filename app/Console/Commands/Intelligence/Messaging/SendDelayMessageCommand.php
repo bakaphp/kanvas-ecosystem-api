@@ -22,6 +22,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -106,7 +107,7 @@ class SendDelayMessageCommand extends Command
     protected function processMessage(Companies $company, Message $message, int $delayMinutes): void
     {
         try {
-            $lead = $message->entity();
+            $lead = $message->preferredEntity(Lead::class);
         } catch (Throwable $e) {
             report($e);
             $this->error('Message ID ' . $message->getId() . ' has an invalid Lead entity. Skipping.');
@@ -115,8 +116,12 @@ class SendDelayMessageCommand extends Command
             return;
         }
 
+        if ($lead instanceof People) {
+            $lead = $lead->leads()->isOpen()->first();
+        }
+
         if (! $lead instanceof Lead) {
-            $this->info('Message ID ' . $message->getId() . ' is not linked to a Lead entity. Skipping.');
+            $this->info('Message ID ' . $message->getId() . ' is not linked to an open Lead entity. Skipping.');
             $message->setUnlock();
 
             return;

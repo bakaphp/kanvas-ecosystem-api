@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Factories\AgentLlmConfigFactory;
+use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAIResponses;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Agents\Services\NeuronResponderProviderFallback;
 use NeuronAI\Router\RouterProvider;
@@ -17,6 +20,10 @@ use Tests\TestCase;
 
 final class NeuronResponderProviderFallbackTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'intelligence'];
+
     public function testItBuildsFallbacksFromActiveTenantLlmConfigs(): void
     {
         $app = app(Apps::class);
@@ -102,6 +109,11 @@ final class NeuronResponderProviderFallbackTest extends TestCase
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
 
+        AgentLlmConfig::query()
+            ->where('apps_id', $app->getId())
+            ->whereIn('companies_id', [0, $company->getId()])
+            ->update(['is_routing_enabled' => false]);
+
         AgentLlmConfigFactory::new()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
@@ -155,6 +167,6 @@ final class NeuronResponderProviderFallbackTest extends TestCase
 
         $provider = AgentProviderService::resolveConfig($agent, $config);
 
-        $this->assertInstanceOf(\NeuronAI\Providers\OpenAI\OpenAI::class, $provider);
+        $this->assertInstanceOf(KanvasOpenAIResponses::class, $provider);
     }
 }

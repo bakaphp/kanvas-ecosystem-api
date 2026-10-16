@@ -53,6 +53,7 @@ use Kanvas\Social\Messages\Models\UserMessageActivity;
 use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
 use Kanvas\Social\UsersLists\Observers\UsersListsObserver;
+use Kanvas\Souk\Shipping\Listeners\RequoteShippingListener;
 use Kanvas\Subscription\Subscriptions\Listeners\CompanySubscriptionWebhookListener;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\Subscription\Subscriptions\Observers\AppsStripeCustomerObserver;
@@ -81,12 +82,15 @@ class EventServiceProvider extends ServiceProvider
         ],
         'LaravelCart.Added' => [
             CartListener::class,
+            RequoteShippingListener::class,
         ],
         'LaravelCart.Updated' => [
             CartListener::class,
+            RequoteShippingListener::class,
         ],
         'LaravelCart.Removed' => [
             CartListener::class,
+            RequoteShippingListener::class,
         ],
         WebhookHandled::class => [
             CompanySubscriptionWebhookListener::class,
@@ -130,7 +134,7 @@ class EventServiceProvider extends ServiceProvider
         ProductsTypes::observe(ProductsTypesObserver::class);
         VariantsChannels::observe(VariantsChannelObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
-        People::observe(PeopleObserver::class);
+        #People::observe(PeopleObserver::class);
         AppsStripeCustomer::observe(AppsStripeCustomerObserver::class);
     }
 

@@ -32,20 +32,20 @@ class SendBatchMessageTool extends Tool
     use GuardsAdminForTool;
     use HasKanvasContext;
 
+    protected string $name = 'send_batch_message';
+
+    protected ?string $description = 'Send or schedule a batch SMS or email to specific leads by id — the confirmed send step. '
+        . 'Pass the eligible lead_ids from find_leads_by_traits (comma-separated) after the manager approved '
+        . 'the list and the message. Provide schedule_at (a future date-time) to schedule instead of sending '
+        . 'now. The tool re-verifies eligibility, so opted-out / do-not-contact / undeliverable / duplicate '
+        . 'leads are excluded even if passed. Do NOT call this from the initial request — the manager must '
+        . 'confirm recipients and message first. Admin-only.';
+
     private const int MAX_LEADS = 5000;
 
     public function __construct(
         private readonly BatchRecipientResolverService $resolver = new BatchRecipientResolverService(),
     ) {
-        parent::__construct(
-            name: 'send_batch_message',
-            description: 'Send or schedule a batch SMS or email to specific leads by id — the confirmed send step. '
-                . 'Pass the eligible lead_ids from find_leads_by_traits (comma-separated) after the manager approved '
-                . 'the list and the message. Provide schedule_at (a future date-time) to schedule instead of sending '
-                . 'now. The tool re-verifies eligibility, so opted-out / do-not-contact / undeliverable / duplicate '
-                . 'leads are excluded even if passed. Do NOT call this from the initial request — the manager must '
-                . 'confirm recipients and message first. Admin-only.',
-        );
     }
 
     /**

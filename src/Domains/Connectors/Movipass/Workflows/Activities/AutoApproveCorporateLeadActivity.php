@@ -9,10 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\CorporateApplications\Actions\ApproveCorporateApplicationAction;
 use Kanvas\Companies\CorporateApplications\Concerns\SendsApplicationEmail;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationApprovalModeEnum as ApprovalMode;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationEmailEnum as Email;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Connectors\Movipass\Actions\ValidateCorporateFieldsAction;
-use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -24,8 +24,6 @@ use Override;
 class AutoApproveCorporateLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     use SendsApplicationEmail;
-
-    public const string DEFAULT_TEMPLATE = 'corporate-needs-review';
 
     #[Override]
     public function execute(Model $lead, AppInterface $app, array $params = []): array
@@ -83,12 +81,7 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
             Field::VALIDATION_HINT->writeTo($lead, $validationHint);
         }
 
-        $this->sendApplicantEmail(
-            $app,
-            $lead,
-            'Recibimos tu solicitud',
-            ['lead' => $lead, 'contactName' => Field::contactName($lead)],
-        );
+        $this->sendApplicantEmail($app, $lead, ['lead' => $lead, 'contactName' => Field::contactName($lead)]);
 
         return [
             'lead' => $lead->getId(),
@@ -105,7 +98,6 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
         $this->sendApplicantEmail(
             $app,
             $lead,
-            'Tu solicitud está en revisión',
             ['lead' => $lead, 'reason' => $reason, 'contactName' => Field::contactName($lead)],
         );
 
@@ -125,16 +117,11 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
         ];
     }
 
-    private function sendApplicantEmail(
-        AppInterface $app,
-        Lead $lead,
-        string $subject,
-        array $data,
-    ): void {
+    private function sendApplicantEmail(AppInterface $app, Lead $lead, array $data): void
+    {
         $this->sendApplicationEmail(
             $app,
-            (string) ($app->get(ConfigurationEnum::CORPORATE_NEEDS_REVIEW_TEMPLATE->value) ?: self::DEFAULT_TEMPLATE),
-            $subject,
+            Email::NEEDS_REVIEW,
             $data,
             (string) $lead->email,
             $lead,

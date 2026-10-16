@@ -29,4 +29,10 @@ class ELeadHandler extends BaseIntegration
 
         return ! empty($response['access_token']);
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [CustomFieldEnum::COMPANY->value];
+    }
 }

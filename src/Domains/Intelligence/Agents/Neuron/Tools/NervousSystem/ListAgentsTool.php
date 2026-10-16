@@ -16,7 +16,6 @@ use Kanvas\NervousSystem\Capability\Models\Tool as CapabilityTool;
 use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Models\ProjectMember;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -35,11 +34,22 @@ use Override;
  * now the way to obtain.
  */
 #[AgentTool(name: 'List Agents', category: 'nervous_system')]
-class ListAgentsTool extends Tool implements HasRunKey
+class ListAgentsTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use TrackByInputs;
+
+    protected string $name = 'list_agents';
+
+    protected ?string $description = 'List the teammate agents this company ALREADY has — their agent_id, what each one '
+        . 'is for, the tools it holds and whether it can execute board work. Admin only. Call this BEFORE '
+        . 'hire_agent: staffing an agent that already exists is wasted headcount and splits the same '
+        . 'job across two teammates that then drift. It is also how you get the agent_id that '
+        . 'grant_agent_tools, schedule_agent_task and the assign tools need. Filter with capability '
+        . 'to find who can already do a thing ("send email", "pull request"), or with search by name. '
+        . 'An agent listed with can_execute_board_work false runs elsewhere and cannot own a plan or '
+        . 'move a task — do not assign board work to it.';
 
     private const int DEFAULT_LIMIT = 25;
 
@@ -53,17 +63,6 @@ class ListAgentsTool extends Tool implements HasRunKey
     public function __construct(
         private readonly ?Agent $callingAgent = null,
     ) {
-        parent::__construct(
-            name: 'list_agents',
-            description: 'List the teammate agents this company ALREADY has — their agent_id, what each one '
-                . 'is for, the tools it holds and whether it can execute board work. Admin only. Call this BEFORE '
-                . 'hire_agent: staffing an agent that already exists is wasted headcount and splits the same '
-                . 'job across two teammates that then drift. It is also how you get the agent_id that '
-                . 'grant_agent_tools, schedule_agent_task and the assign tools need. Filter with capability '
-                . 'to find who can already do a thing ("send email", "pull request"), or with search by name. '
-                . 'An agent listed with can_execute_board_work false runs elsewhere and cannot own a plan or '
-                . 'move a task — do not assign board work to it.',
-        );
     }
 
     /**

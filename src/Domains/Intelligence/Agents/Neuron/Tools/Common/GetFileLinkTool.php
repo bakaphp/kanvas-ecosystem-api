@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Common;
 
 use Baka\Support\Str;
-use Illuminate\Support\Arr;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\NormalizesIdListParam;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -28,27 +27,24 @@ use Override;
  * a model assembling one from the id produces a plausible dead link.
  */
 #[AgentTool(name: 'Get File Link', category: 'ecosystem')]
-class GetFileLinkTool extends Tool implements HasRunKey
+class GetFileLinkTool extends Tool
 {
     use HasKanvasContext;
+    use NormalizesIdListParam;
 
     // A summary that links six documents may ask for them one at a time, and the default per-name
     // budget would abort the turn partway through the list.
     use TrackByInputs;
 
-    private const int MAX_IDS = 25;
+    protected string $name = 'get_file_link';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_file_link',
-            description: 'Get an openable link for a file stored in Kanvas, by filesystem_id. Use it whenever '
-                . 'you tell a person about a document — a brief, a deck, a report you attached — so they get a '
-                . 'link instead of an id. Pass every id you are about to mention in one call. Ids this company '
-                . 'does not own come back under `unavailable`: say that the file could not be linked, and never '
-                . 'write a URL this tool did not return.',
-        );
-    }
+    protected ?string $description = 'Get an openable link for a file stored in Kanvas, by filesystem_id. Use it whenever '
+        . 'you tell a person about a document — a brief, a deck, a report you attached — so they get a '
+        . 'link instead of an id. Pass every id you are about to mention in one call. Ids this company '
+        . 'does not own come back under `unavailable`: say that the file could not be linked, and never '
+        . 'write a URL this tool did not return.';
+
+    private const int MAX_IDS = 25;
 
     #[Override]
     protected function properties(): array
@@ -70,10 +66,6 @@ class GetFileLinkTool extends Tool implements HasRunKey
     }
 
     /**
-     * The union type is not defensiveness: asked for one document, models pass the bare id rather
-     * than a one-element list, and a typed `array` parameter turns that into a TypeError the model
-     * never sees an explanation for.
-     *
      * @return array<string, mixed>
      */
     public function __invoke(array|int|string|null $filesystem_ids = null): array
@@ -175,23 +167,5 @@ class GetFileLinkTool extends Tool implements HasRunKey
         return $unavailable === []
             ? $note
             : $note . sprintf(' %d file(s) could not be linked — say so instead of guessing a URL.', count($unavailable));
-    }
-
-    /**
-     * @return list<int>
-     */
-    private function normalizeIds(array|int|string|null $ids): array
-    {
-        $normalized = [];
-
-        foreach (Arr::wrap($ids) as $id) {
-            $id = (int) $id;
-
-            if ($id > 0 && ! in_array($id, $normalized, true)) {
-                $normalized[] = $id;
-            }
-        }
-
-        return $normalized;
     }
 }

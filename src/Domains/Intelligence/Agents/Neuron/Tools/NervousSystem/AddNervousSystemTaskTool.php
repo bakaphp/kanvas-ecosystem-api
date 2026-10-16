@@ -7,11 +7,11 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\NervousSystem\Plan\Actions\AddTaskAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,20 +24,17 @@ use Override;
  * first-class task like any other.
  */
 #[AgentTool(name: 'Add Task', category: 'nervous_system')]
-class AddNervousSystemTaskTool extends Tool implements HasRunKey
+class AddNervousSystemTaskTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
     use ResolvesPlanForTool;
+    use ResolvesTaskForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'add_nervous_system_task',
-            description: 'Add a task to a Nervous System plan. Use this to break work down into concrete, '
-                . 'assignable steps under a plan.',
-        );
-    }
+    protected string $name = 'add_nervous_system_task';
+
+    protected ?string $description = 'Add a task to a Nervous System plan. Use this to break work down into concrete, '
+        . 'assignable steps under a plan.';
 
     /**
      * @return array<int, ToolProperty>
@@ -75,6 +72,14 @@ class AddNervousSystemTaskTool extends Tool implements HasRunKey
                     . 'default makes every task wait for the one before it.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'parent_task_id',
+                type: PropertyType::INTEGER,
+                description: 'The task on this plan that this one is a sub-step of, when you are splitting '
+                    . 'work you own. The parent waits for it: when this task finishes, the parent is resumed '
+                    . 'with the result instead of being left for someone to notice. Omit for a top-level task.',
+                required: false,
+            ),
         ];
     }
 
@@ -86,6 +91,7 @@ class AddNervousSystemTaskTool extends Tool implements HasRunKey
         string $title,
         ?string $description = null,
         ?int $sequence = null,
+        ?int $parent_task_id = null,
     ): array {
         $plan = $this->resolvePlanOrError(
             $plan_id,
@@ -94,6 +100,27 @@ class AddNervousSystemTaskTool extends Tool implements HasRunKey
 
         if (is_array($plan)) {
             return $plan;
+        }
+
+        $parent = null;
+
+        if ($parent_task_id !== null) {
+            $parent = $this->resolveTaskOrError(
+                $parent_task_id,
+                "Task {$parent_task_id} was not found on this company. Use a task_id from the plan context.",
+            );
+
+            if (is_array($parent)) {
+                return $parent;
+            }
+
+            if ($parent->plan_id !== $plan->getId()) {
+                return ['error' => "Task {$parent_task_id} belongs to another plan; a sub-task goes on its parent's plan."];
+            }
+
+            if ($parent->isTerminal()) {
+                return ['error' => "Task {$parent_task_id} is already {$parent->status}; reopen it before adding sub-tasks under it."];
+            }
         }
 
         // Idempotency: don't re-add a task that already exists in this plan on a repeated wake.
@@ -117,11 +144,13 @@ class AddNervousSystemTaskTool extends Tool implements HasRunKey
 
         $task = new AddTaskAction(
             $plan,
-            TaskData::fromMultiple($plan, [
-                'title' => $title,
-                'description' => $description,
-                'sequence' => $sequence,
-            ]),
+            new TaskData(
+                plan: $plan,
+                title: $title,
+                sequence: $sequence ?? 0,
+                description: $description,
+                parentTask: $parent,
+            ),
         )->execute();
 
         $plan->project?->recomputeCompletionPct();
@@ -131,6 +160,7 @@ class AddNervousSystemTaskTool extends Tool implements HasRunKey
             'plan_id' => $plan->getId(),
             'title' => $task->title,
             'status' => $task->status,
+            'parent_task_id' => $task->parent_task_id,
         ];
     }
 }

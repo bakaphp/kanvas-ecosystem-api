@@ -12,11 +12,12 @@ use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
-use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
+use Kanvas\Intelligence\Agents\Neuron\Stores\ChannelMessageStore;
 use Kanvas\Intelligence\Notifications\AgentRepliedToMentionNotification;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\NervousSystem\Ledger\Models\Event;
@@ -33,6 +34,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\Enums\SourceType;
+use NeuronAI\Chat\History\ChatHistory;
 use NeuronAI\Chat\Messages\ContentBlocks\AudioContent;
 use NeuronAI\Chat\Messages\ContentBlocks\FileContent;
 use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
@@ -142,7 +144,7 @@ class RespondToMentionJobTest extends TestCase
 
     public function testChannelHistoryDropsLeadingAgentTurnsInsteadOfThrowing(): void
     {
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('InventoryBot');
 
         // A channel the agent opened: the first turn on record is the agent's, not a human's.
@@ -152,7 +154,7 @@ class RespondToMentionJobTest extends TestCase
         $channel->addMessage($this->makeMessage($agentUser, 'Heads up: 3 SKUs are low', fromIa: true), $agentUser);
         $channel->addMessage($this->makeMessage($human, 'thanks, which ones?'), $human);
 
-        $turns = new ChannelMessageHistory($channel)->getMessages();
+        $turns = KanvasHistoryTrimmer::fold(new ChannelMessageStore($channel)->loadActive('thread'));
 
         $this->assertNotEmpty($turns);
         $this->assertSame(MessageRole::USER->value, $turns[0]->getRole());
@@ -165,7 +167,7 @@ class RespondToMentionJobTest extends TestCase
 
     public function testAgentUserMentionGetsAChildReply(): void
     {
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
 
         $agentUser = $this->makeAgentUser('InventoryBot');
         $agent = $this->makeAgent($agentUser);
@@ -192,7 +194,7 @@ class RespondToMentionJobTest extends TestCase
      */
     public function testTheReplyIsSkippedWhenTheAgentAlreadyPostedDuringTheTurn(): void
     {
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('InventoryBot');
         $agent = $this->makeAgent($agentUser);
 
@@ -238,9 +240,9 @@ class RespondToMentionJobTest extends TestCase
 
     public function testUsesTheChannelEntityAsContextWhenTheMentionHasNoEntity(): void
     {
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $app = app(Apps::class);
-        $company = $human->getCurrentCompany();
+        $company = auth()->user()->getCurrentCompany();
 
         $agentUser = $this->makeAgentUser('InventoryBot');
         $agent = $this->makeAgent($agentUser);
@@ -275,8 +277,8 @@ class RespondToMentionJobTest extends TestCase
         CapturingSystemUserAgentStub::$lastConversationHuman = null;
 
         $app = app(Apps::class);
-        $human = auth()->user();
-        $company = $human->getCurrentCompany();
+        $human = $this->registerFreshUser();
+        $company = auth()->user()->getCurrentCompany();
 
         $agentUser = $this->makeAgentUser('ReminderBot');
         $agent = $this->makeCapturingAgent($agentUser);
@@ -305,9 +307,9 @@ class RespondToMentionJobTest extends TestCase
 
     public function testTheReplyIsRecordedInTheLedgerForCrossEntityMemory(): void
     {
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $app = app(Apps::class);
-        $company = $human->getCurrentCompany();
+        $company = auth()->user()->getCurrentCompany();
 
         $agentUser = $this->makeAgentUser('InventoryBot');
         $agent = $this->makeAgent($agentUser);
@@ -347,7 +349,7 @@ class RespondToMentionJobTest extends TestCase
         $channel->addMessage($this->makeMessage($bob, 'hi this is bob'), $bob);
 
         $text = '';
-        foreach (new ChannelMessageHistory($channel)->getMessages() as $turn) {
+        foreach (KanvasHistoryTrimmer::fold(new ChannelMessageStore($channel)->loadActive('thread')) as $turn) {
             $text .= (is_string($turn->getContent()) ? $turn->getContent() : '') . "\n";
         }
 
@@ -357,7 +359,7 @@ class RespondToMentionJobTest extends TestCase
 
     public function testReplyStaysOneLevelDeepWhenMentionedInsideAChild(): void
     {
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
 
         $agentUser = $this->makeAgentUser('InventoryBot');
         $agent = $this->makeAgent($agentUser);
@@ -406,7 +408,7 @@ class RespondToMentionJobTest extends TestCase
     {
         Bus::fake([RespondToMentionJob::class]);
 
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('InventoryBot');
         $this->makeAgent($agentUser);
         $message = $this->makeMessage($human, 'plain note');
@@ -436,13 +438,11 @@ class RespondToMentionJobTest extends TestCase
 
     public function testAFileAttachedToTheMentionIsForwardedToTheAgentAsAContentBlock(): void
     {
-        // Regression: the @mention job used to hardcode media: [] into RunNeuronChatAction, so a PDF a
-        // user attached to the comment never reached the model — the agent replied "I can't read the
-        // file." The job must now collect the message's files and hand them over as native content
-        // blocks (RunNeuronChatAction sniffs the bytes → FileContent for a PDF).
+        // A PDF attached to the comment has to reach the model as a native content block
+        // (RunNeuronChatAction sniffs the bytes → FileContent), or the agent answers "I can't read the file."
         CapturingNeuronProvider::$lastMessages = [];
 
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('ContractBot');
         $agent = $this->makeCapturingAgent($agentUser);
 
@@ -479,7 +479,7 @@ class RespondToMentionJobTest extends TestCase
         // its text (NeuronAI wraps it as a TextContent block), but no media block is ever attached.
         CapturingNeuronProvider::$lastMessages = [];
 
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('ContractBot');
         $agent = $this->makeCapturingAgent($agentUser);
 
@@ -512,7 +512,7 @@ class RespondToMentionJobTest extends TestCase
         CapturingNeuronProvider::$lastMessages = [];
 
         $app = app(Apps::class);
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
 
         // Unique, space-free handle so the parser's regex matches and the shared test DB can't collide.
         $agentUser = $this->makeAgentUser('ContractBot');
@@ -554,16 +554,21 @@ class RespondToMentionJobTest extends TestCase
 
     public function testChannelHistoryPreservesAPdfBlockWhenTheMentionCoalescesIntoThePriorTurn(): void
     {
-        // Regression: ChannelMessageHistory coalesces consecutive same-role turns via setContents(),
+        // Regression: KanvasHistoryTrimmer folds consecutive same-role turns via setContents(),
         // which resets the block list to text only. A PDF on the incoming @mention (a user turn folding
         // into the prior user turn) was silently dropped before reaching the model — so a capable model
         // that CAN read the PDF still answered "I can't see the file". The media block must survive.
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $channel = $this->makeChannel($human);
         // A prior human turn so the incoming mention (same USER role) coalesces into it.
         $channel->addMessage($this->makeMessage($human, 'here is some background on the deal'), $human);
 
-        $history = new ChannelMessageHistory($channel);
+        $history = new ChatHistory(
+            new ChannelMessageStore($channel),
+            'thread',
+            50_000,
+            KanvasHistoryTrimmer::make(),
+        );
 
         $mention = new UserMessage('please review the attached contract');
         $mention->addContent(
@@ -596,7 +601,7 @@ class RespondToMentionJobTest extends TestCase
         // message. When the mention has no file yet, the reply must be delayed so the upload can settle.
         Bus::fake([RespondToMentionJob::class]);
 
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('DelayBot');
         $this->makeAgent($agentUser);
 
@@ -619,7 +624,7 @@ class RespondToMentionJobTest extends TestCase
         // A mention that already carries its file (or a plain text mention) must not eat the delay.
         Bus::fake([RespondToMentionJob::class]);
 
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('DelayBot');
         $agent = $this->makeAgent($agentUser);
 
@@ -647,7 +652,7 @@ class RespondToMentionJobTest extends TestCase
     {
         CapturingNeuronProvider::$lastMessages = [];
 
-        $human = auth()->user();
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('BookkeeperBot');
         $agent = $this->makeCapturingAgent($agentUser);
 

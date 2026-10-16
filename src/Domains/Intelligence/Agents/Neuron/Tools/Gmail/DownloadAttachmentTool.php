@@ -19,16 +19,12 @@ class DownloadAttachmentTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'download_attachment',
-            description: 'Downloads one attachment from an email (identified by message_id + attachment_id from '
-                . 'read_email_details) and saves it as a Kanvas Filesystem entry, returning its filesystem_id and '
-                . 'url — the same way any other uploaded document is referenced in Kanvas. Use for pulling an '
-                . 'invoice PDF out of an email so it can be processed.',
-        );
-    }
+    protected string $name = 'download_attachment';
+
+    protected ?string $description = 'Downloads one attachment from an email (identified by message_id + attachment_id from '
+        . 'read_email_details) and saves it as a Kanvas Filesystem entry, returning its filesystem_id and '
+        . 'url — the same way any other uploaded document is referenced in Kanvas. Use for pulling an '
+        . 'invoice PDF out of an email so it can be processed.';
 
     /**
      * @return array<int, ToolProperty>

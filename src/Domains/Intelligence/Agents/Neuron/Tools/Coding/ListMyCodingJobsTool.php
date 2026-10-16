@@ -19,17 +19,17 @@ use Override;
 #[AgentTool(name: 'List My Coding Jobs', category: 'coding')]
 class ListMyCodingJobsTool extends Tool
 {
+    protected string $name = 'list_my_coding_jobs';
+
+    protected ?string $description = 'List the coding jobs you have dispatched, newest first, with their status and '
+        . 'pull-request URL. Use this when you need a job_id you no longer have, or to answer '
+        . '"what are you working on / how are the jobs going" without a specific id.';
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Agent $agent,
     ) {
-        parent::__construct(
-            name: 'list_my_coding_jobs',
-            description: 'List the coding jobs you have dispatched, newest first, with their status and '
-                . 'pull-request URL. Use this when you need a job_id you no longer have, or to answer '
-                . '"what are you working on / how are the jobs going" without a specific id.',
-        );
     }
 
     /**

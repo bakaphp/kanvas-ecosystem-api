@@ -10,8 +10,8 @@ use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\LinksRecordsToAdmin;
 use NeuronAI\Tools\ArrayProperty;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -26,22 +26,19 @@ use Throwable;
  * instead of making a duplicate. Company-wide write — an internal-teammate capability.
  */
 #[AgentTool(name: 'Create Person', category: 'crm')]
-class CreatePersonTool extends Tool implements HasRunKey
+class CreatePersonTool extends Tool
 {
     use DecodesJsonObjectParam;
     use HasKanvasContext;
+    use LinksRecordsToAdmin;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_person',
-            description: 'Create a new contact (person) in the CRM without creating a lead. Provide at least a '
-                . 'firstname; add email, phone, title, organization name, tags and custom fields as known. If a '
-                . 'contact with the same email/phone already exists it is updated, not duplicated. Returns the '
-                . 'person_id. Use create_lead instead when the person should also become a sales lead.',
-        );
-    }
+    protected string $name = 'create_person';
+
+    protected ?string $description = 'Create a new contact (person) in the CRM without creating a lead. Provide at least a '
+        . 'firstname; add email, phone, title, organization name, tags and custom fields as known. If a '
+        . 'contact with the same email/phone already exists it is updated, not duplicated. Returns the '
+        . 'person_id. Use create_lead instead when the person should also become a sales lead.';
 
     /**
      * @return array<int, ToolPropertyInterface>
@@ -132,6 +129,7 @@ class CreatePersonTool extends Tool implements HasRunKey
 
         return [
             'person_id' => $person->getId(),
+            'admin_url' => $this->adminUrlOf($person),
             'name' => $person->getName(),
             'email' => $person->getEmails()->first()?->value,
             'message' => 'Contact created.',

@@ -547,7 +547,7 @@ class ProjectPmToolsTest extends TestCase
         $agent = $this->makeAgent($app, $company, $user);
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $user);
+        $pm->setConfiguration($agent, user: $user);
 
         $method = new ReflectionMethod($pm, 'tools');
         /** @var array<int, object> $tools */
@@ -585,7 +585,7 @@ class ProjectPmToolsTest extends TestCase
         $agent = $this->makeAgent($app, $company, $user);
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $user);
+        $pm->setConfiguration($agent, user: $user);
 
         $names = array_map(
             fn (object $tool): string => (string) $tool->getName(),
@@ -596,8 +596,9 @@ class ProjectPmToolsTest extends TestCase
     }
 
     /**
-     * A PM that can only hand work to teammates who already exist, through automation somebody else
-     * already wired, cannot finish a job end to end — it stops at the edge of what is already set up.
+     * A PM that can only hand work to teammates who already exist cannot finish a job end to end, so it
+     * hires and briefs them itself and reads the automation that exists. Wiring new automation
+     * (workflows, receivers, message types) is administration it asks for, not a tool it carries.
      */
     public function testProjectManagerAgentCanStaffAndAutomateTheWork(): void
     {
@@ -605,7 +606,7 @@ class ProjectPmToolsTest extends TestCase
         $agent = $this->makeAgent($app, $company, $user);
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $user);
+        $pm->setConfiguration($agent, user: $user);
 
         $names = array_map(
             fn (object $tool): string => (string) $tool->getName(),
@@ -617,14 +618,9 @@ class ProjectPmToolsTest extends TestCase
             'update_agent_instructions',
             'list_workflow_options',
             'list_company_workflows',
-            'create_company_workflow',
-            'update_company_workflow',
-            'create_company_receiver',
             'create_email_route',
             'read_channel_window',
             'get_transcription',
-            'list_message_types',
-            'create_message_type',
             // Lost once already: ProjectManagerAgent overrides SystemUserAgent::tools() without
             // calling parent, which drops these silently — a shorter list, no error.
             'schedule_reminder',
@@ -633,6 +629,12 @@ class ProjectPmToolsTest extends TestCase
             'cancel_scheduled_action',
         ] as $expected) {
             $this->assertContains($expected, $names, $expected . ' is missing from the PM toolset.');
+        }
+
+        // Platform administration a PM reaches for once in fifty turns: in the prompt it gets picked up
+        // on greetings and costs a round each time.
+        foreach (['create_company_workflow', 'update_company_workflow', 'create_company_receiver', 'list_message_types', 'create_message_type'] as $removed) {
+            $this->assertNotContains($removed, $names, $removed . ' is platform administration, not PM work.');
         }
     }
 
@@ -697,7 +699,7 @@ class ProjectPmToolsTest extends TestCase
         $agent = $this->makeAgent($app, $company, $agentUser);
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $agentUser);
+        $pm->setConfiguration($agent, user: $agentUser);
 
         $this->assertSame(
             $agentUser->getId(),
@@ -738,7 +740,7 @@ class ProjectPmToolsTest extends TestCase
         )->execute();
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $user);
+        $pm->setConfiguration($agent, user: $user);
 
         $instructions = $pm->instructions();
 
@@ -757,7 +759,7 @@ class ProjectPmToolsTest extends TestCase
         $second = $this->projectFor($agent, $app, $company, $user, 'Second board');
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, $second, null, $user);
+        $pm->setConfiguration($agent, $second, $user);
 
         $instructions = $pm->instructions();
 
@@ -774,7 +776,7 @@ class ProjectPmToolsTest extends TestCase
         $second = $this->projectFor($agent, $app, $company, $user, 'Ambiguous board B');
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $user);
+        $pm->setConfiguration($agent, user: $user);
 
         $instructions = $pm->instructions();
 
@@ -829,7 +831,7 @@ class ProjectPmToolsTest extends TestCase
         $agent = $this->makeAgent($app, $company, $user);
 
         $pm = new ProjectManagerAgent();
-        $pm->setConfiguration($agent, null, null, $user);
+        $pm->setConfiguration($agent, user: $user);
 
         $instructions = $pm->instructions();
 
@@ -848,6 +850,24 @@ class ProjectPmToolsTest extends TestCase
 
         $this->assertSame('done', $result['status']);
         $this->assertSame('done', Plan::query()->where('id', $plan->id)->value('status'));
+    }
+
+    /**
+     * Sentry KANVAS-ECOSYSTEM-6MC: `on_hold` is a project status the model carried over to a plan,
+     * and the enum's ValueError killed the whole chat turn instead of being a correctable tool error.
+     */
+    public function testUpdatePlanToolRejectsAnUnknownStatusWithoutEndingTheTurn(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        $tool = new UpdateNervousSystemPlanTool()->withContext($app, $company, $user);
+        $result = $tool((int) $plan->id, status: 'on_hold');
+
+        $this->assertStringContainsString("Invalid plan status 'on_hold'", $result['error']);
+        $this->assertStringContainsString('awaiting_approval', $result['error']);
+        $this->assertSame($plan->status, Plan::query()->where('id', $plan->id)->value('status'));
     }
 
     public function testDeletePlanToolRemovesPlanAndCascades(): void

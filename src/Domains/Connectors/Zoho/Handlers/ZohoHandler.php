@@ -31,4 +31,14 @@ class ZohoHandler extends BaseIntegration
 
         return $zohoClient->leads->getList(['page' => 1, 'per_page' => 1])->pagination()->count() >= 0;
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            CustomFieldEnum::CLIENT_ID->value,
+            CustomFieldEnum::CLIENT_SECRET->value,
+            CustomFieldEnum::REFRESH_TOKEN->value,
+        ];
+    }
 }

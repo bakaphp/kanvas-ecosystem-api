@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Tests\Connectors\Mcp;
 
 use Kanvas\Intelligence\Agents\Neuron\Tools\Mcp\CachedMcpConnector;
-use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\ToolOutput;
+use NeuronAI\Tools\TrackByInputs;
 use Tests\Stubs\Connectors\Mcp\FakeMcpServer;
 use Tests\TestCase;
 
@@ -62,8 +63,8 @@ final class CachedMcpConnectorTest extends TestCase
 
         // Refusing by return value, not by withdrawing the tool: Neuron cannot remove a tool mid-turn,
         // and a model that is told why answers with what it has instead of retrying.
-        $this->assertIsString($second);
-        $this->assertStringContainsString('budget exhausted', $second);
+        $this->assertInstanceOf(ToolOutput::class, $second);
+        $this->assertStringContainsString('budget exhausted', $second->getText());
         $this->assertSame(1, $connector->callCount(), 'The refused call must not reach the vendor.');
     }
 
@@ -73,7 +74,7 @@ final class CachedMcpConnectorTest extends TestCase
         $connector = new CachedMcpConnector(['transport' => FakeMcpServer::handshakeThenCalls([], 0)]);
         $tool = $connector->toolsFromDescriptors(FakeMcpServer::twoTools(), 'jira')[0];
 
-        $this->assertInstanceOf(HasRunKey::class, $tool);
+        $this->assertContains(TrackByInputs::class, class_uses_recursive($tool));
 
         $tool->setInputs(['jql' => 'project = A']);
         $first = $tool->getRunKey();

@@ -23,15 +23,11 @@ class ReadGoogleSheetTool extends Tool
     use ResolvesGoogleSheetsServiceForTool;
     use ResolvesSpreadsheetIdForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'read_google_sheet',
-            description: 'Reads rows/columns from a Google Sheet the user shared a link to (e.g. an invoice '
-                . 'list). Reads any sheet the Google account this agent is connected to can open; where the app '
-                . 'uses a shared service account instead, the sheet must be shared with that account as an Editor.',
-        );
-    }
+    protected string $name = 'read_google_sheet';
+
+    protected ?string $description = 'Reads rows/columns from a Google Sheet the user shared a link to (e.g. an invoice '
+        . 'list). Reads any sheet the Google account this agent is connected to can open; where the app '
+        . 'uses a shared service account instead, the sheet must be shared with that account as an Editor.';
 
     /**
      * @return array<int, ToolProperty>

@@ -68,4 +68,15 @@ class CalendlyHandler extends BaseIntegration
 
         return true;
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::CALENDLY_API_TOKEN->value,
+            ConfigurationEnum::CALENDLY_USER_URI->value,
+            ConfigurationEnum::CALENDLY_ORGANIZATION_URI->value,
+            ConfigurationEnum::CALENDLY_WEBHOOK_SUBSCRIPTION_URI->value,
+        ];
+    }
 }

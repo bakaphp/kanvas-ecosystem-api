@@ -9,7 +9,6 @@ use Kanvas\HumanResources\Employees\Services\EmployeeIdentityResolver;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,21 +21,17 @@ use Override;
  * balance, never anyone else's.
  */
 #[AgentTool(name: 'Get My Leave Balance', category: 'human_resources')]
-class GetMyLeaveBalanceTool extends Tool implements HasRunKey
+class GetMyLeaveBalanceTool extends Tool
 {
     use HandlesLeaveForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_my_leave_balance',
-            description: 'Returns YOUR own leave balances (available, pending, used and entitled days per leave type) '
-                . 'for a year. Use this to answer "how many vacation/sick/personal days do I have left?". It always '
-                . 'reads the balance of the person you are talking to — it takes no employee identifier.',
-        );
-    }
+    protected string $name = 'get_my_leave_balance';
+
+    protected ?string $description = 'Returns YOUR own leave balances (available, pending, used and entitled days per leave type) '
+        . 'for a year. Use this to answer "how many vacation/sick/personal days do I have left?". It always '
+        . 'reads the balance of the person you are talking to — it takes no employee identifier.';
 
     /**
      * @return array<int, ToolProperty>

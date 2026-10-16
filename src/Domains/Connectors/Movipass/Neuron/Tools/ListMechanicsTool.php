@@ -20,17 +20,13 @@ class ListMechanicsTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'movipass_list_mechanics',
-            description: 'The roadside-assistance mechanic/tow-truck roster for this company: name, contact, '
-                . 'availability, service type and roles. Use for "who is available right now", "how many mechanics '
-                . 'do we have", "list the tow drivers", or to resolve a mechanic NAME into the id that '
-                . 'movipass_mechanic_orders needs. Availability values are "activo" and "no_disponible"; a mechanic '
-                . 'with no availability set has never reported one and is returned as null.',
-        );
-    }
+    protected string $name = 'movipass_list_mechanics';
+
+    protected ?string $description = 'The roadside-assistance mechanic/tow-truck roster for this company: name, contact, '
+        . 'availability, service type and roles. Use for "who is available right now", "how many mechanics '
+        . 'do we have", "list the tow drivers", or to resolve a mechanic NAME into the id that '
+        . 'movipass_mechanic_orders needs. Availability values are "activo" and "no_disponible"; a mechanic '
+        . 'with no availability set has never reported one and is returned as null.';
 
     /**
      * @return array<int, ToolProperty>

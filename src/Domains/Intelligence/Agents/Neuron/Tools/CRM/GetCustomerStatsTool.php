@@ -23,16 +23,12 @@ class GetCustomerStatsTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_customer_stats',
-            description: 'Global CRM counts: how many customer organizations and how many people (contacts) are in '
-                . 'the database, plus the most recently added customers. Use for "how many customers do we have?", '
-                . '"how many contacts are in the system?", "show me the last 10 customers we added". This is the '
-                . 'aggregate/recent view — use find_customer or search_leads when you have a specific name to look up.',
-        );
-    }
+    protected string $name = 'get_customer_stats';
+
+    protected ?string $description = 'Global CRM counts: how many customer organizations and how many people (contacts) are in '
+        . 'the database, plus the most recently added customers. Use for "how many customers do we have?", '
+        . '"how many contacts are in the system?", "show me the last 10 customers we added". This is the '
+        . 'aggregate/recent view — use find_customer or search_leads when you have a specific name to look up.';
 
     /**
      * @return array<int, ToolProperty>

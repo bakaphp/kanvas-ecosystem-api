@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OfferLogix\DataTransferObject;
 
+use Baka\Support\Arr;
 use DateTime;
 use Kanvas\Guild\Customers\Models\People;
 use Spatie\LaravelData\Data;
@@ -43,14 +44,7 @@ class SoftPull extends Data
 
     public static function fromMessage(People $people, array $message): self
     {
-        foreach ($message['data'] as $item) {
-            // Convert label to variable name (replace space with underscore)
-            $key = str_replace(' ', '_', strtolower($item['label']));
-            // Assign value to the variable
-            $data[$key] = $item['value'];
-        }
-
-        return self::fromMultiple($people, $data);
+        return self::fromMultiple($people, Arr::fromLabelValuePairs($message['data']));
     }
 
     public function getName(): string

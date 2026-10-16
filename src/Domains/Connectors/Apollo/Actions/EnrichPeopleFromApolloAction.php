@@ -754,7 +754,7 @@ class EnrichPeopleFromApolloAction
 
     private function buildContacts(array $peopleData): array
     {
-        $linkedinId = ContactType::getByName('LinkedIn')->getId();
+        $linkedinId = ContactType::getByName(ContactType::LINKEDIN)->getId();
         $contacts = [
             $this->createContact($linkedinId, $peopleData['linkedin_url'] ?? null, 0),
             $this->createContact(ContactTypeEnum::EMAIL->value, $peopleData['email'] ?? null, 1),

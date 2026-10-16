@@ -56,4 +56,10 @@ class DriveCentricHandler extends BaseIntegration
             && ! empty($this->app->get(ConfigurationEnum::API_SECRET_KEY->value))
             && ! empty($this->company->get(ConfigurationEnum::STORE_ID->value));
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [ConfigurationEnum::STORE_ID->value];
+    }
 }

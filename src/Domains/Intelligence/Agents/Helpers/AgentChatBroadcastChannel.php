@@ -17,6 +17,8 @@ final class AgentChatBroadcastChannel
     public const string RESPONSE_EVENT = 'agent.chat.response';
     public const string FAILED_EVENT = 'agent.chat.failed';
 
+    public const string CANCELLED_EVENT = 'agent.chat.cancelled';
+
     /**
      * A session id can be an email-derived channel slug, so it carries characters Pusher rejects.
      * Sanitizing here rather than at the broadcast keeps publisher and subscriber in sync — the

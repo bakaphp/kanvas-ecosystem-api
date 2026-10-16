@@ -110,6 +110,12 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
     }
 
     #[Override]
+    public function costDefaultsPatch(string $currentConfig): string
+    {
+        throw $this->unsupported('cost defaults');
+    }
+
+    #[Override]
     public function dispatchBackup(AgentDeployment $deployment, AgentBackup $backup, bool $includeWorkspace): void
     {
         throw $this->unsupported('workspace backup');

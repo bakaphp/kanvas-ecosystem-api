@@ -6,6 +6,7 @@ namespace Kanvas\Companies\CorporateApplications\Enums;
 
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Companies\CorporateApplications\Concerns\HasLegacyCorporateKey;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -52,6 +53,7 @@ enum CorporateApplicationFieldEnum: string
     public const string RECEIVER_REQUIRED_KEY = 'application_required_fields';
     public const string RECEIVER_COMPANY_KEY = 'application_company_fields';
     public const string RECEIVER_USER_KEY = 'application_user_fields';
+    public const string RECEIVER_INVITE_ROLE_KEY = 'application_invite_role';
 
     private const array LEAD_COLUMN_FALLBACK = [
         'contact_email' => 'email',
@@ -82,6 +84,16 @@ enum CorporateApplicationFieldEnum: string
     public static function userFieldsFor(?LeadReceiver $receiver): array
     {
         return self::receiverList($receiver, self::RECEIVER_USER_KEY, self::USER_PROFILE_FIELDS);
+    }
+
+    public static function inviteRoleFor(?LeadReceiver $receiver): string
+    {
+        return self::receiverString($receiver, self::RECEIVER_INVITE_ROLE_KEY) ?? RolesEnums::ADMIN->value;
+    }
+
+    public static function receiverString(?LeadReceiver $receiver, string $key): ?string
+    {
+        return Str::trimToNull((string) $receiver?->get($key));
     }
 
     public static function readApplication(Lead $application, string $key): mixed

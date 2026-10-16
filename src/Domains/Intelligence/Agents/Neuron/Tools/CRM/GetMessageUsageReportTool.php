@@ -34,18 +34,14 @@ class GetMessageUsageReportTool extends Tool
     use HasKanvasContext;
     use ResolvesAnalyticsTimeframe;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_message_usage_report',
-            description: 'Engage usage reporting for outbound/inbound customer messaging. Returns totals and '
-                . 'breakdowns of SMS and email over a timeframe: total outbound, total inbound, messages sent by '
-                . 'human team members vs by the AI agent, a per-channel split, a per-salesperson split, and a daily '
-                . 'trend. Use for "how many texts did we send last week?", "how many messages did the AI send vs the '
-                . 'reps?", "who sent the most emails this month?", "how many messages came in yesterday?". This is '
-                . 'reporting only — it never sends anything.',
-        );
-    }
+    protected string $name = 'get_message_usage_report';
+
+    protected ?string $description = 'Engage usage reporting for outbound/inbound customer messaging. Returns totals and '
+        . 'breakdowns of SMS and email over a timeframe: total outbound, total inbound, messages sent by '
+        . 'human team members vs by the AI agent, a per-channel split, a per-salesperson split, and a daily '
+        . 'trend. Use for "how many texts did we send last week?", "how many messages did the AI send vs the '
+        . 'reps?", "who sent the most emails this month?", "how many messages came in yesterday?". This is '
+        . 'reporting only — it never sends anything.';
 
     /**
      * @return array<int, ToolProperty>

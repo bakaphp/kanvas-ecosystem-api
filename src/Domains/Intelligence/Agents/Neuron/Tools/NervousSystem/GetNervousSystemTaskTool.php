@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\NervousSystem\Plan\Support\MentionHandle;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -17,7 +17,7 @@ use Override;
 
 /** Read one task — including which plan and project it belongs to. */
 #[AgentTool(name: 'Get Task', category: 'nervous_system')]
-class GetNervousSystemTaskTool extends Tool implements HasRunKey
+class GetNervousSystemTaskTool extends Tool implements RequiresSystemAgent
 {
     use HasKanvasContext;
     use ResolvesTaskForTool;
@@ -26,16 +26,12 @@ class GetNervousSystemTaskTool extends Tool implements HasRunKey
     // default per-name budget of 10 would abort the turn partway through a longer board.
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_nervous_system_task',
-            description: 'Read a task by id: its title, status, blocker, result, who it is assigned to, '
-                . 'and the plan and project it belongs to. Use it whenever someone names a task id you '
-                . 'do not already have in front of you — it answers "which plan/project is this on?" '
-                . 'without asking anyone.',
-        );
-    }
+    protected string $name = 'get_nervous_system_task';
+
+    protected ?string $description = 'Read a task by id: its title, status, blocker, result, who it is assigned to, '
+        . 'and the plan and project it belongs to. Use it whenever someone names a task id you '
+        . 'do not already have in front of you — it answers "which plan/project is this on?" '
+        . 'without asking anyone.';
 
     /**
      * @return array<int, ToolProperty>
@@ -74,6 +70,13 @@ class GetNervousSystemTaskTool extends Tool implements HasRunKey
             'status' => $task->status,
             'sequence' => $task->sequence,
             'blocked_reason' => $task->blocked_reason,
+            'wake_at' => $task->wake_at?->toIso8601String(),
+            'waiting_on' => $task->waiting_on_users_id !== null ? [
+                'user_id' => $task->waiting_on_users_id,
+                'email' => $task->waitingOn?->email,
+                'channel_id' => $task->waiting_on_channel_id,
+            ] : null,
+            'parent_task_id' => $task->parent_task_id,
             'result' => $task->result,
             'assigned_agent_id' => $task->agent_id,
             'assigned_agent_name' => $task->agent?->name,

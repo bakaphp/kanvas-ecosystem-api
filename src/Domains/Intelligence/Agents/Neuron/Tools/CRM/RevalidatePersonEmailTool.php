@@ -24,15 +24,11 @@ class RevalidatePersonEmailTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'revalidate_person_email',
-            description: 'Re-check whether a person\'s email address(es) are deliverable and refresh their validation '
-                . 'status (valid / soft_bounce / hard_bounce / invalid). Use after "is this email still good?" or to '
-                . 're-verify a contact flagged by list_bounces. Identify the person by person_id.',
-        );
-    }
+    protected string $name = 'revalidate_person_email';
+
+    protected ?string $description = 'Re-check whether a person\'s email address(es) are deliverable and refresh their validation '
+        . 'status (valid / soft_bounce / hard_bounce / invalid). Use after "is this email still good?" or to '
+        . 're-verify a contact flagged by list_bounces. Identify the person by person_id.';
 
     /**
      * @return array<int, ToolProperty>

@@ -123,11 +123,14 @@ class OrganizationsEventActivityTest extends TestCase
         $themeArea = ThemeArea::fromCompany($company)->fromApp($app)->first();
 
         foreach ($peoples as $people) {
-            $participant = Participant::create([
+            // One participant per person, as the importer keeps it: a person attending a second
+            // version reuses theirs rather than colliding on the participant slug.
+            $participant = Participant::firstOrCreate([
                 'apps_id' => $app->getId(),
                 'companies_id' => $company->getId(),
-                'users_id' => $user->getId(),
                 'people_id' => $people->getId(),
+            ], [
+                'users_id' => $user->getId(),
                 'theme_area_id' => $themeArea->getId(),
             ]);
 
@@ -232,6 +235,102 @@ class OrganizationsEventActivityTest extends TestCase
 
         $recentRow = $rows->firstWhere('organization_id', (string) $orgRecent->getId());
         $this->assertGreaterThanOrEqual(1, $recentRow['count']);
+    }
+
+    /**
+     * The 1-year window counts only recent activity; the two fixed windows and the year series
+     * show the history behind it, so a big client that went quiet reads differently from a small one.
+     */
+    public function testParticipantTotalsIgnoreTheWindowAndYearsCoverIt(): void
+    {
+        $this->runEventSetup();
+
+        $org = $this->createOrganization('Org History ' . uniqid());
+        $regular = $this->createPeople('Ana', 'Regular');
+        $newcomer = $this->createPeople('Beto', 'Newcomer');
+        $former = $this->createPeople('Carla', 'Former');
+        $org->addPeople($regular);
+        $org->addPeople($newcomer);
+        $org->addPeople($former);
+
+        $recent = Carbon::now()->subMonth();
+        $this->createEventVersionOn($recent, [$regular, $newcomer]);
+        $this->createEventVersionOn(Carbon::now()->subYears(3), [$regular, $former]);
+
+        $from = Carbon::now()->subYear();
+
+        $response = $this->graphQL('
+            query($from: Date!, $to: Date!) {
+                organizationsEventActivity(from_date: $from, to_date: $to) {
+                    organization_id
+                    count
+                    participants_last_year
+                    participants_total
+                    by_year { year count participants }
+                }
+            }
+        ', ['from' => $from->toDateString(), 'to' => Carbon::now()->toDateString()])->assertSuccessful();
+
+        $row = collect($response->json('data.organizationsEventActivity'))
+            ->firstWhere('organization_id', (string) $org->getId());
+
+        $this->assertSame(2, $row['count']);
+        $this->assertSame(2, $row['participants_last_year']);
+        $this->assertSame(3, $row['participants_total']);
+        $this->assertSame(range($from->year, Carbon::now()->year), array_column($row['by_year'], 'year'));
+        $this->assertSame(2, array_sum(array_column($row['by_year'], 'count')));
+
+        $recentYear = collect($row['by_year'])->firstWhere('year', $recent->year);
+        $this->assertSame(2, $recentYear['participants']);
+    }
+
+    public function testHistoryListsEachVersionNewestFirstWithWhoWent(): void
+    {
+        $this->runEventSetup();
+
+        $org = $this->createOrganization('Org Detail ' . uniqid());
+        $regular = $this->createPeople('Ana', 'Regular');
+        $newcomer = $this->createPeople('Beto', 'Newcomer');
+        $org->addPeople($regular);
+        $org->addPeople($newcomer);
+
+        $outsider = $this->createPeople('Carla', 'Outsider');
+        $this->createOrganization('Org Other ' . uniqid())->addPeople($outsider);
+
+        $recent = $this->createEventVersionOn(Carbon::now()->subMonth(), [$regular, $newcomer, $outsider]);
+        $old = $this->createEventVersionOn(Carbon::now()->subYears(2), [$regular]);
+
+        $history = $this->graphQL('
+            query($id: ID!) {
+                organizationEventHistory(organization_id: $id) {
+                    event_version_id
+                    registrations
+                    participants
+                    people { people_id name }
+                }
+            }
+        ', ['id' => $org->getId()])->assertSuccessful()->json('data.organizationEventHistory');
+
+        $this->assertSame(
+            [(string) $recent->getId(), (string) $old->getId()],
+            array_column($history, 'event_version_id')
+        );
+        $this->assertSame(2, $history[0]['participants'], 'the other company\'s person is not counted');
+        $this->assertEqualsCanonicalizing(
+            [$regular->getName(), $newcomer->getName()],
+            array_column($history[0]['people'], 'name')
+        );
+        $this->assertSame(1, $history[1]['participants']);
+    }
+
+    public function testHistoryRefusesAnOrganizationOutsideTheTenant(): void
+    {
+        $response = $this->graphQL('
+            query { organizationEventHistory(organization_id: 999999999) { event_version_id } }
+        ');
+
+        $this->assertNotEmpty($response->json('errors'));
+        $this->assertNull($response->json('data.organizationEventHistory'));
     }
 
     public function testTenantScopingIgnoresOrgsFromOtherCompanies(): void

@@ -23,17 +23,13 @@ class UpdateGoogleSheetCellTool extends Tool
     use ResolvesGoogleSheetsServiceForTool;
     use ResolvesSpreadsheetIdForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_google_sheet_cell',
-            description: 'Overwrites a specific cell (or small range) on a Google Sheet the user shared a link '
-                . 'to — e.g. changing an invoice row\'s status column to "Approved". Use write_google_sheet '
-                . 'instead when adding brand-new rows. Writes to any sheet the Google account this agent is '
-                . 'connected to can open; where the app uses a shared service account instead, the sheet must be '
-                . 'shared with that account as an Editor.',
-        );
-    }
+    protected string $name = 'update_google_sheet_cell';
+
+    protected ?string $description = 'Overwrites a specific cell (or small range) on a Google Sheet the user shared a link '
+        . 'to — e.g. changing an invoice row\'s status column to "Approved". Use write_google_sheet '
+        . 'instead when adding brand-new rows. Writes to any sheet the Google account this agent is '
+        . 'connected to can open; where the app uses a shared service account instead, the sheet must be '
+        . 'shared with that account as an Editor.';
 
     /**
      * @return array<int, ToolProperty>

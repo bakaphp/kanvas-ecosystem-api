@@ -69,6 +69,10 @@ class PullLeadAction
 
                 $eLead = new SyncLeadAction($lead, fresh: ! $isRapidCall)->execute();
                 $this->setContactStatus($lead, $eLead->subStatus);
+
+                if (! $isRapidCall) {
+                    $this->pullAppointments($lead);
+                }
             } catch (ClientException $e) {
                 // If the opportunity doesn't exist in Elead (404), close the lead and return it
                 if ($e->getResponse() && $e->getResponse()->getStatusCode() === 404) {
@@ -224,6 +228,15 @@ class PullLeadAction
         usort($results, fn (array $a, array $b) => ($b['rank'] ?? 0) <=> ($a['rank'] ?? 0));
 
         return $results;
+    }
+
+    protected function pullAppointments(ModelsLead $lead): void
+    {
+        try {
+            new PullAppointmentsAction($lead)->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     public function setContactStatus(ModelsLead $lead, string $status): void

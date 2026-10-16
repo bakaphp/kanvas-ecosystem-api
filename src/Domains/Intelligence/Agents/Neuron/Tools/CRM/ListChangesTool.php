@@ -23,16 +23,12 @@ class ListChangesTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_changes',
-            description: 'Lists people whose company, title, email changed or who were promoted, with before → '
-                . 'after values. Use to describe or preview changes ("who changed jobs?", "show me recent email '
-                . 'changes"). Filter by change_types: company, title, email, promotion. For the full downloadable '
-                . 'list use export_changes instead.',
-        );
-    }
+    protected string $name = 'list_changes';
+
+    protected ?string $description = 'Lists people whose company, title, email changed or who were promoted, with before → '
+        . 'after values. Use to describe or preview changes ("who changed jobs?", "show me recent email '
+        . 'changes"). Filter by change_types: company, title, email, promotion. For the full downloadable '
+        . 'list use export_changes instead.';
 
     /**
      * @return array<int, ToolPropertyInterface>

@@ -20,12 +20,16 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use Tests\TestCase;
+use Tests\Traits\AssertsToolRunKeys;
+use Tests\Traits\MakesFilesystemRows;
 
 final class UploadFileToEntityToolsTest extends TestCase
 {
+    use AssertsToolRunKeys;
+
     use DatabaseTransactions;
+    use MakesFilesystemRows;
 
     protected array $connectionsToTransact = ['mysql', 'ecosystem', 'crm', 'social', 'inventory'];
 
@@ -120,7 +124,7 @@ final class UploadFileToEntityToolsTest extends TestCase
         );
 
         $this->assertSame('error', $result['status']);
-        $this->assertStringContainsString('not both', $result['message']);
+        $this->assertStringContainsString('just one', $result['message']);
     }
 
     public function test_upload_file_to_lead_rejects_a_disallowed_extension(): void
@@ -205,29 +209,13 @@ final class UploadFileToEntityToolsTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool::class . ' must track runs by inputs.');
-
-            $keyA = $tool->setInputs(['file_name' => 'a.md', 'content' => 'a'])->getRunKey();
-            $keyB = $tool->setInputs(['file_name' => 'b.md', 'content' => 'b'])->getRunKey();
-            $keyAAgain = $tool->setInputs(['file_name' => 'a.md', 'content' => 'a'])->getRunKey();
-
-            $this->assertNotEquals($keyA, $keyB, $tool::class . ': distinct uploads must not share a run budget.');
-            $this->assertEquals($keyA, $keyAAgain, $tool::class . ': identical calls must collapse to one key.');
+            $this->assertRunKeyFollowsInputs($tool);
         }
     }
 
     public function test_upload_file_to_message_attaches_to_the_message(): void
     {
-        $messageType = MessageType::firstOrCreate(
-            ['apps_id' => $this->currentApp->getId(), 'languages_id' => 1, 'verb' => 'upload-tool-test'],
-            ['name' => 'Upload Tool Test']
-        );
-
-        $message = Message::factory()
-            ->withAppId($this->currentApp->getId())
-            ->withCompanyId($this->currentCompany->getId())
-            ->withMessageType($messageType)
-            ->create();
+        $message = $this->makeMessage('upload-tool-test');
 
         $result = $this->tool(new UploadFileToMessageTool())->__invoke(
             message_id: (int) $message->getId(),
@@ -238,6 +226,54 @@ final class UploadFileToEntityToolsTest extends TestCase
         $this->assertSame('success', $result['status']);
         $this->assertSame((int) $message->getId(), $result['message_id']);
         $this->assertContains('handover-notes.md', $message->getFiles()->pluck('name')->all());
+    }
+
+    public function test_upload_file_to_message_attaches_an_existing_kanvas_file_by_id(): void
+    {
+        $message = $this->makeMessage('upload-tool-existing-file');
+        $file = $this->makeFilesystemRow($this->currentCompany->getId(), 'Pasted text(3).txt');
+
+        $result = $this->tool(new UploadFileToMessageTool())->__invoke(
+            message_id: (int) $message->getId(),
+            filesystem_id: (int) $file->getId(),
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame((int) $file->getId(), $result['filesystem_id']);
+        $this->assertSame($file->url, $result['file_url']);
+        $this->assertContains('Pasted text(3).txt', $message->getFiles()->pluck('name')->all());
+    }
+
+    public function test_upload_file_to_lead_rejects_a_filesystem_id_alongside_content(): void
+    {
+        $lead = $this->makeLead();
+        $file = $this->makeFilesystemRow($this->currentCompany->getId(), 'transcript.txt');
+
+        $result = $this->tool(new UploadFileToLeadTool())->__invoke(
+            lead_id: (int) $lead->getId(),
+            file_name: 'doc.md',
+            content: 'text',
+            filesystem_id: (int) $file->getId(),
+        );
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('just one', $result['message']);
+        $this->assertCount(0, $lead->getFiles());
+    }
+
+    public function test_upload_file_to_lead_does_not_attach_another_companys_file_by_id(): void
+    {
+        $lead = $this->makeLead();
+        $foreign = $this->makeFilesystemRow(Companies::factory()->create()->getId(), 'theirs.pdf');
+
+        $result = $this->tool(new UploadFileToLeadTool())->__invoke(
+            lead_id: (int) $lead->getId(),
+            filesystem_id: (int) $foreign->getId(),
+        );
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('belongs to this company', $result['message']);
+        $this->assertCount(0, $lead->getFiles());
     }
 
     public function test_upload_file_to_product_and_variant_attach_to_the_catalog(): void
@@ -286,6 +322,20 @@ final class UploadFileToEntityToolsTest extends TestCase
     private function tool(object $tool): object
     {
         return $tool->withContext($this->currentApp, $this->currentCompany, $this->actingUser);
+    }
+
+    private function makeMessage(string $verb): Message
+    {
+        $messageType = MessageType::firstOrCreate(
+            ['apps_id' => $this->currentApp->getId(), 'languages_id' => 1, 'verb' => $verb],
+            ['name' => 'Upload Tool Test']
+        );
+
+        return Message::factory()
+            ->withAppId($this->currentApp->getId())
+            ->withCompanyId($this->currentCompany->getId())
+            ->withMessageType($messageType)
+            ->create();
     }
 
     private function makeLead(): Lead

@@ -314,6 +314,38 @@ return [
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
+        /*
+         * Flattened reporting tables. Written only by the reporting refresh jobs; every domain
+         * connection is a read-only source to them. Isolated on purpose so a rebuild can never
+         * contend with operational writes, and so the whole thing can move to its own host — or
+         * to ClickHouse — by changing this block alone.
+         */
+        'reporting' => [
+            'driver' => 'mysql',
+            'read' => [
+                'host' => [
+                    env('DB_REPORTING_HOST_READ', env('DB_REPORTING_HOST', env('DB_HOST', '127.0.0.1'))),
+                ],
+            ],
+            'write' => [
+                'host' => [
+                    env('DB_REPORTING_HOST', env('DB_HOST', '127.0.0.1')),
+                ],
+            ],
+            'sticky' => true,
+            'port' => env('DB_REPORTING_PORT', env('DB_PORT', '3306')),
+            'database' => env('DB_REPORTING_DATABASE', 'reporting'),
+            'username' => env('DB_REPORTING_USERNAME', env('DB_USERNAME', 'kanvas')),
+            'password' => env('DB_REPORTING_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('DB_REPORTING_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_520_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => 'InnoDB',
+        ],
+
         'event' => [
             'driver' => 'mysql',
             'read' => [

@@ -48,6 +48,7 @@ class RunRuntimeChatAction
             userMessage: $this->message,
             assistantResponse: $response,
             agentId: $this->agent->getId(),
+            participant: KanvasConversationStore::participantFor($this->session, $this->user, $this->agent),
         );
 
         return $response;

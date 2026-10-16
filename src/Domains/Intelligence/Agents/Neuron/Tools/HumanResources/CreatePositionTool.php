@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPositionAndDepartmentForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -25,22 +24,18 @@ use Override;
  * existing position when a title already exists rather than duplicating it.
  */
 #[AgentTool(name: 'Create Position', category: 'human_resources')]
-class CreatePositionTool extends Tool implements HasRunKey
+class CreatePositionTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ResolvesPositionAndDepartmentForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'create_position',
-            description: 'Creates a job position/title (optionally in a department, with a level). Admin only. Use '
-                . 'this when create_employee reports the position does not exist, then retry create_employee with the '
-                . 'same title. Returns the existing position if the title already exists (no duplicate).',
-        );
-    }
+    protected string $name = 'create_position';
+
+    protected ?string $description = 'Creates a job position/title (optionally in a department, with a level). Admin only. Use '
+        . 'this when create_employee reports the position does not exist, then retry create_employee with the '
+        . 'same title. Returns the existing position if the title already exists (no duplicate).';
 
     /**
      * @return array<int, ToolProperty>

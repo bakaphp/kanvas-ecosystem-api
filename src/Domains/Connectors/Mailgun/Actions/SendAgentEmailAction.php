@@ -46,7 +46,7 @@ class SendAgentEmailAction
             throw new ValidationException('Outbound email has no recipient');
         }
 
-        $entity = $message->entity();
+        $entity = $message->preferredEntity(Lead::class);
         $subject = $this->resolveSubject($entity, $content);
         $agent = $this->resolveAgentMailboxOwner();
 

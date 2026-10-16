@@ -1,3 +1,12 @@
+union ApprovableEntity
+    @union(resolveType: "App\\GraphQL\\Approvals\\Types\\ApprovableEntityTypeResolver")
+    = People
+    | Lead
+    | Message
+    | ScribeBill
+    | ScribeInvoice
+    | ScribeExpense
+
 type ApprovalRequest {
     id: ID!
     uuid: String!
@@ -7,6 +16,8 @@ type ApprovalRequest {
     origin: String @method(name: "originName")
     entity_id: Int!
     entity: Mixed @method(name: "entitySummary")
+    "The full record under approval — People, Message, ScribeBill, ScribeInvoice or ScribeExpense."
+    entityRecord: ApprovableEntity @method(name: "resolveEntity")
     system_module: SystemModule! @belongsTo(relation: "systemModule")
     payload: Mixed
     metadata: Mixed

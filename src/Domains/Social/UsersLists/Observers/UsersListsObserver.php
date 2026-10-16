@@ -10,9 +10,14 @@ class UsersListsObserver
 {
     public function saved(UserList $usersLists): void
     {
+        if (! $usersLists->is_default) {
+            return;
+        }
+
         $defaultUsersLists = UserList::where('is_default', 1)
                     ->where('id', '!=', $usersLists->getId())
                     ->where('users_id', $usersLists->users_id)
+                    ->where('apps_id', $usersLists->apps_id)
                     ->first();
         if ($defaultUsersLists) {
             $defaultUsersLists->is_default = 0;

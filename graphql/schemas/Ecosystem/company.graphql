@@ -45,6 +45,11 @@ type Company {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
         )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
 }
 
 type CompanyGroup {
@@ -140,6 +145,7 @@ input CompanyInput {
     state: String
     country: String
     zip: String
+    tags: [TagInput!]
 }
 
 ### @todo Split the create and update input.

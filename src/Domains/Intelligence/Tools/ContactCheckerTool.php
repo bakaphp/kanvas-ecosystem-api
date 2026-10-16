@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Tools;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Blade;
 use InvalidArgumentException;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
@@ -90,7 +91,7 @@ class ContactCheckerTool implements ContextToolInterface
             throw new InvalidArgumentException('Message is not associated with a Notes channel linked to an entity');
         }
 
-        $lead = $message->entity();
+        $lead = $message->preferredEntity(Lead::class);
 
         return $lead;
     }

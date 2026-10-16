@@ -8,7 +8,10 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationApprovalModeEnum as ApprovalMode;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationEmailEnum as ApplicationEmail;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as CorporateField;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Movipass\Enums\MovipassRolesEnum;
 use Kanvas\Connectors\Movipass\Enums\ParkingApplicationFieldEnum;
 use Kanvas\Connectors\Movipass\Workflows\Activities\AutoApproveCorporateLeadActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\PublishApprovedParkingActivity;
@@ -113,7 +116,13 @@ class SetupParkingApplicationRulesCommand extends Command
     {
         $receiver = LeadReceiver::getById($receiverId, $app);
 
-        $defaults = [ApprovalMode::RECEIVER_KEY => ApprovalMode::MANUAL->value] + ParkingApplicationFieldEnum::receiverLists();
+        $defaults = [
+            ApprovalMode::RECEIVER_KEY => ApprovalMode::MANUAL->value,
+            CorporateField::RECEIVER_INVITE_ROLE_KEY => MovipassRolesEnum::PARKING_MANAGER->value,
+            ApplicationEmail::WELCOME->receiverKey() => 'parking-welcome',
+            ApplicationEmail::NEEDS_REVIEW->receiverKey() => 'parking-needs-review',
+            ApplicationEmail::REJECTED->receiverKey() => 'parking-rejected',
+        ] + ParkingApplicationFieldEnum::receiverLists();
 
         foreach ($defaults as $key => $value) {
             if (empty($receiver->get($key))) {

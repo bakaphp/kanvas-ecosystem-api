@@ -18,16 +18,12 @@ class QueryDueToEmployeesTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'query_due_to_employees',
-            description: 'Returns what the company still owes its own staff for expenses employees paid out of '
-                . 'pocket, grouped by employee and by month, with the oldest unreimbursed date per person. Use this '
-                . 'for "what do we owe our team", "who is waiting on a reimbursement", or a per-employee '
-                . 'reimbursement breakdown. This is NOT accounts payable — vendor debt is query_ap_aging.',
-        );
-    }
+    protected string $name = 'query_due_to_employees';
+
+    protected ?string $description = 'Returns what the company still owes its own staff for expenses employees paid out of '
+        . 'pocket, grouped by employee and by month, with the oldest unreimbursed date per person. Use this '
+        . 'for "what do we owe our team", "who is waiting on a reimbursement", or a per-employee '
+        . 'reimbursement breakdown. This is NOT accounts payable — vendor debt is query_ap_aging.';
 
     /**
      * @return array<int, ToolProperty>

@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Scheduling\Actions\DeliverScheduledMessageToChannelAction;
 use Kanvas\Social\Channels\Models\Channel;
@@ -67,12 +68,12 @@ class ContinueAgentTurnJob implements ShouldQueue
      * follow-up must land after it. Internal agents only: on a customer surface a stranger could turn one
      * message into several paid turns.
      */
-    public static function dispatchIfCutShort(AgentChatKernel $kernel, string $reply): void
+    public static function dispatchIfCutShort(AgentChatKernel $kernel, string $reply): bool
     {
         $session = $kernel->session();
 
         if ($session === null || ! $kernel->endedOnToolBudget() || ! $kernel->agent()->conversesWithUser()) {
-            return;
+            return false;
         }
 
         self::dispatch(
@@ -84,6 +85,8 @@ class ContinueAgentTurnJob implements ShouldQueue
             executedCalls: $kernel->executedToolCalls(),
             since: now()->toIso8601String(),
         );
+
+        return true;
     }
 
     public function handle(): void
@@ -114,7 +117,7 @@ class ContinueAgentTurnJob implements ShouldQueue
             return;
         }
 
-        if (trim($reply) !== '') {
+        if (! AgentTurnResponse::isNoOp($reply)) {
             new DeliverScheduledMessageToChannelAction(
                 channel: $channel,
                 text: $reply,

@@ -43,7 +43,7 @@ class AttachFilesystemAction
                 $existingEntity = FilesystemEntities::where([
                     'filesystem_id' => $this->filesystem->getKey(),
                     'entity_id' => $this->entity->getKey(),
-                    'companies_id' => $this->filesystem->companies_id,
+                    'companies_id' => $this->entityCompanyId(),
                     'system_modules_id' => $systemModule->getKey(),
                 ])->first();
 
@@ -167,6 +167,16 @@ class AttachFilesystemAction
     }
 
     /**
+     * The link row must carry the entity's tenant, not the file's. The entity's `files` query filters
+     * on `filesystem_entities.companies_id`, so a file uploaded by a user whose current company differs
+     * from the record's (staff, an agent user) would otherwise attach fine and never show up.
+     */
+    private function entityCompanyId(): int
+    {
+        return (int) ($this->entity->companies_id ?? $this->filesystem->companies_id);
+    }
+
+    /**
      * Helper method to create a new file entity with proper error handling
      */
     private function createFileEntity(string $fieldName, SystemModules $systemModule, ?float $weight = 0): FilesystemEntities
@@ -176,7 +186,7 @@ class AttachFilesystemAction
             return FilesystemEntities::firstOrCreate([
                 'entity_id' => $this->entity->getKey(),
                 'system_modules_id' => $systemModule->getKey(),
-                'companies_id' => $this->filesystem->companies_id,
+                'companies_id' => $this->entityCompanyId(),
                 'filesystem_id' => $this->filesystem->getKey(),
                 'field_name' => $fieldName,
             ], [
@@ -189,7 +199,7 @@ class AttachFilesystemAction
             $existingEntity = FilesystemEntities::where([
                 'filesystem_id' => $this->filesystem->getKey(),
                 'entity_id' => $this->entity->getKey(),
-                'companies_id' => $this->filesystem->companies_id,
+                'companies_id' => $this->entityCompanyId(),
                 'field_name' => $fieldName,
                 'system_modules_id' => $systemModule->getKey(),
             ])->first();

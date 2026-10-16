@@ -85,13 +85,104 @@ V1 ships Lead-only, WhatsApp-only, `time_based` mode only. See the [v1 spec](../
 
 ## Follow-up agent runs in rollup mode (cross-session history)
 
-`FollowUpLeadAction` calls the kernel with `sourceChannel: $session->channel` — the same hint connector channel responders use. This makes the kernel SKIP `setThreadId`, which means `SalesAssistKanvasMessageHistory` returns the full cross-session history for the lead's person (not filtered to one session uuid).
+`FollowUpLeadAction` calls the kernel with `sourceChannel: $session->channel` — the same hint connector channel responders use. With it, `AgentChatKernel::threadId()` threads the run by the **session entity's uuid** (the lead's person) instead of the session uuid, and `EntityRollupMessageStore` filters by session only when the thread *is* a session uuid — so the agent sees the full cross-session history for the lead's person.
 
-Without this hint, the kernel would call `setThreadId($session->uuid)` and the history loader's `if ($this->threadId !== null && $messageThreadId !== $this->threadId) return null` would drop every message that lives under a different session — typically every inbound customer message and every message from earlier conversation threads. The agent then runs with effectively no history and produces literal-template-copy bland follow-ups.
+Without this hint, the thread would be `$session->uuid` and the store would drop every message that lives under a different session — typically every inbound customer message and every message from earlier conversation threads. The agent then runs with effectively no history and produces literal-template-copy bland follow-ups.
 
 Bug surfaced 2026-06-08 on lead 25628: agent had 46 People-keyed message rows available but only 16 passed the thread filter (today's cron prompts/responses). The actual 3-day-old customer conversation with the "ping me back Sunday" reply was in the 27 messages with `null` thread_id (legacy inbound, never tagged) — all filtered out. After the fix, the agent sees the full conversation regardless of which session originated the message.
 
 ## The agent never terminally exhausts a lead
+
+The lead's `ai_follow_up` custom field (set by `TriggerIntelligenceActivity` via
+`ApplyLeadAiModeAction`) gates only once it exists. An absent value means the triggers
+never configured the lead, so the remaining gates run. Once present it must be explicitly
+on per `Lead::isAiFollowUpEnabled()` — the shapes the legacy engine accepted — so OFF (`0`)
+and a `FollowUpTypeEnum::NO_FOLLOW_UP` (`3`) type both skip with `lead_follow_up_disabled`.
+This check applies even to forced runs; enabling it does not override a disabled
+lead type. `lead_has_follow_up` is the legacy mirror written by the trigger.
+
+The lead's resolved AI mode (`Lead::isAiMuted()`, key `ai_mode`) also gates: IDLE or
+OFF skips with `ai_mode_off`, pausable like `ai_mode_manual`. This is the same mute
+every channel responder and `AgentReachOutAction` honour; the follow-up agent is not
+allowed to speak for a lead whose AI is off.
+
+## "Open" means `leads_status_id`, never the `status` column
+
+Both the fan-out query and the action's `lead_not_active` gate use `hasOpenLeadStatus()` /
+`scopeHasOpenLeadStatus($company)`: the global open ids plus the company's
+`guild_open_leads_status_ids`. `Lead::isOpen()` reads the `status` integer column, which no app
+code writes (758k of 759k local rows sit at the default `0`) — a gate on it passes everyone. CRM
+pulls and the UI write `leads_status_id` (`close()` / `open()`), so that is the only column that
+reflects a close.
+
+## Third-party leads are pulled from their CRM before the follow-up runs
+
+A dealer CRM without webhooks never tells us a lead was closed or sold, so the action asks it —
+**after every free gate has passed** (stage config, `ai_follow_up`, lead type, open status,
+exhaustion, hand-off, manual, mute, reachable channel, session, `too_soon`, template) and right
+before the agent call. CRM calls are billed per request (Elead), so a lead that would skip anyway
+must never cost one. `FollowUpLeadAction::syncLeadSource()` runs
+`SyncLeadSourceBeforeFollowUpAction` and then re-runs the three gates a pull can flip (open
+status, `ai_follow_up`, mute). "Where is this lead from and how do I ask it" lives in Guild:
+`Guild\Leads\Services\CrmLeadSourceSynchronizer`, a concrete class `LeadFollowUpJob`
+method-injects and hands to the action (no provider binding). It dispatches on the company's CRM
+through the SalesAssist `PullLeadAction` exactly like the pull button, then re-applies
+`ApplyLeadClosingStatusAction` so a CRM close flips `ai_mode` / `ai_follow_up`. The forced-run
+mutation passes no synchronizer, so a manual click never pulls.
+
+- `canSync()` requires the company to run a pull-capable connector (Elead, VinSolutions,
+  DealerSocket, DriveCentric — Reynolds is webhook-only) AND the lead to carry that connector's
+  external id. Without the id the pull becomes a people search by phone, which can create or
+  close leads; an hourly cron must not trigger that.
+- Throttle: the lead custom field `guild_follow_up_source_synced_at` is stamped after a pull and
+  skips the next one for `lead_follow_up_sync_interval_minutes` (company setting, default 55) —
+  one CRM call per lead per tick, forced runs in between share it.
+- A failed pull skips with `reason: crm_sync_failed` and is reported; the next tick retries.
+  Nudging a lead whose state could not be verified is the thing the step exists to prevent. The
+  Elead 404 case (opportunity gone) closes the lead inside the pull.
+- Tests swap the seam by passing a Mockery mock of `CrmLeadSourceSynchronizer` to the action's
+  `synchronizer:` or to the job's `handle()`; a bare lead on a company with no CRM config is simply
+  not syncable, so the rest of the suite needs nothing.
+
+## Outbound SMS carries the opt-out clause on the first text
+
+`SmsOptOutNoticeService` is applied per SMS target before the message is persisted, so the
+stored row matches what shipped. "First" is judged on the lead's **SMS channel**
+(`SessionChannelService::createChannelSlug('sms', $phone)`), not the follow-up session's
+channel — the session may live on email/WhatsApp and a prior email must not suppress the
+clause on the first text. No SMS channel yet means nothing has ever been texted, so the
+clause is appended. `FollowUpOutcome::$message` reports the primary target's body as sent.
+
+## `after-follow-up` workflow — the CRM hook
+
+Once at least one channel shipped, the action fires `WorkflowEnum::AFTER_FOLLOW_UP`
+(`after-follow-up`) **on the Lead**, so a tenant can hang connector activities on it
+(mirror the touch as a note in Elead / VinSolutions / DealerSocket, etc.) without the engine
+knowing about any CRM. Rule type row: `database/migrations/Workflow/2026_10_13_120000_*`.
+Advance-only runs do not fire it; the `lead.follow_up.sent` ledger event covers those.
+
+Params the activity receives (besides the Lead entity and the app):
+
+| key | value |
+|---|---|
+| `message` | the persisted `Message` for the primary target |
+| `body` | the body as shipped on the primary target (opt-out clause included for SMS) |
+| `channels` | channel types dispatched this touch, e.g. `['sms']` or `['sms', 'email']` |
+| `template` | template name used, or `null` |
+| `stage_id` | the lead's stage after any advance |
+| `advanced_stage` | whether this touch moved the lead to the next stage |
+| `agent` | the follow-up `Agent` |
+| `company` | the lead's company (also what scopes rule lookup) |
+
+A failing tenant rule is reported and swallowed — the touch is already sent and bumped.
+
+Lead-type continued-follow-up defaults can veto execution before retry handling or
+stage advancement. `LeadConfigurationService::allowsContinuedFollowUp()` reads
+`*_con_fu_active_default`, `*_con_fu_cns_default`, or
+`*_con_fu_closed-sold_default` for the lead state. Missing settings allow the
+remaining gates to run; explicit false values skip with
+`lead_type_follow_up_disabled`, even for forced runs. First-message defaults are
+independent. This veto does not override the engine's open-leads-only restriction.
 
 `should_respond: false` + `advance_stage: false` from the LLM is treated as a **transient SKIP**, not a terminal exhaustion. The next cron tick re-evaluates the lead. The skip emits `lead.follow_up.skipped` with `reason: 'agent: <text>'` for ledger visibility — no `exhausted_at` set, no operator reset required.
 
@@ -171,7 +262,7 @@ Required config per stage:
 
 **Caveats unique to Pattern B:**
 - **One-hour lag without the "always advance" prompt nudge** — without it, send happens on tick N (`count=0→1`), advance happens on tick N+1 (`count=1≥1` fires the exhaust gate). The ledger then carries one `lead.follow_up.exhausted` per day-stage with `reason: max_retries`.
-- **Customer inbound pauses the day clock** — `followUpSilenceMinutesSince` uses `last_inbound_at` as the reference. A reply during Day 2 resets `silence_minutes`, so the Day 2 nudge waits another 24h. Usually desired (don't pile on the engaged customer). If you need strict calendar advance regardless of conversation activity, swap the silence reference to `stage_entered_at` — this is the only line that needs changing.
+- **The interval restarts on stage entry, follow-up, or customer inbound** — `followUpSilenceMinutesSince` uses the latest of these timestamps. Without any, it falls back to entity creation time. Missing or future references yield zero elapsed minutes. Resetting state on a stage change therefore starts the full next-stage interval.
 - **Last-stage exhaust is a no-op** — `moveToNextPipelineStage()` silently does nothing when there's no next stage. The lead just parks there exhausted.
 
 ### What the infra does NOT do today

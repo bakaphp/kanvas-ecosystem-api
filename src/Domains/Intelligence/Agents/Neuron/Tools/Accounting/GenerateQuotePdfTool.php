@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GeneratesScribeDocumentPdfForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesScribeQuoteForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -17,23 +16,19 @@ use Override;
 
 /** Renders a quote as a printable PDF and attaches it to the quote. */
 #[AgentTool(name: 'Generate Quote PDF', category: 'accounting')]
-class GenerateQuotePdfTool extends Tool implements HasRunKey
+class GenerateQuotePdfTool extends Tool
 {
     use GeneratesScribeDocumentPdfForTool;
     use HasKanvasContext;
     use ResolvesScribeQuoteForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'generate_quote_pdf',
-            description: 'Renders a quote as a PDF — customer block, lines, totals, notes and terms — and '
-                . 'attaches it to the quote in Kanvas. Use it whenever someone asks for the quote as a '
-                . 'document to send or review. Works on a draft too, though a draft carries no quote number '
-                . 'yet; send_quote first when the customer is getting the final copy.',
-        );
-    }
+    protected string $name = 'generate_quote_pdf';
+
+    protected ?string $description = 'Renders a quote as a PDF — customer block, lines, totals, notes and terms — and '
+        . 'attaches it to the quote in Kanvas. Use it whenever someone asks for the quote as a '
+        . 'document to send or review. Works on a draft too, though a draft carries no quote number '
+        . 'yet; send_quote first when the customer is getting the final copy.';
 
     /**
      * @return array<int, ToolProperty>

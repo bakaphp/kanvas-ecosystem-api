@@ -12,7 +12,6 @@ use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\Expenses\Actions\VoidExpenseAction;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -29,7 +28,7 @@ use Throwable;
  * an employee does by chatting.
  */
 #[AgentTool(name: 'Cancel My Expense', category: 'accounting')]
-class CancelMyExpenseTool extends Tool implements HasRunKey
+class CancelMyExpenseTool extends Tool
 {
     use HasKanvasContext;
     use ReportsToolOutcome;
@@ -37,15 +36,11 @@ class CancelMyExpenseTool extends Tool implements HasRunKey
     use ResolvesExpenseForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'cancel_my_expense',
-            description: 'Withdraws an expense YOU filed that has not been approved yet — for one submitted by '
-                . 'mistake, twice, or with the wrong amount. Use list_my_expenses first to get the expense_id. '
-                . 'It cannot touch an expense that is already approved, or one filed by someone else.',
-        );
-    }
+    protected string $name = 'cancel_my_expense';
+
+    protected ?string $description = 'Withdraws an expense YOU filed that has not been approved yet — for one submitted by '
+        . 'mistake, twice, or with the wrong amount. Use list_my_expenses first to get the expense_id. '
+        . 'It cannot touch an expense that is already approved, or one filed by someone else.';
 
     /**
      * @return array<int, ToolProperty>

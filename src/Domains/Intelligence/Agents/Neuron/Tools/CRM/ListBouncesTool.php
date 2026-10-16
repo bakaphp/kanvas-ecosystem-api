@@ -21,16 +21,12 @@ class ListBouncesTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_bounces',
-            description: 'Lists people whose email is a dead address (hard bounce / invalid). Use for "who has bad '
-                . 'emails?", "show me bouncing contacts". By default counts permanent failures only (matching the '
-                . 'bouncingPeople metric); pass include_soft_bounce to also include recoverable soft bounces. For '
-                . 'the full downloadable list use export_bounces instead.',
-        );
-    }
+    protected string $name = 'list_bounces';
+
+    protected ?string $description = 'Lists people whose email is a dead address (hard bounce / invalid). Use for "who has bad '
+        . 'emails?", "show me bouncing contacts". By default counts permanent failures only (matching the '
+        . 'bouncingPeople metric); pass include_soft_bounce to also include recoverable soft bounces. For '
+        . 'the full downloadable list use export_bounces instead.';
 
     /**
      * @return array<int, ToolProperty>

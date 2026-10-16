@@ -22,7 +22,7 @@ class AIAssistAgentResponderAction extends BaseAgentChannelReplyAction
     #[Override]
     public function execute(array $params = []): array
     {
-        $entity = $this->message->entity();
+        $entity = $this->message->preferredEntity(Lead::class);
 
         if ($entity === null) {
             throw new ValidationException('No entity found');
@@ -34,7 +34,8 @@ class AIAssistAgentResponderAction extends BaseAgentChannelReplyAction
             agent: $this->agent,
             session: $this->session,
             message: $messageConversation,
-            user: $this->message->company->getAiAgentUserOrFail(),
+            // AI Assist acts on this user's instruction; the handler retains its own actingUser().
+            user: $this->message->user,
             currentLead: $entity instanceof Lead ? $entity : null,
             sourceChannel: $this->channel,
             sourceMessage: $this->message,

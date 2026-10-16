@@ -12,14 +12,20 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
+use Kanvas\Intelligence\Agents\Jobs\ContinueAgentTurnJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
+use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
+use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use Kanvas\Intelligence\Agents\Services\NativeChannelDeliveryService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionDto;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Scheduling\Actions\CreateScheduledActionAction;
 use Kanvas\NervousSystem\Scheduling\DataTransferObject\ScheduledAction as ScheduledActionData;
+use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionStatusEnum;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
 use Kanvas\NervousSystem\Scheduling\Jobs\RunScheduledAgentActionJob;
 use Kanvas\NervousSystem\Scheduling\Notifications\ScheduledReminderNotification;
@@ -27,9 +33,12 @@ use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Chat\History\ChatHistory;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\UserMessage;
 use ReflectionMethod;
+use Tests\Stubs\Intelligence\CapturingNeuronProvider;
+use Tests\Stubs\Intelligence\NoUpdateNeuronAgentStub;
 use Tests\TestCase;
 
 class ScheduledActionChannelDeliveryTest extends TestCase
@@ -235,7 +244,7 @@ class ScheduledActionChannelDeliveryTest extends TestCase
 
         // privateUserTurn: true is how the kernel configures the handler for an injected wake — the user
         // turn lands as is_public=0 (the frontend hides it), the agent's reply stays visible.
-        $history = new KanvasMessageHistory(
+        $store = new ConversationMessageStore(
             app: $app,
             company: $company,
             user: $user,
@@ -244,11 +253,17 @@ class ScheduledActionChannelDeliveryTest extends TestCase
             agent: $agent,
             privateUserTurn: true,
         );
+        $history = new ChatHistory(
+            $store,
+            $sessionUuid,
+            1_000_000,
+            KanvasHistoryTrimmer::make(),
+        );
 
         $history->addMessage(new UserMessage('Check the support queue and follow up with anyone waiting'));
         $history->addMessage(new AssistantMessage('Followed up with 2 leads.'));
 
-        $conversationId = $history->getConversationId();
+        $conversationId = $store->conversationId($sessionUuid);
 
         $wakeRow = DB::connection('intelligence')->table('agent_conversation_messages')
             ->where('conversation_id', $conversationId)->where('role', 'user')->first();
@@ -269,8 +284,6 @@ class ScheduledActionChannelDeliveryTest extends TestCase
 
         // The session's canal_id carries the connector destination in ORIGINAL case; the channel slug is
         // lowercased and would 404 against the Slack API. `slack:{team}:{channel}:{thread_ts}`.
-        // The parsing moved to NativeChannelDeliveryService when the plan-outcome path needed the same
-        // push; the delivery action delegates to it now.
         [$slackChannelId, $threadTs] = new ReflectionMethod(
             NativeChannelDeliveryService::class,
             'slackTargetFromCanalId',
@@ -278,5 +291,87 @@ class ScheduledActionChannelDeliveryTest extends TestCase
 
         $this->assertSame('D0BKWG1JJ2X', $slackChannelId);
         $this->assertSame('1699999999.001', $threadTs);
+    }
+
+    /**
+     * Roven's daily summary (task 168): reached as a bare turn, the recurring task read as a check-in and
+     * he answered NO_UPDATE, which was posted into Slack verbatim. The task now reaches the agent framed
+     * as an assignment, and a NO_UPDATE that still comes back is dropped rather than posted.
+     */
+    public function testAScheduledTaskIsFramedAsAnAssignmentAndANoUpdateReplyIsNotPosted(): void
+    {
+        [$app, $company, $user] = $this->context();
+        CapturingNeuronProvider::$lastMessages = [];
+
+        $agent = $this->noUpdateAgent($app, $company, $user);
+        $channel = $this->makeChannel($app, $company, $user);
+        $sessionUuid = $this->makeSession($app, $company, $user, $agent, $channel);
+
+        $action = new CreateScheduledActionAction(
+            new ScheduledActionData(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: ScheduledActionTypeEnum::AGENT_TASK,
+                timezone: 'UTC',
+                runAt: Carbon::now()->addHour(),
+                agent: $agent,
+                instruction: 'Compile the morning board summary.',
+                sessionUuid: $sessionUuid,
+            ),
+        )->execute();
+        $action->run_at = Carbon::now()->subMinute();
+        $action->saveOrFail();
+
+        new RunScheduledAgentActionJob($app, $company, $action)->handle();
+
+        $sent = implode("\n", array_map(fn ($message): string => (string) $message->getContent(), CapturingNeuronProvider::$lastMessages));
+        $this->assertStringContainsString('Scheduled task:', $sent);
+        $this->assertStringContainsString('Compile the morning board summary.', $sent);
+
+        $this->assertSame(0, $channel->messages()->where('messages.message', 'like', '%' . AgentTurnResponse::NO_UPDATE . '%')->count());
+        $this->assertSame(ScheduledActionStatusEnum::EXECUTED->value, $action->refresh()->status, 'the agent ran and chose silence; the task still fired');
+    }
+
+    public function testAContinuationThatAnswersNoUpdatePostsNothing(): void
+    {
+        [$app, $company, $user] = $this->context();
+
+        $agent = $this->noUpdateAgent($app, $company, $user);
+        $channel = $this->makeChannel($app, $company, $user);
+        $sessionUuid = $this->makeSession($app, $company, $user, $agent, $channel);
+        /** @var Session $session */
+        $session = Session::query()->where('uuid', $sessionUuid)->firstOrFail();
+
+        new ContinueAgentTurnJob(
+            agent: $agent,
+            session: $session,
+            user: $user,
+            previousReply: 'Created 10 of 20 tasks.',
+            continuation: 1,
+            executedCalls: [],
+            since: Carbon::now()->toIso8601String(),
+        )->handle();
+
+        $this->assertSame(0, $channel->messages()->where('messages.message', 'like', '%' . AgentTurnResponse::NO_UPDATE . '%')->count());
+    }
+
+    private function noUpdateAgent(Apps $app, Companies $company, Users $user): Agent
+    {
+        $type = AgentType::factory()
+            ->withAppId($app->getId())
+            ->create([
+                'provider' => 'neuron',
+                'handler' => NoUpdateNeuronAgentStub::class,
+            ]);
+
+        return Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'agent_type_id' => $type->getId(),
+                'user_id' => $user->getId(),
+                'is_active' => true,
+            ]);
     }
 }

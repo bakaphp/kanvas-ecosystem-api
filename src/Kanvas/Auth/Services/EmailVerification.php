@@ -29,7 +29,7 @@ class EmailVerification
 
     public static function isRequiredFor(AppInterface $app): bool
     {
-        return filter_var($app->get(AppSettingsEnums::REQUIRE_EMAIL_VERIFICATION->getValue()), FILTER_VALIDATE_BOOLEAN);
+        return $app->getBool(AppSettingsEnums::REQUIRE_EMAIL_VERIFICATION->getValue());
     }
 
     /**

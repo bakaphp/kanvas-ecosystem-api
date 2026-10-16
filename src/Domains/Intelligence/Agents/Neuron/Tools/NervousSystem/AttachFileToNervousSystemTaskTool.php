@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasFileUploadToolProperties;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\Intelligence\Agents\Traits\AttachesFileToEntity;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,7 +23,7 @@ use Override;
  * verifier can treat as an artifact.
  */
 #[AgentTool(name: 'Attach File To Task', category: 'nervous_system')]
-class AttachFileToNervousSystemTaskTool extends Tool implements HasRunKey
+class AttachFileToNervousSystemTaskTool extends Tool implements RequiresSystemAgent
 {
     use AttachesFileToEntity;
     use HasFileUploadToolProperties;
@@ -31,17 +31,14 @@ class AttachFileToNervousSystemTaskTool extends Tool implements HasRunKey
     use ResolvesTaskForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'attach_file_to_task',
-            description: 'Attach a document to a task — normally the deliverable you produced. Pass `content` '
-                . 'with the full text you wrote plus a `file_name` ending in .md, .txt, .csv or .json; pass '
-                . '`file_url` instead only when the file already exists at a public URL. Use this for any '
-                . 'report, breakdown, export or write-up: a comment is for a short remark, a file is for the '
-                . 'work product. Never claim you produced a document without attaching it.',
-        );
-    }
+    protected string $name = 'attach_file_to_task';
+
+    protected ?string $description = 'Attach a document to a task — normally the deliverable you produced. Pass `content` '
+        . 'with the full text you wrote plus a `file_name` ending in .md, .txt, .csv or .json; pass '
+        . '`file_url` instead only when the file already exists at a public URL, or `filesystem_id` for a '
+        . 'file already in Kanvas (the id in an "Attached file on this message" marker). Use this for any '
+        . 'report, breakdown, export or write-up: a comment is for a short remark, a file is for the '
+        . 'work product. Never claim you produced a document without attaching it.';
 
     /**
      * @return array<int, ToolProperty>
@@ -68,6 +65,7 @@ class AttachFileToNervousSystemTaskTool extends Tool implements HasRunKey
         ?string $file_name = null,
         ?string $content = null,
         ?string $file_url = null,
+        ?int $filesystem_id = null,
     ): array {
         $task = $this->resolveTaskOrError($task_id);
 
@@ -84,6 +82,7 @@ class AttachFileToNervousSystemTaskTool extends Tool implements HasRunKey
                 fileUrl: $file_url,
                 content: $content,
                 fileName: $file_name,
+                filesystemId: $filesystem_id,
             ),
         ];
     }

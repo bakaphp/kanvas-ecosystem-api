@@ -7,8 +7,10 @@ namespace Tests\Connectors\Integration\Movipass;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationApprovalModeEnum;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationEmailEnum as ApplicationEmail;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as CorporateField;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Movipass\Enums\MovipassRolesEnum;
 use Kanvas\Connectors\Movipass\Enums\ParkingApplicationFieldEnum as Field;
 use Kanvas\Connectors\Movipass\Workflows\Activities\AutoApproveCorporateLeadActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\PublishApprovedParkingActivity;
@@ -89,6 +91,10 @@ final class SetupParkingApplicationRulesCommandTest extends TestCase
             CorporateField::requiredFor($fresh)
         );
         $this->assertSame([Field::FULL_NAME->value], CorporateField::userFieldsFor($fresh));
+        $this->assertSame(MovipassRolesEnum::PARKING_MANAGER->value, CorporateField::inviteRoleFor($fresh));
+        $this->assertSame('parking-welcome', ApplicationEmail::WELCOME->templateFor($fresh, $app));
+        $this->assertSame('parking-needs-review', ApplicationEmail::NEEDS_REVIEW->templateFor($fresh, $app));
+        $this->assertSame('parking-rejected', ApplicationEmail::REJECTED->templateFor($fresh, $app));
         $this->assertSame($receiver->getId(), (int) $app->get(ConfigurationEnum::PARKING_RECEIVER_ID->value));
 
         $app->del(ConfigurationEnum::PARKING_RECEIVER_ID->value);

@@ -18,16 +18,12 @@ class QueryTrialBalanceTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'query_trial_balance',
-            description: 'Returns the Trial Balance as of a date — every account with non-zero balance plus the '
-                . 'grand-total DR=CR invariant. Use this to audit the books — if is_balanced is false, the GL is '
-                . 'corrupt and posting is unsafe. Use this when the user asks "are the books balanced", wants an '
-                . 'audit-style view, or is investigating a specific account.',
-        );
-    }
+    protected string $name = 'query_trial_balance';
+
+    protected ?string $description = 'Returns the Trial Balance as of a date — every account with non-zero balance plus the '
+        . 'grand-total DR=CR invariant. Use this to audit the books — if is_balanced is false, the GL is '
+        . 'corrupt and posting is unsafe. Use this when the user asks "are the books balanced", wants an '
+        . 'audit-style view, or is investigating a specific account.';
 
     #[Override]
     protected function properties(): array

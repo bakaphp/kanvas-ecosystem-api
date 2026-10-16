@@ -6,9 +6,9 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Laravel\Concerns\HasFileUploadToolSchema;
+use Kanvas\Intelligence\Agents\Laravel\Concerns\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
-use Kanvas\Intelligence\Agents\Laravel\Traits\HasFileUploadToolSchema;
-use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\AttachesFileToEntity;
 use Kanvas\Inventory\Products\Models\Products;
 use Laravel\Ai\Tools\Request;
@@ -38,7 +38,8 @@ class UploadFileToProductTool implements KanvasToolInterface
         return 'Attach a document or image to a product — a spec sheet, manual, warranty terms, datasheet or '
             . 'product photo. Normally you pass content — the full text of the document you wrote — plus a '
             . 'file_name ending in .md, .txt, .csv or .json. Pass file_url instead when the file or image already '
-            . 'exists at a public URL. To attach to one specific variant instead of the whole product, use '
+            . 'exists at a public URL, or filesystem_id for a file already in Kanvas (the id in an "Attached file '
+            . 'on this message" marker). To attach to one specific variant instead of the whole product, use '
             . 'upload_file_to_variant. Only an administrator can do this.';
     }
 

@@ -6,7 +6,6 @@ namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
 use App\GraphQL\Concerns\ActingContext;
 use App\GraphQL\Concerns\ResolvesActingContext;
-use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\CorporateApplications\Actions\ApproveCorporateApplicationAction;
 use Kanvas\Companies\CorporateApplications\Actions\RejectCorporateApplicationAction;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
@@ -43,7 +42,7 @@ class CorporateApplicationMutation
         )->execute();
     }
 
-    private function resolveApplication(int $id, ActingContext $ctx): Model
+    private function resolveApplication(int $id, ActingContext $ctx): Lead
     {
         $application = Lead::getByIdFromCompanyApp($id, $ctx->company, $ctx->app);
 

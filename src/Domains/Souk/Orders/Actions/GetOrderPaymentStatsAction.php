@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
@@ -28,8 +29,9 @@ class GetOrderPaymentStatsAction
         protected ?string $reference = null,
         protected ?string $orderNumber = null,
         protected ?array $metadataFilter = null,
+        protected ?CompanyInterface $company = null,
     ) {
-        $this->repository = new OrderPaymentRepository($app);
+        $this->repository = new OrderPaymentRepository($app, $company);
 
         if ($this->productId && ! $this->variantId) {
             $this->productVariantIds = DB::connection('inventory')
@@ -188,9 +190,9 @@ class GetOrderPaymentStatsAction
         );
 
         return $rows->map(fn ($row) => [
-            'label'              => $row->label,
+            'label' => $row->label,
             'total_transactions' => (int) $row->total_transactions,
-            'total_amount'       => (float) $row->total_amount,
+            'total_amount' => (float) $row->total_amount,
         ])->values()->toArray();
     }
 
@@ -201,19 +203,19 @@ class GetOrderPaymentStatsAction
 
         foreach ($groupPeriods as $type) {
             $periodsInRange = match (strtoupper($type)) {
-                'DAY'   => $days,
-                'WEEK'  => max((int) ceil($days / 7.0), 1),
+                'DAY' => $days,
+                'WEEK' => max((int) ceil($days / 7.0), 1),
                 'MONTH' => max($start->copy()->startOfMonth()->diffInMonths($end->copy()->startOfMonth()) + 1, 1),
-                'YEAR'  => max($start->copy()->startOfYear()->diffInYears($end->copy()->startOfYear()) + 1, 1),
+                'YEAR' => max($start->copy()->startOfYear()->diffInYears($end->copy()->startOfYear()) + 1, 1),
                 default => $days,
             };
 
             $periods[] = [
-                'period_type'      => strtoupper($type),
-                'count'            => $count,
-                'avg_count'        => $periodsInRange > 0 ? round($count / $periodsInRange, 2) : 0,
-                'total'            => $total,
-                'amount_avg'       => $periodsInRange > 0 ? round($total / $periodsInRange, 2) : 0,
+                'period_type' => strtoupper($type),
+                'count' => $count,
+                'avg_count' => $periodsInRange > 0 ? round($count / $periodsInRange, 2) : 0,
+                'total' => $total,
+                'amount_avg' => $periodsInRange > 0 ? round($total / $periodsInRange, 2) : 0,
                 'periods_in_range' => (int) $periodsInRange,
             ];
         }

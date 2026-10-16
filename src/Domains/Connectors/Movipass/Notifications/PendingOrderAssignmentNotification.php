@@ -4,28 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Notifications;
 
-use Baka\Users\Contracts\UserInterface;
-use Illuminate\Notifications\AnonymousNotifiable;
+use Kanvas\Notifications\Concerns\PushesTitleAndMessageFromData;
 use Kanvas\Souk\Orders\Models\Order;
 use Override;
 
 class PendingOrderAssignmentNotification extends CustomOrderNotification
 {
-    public function toOneSignal(UserInterface|AnonymousNotifiable $notifiable): array
-    {
-        if (! ($notifiable instanceof UserInterface)) {
-            return [];
-        }
-
-        return [
-            'user_id' => $notifiable->getId(),
-            'message' => $this->data['message'] ?? '',
-            'title' => $this->data['title'] ?? '',
-            'subtitle' => '',
-            'apps_id' => $this->app->getId(),
-            'data' => $this->getData(),
-        ];
-    }
+    use PushesTitleAndMessageFromData;
 
     // The title/message are set in the constructor, not from a stored push template
     // (push_template is null). Emit them as the JSON shape getPushContent() expects so

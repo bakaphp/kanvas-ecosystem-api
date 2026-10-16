@@ -7,12 +7,18 @@ namespace Tests\Intelligence\Agents;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Models\Deal;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateDealTool;
 use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
 use Tests\TestCase;
+use Tests\Traits\MakesLeadStatuses;
 
 class EntityContextBriefServiceTest extends TestCase
 {
+    use MakesLeadStatuses;
+
     private function makePeople(array $attributes = []): People
     {
         $app = app(Apps::class);
@@ -23,6 +29,45 @@ class EntityContextBriefServiceTest extends TestCase
             'companies_id' => $company->getId(),
             ...$attributes,
         ]);
+    }
+
+    /**
+     * The agent reported a lost lead as an active negotiation because the generic brief copied the
+     * integer `status` column, which nothing writes, and never the named status.
+     */
+    public function testALeadBriefCarriesItsNamedStatusAndWhetherItIsOpen(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create([
+            'title' => 'Cinedot WhatsApp agent',
+            'leads_status_id' => self::lostLeadStatusId(),
+        ]);
+
+        $brief = new EntityContextBriefService()->brief($lead);
+        $text = new EntityContextBriefService()->renderText($lead);
+
+        $this->assertSame('Lead', $brief['type']);
+        $this->assertSame('Lost', $brief['status']);
+        $this->assertSame('closed', $brief['state']);
+        $this->assertStringContainsString('status: Lost', $text);
+        $this->assertStringContainsString('state: closed', $text);
+    }
+
+    public function testADealBriefCarriesItsNamedStatusAndWhetherItIsOpen(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $created = new CreateDealTool($app, $company, auth()->user())->__invoke(title: 'Cinedot renewal');
+        $deal = Deal::getByIdFromCompanyApp((int) $created['deal_id'], $company, $app);
+        $deal->status_id = self::lostLeadStatusId();
+        $deal->saveOrFail();
+
+        $brief = new EntityContextBriefService()->brief($deal);
+
+        $this->assertSame('Deal', $brief['type']);
+        $this->assertSame('Lost', $brief['status']);
+        $this->assertSame('closed', $brief['state']);
     }
 
     public function testGenericBriefFromModelAttributes(): void

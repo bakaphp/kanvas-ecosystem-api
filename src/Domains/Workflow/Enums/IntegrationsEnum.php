@@ -68,4 +68,5 @@ enum IntegrationsEnum: string
     case HUMANO = 'humano';
     case YUSEN = 'yusen';
     case DEALER_APP_CENTER = 'dealer_app_center';
+    case BRUSHCRAZY = 'brushcrazy';
 }

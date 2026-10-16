@@ -22,16 +22,12 @@ class GetCleanupReportTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_cleanup_report',
-            description: 'Health metrics for the CRM people base: total people, how many are verified, and how '
-                . 'many changed company / title / email / were promoted / are bouncing. Use for any "how many…", '
-                . '"what percentage…", "how healthy is my data" question. Optionally bounded to a date range '
-                . '(ISO dates, e.g. 2026-06-01); omit for all time.',
-        );
-    }
+    protected string $name = 'get_cleanup_report';
+
+    protected ?string $description = 'Health metrics for the CRM people base: total people, how many are verified, and how '
+        . 'many changed company / title / email / were promoted / are bouncing. Use for any "how many…", '
+        . '"what percentage…", "how healthy is my data" question. Optionally bounded to a date range '
+        . '(ISO dates, e.g. 2026-06-01); omit for all time.';
 
     /**
      * @return array<int, ToolProperty>

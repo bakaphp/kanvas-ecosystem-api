@@ -8,8 +8,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Souk\Services\StorefrontProductUrlService;
 use Laravel\Scout\Builder;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -18,7 +18,7 @@ use Override;
 use Throwable;
 
 #[AgentTool(name: 'Inventory Search', category: 'inventory')]
-class InventorySearchTool extends Tool implements HasRunKey
+class InventorySearchTool extends Tool
 {
     // Lets the voice data plane hand this tool the AGENT's tenant
     // (RunVoiceAgentToolAction::withContext), so the search binds the agent's app
@@ -26,23 +26,19 @@ class InventorySearchTool extends Tool implements HasRunKey
     use HasKanvasContext;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'inventory_search',
-            description: 'Search for products in the inventory using the search engine (Typesense/Algolia) '
-                . 'over name, description and translations. Accepts free-form natural-language queries '
-                . '(e.g. "toyota azul 5 puertas"). Pass the customer\'s complete inventory request verbatim, '
-                . 'in their original language. Never paraphrase, summarize, translate, extract only keywords, '
-                . 'or replace the request with an inferred make, model, body style, or product name. Preserve '
-                . 'every stated preference and constraint in the query; the search engine must interpret them. '
-                . 'The search engine ranks results by relevance even when '
-                . 'not all terms map to indexed fields. Searches only within the company bound to the agent context. '
-                . 'Returns availability and stock levels. A no_matches result means only that this search found no '
-                . 'matching indexed inventory; it does not confirm dealership unavailability. When no_matches is '
-                . 'returned, follow the RAG business rule "No Matching Inventory Results — STRICT HANDOFF RULE".',
-        );
-    }
+    protected string $name = 'inventory_search';
+
+    protected ?string $description = 'Search for products in the inventory using the search engine (Typesense/Algolia) '
+        . 'over name, description and translations. Accepts free-form natural-language queries '
+        . '(e.g. "toyota azul 5 puertas"). Pass the customer\'s complete inventory request verbatim, '
+        . 'in their original language. Never paraphrase, summarize, translate, extract only keywords, '
+        . 'or replace the request with an inferred make, model, body style, or product name. Preserve '
+        . 'every stated preference and constraint in the query; the search engine must interpret them. '
+        . 'The search engine ranks results by relevance even when '
+        . 'not all terms map to indexed fields. Searches only within the company bound to the agent context. '
+        . 'Returns availability and stock levels. A no_matches result means only that this search found no '
+        . 'matching indexed inventory; it does not confirm dealership unavailability. When no_matches is '
+        . 'returned, follow the RAG business rule "No Matching Inventory Results — STRICT HANDOFF RULE".';
 
     #[Override]
     protected function properties(): array
@@ -103,8 +99,9 @@ class InventorySearchTool extends Tool implements HasRunKey
         }
 
         $products->load('variants');
+        $storefront = new StorefrontProductUrlService($this->company, $this->app);
 
-        return $products->map(function (Products $product) {
+        return $products->map(function (Products $product) use ($storefront) {
             $variants = $product->variants;
             $totalStock = $variants->sum(fn ($variant) => $variant->getTotalQuantity());
             $isAvailable = $totalStock > 0 && $product->is_published;
@@ -116,6 +113,7 @@ class InventorySearchTool extends Tool implements HasRunKey
                 // accessor when no `en` translation exists.
                 'name' => $product->getTranslation('name', 'en') ?: $product->name,
                 'slug' => $product->slug,
+                'url' => $storefront->productUrl($product),
                 'is_published' => (bool) $product->is_published,
                 'is_available' => $isAvailable,
                 'total_stock' => $totalStock,

@@ -5,9 +5,22 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Knowledge\DataTransferObject;
 
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Intelligence\Agents\Neuron\Memory\ConversationMemoryNode;
+use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
 
 final readonly class KnowledgeScope
 {
+    /**
+     * The document kinds that are memory, not uploaded knowledge. They share the collection, and a
+     * knowledge read must leave them out: memory is recalled under an audience scope
+     * (CompanyMemoryRetrieval), while an organization-wide knowledge read sees the whole company.
+     */
+    public const array MEMORY_SOURCE_TYPES = [
+        ConversationMemoryNode::SOURCE_TYPE,
+        LedgerKnowledgeSource::MEMORY_SOURCE_TYPE,
+        LedgerKnowledgeSource::OUTCOME_SOURCE_TYPE,
+    ];
+
     /**
      * A scope filters the shared knowledge collection down to one tenant, and
      * optionally one entity. Organization-wide reads keep only the tenant pair.
@@ -85,6 +98,14 @@ final readonly class KnowledgeScope
         }
 
         return $filter . ' && entity_id:=0';
+    }
+
+    /** The filter for a read of uploaded knowledge: this scope, minus the memory kinds. */
+    public function knowledgeFilter(): string
+    {
+        return $this->filter() . ' && source_type:!=['
+            . implode(', ', array_map(self::escapeFilterValue(...), self::MEMORY_SOURCE_TYPES))
+            . ']';
     }
 
     /** Backtick-guard a Typesense filter value (FQCNs and source names carry special chars). */

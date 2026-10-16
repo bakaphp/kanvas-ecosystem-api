@@ -49,4 +49,18 @@ class PayWayHandler extends BaseIntegration
 
         return true;
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::PAYWAY_TOKEN->value,
+            ConfigurationEnum::PAYWAY_COLECTOR_ID->value,
+            ConfigurationEnum::PAYWAY_USUARIO_OPERACION->value,
+            ConfigurationEnum::PAYWAY_ENCRYPTION_KEY->value,
+            ConfigurationEnum::PAYWAY_BASE_URL->value,
+            ConfigurationEnum::PAYWAY_VERIFY_CHARGE_AMOUNT->value,
+            ConfigurationEnum::PAYWAY_TOKENIZE_CUTOFF_LOCAL_TIME->value,
+        ];
+    }
 }

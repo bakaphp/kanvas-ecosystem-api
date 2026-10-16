@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
+use Kanvas\Souk\Services\StorefrontProductUrlService;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -17,32 +17,18 @@ use Override;
 #[AgentTool(name: 'List Available Products', category: 'inventory')]
 class ListAvailableProductsTool extends Tool
 {
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_available_products',
-            description: 'List products from the inventory filtered by published status and stock availability. '
-                . 'Use is_published=true for published products, is_published=false for unpublished/draft products. '
-                . 'Use only_in_stock=true to filter only products with stock available.',
-        );
-    }
+    use HasKanvasContext;
+
+    protected string $name = 'list_available_products';
+
+    protected ?string $description = 'List products from the inventory filtered by published status and stock availability. '
+        . 'Use is_published=true for published products, is_published=false for unpublished/draft products. '
+        . 'Use only_in_stock=true to filter only products with stock available.';
 
     #[Override]
     protected function properties(): array
     {
         return [
-            new ToolProperty(
-                name: 'companies_id',
-                type: ToolsPropertyType::INTEGER,
-                description: 'The ID of the company to list products from.',
-                required: true,
-            ),
-            new ToolProperty(
-                name: 'apps_id',
-                type: ToolsPropertyType::INTEGER,
-                description: 'The ID of the app context.',
-                required: true,
-            ),
             new ToolProperty(
                 name: 'is_published',
                 type: ToolsPropertyType::BOOLEAN,
@@ -64,38 +50,42 @@ class ListAvailableProductsTool extends Tool
         ];
     }
 
-    public function __invoke(
-        int $companies_id,
-        int $apps_id,
-        ?bool $is_published = null,
-        ?bool $only_in_stock = null,
-        ?int $limit = null
-    ): array {
-        $app = Apps::getById($apps_id);
-        $company = Companies::getById($companies_id);
-        $is_published = $is_published ?? true;
-        $only_in_stock = $only_in_stock ?? false;
-        $limit = min($limit ?? 20, 50);
-        $allowCrossCompany = (bool) $app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+    public function __invoke(?bool $is_published = null, ?bool $only_in_stock = null, ?int $limit = null): array
+    {
+        if (! $this->hasTenantContext()) {
+            return $this->tenantContextMissingError('product listing');
+        }
 
-        $builder = Products::fromApp($app)
+        $is_published ??= true;
+        $only_in_stock ??= false;
+        $limit = min($limit ?? 20, 50);
+        $allowCrossCompany = (bool) $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+
+        $builder = Products::fromApp($this->app)
             ->notDeleted()
             ->where('is_published', $is_published ? 1 : 0)
             ->with('variants')
             ->limit($limit);
 
         if (! $allowCrossCompany) {
-            $builder->fromCompany($company);
+            $builder->fromCompany($this->company);
+        }
+
+        if ($only_in_stock) {
+            $builder->inStock();
         }
 
         $products = $builder->get();
-        $label = $is_published ? 'published' : 'unpublished';
+        $label = ($is_published ? 'published' : 'unpublished') . ($only_in_stock ? ' products with stock' : ' products');
 
         if ($products->isEmpty()) {
-            return ['message' => "No {$label} products found in the inventory."];
+            return ['message' => "No {$label} found in the inventory."];
         }
 
-        $results = $products->map(function (Products $product) {
+        $storefronts = [];
+
+        $results = $products->map(function (Products $product) use (&$storefronts) {
+            $storefront = $storefronts[$product->companies_id] ??= StorefrontProductUrlService::forProduct($product);
             $variants = $product->variants;
             $totalStock = $variants->sum(fn ($variant) => $variant->getTotalQuantity());
 
@@ -103,6 +93,7 @@ class ListAvailableProductsTool extends Tool
                 'id' => $product->getId(),
                 'name' => $product->name,
                 'slug' => $product->slug,
+                'url' => $storefront->productUrl($product),
                 'is_published' => (bool) $product->is_published,
                 'total_stock' => $totalStock,
                 'variants' => $variants->map(fn ($variant) => [
@@ -112,14 +103,6 @@ class ListAvailableProductsTool extends Tool
                 ])->toArray(),
             ];
         });
-
-        if ($only_in_stock) {
-            $results = $results->filter(fn ($product) => $product['total_stock'] > 0);
-
-            if ($results->isEmpty()) {
-                return ['message' => "No {$label} products with stock found."];
-            }
-        }
 
         return $results->values()->toArray();
     }

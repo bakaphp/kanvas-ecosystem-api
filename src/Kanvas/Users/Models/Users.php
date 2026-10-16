@@ -356,6 +356,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         )->where('is_default', true);
     }
 
+    public function fullName(): string
+    {
+        return trim((string) $this->firstname . ' ' . (string) $this->lastname);
+    }
+
     public function getMainRoleAttribute(): string
     {
         $role = Roles::where('scope', RolesEnums::getScope(app(Apps::class)))->first();

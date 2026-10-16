@@ -91,4 +91,14 @@ class StripeHandler extends BaseIntegration
             Log::warning('StripeHandler: could not flip IntegrationsCompany status to ACTIVE — ' . $e->getMessage());
         }
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::STRIPE_SECRET_KEY->value,
+            ConfigurationEnum::STRIPE_PUBLISHABLE_KEY->value,
+            ConfigurationEnum::STRIPE_WEBHOOK_SECRET->value,
+        ];
+    }
 }

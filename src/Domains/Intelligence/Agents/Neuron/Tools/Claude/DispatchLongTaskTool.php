@@ -27,22 +27,22 @@ use Throwable;
 #[AgentTool(name: 'Dispatch Long Task', category: 'claude')]
 class DispatchLongTaskTool extends Tool
 {
+    protected string $name = 'dispatch_long_task';
+
+    protected ?string $description = 'Hand a large, self-contained piece of work to a hosted Claude agent that runs '
+        . 'in its own sandbox — multi-file code changes, data migrations, audits over many records, '
+        . 'or generated documents. Use this when the work would take more than a couple of minutes '
+        . 'or produces a file rather than an answer. It returns a task id IMMEDIATELY; the work is '
+        . 'NOT done when this returns. Do not use it for questions you can answer directly. '
+        . 'This is the right choice over a plain repository coding job when the work needs to read live '
+        . 'Kanvas data while it runs, should be graded against acceptance criteria (see rubric), spans '
+        . 'more than one repository, or has to hand back a file. For a narrow change inside one '
+        . 'repository, a plain coding job is cheaper.';
+
     public function __construct(
         private readonly Agent $executor,
         private readonly ?Users $requestedBy = null,
     ) {
-        parent::__construct(
-            name: 'dispatch_long_task',
-            description: 'Hand a large, self-contained piece of work to a hosted Claude agent that runs '
-                . 'in its own sandbox — multi-file code changes, data migrations, audits over many records, '
-                . 'or generated documents. Use this when the work would take more than a couple of minutes '
-                . 'or produces a file rather than an answer. It returns a task id IMMEDIATELY; the work is '
-                . 'NOT done when this returns. Do not use it for questions you can answer directly. '
-                . 'This is the right choice over a plain repository coding job when the work needs to read live '
-                . 'Kanvas data while it runs, should be graded against acceptance criteria (see rubric), spans '
-                . 'more than one repository, or has to hand back a file. For a narrow change inside one '
-                . 'repository, a plain coding job is cheaper.',
-        );
     }
 
     /**

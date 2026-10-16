@@ -18,15 +18,11 @@ class ListTemplatesTool extends Tool
     use HasKanvasContext;
     use ManagesTemplatesTrait;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_templates',
-            description: 'List the templates available to render in this company (including shared/global ones). Each '
-                . 'result shows its id, name, and an "owned" flag — you can only update or delete the ones you own. '
-                . 'Use this to discover templates before rendering, updating, or deleting.',
-        );
-    }
+    protected string $name = 'list_templates';
+
+    protected ?string $description = 'List the templates available to render in this company (including shared/global ones). Each '
+        . 'result shows its id, name, and an "owned" flag — you can only update or delete the ones you own. '
+        . 'Use this to discover templates before rendering, updating, or deleting.';
 
     /**
      * @return array<int, ToolProperty>

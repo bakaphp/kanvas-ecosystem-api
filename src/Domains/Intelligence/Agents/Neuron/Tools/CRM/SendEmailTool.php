@@ -12,19 +12,35 @@ use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Actions\Outreach\PersistToolOutboundMessageAction;
+use Kanvas\Intelligence\Agents\Actions\Outreach\PersistOutboundMessageAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\HasConversationHuman;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Send Email', category: 'crm')]
+#[AgentTool(name: 'Send Email To Lead', category: 'crm')]
 class SendEmailTool extends Tool
 {
+    use HasConversationHuman;
     use ResolvesLeadForTool;
+
+    protected string $name = 'send_lead_email';
+
+    protected ?string $description = 'LEADS ONLY: requires a lead_id. Send an email to the prospect/customer on that lead, at the email address already on file. '
+        . 'It cannot email a person who has no lead or a teammate. '
+        . 'Use it when they ask you to email them something (a quote, a summary, confirmation details, links, next steps) '
+        . 'or when what they need is too long to send over chat/SMS. '
+        . 'You cannot choose the primary recipient — the email always goes to the address on the lead. '
+        . 'You may optionally cc other people who are ALREADY contacts on this lead, its participants '
+        . '(co-buyers, spouses, referrers) or its organization (e.g. a second decision-maker); '
+        . 'addresses that are not on file are ignored. '
+        . 'This is NOT for internal messages to staff (use take_message) and NOT a way to keep chatting: '
+        . 'still answer the person in the conversation after sending.';
 
     /** Lead custom field the Mailgun responder and the follow-up engine read as the email thread subject. */
     private const string THREAD_SUBJECT_ANCHOR = 'title_email_follow_up';
@@ -38,22 +54,6 @@ class SendEmailTool extends Tool
         ContactTypeEnum::EMAIL->value,
         ContactTypeEnum::SECONDARY_EMAIL->value,
     ];
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'send_email',
-            description: 'Send an email to the prospect/customer on this lead, at the email address already on file. '
-                . 'Use it when they ask you to email them something (a quote, a summary, confirmation details, links, next steps) '
-                . 'or when what they need is too long to send over chat/SMS. '
-                . 'You cannot choose the primary recipient — the email always goes to the address on the lead. '
-                . 'You may optionally cc other people who are ALREADY contacts on this lead, its participants '
-                . '(co-buyers, spouses, referrers) or its organization (e.g. a second decision-maker); '
-                . 'addresses that are not on file are ignored. '
-                . 'This is NOT for internal messages to staff (use take_message) and NOT a way to keep chatting: '
-                . 'still answer the person in the conversation after sending.',
-        );
-    }
 
     #[Override]
     protected function properties(): array
@@ -76,7 +76,8 @@ class SendEmailTool extends Tool
                 type: PropertyType::STRING,
                 description: 'The email body, written to the prospect in the first person on behalf of the business. '
                     . 'Markdown is supported (headings, bold, lists, links) and is rendered to HTML. '
-                    . 'Do not add a greeting header image, a signature, or "Sent by AI" — the template adds the branding and signature.',
+                    . 'Do not add a greeting header image, a signature, or "Sent by AI" — the template handles branding. '
+                    . 'For internal assistants, the sender’s enabled email signature is added automatically, never the customer-facing agent’s signature.',
                 required: true,
             ),
             new ToolProperty(
@@ -107,7 +108,7 @@ class SendEmailTool extends Tool
         if ($subject === '' || $body === '') {
             return [
                 'status' => 'error',
-                'message' => 'Both subject and body are required — write the email before calling send_email.',
+                'message' => 'Both subject and body are required — write the email before calling send_lead_email.',
             ];
         }
 
@@ -135,7 +136,7 @@ class SendEmailTool extends Tool
         $ccResult = $this->resolveCcRecipients($lead, $cc, $contact->value);
 
         try {
-            $sent = new SendMessageToLeadAction($lead)->execute(
+            $sent = new SendMessageToLeadAction($lead)->withSignatureOwner($this->signatureOwner())->execute(
                 channel: LeadCommunicationChannelEnum::EMAIL->value,
                 message: $body,
                 title: $subject,
@@ -152,8 +153,8 @@ class SendEmailTool extends Tool
             ];
         }
 
-        $persisted = new PersistToolOutboundMessageAction(
-            lead: $lead,
+        $persisted = new PersistOutboundMessageAction(
+            entity: $lead,
             user: $this->contextUser() ?? $lead->company->getAiAgentUserOrFail(),
             channelType: LeadCommunicationChannelEnum::EMAIL->value,
             recipient: $contact->value,
@@ -200,6 +201,16 @@ class SendEmailTool extends Tool
             'attachments_count' => $sent['attachments_count'] ?? 0,
             'note' => $note,
         ];
+    }
+
+    protected function signatureOwner(): ?Users
+    {
+        if (! ($this->contextAgent()?->conversesWithUser() ?? false)) {
+            return null;
+        }
+
+        // Never infer the sender from the lead owner or the shared bot context user.
+        return $this->conversationHuman;
     }
 
     /**
@@ -355,12 +366,12 @@ class SendEmailTool extends Tool
 
         if ($contacts === null || $contacts->isEmpty()) {
             return 'This lead has no email address on file. Ask the person for the email address they want it sent to, '
-                . 'save it with update_lead, then retry send_email.';
+                . 'save it with update_lead, then retry send_lead_email.';
         }
 
         if ($contacts->contains(fn (Contact $contact): bool => ! $contact->isOptedOut())) {
             return 'The email address on file bounced or is invalid, so we cannot write to it. '
-                . 'Ask the person to confirm a working email address, save it with update_lead, then retry send_email.';
+                . 'Ask the person to confirm a working email address, save it with update_lead, then retry send_lead_email.';
         }
 
         return 'This person opted out of email. Do not email them and do not ask them for another address. '

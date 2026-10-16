@@ -11,12 +11,12 @@ use Kanvas\NervousSystem\Plan\Actions\UpdatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanBlockedNeedsEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
+use ValueError;
 
 /**
  * Lets the PM update a plan — retitle it, re-scope its description, reprioritize, or change its
@@ -24,21 +24,17 @@ use Override;
  * rolls the project's completion up.
  */
 #[AgentTool(name: 'Update Plan', category: 'nervous_system')]
-class UpdateNervousSystemPlanTool extends Tool implements HasRunKey
+class UpdateNervousSystemPlanTool extends Tool
 {
     use HasKanvasContext;
     use TrackByInputs;
     use ResolvesPlanForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'update_nervous_system_plan',
-            description: 'Update a plan: its title, description, priority, or status. Set status=done to '
-                . 'complete the plan, blocked when it is stuck, cancelled to drop it. Only pass the fields '
-                . 'you want to change.',
-        );
-    }
+    protected string $name = 'update_nervous_system_plan';
+
+    protected ?string $description = 'Update a plan: its title, description, priority, or status. Set status=done to '
+        . 'complete the plan, blocked when it is stuck, cancelled to drop it. Only pass the fields '
+        . 'you want to change.';
 
     /**
      * @return array<int, ToolProperty>
@@ -128,7 +124,17 @@ class UpdateNervousSystemPlanTool extends Tool implements HasRunKey
             $data['description'] = $description;
         }
         if ($status !== null) {
-            $data['status'] = $status;
+            // A bad value must come back as a correctable tool error: a ValueError here ends the
+            // whole chat turn. "on_hold" is the usual one — it is a project status, not a plan one.
+            try {
+                $data['status'] = PlanStatusEnum::fromAlias($status)->value;
+            } catch (ValueError) {
+                return [
+                    'error' => "Invalid plan status '{$status}'. Use one of: "
+                        . implode(', ', array_map(fn (PlanStatusEnum $case): string => $case->value, PlanStatusEnum::cases()))
+                        . '. To hold a plan for sign-off set requires_human_approval=true instead.',
+                ];
+            }
         }
         if ($priority !== null) {
             $data['priority'] = $priority;

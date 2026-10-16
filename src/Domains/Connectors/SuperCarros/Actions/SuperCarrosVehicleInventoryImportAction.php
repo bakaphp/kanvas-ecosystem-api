@@ -12,7 +12,9 @@ use Exception;
 use Kanvas\Connectors\SuperCarros\DataTransferObjects\Vehicle;
 use Kanvas\Connectors\SuperCarros\Services\VehicleService;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Importer\Actions\FinishProductImportAction;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
+use Kanvas\Inventory\Importer\Actions\RecordProductImportBatchAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
@@ -27,9 +29,10 @@ class SuperCarrosVehicleInventoryImportAction
         protected Regions $region,
         protected ?Warehouses $warehouse = null,
         protected ?Channels $channel = null,
-        protected bool $unpublishAllBeforeImport = false,
+        protected bool $unpublishMissing = false,
         protected int|string|null $customerId = null,
         protected ?float $weight = null,
+        protected ?VehicleService $vehicleService = null,
     ) {
     }
 
@@ -38,7 +41,7 @@ class SuperCarrosVehicleInventoryImportAction
      */
     public function execute(): array
     {
-        $vehicleService = new VehicleService(
+        $vehicleService = $this->vehicleService ?? new VehicleService(
             $this->app,
             $this->company,
             $this->region,
@@ -54,11 +57,6 @@ class SuperCarrosVehicleInventoryImportAction
 
         // Get channel
         $channel = $this->channel ?: Channels::getDefault($this->company);
-
-        // Unpublish all variants from channel if requested
-        if ($this->unpublishAllBeforeImport && $channel) {
-            $channel->unPublishAllVariants();
-        }
 
         $successCount = 0;
         $failedCount = 0;
@@ -80,6 +78,15 @@ class SuperCarrosVehicleInventoryImportAction
                     'errors' => ['No vehicles found'],
                 ];
             }
+
+            // Ticked from the list, before any per-vehicle import: a sibling feed into the same
+            // company (another customer_id) must be marked present before this one's finish runs.
+            $run = new RecordProductImportBatchAction(
+                $this->app,
+                $this->company,
+                $this->user,
+                array_column($vehicles, 'Id'),
+            )->execute();
 
             foreach ($vehicles as $vehicleData) {
                 try {
@@ -145,11 +152,17 @@ class SuperCarrosVehicleInventoryImportAction
             ];
         }
 
+        if ($this->unpublishMissing && $channel) {
+            $run = new FinishProductImportAction($run, $channel)->execute();
+        }
+
         return [
             'success' => true,
-            'total_processed' => count($vehicles ?? []),
+            'total_processed' => count($vehicles),
             'imported' => $successCount,
             'failed' => $failedCount,
+            'unpublished' => $run->unpublished_count,
+            'unpublish_skipped_reason' => $run->skipped_reason,
             'products' => $importedProducts,
             'errors' => $errors,
         ];

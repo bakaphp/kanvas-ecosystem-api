@@ -23,16 +23,16 @@ use Throwable;
 #[AgentTool(name: 'Create Entity Channel', category: 'social')]
 class CreateEntityChannelTool extends Tool
 {
+    protected string $name = 'create_entity_channel';
+
+    protected ?string $description = 'Create or retrieve a Social channel attached to an existing entity in the current company. '
+        . 'Use only registered entity namespaces. Returns the channel_id needed by add_message_to_channel.';
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Users $user,
     ) {
-        parent::__construct(
-            name: 'create_entity_channel',
-            description: 'Create or retrieve a Social channel attached to an existing entity in the current company. '
-                . 'Use only registered entity namespaces. Returns the channel_id needed by add_message_to_channel.',
-        );
     }
 
     #[Override]

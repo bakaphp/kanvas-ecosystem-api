@@ -66,9 +66,11 @@ class WakeAgentForProjectJob implements ShouldQueue
      * serialized per project, so a wake behind a backlog dies without running.
      *
      * The mention budget is sized for lock COLLISIONS (see {@see self::middleware()}); `maxExceptions` is
-     * what keeps it from becoming 41 LLM calls when the wake itself is what's failing.
+     * what keeps it from becoming 41 LLM calls when the wake itself is what's failing. A wake deferred
+     * behind a busy thread is a release, and a release counts as an attempt, so the default leaves room
+     * for a few of those on top of the three exceptions.
      */
-    public int $tries = 3;
+    public int $tries = 6;
     public int $maxExceptions = 3;
 
     /**
@@ -142,7 +144,7 @@ class WakeAgentForProjectJob implements ShouldQueue
         $replyChannel = $this->resolveReplyChannel();
         $activityBefore = $this->latestMessageId($replyChannel);
 
-        [$response, $durationMs] = $this->runAgentWake(
+        $wake = $this->runAgentWake(
             $agent,
             $session,
             $owner,
@@ -151,6 +153,12 @@ class WakeAgentForProjectJob implements ShouldQueue
             'project.agent',
             $failurePayload,
         );
+
+        if ($wake === null) {
+            return;
+        }
+
+        [$response, $durationMs] = $wake;
 
         $this->project->emitLedgerEvent(
             'project.agent.invoked',

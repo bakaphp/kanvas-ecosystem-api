@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Mcp\RemoteMcpToolkit;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Plan\Support\WorkerToolPolicy;
 use Tests\Stubs\Connectors\Mcp\FakeMcpServer;
+use Tests\Stubs\Intelligence\Tools\CallbackTool;
 
 final class RemoteMcpToolkitTest extends McpTestCase
 {
@@ -22,6 +23,20 @@ final class RemoteMcpToolkitTest extends McpTestCase
 
         $this->assertCount(2, $names);
         $this->assertContains('fake__createJiraIssue', $names);
+    }
+
+    public function testAToolAddedAtRuntimeSitsBesideTheServersOwn(): void
+    {
+        $tool = $this->makeMcpTool($this->makeIntegration());
+        $agent = $this->makeAgent();
+        $this->connectAgent($agent, $tool);
+
+        $toolkit = new RemoteMcpToolkit($agent, $tool)->add(new CallbackTool('local_lookup', 'Looks something up.', static fn (): string => 'ok'));
+        $names = array_map(fn ($tool): string => $tool->getName(), $toolkit->tools());
+
+        $this->assertCount(3, $names);
+        $this->assertContains('local_lookup', $names);
+        $this->assertContains('fake__createJiraIssue', $names, 'The server tools are still there');
     }
 
     public function testAnAgentThatNeverConnectedGetsNothingEvenWhenAnotherAgentDid(): void

@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\DealerSocket\Handlers;
 
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\DealerSocket\DataTransferObject\DealerSocket;
+use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketConfigurationService;
 use Override;
 
@@ -26,5 +27,11 @@ class DealerSocketHandler extends BaseIntegration
         );
 
         return DealerSocketConfigurationService::setup($dealerSocketDto);
+    }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [CustomFieldEnum::DEALER_SOCKET_CREDENTIAL->value];
     }
 }

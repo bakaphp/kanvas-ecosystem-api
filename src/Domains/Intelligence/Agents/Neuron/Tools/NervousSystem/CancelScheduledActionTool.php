@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesConversationHuman;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Scheduling\Actions\CancelScheduledActionAction;
 use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,19 +22,19 @@ use Override;
  * another company's schedule.
  */
 #[AgentTool(name: 'Cancel Scheduled Action', category: 'nervous_system')]
-class CancelScheduledActionTool extends Tool implements HasRunKey
+class CancelScheduledActionTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesConversationHuman;
     use TrackByInputs;
 
+    protected string $name = 'cancel_scheduled_action';
+
+    protected ?string $description = 'Cancel a pending reminder or scheduled task by its id (from list_scheduled_actions). '
+        . 'Cancels the whole series for a recurring one.';
+
     public function __construct(private readonly ?Session $session = null)
     {
-        parent::__construct(
-            name: 'cancel_scheduled_action',
-            description: 'Cancel a pending reminder or scheduled task by its id (from list_scheduled_actions). '
-                . 'Cancels the whole series for a recurring one.',
-        );
     }
 
     /**

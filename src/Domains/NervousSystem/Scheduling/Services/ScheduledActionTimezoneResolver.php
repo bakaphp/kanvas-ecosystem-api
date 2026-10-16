@@ -46,4 +46,15 @@ class ScheduledActionTimezoneResolver
 
         return $value === '' ? null : Carbon::parse($value, $timezone)->utc();
     }
+
+    /**
+     * The date a person gave, or tomorrow morning in their zone when they gave none. Stored as UTC
+     * like every parsed time: the datetime cast keeps wall-clock digits, so a zoned Carbon would land
+     * in the table as that hour in UTC.
+     */
+    public function wakeAt(?string $until, string $timezone, int $defaultHour = 9): Carbon
+    {
+        return $this->parseInZone($until, $timezone)
+            ?? Carbon::tomorrow($timezone)->setTime($defaultHour, 0)->utc();
+    }
 }

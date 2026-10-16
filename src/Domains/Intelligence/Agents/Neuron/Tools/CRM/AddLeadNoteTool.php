@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\WritesNoteForEntity;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -22,25 +21,22 @@ use Override;
  * lead Description box are separate surfaces.
  */
 #[AgentTool(name: 'Add Lead Note', category: 'crm')]
-class AddLeadNoteTool extends Tool implements HasRunKey
+class AddLeadNoteTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesLeadForTool;
     use TrackByInputs;
     use WritesNoteForEntity;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'add_lead_note',
-            description: 'Write a note on a lead so the team sees it in the lead\'s activity thread. '
-                . 'Use this whenever you are asked to "leave a note", "log this on the lead", or to record '
-                . 'why something was done (why a lead was closed, what a customer asked for, what you did). '
-                . 'Use search_leads to get the lead_id first. '
-                . 'This writes to the activity thread — use update_lead_description for the lead\'s main '
-                . 'Description box, and set_lead_status to actually change the lead\'s status.',
-        );
-    }
+    protected string $name = 'add_lead_note';
+
+    protected ?string $description = 'Write a note on a lead so the team sees it in the lead\'s activity thread. '
+        . 'Use this whenever you are asked to "leave a note", "log this on the lead", or to record '
+        . 'why something was done (why a lead was closed, what a customer asked for, what you did). '
+        . 'Use search_leads to get the lead_id first. A document the person sent with the request goes in '
+        . 'filesystem_ids so it is attached to the note, never as a URL in the text. '
+        . 'This writes to the activity thread — use update_lead_description for the lead\'s main '
+        . 'Description box, and set_lead_status to actually change the lead\'s status.';
 
     /**
      * @return array<int, ToolProperty>
@@ -61,13 +57,14 @@ class AddLeadNoteTool extends Tool implements HasRunKey
                 description: 'The note text, written for a human teammate to read.',
                 required: true,
             ),
+            $this->noteFilesProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $lead_id, string $note): array
+    public function __invoke(int $lead_id, string $note, array|int|string|null $filesystem_ids = null): array
     {
         $note = trim($note);
 
@@ -93,6 +90,7 @@ class AddLeadNoteTool extends Tool implements HasRunKey
             $note,
             'lead_id',
             'the lead\'s activity thread',
+            $this->normalizeIds($filesystem_ids),
         );
     }
 }

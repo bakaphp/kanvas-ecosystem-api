@@ -18,15 +18,11 @@ class QueryPnlTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'query_pnl',
-            description: 'Returns the Profit & Loss statement for a date range — Revenue, COGS, Gross Profit, '
-                . 'Operating Expenses, Operating Income, Other Income/Expenses, Net Income. Use this when the user '
-                . 'asks about company performance, profitability, revenue / expenses for a period (MTD, QTD, YTD).',
-        );
-    }
+    protected string $name = 'query_pnl';
+
+    protected ?string $description = 'Returns the Profit & Loss statement for a date range — Revenue, COGS, Gross Profit, '
+        . 'Operating Expenses, Operating Income, Other Income/Expenses, Net Income. Use this when the user '
+        . 'asks about company performance, profitability, revenue / expenses for a period (MTD, QTD, YTD).';
 
     #[Override]
     protected function properties(): array

@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogVariants;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -20,24 +19,20 @@ use Override;
  * customer pays and whether the variant can be bought at all.
  */
 #[AgentTool(name: 'Set Variant Stock', category: 'inventory')]
-class SetVariantStockTool extends Tool implements HasRunKey
+class SetVariantStockTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ManagesCatalogVariants;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_variant_stock',
-            description: 'Set the price, cost and stock quantity of a variant in one warehouse. Price and stock '
-                . 'live per warehouse, not on the variant itself, so this is the only way to change them. Pass '
-                . 'only what you want to change — omitted values keep their current setting, and every other '
-                . 'merchandising flag on the warehouse row is preserved. Use variant_detail first to see the '
-                . 'current numbers and which warehouses the variant is in. Only an administrator can do this.',
-        );
-    }
+    protected string $name = 'set_variant_stock';
+
+    protected ?string $description = 'Set the price, cost and stock quantity of a variant in one warehouse. Price and stock '
+        . 'live per warehouse, not on the variant itself, so this is the only way to change them. Pass '
+        . 'only what you want to change — omitted values keep their current setting, and every other '
+        . 'merchandising flag on the warehouse row is preserved. Use variant_detail first to see the '
+        . 'current numbers and which warehouses the variant is in. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

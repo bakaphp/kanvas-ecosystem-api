@@ -12,6 +12,35 @@ use Kanvas\Connectors\Elead\Support\EleadCache;
 
 class Employee
 {
+    /**
+     * eLeads lists employees per position only — there is no "all employees" endpoint.
+     */
+    public const array POSITIONS = [
+        'Administrator',
+        'Appraiser',
+        'BDC Agent',
+        'BDC Manager',
+        'Desking Salesperson',
+        'Desk Manager',
+        'Marketing',
+        'F&I Manager',
+        'GoldDigger Specialist',
+        'General Manager',
+        'General Sales Manager',
+        'Dealer Owner',
+        'Perfect Prospect Specialist',
+        'Service Parts Tech',
+        'Receptionist',
+        'Salesperson',
+        'Autopilot Specialist',
+        'Service Parts Manager',
+        'Sales Manager',
+        'Service Advisor',
+        'Service Manager',
+        'Service Technician',
+        'Internet Manager',
+    ];
+
     public ?string $id = null;
     public ?string $firstName = null;
     public ?string $lastName = null;

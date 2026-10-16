@@ -56,7 +56,7 @@ class AgentTypeResolver
             ->where('provider', '!=', '')
             ->orderBy('name')
             ->get()
-            ->filter(fn (AgentType $type): bool => class_exists($type->handler))
+            ->filter($this->hasUsableHandler(...))
             ->values();
     }
 
@@ -112,6 +112,19 @@ class AgentTypeResolver
     }
 
     /**
+     * Whether the row points at a class that exists.
+     *
+     * `handler` is nullable, and `class_exists(null)` is a TypeError under strict_types rather than
+     * false — so the two places that ask this question have to ask it the same way. `queryHireable()`
+     * already excludes nulls in SQL; `requirementsOf()` is public and gets rows that never went
+     * through it.
+     */
+    private function hasUsableHandler(AgentType $type): bool
+    {
+        return $type->handler !== null && $type->handler !== '' && class_exists($type->handler);
+    }
+
+    /**
      * What a human must still set on a hire of this type before it can do its job.
      *
      * Read off the handler class rather than the catalog row: `sync-agent-types` deliberately never
@@ -122,7 +135,7 @@ class AgentTypeResolver
      */
     public function requirementsOf(AgentType $type): array
     {
-        if (! class_exists($type->handler)) {
+        if (! $this->hasUsableHandler($type)) {
             return [];
         }
 

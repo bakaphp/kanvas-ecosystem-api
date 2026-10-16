@@ -37,6 +37,12 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'app/Console/Commands/Ecosystem/ImportEmailTemplatesCommand.php',
         // CLI: reads a local Item Balance XML file argument.
         'app/Console/Commands/Connectors/Yusen/YusenInventoryReportCommand.php',
+        // CLI: reads the coding-agent Docker build context (Dockerfile, entrypoint.sh) out of
+        // base_path('docker/opencode'), by hardcoded file name and gated by is_readable().
+        'app/Console/Commands/NervousSystem/Agents/Coding/BuildCodingImageCommand.php',
+        // Reads that same Dockerfile to derive the pinned image tag from its FROM line — one
+        // base_path() constant, gated by is_readable().
+        'src/Domains/Connectors/OpenCode/Services/CodingImageService.php',
         // CLI: operates on local temp files.
         'app/Console/Commands/Connectors/ScrapperApi/CleanScrapperImageCommand.php',
         // CLI: reads a local agent-type definition file.
@@ -59,6 +65,11 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         // Reads the local PHP source of a reflected tool class (ReflectionClass::getFileName()) to
         // tokenise its description argument, gated by is_readable().
         'src/Domains/Intelligence/Agents/Services/AgentToolDiscoveryService.php',
+        // CLI: reads local PEM files from the --cert/--key/--ca options, gated by file_exists().
+        'app/Console/Commands/Connectors/Azul/ImportAzulCertificateCommand.php',
+        // Legacy AZUL_*_PATH fallback: relative paths are forced under base_path(), the file must
+        // exist and must contain PEM material — never a URL.
+        'src/Domains/Connectors/Azul/Services/AzulCertificate.php',
     ];
 
     public function testNoUnguardedRemoteUrlFetch(): void

@@ -28,6 +28,7 @@ use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
 use Kanvas\NervousSystem\Project\Models\Project;
+use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -242,6 +243,27 @@ class MoveNervousSystemPlanToolTest extends TestCase
 
         $this->assertTrue($result['unassigned']);
         $this->assertNull($plan->refresh()->assigned_users_id);
+    }
+
+    public function testACustomColumnKeyDoesNotFollowThePlanToABoardWithoutIt(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $source = $this->makeProject($app, $company, $user, 'Source board');
+        $destination = $this->makeProject($app, $company, $user, 'Destination board');
+
+        $backlog = new ProjectBoardColumns()->create($source, 'Backlog', PlanStatusEnum::ACTIVE->value);
+        $plan = $this->planUnderProject($source, $app, $company, $user);
+        $plan->board_column_key = $backlog['key'];
+        $plan->saveQuietly();
+
+        $tool = new MoveNervousSystemPlanTool()->withContext($app, $company, $user);
+        $result = $tool(plan_id: (int) $plan->getId(), project_id: (int) $destination->getId());
+
+        $this->assertArrayNotHasKey('error', $result);
+        $plan->refresh();
+        $this->assertSame($destination->getId(), (int) $plan->project_id);
+        $this->assertSame('in_progress', $plan->board_column_key);
+        $this->assertSame(PlanStatusEnum::ACTIVE->value, $plan->status);
     }
 
     public function testMovingIntoTheSameProjectIsANoop(): void

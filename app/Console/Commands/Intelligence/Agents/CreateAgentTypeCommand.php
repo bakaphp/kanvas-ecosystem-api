@@ -12,7 +12,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
-use Kanvas\Intelligence\Agents\Types\BaseAgent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\NervousSystem\Capability\Actions\AttachToolToAgentTypeAction;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
@@ -208,7 +208,7 @@ class CreateAgentTypeCommand extends Command
                 }
 
                 $isLaravel = $ref->isSubclassOf(KanvasLaravelAgent::class);
-                $isNeuron = $ref->isSubclassOf(BaseAgent::class);
+                $isNeuron = $ref->implementsInterface(BehavesAsKanvasAgent::class);
 
                 if ($provider === 'laravel' && $isLaravel) {
                     $classes[] = $class;

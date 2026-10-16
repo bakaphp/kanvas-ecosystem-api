@@ -11,7 +11,7 @@ use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
  * Bounds what one turn's attachments may add to the prompt.
  *
  * The provider's input ceiling has a third half nobody guarded: stored history is trimmed by
- * RebuildsTrimmedHistory and in-turn tool output by BoundToolResultsMiddleware, but the content
+ * KanvasHistoryTrimmer and in-turn tool output by BoundToolResultsMiddleware, but the content
  * blocks built from a turn's own attachments were counted by neither. Only the per-file caps
  * applied — 200KB for inlined text, and SSRF_MAX_BYTES (50MB) for everything else — with no limit
  * on how many files a message carries. One large PDF, or a WhatsApp burst carrying several, put the

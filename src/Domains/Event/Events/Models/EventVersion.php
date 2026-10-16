@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Kanvas\Analytics\Reporting\Observers\ReportSourceObserver;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Currencies\Models\Currencies;
@@ -32,7 +33,7 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
-#[ObservedBy([EventVersionObserver::class])]
+#[ObservedBy([EventVersionObserver::class, ReportSourceObserver::class])]
 class EventVersion extends BaseModel
 {
     use CanUseWorkflow;
@@ -246,6 +247,10 @@ class EventVersion extends BaseModel
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,
+            'start_at' => $this->start_at?->toIso8601String(),
+            'end_at' => $this->end_at?->toIso8601String(),
+            'start_at_timestamp' => $this->start_at?->timestamp,
+            'end_at_timestamp' => $this->end_at?->timestamp,
             'config' => $this->metadata,
             'apps_id' => $this->apps_id,
             'companies_id' => $this->companies_id,
@@ -281,6 +286,26 @@ class EventVersion extends BaseModel
                 [
                     'name' => 'description',
                     'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'start_at',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'end_at',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'start_at_timestamp',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'end_at_timestamp',
+                    'type' => 'int64',
                     'optional' => true,
                 ],
                 [

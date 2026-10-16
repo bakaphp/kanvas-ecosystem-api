@@ -19,14 +19,10 @@ class ListParticipantTypesTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_participant_types',
-            description: 'Lists the participant-type catalog (names + ids). Call this to resolve a participant-type '
-                . 'name the user mentions before using it as an include/exclude filter in get_event_report.',
-        );
-    }
+    protected string $name = 'list_participant_types';
+
+    protected ?string $description = 'Lists the participant-type catalog (names + ids). Call this to resolve a participant-type '
+        . 'name the user mentions before using it as an include/exclude filter in get_event_report.';
 
     /**
      * @return array<int, \NeuronAI\Tools\ToolProperty>

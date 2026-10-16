@@ -11,7 +11,7 @@ use Kanvas\Intelligence\Agents\Exceptions\ProviderMalformedToolCallException;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGemini;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Exceptions\ProviderException;
-use NeuronAI\HttpClient\GuzzleHttpClient;
+use NeuronAI\HttpClient\Guzzle\GuzzleHttpClient;
 use Tests\TestCase;
 
 final class GeminiMalformedFunctionCallTest extends TestCase
@@ -25,8 +25,24 @@ final class GeminiMalformedFunctionCallTest extends TestCase
 
         $reply = $this->provider($mock)->chat(new UserMessage('Unblock plan 399'));
 
-        $this->assertSame('Blocker resolved.', $reply->getContent());
+        $this->assertSame('Blocker resolved.', $reply->message()->getContent());
         $this->assertSame(0, $mock->count());
+    }
+
+    public function testTheRetryTellsTheModelWhatWasWrong(): void
+    {
+        $mock = new MockHandler([
+            $this->malformed(),
+            $this->answer('Rendered.'),
+        ]);
+
+        $this->provider($mock)->chat(new UserMessage('Render the scoring table'));
+
+        $retry = json_decode((string) $mock->getLastRequest()->getBody(), true);
+        $turns = array_map(static fn (array $content): string => $content['role'] . ': ' . ($content['parts'][0]['text'] ?? ''), $retry['contents']);
+
+        $this->assertSame('user: Render the scoring table', $turns[0]);
+        $this->assertSame('user: ' . KanvasGemini::MALFORMED_CALL_FEEDBACK, end($turns), 'A blind retry repeats the malformed call');
     }
 
     public function testAMalformedCallThatPersistsFailsWithoutSalvagingTheNarratedAction(): void
@@ -57,7 +73,7 @@ final class GeminiMalformedFunctionCallTest extends TestCase
 
             $reply = $this->provider($mock)->chat(new UserMessage('Attach the file'));
 
-            $this->assertSame('Retry succeeded.', $reply->getContent());
+            $this->assertSame('Retry succeeded.', $reply->message()->getContent());
             $this->assertSame(0, $mock->count());
         }
     }

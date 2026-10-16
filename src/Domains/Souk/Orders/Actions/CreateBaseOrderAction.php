@@ -27,6 +27,8 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
+use Kanvas\Souk\Shipping\Actions\RequoteCartShippingAction;
+use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Kanvas\Users\Actions\SendUserNotificationAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -54,6 +56,13 @@ class CreateBaseOrderAction
 
     public function execute(): ModelsOrder
     {
+        new RequoteCartShippingAction(
+            app: $this->app,
+            company: $this->company,
+            region: $this->region,
+            cart: $this->cart,
+        )->execute();
+
         if ($this->billingAddress !== null) {
             $billing = $this->people->addAddress(new Address(
                 address: $this->billingAddress->address,
@@ -111,6 +120,7 @@ class CreateBaseOrderAction
         }
 
         $orderCurrency = $this->resolveOrderCurrency();
+        $providerShipping = $hasItemsInCart ? RequoteCartShippingAction::providerSelection($this->cart) : [];
 
         $items = $hasItemsInCart
             ? $this->getOrderItems($lineItems, $this->app, $orderCurrency)
@@ -133,12 +143,12 @@ class CreateBaseOrderAction
             totalShipping: $totalShipping,
             status: OrderStatusEnum::COMPLETED->value,
             orderNumber: '',
-            shippingMethod: null,
+            shippingMethod: $providerShipping[ShippingConditionEnum::METHOD_NAME->value] ?? null,
             currency: $orderCurrency,
             fulfillmentStatus: OrderStatusEnum::PENDING->value,
             items: $items,
             orderType: $this->request['input']['order_type'] ?? null,
-            metadata: $this->request['input']['metadata'] ?? [],
+            metadata: $this->buildOrderMetadata($providerShipping),
             weight: 0.0,
             checkoutToken: '',
             paymentGatewayName: ['manual'],
@@ -147,6 +157,8 @@ class CreateBaseOrderAction
             paymentStatus: 'unpaid',
             parent: $this->parent,
             ipAddress: $this->ipAddress,
+            estimateShippingDate: $providerShipping[ShippingConditionEnum::ESTIMATE_SHIPPING_DATE->value] ?? null,
+            chargeShipping: $providerShipping !== [],
         );
 
         $order = new CreateOrderAction($order)->disableWorkflow()->execute();
@@ -233,9 +245,27 @@ class CreateBaseOrderAction
         return OrderItem::collect($orderItems, DataCollection::class);
     }
 
-    /**
-     * Calculate total amount for a specific condition type from cart.
-     */
+    protected function buildOrderMetadata(array $providerShipping): mixed
+    {
+        $metadata = $this->request['input']['metadata'] ?? [];
+
+        if ($providerShipping === []) {
+            return $metadata;
+        }
+
+        $metadata = Str::jsonToArray($metadata);
+        $metadata = is_array($metadata) ? $metadata : [];
+        $metadata['shipping'] = [
+            ShippingConditionEnum::PROVIDER->value => $providerShipping[ShippingConditionEnum::PROVIDER->value],
+            ShippingConditionEnum::SERVICE->value => $providerShipping[ShippingConditionEnum::SERVICE->value] ?? null,
+            ShippingConditionEnum::QUOTED_AMOUNT->value => $providerShipping[ShippingConditionEnum::QUOTED_AMOUNT->value] ?? null,
+            ShippingConditionEnum::CURRENCY->value => $providerShipping[ShippingConditionEnum::CURRENCY->value] ?? null,
+            ShippingConditionEnum::QUOTED_AT->value => $providerShipping[ShippingConditionEnum::QUOTED_AT->value] ?? null,
+        ];
+
+        return $metadata;
+    }
+
     protected function calculateTotalFromConditions(string $type): float
     {
         $total = 0.0;

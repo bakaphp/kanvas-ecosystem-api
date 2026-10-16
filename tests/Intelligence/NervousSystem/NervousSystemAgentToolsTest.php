@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
@@ -24,11 +25,13 @@ use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Tools\HasRunKey;
 use Tests\TestCase;
+use Tests\Traits\AssertsToolRunKeys;
 
 class NervousSystemAgentToolsTest extends TestCase
 {
+    use AssertsToolRunKeys;
+
     /**
      * Sentry KANVAS-ECOSYSTEM-621 hit add_nervous_system_task mid-plan-build: an agent adding many
      * tasks to a plan in one turn trips NeuronAI's per-tool-name run cap. Every per-item NS tool must
@@ -53,13 +56,7 @@ class NervousSystemAgentToolsTest extends TestCase
         ];
 
         foreach ($tools as $tool) {
-            $this->assertInstanceOf(HasRunKey::class, $tool, $tool::class . ' must key runs by inputs.');
-
-            $keyA = $tool->setInputs(['x' => 'a'])->getRunKey();
-            $keyB = $tool->setInputs(['x' => 'b'])->getRunKey();
-            $keyARepeat = $tool->setInputs(['x' => 'a'])->getRunKey();
-            $this->assertNotEquals($keyA, $keyB, $tool::class . ': distinct inputs need distinct budgets.');
-            $this->assertEquals($keyA, $keyARepeat, $tool::class . ': identical inputs must collapse to cap loops.');
+            $this->assertRunKeyFollowsInputs($tool);
         }
     }
 
@@ -97,6 +94,15 @@ class NervousSystemAgentToolsTest extends TestCase
 
         // The plan's completion rolled up (1/1 done → 100).
         $this->assertSame(100, (int) $plan->refresh()->completion_pct);
+
+        // "Thanks, she did it" after the fact must not write a second completion.
+        $again = $tool((int) $task->id, 'done', 'shipped it');
+
+        $this->assertTrue($again['unchanged']);
+        $this->assertSame(1, DB::connection('intelligence')->table('nervous_system_events')
+            ->where('source_entity_id', $task->id)
+            ->where('event_type', 'plan.task.completed')
+            ->count());
     }
 
     public function testAddTaskToolAddsATask(): void

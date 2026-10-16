@@ -86,6 +86,9 @@ class SyncEmailTemplateAction
             ], [
                 'name' => LeadsEnumsEmailTemplateEnum::NEW_LEAD_COMPANY_ADMIN->value,
                 'template' => File::get(resource_path('views/emails/newLeadCompany.blade.php')),
+            ], [
+                'name' => LeadsEnumsEmailTemplateEnum::DAILY_LEADS_DIGEST->value,
+                'template' => File::get(resource_path('views/emails/dailyLeadsDigest.blade.php')),
             ],[
                 'name' => NotificationTemplateEnum::PUSH_NEW_FOLLOWER->value,
                 'template' => File::get(resource_path('views/emails/newPushNotification.blade.php')),

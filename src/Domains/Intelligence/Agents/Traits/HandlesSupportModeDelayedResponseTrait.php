@@ -101,12 +101,6 @@ trait HandlesSupportModeDelayedResponseTrait
 
     protected function isSupportModeDelayedResponseEnabled(Apps $app): bool
     {
-        $setting = $app->get(ConfigurationEnum::SUPPORT_MODE_DELAYED_RESPONSE->value);
-
-        if ($setting === null) {
-            return true;
-        }
-
-        return filter_var($setting, FILTER_VALIDATE_BOOLEAN);
+        return $app->getBool(ConfigurationEnum::SUPPORT_MODE_DELAYED_RESPONSE->value, default: true);
     }
 }

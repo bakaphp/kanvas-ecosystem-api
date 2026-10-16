@@ -18,15 +18,11 @@ class QueryBalanceSheetTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'query_balance_sheet',
-            description: 'Returns the company Balance Sheet as of a specific date — Assets / Liabilities / Equity '
-                . 'with per-account rollup + the is_balanced invariant. Use this when the user asks about company '
-                . 'net worth, what we own / owe, equity position, or wants a snapshot of the books.',
-        );
-    }
+    protected string $name = 'query_balance_sheet';
+
+    protected ?string $description = 'Returns the company Balance Sheet as of a specific date — Assets / Liabilities / Equity '
+        . 'with per-account rollup + the is_balanced invariant. Use this when the user asks about company '
+        . 'net worth, what we own / owe, equity position, or wants a snapshot of the books.';
 
     #[Override]
     protected function properties(): array

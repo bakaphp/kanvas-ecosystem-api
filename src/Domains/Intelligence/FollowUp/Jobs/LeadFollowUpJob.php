@@ -13,6 +13,7 @@ use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\CrmLeadSourceSynchronizer;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
@@ -44,7 +45,11 @@ final class LeadFollowUpJob implements ShouldQueue
     ) {
     }
 
-    public function handle(): void
+    /**
+     * The synchronizer is method-injected so tests can hand in a fake; the action decides when to
+     * use it (only after every free gate, since CRM calls are billed).
+     */
+    public function handle(CrmLeadSourceSynchronizer $synchronizer): void
     {
         $this->overwriteAppService($this->app);
 
@@ -63,6 +68,7 @@ final class LeadFollowUpJob implements ShouldQueue
             lead: $this->lead,
             agent: $agent,
             force: $this->force,
+            synchronizer: $synchronizer,
         )->execute();
     }
 

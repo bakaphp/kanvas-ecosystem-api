@@ -231,6 +231,46 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
     }
 
     /**
+     * A chat reply carries the channel verb mirrored from its message type and no status.
+     * It is not an engagement, so the processor reports it as skipped instead of throwing
+     * into the CRM note-push activities that run it on every lead message.
+     */
+    public function testChatReplyWithoutStatusIsSkippedWithoutThrowing(): void
+    {
+        [$company, $lead] = $this->bootChecklist();
+
+        $result = new ProcessMessageTaskUpdatesAction(
+            $this->chatMessage($lead, ['content' => 'Hello', 'from_human' => true, 'verb' => 'twilio-sms']),
+            $lead,
+            auth()->user(),
+        )->execute();
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('Verb and status are required', $result['message']);
+
+        $company->del('default_checklist_id');
+    }
+
+    public function testVerbThatIsNotAChecklistActionIsSkippedWithoutThrowing(): void
+    {
+        [$company, $lead] = $this->bootChecklist();
+
+        $bankStatements = $this->createDocItem('Bank Statements', 9);
+
+        $result = new ProcessMessageTaskUpdatesAction(
+            $this->chatMessage($lead, ['content' => 'Hello', 'verb' => 'twilio-sms', 'status' => 'submitted']),
+            $lead,
+            auth()->user(),
+        )->execute();
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString("'twilio-sms' is not a checklist action", $result['message']);
+        $this->assertItemUntouched($bankStatements, $lead);
+
+        $company->del('default_checklist_id');
+    }
+
+    /**
      * Builds a company action + checklist for the given action slug on the auth user's
      * company and pins it as the default checklist so the message processor resolves to
      * exactly these items.
@@ -349,6 +389,18 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
                 'contact_uuid' => $contactUuid,
             ],
         ]);
+
+        $message->addEntity($lead);
+
+        return $message;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function chatMessage(Lead $lead, array $payload): Message
+    {
+        $message = Message::factory()->create(['message' => $payload]);
 
         $message->addEntity($lead);
 

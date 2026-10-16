@@ -6,6 +6,7 @@ namespace Tests\GraphQL\NervousSystem;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\NervousSystem\Scheduling\Actions\CreateScheduledActionAction;
@@ -80,6 +81,67 @@ class ScheduledActionMutationTest extends TestCase
         $this->assertSame('0 9 * * *', $row['recurrence_cron']);
         $this->assertSame('Ping the client', $row['payload']['message']);
         $this->assertSame((string) auth()->user()->getId(), (string) $row['recipient']['id']);
+    }
+
+    private function makeActionOwnedByAnotherUser(): ScheduledAction
+    {
+        $action = $this->makeAction();
+        $action->users_id = Users::factory()->create()->getId();
+        $action->saveOrFail();
+
+        return $action;
+    }
+
+    private function listByUuid(string $uuid): int
+    {
+        return (int) $this->graphQL('
+            query {
+                nervousSystemScheduledActions(
+                    where: { column: UUID, operator: EQ, value: "' . $uuid . '" }
+                ) {
+                    paginatorInfo { total }
+                }
+            }
+        ')->assertSuccessful()->json('data.nervousSystemScheduledActions.paginatorInfo.total');
+    }
+
+    public function testQueryHidesAnotherUsersScheduledActions(): void
+    {
+        $theirs = $this->makeActionOwnedByAnotherUser();
+        $mine = $this->makeAction();
+
+        $this->assertSame(0, $this->listByUuid($theirs->uuid));
+        $this->assertSame(1, $this->listByUuid($mine->uuid));
+    }
+
+    public function testAppKeyRequestListsEveryUsersScheduledActions(): void
+    {
+        $theirs = $this->makeActionOwnedByAnotherUser();
+
+        app()->instance(AppKey::class, app(Apps::class)->keys()->firstOrFail());
+
+        try {
+            $this->assertSame(1, $this->listByUuid($theirs->uuid));
+        } finally {
+            app()->forgetInstance(AppKey::class);
+        }
+    }
+
+    public function testMutationsRejectAnotherUsersScheduledAction(): void
+    {
+        $theirs = $this->makeActionOwnedByAnotherUser();
+
+        foreach (['pause', 'resume', 'cancel'] as $verb) {
+            $this->graphQL('
+                mutation {
+                    ' . $verb . 'NervousSystemScheduledAction(id: ' . $theirs->getId() . ') { id }
+                }
+            ')->assertGraphQLErrorMessage(
+                sprintf('No scheduled action found with ID %s for the current user', $theirs->getId())
+            );
+        }
+
+        $this->assertSame(ScheduledActionStatusEnum::PENDING->value, $theirs->refresh()->status);
     }
 
     public function testPauseKeepsRowOutOfTheSweep(): void

@@ -23,16 +23,12 @@ class ListEventsTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_events',
-            description: 'Search and list events with their name, dates, type/category/class/status and how many '
-                . 'versions (editions) each has. Use for "what events do I have", "find the leadership event", '
-                . '"list my events". Pass search to filter by name/description; omit for the most recent. For one '
-                . 'event\'s full detail use get_event.',
-        );
-    }
+    protected string $name = 'list_events';
+
+    protected ?string $description = 'Search and list events with their name, dates, type/category/class/status and how many '
+        . 'versions (editions) each has. Use for "what events do I have", "find the leadership event", '
+        . '"list my events". Pass search to filter by name/description; omit for the most recent. For one '
+        . 'event\'s full detail use get_event.';
 
     /**
      * @return array<int, ToolProperty>

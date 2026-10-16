@@ -19,11 +19,14 @@ enum CustomFieldEnum: string
     case VEHICLE_TRADE_IN_ID = 'ELEAD_VEHICLE_TRADE_IN_ID';
     case LEAD_SOURCE_ID = 'ELEAD_LEAD_SOURCE_ID';
     case LEAD_SUB_STATUS = 'ELEAD_LEAD_SUB_STATUS';
+    case ACTIVITY_ID = 'ELEAD_ACTIVITY_ID'; // on the Kanvas Event mirrored to an eLead activity
     case IN_SHOW_ROOM = 'In Showroom';
     case ELEAD_USER_POSITION_CODE = 'eLeadsJobPositionCode';
     case CREDIT_APP_IMPORTER = 'credit_app_imported';
     case GET_DOCS_IMPORTER = 'get_docs_imported';
     case CO_BUYER_APP_IMPORTER = 'co_buyer_imported';
+    case CREDIT_APP_DATA = 'creditapp_data';
+    case CO_BUYER_APP_DATA = 'cobuyer_data';
     case ID_VERIFICATION = 'id_verification';
 
     /**

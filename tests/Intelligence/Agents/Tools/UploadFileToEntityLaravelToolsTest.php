@@ -22,10 +22,12 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
 use Laravel\Ai\Tools\Request;
 use Tests\TestCase;
+use Tests\Traits\MakesFilesystemRows;
 
 final class UploadFileToEntityLaravelToolsTest extends TestCase
 {
     use DatabaseTransactions;
+    use MakesFilesystemRows;
 
     protected array $connectionsToTransact = ['mysql', 'ecosystem', 'crm', 'social', 'inventory'];
 
@@ -100,18 +102,24 @@ final class UploadFileToEntityLaravelToolsTest extends TestCase
         $this->assertCount(0, $foreignLead->getFiles());
     }
 
+    public function test_upload_file_to_message_attaches_an_existing_kanvas_file_by_id(): void
+    {
+        $message = $this->makeMessage('upload-tool-laravel-existing');
+        $file = $this->makeFilesystemRow($this->currentCompany->getId(), 'meeting-transcript.txt');
+
+        $result = $this->invoke(new UploadFileToMessageTool(), [
+            'message_id' => (int) $message->getId(),
+            'filesystem_id' => (int) $file->getId(),
+        ]);
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame((int) $file->getId(), $result['filesystem_id']);
+        $this->assertContains('meeting-transcript.txt', $message->getFiles()->pluck('name')->all());
+    }
+
     public function test_upload_file_to_message_attaches_to_the_message(): void
     {
-        $messageType = MessageType::firstOrCreate(
-            ['apps_id' => $this->currentApp->getId(), 'languages_id' => 1, 'verb' => 'upload-tool-laravel-test'],
-            ['name' => 'Upload Tool Laravel Test']
-        );
-
-        $message = Message::factory()
-            ->withAppId($this->currentApp->getId())
-            ->withCompanyId($this->currentCompany->getId())
-            ->withMessageType($messageType)
-            ->create();
+        $message = $this->makeMessage('upload-tool-laravel-test');
 
         $result = $this->invoke(new UploadFileToMessageTool(), [
             'message_id' => (int) $message->getId(),
@@ -183,6 +191,20 @@ final class UploadFileToEntityLaravelToolsTest extends TestCase
     private function invoke(object $tool, array $arguments): array
     {
         return json_decode($this->handle($tool, $arguments), true);
+    }
+
+    private function makeMessage(string $verb): Message
+    {
+        $messageType = MessageType::firstOrCreate(
+            ['apps_id' => $this->currentApp->getId(), 'languages_id' => 1, 'verb' => $verb],
+            ['name' => 'Upload Tool Laravel Test']
+        );
+
+        return Message::factory()
+            ->withAppId($this->currentApp->getId())
+            ->withCompanyId($this->currentCompany->getId())
+            ->withMessageType($messageType)
+            ->create();
     }
 
     private function makeLead(): Lead

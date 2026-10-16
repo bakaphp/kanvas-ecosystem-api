@@ -65,7 +65,7 @@ class ScreeningAction
         $candidates = [];
 
         $linkedin = $this->people->contacts()
-            ->where('contacts_types_id', ContactType::getByName('LinkedIn')->getId())
+            ->where('contacts_types_id', ContactType::getByName(ContactType::LINKEDIN)->getId())
             ->value('value');
 
         if (! empty($linkedin)) {

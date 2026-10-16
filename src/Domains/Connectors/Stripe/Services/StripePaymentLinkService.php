@@ -8,7 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Stripe\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Stripe\Support\StripeAccount;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
@@ -27,14 +28,7 @@ class StripePaymentLinkService
         protected ?Companies $company = null,
         ?StripeClient $stripe = null
     ) {
-        if ($stripe !== null) {
-            $this->stripe = $stripe;
-
-            return;
-        }
-
-        $stripeKey = $company ? $company->get(ConfigurationEnum::STRIPE_SECRET_KEY->value) : null;
-        $this->stripe = new StripeClient($stripeKey ?? $this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
+        $this->stripe = $stripe ?? StripeAccount::resolve($app, $company)->client();
     }
 
     /**
@@ -46,7 +40,7 @@ class StripePaymentLinkService
         $this->validateOrder($order);
 
         // Check if payment link already exists for this order
-        if ($existingPaymentLinkId = $order->getMetadata('stripe_payment_link_id')) {
+        if ($existingPaymentLinkId = $order->getMetadata(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value)) {
             try {
                 return $this->stripe->paymentLinks->retrieve($existingPaymentLinkId);
             } catch (Exception $e) {
@@ -112,8 +106,8 @@ class StripePaymentLinkService
         $paymentLink = $this->stripe->paymentLinks->create($paymentLinkData);
 
         // Store payment link ID in order metadata
-        $order->addMetadata('stripe_payment_link_id', $paymentLink->id);
-        $order->addMetadata('stripe_payment_link_url', $paymentLink->url);
+        $order->addMetadata(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value, $paymentLink->id);
+        $order->addMetadata(CustomFieldEnum::STRIPE_PAYMENT_LINK_URL->value, $paymentLink->url);
 
         return $paymentLink;
     }
@@ -127,7 +121,7 @@ class StripePaymentLinkService
         }
 
         // Check if payment link already exists for this order
-        if ($existingPaymentLinkId = $message->get('stripe_payment_link_id')) {
+        if ($existingPaymentLinkId = $message->get(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value)) {
             try {
                 return $this->stripe->paymentLinks->retrieve($existingPaymentLinkId);
             } catch (Exception $e) {
@@ -174,8 +168,8 @@ class StripePaymentLinkService
         $paymentLink = $this->stripe->paymentLinks->create($paymentLinkData);
 
         // Store payment link ID in order metadata
-        $message->set('stripe_payment_link_id', $paymentLink->id);
-        $message->set('stripe_payment_link_url', $paymentLink->url);
+        $message->set(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value, $paymentLink->id);
+        $message->set(CustomFieldEnum::STRIPE_PAYMENT_LINK_URL->value, $paymentLink->url);
 
         return $paymentLink;
     }
@@ -390,7 +384,7 @@ class StripePaymentLinkService
      */
     public function getPaymentLinkByOrder(Order $order): ?PaymentLink
     {
-        $paymentLinkId = $order->getMetadata('stripe_payment_link_id');
+        $paymentLinkId = $order->getMetadata(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value);
 
         if (! $paymentLinkId) {
             return null;
@@ -408,7 +402,7 @@ class StripePaymentLinkService
      */
     public function deactivatePaymentLink(Order $order): bool
     {
-        $paymentLinkId = $order->getMetadata('stripe_payment_link_id');
+        $paymentLinkId = $order->getMetadata(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value);
 
         if (! $paymentLinkId) {
             return false;

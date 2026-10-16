@@ -145,3 +145,8 @@ Downstream consumers (CRM push, frontend, checklist) read these:
 The email goes to whoever `Kanvas\Companies\Services\CompanyManagerService` resolves — the company's `Managers` role holders plus anyone still listed in the legacy `company_manager` setting — plus the lead owner, each once, and is skipped entirely when the company sets `disable_id_verification_email` — the PDF and engagement are still filed. `id_verification` is always written on the verified person, and on the lead only for the main buyer.
 
 `VerifyPeopleIdAction::sendNotification()` guards on a 3-minute cache keyed by **lead id + verified person id**. Not a persisted flag: a queue retry must not send a second report, but a customer re-scanning after a failed check must get one — a permanent flag silently killed the report, the PDF and the engagement for every later verification of that person. And not keyed by display name: a participant whose document is unreadable resolves the name back to the main buyer's, so a name-keyed guard makes the two skip each other.
+
+`sendEmail: false` skips the email **and leaves the window unclaimed** — the PDF and engagement are still
+filed. Claiming it would mean a real scan arriving within 3 minutes of a regeneration gets no report, no
+PDF and no engagement at all. `GenerateIdVerificationFromMessageActivity` defaults to it (its `send_email`
+param opts back in), because that path re-scores a scan that already notified once.

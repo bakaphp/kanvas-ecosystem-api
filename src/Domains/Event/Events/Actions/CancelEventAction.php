@@ -9,10 +9,12 @@ use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\EventStatus;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CancelEventAction
 {
     private bool $sendNotifications = true;
+    private bool $runWorkflow = true;
 
     public function __construct(
         private EventVersion $eventVersion
@@ -22,6 +24,13 @@ class CancelEventAction
     public function withoutNotifications(): self
     {
         $this->sendNotifications = false;
+
+        return $this;
+    }
+
+    public function disableWorkflow(): self
+    {
+        $this->runWorkflow = false;
 
         return $this;
     }
@@ -56,13 +65,26 @@ class CancelEventAction
             new SendEventEmailsAction($this->eventVersion, EmailTemplateEnum::BOOKING_CANCELLED->value)->execute();
         }
 
+        // A cancellation is a status change on the event; integrations mirroring the event listen on `updated`.
+        if ($this->runWorkflow) {
+            $event = $this->eventVersion->event;
+            $event->fireWorkflow(
+                WorkflowEnum::UPDATED->value,
+                true,
+                [
+                    'app' => $event->app,
+                    'company' => $event->company,
+                ]
+            );
+        }
+
         return $this->eventVersion;
     }
 
     private function validateEventNotAlreadyCancelled(): void
     {
         // Check if event status is already "Cancelled"
-        if ($this->eventVersion->event->eventStatus?->name === EventStatusEnum::CANCELLED->value) {
+        if ($this->eventVersion->event->isCancelled()) {
             throw new ValidationException('Event is already cancelled and cannot be cancelled again.');
         }
 

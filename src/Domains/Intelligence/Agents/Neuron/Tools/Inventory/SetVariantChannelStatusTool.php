@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogVariants;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,24 +20,20 @@ use Override;
  * and so activating can never invent a price to do it.
  */
 #[AgentTool(name: 'Set Variant Channel Status', category: 'inventory')]
-class SetVariantChannelStatusTool extends Tool implements HasRunKey
+class SetVariantChannelStatusTool extends Tool
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ManagesCatalogVariants;
     use TrackByInputs;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_variant_channel_status',
-            description: 'Activate or deactivate a variant on a sales channel — whether shoppers on that channel '
-                . 'can see and buy it. Its price stays as it was, so deactivating and reactivating is safe. The '
-                . 'variant has to already be listed on the channel; if it is not, use set_variant_channel_price to '
-                . 'list it with a price first. Use variant_detail to see the channels it is on and list_channels '
-                . 'for the rest. Only an administrator can do this.',
-        );
-    }
+    protected string $name = 'set_variant_channel_status';
+
+    protected ?string $description = 'Activate or deactivate a variant on a sales channel — whether shoppers on that channel '
+        . 'can see and buy it. Its price stays as it was, so deactivating and reactivating is safe. The '
+        . 'variant has to already be listed on the channel; if it is not, use set_variant_channel_price to '
+        . 'list it with a price first. Use variant_detail to see the channels it is on and list_channels '
+        . 'for the rest. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>

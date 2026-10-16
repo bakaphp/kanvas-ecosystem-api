@@ -9,9 +9,10 @@ use Kanvas\Connectors\Elead\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Services\LeadUserService;
 use Kanvas\Connectors\Elead\Support\EleadCache;
+use Kanvas\Connectors\SalesAssist\Actions\RecordLeadVehicleNotesAction;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\Enums\LeadVehicleNoteEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Users\Models\UserConfig;
 use Throwable;
 
 class SyncLeadAction
@@ -73,6 +74,7 @@ class SyncLeadAction
                 LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value,
                 $vehicleOfInterest
             );
+            new RecordLeadVehicleNotesAction($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST)->execute();
 
             if (is_array($vehicleOfInterest) && count($vehicleOfInterest) && $lead->company->get('enable_vehicle_checklist')) {
                 if (isset($vehicleOfInterest['mileage'])) {
@@ -111,6 +113,7 @@ class SyncLeadAction
                 LeadCustomFieldEnum::TRADE_IN->value,
                 end($eLeadOpportunity->tradeIns)
             );
+            new RecordLeadVehicleNotesAction($lead, LeadVehicleNoteEnum::TRADE_IN)->execute();
         }
 
         if ($eLeadOpportunity->inShowRoom()) {
@@ -124,13 +127,10 @@ class SyncLeadAction
             if (! empty($eLeadOpportunity->salesTeam)) {
                 foreach ($eLeadOpportunity->salesTeam as $salesTeam) {
                     if ((bool)$salesTeam['isPrimary']) {
-                        $userConfig = UserConfig::where([
-                            'name' => CustomFieldEnum::getUserKey($this->lead->company),
-                            'value' => $salesTeam['id'],
-                        ])->first();
+                        $owner = LeadUserService::resolveByEleadUserId($this->lead->company, (string) $salesTeam['id']);
 
-                        if ($userConfig) {
-                            $lead->leads_owner_id = $userConfig->users_id;
+                        if ($owner !== null) {
+                            $lead->leads_owner_id = $owner->getId();
                             $lead->disableWorkflows();
                             $lead->saveOrFail();
                             $lead->enableWorkflows();

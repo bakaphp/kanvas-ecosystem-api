@@ -9,7 +9,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
-use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
+use Kanvas\Intelligence\Agents\Neuron\Concerns\HasProspectIsolatedHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CalendarEventTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CancelCalendarEventTool;
@@ -41,8 +41,6 @@ use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Agent\SystemPrompt;
-use NeuronAI\Chat\History\AbstractChatHistory;
-use NeuronAI\Chat\History\InMemoryChatHistory;
 use Override;
 
 #[AgentTypeDefinition(
@@ -53,26 +51,9 @@ use Override;
 class SalesAgent extends BaseRagAgent implements ConversesWithCustomer
 {
     use HasCustomerPersona;
+    use HasProspectIsolatedHistory;
     use HasTemporalContext;
     use MergesRegisteredTools;
-
-    #[Override]
-    protected function chatHistory(): AbstractChatHistory
-    {
-        if ($this->entity === null || $this->user === null) {
-            return new InMemoryChatHistory();
-        }
-
-        return new SalesAssistKanvasMessageHistory(
-            app: $this->app,
-            company: $this->company,
-            user: $this->user,
-            entity: $this->entity,
-            threadId: $this->threadId,
-            currentLead: $this->currentLead,
-            contextWindow: $this->resolvedContextWindow(),
-        );
-    }
 
     #[Override]
     public function instructions(): string

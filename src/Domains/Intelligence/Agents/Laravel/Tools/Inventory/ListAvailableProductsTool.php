@@ -6,8 +6,8 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Laravel\Concerns\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
-use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Laravel\Ai\Tools\Request;
@@ -50,12 +50,16 @@ class ListAvailableProductsTool implements KanvasToolInterface
             $builder->fromCompany($this->company);
         }
 
+        if ($onlyInStock) {
+            $builder->inStock();
+        }
+
         $products = $builder->get();
 
-        $label = $isPublished ? 'published' : 'unpublished';
+        $label = ($isPublished ? 'published' : 'unpublished') . ($onlyInStock ? ' products with stock' : ' products');
 
         if ($products->isEmpty()) {
-            return "No {$label} products found in the inventory.";
+            return "No {$label} found in the inventory.";
         }
 
         $results = $products->map(function (Products $product) {
@@ -75,14 +79,6 @@ class ListAvailableProductsTool implements KanvasToolInterface
                 ])->toArray(),
             ];
         });
-
-        if ($onlyInStock) {
-            $results = $results->filter(fn ($product) => $product['total_stock'] > 0);
-
-            if ($results->isEmpty()) {
-                return "No {$label} products with stock found.";
-            }
-        }
 
         return $results->values()->toJson(JSON_PRETTY_PRINT);
     }

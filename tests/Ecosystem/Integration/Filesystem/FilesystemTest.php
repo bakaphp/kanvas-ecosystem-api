@@ -8,13 +8,18 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
+use Kanvas\Social\Messages\Models\Message;
 use Mockery;
 use RuntimeException;
+use Spatie\ImageOptimizer\Image;
+use Spatie\ImageOptimizer\OptimizerChain;
+use Spatie\ImageOptimizer\Optimizers\BaseOptimizer;
 use Tests\TestCase;
 
 final class FilesystemTest extends TestCase
@@ -40,6 +45,26 @@ final class FilesystemTest extends TestCase
         $filesystemEntities = $attachFileSystem->execute('avatar');
         $this->assertInstanceOf(FilesystemEntities::class, $filesystemEntities);
         $this->assertEquals($fieldName, $filesystemEntities->field_name);
+    }
+
+    public function testAttachedFileLinksUnderTheEntityCompanyNotTheUploaderCompany(): void
+    {
+        $app = app(Apps::class);
+        $otherCompany = Companies::factory()->create([
+            'users_id' => Auth::id(),
+            'is_active' => 1,
+        ]);
+        $otherCompany->associateApp($app);
+
+        $message = Message::factory()->withCompanyId($otherCompany->getId())->create();
+        $fileSystem = new FilesystemServices($app)->upload(UploadedFile::fake()->image('doc.jpg'), Auth::user());
+
+        $this->assertNotSame($otherCompany->getId(), (int) $fileSystem->companies_id);
+
+        $link = new AttachFilesystemAction($fileSystem, $message)->execute('doc');
+
+        $this->assertSame($otherCompany->getId(), (int) $link->companies_id);
+        $this->assertSame([$fileSystem->url], $message->getFilesQueryBuilder()->pluck('url')->all());
     }
 
     public function testGetFiles()
@@ -444,6 +469,60 @@ final class FilesystemTest extends TestCase
 
         $this->assertEquals('image/jpeg', $mimeType);
         $this->assertEquals('jpg', $extension);
+
+        @unlink($tempPath);
+    }
+
+    public function testOptimizeLocalFileKeepsOriginalWhenOptimizerDiesMidWrite(): void
+    {
+        $tempPath = sys_get_temp_dir() . '/optimizer-killed-' . uniqid() . '.png';
+        $img = imagecreatetruecolor(400, 400);
+        imagefill($img, 0, 0, imagecolorallocate($img, 255, 0, 0));
+        imagepng($img, $tempPath);
+        imagedestroy($img);
+        $originalHash = md5_file($tempPath);
+
+        $service = new class () extends ImageOptimizerService {
+            protected static function optimizerChain(): OptimizerChain
+            {
+                // Truncates its target the way a SIGKILLed optipng does, then overruns the timeout
+                $truncateThenHang = new class () extends BaseOptimizer {
+                    public $binaryName = 'sh';
+
+                    public function canHandle(Image $image): bool
+                    {
+                        return true;
+                    }
+                };
+                $truncateThenHang->setOptions(['-c', escapeshellarg(': > "$0"; sleep 3')]);
+
+                return new OptimizerChain()->addOptimizer($truncateThenHang)->setTimeout(1)->throws();
+            }
+        };
+
+        $result = $service::optimizeLocalFile($tempPath, optimize: true);
+
+        $this->assertSame($tempPath, $result);
+        $this->assertSame($originalHash, md5_file($tempPath), 'A failed optimizer must leave the upload untouched');
+        $this->assertFileDoesNotExist($tempPath . '.optimizing');
+        $this->assertFileDoesNotExist($tempPath . '.optimizing.bak');
+
+        @unlink($tempPath);
+    }
+
+    public function testOptimizeLocalFileLeavesLargePngUntouchedWhenOnlyQualityIsSet(): void
+    {
+        $tempPath = sys_get_temp_dir() . '/large-png-' . uniqid() . '.png';
+        $img = imagecreatetruecolor(2500, 2000);
+        imagefill($img, 0, 0, imagecolorallocate($img, 0, 0, 255));
+        imagepng($img, $tempPath);
+        imagedestroy($img);
+        $originalHash = md5_file($tempPath);
+
+        $result = ImageOptimizerService::optimizeLocalFile($tempPath, optimize: true, quality: 75);
+
+        $this->assertSame($tempPath, $result);
+        $this->assertSame($originalHash, md5_file($tempPath), 'Neither optipng nor a quality re-encode should run on a photo-sized PNG');
 
         @unlink($tempPath);
     }

@@ -26,17 +26,13 @@ class StopContactTool extends Tool
 {
     use ResolvesLeadForTool;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'stop_contact',
-            description: 'Honor a prospect who asks to stop being contacted / unsubscribe / "stop" / "remove me" / "do not contact". '
-                . 'This is a full do-not-contact: it opts every phone AND email this person has out of future messages across '
-                . 'SMS, WhatsApp and email, turns off automated replies on all of their leads, logs a note, and notifies a human. '
-                . 'Call it as soon as the prospect clearly asks to stop hearing from the business. '
-                . 'You may still send ONE short acknowledgement this turn (e.g. "Done — you won\'t hear from us again."), then stop.',
-        );
-    }
+    protected string $name = 'stop_contact';
+
+    protected ?string $description = 'Honor a prospect who asks to stop being contacted / unsubscribe / "stop" / "remove me" / "do not contact". '
+        . 'This is a full do-not-contact: it opts every phone AND email this person has out of future messages across '
+        . 'SMS, WhatsApp and email, turns off automated replies on all of their leads, logs a note, and notifies a human. '
+        . 'Call it as soon as the prospect clearly asks to stop hearing from the business. '
+        . 'You may still send ONE short acknowledgement this turn (e.g. "Done — you won\'t hear from us again."), then stop.';
 
     #[Override]
     protected function properties(): array

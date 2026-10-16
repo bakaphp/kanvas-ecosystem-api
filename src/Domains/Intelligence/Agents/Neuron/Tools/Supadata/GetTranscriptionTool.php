@@ -9,7 +9,6 @@ use Kanvas\Connectors\Supadata\Client;
 use Kanvas\Connectors\Supadata\Exceptions\TranscriptUnavailableException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesSupadataClientForTool;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -40,10 +39,20 @@ use Throwable;
         . 'recordings are part of the work, not as a default. Long media returns a job the agent '
         . 'collects on a second call.',
 )]
-class GetTranscriptionTool extends Tool implements HasRunKey
+class GetTranscriptionTool extends Tool
 {
     use ResolvesSupadataClientForTool;
     use TrackByInputs;
+
+    protected string $name = 'get_transcription';
+
+    protected ?string $description = 'Read what was said in a video or audio recording, given its link. Works with '
+        . 'YouTube, TikTok, Instagram, X (Twitter), Facebook, and any public file URL of an audio '
+        . 'or video file. Use it whenever someone shares a recording and asks what is in it, or '
+        . 'asks you to summarize, extract decisions, or pull action items out of a call, demo or '
+        . 'standup. It reads existing captions when the platform has them and transcribes the '
+        . 'audio when it does not. Long recordings come back as a job_id — call again with that '
+        . 'job_id to collect the result.';
 
     private const int MAX_CONTENT_LENGTH = 25000;
 
@@ -54,20 +63,6 @@ class GetTranscriptionTool extends Tool implements HasRunKey
      */
     private const int POLL_ATTEMPTS = 5;
     private const int POLL_INTERVAL_SECONDS = 3;
-
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_transcription',
-            description: 'Read what was said in a video or audio recording, given its link. Works with '
-                . 'YouTube, TikTok, Instagram, X (Twitter), Facebook, and any public file URL of an audio '
-                . 'or video file. Use it whenever someone shares a recording and asks what is in it, or '
-                . 'asks you to summarize, extract decisions, or pull action items out of a call, demo or '
-                . 'standup. It reads existing captions when the platform has them and transcribes the '
-                . 'audio when it does not. Long recordings come back as a job_id — call again with that '
-                . 'job_id to collect the result.',
-        );
-    }
 
     /**
      * @return array<int, ToolProperty>

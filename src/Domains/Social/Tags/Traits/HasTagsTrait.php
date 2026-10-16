@@ -25,6 +25,14 @@ trait HasTagsTrait
         return $query;
     }
 
+    /**
+     * The key tags_entities.entity_id holds — not getId(), which a composite-key model overrides.
+     */
+    public function taggableKey(): mixed
+    {
+        return $this->{$this->tags()->getParentKeyName()};
+    }
+
     public function hasTag(array $tags): bool
     {
         if (empty($tags)) {
@@ -55,19 +63,22 @@ trait HasTagsTrait
         $user = $this->user ?? $user;
         $company = $company ?? $this->company;
 
-        $tag = (new CreateTagAction(
+        $tag = new CreateTagAction(
             new Tag(
                 $app,
                 $user,
                 $company,
                 $tag
             )
-        ))->execute();
+        )->execute();
 
-        // Check if the tag is already attached before syncing
+        // Never attach()/detach(): a custom pivot inherits the PARENT's connection, so the write lands
+        // in a different transaction than every other TagEntity write on social — and lock-waits on it.
         if (! $this->tags()->wherePivot('tags_id', $tag->getId())->exists()) {
-            $this->tags()->attach($this->getId(), [
+            TagEntity::create([
                 'tags_id' => $tag->getId(),
+                'entity_id' => $this->taggableKey(),
+                'taggable_type' => $this->getMorphClass(),
                 'users_id' => $user->getId(),
                 'is_deleted' => 0,
             ]);
@@ -93,10 +104,7 @@ trait HasTagsTrait
         $tagModel = ModelsTag::fromApp($this->app)->where('name', $tag)->first();
 
         if ($tagModel) {
-            TagEntity::where('entity_id', $this->getId())
-            ->where('tags_id', $tagModel->getId())
-            ->where('taggable_type', static::class)
-            ->delete();
+            $this->deleteTagEntities([$tagModel->getId()]);
         }
     }
 
@@ -105,16 +113,35 @@ trait HasTagsTrait
         $tagIds = ModelsTag::fromApp($this->app)->whereIn('name', $tags)->pluck('id');
 
         if ($tagIds->isNotEmpty()) {
-            TagEntity::where('entity_id', $this->getId())
-                ->whereIn('tags_id', $tagIds)
-                ->where('taggable_type', static::class)
-                ->delete();
+            $this->deleteTagEntities($tagIds->all());
         }
     }
 
-    public function syncTags(array $tags): void
+    public function syncTags(
+        array $tags,
+        ?AppInterface $app = null,
+        ?UserInterface $user = null,
+        ?CompanyInterface $company = null
+    ): void {
+        $this->deleteTagEntities();
+        $this->addTags(ModelsTag::normalizeNames($tags), $app, $user, $company);
+    }
+
+    /**
+     * Read the ids, then delete by primary key. A ranged DELETE on the non-unique entity_id index
+     * takes gap locks even when nothing matches, and the TagEntity insert that follows deadlocks
+     * against any other transaction holding the same gap.
+     */
+    protected function deleteTagEntities(?array $tagIds = null): void
     {
-        $this->tags()->detach();
-        $this->addTags(ModelsTag::normalizeNames($tags));
+        $ids = TagEntity::query()
+            ->where('entity_id', $this->taggableKey())
+            ->where('taggable_type', $this->getMorphClass())
+            ->when($tagIds !== null, fn ($query) => $query->whereIn('tags_id', $tagIds))
+            ->pluck('id');
+
+        if ($ids->isNotEmpty()) {
+            TagEntity::query()->whereIn('id', $ids)->delete();
+        }
     }
 }

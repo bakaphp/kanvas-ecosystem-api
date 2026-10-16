@@ -33,4 +33,18 @@ class VinSolutionHandler extends BaseIntegration
 
         return ! empty($response['access_token']);
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [ConfigurationEnum::COMPANY->value];
+    }
+
+    #[Override]
+    public function teardown(): void
+    {
+        parent::teardown();
+
+        $this->company->user->del(ConfigurationEnum::getUserKey($this->company, $this->company->user));
+    }
 }

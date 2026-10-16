@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Mailgun;
 
+use ErrorException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -26,6 +27,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use ReflectionProperty;
+use Tests\Stubs\Intelligence\PartlessNeuronAgentStub;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 use Throwable;
@@ -204,6 +206,39 @@ class AgentChannelResponderEndToEndTest extends TestCase
         $this->assertFalse($outbound, 'No agent reply should be persisted for a non-email inbound');
     }
 
+    // Regression (Sentry KANVAS-ECOSYSTEM-6GW): a failed turn came back as the staff-facing fallback
+    // ("narrow it down — an exact name, email, or date range") and was emailed to the vendor who wrote in.
+    public function testAFailedTurnEmailsNothingToTheSender(): void
+    {
+        Notification::fake();
+
+        ['app' => $app, 'company' => $company, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
+            $this->seedInboundEmailScenario(PartlessNeuronAgentStub::class);
+
+        $failure = null;
+
+        try {
+            new AgentChannelResponderAction($channel, $inbound, $agent, $session)->execute([]);
+        } catch (ErrorException $e) {
+            $failure = $e;
+        }
+
+        $this->assertNotNull($failure, 'A failed turn must surface to the webhook job, not become a reply');
+
+        $outbound = Message::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->where('id', '>', $inbound->getId())
+            ->whereJsonContains('message->from_ia', true)
+            ->whereHas(
+                'channels',
+                fn ($q) => $q->where('channels.id', $channel->getId()),
+            )
+            ->exists();
+
+        $this->assertFalse($outbound, 'No reply may be persisted or sent for a failed turn');
+    }
+
     // Regression: without this marker the agent had no way to know a new attachment existed and reused an older one's summary from chat history instead.
     public function testCurrentAttachmentIsSurfacedAsAnExplicitMarker(): void
     {
@@ -249,7 +284,7 @@ class AgentChannelResponderEndToEndTest extends TestCase
     /**
      * @return array{app: Apps, company: \Kanvas\Companies\Models\Companies, channel: Channel, inbound: Message, agent: Agent, session: \Kanvas\Intelligence\Sessions\Models\Session, lead: Lead}
      */
-    private function seedInboundEmailScenario(): array
+    private function seedInboundEmailScenario(string $handler = SalesNeuronAgentStub::class): array
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -315,7 +350,7 @@ class AgentChannelResponderEndToEndTest extends TestCase
             ->create([
                 'name' => 'Sales (Neuron Test)',
                 'provider' => 'neuron',
-                'handler' => SalesNeuronAgentStub::class,
+                'handler' => $handler,
             ]);
 
         $agent = Agent::factory()

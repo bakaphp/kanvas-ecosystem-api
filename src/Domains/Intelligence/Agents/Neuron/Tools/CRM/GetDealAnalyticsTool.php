@@ -29,16 +29,12 @@ class GetDealAnalyticsTool extends Tool
     use HasKanvasContext;
     use ResolvesAnalyticsTimeframe;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_deal_analytics',
-            description: 'Deal volume and mix over a timeframe: total deals plus breakdowns by status, pipeline, '
-                . 'pipeline stage, and owner, and a daily trend. Use for "how many deals this month?", "which stage '
-                . 'holds the most deals?", "deal count per rep". Reporting only — the deal equivalent of '
-                . 'get_lead_analytics.',
-        );
-    }
+    protected string $name = 'get_deal_analytics';
+
+    protected ?string $description = 'Deal volume and mix over a timeframe: total deals plus breakdowns by status, pipeline, '
+        . 'pipeline stage, and owner, and a daily trend. Use for "how many deals this month?", "which stage '
+        . 'holds the most deals?", "deal count per rep". Reporting only — the deal equivalent of '
+        . 'get_lead_analytics.';
 
     /**
      * @return array<int, ToolProperty>

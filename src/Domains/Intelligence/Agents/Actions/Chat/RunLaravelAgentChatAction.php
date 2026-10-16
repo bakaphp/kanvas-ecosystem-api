@@ -104,7 +104,7 @@ class RunLaravelAgentChatAction
             }
 
             // Forward tool calls/results/usage so the agent_conversation_messages row
-            // mirrors the Neuron + RemembersConversations paths (else empty tool_calls).
+            // mirrors the Neuron + RemembersConversations paths (else empty steps).
             new KanvasConversationStore()->logTurn(
                 userId: $this->user->getId(),
                 sessionId: $sessionId,
@@ -115,6 +115,7 @@ class RunLaravelAgentChatAction
                 toolCalls: $response->toolCalls->toArray(),
                 toolResults: $response->toolResults->toArray(),
                 usage: $usage,
+                participant: KanvasConversationStore::participantFor($this->session, $this->user, $this->agent),
             );
         }
 

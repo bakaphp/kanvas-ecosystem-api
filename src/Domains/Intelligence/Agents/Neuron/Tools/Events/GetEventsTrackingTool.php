@@ -22,16 +22,12 @@ class GetEventsTrackingTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'get_events_tracking',
-            description: 'Upcoming events and how their registration is tracking against goal — enrolled counts, goal, '
-                . '% of goal, over the next N weeks. This is the follow-up / tracking view: which events are '
-                . 'behind and need a push. Use for "which events are behind on registration", "how\'s enrollment '
-                . 'looking", "follow-up on upcoming events".',
-        );
-    }
+    protected string $name = 'get_events_tracking';
+
+    protected ?string $description = 'Upcoming events and how their registration is tracking against goal — enrolled counts, goal, '
+        . '% of goal, over the next N weeks. This is the follow-up / tracking view: which events are '
+        . 'behind and need a push. Use for "which events are behind on registration", "how\'s enrollment '
+        . 'looking", "follow-up on upcoming events".';
 
     /**
      * @return array<int, ToolProperty>

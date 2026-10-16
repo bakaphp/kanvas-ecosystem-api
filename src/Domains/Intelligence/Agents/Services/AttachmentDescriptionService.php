@@ -67,7 +67,7 @@ class AttachmentDescriptionService
 
         $handler->setConfiguration(agent: $agent, user: $user);
 
-        return new self($handler->captionProvider(), ! $handler instanceof ConversesWithCustomer);
+        return new self($handler->getProvider(), ! $handler instanceof ConversesWithCustomer);
     }
 
     /**
@@ -227,7 +227,7 @@ class AttachmentDescriptionService
             $message->addContent($block);
 
             $response = $this->provider->chat($message);
-            $description = $this->normalize((string) ($response->getContent() ?? ''));
+            $description = $this->normalize((string) ($response->message()->getContent() ?? ''));
 
             if ($description === '') {
                 return '';

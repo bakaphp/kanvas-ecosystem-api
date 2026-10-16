@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
+use Kanvas\Intelligence\Agents\Helpers\ConversationUsageSqlHelper;
 use Kanvas\Intelligence\Agents\Services\ModelPricingCalculator;
 
 /**
@@ -110,10 +111,10 @@ class AgentSpendReportCommand extends Command
             ->selectRaw("JSON_UNQUOTE(JSON_EXTRACT(m.`usage`, '$.model')) as model")
             ->selectRaw('COUNT(*) as turns')
             ->selectRaw('COUNT(DISTINCT c.id) as sessions')
-            ->selectRaw("COALESCE(SUM(CAST(COALESCE(JSON_EXTRACT(m.`usage`, '$.prompt_tokens'), JSON_EXTRACT(m.`usage`, '$.input_tokens'), 0) AS UNSIGNED)), 0) as input_tokens")
-            ->selectRaw("COALESCE(SUM(CAST(COALESCE(JSON_EXTRACT(m.`usage`, '$.completion_tokens'), JSON_EXTRACT(m.`usage`, '$.output_tokens'), 0) AS UNSIGNED)), 0) as output_tokens")
-            ->selectRaw("COALESCE(SUM(CAST(COALESCE(JSON_EXTRACT(m.`usage`, '$.cache_read_input_tokens'), JSON_EXTRACT(m.`usage`, '$.cache_read'), 0) AS UNSIGNED)), 0) as cache_read")
-            ->selectRaw("COALESCE(SUM(CAST(COALESCE(JSON_EXTRACT(m.`usage`, '$.cache_write_input_tokens'), JSON_EXTRACT(m.`usage`, '$.cache_write'), 0) AS UNSIGNED)), 0) as cache_write");
+            ->selectRaw(ConversationUsageSqlHelper::inputTokens() . ' as input_tokens')
+            ->selectRaw(ConversationUsageSqlHelper::outputTokens() . ' as output_tokens')
+            ->selectRaw(ConversationUsageSqlHelper::cacheReadTokens() . ' as cache_read')
+            ->selectRaw(ConversationUsageSqlHelper::cacheWriteTokens() . ' as cache_write');
 
         if ($appId !== null) {
             $query->where('c.apps_id', $appId);

@@ -50,6 +50,7 @@ use Kanvas\KanvasModules\Enums\CompanyKanvasModuleStatusEnum;
 use Kanvas\KanvasModules\Enums\KanvasModuleEnum;
 use Kanvas\KanvasModules\Models\CompanyKanvasModule;
 use Kanvas\Models\BaseModel;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -98,6 +99,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     use AddressTraitRelationship;
     use CanPayFloat;
     use HasWalletsTrait;
+    use HasTagsTrait;
 
     protected $table = 'companies';
 

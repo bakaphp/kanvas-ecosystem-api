@@ -40,4 +40,10 @@ class WaSenderHandler extends BaseIntegration
 
         return Client::validateCredentials($baseUrl, $apiKey);
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [ConfigurationEnum::API_KEY->value];
+    }
 }

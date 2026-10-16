@@ -15,15 +15,16 @@ use Override;
 #[AgentTool(name: 'Current Time', category: 'ecosystem')]
 class CurrentTimeTool extends Tool
 {
+    protected string $name = 'get_current_time';
+
+    protected ?string $description = 'Get the current date and time in a given timezone. Your instructions already state the '
+        . 'current date and time, so do not call this to confirm them; call it when you need the time in '
+        . 'another timezone, or when the instructions did not state it. The returned '
+        . 'time is already in the user\'s local timezone, so do your math in that same local time. '
+        . 'Pass an IANA timezone (e.g. "America/New_York") to override the zone.';
+
     public function __construct(private readonly ?string $defaultTimezone = null)
     {
-        parent::__construct(
-            name: 'get_current_time',
-            description: 'Get the current date and time. Use this to anchor any time-relative reasoning '
-                . '("in 1 minute", "tomorrow at 3pm", "Sunday") before deciding what to do — the returned '
-                . 'time is already in the user\'s local timezone, so do your math in that same local time. '
-                . 'Pass an IANA timezone (e.g. "America/New_York") to override the zone.',
-        );
     }
 
     #[Override]

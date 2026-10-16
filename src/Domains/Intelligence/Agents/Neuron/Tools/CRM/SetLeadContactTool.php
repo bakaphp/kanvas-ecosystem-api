@@ -28,16 +28,12 @@ class SetLeadContactTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'set_lead_contact',
-            description: 'Change which contact person (People) a lead is associated with. Provide the lead_id plus '
-                . 'either people_id or a contact (email or phone) that already exists in this company. Use this when '
-                . 'a lead is on the wrong person or should move to a different contact. The contact must already '
-                . 'exist — if it does not, create it first. Use search_leads to get the lead_id.',
-        );
-    }
+    protected string $name = 'set_lead_contact';
+
+    protected ?string $description = 'Change which contact person (People) a lead is associated with. Provide the lead_id plus '
+        . 'either people_id or a contact (email or phone) that already exists in this company. Use this when '
+        . 'a lead is on the wrong person or should move to a different contact. The contact must already '
+        . 'exist — if it does not, create it first. Use search_leads to get the lead_id.';
 
     /**
      * @return array<int, ToolProperty>

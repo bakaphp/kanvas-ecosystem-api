@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Repositories\UsersRepository;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -20,22 +19,22 @@ use Override;
 use Throwable;
 
 #[AgentTool(name: 'Who Is User', category: 'ecosystem')]
-class WhoIsUserTool extends Tool implements HasRunKey
+class WhoIsUserTool extends Tool
 {
     use TrackByInputs;
+
+    protected string $name = 'who_is_user';
+
+    protected ?string $description = 'Look up a teammate by id OR by their @displayname/handle: their name, email, company, and '
+        . 'where they sit in the org chart (position, department, who they report to). When your instructions already '
+        . 'name who you are talking to, do not call this to confirm it; call it when someone refers to another '
+        . 'teammate by a handle (e.g. "kaioken", "@jane"), or when you need a person\'s role before answering.';
 
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly ?Users $currentUser = null,
     ) {
-        parent::__construct(
-            name: 'who_is_user',
-            description: 'Find out who you are talking to, or look up another teammate by id OR by their @displayname/handle — '
-                . 'their name, email, company, and where they sit in the org chart (position, department, who they report to). '
-                . 'Use it whenever someone refers to a teammate by a handle (e.g. "kaioken", "@jane"), or when you need to know '
-                . 'someone\'s role before answering.',
-        );
     }
 
     #[Override]

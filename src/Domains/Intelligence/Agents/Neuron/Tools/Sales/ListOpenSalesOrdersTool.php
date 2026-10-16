@@ -22,15 +22,11 @@ class ListOpenSalesOrdersTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'list_open_sales_orders',
-            description: 'Lists open sales orders (customer orders that are not completed or cancelled) with '
-                . 'customer, status, fulfillment status and total. Use this for "what orders are open", a '
-                . 'customer\'s in-flight orders, or the sales pipeline. Filter by customer name/email when named.',
-        );
-    }
+    protected string $name = 'list_open_sales_orders';
+
+    protected ?string $description = 'Lists open sales orders (customer orders that are not completed or cancelled) with '
+        . 'customer, status, fulfillment status and total. Use this for "what orders are open", a '
+        . 'customer\'s in-flight orders, or the sales pipeline. Filter by customer name/email when named.';
 
     /**
      * @return array<int, ToolProperty>

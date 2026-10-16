@@ -22,4 +22,10 @@ class OfferLogixHandler extends BaseIntegration
 
         return $this->company->set(ConfigurationEnum::COMPANY_SOURCE_ID->value, $companySourceId);
     }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [ConfigurationEnum::COMPANY_SOURCE_ID->value];
+    }
 }

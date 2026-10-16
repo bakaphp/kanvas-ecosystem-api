@@ -69,4 +69,9 @@ enum ConfigurationEnum: string
     case MINUTES_FOR_MATCH_ADF_LEAD = 'minutes-for-match-adf-lead';
     case LEGACY_CRM_API_URL = 'legacy-crm-api-url';
     case LEGACY_CRM_CLIENT_ID = 'legacy-crm-client-id';
+    case LEAD_DEALER_TAGS = 'lead-dealer-tags';
+    case USER_DEALER_TAG = 'lead-dealer-tag';
+    case AGENT_NAME = 'sales_assist_agent_name';
+
+    public const string DEFAULT_AGENT_NAME = 'Sally';
 }

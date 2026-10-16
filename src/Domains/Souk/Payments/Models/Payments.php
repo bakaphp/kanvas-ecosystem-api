@@ -44,6 +44,8 @@ class Payments extends BaseModel
     use CanUseWorkflow;
     use UuidTrait;
 
+    public const string CARD_VELOCITY_BLOCKED_EVENT = 'payment_card_velocity_blocked';
+
     protected $table = 'payments';
     protected $guarded = [];
 
@@ -122,6 +124,15 @@ class Payments extends BaseModel
     public function isPaid(): bool
     {
         return $this->status === PaymentStatusEnum::PAID->value;
+    }
+
+    public static function cardKey(?string $brand, ?string $lastFour): ?string
+    {
+        if (! $brand || ! $lastFour) {
+            return null;
+        }
+
+        return strtolower($brand) . ':' . $lastFour;
     }
 
     public function markAsPaid(array $metadata = []): void

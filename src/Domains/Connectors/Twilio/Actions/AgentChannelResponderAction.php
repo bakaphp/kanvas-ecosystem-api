@@ -30,7 +30,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
     #[Override]
     public function execute(array $params = []): array
     {
-        $entity = $this->message->entity();
+        $entity = $this->message->preferredEntity(Lead::class);
         if ($entity === null) {
             throw new ValidationException('No entity found');
         }
@@ -97,7 +97,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
     private function recordOptOutNote(string $to, string $body): void
     {
-        $entity = $this->message->entity();
+        $entity = $this->message->entity(Lead::class);
         if (! $entity instanceof Lead) {
             return;
         }

@@ -32,21 +32,17 @@ class ConfigureProductDiscoveryTool extends Tool
     use GuardsAdminForTool;
     use HasKanvasContext;
 
-    private const string DEFAULT_EMBEDDING_MODEL = 'ts/multilingual-e5-small';
+    protected string $name = 'configure_product_discovery';
 
-    public function __construct()
-    {
-        parent::__construct(
-            name: 'configure_product_discovery',
-            description: 'Set up natural-language product discovery for this app. Admin only. Points '
-                . 'products at Typesense, gives the app its own collection, and turns on embeddings so a '
-                . 'shopper can search in one language against a catalog written in another. '
-                . 'It only writes settings — it does NOT index, enrich or create the collection, because '
-                . 'those cost money and take hours. It returns the commands a human still has to run, in '
-                . 'order. Run check_product_discovery_setup first to see what is actually missing, and '
-                . 'again afterwards to confirm.',
-        );
-    }
+    protected ?string $description = 'Set up natural-language product discovery for this app. Admin only. Points '
+        . 'products at Typesense, gives the app its own collection, and turns on embeddings so a '
+        . 'shopper can search in one language against a catalog written in another. '
+        . 'It only writes settings — it does NOT index, enrich or create the collection, because '
+        . 'those cost money and take hours. It returns the commands a human still has to run, in '
+        . 'order. Run check_product_discovery_setup first to see what is actually missing, and '
+        . 'again afterwards to confirm.';
+
+    private const string DEFAULT_EMBEDDING_MODEL = 'ts/multilingual-e5-small';
 
     /**
      * @return array<int, ToolProperty>
