@@ -114,6 +114,7 @@ type InsuranceSearchEntry {
     inspection_status: String
     is_sponsored: Boolean!
     is_recommended: Boolean!
+    is_contractable: Boolean!
 }
 
 type InsuranceSearchFailure {

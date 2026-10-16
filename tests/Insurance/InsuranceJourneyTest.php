@@ -234,6 +234,37 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertSame(0, $underpriced->payments()->count());
     }
 
+    public function testAnInsurerThatCannotEmitIsShownButNeverContracted(): void
+    {
+        $this->bindFakeProvider('basic_insurer');
+        $basicPlan = $this->seedPlan(
+            $this->seedInsurer($this->kanvasUser->getCurrentCompany(), 'basic_insurer'),
+            'B-1'
+        );
+
+        $entries = collect($this->searchResult()['entries']);
+        $this->assertTrue($entries->firstWhere('plan.id', (string) $this->plan->getId())['is_contractable']);
+
+        $basic = $entries->firstWhere('plan.id', (string) $basicPlan->getId());
+        $this->assertFalse($basic['is_contractable']);
+
+        $leadId = $this->graphQL(
+            'mutation($input: SelectInsurancePlanInput!) { selectInsurancePlan(input: $input) { id } }',
+            ['input' => ['plan_id' => $basicPlan->getId(), 'quote_number' => $basic['quote_number']]]
+        )->json('data.selectInsurancePlan.id');
+        $this->assertNotNull($leadId);
+
+        $ordersBefore = Order::query()->fromApp($this->kanvasApp)->count();
+        $response = $this->graphQL(
+            'mutation($input: ContractInsurancePlanInput!) { contractInsurancePlan(input: $input) { id } }',
+            ['input' => ['lead_id' => $leadId, 'customer' => self::CUSTOMER]]
+        );
+
+        $this->assertStringContainsString('cannot be contracted', (string) $response->json('errors.0.message'));
+        $this->assertSame($ordersBefore, Order::query()->fromApp($this->kanvasApp)->count());
+        $this->assertTrue(Lead::findOrFail($leadId)->hasOpenLeadStatus());
+    }
+
     private function assertPolicyIsIssuedAndInvoiced(Order $order): void
     {
         $payment = $this->holdPayment($order);
@@ -287,10 +318,19 @@ final class InsuranceJourneyTest extends TestCase
 
     private function searchEntry(): array
     {
+        $search = $this->searchResult();
+        $this->assertCount(1, $search['entries']);
+        $this->assertTrue($search['entries'][0]['is_contractable']);
+
+        return $search['entries'][0];
+    }
+
+    private function searchResult(): array
+    {
         $response = $this->graphQL(
             'query($input: CanonicalQuoteInput!) {
                 insuranceSearch(input: $input) {
-                    entries { plan { id variant_id } quote_number total }
+                    entries { plan { id variant_id } quote_number total is_contractable }
                     failures { reason message }
                 }
             }',
@@ -303,9 +343,8 @@ final class InsuranceJourneyTest extends TestCase
         $search = $response->json('data.insuranceSearch');
         $this->assertNotNull($search, json_encode($response->json()));
         $this->assertSame([], $search['failures'], json_encode($search['failures']));
-        $this->assertCount(1, $search['entries']);
 
-        return $search['entries'][0];
+        return $search;
     }
 
     private function createFromCart(array $entry, array $tamper = []): Order

@@ -13,6 +13,7 @@ use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Exceptions\InsuranceValidationException;
 use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
+use Kanvas\Insurance\Services\InsuranceContractGate;
 use Kanvas\Insurance\Services\InsurancePlanProductResolver;
 use Kanvas\Insurance\Services\InsuranceQuoteBinding;
 use Kanvas\Insurance\Services\InsuranceVehicleProduct;
@@ -61,6 +62,8 @@ class ValidateInsuranceOrderAction
         $this->assertQuoteNotContracted();
 
         $provider = InsuranceProviderFactory::make($plan->insurer->provider, $this->order->app, $this->order->company);
+
+        InsuranceContractGate::assertContractable($provider);
 
         if ($provider instanceof CustomerDataProviderInterface) {
             if ($this->data->customer === null) {

@@ -55,6 +55,7 @@ class MultiProviderSearchTest extends TestCase
                     can_emit
                     is_sponsored
                     is_recommended
+                    is_contractable
                 }
                 failures { insurer { name } reason message }
             }
@@ -337,6 +338,7 @@ class MultiProviderSearchTest extends TestCase
         $this->assertSame([1, 2, 3, 4, 5], array_column($data['entries'], 'rank'));
         $this->assertSame([true, false, false, false, false], array_column($data['entries'], 'is_sponsored'));
         $this->assertSame([false, false, true, false, false], array_column($data['entries'], 'is_recommended'));
+        $this->assertSame([false, false, true, true, true], array_column($data['entries'], 'is_contractable'));
         $this->assertEquals([90000.0, 50265.54, 6078.0, 3000.0, 4000.0], array_column($data['entries'], 'price'));
         $this->assertSame(['FULL'], array_unique(array_column(array_column($data['entries'], 'plan'), 'type')));
 

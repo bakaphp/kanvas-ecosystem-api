@@ -26,6 +26,7 @@ use Kanvas\Insurance\Exceptions\InsuranceValidationException;
 use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceCommissionCalculator;
+use Kanvas\Insurance\Services\InsuranceContractGate;
 use Kanvas\Insurance\Services\InsuranceOrderMetadata;
 use Kanvas\Insurance\Services\InsuranceOrderPipeline;
 use Kanvas\Insurance\Services\InsurancePlanProductResolver;
@@ -89,6 +90,8 @@ class ConvertInsuranceLeadToOrderAction
             $this->contract->app,
             $this->credentialCompany()
         );
+        InsuranceContractGate::assertContractable($provider);
+
         $customer = $this->confirmedCustomer($lead, $provider);
         $orderData = new InsuranceOrderData(
             provider: $provider->name(),
@@ -264,9 +267,14 @@ class ConvertInsuranceLeadToOrderAction
         return $variant;
     }
 
+    private function planResolver(): InsurancePlanProductResolver
+    {
+        return InsurancePlanProductResolver::forActing($this->contract->app, $this->contract->company);
+    }
+
     private function planVariantFor(InsurancePlan $plan): Variants
     {
-        $variant = InsurancePlanProductResolver::forActing($this->contract->app, $this->contract->company)->variantFor($plan);
+        $variant = $this->planResolver()->variantFor($plan);
 
         return $variant ?? throw new ValidationException('This plan is not available for purchase right now');
     }

@@ -256,6 +256,7 @@ teaching a generic Souk action about Guild leads would cross domains the wrong w
   whose product is typed `vehicle`, with `products.users_id` equal to the acting user (`InsuranceVehicleProduct`, also used by the
   validator). The signed variant is the order line, never a guess. Otherwise the contract is refused with a customer-safe message before any insurer call or order. No lead
   vehicle (search done with typed-in data) means "register your vehicle first". Vehicle products are never created implicitly.
+- **An insurer is contractable only if it can emit and take a payment report** (`InsuranceContractGate`: its provider implements `PolicyEmissionProviderInterface` and `PaymentReportProviderInterface`). `insuranceSearch` exposes it as `is_contractable`, and both the cart validator and `contractInsurancePlan` refuse otherwise, so a customer is never charged for an insurer that would fail at the end. Chassis and plate are *not* gated here: the frontend requires `vin` and `plate` on the vehicle when the plan product's `insurance_requires_inspection` attribute is `1`.
 - **Idempotent, closed-aware, retry-safe.** The Order carries `reference = insurance-lead-{lead id}`; a repeat call (or a retry
   after the Order was created but the Lead writes failed - Order is `commerce`, Lead is `crm` + custom fields in `ecosystem`, so
   no single transaction can span them) finds that Order, re-links the Lead (`insurance_order_id`) and sets it `Won`. A Lead no
