@@ -42,6 +42,20 @@ class AttachQuoteToOrderAction
         $this->order->set(InsuranceCustomFieldEnum::TOTAL->value, $quote->total);
         $this->order->set(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::QUOTED->value);
 
+        // Only insurers that publish these say anything; writing a null would make
+        // "the insurer didn't say" indistinguishable from "the insurer said no".
+        if ($quote->commission !== null) {
+            $this->order->set(InsuranceCustomFieldEnum::COMMISSION->value, $quote->commission);
+        }
+
+        if ($quote->canEmit !== null) {
+            $this->order->set(InsuranceCustomFieldEnum::CAN_EMIT->value, $quote->canEmit ? '1' : '0');
+        }
+
+        if ($quote->inspectionStatus !== null) {
+            $this->order->set(InsuranceCustomFieldEnum::INSPECTION_STATUS->value, $quote->inspectionStatus);
+        }
+
         return $quote;
     }
 }
