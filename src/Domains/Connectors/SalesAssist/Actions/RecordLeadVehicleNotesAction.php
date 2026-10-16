@@ -76,7 +76,7 @@ class RecordLeadVehicleNotesAction
 
                 $notes = array_values(array_filter([
                     $this->note($this->kind->title(), LeadMessageTypeEnum::AI_CONTROL->value),
-                    $this->note($this->kind->label() . "\n" . $content, self::DATA_VERB),
+                    $this->note($this->kind->label() . "\n" . $content, self::DATA_VERB, isPublic: false),
                 ]));
 
                 if ($notes !== []) {
@@ -94,13 +94,17 @@ class RecordLeadVehicleNotesAction
         }
     }
 
-    private function note(string $body, string $verb): ?Message
+    /**
+     * The vehicle data note is created private: messages broadcast on create, so flipping it afterwards still leaks it.
+     */
+    private function note(string $body, string $verb, bool $isPublic = true): ?Message
     {
         return new RecordLeadNoteAction($this->lead)->execute(
             body: $body,
             tag: $this->kind->value,
             actingUser: $this->lead->user,
             fromIa: false,
+            isPublic: $isPublic,
             messageTypeVerb: $verb,
         );
     }
