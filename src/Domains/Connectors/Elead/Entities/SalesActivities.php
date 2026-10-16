@@ -352,7 +352,30 @@ class SalesActivities
         ?Carbon $from = null,
         ?Carbon $to = null
     ): array {
-        $queryParams = ['openActivitiesOnly' => 'true'];
+        return self::getActivitiesByOpportunityId(
+            $app,
+            $company,
+            $opportunityId,
+            $from,
+            $to,
+            openOnly: true
+        );
+    }
+
+    /**
+     * eLead caps the fromDate/toDate window at 31 days.
+     *
+     * @return self[]
+     */
+    public static function getActivitiesByOpportunityId(
+        AppInterface $app,
+        Companies $company,
+        string $opportunityId,
+        ?Carbon $from = null,
+        ?Carbon $to = null,
+        bool $openOnly = false
+    ): array {
+        $queryParams = $openOnly ? ['openActivitiesOnly' => 'true'] : [];
 
         if ($from !== null) {
             $queryParams['fromDate'] = $from->copy()->utc()->format('Y-m-d\TH:i:s\Z');

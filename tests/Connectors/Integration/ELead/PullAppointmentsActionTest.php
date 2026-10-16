@@ -193,13 +193,18 @@ final class PullAppointmentsActionTest extends TestCase
     public function testCompanyConfiguredActivityTypesDecideWhatCountsAsAnAppointment(): void
     {
         $lead = $this->createLead();
+        // Company settings write to Redis and never roll back, so the override is removed afterwards.
         $lead->company->set(ConfigurationEnum::ELEAD_APPOINTMENT_ACTIVITY_TYPES->value, 'Showroom Visit, Demo Drive');
         [$from, $to] = $this->window();
 
         $visit = $this->activity($lead, ['activityType' => 'Showroom Visit', 'name' => 'Visit']);
         $plain = $this->activity($lead, ['activityType' => 'Appointment', 'name' => 'Appointment']);
 
-        $synced = new PullAppointmentsAction($lead)->apply([$visit, $plain], $from, $to);
+        try {
+            $synced = new PullAppointmentsAction($lead)->apply([$visit, $plain], $from, $to);
+        } finally {
+            $lead->company->del(ConfigurationEnum::ELEAD_APPOINTMENT_ACTIVITY_TYPES->value);
+        }
 
         $this->assertSame([$visit->id], array_keys($synced));
     }
