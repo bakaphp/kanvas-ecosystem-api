@@ -36,7 +36,7 @@ final class SetOpportunityStatusActivityTest extends TestCase
             )
             ->andReturn($response);
 
-        $lead = new class extends EleadLead {
+        $lead = new class () extends EleadLead {
             public Client $clientMock;
 
             protected function client(): Client

@@ -24,8 +24,8 @@ use Kanvas\Connectors\WordPress\Enums\ConfigurationEnum as WordPressConfiguratio
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
