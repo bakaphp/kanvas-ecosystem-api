@@ -54,16 +54,16 @@ class AgentProcessEmailWebhookJob extends ProcessWebhookJob
             }
         }
 
-        if ($lead !== null) {
-            $lead->addTag('engaged');
-        }
-
         // Ahead of CreateMessageFromEmailAction, because that is what fires the responder workflow.
         // Evaluating consent afterwards would let the agent read a stop request, spend a turn on it
         // and compose a reply that the outbound guard then throws away.
         $consentOutcome = $people === null
             ? null
             : MailgunConsentService::process($lead ?? $people, new MailgunPayloadService($this->webhookRequest->payload));
+
+        if ($lead !== null && $consentOutcome?->isStop() !== true) {
+            $lead->addTag('engaged');
+        }
 
         $message = new CreateMessageFromEmailAction(
             $this->webhookRequest,

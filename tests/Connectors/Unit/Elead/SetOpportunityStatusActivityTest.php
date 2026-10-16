@@ -13,6 +13,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Workflow\SetOpportunityStatusActivity;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Models\StoredWorkflow;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Tests\TestCase;
@@ -64,7 +65,7 @@ final class SetOpportunityStatusActivityTest extends TestCase
         $message->shouldReceive('getId')->andReturn(789);
         $message->shouldReceive('entity')->with(Lead::class)->andReturn(null);
 
-        $result = new SetOpportunityStatusActivity()->execute($message, $app, []);
+        $result = $this->activity()->execute($message, $app, []);
 
         $this->assertSame([
             'error' => 'No Lead found for this entity',
@@ -82,11 +83,21 @@ final class SetOpportunityStatusActivityTest extends TestCase
         $lead->company = $company;
         $lead->shouldReceive('getId')->andReturn(101);
 
-        $result = new SetOpportunityStatusActivity()->execute($lead, $app, []);
+        $result = $this->activity()->execute($lead, $app, []);
 
         $this->assertSame([
             'error' => 'Company not found in Elead',
             'lead_id' => 101,
         ], $result);
+    }
+
+    private function activity(): SetOpportunityStatusActivity
+    {
+        return new SetOpportunityStatusActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        );
     }
 }

@@ -89,6 +89,8 @@ class AttachEmailAttachmentsToLeadActionTest extends TestCase
     {
         $lead = $this->createLead();
         $email = 'customer-' . uniqid() . '@example.com';
+        $lead->email = $email;
+        $lead->saveQuietly();
         $lead->people->contacts()->create([
             'contacts_types_id' => 1,
             'value' => $email,
@@ -103,7 +105,7 @@ class AttachEmailAttachmentsToLeadActionTest extends TestCase
             'Message-Id' => '<engaged-' . uniqid() . '@example.com>',
         ], []);
 
-        (new AgentProcessEmailWebhookJob($webhookCall))->execute();
+        new AgentProcessEmailWebhookJob($webhookCall)->execute();
 
         $this->assertTrue($lead->fresh()->tags()->where('name', 'engaged')->exists());
     }

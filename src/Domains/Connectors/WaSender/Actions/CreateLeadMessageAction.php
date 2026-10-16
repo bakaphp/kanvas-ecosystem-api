@@ -78,10 +78,6 @@ class CreateLeadMessageAction
 
         [$lead, $shouldBlockAndPrivate] = $this->resolveLead($messageBody);
 
-        if ($isFromMe === false && $lead instanceof Lead) {
-            $lead->addTag('engaged');
-        }
-
         $channels = new ConversationChannelService($this->receiver);
         $channel = $channels->getOrCreateChannel(jid: $chatJid, lead: $lead);
         $existingMessage = $channels->findMessageBySlug($messageId, $chatJid);
@@ -138,6 +134,10 @@ class CreateLeadMessageAction
         // downstream of here may run for it: no media fetch, and above all no agent turn.
         $consentOutcome = $this->processConsent($lead, $isFromMe, $text ?? $messageBody);
         $haltAgentTurn = $consentOutcome?->shouldHaltAgentTurn() ?? false;
+
+        if ($isFromMe === false && ! $haltAgentTurn) {
+            $lead->addTag('engaged');
+        }
 
         if ($haltAgentTurn) {
             $message->addTag('consent-stop');

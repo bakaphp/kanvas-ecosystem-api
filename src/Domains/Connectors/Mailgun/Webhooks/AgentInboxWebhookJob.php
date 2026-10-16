@@ -105,15 +105,18 @@ class AgentInboxWebhookJob extends ProcessWebhookJob
             return ['message' => 'Sender is not known to this company and the mailbox is restricted'];
         }
 
-        if ($entity instanceof Lead) {
-            $entity->addTag('engaged');
-        } elseif ($entity instanceof People) {
-            LeadsRepository::getPeopleActiveLead($entity)?->addTag('engaged');
-        }
-
         // This receiver replies inline, so consent has to be settled before the responder runs — an
         // agent mailbox that answers "unsubscribe" with a sales pitch is the worst version of this.
         $consentOutcome = MailgunConsentService::process($entity, $payload);
+
+        if ($consentOutcome?->isStop() !== true) {
+            $engagedLead = match (true) {
+                $entity instanceof Lead => $entity,
+                $entity instanceof People => LeadsRepository::getPeopleActiveLead($entity),
+                default => null,
+            };
+            $engagedLead?->addTag('engaged');
+        }
 
         $message = new CreateMessageFromAgentInboxAction(
             $this->webhookRequest,

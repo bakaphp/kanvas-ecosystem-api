@@ -108,7 +108,6 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
             $lead = $this->createLeadFromPeople($people);
             $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
-            $lead->addTag('engaged');
 
             // After the lead exists: a stop request is person-wide and every outbound guard reads
             // the lead, so the lead has to be there for the flag to land anywhere useful.
@@ -120,6 +119,10 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 contactValue: (string) $request['From'],
                 detectedSignal: $consentType,
             )->execute();
+
+            if (! $consentOutcome->isStop()) {
+                $lead->addTag('engaged');
+            }
         }
 
         $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);

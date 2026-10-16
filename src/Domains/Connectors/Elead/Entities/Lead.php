@@ -174,17 +174,13 @@ class Lead
             ],
         );
 
-        (new EleadCache($this->app, $this->company))->invalidate('lead', $this->id);
+        new EleadCache($this->app, $this->company)->invalidate('lead', $this->id);
 
         return $response;
     }
 
     protected function client(): Client
     {
-        if ($this->app === null || $this->company === null) {
-            throw new ELeadException('Cannot update status without Elead app and company configuration');
-        }
-
         return new Client($this->app, $this->company);
     }
 

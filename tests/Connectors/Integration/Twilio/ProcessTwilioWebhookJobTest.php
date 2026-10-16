@@ -120,6 +120,7 @@ class ProcessTwilioWebhookJobTest extends TestCase
         );
         $this->assertSame('STOP', $result[0]['consent_type']);
         $this->assertTrue($result[0]['automated_response_suppressed']);
+        $this->assertFalse($lead->tags()->where('name', 'engaged')->exists());
         Queue::assertNotPushed(FlushMessageBurstJob::class);
     }
 
