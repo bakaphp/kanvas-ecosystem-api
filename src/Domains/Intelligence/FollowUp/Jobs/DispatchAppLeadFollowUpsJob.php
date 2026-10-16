@@ -13,6 +13,7 @@ use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 
 /**
  * Per-app fan-out. SQL pre-filters at STAGE level (enabled + non-terminal)
@@ -40,6 +41,8 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
+        $startDate = new LeadConfigurationService()->getFollowUpStartDate($this->company);
+
         $leads = Lead::query()
             ->fromApp($this->app)
             ->fromCompany($this->company)
@@ -48,6 +51,7 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
             // authoritative check is FollowUpLeadAction's hasOpenLeadStatus() gate; this just
             // avoids spawning jobs for already-closed leads.
             ->hasOpenLeadStatus($this->company)
+            ->when($startDate, fn ($query) => $query->where('created_at', '>=', $startDate))
             ->whereNotNull('pipeline_stage_id')
             ->whereHas(
                 'stage',

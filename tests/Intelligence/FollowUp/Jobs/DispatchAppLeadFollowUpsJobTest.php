@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace Tests\Intelligence\FollowUp\Jobs;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Jobs\DispatchAppLeadFollowUpsJob;
 use Kanvas\Intelligence\FollowUp\Jobs\LeadFollowUpJob;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 /**
@@ -122,6 +125,65 @@ class DispatchAppLeadFollowUpsJobTest extends TestCase
         Queue::assertNotPushed(
             LeadFollowUpJob::class,
             fn (LeadFollowUpJob $job): bool => $job->lead->getId() === $closedLeadId,
+        );
+    }
+
+    // Company settings are shared by every paratest process, so the start date must not leak.
+    #[Group('serial')]
+    public function testLeadsCreatedBeforeTheCompanyFollowUpStartDateAreNotQueued(): void
+    {
+        Queue::fake();
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $pipeline = Pipeline::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'system_modules_id' => 0,
+            'name' => 'Pipe',
+            'is_default' => 0,
+        ]);
+        $stage = PipelineStage::create([
+            'pipelines_id' => $pipeline->getId(),
+            'name' => 'Enabled',
+            'weight' => 1,
+            'config' => ['follow_up' => ['enabled' => true]],
+        ]);
+
+        $oldLead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
+            'pipeline_id' => $pipeline->getId(),
+            'pipeline_stage_id' => $stage->getId(),
+            'created_at' => Carbon::now()->subDays(10),
+        ]);
+        $newLead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
+            'pipeline_id' => $pipeline->getId(),
+            'pipeline_stage_id' => $stage->getId(),
+            'created_at' => Carbon::now()->subDay(),
+        ]);
+
+        $company->set(
+            IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value,
+            Carbon::now()->subDays(5)->toDateTimeString(),
+        );
+
+        try {
+            new DispatchAppLeadFollowUpsJob(app: $app, company: $company)->handle();
+        } finally {
+            $company->del(IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value);
+        }
+
+        $newLeadId = $newLead->getId();
+        $oldLeadId = $oldLead->getId();
+        Queue::assertPushed(
+            LeadFollowUpJob::class,
+            fn (LeadFollowUpJob $job): bool => $job->lead->getId() === $newLeadId,
+        );
+        Queue::assertNotPushed(
+            LeadFollowUpJob::class,
+            fn (LeadFollowUpJob $job): bool => $job->lead->getId() === $oldLeadId,
         );
     }
 }
