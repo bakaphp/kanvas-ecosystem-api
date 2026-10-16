@@ -181,6 +181,8 @@ class ProjectContextService
                 'title' => $plan->title,
                 'status' => $plan->status,
                 'completion_pct' => $plan->completion_pct,
+                'agent_id' => $plan->agent_id,
+                'assigned_users_id' => $plan->assigned_users_id,
                 'tasks' => $plan->tasks
                     ->toBase()
                     ->map(fn (Task $task): array => array_filter(
