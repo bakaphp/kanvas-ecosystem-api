@@ -63,7 +63,7 @@ class InsuranceCartOrderTest extends TestCase
     use PaymentCases;
     use SeedsInsuranceOrderPipeline;
 
-    protected $connectionsToTransact = [null, 'commerce', 'crm', 'inventory', 'ecosystem', 'social', 'workflow'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance', 'crm', 'inventory', 'ecosystem', 'social', 'workflow'];
 
     private const PROVIDER = UniversalSegurosProvider::NAME;
 

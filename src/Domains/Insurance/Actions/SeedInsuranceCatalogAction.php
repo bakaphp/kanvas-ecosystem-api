@@ -29,7 +29,7 @@ class SeedInsuranceCatalogAction
 
     public function execute(): array
     {
-        return DB::connection('commerce')->transaction(function (): array {
+        return DB::connection('insurance')->transaction(function (): array {
             $created = [];
 
             foreach ($this->definitions() as $definition) {

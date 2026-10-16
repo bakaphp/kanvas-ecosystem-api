@@ -24,7 +24,7 @@ class InsuranceSearchGraphQLTest extends TestCase
     use BuildsSearchCatalog;
     use CreatesVehicleProducts;
 
-    protected $connectionsToTransact = [null, 'commerce', 'inventory'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance', 'inventory'];
 
     private const SEARCH = '
         query($input: CanonicalQuoteInput!) {

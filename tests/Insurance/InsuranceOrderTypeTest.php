@@ -31,7 +31,7 @@ class InsuranceOrderTypeTest extends TestCase
     use DatabaseTransactions;
     use SeedsInsuranceOrderPipeline;
 
-    protected $connectionsToTransact = [null, 'commerce', 'crm', 'inventory', 'ecosystem', 'social'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance', 'crm', 'inventory', 'ecosystem', 'social'];
 
     private Apps $kanvasApp;
 

@@ -20,7 +20,7 @@ class SelectInsurancePlanTest extends TestCase
     use DatabaseTransactions;
     use BuildsSearchCatalog;
 
-    protected $connectionsToTransact = [null, 'commerce', 'crm'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance', 'crm'];
 
     private const SELECT = '
         mutation($input: SelectInsurancePlanInput!) {

@@ -21,7 +21,7 @@ class InsuranceCatalogAuthorizationTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = [null, 'commerce'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance'];
 
     private function insurerOfAdminCompany(): Insurer
     {

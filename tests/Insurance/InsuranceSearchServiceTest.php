@@ -31,7 +31,7 @@ class InsuranceSearchServiceTest extends TestCase
     use DatabaseTransactions;
     use BuildsSearchCatalog;
 
-    protected $connectionsToTransact = [null, 'commerce'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance'];
 
     private function service(
         ?FakeQuoteTaskRunner $runner = null,

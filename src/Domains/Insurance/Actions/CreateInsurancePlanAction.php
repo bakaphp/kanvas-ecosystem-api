@@ -21,7 +21,7 @@ class CreateInsurancePlanAction
     {
         $slug = $this->data->slug ?? Str::slug($this->data->name);
 
-        return DB::connection('commerce')->transaction(function () use ($slug): InsurancePlan {
+        return DB::connection('insurance')->transaction(function () use ($slug): InsurancePlan {
             $taken = InsurancePlan::query()
                 ->withoutGlobalScopes()
                 ->where('insurers_id', $this->data->insurer->getId())

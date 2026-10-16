@@ -47,7 +47,7 @@ class MultiProviderSearchTest extends TestCase
     use BuildsSearchCatalog;
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = [null, 'commerce'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance'];
 
     private const SEARCH = '
         query($input: CanonicalQuoteInput!) {

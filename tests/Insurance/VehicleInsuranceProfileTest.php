@@ -20,7 +20,7 @@ class VehicleInsuranceProfileTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = [null, 'commerce', 'ecosystem'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance', 'ecosystem'];
 
     private function vehicle(string $brand = 'Toyota', string $model = 'Corolla', int $year = 2022): Products
     {

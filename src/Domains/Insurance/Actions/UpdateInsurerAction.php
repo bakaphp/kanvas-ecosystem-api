@@ -18,7 +18,7 @@ class UpdateInsurerAction
 
     public function execute(): Insurer
     {
-        return DB::connection('commerce')->transaction(function (): Insurer {
+        return DB::connection('insurance')->transaction(function (): Insurer {
             $this->insurer->name = $this->data->name;
             $this->insurer->provider = $this->data->provider;
             $this->insurer->logo = $this->data->logo;

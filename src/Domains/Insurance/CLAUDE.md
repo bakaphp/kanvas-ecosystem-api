@@ -17,7 +17,8 @@ Attributes. The local plans catalog (insurer → plan → coverage / exclusion /
 requirement, per `.planning/movipass/features/03_seguros`) is deliberately **not**
 Products: plans carry insurance-only fields the comparator orders on (`type`,
 `sponsored`, `commission_rate`, `recommended_score`) and nothing is ever sold from them
-directly. They are native models in `Models/` on the `commerce` connection.
+directly. They are native models in `Models/` on their own `insurance` connection (`database/migrations/Insurance/`,
+`composer migrate-insurance`); orders and payments stay on `commerce`, vehicles and plan products on `inventory`.
 `insuranceCatalog` is still a passthrough to the insurer's API and persists nothing.
 
 Catalog rules worth knowing:

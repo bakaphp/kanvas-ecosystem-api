@@ -18,7 +18,7 @@ class UpdateInsurancePlanAction
 
     public function execute(): InsurancePlan
     {
-        return DB::connection('commerce')->transaction(function (): InsurancePlan {
+        return DB::connection('insurance')->transaction(function (): InsurancePlan {
             $this->plan->name = $this->data->name;
             $this->plan->type = $this->data->type;
             $this->plan->external_code = $this->data->externalCode;

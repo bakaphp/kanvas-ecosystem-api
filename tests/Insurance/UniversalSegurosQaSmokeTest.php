@@ -17,7 +17,7 @@ class UniversalSegurosQaSmokeTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = [null, 'commerce', 'ecosystem'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance', 'ecosystem'];
 
     private function env(string $name): ?string
     {

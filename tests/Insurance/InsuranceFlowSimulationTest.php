@@ -62,7 +62,7 @@ class InsuranceFlowSimulationTest extends TestCase
     use HasIntegrationCompany;
     use SeedsInsuranceOrderPipeline;
 
-    protected $connectionsToTransact = [null, 'commerce', 'crm', 'inventory', 'ecosystem', 'social'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance', 'crm', 'inventory', 'ecosystem', 'social'];
 
     private const QUOTE = 'COT-777';
     private const POLICY = 'A-PA-0000001392';

@@ -35,7 +35,7 @@ class VehicleModelCrosswalkTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = [null, 'commerce', 'ecosystem'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance', 'ecosystem'];
 
     protected function setUp(): void
     {

@@ -13,7 +13,7 @@ class SeedInsuranceCatalogCommandTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = [null, 'commerce'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance'];
 
     public function testSeedsTheCatalogForTheGivenAppAndCompany(): void
     {

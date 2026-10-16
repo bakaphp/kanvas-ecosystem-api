@@ -18,7 +18,7 @@ class ReplaceInsurancePlanDetailsAction
 
     public function execute(): InsurancePlan
     {
-        return DB::connection('commerce')->transaction(function (): InsurancePlan {
+        return DB::connection('insurance')->transaction(function (): InsurancePlan {
             $this->replace('coverages', $this->data->coverages);
             $this->replace('exclusions', $this->data->exclusions);
             $this->replace('requirements', $this->data->requirements);

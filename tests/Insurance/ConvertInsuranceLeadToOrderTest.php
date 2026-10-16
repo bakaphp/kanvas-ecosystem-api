@@ -43,7 +43,7 @@ class ConvertInsuranceLeadToOrderTest extends TestCase
     use CreatesVehicleProducts;
     use SeedsInsuranceOrderPipeline;
 
-    protected $connectionsToTransact = [null, 'commerce', 'crm', 'inventory', 'ecosystem', 'social'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance', 'crm', 'inventory', 'ecosystem', 'social'];
 
     private const PROVIDER = UniversalSegurosProvider::NAME;
 

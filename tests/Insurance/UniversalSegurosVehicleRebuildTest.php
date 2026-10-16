@@ -27,7 +27,7 @@ class UniversalSegurosVehicleRebuildTest extends TestCase
     use CreatesVehicleProducts;
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = [null, 'commerce', 'inventory'];
+    protected $connectionsToTransact = [null, 'commerce', 'insurance', 'inventory'];
 
     private const STORED_VEHICLE = [
         'idModelo' => 11,

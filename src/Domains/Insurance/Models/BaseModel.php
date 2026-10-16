@@ -15,7 +15,7 @@ class BaseModel extends EloquentModel
 
     public const DELETED_AT = 'is_deleted';
 
-    protected $connection = 'commerce';
+    protected $connection = 'insurance';
 
     protected $guarded = [];
 
