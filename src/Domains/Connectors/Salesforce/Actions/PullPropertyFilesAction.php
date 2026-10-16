@@ -10,20 +10,21 @@ use Illuminate\Http\UploadedFile;
 use Kanvas\Connectors\Salesforce\Services\SalesforceApiClient;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Users\Models\Users;
 
 /**
  * Properties have no dedicated image field on Location__c — photos/brochures live as regular
  * Salesforce Files (ContentDocumentLink), the same mechanism Chatter/Notes uses. This is the only
- * way to pull them: download each linked file's binary content and attach it to the Kanvas Product.
+ * way to pull them: download each linked file's binary content and attach it to the Kanvas Product
+ * Variant that represents this Location__c.
  */
 class PullPropertyFilesAction
 {
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
-        protected Products $product,
+        protected Variants $variant,
         protected Users $user,
         protected SalesforceApiClient $client,
         protected string $salesforceId,
@@ -73,6 +74,6 @@ class PullPropertyFilesAction
 
         $filesystemModel = $filesystem->upload($uploadedFile, $this->user);
 
-        new AttachFilesystemAction($filesystemModel, $this->product)->execute($title);
+        new AttachFilesystemAction($filesystemModel, $this->variant)->execute($title);
     }
 }

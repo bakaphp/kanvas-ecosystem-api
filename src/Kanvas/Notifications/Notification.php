@@ -52,6 +52,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     protected ?CompanyInterface $company = null;
     protected array $cc = [];
     public ?array $pathAttachment = null;
+    protected bool $important = false;
 
     public function __construct(
         Model|NotificationTypes $entity,
@@ -75,6 +76,23 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $this->subject = $subject;
 
         return $this;
+    }
+
+    /**
+     * Opt-in only — defaults false on every notification. A caller must explicitly ask for this on
+     * each send; it is never inferred from content/subject, so routine mail never gets flagged by
+     * mistake.
+     */
+    public function setImportant(bool $important = true): self
+    {
+        $this->important = $important;
+
+        return $this;
+    }
+
+    public function isImportant(): bool
+    {
+        return $this->important;
     }
 
     /**

@@ -32,8 +32,9 @@ use Override;
  * UpsertsByExternalId::upsertByExternalId() also checks the record still exists there — this pre-check
  * is an accepted approximation, not worth a second API round trip just to label a string).
  *
- * If the webhook payload carries a `variant_id` (the property is already a Kanvas Product/Variant —
- * ImportSalesforcePropertiesCommand/PullPropertyAction imported it as one), a LeadVariantInterest row
+ * If the webhook payload carries a `variant_id` (the property is already a Kanvas Product Variant —
+ * ImportSalesforcePropertiesCommand imported its Project__c as the Product and this Location__c as
+ * one of that Product's Variants), a LeadVariantInterest row
  * is created/reused so the interest survives in Kanvas itself, not only as a Salesforce side effect.
  * Most leads carry no `variant_id` at all (a generic contact form) — that is the common case, not an
  * edge case, and simply skips this part.
