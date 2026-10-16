@@ -60,6 +60,7 @@ final class RecordLeadVehicleNotesActionTest extends TestCase
             [LeadMessageTypeEnum::AI_CONTROL->value, 'message'],
             $notes->map(fn (Message $note): string => $note->messageType->verb)->all()
         );
+        $this->assertSame([1, 0], $notes->map(fn (Message $note): int => $note->is_public)->all());
         foreach ($notes as $note) {
             $this->assertTrue($note->hasTag([LeadVehicleNoteEnum::TRADE_IN->value]));
             $this->assertSame($lead->getId(), $note->entity(Lead::class)?->getId());
