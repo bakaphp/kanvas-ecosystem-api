@@ -305,13 +305,7 @@ still be refused with a clean 400.
   `TEST_UNIVERSAL_SEGUROS_*` env, returns a `Client`.
 - `tests/Connectors/UniversalSeguros/QuoteRequestTest.php` — pure DTO-shape tests (green, no network).
 - `tests/Connectors/UniversalSeguros/ConfigurationScopesTest.php` — emit scopes cover every product.
-- `tests/Insurance/UniversalSegurosProviderTest.php` — the adapter against a mocked service:
-  response mapping, A-KM premium/rate split, catalog caching + local vehicle-model filtering,
-  the product list, document-type mapping, policy stamping. Uses the `array` cache store so
-  hit/miss counting doesn't need Redis.
-- `tests/Insurance/SyncInsuranceProductsActionTest.php` — the product seed against the DB: five
-  rows, the insurer's code on each, and a re-run leaving admin-edited copy alone. Needs
-  `$connectionsToTransact = [null, 'inventory']` or the rows survive the rollback.
+- `tests/Insurance/InsuranceJourneyTest.php` — the whole purchase journey (cart and contract paths, refused emission, unsafe orders) against `tests/Insurance/Fakes/FakeUniversalServer`, a stateful fake that enforces what the real QA enforces: `requestId` is only stored at POST, a PUT replaces the quote, and emit needs client, payment, registration and chassis. Adapter-level unit tests were removed in the 2026-10 consolidation.
 - Live auth/quote/reference tests should follow the AppKey-guarded pattern (see `tests/CLAUDE.md`)
   and only run when `TEST_UNIVERSAL_SEGUROS_*` creds are present.
 

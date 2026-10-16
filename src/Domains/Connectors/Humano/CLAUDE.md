@@ -165,7 +165,7 @@ On an annual quote they are identical — their own sample returns 50265.54 twic
 exactly what makes Anual the tempting wrong answer: it prices a **monthly** policy at twelve
 times the amount and no annual test would catch it. Prorrata is correct for every vigencia, so
 that is what reaches `QuoteResult`. Regression:
-`HumanoProviderTest::testPricesOffTheProratedAmountsNotTheAnnualOnes`.
+The dedicated regression test was dropped in the 2026-10 test consolidation; re-add it if `toQuoteResult()` changes.
 
 `planesDePago[]` (the installment schedule, with `montoSiguienteCuota`) and the annual figures
 stay in `QuoteResult::$raw`. **`montoPrimaPago` is an installment, not a total** — do not fold
@@ -203,14 +203,9 @@ single `numeroBien`, so the first line is the vehicle; the whole response is kep
 - `tests/Connectors/Humano/QuoteRequestTest.php` — pure DTO-shape tests (no network): the
   `datos[]` bag, the plan code going out as `"0"`, all-missing-fields-in-one-error, allowed-value
   rejection, omitted optionals.
-- `tests/Insurance/HumanoProviderTest.php` — the adapter against a mocked service: the
-  Prorrata/Anual split, plan resolution from either spelling, the product list, catalog caching
-  per plan, missing-parent rejection. Uses the `array` cache store so hit/miss counting doesn't
-  need Redis.
 - `tests/Connectors/Humano/CanonicalQuotePayloadMapperTest.php` — each canonical-to-Humano mapping, its failure message,
   the date format, age derivation and the config defaults.
-- `tests/Insurance/HumanoVehicleCrosswalkTest.php` — targeted crosswalk build against fixtures shaped like their OpenAPI
-  (per plan, idempotent, manual rows, empty and partial catalogs) and the multi-code resolver.
+- `tests/Insurance/MultiProviderSearchTest.php` — the adapter end to end beside Universal: ranked merged list, failure isolation without leaking insurer detail, and caching. The per-adapter and crosswalk unit tests were removed in the 2026-10 consolidation.
 - Live tests should follow the AppKey-guarded pattern (see `tests/CLAUDE.md`) and only run when
   `TEST_HUMANO_*` creds are present. **Not written yet — no credentials.**
 
