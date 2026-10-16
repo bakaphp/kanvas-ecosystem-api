@@ -10,6 +10,7 @@ use Baka\Support\Str;
 use Kanvas\Insurance\Enums\InsuranceCatalogStatusEnum;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Models\InsurancePlan;
+use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 
@@ -21,6 +22,14 @@ class InsurancePlanProductResolver
         private readonly AppInterface $app,
         private readonly CompanyInterface $credentialCompany,
     ) {
+    }
+
+    public static function forActing(AppInterface $app, CompanyInterface $actingCompany): self
+    {
+        return new self(
+            $app,
+            InsuranceProviderFactory::credentialCompany($app, $actingCompany)
+        );
     }
 
     public function identify(Variants $variant): ?array

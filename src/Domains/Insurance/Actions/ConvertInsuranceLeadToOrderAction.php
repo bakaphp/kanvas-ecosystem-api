@@ -107,7 +107,14 @@ class ConvertInsuranceLeadToOrderAction
             $orderData
         );
 
-        $order = $this->createOrder($lead, $plan, $provider, $orderData, $region, $quote);
+        $order = $this->createOrder(
+            $lead,
+            $plan,
+            $provider,
+            $orderData,
+            $region,
+            $quote
+        );
 
         return $this->finishLead($lead, $order, $wonStatus);
     }
@@ -259,7 +266,7 @@ class ConvertInsuranceLeadToOrderAction
 
     private function planVariantFor(InsurancePlan $plan): Variants
     {
-        $variant = new InsurancePlanProductResolver($this->contract->app, $this->credentialCompany())->variantFor($plan);
+        $variant = InsurancePlanProductResolver::forActing($this->contract->app, $this->contract->company)->variantFor($plan);
 
         return $variant ?? throw new ValidationException('This plan is not available for purchase right now');
     }

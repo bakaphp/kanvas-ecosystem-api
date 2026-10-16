@@ -11,7 +11,6 @@ use Kanvas\Insurance\DataTransferObject\InsuranceOrderData;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceProductTypeEnum;
-use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceOrderMetadata;
 use Kanvas\Insurance\Services\InsurancePlanProductResolver;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -101,12 +100,7 @@ class ReadInsuranceOrderAction
 
     private function identityOf(Variants $plan): ?array
     {
-        $resolver = new InsurancePlanProductResolver(
-            $this->order->app,
-            InsuranceProviderFactory::credentialCompany($this->order->app, $this->order->company)
-        );
-
-        return $resolver->identify($plan);
+        return InsurancePlanProductResolver::forActing($this->order->app, $this->order->company)->identify($plan);
     }
 
     private function itemVariantTyped(InsuranceProductTypeEnum $type): ?Variants

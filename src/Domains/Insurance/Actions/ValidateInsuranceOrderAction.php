@@ -169,9 +169,6 @@ class ValidateInsuranceOrderAction
 
     private function resolver(): InsurancePlanProductResolver
     {
-        return new InsurancePlanProductResolver(
-            $this->order->app,
-            InsuranceProviderFactory::credentialCompany($this->order->app, $this->order->company)
-        );
+        return InsurancePlanProductResolver::forActing($this->order->app, $this->order->company);
     }
 }

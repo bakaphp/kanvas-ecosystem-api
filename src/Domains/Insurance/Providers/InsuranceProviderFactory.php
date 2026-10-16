@@ -17,11 +17,6 @@ use Throwable;
 
 class InsuranceProviderFactory
 {
-    /**
-     * Providers are registered in the service container as "insurance_provider.{name}".
-     *
-     * @throws InvalidArgumentException when no provider is registered for the given name
-     */
     public static function make(string $providerName, AppInterface $app, CompanyInterface $company): InsuranceProviderInterface
     {
         $binding = "insurance_provider.{$providerName}";
@@ -90,9 +85,6 @@ class InsuranceProviderFactory
         }
     }
 
-    /**
-     * Provider to quote with: explicit choice wins, then the company default.
-     */
     public static function resolveName(CompanyInterface $company, ?string $requested = null): string
     {
         $name = $requested ?: (string) $company->get(InsuranceCustomFieldEnum::PROVIDER->value);

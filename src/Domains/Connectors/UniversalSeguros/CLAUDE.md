@@ -48,8 +48,8 @@ There is no bespoke "insurance quote" table. The cotización → póliza lifecyc
 | Cliente (cédula, contacto) | **People** on the order | — |
 | Vehículo + inspección | order item metadata (optionally a Vehicle) | quote `payload` |
 
-Mapping an Order's people/vehicle into the quote payload is still the **caller's** job — the
-`Order → QuoteRequest` builder does not exist yet.
+`InsuranceOrderData::quoteRequest()` builds the `QuoteRequest` input from the order's vehicle,
+plan and customer; the adapter rebuilds `vehiculo` from the vehicle product.
 
 ## Layout
 

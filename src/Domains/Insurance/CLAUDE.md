@@ -358,6 +358,5 @@ when the plan is not seeded/published) so the FE can build the plan line. Souk k
 
 ## Open items
 
-- `InsuranceQuoteRequest::$vehicle` is carried by `BuildQuoteRequestFromOrderAction` but no adapter reads it yet.
 - Hold vs 3DS: `SettleInsurancePaymentAction` only touches an `AUTHORIZED` payment. The 3DS challenge flow (`startPaymentChallengeWithCard`) marks a held payment `PAID`, so insurance orders must be paid through `createPaymentMethod` → `addPaymentToOrder` → `processPayment` with `use_hold`, or a failed emission will not release the hold.
 - None of the new activities has a workflow rule seeded; each env needs one per trigger.

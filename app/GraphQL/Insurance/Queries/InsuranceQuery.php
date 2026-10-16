@@ -110,7 +110,7 @@ class InsuranceQuery
             ->whereIn('id', array_map(fn (InsuranceSearchEntry $entry): int => $entry->planId, $entries))
             ->get();
 
-        $resolver = new InsurancePlanProductResolver($app, InsuranceProviderFactory::credentialCompany($app, $company));
+        $resolver = InsurancePlanProductResolver::forActing($app, $company);
         $variantIds = [];
 
         foreach ($plans as $plan) {

@@ -111,8 +111,7 @@ class UniversalSegurosProvider implements
 
     public function quote(InsuranceQuoteRequest $request): QuoteResult
     {
-        $product = ProductEnum::tryFrom($request->product)
-            ?? throw new ValidationException('Unknown Universal Seguros product: ' . $request->product);
+        $product = $this->productFor($request->product);
 
         return $this->toQuoteResult(
             $this->service->quote(QuoteRequest::make($product, $this->withDefaultTerminos($this->payloadWithVehicle($request))))
@@ -121,8 +120,7 @@ class UniversalSegurosProvider implements
 
     public function freshQuote(string $quoteNumber, string $productCode, string $requestId): QuoteResult
     {
-        $product = ProductEnum::tryFrom($productCode)
-            ?? throw new ValidationException('Unknown Universal Seguros product: ' . $productCode);
+        $product = $this->productFor($productCode);
 
         $stored = (array) ($this->service->getQuote($quoteNumber)['data'] ?? []);
         $payload = array_intersect_key($stored, array_flip(['vehiculo', 'terminos', 'aditamentos', 'endosoCesion']));
@@ -143,8 +141,7 @@ class UniversalSegurosProvider implements
         string $planCode,
         ?string $vehicleModelId
     ): QuoteResult {
-        $product = ProductEnum::tryFrom($planCode)
-            ?? throw new ValidationException('Unknown Universal Seguros product: ' . $planCode);
+        $product = $this->productFor($planCode);
 
         return $this->quote(
             new InsuranceQuoteRequest(
@@ -204,8 +201,7 @@ class UniversalSegurosProvider implements
 
     public function updateQuote(string $quoteNumber, InsuranceQuoteRequest $request): QuoteResult
     {
-        $product = ProductEnum::tryFrom($request->product)
-            ?? throw new ValidationException('Unknown Universal Seguros product: ' . $request->product);
+        $product = $this->productFor($request->product);
 
         return $this->toQuoteResult(
             $this->service->updateQuote(
@@ -454,6 +450,12 @@ class UniversalSegurosProvider implements
             'cilindraje' => is_numeric($cylinders) ? (int) $cylinders : null,
             'puertas' => is_numeric($doors) ? (int) $doors : null,
         ], fn (mixed $value): bool => $value !== null);
+    }
+
+    protected function productFor(string $code): ProductEnum
+    {
+        return ProductEnum::tryFrom($code)
+            ?? throw new ValidationException('Unknown Universal Seguros product: ' . $code);
     }
 
     protected function withDefaultTerminos(array $payload): array
