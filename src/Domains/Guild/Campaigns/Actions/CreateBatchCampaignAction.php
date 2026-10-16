@@ -42,6 +42,7 @@ class CreateBatchCampaignAction
         private readonly array $criteria = [],
         private readonly array $attachmentUrls = [],
         private readonly ?string $templateName = null,
+        private readonly bool $important = false,
         private readonly ?Carbon $scheduledAt = null,
     ) {
     }
@@ -59,6 +60,7 @@ class CreateBatchCampaignAction
             $campaign->criteria = $this->criteria;
             $campaign->attachment_urls = $this->attachmentUrls !== [] ? $this->attachmentUrls : null;
             $campaign->template_name = $this->templateName;
+            $campaign->is_important = $this->important;
             $campaign->scheduled_at = $this->scheduledAt;
             $campaign->status = $this->scheduledAt !== null
                 ? CampaignStatusEnum::SCHEDULED->value

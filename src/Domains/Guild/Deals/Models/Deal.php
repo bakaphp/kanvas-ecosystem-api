@@ -18,7 +18,7 @@ use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Event\Events\Traits\EventResourceTrait;
+use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Deals\Observers\DealObserver;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -69,7 +69,7 @@ class Deal extends BaseModel implements ProvidesAgentContext
     }
     use FollowersTrait;
     use HasLightHouseCache;
-    use EventResourceTrait;
+    use HasEventResources;
 
     protected $observables = [
         'softDeleting',

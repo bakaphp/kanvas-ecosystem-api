@@ -20,8 +20,8 @@ use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Event\Events\Contracts\EventResourceInterface;
-use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
@@ -94,7 +94,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     use FollowersTrait;
     use CanUseWorkflow;
     use HasLightHouseCache;
-    use EventResourceTrait;
+    use HasEventResources;
     use HasFollowUpState;
     use EmitsLedgerEventsForEntity;
 

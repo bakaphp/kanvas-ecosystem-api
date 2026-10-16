@@ -161,7 +161,7 @@ class WakeAgentForPlanJob implements ShouldQueue
             'reason' => $this->reason,
         ];
 
-        [$response, $durationMs] = $this->runAgentWake(
+        $wake = $this->runAgentWake(
             $agent,
             $session,
             $owner,
@@ -170,6 +170,14 @@ class WakeAgentForPlanJob implements ShouldQueue
             'plan.agent',
             $failurePayload,
         );
+
+        if ($wake === null) {
+            $this->plan->decrement('wake_count');
+
+            return;
+        }
+
+        [$response, $durationMs] = $wake;
 
         $this->plan->emitLedgerEvent(
             'plan.agent.invoked',

@@ -35,6 +35,7 @@ class SendEmailToPeopleAction
         ?string $subject = null,
         array $attachmentUrls = [],
         ?string $templateName = null,
+        bool $important = false,
     ): array {
         if (trim($to) === '') {
             throw new ValidationException('People has no email address to send to');
@@ -56,6 +57,9 @@ class SendEmailToPeopleAction
             $attachmentUrls !== [] ? $attachmentUrls : null,
         );
         $notification->setSubject($subject ?? 'Message from ' . $this->people->company->name);
+        if ($important) {
+            $notification->setImportant();
+        }
 
         Notification::route('mail', $to)->notify($notification);
 

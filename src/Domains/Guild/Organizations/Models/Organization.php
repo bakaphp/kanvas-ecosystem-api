@@ -20,7 +20,7 @@ use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Analytics\Reporting\Observers\ReportSourceObserver;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Event\Events\Traits\EventResourceTrait;
+use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
@@ -63,7 +63,7 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     use BillableTrait;
     use CanUseWorkflow;
     use DatabaseSearchableTrait;
-    use EventResourceTrait;
+    use HasEventResources;
     use HasLightHouseCache;
     use HasNotesChannelTrait;
     use HasTagsTrait;

@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Event\Events\Traits;
+namespace Kanvas\Event\Events\Concerns;
 
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventResource;
 
-trait EventResourceTrait
+trait HasEventResources
 {
     public function eventResources(): MorphMany
     {
-        return $this->morphMany(EventResource::class, 'resource');
+        return $this->morphMany(EventResource::class, 'resource', 'resources_type', 'resources_id');
     }
 
     public function events(): MorphToMany
