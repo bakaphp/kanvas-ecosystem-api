@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
 
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Intelligence\Agents\Traits\AttachesFileToEntity;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\ToolProperty;
-use Throwable;
 
 /**
  * Shared "write a note" logic for the lead, person and organization note tools: the empty-note
@@ -22,8 +22,8 @@ use Throwable;
  */
 trait WritesNoteForEntity
 {
+    use AttachesFileToEntity;
     use NormalizesIdListParam;
-    use ResolvesFilesystemForTool;
 
     /**
      * @return array{status: string, message: string}
@@ -118,34 +118,20 @@ trait WritesNoteForEntity
         $unavailable = [];
 
         foreach ($filesystemIds as $filesystemId) {
-            $file = $this->findTenantFile($filesystemId);
+            $result = $this->attachFileToEntity($note, 'note', filesystemId: $filesystemId);
 
-            if ($file === null) {
+            if ($result['status'] !== 'success') {
                 $unavailable[] = [
                     'filesystem_id' => $filesystemId,
-                    'reason' => 'No file with this id belongs to this company.',
-                ];
-
-                continue;
-            }
-
-            try {
-                $note->addFile($file, (string) $file->name);
-            } catch (Throwable $e) {
-                report($e);
-
-                $unavailable[] = [
-                    'filesystem_id' => $filesystemId,
-                    'file_name' => $file->name,
-                    'reason' => 'The file could not be attached to the note.',
+                    'reason' => $result['message'],
                 ];
 
                 continue;
             }
 
             $attached[] = [
-                'filesystem_id' => (int) $file->getId(),
-                'file_name' => $file->name,
+                'filesystem_id' => $result['filesystem_id'],
+                'file_name' => $result['file_name'],
             ];
         }
 

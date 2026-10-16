@@ -37,9 +37,8 @@ class UploadFileToVariantTool extends Tool
         . 'text of the document you wrote — plus a `file_name` ending in .md, .txt, .csv or .json. Pass '
         . '`file_url` instead when the file or image already exists at a public URL, or `filesystem_id` '
         . 'for a file already in Kanvas (the id in an "Attached file on this message" marker). Use '
-        . 'variant_search '
-        . 'or variant_detail to get the variant_id first. If the file describes the whole product rather '
-        . 'than one SKU, use upload_file_to_product. Only an administrator can do this.';
+        . 'variant_search or variant_detail to get the variant_id first. If the file describes the whole '
+        . 'product rather than one SKU, use upload_file_to_product. Only an administrator can do this.';
 
     /**
      * @return array<int, ToolProperty>
