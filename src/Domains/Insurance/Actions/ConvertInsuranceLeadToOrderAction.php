@@ -250,21 +250,11 @@ class ConvertInsuranceLeadToOrderAction
             throw new InsuranceValidationException('Register your vehicle first and search for insurance again');
         }
 
-        $variant = Variants::query()
-            ->where('id', $variantId)
-            ->where('apps_id', $this->contract->app->getId())
-            ->notDeleted()
-            ->first();
-
-        if (! InsuranceVehicleProduct::isVehicle($variant?->product)) {
-            throw new InsuranceValidationException('This vehicle is no longer available');
-        }
-
-        if (! InsuranceVehicleProduct::isOwnedBy($variant->product, $this->contract->app, $this->contract->user->getId())) {
-            throw new InsuranceValidationException('The vehicle does not belong to this account');
-        }
-
-        return $variant;
+        return InsuranceVehicleProduct::variantOwnedBy(
+            $variantId,
+            $this->contract->app,
+            $this->contract->user->getId()
+        );
     }
 
     private function planResolver(): InsurancePlanProductResolver

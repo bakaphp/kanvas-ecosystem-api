@@ -7,6 +7,7 @@ namespace Kanvas\Insurance\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Insurance\Actions\GenerateInsuranceCarnetAction;
+use Kanvas\Insurance\Enums\InsuranceOrderOriginEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
 use Kanvas\Insurance\Services\InsuranceCarnet;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -22,6 +23,14 @@ class GenerateInsuranceCarnetActivity extends KanvasActivity implements Workflow
     public function execute(Model $order, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
+
+        if (InsuranceOrderOriginEnum::isRegistered($order)) {
+            return [
+                'order' => $order->getId(),
+                'status' => 'skipped',
+                'message' => InsuranceOrderOriginEnum::PURCHASE_FLOW_SKIPPED,
+            ];
+        }
 
         if (! InsuranceOrderTypeEnum::INSURANCE->isTypeOf($order) || ! InsuranceCarnet::hasIssuedPolicy($order)) {
             return $this->failWorkflow([

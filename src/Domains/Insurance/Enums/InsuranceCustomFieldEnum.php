@@ -33,4 +33,5 @@ enum InsuranceCustomFieldEnum: string
     case POLICY_ENDS_AT = 'insurance_policy_ends_at';
     case CARNET_URL = 'insurance_carnet_url';
     case POLICY_EMAILED_AT = 'insurance_policy_emailed_at';
+    case ORIGIN = 'insurance_origin';
 }

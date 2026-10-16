@@ -374,6 +374,34 @@ once they exist). `GenerateInsuranceCarnetAction` runs `GenerateOrderReceiptActi
 - `insurance_policy_starts_at` / `insurance_policy_ends_at` (ISO dates) are shown on the carnet when present and omitted
   otherwise. Nothing fills them yet: a later increment will, once Universal's real response is known.
 
+## Registered policies (bought outside MoviPass)
+
+`registerInsurancePolicy(input)` lets a customer integrate a policy they already hold. `RegisterInsurancePolicyAction` creates an
+Order of type `insurance` with `insurance_origin = registered` (`InsuranceOrderOriginEnum`); purchased orders carry no origin
+field, so absence means bought through MoviPass. No new model: "Mis pólizas" is the same `orders` query filtered by the insurance order type.
+
+- **One item, text insurer.** The only line is the vehicle variant (quantity 1, price 0, total 0). There is no plan item and no insurer
+  relation because the insurer may not be one we integrate: `metadata.data.{insurer_name, plan_name, policy_number, starts_at, ends_at}`
+  hold the plain text, flat, with no `metadata.insurance`. If that insurer is integrated later, link it then from this text.
+- **Lifecycle.** Custom fields `insurance_policy_number`, `insurance_policy_starts_at` (optional), `insurance_policy_ends_at`,
+  `insurance_status = policy_active` and the origin. The order goes `quoted -> policy_active` through `RecordInsuranceStatusAction`, so
+  `OrderTransitionHistory` is recorded; that direct transition exists only since this feature, so **re-run
+  `kanvas:insurance-setup-order-type {app_id}` per environment** (idempotent). Until then registration is refused
+  (`InsuranceOrderPipeline::allowsRegistration`) with an error in the log naming the command.
+- **Validation.** Non-empty trimmed text, real `YYYY-MM-DD` dates, `starts_at <= ends_at`; a past `ends_at` is allowed because expired
+  policies are listed too. The vehicle variant must be a non-deleted `vehicle` product owned by the acting user in the acting app
+  (`InsuranceVehicleProduct::variantOwnedBy`, shared with `contractInsurancePlan`).
+- **Idempotent.** `reference = insurance-registered-{variant id}-{policy number lowercased, non-alphanumerics stripped}`; a repeat for
+  the same user, vehicle and policy number returns the existing order.
+- **No purchase flow.** No payment, quote, provider call or commission. Every purchase activity (`Attach`, `Report`, `UploadDocuments`,
+  `Emit`, `Invoice`, `Sync`, `Cancel`, `GenerateCarnet`, `SendPolicyEmail`) returns `skipped` for a registered order through
+  `InsuranceOrderOriginEnum::isRegistered`; a new purchase-flow activity must start with the same guard. We generate no carnet: the user
+  uploads their own.
+- **Documents** use the generic `attachFile` mutation on the order; there is no insurance upload path. Suggested `field_name` values:
+  `policy_document` and `carnet_document`. They are not `InsuranceDocumentTypeEnum` values, so nothing is ever forwarded to an insurer.
+- The order is created with `disableWorkflow()`, so the app-wide `Order created` rules do not fire; `CreateOrderAction` still sends its
+  standard new-order notifications, as it does for purchased insurance orders.
+
 ## Open items
 
 - Hold vs 3DS: `SettleInsurancePaymentAction` only touches an `AUTHORIZED` payment. The 3DS challenge flow (`startPaymentChallengeWithCard`) marks a held payment `PAID`, so insurance orders must be paid through `createPaymentMethod` → `addPaymentToOrder` → `processPayment` with `use_hold`, or a failed emission will not release the hold.

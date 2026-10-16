@@ -6,6 +6,7 @@ namespace Kanvas\Insurance\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\DateHelper;
 use Baka\Support\Str;
 use DateTimeImmutable;
 use Kanvas\Exceptions\ValidationException;
@@ -128,8 +129,6 @@ class CanonicalQuoteInput
 
     private static function parseDate(string $value): ?DateTimeImmutable
     {
-        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
-
-        return $date !== false && $date->format('Y-m-d') === $value ? $date : null;
+        return DateHelper::parseYmd($value);
     }
 }

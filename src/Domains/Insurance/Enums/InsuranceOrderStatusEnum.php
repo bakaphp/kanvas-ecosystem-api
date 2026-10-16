@@ -61,7 +61,7 @@ enum InsuranceOrderStatusEnum: string
     public function transitionsTo(): array
     {
         return match ($this) {
-            self::QUOTED => [self::DOCUMENTS_UPLOADED, self::AWAITING_PAYMENT, self::PAYMENT_REPORTED, self::CANCELLED, self::FAILED],
+            self::QUOTED => [self::DOCUMENTS_UPLOADED, self::AWAITING_PAYMENT, self::PAYMENT_REPORTED, self::POLICY_ACTIVE, self::CANCELLED, self::FAILED],
             self::DOCUMENTS_UPLOADED => [self::AWAITING_PAYMENT, self::PAYMENT_REPORTED, self::CANCELLED, self::FAILED],
             self::AWAITING_PAYMENT => [self::PAYMENT_REPORTED, self::CANCELLED, self::FAILED],
             self::PAYMENT_REPORTED => [self::EMITTED, self::POLICY_ACTIVE, self::CANCELLED, self::FAILED],

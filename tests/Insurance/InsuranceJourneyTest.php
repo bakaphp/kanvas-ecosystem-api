@@ -15,13 +15,16 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Insurance\Actions\SyncInsuranceProductsAction;
 use Kanvas\Insurance\Activities\AttachInsuranceQuoteActivity;
+use Kanvas\Insurance\Activities\CancelInsuranceOrderActivity;
 use Kanvas\Insurance\Activities\EmitInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\GenerateInsuranceCarnetActivity;
 use Kanvas\Insurance\Activities\InvoiceInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\ReportInsurancePaymentActivity;
 use Kanvas\Insurance\Activities\SendInsurancePolicyEmailActivity;
+use Kanvas\Insurance\Activities\SyncInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\UploadInsuranceDocumentsActivity;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderOriginEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderStatusEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
@@ -268,6 +271,107 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertStringContainsString('cannot be contracted', (string) $response->json('errors.0.message'));
         $this->assertSame($ordersBefore, Order::query()->fromApp($this->kanvasApp)->count());
         $this->assertTrue(Lead::findOrFail($leadId)->hasOpenLeadStatus());
+    }
+
+    public function testAUserRegistersAPolicyBoughtElsewhere(): void
+    {
+        $variantId = (string) $this->vehicle->variants()->firstOrFail()->getId();
+        $input = [
+            'vehicle_variant_id' => $variantId,
+            'insurer_name' => 'Seguros Locales',
+            'plan_name' => 'Full Plus',
+            'policy_number' => 'LC-2024 / 889',
+            'starts_at' => '2025-01-01',
+            'ends_at' => '2025-12-31',
+        ];
+        $mutation = 'mutation($input: RegisterInsurancePolicyInput!) { registerInsurancePolicy(input: $input) { id } }';
+
+        $response = $this->graphQL($mutation, ['input' => $input]);
+        $orderId = $response->json('data.registerInsurancePolicy.id');
+        $this->assertNotNull($orderId, json_encode($response->json()));
+
+        $order = Order::findOrFail($orderId);
+        $this->assertRegisteredPolicy($order, $variantId);
+
+        $listed = $this->graphQL(
+            'query { orders(first: 25, orderType: { column: NAME, operator: EQ, value: "insurance" }) { data { id } } }'
+        )->json('data.orders.data');
+        $this->assertContains((string) $orderId, array_column($listed, 'id'));
+
+        $repeated = $this->graphQL($mutation, ['input' => [...$input, 'policy_number' => 'lc2024889']]);
+        $this->assertSame((string) $orderId, $repeated->json('data.registerInsurancePolicy.id'));
+        $this->assertSame(1, Order::query()->where('reference', $order->reference)->count());
+
+        $foreignVehicle = $this->createVehicleProduct(Users::query()->where('id', '>', 0)->where('id', '!=', $this->kanvasUser->getId())->firstOrFail());
+        $foreign = $this->graphQL($mutation, ['input' => [
+            ...$input,
+            'vehicle_variant_id' => (string) $foreignVehicle->variants()->firstOrFail()->getId(),
+        ]]);
+        $this->assertStringContainsString('does not belong', (string) $foreign->json('errors.0.message'));
+
+        $backwards = $this->graphQL($mutation, ['input' => [...$input, 'starts_at' => '2026-01-01']]);
+        $this->assertStringContainsString('cannot be after', (string) $backwards->json('errors.0.message'));
+
+        $this->assertPurchaseActivitiesLeaveItUntouched($order);
+    }
+
+    private function assertRegisteredPolicy(Order $order, string $variantId): void
+    {
+        $items = $order->allItems()->get();
+        $this->assertCount(1, $items);
+        $this->assertSame($variantId, (string) $items->first()->variant_id);
+        $this->assertSame(0.0, (float) $items->first()->unit_price_net_amount);
+        $this->assertSame(0.0, (float) $order->total_gross_amount);
+        $this->assertSame(0, $order->payments()->count());
+        $this->assertSame(InsuranceOrderStatusEnum::POLICY_ACTIVE->value, $order->orderStatus?->slug);
+        $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, $order->get(InsuranceCustomFieldEnum::STATUS->value));
+        $this->assertSame(InsuranceOrderOriginEnum::REGISTERED->value, $order->get(InsuranceCustomFieldEnum::ORIGIN->value));
+        $this->assertSame('LC-2024 / 889', $order->get(InsuranceCustomFieldEnum::POLICY_NUMBER->value));
+        $this->assertSame('2025-01-01', $order->get(InsuranceCustomFieldEnum::POLICY_STARTS_AT->value));
+        $this->assertSame('2025-12-31', $order->get(InsuranceCustomFieldEnum::POLICY_ENDS_AT->value));
+        $this->assertSame(
+            [
+                'insurer_name' => 'Seguros Locales',
+                'plan_name' => 'Full Plus',
+                'policy_number' => 'LC-2024 / 889',
+                'starts_at' => '2025-01-01',
+                'ends_at' => '2025-12-31',
+            ],
+            $order->metadata['data']
+        );
+        $this->assertArrayNotHasKey('insurance', $order->metadata);
+        $this->assertSame(
+            [InsuranceOrderStatusEnum::QUOTED->value, InsuranceOrderStatusEnum::POLICY_ACTIVE->value],
+            $order->orderTransitionHistory()->orderBy('id')->get()->map(fn ($history) => $history->toStatus?->slug)->all()
+        );
+        $this->assertSame([], $this->universal->calls);
+        $this->assertEmpty($order->get(InsuranceCustomFieldEnum::QUOTE_NUMBER->value));
+    }
+
+    private function assertPurchaseActivitiesLeaveItUntouched(Order $order): void
+    {
+        $before = $order->fresh()->only(['order_status_id', 'total_gross_amount', 'payment_status', 'metadata']);
+
+        foreach ([
+            AttachInsuranceQuoteActivity::class,
+            ReportInsurancePaymentActivity::class,
+            UploadInsuranceDocumentsActivity::class,
+            EmitInsurancePolicyActivity::class,
+            InvoiceInsurancePolicyActivity::class,
+            SyncInsurancePolicyActivity::class,
+            CancelInsuranceOrderActivity::class,
+            GenerateInsuranceCarnetActivity::class,
+            SendInsurancePolicyEmailActivity::class,
+        ] as $activity) {
+            $result = $this->runActivity($activity, $order);
+            $this->assertSame('skipped', $result['status'] ?? null, $activity . ' ' . json_encode($result));
+        }
+
+        $order = $order->fresh();
+        $this->assertSame($before, $order->only(['order_status_id', 'total_gross_amount', 'payment_status', 'metadata']));
+        $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, $order->get(InsuranceCustomFieldEnum::STATUS->value));
+        $this->assertEmpty($order->get(InsuranceCustomFieldEnum::CARNET_URL->value));
+        $this->assertSame([], $this->universal->calls);
     }
 
     private function assertPolicyIsIssuedAndInvoiced(Order $order): void

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Insurance\Actions\RecordInsuranceStatusAction;
 use Kanvas\Insurance\Actions\SettleInsurancePaymentAction;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderOriginEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -22,6 +23,14 @@ class CancelInsuranceOrderActivity extends KanvasActivity implements WorkflowAct
     public function execute(Model $order, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
+
+        if (InsuranceOrderOriginEnum::isRegistered($order)) {
+            return [
+                'order' => $order->getId(),
+                'status' => 'skipped',
+                'message' => InsuranceOrderOriginEnum::PURCHASE_FLOW_SKIPPED,
+            ];
+        }
 
         $status = (string) $order->get(InsuranceCustomFieldEnum::STATUS->value);
 

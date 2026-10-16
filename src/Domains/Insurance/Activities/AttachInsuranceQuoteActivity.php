@@ -19,6 +19,7 @@ use Kanvas\Insurance\DataTransferObject\InsuranceOrderData;
 use Kanvas\Insurance\DataTransferObject\QuoteResult;
 use Kanvas\Insurance\DataTransferObject\VerifiedInsuranceOrder;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderOriginEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Exceptions\InsuranceValidationException;
@@ -45,6 +46,14 @@ class AttachInsuranceQuoteActivity extends KanvasActivity implements WorkflowAct
     public function execute(Model $order, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
+
+        if (InsuranceOrderOriginEnum::isRegistered($order)) {
+            return [
+                'order' => $order->getId(),
+                'status' => 'skipped',
+                'message' => InsuranceOrderOriginEnum::PURCHASE_FLOW_SKIPPED,
+            ];
+        }
 
         $isInsuranceOrder = InsuranceOrderTypeEnum::INSURANCE->isTypeOf($order);
 

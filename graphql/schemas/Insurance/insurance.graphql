@@ -164,6 +164,15 @@ input ContractInsurancePlanInput {
     customer: InsuranceCustomerInput
 }
 
+input RegisterInsurancePolicyInput {
+    vehicle_variant_id: ID!
+    insurer_name: String!
+    plan_name: String!
+    policy_number: String!
+    starts_at: String
+    ends_at: String!
+}
+
 extend type Query @guard {
     insuranceSearch(input: CanonicalQuoteInput!): InsuranceSearchResult!
         @field(
@@ -179,6 +188,10 @@ extend type Mutation @guard {
     contractInsurancePlan(input: ContractInsurancePlanInput!): Order!
         @field(
             resolver: "App\\GraphQL\\Insurance\\Mutations\\InsuranceSelectionMutation@contract"
+        )
+    registerInsurancePolicy(input: RegisterInsurancePolicyInput!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Insurance\\Mutations\\InsuranceRegisteredPolicyMutation@register"
         )
     sendInsurancePolicyEmail(order_id: ID!): Boolean!
         @field(

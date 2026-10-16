@@ -12,6 +12,7 @@ use Kanvas\Insurance\Concerns\FailsReleasingHeldPayment;
 use Kanvas\Insurance\Contracts\InspectionProviderInterface;
 use Kanvas\Insurance\Contracts\PolicyEmissionProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderOriginEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -28,6 +29,14 @@ class EmitInsurancePolicyActivity extends KanvasActivity implements WorkflowActi
     public function execute(Model $order, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
+
+        if (InsuranceOrderOriginEnum::isRegistered($order)) {
+            return [
+                'order' => $order->getId(),
+                'status' => 'skipped',
+                'message' => InsuranceOrderOriginEnum::PURCHASE_FLOW_SKIPPED,
+            ];
+        }
 
         if (empty($order->get(InsuranceCustomFieldEnum::QUOTE_NUMBER->value))) {
             return $this->failReleasingHold($order, 'Order has no insurance quote number');
