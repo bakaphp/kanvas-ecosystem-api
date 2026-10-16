@@ -78,6 +78,10 @@ class CreateLeadMessageAction
 
         [$lead, $shouldBlockAndPrivate] = $this->resolveLead($messageBody);
 
+        if ($isFromMe === false && $lead instanceof Lead) {
+            $lead->addTag('engaged');
+        }
+
         $channels = new ConversationChannelService($this->receiver);
         $channel = $channels->getOrCreateChannel(jid: $chatJid, lead: $lead);
         $existingMessage = $channels->findMessageBySlug($messageId, $chatJid);

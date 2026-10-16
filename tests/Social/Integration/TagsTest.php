@@ -4,12 +4,19 @@ declare(strict_types=1);
 
 namespace Tests\Social\Integration;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Mockery;
 use Tests\TestCase;
 
 final class TagsTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'social', 'crm'];
+
     public function testAddTagToEntity(): void
     {
         $app = app(Apps::class);
@@ -20,6 +27,27 @@ final class TagsTest extends TestCase
 
         $this->assertNotEmpty($people->tags()->get());
         $this->assertCount(1, $people->tags()->get());
+    }
+
+    public function testAddingANewTagFiresTheAfterAddTagWorkflowOnce(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $entity = Mockery::mock($people)->makePartial();
+
+        $entity->shouldReceive('fireWorkflow')
+            ->once()
+            ->with(
+                WorkflowEnum::AFTER_ADD_TAG->value,
+                true,
+                Mockery::on(fn (array $params): bool => $params['tag'] === 'engaged'
+                    && isset($params['tag_id'])
+                    && $params['app'] === $app)
+            );
+
+        $entity->addTag('engaged');
+        $entity->addTag('engaged');
     }
 
     public function testAddMultipleTagsToEntity(): void

@@ -18,6 +18,7 @@ use Kanvas\Connectors\Mailgun\Services\MailgunPayloadService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
@@ -102,6 +103,12 @@ class AgentInboxWebhookJob extends ProcessWebhookJob
 
         if ($entity === null) {
             return ['message' => 'Sender is not known to this company and the mailbox is restricted'];
+        }
+
+        if ($entity instanceof Lead) {
+            $entity->addTag('engaged');
+        } elseif ($entity instanceof People) {
+            LeadsRepository::getPeopleActiveLead($entity)?->addTag('engaged');
         }
 
         // This receiver replies inline, so consent has to be settled before the responder runs — an

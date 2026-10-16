@@ -12,6 +12,7 @@ use Kanvas\Social\Tags\Actions\CreateTagAction;
 use Kanvas\Social\Tags\DataTransferObjects\Tag;
 use Kanvas\Social\Tags\Models\Tag as ModelsTag;
 use Kanvas\Social\Tags\Models\TagEntity;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 trait HasTagsTrait
 {
@@ -82,6 +83,14 @@ trait HasTagsTrait
                 'users_id' => $user->getId(),
                 'is_deleted' => 0,
             ]);
+
+            if (method_exists($this, 'fireWorkflow')) {
+                $this->fireWorkflow(
+                    WorkflowEnum::AFTER_ADD_TAG->value,
+                    true,
+                    ['tag' => $tag->name, 'tag_id' => $tag->getId(), 'app' => $app]
+                );
+            }
         }
     }
 

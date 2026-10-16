@@ -188,10 +188,10 @@ class Client
                 $params
             );
 
-            return ! empty($response->getBody()->getContents()) ? json_decode(
-                $response->getBody()->getContents(),
-                true
-            ) : [];
+            $returnData = $response->getBody()->getContents();
+            $decoded = $returnData !== '' ? json_decode($returnData, true) : [];
+
+            return is_array($decoded) ? $decoded : [];
         } catch (RequestException $e) {
             $this->tracker()->trackError($e->getCode());
 
