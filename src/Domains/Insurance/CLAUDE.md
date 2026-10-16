@@ -399,8 +399,32 @@ field, so absence means bought through MoviPass. No new model: "Mis pólizas" is
   uploads their own.
 - **Documents** use the generic `attachFile` mutation on the order; there is no insurance upload path. Suggested `field_name` values:
   `policy_document` and `carnet_document`. They are not `InsuranceDocumentTypeEnum` values, so nothing is ever forwarded to an insurer.
-- The order is created with `disableWorkflow()`, so the app-wide `Order created` rules do not fire; `CreateOrderAction` still sends its
-  standard new-order notifications, as it does for purchased insurance orders.
+- The order is created with `disableWorkflow()` and `disableNotifications()`, so neither the app-wide `Order created` rules nor the
+  standard new-order emails fire. It is stored as `completed` / `fulfilled` with `payment_status` left `unpaid` on purpose: nothing was
+  paid through MoviPass, and marking it paid would inflate payment stats.
+
+## Policy expiry reminders
+
+`kanvas:insurance-send-policy-reminders {--app=} {--date=YYYY-MM-DD}` reminds the order's user before the policy expires, over mail,
+push and an in-app (`database`) notification. It is scheduled daily at 09:00 in `Kernel` (`onOneServer`), so the scheduler worker must
+be running in every environment; `--date` simulates "today" and `--app` restricts it to one app. The command iterates every app that
+has an `insurance` order type, binds each one with `overwriteAppService` before touching anything, and is safe to re-run.
+
+- **Config.** `config/insurance.php` `reminders.days` (default `30, 15, 7, 3, 1, 0`, where `0` is the expiry day) and
+  `reminders.channels` (notification slugs).
+- **Selection.** `SendInsurancePolicyRemindersAction` reads only the order custom fields. One indexed query on `apps_custom_fields`
+  for `insurance_policy_ends_at` in the handful of target dates, then `insurance_status = policy_active` and the marker for just those
+  ids, then the orders (`fromApp`, `notDeleted`, insurance order type) in `chunkById(100)`. It never hydrates the app's orders.
+  Registered policies always match; **purchased orders only match once a later increment fills `insurance_policy_ends_at` from the
+  insurer**, so today they are simply not reminded.
+- **Idempotency.** Order custom field `insurance_reminders_sent` holds comma-separated `{ends_at}:{days}` markers. Keying by the end
+  date means changing `ends_at` never suppresses the reminders of the new date. The marker is written only after the notification is
+  dispatched, so an order that failed is retried on the next run; failures are reported and do not stop the batch.
+- **Content.** `InsurancePolicyReminderNotification` renders three seeded templates (`insurance-policy-reminder` for mail,
+  `-push-title`, `-push-message`, the last also used for the in-app text). They are seeded by `kanvas:insurance-setup-order-type`,
+  so **re-run it per environment** before the first scheduled run. The notification data carries `order_id` and
+  `vehicle_variant_id` so the client decides where to send the user (comparator / renewal); no frontend URL is hardcoded, and the
+  "alert on the vehicle" is something the client derives from that same notification.
 
 ## Open items
 

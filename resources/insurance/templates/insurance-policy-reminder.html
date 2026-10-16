@@ -1,0 +1,6 @@
+<p>Hola {{ $insured }},</p>
+<p>Tu poliza <strong>{{ $policyNumber }}</strong> de {{ $insurer }}@if ($plan) ({{ $plan }})@endif {{ $expiryPhrase }}@if ($endsAt) ({{ $endsAt }})@endif.</p>
+@if ($vehicleLabel)
+<p>Vehiculo: {{ $vehicleLabel }}</p>
+@endif
+<p>Renueva a tiempo: compara las opciones disponibles desde la aplicacion.</p>

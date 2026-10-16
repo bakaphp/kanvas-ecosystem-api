@@ -20,6 +20,7 @@ use Kanvas\Insurance\Services\InsuranceOrderPipeline;
 use Kanvas\Regions\Services\RegionResolutionService;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order as OrderData;
+use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 
@@ -113,19 +114,19 @@ class RegisterInsurancePolicyAction
                 taxes: 0.0,
                 totalDiscount: 0.0,
                 totalShipping: 0.0,
-                status: OrderStatusEnum::PENDING->value,
+                status: OrderStatusEnum::COMPLETED->value,
                 checkoutToken: '',
                 currency: $region->currency,
                 items: $this->orderItems(),
                 email: $user->email,
                 metadata: ['data' => $this->metadata()],
-                fulfillmentStatus: OrderStatusEnum::PENDING->value,
+                fulfillmentStatus: OrderFulfillmentStatusEnum::COMPLETED->value,
                 paymentGatewayName: ['manual'],
                 reference: $this->reference(),
                 orderType: InsuranceOrderTypeEnum::INSURANCE->value,
                 paymentStatus: 'unpaid',
             )
-        )->disableWorkflow()->execute();
+        )->disableWorkflow()->disableNotifications()->execute();
     }
 
     private function orderItems(): array

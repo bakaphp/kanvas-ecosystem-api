@@ -7,6 +7,7 @@ namespace Kanvas\Insurance\Actions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Insurance\Services\InsuranceCarnet;
+use Kanvas\Insurance\Services\InsurancePolicyReminders;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
 use Kanvas\Templates\Models\Templates;
@@ -16,6 +17,9 @@ class SeedInsuranceTemplatesAction
     private const array SUBJECTS = [
         InsuranceCarnet::TEMPLATE => null,
         InsuranceCarnet::EMAIL_TEMPLATE => 'Tu poliza esta activa - carnet digital adjunto',
+        InsurancePolicyReminders::TEMPLATE => 'Tu poliza {{ $expiryPhrase }}',
+        InsurancePolicyReminders::PUSH_TITLE_TEMPLATE => null,
+        InsurancePolicyReminders::PUSH_MESSAGE_TEMPLATE => null,
     ];
 
     public function __construct(

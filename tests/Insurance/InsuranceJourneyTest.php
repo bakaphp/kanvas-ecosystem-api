@@ -6,6 +6,8 @@ namespace Tests\Insurance;
 
 use Baka\Http\SafeUrlFetcher;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Kanvas\Apps\Models\Apps;
@@ -31,6 +33,7 @@ use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Models\InsuranceVehicleModelMap;
 use Kanvas\Insurance\Notifications\InsurancePolicyIssuedNotification;
+use Kanvas\Insurance\Notifications\InsurancePolicyReminderNotification;
 use Kanvas\Insurance\Services\VehicleKeyNormalizer;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
@@ -273,6 +276,73 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertTrue(Lead::findOrFail($leadId)->hasOpenLeadStatus());
     }
 
+    public function testPolicyRemindersAreSentOnTheConfiguredDaysExactlyOnce(): void
+    {
+        $today = Carbon::today();
+        $variantId = (string) $this->vehicle->variants()->firstOrFail()->getId();
+        $register = function (string $number, Carbon $endsAt) use ($variantId): Order {
+            $response = $this->graphQL(
+                'mutation($input: RegisterInsurancePolicyInput!) { registerInsurancePolicy(input: $input) { id } }',
+                ['input' => [
+                    'vehicle_variant_id' => $variantId,
+                    'insurer_name' => 'Seguros Locales',
+                    'plan_name' => 'Full Plus',
+                    'policy_number' => $number,
+                    'starts_at' => $endsAt->copy()->subYear()->toDateString(),
+                    'ends_at' => $endsAt->toDateString(),
+                ]]
+            );
+
+            return Order::findOrFail($response->json('data.registerInsurancePolicy.id') ?? $this->fail(json_encode($response->json())));
+        };
+        $thirty = $register('P-30', $today->copy()->addDays(30));
+        $seven = $register('P-07', $today->copy()->addDays(7));
+        $register('P-05', $today->copy()->addDays(5));
+        $register('P-EXPIRED', $today->copy()->subDay());
+        $run = fn (Carbon $date): int => Artisan::call('kanvas:insurance-send-policy-reminders', [
+            '--app' => $this->kanvasApp->getId(),
+            '--date' => $date->toDateString(),
+        ]);
+        $user = $thirty->user;
+        $sentDays = fn (): array => Notification::sent($user, InsurancePolicyReminderNotification::class)
+            ->map(fn (InsurancePolicyReminderNotification $sent): array => [$sent->data['order_id'], $sent->daysLeft])
+            ->sortBy(fn (array $sent): int => $sent[1])
+            ->values()
+            ->all();
+        Notification::fake();
+
+        $this->assertSame(0, $run($today));
+        $this->assertSame([[$seven->getId(), 7], [$thirty->getId(), 30]], $sentDays());
+        Notification::assertSentTo(
+            $user,
+            InsurancePolicyReminderNotification::class,
+            fn (InsurancePolicyReminderNotification $sent): bool => $sent->data['order_id'] === $seven->getId()
+                && $sent->data['vehicle_variant_id'] === (int) $variantId
+                && $sent->data['insurer'] === 'Seguros Locales'
+                && $sent->data['plan'] === 'Full Plus'
+                && $sent->data['policyNumber'] === 'P-07'
+                && $sent->data['expiryPhrase'] === 'vence en 7 dias'
+                && $sent->channels() === ['mail', 'push', 'database']
+                && str_contains($sent->getEmailContent(), 'P-07')
+                && str_contains($sent->message(), 'Seguros Locales')
+        );
+
+        $run($today);
+        $this->assertCount(2, $sentDays());
+
+        $seven->set(InsuranceCustomFieldEnum::POLICY_ENDS_AT->value, $today->copy()->addDays(14)->toDateString());
+        app()->instance(Apps::class, Apps::query()->where('id', '!=', $this->kanvasApp->getId())->firstOrFail());
+        $run($today->copy()->addDays(7));
+
+        $this->assertSame($this->kanvasApp->getId(), app(Apps::class)->getId());
+        $this->assertSame(
+            [[$seven->getId(), 7], [$seven->getId(), 7], [$thirty->getId(), 30]],
+            $sentDays()
+        );
+        $run($today->copy()->addDays(7));
+        $this->assertCount(3, $sentDays());
+    }
+
     public function testAUserRegistersAPolicyBoughtElsewhere(): void
     {
         $variantId = (string) $this->vehicle->variants()->firstOrFail()->getId();
@@ -323,6 +393,8 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertSame(0.0, (float) $items->first()->unit_price_net_amount);
         $this->assertSame(0.0, (float) $order->total_gross_amount);
         $this->assertSame(0, $order->payments()->count());
+        $this->assertSame('completed', $order->status);
+        $this->assertSame('fulfilled', $order->fulfillment_status);
         $this->assertSame(InsuranceOrderStatusEnum::POLICY_ACTIVE->value, $order->orderStatus?->slug);
         $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, $order->get(InsuranceCustomFieldEnum::STATUS->value));
         $this->assertSame(InsuranceOrderOriginEnum::REGISTERED->value, $order->get(InsuranceCustomFieldEnum::ORIGIN->value));
