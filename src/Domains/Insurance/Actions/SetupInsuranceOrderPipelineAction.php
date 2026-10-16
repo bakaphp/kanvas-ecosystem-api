@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Insurance\Actions;
 
-use Baka\Contracts\AppInterface;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Insurance\Enums\InsuranceOrderStatusEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
+use Kanvas\Insurance\Services\InsuranceCarnet;
+use Kanvas\Souk\Orders\DataTransferObject\OrderReceipt;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
 use Kanvas\Souk\Orders\Models\OrderTypes;
@@ -14,7 +16,7 @@ use Kanvas\Souk\Orders\Models\OrderTypes;
 class SetupInsuranceOrderPipelineAction
 {
     public function __construct(
-        private readonly AppInterface $app,
+        private readonly Apps $app,
     ) {
     }
 
@@ -28,7 +30,12 @@ class SetupInsuranceOrderPipelineAction
         $statuses = $this->seedStatuses($orderType);
         $this->seedTransitions($orderType, $statuses);
 
-        $orderType->update(['total_statuses' => count($statuses)]);
+        $orderType->update([
+            'total_statuses' => count($statuses),
+            'config' => array_merge((array) $orderType->config, [OrderReceipt::CONFIG_KEY => InsuranceCarnet::receipt()->toConfig()]),
+        ]);
+
+        new SeedInsuranceTemplatesAction($this->app)->execute();
 
         return $orderType;
     }

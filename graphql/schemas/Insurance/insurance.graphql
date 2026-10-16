@@ -180,4 +180,8 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Insurance\\Mutations\\InsuranceSelectionMutation@contract"
         )
+    sendInsurancePolicyEmail(order_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Insurance\\Mutations\\InsurancePolicyEmailMutation@send"
+        )
 }

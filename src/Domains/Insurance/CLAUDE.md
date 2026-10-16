@@ -96,6 +96,8 @@ Whatever the origin, everything reads the order through `ReadInsuranceOrderActio
 | Report the payment we took | `ReportInsurancePaymentActivity` | card authorized |
 | Emit the policy, capture the hold | `EmitInsurancePolicyActivity` | payment reported |
 | Invoice the policy | `InvoiceInsurancePolicyActivity` | policy emitted |
+| Build the PDF carnet | `GenerateInsuranceCarnetActivity` | policy invoiced (policy active) |
+| Email the policy and carnet | `SendInsurancePolicyEmailActivity` | carnet generated |
 | Poll the policy back | `SyncInsurancePolicyActivity` | schedule / status change |
 | Customer backs out | `CancelInsuranceOrderActivity` | order cancelled |
 
@@ -356,6 +358,21 @@ when the plan is not seeded/published) so the FE can build the plan line. Souk k
 - **Customer fields.** Added canonical `address_province/municipality/sector/building/street`, `politically_exposed`,
   `has_pep_relative`, `job_title`, `pep_relative_name/relationship/job_title`, all optional in GraphQL. Universal requires the address
   (building optional) and `politically_exposed`; nationality and country of residence are no longer required.
+
+## Digital carnet and policy email
+
+The carnet is the order-receipt mechanism, not a parallel one: `kanvas:insurance-setup-order-type` writes
+`order_types.config.pdf_receipt` (template `insurance-carnet`, field `insurance_carnet_url`) and seeds the
+`insurance-carnet` and `insurance-policy-issued` templates (from `resources/insurance/templates/`, never overwritten
+once they exist). `GenerateInsuranceCarnetAction` runs `GenerateOrderReceiptAction` with the data from
+`BuildInsuranceCarnetDataAction`, so the PDF lands in the order's `files` and its URL in `insurance_carnet_url`.
+`SendInsurancePolicyEmailAction` is the single sender, used by `SendInsurancePolicyEmailActivity` and the
+`sendInsurancePolicyEmail(order_id)` mutation (owner only; refused until the policy is active and the carnet exists).
+
+- Both activities need a workflow rule per environment: carnet after the policy is invoiced, email after the carnet.
+  A PDF failure is reported as a failed workflow step and never touches the insurance or order status.
+- `insurance_policy_starts_at` / `insurance_policy_ends_at` (ISO dates) are shown on the carnet when present and omitted
+  otherwise. Nothing fills them yet: a later increment will, once Universal's real response is known.
 
 ## Open items
 

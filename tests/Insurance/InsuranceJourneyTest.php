@@ -6,6 +6,8 @@ namespace Tests\Insurance;
 
 use Baka\Http\SafeUrlFetcher;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\UniversalSeguros\Handlers\UniversalSegurosHandler;
 use Kanvas\Connectors\UniversalSeguros\Providers\UniversalSegurosProvider;
@@ -14,8 +16,10 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Insurance\Actions\SyncInsuranceProductsAction;
 use Kanvas\Insurance\Activities\AttachInsuranceQuoteActivity;
 use Kanvas\Insurance\Activities\EmitInsurancePolicyActivity;
+use Kanvas\Insurance\Activities\GenerateInsuranceCarnetActivity;
 use Kanvas\Insurance\Activities\InvoiceInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\ReportInsurancePaymentActivity;
+use Kanvas\Insurance\Activities\SendInsurancePolicyEmailActivity;
 use Kanvas\Insurance\Activities\UploadInsuranceDocumentsActivity;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderStatusEnum;
@@ -23,6 +27,7 @@ use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Models\InsuranceVehicleModelMap;
+use Kanvas\Insurance\Notifications\InsurancePolicyIssuedNotification;
 use Kanvas\Insurance\Services\VehicleKeyNormalizer;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
@@ -292,6 +297,57 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertSame(FakeUniversalServer::POLICY, $order->get(InsuranceCustomFieldEnum::POLICY_NUMBER->value));
         $this->assertCount(1, $this->universal->invoices);
         $this->assertSame(FakeUniversalServer::POLICY, $this->universal->invoices[0]['noPoliza']);
+
+        $this->assertCarnetIsGeneratedAndMailed($order);
+    }
+
+    private function assertCarnetIsGeneratedAndMailed(Order $order): void
+    {
+        Notification::fake();
+        Storage::partialMock()->shouldReceive('build')->andReturn(Storage::fake('carnets'));
+        $mutation = 'mutation($id: ID!) { sendInsurancePolicyEmail(order_id: $id) }';
+
+        $early = $this->graphQL($mutation, ['id' => $order->getId()]);
+        $this->assertStringContainsString('not ready yet', (string) $early->json('errors.0.message'));
+        Notification::assertNothingSent();
+
+        $carnet = $this->runActivity(GenerateInsuranceCarnetActivity::class, $order);
+        $this->assertSame('success', $carnet['status'] ?? null, json_encode($carnet));
+
+        $order = $order->fresh();
+        $url = $order->get(InsuranceCustomFieldEnum::CARNET_URL->value);
+        $this->assertNotEmpty($url);
+        $this->assertSame(1, $this->carnetFilesCount($order));
+
+        $again = $this->runActivity(GenerateInsuranceCarnetActivity::class, $order);
+        $this->assertSame('skipped', $again['status'], json_encode($again));
+        $this->assertSame(1, $this->carnetFilesCount($order->fresh()));
+
+        $email = $this->runActivity(SendInsurancePolicyEmailActivity::class, $order);
+        $this->assertSame('success', $email['status'], json_encode($email));
+        Notification::assertSentToTimes($order->user, InsurancePolicyIssuedNotification::class, 1);
+        Notification::assertSentTo(
+            $order->user,
+            InsurancePolicyIssuedNotification::class,
+            fn (InsurancePolicyIssuedNotification $sent): bool => $sent->pathAttachment === [$url]
+                && $sent->data['policyNumber'] === FakeUniversalServer::POLICY
+                && $sent->data['insured'] === 'Ana Perez'
+                && str_contains($sent->getEmailContent(), FakeUniversalServer::POLICY)
+                && str_contains((string) $sent->getNotificationTitle(), 'carnet')
+        );
+
+        $repeated = $this->runActivity(SendInsurancePolicyEmailActivity::class, $order);
+        $this->assertSame('skipped', $repeated['status'], json_encode($repeated));
+        Notification::assertSentToTimes($order->user, InsurancePolicyIssuedNotification::class, 1);
+
+        $resend = $this->graphQL($mutation, ['id' => $order->getId()]);
+        $this->assertTrue($resend->json('data.sendInsurancePolicyEmail'), json_encode($resend->json()));
+        Notification::assertSentToTimes($order->user, InsurancePolicyIssuedNotification::class, 2);
+    }
+
+    private function carnetFilesCount(Order $order): int
+    {
+        return $order->getFiles()->where('field_name', $order->order_number . '_carnet')->count();
     }
 
     private function assertQuotedWithItsOwnQuote(Order $order, string $searchedQuote, string $requestIdPrefix): void
