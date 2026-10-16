@@ -13,4 +13,10 @@ enum VehicleInsuranceAttributeEnum: string
     case MODEL = 'model';
     case YEAR = 'year';
     case VERSION = 'version';
+    case VIN = 'vin';
+    case PLATE = 'plate';
+    case COLOR = 'color';
+    case ENGINE = 'engine';
+    case CYLINDERS = 'cylinders';
+    case DOORS = 'doors';
 }

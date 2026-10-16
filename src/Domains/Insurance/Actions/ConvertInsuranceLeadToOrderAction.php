@@ -30,6 +30,7 @@ use Kanvas\Insurance\Services\InsuranceOrderMetadata;
 use Kanvas\Insurance\Services\InsuranceOrderPipeline;
 use Kanvas\Insurance\Services\InsurancePlanProductResolver;
 use Kanvas\Insurance\Services\InsuranceQuoteSignature;
+use Kanvas\Insurance\Services\InsuranceRequestId;
 use Kanvas\Insurance\Services\InsuranceVehicleProduct;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
@@ -99,7 +100,12 @@ class ConvertInsuranceLeadToOrderAction
         );
         $wonStatus = $this->wonStatus();
         $region = $this->region();
-        $quote = $this->attachedQuote($plan, $provider, $orderData);
+        $quote = $this->attachedQuote(
+            $lead,
+            $plan,
+            $provider,
+            $orderData
+        );
 
         $order = $this->createOrder($lead, $plan, $provider, $orderData, $region, $quote);
 
@@ -212,6 +218,7 @@ class ConvertInsuranceLeadToOrderAction
     }
 
     private function attachedQuote(
+        Lead $lead,
         InsurancePlan $plan,
         InsuranceProviderInterface $provider,
         InsuranceOrderData $orderData
@@ -220,7 +227,8 @@ class ConvertInsuranceLeadToOrderAction
             $provider,
             (string) $orderData->quoteNumber,
             (string) $plan->external_code,
-            $orderData->quoteRequest($provider)
+            $orderData->quoteRequest($provider),
+            InsuranceRequestId::for($this->referenceFor($lead))
         )->execute();
     }
 

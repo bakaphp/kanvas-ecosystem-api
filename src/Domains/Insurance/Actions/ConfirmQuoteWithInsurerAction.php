@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Insurance\Actions;
 
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Insurance\Contracts\FreshQuoteProviderInterface;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\DataTransferObject\InsuranceQuoteRequest;
 use Kanvas\Insurance\DataTransferObject\QuoteResult;
@@ -16,12 +17,13 @@ class ConfirmQuoteWithInsurerAction
         private readonly string $quoteNumber,
         private readonly string $productCode,
         private readonly ?InsuranceQuoteRequest $update = null,
+        private readonly ?string $requestId = null,
     ) {
     }
 
     public function execute(): QuoteResult
     {
-        $quote = new PushCustomerToQuoteAction($this->provider, $this->quoteNumber, $this->update)->execute();
+        $quote = new PushCustomerToQuoteAction($this->provider, $this->workingQuoteNumber(), $this->update)->execute();
 
         if (! $quote->success) {
             throw new ValidationException('The quote is no longer valid');
@@ -36,5 +38,20 @@ class ConfirmQuoteWithInsurerAction
         }
 
         return $quote;
+    }
+
+    private function workingQuoteNumber(): string
+    {
+        if ($this->requestId === null || ! $this->provider instanceof FreshQuoteProviderInterface) {
+            return $this->quoteNumber;
+        }
+
+        $fresh = $this->provider->freshQuote($this->quoteNumber, $this->productCode, $this->requestId);
+
+        if (! $fresh->success) {
+            throw new ValidationException('The quote is no longer valid');
+        }
+
+        return $fresh->quoteNumber;
     }
 }

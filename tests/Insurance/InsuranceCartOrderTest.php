@@ -397,7 +397,7 @@ class InsuranceCartOrderTest extends TestCase
             $this->kanvasUser->getId(),
             $contractQuote,
             $this->plan->getId(),
-            $this->vehicle->getId()
+            $this->vehicle->variants()->firstOrFail()->getId()
         );
         $leadId = $this->graphQL(
             'mutation($input: SelectInsurancePlanInput!) { selectInsurancePlan(input: $input) { id } }',

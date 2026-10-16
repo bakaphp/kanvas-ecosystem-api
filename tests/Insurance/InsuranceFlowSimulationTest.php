@@ -579,7 +579,7 @@ class InsuranceFlowSimulationTest extends TestCase
         $this->seedPlan($humanoInsurer, 'mi_auto_full');
         $order = $this->contractedOrder(viaSearch: true);
 
-        $this->assertCount(1, $this->calls['quote']);
+        $this->assertCount(2, $this->calls['quote'], 'one search quote plus the fresh quote created for the order');
         $this->assertArrayNotHasKey('insurance', $order->metadata);
         $this->assertSame(self::QUOTE, $order->metadata['data']['quote_number']);
         $this->assertSame(2, $order->items()->count());

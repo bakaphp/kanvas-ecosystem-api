@@ -21,6 +21,7 @@ use Kanvas\Insurance\Actions\RecordInsuranceStatusAction;
 use Kanvas\Insurance\Contracts\CanonicalQuoteProviderInterface;
 use Kanvas\Insurance\Contracts\CatalogProviderInterface;
 use Kanvas\Insurance\Contracts\CustomerDataProviderInterface;
+use Kanvas\Insurance\Contracts\FreshQuoteProviderInterface;
 use Kanvas\Insurance\Contracts\InspectionProviderInterface;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\Contracts\PaymentLinkProviderInterface;
@@ -46,9 +47,11 @@ use Kanvas\Insurance\DataTransferObject\VehicleInsuranceProfile;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceDocumentTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
+use Kanvas\Insurance\Enums\VehicleInsuranceAttributeEnum;
 use Kanvas\Insurance\Exceptions\InsuranceValidationException;
 use Kanvas\Insurance\Services\CatalogCache;
 use Kanvas\Insurance\Services\InsuranceVehicleModelResolver;
+use Kanvas\Insurance\Services\VehicleAttributeReader;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -57,6 +60,7 @@ class UniversalSegurosProvider implements
     CanonicalQuoteProviderInterface,
     CatalogProviderInterface,
     CustomerDataProviderInterface,
+    FreshQuoteProviderInterface,
     InspectionProviderInterface,
     InsuranceProviderInterface,
     PaymentLinkProviderInterface,
@@ -70,6 +74,14 @@ class UniversalSegurosProvider implements
     public const NAME = 'universal_seguros';
 
     protected const DEFAULT_INSPECTION_TYPE = 'Cargar matrícula';
+
+    protected const array DEFAULT_TERMINOS = [
+        'seguroLey' => 'Auto Exceso',
+        'asistenciaVehicular' => false,
+        'autoSustituto' => 'No',
+        'fraccionamientoPago' => 'M',
+        'formaPago' => 't/c',
+    ];
 
     protected const CATALOG_TTL = [
         'vehicle_models' => 604800,
@@ -103,7 +115,21 @@ class UniversalSegurosProvider implements
             ?? throw new ValidationException('Unknown Universal Seguros product: ' . $request->product);
 
         return $this->toQuoteResult(
-            $this->service->quote(QuoteRequest::make($product, $this->payloadWithVehicle($request)))
+            $this->service->quote(QuoteRequest::make($product, $this->withDefaultTerminos($this->payloadWithVehicle($request))))
+        );
+    }
+
+    public function freshQuote(string $quoteNumber, string $productCode, string $requestId): QuoteResult
+    {
+        $product = ProductEnum::tryFrom($productCode)
+            ?? throw new ValidationException('Unknown Universal Seguros product: ' . $productCode);
+
+        $stored = (array) ($this->service->getQuote($quoteNumber)['data'] ?? []);
+        $payload = array_intersect_key($stored, array_flip(['vehiculo', 'terminos', 'aditamentos', 'endosoCesion']));
+        $payload['requestId'] = $requestId;
+
+        return $this->toQuoteResult(
+            $this->service->quote(QuoteRequest::make($product, $this->withDefaultTerminos($payload)))
         );
     }
 
@@ -184,7 +210,7 @@ class UniversalSegurosProvider implements
         return $this->toQuoteResult(
             $this->service->updateQuote(
                 $quoteNumber,
-                QuoteRequest::make($product, $this->payloadForUpdate($quoteNumber, $request, $product))
+                QuoteRequest::make($product, $this->withDefaultTerminos($this->payloadForUpdate($quoteNumber, $request, $product)))
             )
         );
     }
@@ -408,7 +434,33 @@ class UniversalSegurosProvider implements
             );
         }
 
-        return $this->vehiculoFor($canonical, $profile, $product, $modelId);
+        $vehiculo = $this->vehiculoFor($canonical, $profile, $product, $modelId);
+        $vehiculo['inspeccion'] = array_merge($vehiculo['inspeccion'] ?? [], $this->inspeccionFrom($vehicleProduct));
+
+        return $vehiculo;
+    }
+
+    protected function inspeccionFrom(Products $vehicleProduct): array
+    {
+        $read = fn (VehicleInsuranceAttributeEnum $attribute): ?string => VehicleAttributeReader::read($vehicleProduct, $attribute);
+        $cylinders = $read(VehicleInsuranceAttributeEnum::CYLINDERS);
+        $doors = $read(VehicleInsuranceAttributeEnum::DOORS);
+
+        return array_filter([
+            'placa' => $read(VehicleInsuranceAttributeEnum::PLATE),
+            'chasis' => $read(VehicleInsuranceAttributeEnum::VIN),
+            'color' => $read(VehicleInsuranceAttributeEnum::COLOR),
+            'motor' => $read(VehicleInsuranceAttributeEnum::ENGINE),
+            'cilindraje' => is_numeric($cylinders) ? (int) $cylinders : null,
+            'puertas' => is_numeric($doors) ? (int) $doors : null,
+        ], fn (mixed $value): bool => $value !== null);
+    }
+
+    protected function withDefaultTerminos(array $payload): array
+    {
+        $payload['terminos'] = array_merge(self::DEFAULT_TERMINOS, (array) ($payload['terminos'] ?? []));
+
+        return $payload;
     }
 
     protected function payloadWithVehicle(InsuranceQuoteRequest $request): array

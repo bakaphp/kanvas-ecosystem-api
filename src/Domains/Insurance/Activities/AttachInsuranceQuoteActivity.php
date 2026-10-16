@@ -25,6 +25,7 @@ use Kanvas\Insurance\Exceptions\InsuranceValidationException;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceCommissionCalculator;
 use Kanvas\Insurance\Services\InsuranceOrderMetadata;
+use Kanvas\Insurance\Services\InsuranceRequestId;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
@@ -122,7 +123,8 @@ class AttachInsuranceQuoteActivity extends KanvasActivity implements WorkflowAct
                         $verified->provider,
                         (string) $data->quoteNumber,
                         (string) $verified->plan->external_code,
-                        $data->quoteRequest($verified->provider)
+                        $data->quoteRequest($verified->provider),
+                        InsuranceRequestId::for('insurance-order-' . $order->getId())
                     )->execute();
                     $verified->assertPriceMatches($quote);
                 } catch (InsuranceValidationException $e) {
@@ -165,7 +167,7 @@ class AttachInsuranceQuoteActivity extends KanvasActivity implements WorkflowAct
         )->execute();
 
         $order->set(InsuranceCustomFieldEnum::PLAN_ID->value, (string) $verified->plan->getId());
-        $order->metadata = InsuranceOrderMetadata::apply($order->metadata, (string) $data->quoteNumber, $data->customer);
+        $order->metadata = InsuranceOrderMetadata::apply($order->metadata, $quote->quoteNumber, $data->customer);
         $order->saveQuietly();
     }
 
