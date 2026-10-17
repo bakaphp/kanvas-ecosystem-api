@@ -10,6 +10,7 @@ use Kanvas\Connectors\SuperCarros\DataTransferObjects\Vehicle;
 use Kanvas\Connectors\SuperCarros\Services\VehicleService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Importer\Actions\FinishProductImportAction;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -34,6 +35,23 @@ final class SuperCarrosUnpublishMissingTest extends TestCase
         $this->assertSame(1, $result['unpublished']);
         $this->assertSame(1, $this->publishedIn($channel, $first));
         $this->assertSame(1, $this->publishedIn($channel, $second));
+        $this->assertSame(0, $this->publishedIn($channel, $sold));
+    }
+
+    /**
+     * The sweep refuses to run when the feed matches under half of a channel this size. The run
+     * stamp keys on the variant SKU, which carries the S prefix the ad id does not; stamping the
+     * bare id matched nothing, and every production run was refused as a truncated feed.
+     */
+    public function testTheRunStampMatchesTheVariantSkuSoAFullFeedIsNotMistakenForATruncatedOne(): void
+    {
+        [$channel, $variants] = $this->vehiclesInANewChannel(FinishProductImportAction::MIN_PUBLISHED_FOR_RATIO);
+        $sold = array_pop($variants);
+
+        $result = $this->import($channel, $variants, unpublishMissing: true);
+
+        $this->assertNull($result['unpublish_skipped_reason']);
+        $this->assertSame(1, $result['unpublished']);
         $this->assertSame(0, $this->publishedIn($channel, $sold));
     }
 
@@ -90,14 +108,17 @@ final class SuperCarrosUnpublishMissingTest extends TestCase
     }
 
     /**
-     * SuperCarros variant SKUs are the numeric ad id.
+     * SuperCarros variant SKUs are the numeric ad id behind the importer's prefix.
      *
      * @return array{0: Channels, 1: list<Variants>}
      */
     private function vehiclesInANewChannel(int $count): array
     {
         [$channel, $variants] = $this->publishVariantsInANewChannel($count);
-        $this->resku($variants, fn () => (string) random_int(10_000_000, 99_999_999));
+        $this->resku(
+            $variants,
+            fn () => SuperCarrosVehicleInventoryImportAction::variantSku(random_int(10_000_000, 99_999_999))
+        );
 
         return [$channel, $variants];
     }
@@ -145,7 +166,7 @@ final class SuperCarrosUnpublishMissingTest extends TestCase
                     throw new RuntimeException('SuperCarros is down');
                 }
 
-                return ['vehicles' => array_map(fn (Variants $variant) => ['Id' => (int) $variant->sku], $this->listed)];
+                return ['vehicles' => array_map(fn (Variants $variant) => ['Id' => (int) substr($variant->sku, 1)], $this->listed)];
             }
 
             public function getVehicleDetails(int $adId): Vehicle

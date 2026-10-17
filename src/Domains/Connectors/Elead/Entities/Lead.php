@@ -160,6 +160,31 @@ class Lead
         );
     }
 
+    /**
+     * Elead exposes no write for the main status — only the sub-status, which must be one the dealer
+     * has configured (productreferencedata/companyOpportunityStatuses), or it answers 400 InvalidSubStatus.
+     */
+    public function updateSubStatus(string $subStatus): void
+    {
+        if ($this->id === null || $this->app === null || $this->company === null) {
+            throw new ELeadException('Cannot update the sub-status of an Elead opportunity without its id and configuration');
+        }
+
+        $this->client()->post(
+            '/sales/v2/elead/opportunities/' . $this->id . '/subStatus/update',
+            [
+                'subStatus' => $subStatus,
+            ],
+        );
+
+        new EleadCache($this->app, $this->company)->invalidate('lead', $this->id);
+    }
+
+    protected function client(): Client
+    {
+        return new Client($this->app, $this->company);
+    }
+
     public function undoSalesStep(string $step): void
     {
         $client = new Client($this->app, $this->company);
@@ -329,13 +354,23 @@ class Lead
 
     public static function isNoOpportunitiesResponse(ClientException $e): bool
     {
-        if ($e->getResponse()?->getStatusCode() !== 404) {
+        return self::hasErrorCode($e, 404, 'OpportunitiesNotFoundError');
+    }
+
+    public static function isInvalidSubStatusResponse(ClientException $e): bool
+    {
+        return self::hasErrorCode($e, 400, 'InvalidSubStatus');
+    }
+
+    private static function hasErrorCode(ClientException $e, int $statusCode, string $code): bool
+    {
+        if ($e->getResponse()?->getStatusCode() !== $statusCode) {
             return false;
         }
 
         $body = json_decode((string) $e->getResponse()?->getBody(), true);
 
-        return is_array($body) && ($body['code'] ?? null) === 'OpportunitiesNotFoundError';
+        return is_array($body) && ($body['code'] ?? null) === $code;
     }
 
     /**

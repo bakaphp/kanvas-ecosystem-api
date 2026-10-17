@@ -85,7 +85,7 @@ class SuperCarrosVehicleInventoryImportAction
                 $this->app,
                 $this->company,
                 $this->user,
-                array_column($vehicles, 'Id'),
+                array_map(self::variantSku(...), array_column($vehicles, 'Id')),
             )->execute();
 
             foreach ($vehicles as $vehicleData) {
@@ -169,6 +169,16 @@ class SuperCarrosVehicleInventoryImportAction
     }
 
     /**
+     * The product and warehouse keep the bare ad id; the variant carries this prefix so the two
+     * SKUs never collide. The run stamp keys on the variant SKU, so it must use the same shape, or
+     * the finish sweep sees none of the feed and refuses to unpublish anything.
+     */
+    public static function variantSku(int|string $adId): string
+    {
+        return 'S' . $adId;
+    }
+
+    /**
      * Map SuperCarros vehicle data to product structure.
      */
     private function mapVehicleToProductStructure(Vehicle $vehicle, Warehouses $warehouse): array
@@ -246,7 +256,7 @@ class SuperCarrosVehicleInventoryImportAction
             'name' => $name,
             'description' => $description,
             'slug' => Str::slug($name . '-' . $sku),
-            'sku' => 'S' . $sku,
+            'sku' => self::variantSku($sku),
             'price' => $price,
             'discountPrice' => null,
             'quantity' => 1,

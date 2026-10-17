@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Reynolds\Handlers;
 
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Concerns\DeclaresSalesAssistPullRules;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Models\LeadType;
@@ -14,6 +15,8 @@ use Override;
 
 class ReynoldsHandler extends BaseIntegration
 {
+    use DeclaresSalesAssistPullRules;
+
     /**
      * Reynolds SalesAssist Insert Sales Lead spec defines a fixed enum for
      * ProspectType. We seed these four so name-based lookup in PullLeadAction /

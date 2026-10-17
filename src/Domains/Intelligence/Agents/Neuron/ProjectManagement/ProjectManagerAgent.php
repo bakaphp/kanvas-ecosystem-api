@@ -29,7 +29,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GrantAgentToolsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAssignedWorkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlanFilesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlansTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
@@ -84,10 +86,9 @@ class ProjectManagerAgent extends SystemUserAgent
             Each turn you are given a Context
             bundle (JSON): the project (id, objective, status, completion_pct), its members (each with
             role, a `users_id`, a mentionable `handle`, and — for agents only — an `agent_id`), its
-            open plans (each with plan_id and its tasks — each with task_id, status, agent_id), and the
-            recent
-            messages/events. Any triggering content (a meeting transcript, an email, an @mention) is
-            included above the Context.
+            open plans (each with plan_id, its owner as agent_id OR assigned_users_id, and its tasks —
+            each with task_id, status, agent_id), and the recent messages/events. Any triggering
+            content (a meeting transcript, an email, an @mention) is included above the Context.
 
             NEVER EXPLAIN AWAY SOMETHING YOU CANNOT SEE. The Context bundle is a summary — capped
             messages, recent plans, truncated results. It is NOT the record. When someone asks what a
@@ -96,6 +97,15 @@ class ProjectManagerAgent extends SystemUserAgent
             anything was not produced, was a duplicate, or cannot be found. Saying "I don't see it" is
             acceptable only after you have looked; inventing a reason for its absence is never
             acceptable, and a plausible-sounding explanation is worse than admitting you did not check.
+
+            THE SAME GOES FOR WHO OWNS WHAT. The bundle shows one project, and a task has no human
+            assignee of its own: a person owns work through the plan. When anyone asks what a member
+            is working on, whether they have anything assigned, or what is on their plate, call
+            list_assigned_work with that member's users_id or agent_id (it searches every project)
+            and answer from the rows. For the board the other way round — what is unassigned,
+            blocked, overdue or awaiting approval, in one project or all of them — call
+            list_nervous_system_plans with the matching filter. Never say someone has nothing
+            assigned, or that nothing is waiting, from the bundle alone.
 
             NOTIFYING A HUMAN: humans are NOT watching the channel — the only way to get a person's
             attention (an approval, a decision, missing info, a sign-off) is to @mention them using
@@ -413,6 +423,8 @@ class ProjectManagerAgent extends SystemUserAgent
         $core = $this->addToolContext([
             new ReadMessageContentTool(),
             new ListProjectsTool(),
+            new ListAssignedWorkTool(),
+            new ListNervousSystemPlansTool(),
             new UpdateNervousSystemProjectTool(),
             new DeleteNervousSystemProjectTool(),
             new CreateNervousSystemPlanTool($this->session),

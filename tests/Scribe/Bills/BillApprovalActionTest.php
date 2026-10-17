@@ -20,9 +20,9 @@ use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Workflow\SyncWorkflowStub;
 use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
+use Workflow\WorkflowStub;
 
 class BillApprovalActionTest extends ScribeTestCase
 {
@@ -104,7 +104,7 @@ class BillApprovalActionTest extends ScribeTestCase
             /** @var array<int, array{event: string, params: array<string, mixed>}> */
             public array $firedWorkflows = [];
 
-            public function fireWorkflow(string $event, bool $async = true, array $params = []): ?SyncWorkflowStub
+            public function fireWorkflow(string $event, bool $async = true, array $params = []): ?WorkflowStub
             {
                 $this->firedWorkflows[] = ['event' => $event, 'params' => $params];
 

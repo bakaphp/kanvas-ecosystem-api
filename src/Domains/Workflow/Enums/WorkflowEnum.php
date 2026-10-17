@@ -41,6 +41,7 @@ enum WorkflowEnum: string
     case GENERATE_ID_VERIFICATION = 'generate-id-verification';
     case DURING_WORKFLOW = 'during-workflow';
     case AFTER_ADDING_MESSAGE_TO_CHANNEL = 'after-adding-message-to-channel';
+    case AFTER_ADD_TAG = 'after-add-tag';
     case BEFORE_ACTION = 'before-action';
     case STATUS_TRANSITION = 'status-transition';
     case AFTER_UPLOAD = 'after-upload';

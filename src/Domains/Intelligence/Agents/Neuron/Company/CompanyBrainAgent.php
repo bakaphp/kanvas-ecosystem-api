@@ -17,6 +17,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetSalesSummaryTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListStaleLeadsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetProjectAnalyticsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAssignedWorkTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlansTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\RememberKnowledgeTool;
 use Override;
@@ -86,6 +88,8 @@ class CompanyBrainAgent extends SystemUserAgent
             new ListStaleLeadsTool()->withContext($app, $company, $user),
             new GetMessageUsageReportTool()->withContext($app, $company, $user),
             new ListProjectsTool()->withContext($app, $company, $user),
+            new ListAssignedWorkTool()->withContext($app, $company, $user),
+            new ListNervousSystemPlansTool()->withContext($app, $company, $user),
             new GetProjectAnalyticsTool()->withContext($app, $company, $user),
             new ExportTableTool()->withContext($app, $company, $user),
         ];
