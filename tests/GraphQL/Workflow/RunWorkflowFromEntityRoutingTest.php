@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Workflow;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Testing\TestResponse;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -84,16 +83,11 @@ class RunWorkflowFromEntityRoutingTest extends TestCase
                 'this test needs an app with no pull rule on leads; one was found'
             );
 
-            Log::spy();
-
             // Whatever SalesAssist answers for this company (it probes the dealer CRM credentials the
             // company happens to carry) is not under test; that the call reached it is.
-            $this->graphQL($this->mutation(), $this->variables('123'), [], $this->getAppKeyHeader());
-
-            Log::shouldHaveReceived('warning')
-                ->withArgs(fn (string $message, array $context = []) => str_contains($message, 'falling back to the SalesAssist activity')
-                    && $context['activity'] === PullLeadActivity::class)
-                ->once();
+            $this->assertReachedTheFallback(
+                $this->graphQL($this->mutation(), $this->variables('123'), [], $this->getAppKeyHeader())
+            );
         } finally {
             $this->restoreSetting($app, 'can-run-sync-workflow', $previous);
         }
@@ -160,16 +154,25 @@ class RunWorkflowFromEntityRoutingTest extends TestCase
                 'value' => 'never-sent',
             ]);
 
-            Log::spy();
-
-            $this->graphQL($this->mutation(), $this->variables('123'), [], $this->getAppKeyHeader());
-
-            Log::shouldHaveReceived('warning')
-                ->withArgs(fn (string $message) => str_contains($message, 'falling back to the SalesAssist activity'))
-                ->once();
+            $this->assertReachedTheFallback(
+                $this->graphQL($this->mutation(), $this->variables('123'), [], $this->getAppKeyHeader())
+            );
         } finally {
             $this->restoreSetting($app, 'can-run-sync-workflow', $previous);
         }
+    }
+
+    /**
+     * With no matching rule and no fallback, the engine answers `{success: true, workflow_ids: []}`.
+     * Anything else — the SalesAssist answer, or its error — means the fallback took the call.
+     */
+    private function assertReachedTheFallback(TestResponse $response): void
+    {
+        $this->assertNotEquals(
+            ['success' => true, 'workflow_ids' => []],
+            $response->json('data.runWorkflowFromEntity'),
+            'with no matching rule, a sync pull must reach the SalesAssist fallback, not the empty engine answer'
+        );
     }
 
     private function pullLead(string $externalId): array

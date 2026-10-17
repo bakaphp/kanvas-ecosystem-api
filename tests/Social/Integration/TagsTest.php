@@ -8,8 +8,8 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Workflow\SyncWorkflowStub;
 use Tests\TestCase;
+use Workflow\WorkflowStub;
 
 final class TagsTest extends TestCase
 {
@@ -131,7 +131,7 @@ final class TagsTest extends TestCase
         $entity = new class () extends People {
             public array $firedWorkflows = [];
 
-            public function fireWorkflow(string $event, bool $async = true, array $params = []): ?SyncWorkflowStub
+            public function fireWorkflow(string $event, bool $async = true, array $params = []): ?WorkflowStub
             {
                 $this->firedWorkflows[] = [$event, $params];
 
