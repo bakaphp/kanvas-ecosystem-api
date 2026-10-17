@@ -24,6 +24,7 @@ use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadActio
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Services\ContactRejectionService;
 use Kanvas\Guild\Customers\Actions\CreateLeadSocialChannelsAction;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -125,7 +126,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
             );
 
             $pullLead = $people->toArray();
-            $resolvedLead = LeadsRepository::getPeopleActiveLead($people);
+            $resolvedLead = LeadsRepository::getPeopleActiveLead($people) ?? $people;
         } elseif ($isDriveCentric) {
             $resolvedLead = new PullPeopleLeadAction(
                 $app,
@@ -159,20 +160,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
 
         try {
             if ($resolvedLead instanceof Lead) {
-                $agentName = $company->get(SalesAssistConfigurationEnum::AGENT_NAME->value)
-                    ?? SalesAssistConfigurationEnum::DEFAULT_AGENT_NAME;
-                $agent = Agent::where('name', $agentName)
-                    ->fromApp($app)
-                    ->fromCompany($company)
-                    ->notDeleted()
-                    ->firstOrFail();
-
-                new CreateLeadSocialChannelsAction(
-                    $resolvedLead,
-                    $app,
-                    $params,
-                    $agent->getId(),
-                )->execute();
+                $this->createSocialChannels([$resolvedLead], $params);
 
                 new ApplyLeadClosingStatusAction($resolvedLead)->execute();
 
@@ -187,12 +175,38 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                         ]
                     );
                 }
+            } elseif ($resolvedLead instanceof People) {
+                // No active lead to hang the conversation on, so every lead the person has gets its channels.
+                $this->createSocialChannels($resolvedLead->leads, $params);
             }
         } catch (Throwable $e) {
             report($e);
         }
 
         return $pullLead;
+    }
+
+    /**
+     * @param iterable<Lead> $leads
+     */
+    private function createSocialChannels(iterable $leads, array $params): void
+    {
+        $agentName = $this->company->get(SalesAssistConfigurationEnum::AGENT_NAME->value)
+            ?? SalesAssistConfigurationEnum::DEFAULT_AGENT_NAME;
+        $agent = Agent::where('name', $agentName)
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->firstOrFail();
+
+        foreach ($leads as $lead) {
+            new CreateLeadSocialChannelsAction(
+                $lead,
+                $this->app,
+                $params,
+                $agent->getId(),
+            )->execute();
+        }
     }
 
     /**
