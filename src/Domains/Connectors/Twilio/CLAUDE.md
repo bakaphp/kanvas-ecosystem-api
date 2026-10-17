@@ -76,7 +76,22 @@ auto-unsubscribed them; `AgentChannelResponderAction` swallows that code, record
 opts out the phone contacts rather than retrying 3× into Sentry.
 
 **Outbound delivery status is a separate webhook.** `ProcessTwilioMessageStatusWebhookJob` handles
-carrier failures and controlled retries; it does not touch bursts.
+carrier failures; it does not touch bursts.
+
+**A carrier failure is never retried.** `21610` opts the phone out; `30003`, `30005` and `30006` mark
+the matching phone contacts invalid on the first failure (`suppress_sms`). Don't add a delayed retry for
+`30003`/`30005`. A person can resend a failed text with the `twilioResendMessage` mutation
+(`ResendFailedMessageAction`): same message, same number, every send guard still applies.
+
+**A delivery outcome is pushed, not polled.** `RecordDeliveryOnMessageAction` writes `delivery` into the
+message body and, for `delivered` / `undelivered` / `failed`, broadcasts `message.delivery.updated`
+(`MessageDeliveryStatusEvent`) on the same Pusher channels as `message.channel.added`. It only fires
+when the status advances, so a replayed callback does not push twice.
+
+**Outbound SMS to a lead only goes to `mobile`.** `SendMessageToLeadAction::lookupPhoneNumber` is an
+allow-list: any other Lookup line type (`fixedVoip`, `tollFree`, `unknown`...), a missing type or a
+`line_type_intelligence` error throws `LeadMissingContactException` before `messages->create`. Keep it
+an allow-list — a block-list lets every type Twilio adds later through.
 
 **Two receivers, two Twilio URLs.** The status receiver is only ever reached through the
 `statusCallback` set per outbound message; the Messaging Service's *incoming-message* URL must point
