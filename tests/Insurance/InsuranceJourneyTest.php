@@ -34,6 +34,7 @@ use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Models\InsuranceVehicleModelMap;
 use Kanvas\Insurance\Notifications\InsurancePolicyIssuedNotification;
 use Kanvas\Insurance\Notifications\InsurancePolicyReminderNotification;
+use Kanvas\Insurance\Services\InsuranceQuoteSignature;
 use Kanvas\Insurance\Services\InsuranceStatus;
 use Kanvas\Insurance\Services\VehicleKeyNormalizer;
 use Kanvas\Exceptions\ValidationException;
@@ -218,6 +219,65 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertFalse(Lead::findOrFail($leadId)->hasOpenLeadStatus());
 
         $this->assertPolicyIsIssuedAndInvoiced($order);
+    }
+
+    public function testTheCustomerPicksThePaymentTermOnBothPaths(): void
+    {
+        $entry = $this->searchEntry();
+        $options = array_column($entry['payment_options'], null, 'term');
+
+        $this->assertSame(['ANNUAL', 'SEMIANNUAL', 'QUARTERLY', 'MONTHLY'], array_keys($options));
+        $this->assertSame(12, $options['MONTHLY']['installments']);
+        $this->assertEqualsWithDelta(FakeUniversalServer::PERIODS['M'][2], $options['MONTHLY']['amount'], 0.001);
+        $this->assertEqualsWithDelta($options['ANNUAL']['amount'], $entry['total'], 0.001);
+        $monthly = (float) $options['MONTHLY']['amount'];
+
+        $underpriced = $this->createFromCart($entry, ['term' => 'monthly', 'planPrice' => (float) $entry['total']]);
+        $this->assertOrderFailed($underpriced);
+
+        $unknown = $this->createFromCart($this->searchEntry(), ['term' => 'weekly']);
+        $this->assertOrderFailed($unknown);
+
+        $cart = $this->createFromCart($this->searchEntry(), ['term' => 'monthly', 'planPrice' => $monthly]);
+        $this->assertSame(InsuranceOrderStatusEnum::QUOTED->value, $cart->orderStatus?->slug);
+        $this->assertEqualsWithDelta($monthly, (float) $cart->total_gross_amount, 0.001);
+        $this->assertSame('monthly', $cart->metadata['data']['payment_term']);
+        $this->assertSame('M', $this->universal->quotes[$cart->get(InsuranceCustomFieldEnum::QUOTE_NUMBER->value)]['data']['terminos']['fraccionamientoPago']);
+
+        $fresh = $this->searchEntry();
+        $selected = $this->graphQL(
+            'mutation($input: SelectInsurancePlanInput!) { selectInsurancePlan(input: $input) { id } }',
+            ['input' => ['plan_id' => $this->plan->getId(), 'quote_number' => $fresh['quote_number'], 'payment_term' => 'MONTHLY']]
+        );
+        $leadId = $selected->json('data.selectInsurancePlan.id');
+        $this->assertNotNull($leadId, json_encode($selected->json()));
+        $lead = Lead::findOrFail($leadId);
+        $this->assertSame('monthly', $lead->get(InsuranceCustomFieldEnum::PAYMENT_TERM->value));
+        $this->assertEqualsWithDelta($monthly, (float) $lead->get(InsuranceCustomFieldEnum::TOTAL->value), 0.001);
+
+        $contracted = $this->graphQL(
+            'mutation($input: ContractInsurancePlanInput!) { contractInsurancePlan(input: $input) { id } }',
+            ['input' => ['lead_id' => $leadId, 'customer' => self::CUSTOMER]]
+        );
+        $order = Order::findOrFail($contracted->json('data.contractInsurancePlan.id') ?? $this->fail(json_encode($contracted->json())));
+        $this->assertEqualsWithDelta($monthly, (float) $order->total_gross_amount, 0.001);
+        $this->assertSame('monthly', $order->metadata['data']['payment_term']);
+        $this->assertSame('M', $this->universal->quotes[$order->get(InsuranceCustomFieldEnum::QUOTE_NUMBER->value)]['data']['terminos']['fraccionamientoPago']);
+
+        $lead->set(InsuranceCustomFieldEnum::PAYMENT_TERM->value, 'annual');
+        $this->assertFalse(
+            InsuranceQuoteSignature::matches(
+                signature: (string) $lead->get(InsuranceCustomFieldEnum::QUOTE_SIGNATURE->value),
+                userId: (int) $lead->users_id,
+                planId: $this->plan->getId(),
+                provider: UniversalSegurosProvider::NAME,
+                quoteNumber: $fresh['quote_number'],
+                total: (float) $lead->get(InsuranceCustomFieldEnum::TOTAL->value),
+                tax: (float) $lead->get(InsuranceCustomFieldEnum::TAX->value),
+                vehicleVariantId: (int) $lead->get(InsuranceCustomFieldEnum::VEHICLE_VARIANT_ID->value),
+                paymentTerm: 'annual',
+            )
+        );
     }
 
     public function testARefusedEmissionFailsTheOrderAndReleasesTheHold(): void
@@ -646,7 +706,7 @@ final class InsuranceJourneyTest extends TestCase
         $response = $this->graphQL(
             'query($input: CanonicalQuoteInput!) {
                 insuranceSearch(input: $input) {
-                    entries { plan { id variant_id } quote_number total is_contractable }
+                    entries { plan { id variant_id } quote_number total is_contractable payment_options { term installments amount } }
                     failures { reason message }
                 }
             }',
@@ -677,7 +737,11 @@ final class InsuranceJourneyTest extends TestCase
                     ['variant_id' => (string) $this->vehicle->variants()->firstOrFail()->getId(), 'quantity' => 1, 'price' => 0],
                     ['variant_id' => (string) $entry['plan']['variant_id'], 'quantity' => 1, 'price' => $tamper['planPrice'] ?? $entry['total']],
                 ],
-                'metadata' => ['data' => ['quote_number' => $tamper['quote'] ?? $entry['quote_number'], 'customer' => self::CUSTOMER]],
+                'metadata' => ['data' => array_filter([
+                    'quote_number' => $tamper['quote'] ?? $entry['quote_number'],
+                    'customer' => self::CUSTOMER,
+                    'payment_term' => $tamper['term'] ?? null,
+                ])],
             ]],
             [],
             ['X-Kanvas-Location' => $company->branch->uuid, 'X-Kanvas-App' => $this->kanvasApp->key]

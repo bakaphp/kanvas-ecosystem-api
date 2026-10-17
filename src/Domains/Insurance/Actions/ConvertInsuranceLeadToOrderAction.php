@@ -22,6 +22,7 @@ use Kanvas\Insurance\Enums\InsuranceCatalogStatusEnum;
 use Kanvas\Insurance\Enums\InsuranceCustomerFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
+use Kanvas\Insurance\Enums\InsurancePaymentTermEnum;
 use Kanvas\Insurance\Exceptions\InsuranceValidationException;
 use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
@@ -100,6 +101,7 @@ class ConvertInsuranceLeadToOrderAction
             vehicle: $vehicle,
             plan: $this->planVariantFor($plan),
             customer: $customer,
+            paymentTerm: InsurancePaymentTermEnum::tryFrom((string) $lead->get(InsuranceCustomFieldEnum::PAYMENT_TERM->value)),
         );
         $wonStatus = $this->wonStatus();
         $region = $this->region();
@@ -189,6 +191,7 @@ class ConvertInsuranceLeadToOrderAction
             total: (float) $lead->get(InsuranceCustomFieldEnum::TOTAL->value),
             tax: (float) $lead->get(InsuranceCustomFieldEnum::TAX->value),
             vehicleVariantId: (int) $lead->get(InsuranceCustomFieldEnum::VEHICLE_VARIANT_ID->value),
+            paymentTerm: (string) $lead->get(InsuranceCustomFieldEnum::PAYMENT_TERM->value),
         );
 
         if (! $signed) {
@@ -317,7 +320,12 @@ class ConvertInsuranceLeadToOrderAction
                 currency: $region->currency,
                 items: $this->orderItems($orderData, $plan, $quote),
                 email: $customer->get(InsuranceCustomerFieldEnum::EMAIL),
-                metadata: InsuranceOrderMetadata::apply(null, $quote->quoteNumber, $customer),
+                metadata: InsuranceOrderMetadata::apply(
+                    null,
+                    $quote->quoteNumber,
+                    $customer,
+                    $orderData->paymentTerm
+                ),
                 fulfillmentStatus: OrderStatusEnum::PENDING->value,
                 paymentGatewayName: ['manual'],
                 reference: $this->referenceFor($lead),

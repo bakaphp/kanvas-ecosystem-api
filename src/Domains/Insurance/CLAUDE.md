@@ -436,6 +436,23 @@ The restriction therefore lives on the order type, not the region: `order_types.
 processor is not listed, including cash/transfer and processor-less intents. **Re-run the setup command per
 environment** or existing insurance order types stay unrestricted. Any order type can opt in with the same config key.
 
+## Payment term
+
+An insurer that prices several payment periods exposes them as `QuoteResult::$paymentOptions` (`InsurancePaymentOption`: term,
+installments, amount, premium, tax) and search entries show them as `payment_options`; the entry `total` is still the default
+term (annual). The customer picks one with `payment_term` on `selectInsurancePlan` (contract path) or `metadata.data.payment_term`
+on the cart order (cart path). It is a canonical `InsurancePaymentTermEnum`, never the insurer's code. Mapping to the insurer's own
+code lives in its provider.
+
+- **Contract path.** `SelectInsurancePlanAction` prices the lead at the option's amount and tax, stores `insurance_payment_term`
+  and includes the term in the HMAC (`InsuranceQuoteSignature`, appended only when set so leads without a term keep their
+  signature). Re-selecting without a term clears the stored one. `ConvertInsuranceLeadToOrderAction` carries the term into the
+  `PUT` and into `metadata.data.payment_term`.
+- **Cart path.** `ReadInsuranceOrderAction` reads `metadata.data.payment_term` (an unknown value fails the order as invalid) and the
+  `PUT` sends it; `assertPriceMatches` then rejects an item price that is not that term's amount.
+- **Default.** Annual. Charging one monthly installment of a twelve month policy leaves the rest uncollected until Universal
+  confirms who collects them, so do not change the default before that.
+
 ## Policy expiry
 
 `expired` is a final order status reachable only from `policy_active`. It is driven by the order-type config

@@ -11,6 +11,7 @@ enum InsuranceCustomFieldEnum: string
     case PRODUCT_CODE = 'insurance_product_code';
     case REQUIRES_INSPECTION = 'insurance_requires_inspection';
     case STATUS = 'insurance_status';
+    case PAYMENT_TERM = 'insurance_payment_term';
     case QUOTE_NUMBER = 'insurance_quote_number';
     case PLAN_ID = 'insurance_plan_id';
     case POLICY_NUMBER = 'insurance_policy_number';

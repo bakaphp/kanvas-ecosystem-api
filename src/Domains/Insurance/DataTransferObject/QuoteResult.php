@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Insurance\DataTransferObject;
 
+use Kanvas\Insurance\Enums\InsurancePaymentTermEnum;
+
 class QuoteResult
 {
     public function __construct(
@@ -21,7 +23,19 @@ class QuoteResult
         public readonly array $raw = [],
         public readonly ?string $productCode = null,
         public readonly array $assumptions = [],
+        public readonly array $paymentOptions = [],
     ) {
+    }
+
+    public function paymentOption(InsurancePaymentTermEnum $term): ?InsurancePaymentOption
+    {
+        foreach ($this->paymentOptions as $option) {
+            if ($option->term === $term) {
+                return $option;
+            }
+        }
+
+        return null;
     }
 
     public function withAssumptions(array $assumptions): self
@@ -41,6 +55,7 @@ class QuoteResult
             raw: $this->raw,
             productCode: $this->productCode,
             assumptions: $assumptions,
+            paymentOptions: $this->paymentOptions,
         );
     }
 
@@ -61,6 +76,7 @@ class QuoteResult
             raw: [],
             productCode: $this->productCode,
             assumptions: $this->assumptions,
+            paymentOptions: $this->paymentOptions,
         );
     }
 }

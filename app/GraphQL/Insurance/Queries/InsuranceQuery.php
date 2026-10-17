@@ -12,6 +12,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Contracts\CatalogProviderInterface;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\DataTransferObject\CanonicalQuoteInput;
+use Kanvas\Insurance\DataTransferObject\InsurancePaymentOption;
 use Kanvas\Insurance\DataTransferObject\InsuranceQuoteRequest;
 use Kanvas\Insurance\DataTransferObject\InsuranceSearchEntry;
 use Kanvas\Insurance\DataTransferObject\InsuranceSearchFailure;
@@ -165,6 +166,7 @@ class InsuranceQuery
             'currency' => $quote->currency,
             'can_emit' => $quote->canEmit,
             'inspection_status' => $quote->inspectionStatus,
+            'payment_options' => array_map(fn (InsurancePaymentOption $option): array => $option->toArray(), $quote->paymentOptions),
             'is_sponsored' => $entry->sponsored,
             'is_recommended' => $entry->isRecommended(),
             'is_contractable' => $contractable,

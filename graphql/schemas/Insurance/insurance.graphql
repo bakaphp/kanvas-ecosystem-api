@@ -100,6 +100,21 @@ type InsuranceSearchPlan {
     variant_id: ID
 }
 
+enum InsurancePaymentTerm {
+    ANNUAL @enum(value: "annual")
+    SEMIANNUAL @enum(value: "semiannual")
+    QUARTERLY @enum(value: "quarterly")
+    MONTHLY @enum(value: "monthly")
+}
+
+type InsurancePaymentOption {
+    term: InsurancePaymentTerm!
+    installments: Int!
+    amount: Float!
+    premium: Float
+    tax: Float
+}
+
 type InsuranceSearchEntry {
     rank: Int!
     insurer: InsuranceSearchInsurer!
@@ -112,6 +127,7 @@ type InsuranceSearchEntry {
     currency: String
     can_emit: Boolean
     inspection_status: String
+    payment_options: [InsurancePaymentOption!]!
     is_sponsored: Boolean!
     is_recommended: Boolean!
     is_contractable: Boolean!
@@ -131,6 +147,7 @@ type InsuranceSearchResult {
 input SelectInsurancePlanInput {
     plan_id: ID!
     quote_number: String!
+    payment_term: InsurancePaymentTerm
 }
 
 input InsuranceCustomerInput {
