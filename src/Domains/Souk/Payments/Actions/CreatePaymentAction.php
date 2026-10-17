@@ -71,6 +71,12 @@ class CreatePaymentAction
             );
         }
 
+        $allowedProcessors = $this->order->orderType?->allowedPaymentProcessors();
+
+        if ($allowedProcessors !== null && ! in_array($paymentMethod?->processor, $allowedProcessors, true)) {
+            throw new ValidationException('This order can only be paid with: ' . implode(', ', $allowedProcessors));
+        }
+
         if ($this->hasPendingPayments()) {
             $this->order->payments()->pending()->forceDelete();
         }

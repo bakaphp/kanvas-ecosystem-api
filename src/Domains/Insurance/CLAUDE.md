@@ -426,6 +426,15 @@ has an `insurance` order type, binds each one with `overwriteAppService` before 
   `vehicle_variant_id` so the client decides where to send the user (comparator / renewal); no frontend URL is hardcoded, and the
   "alert on the vehicle" is something the client derives from that same notification.
 
+## Payments are restricted to Azul
+
+Universal's payment report needs Azul-shaped data, but a region (DR) may default to another processor (Portal).
+The restriction therefore lives on the order type, not the region: `order_types.config.allowed_payment_processors`
+(`OrderTypes::allowedPaymentProcessors()`), written by `kanvas:insurance-setup-order-type` from
+`config('insurance.payment_processors')` (default `['azul']`). `CreatePaymentAction` refuses any payment whose method
+processor is not listed, including cash/transfer and processor-less intents. **Re-run the setup command per
+environment** or existing insurance order types stay unrestricted. Any order type can opt in with the same config key.
+
 ## Open items
 
 - Hold vs 3DS: `SettleInsurancePaymentAction` only touches an `AUTHORIZED` payment. The 3DS challenge flow (`startPaymentChallengeWithCard`) marks a held payment `PAID`, so insurance orders must be paid through `createPaymentMethod` → `addPaymentToOrder` → `processPayment` with `use_hold`, or a failed emission will not release the hold.

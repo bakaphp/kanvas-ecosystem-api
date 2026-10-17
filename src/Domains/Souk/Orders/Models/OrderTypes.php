@@ -34,6 +34,8 @@ class OrderTypes extends BaseModel
     }
     use SlugTrait;
 
+    public const string ALLOWED_PAYMENT_PROCESSORS = 'allowed_payment_processors';
+
     protected $table = 'order_types';
     protected $guarded = [];
 
@@ -45,6 +47,13 @@ class OrderTypes extends BaseModel
     public function isExpirable(): bool
     {
         return (bool) ($this->config['expirable'] ?? false);
+    }
+
+    public function allowedPaymentProcessors(): ?array
+    {
+        $allowed = $this->config[self::ALLOWED_PAYMENT_PROCESSORS] ?? null;
+
+        return is_array($allowed) && $allowed !== [] ? array_values(array_map('strval', $allowed)) : null;
     }
 
     public function cardVelocityLimit(string $key): int

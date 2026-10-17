@@ -35,9 +35,12 @@ use Kanvas\Insurance\Models\InsuranceVehicleModelMap;
 use Kanvas\Insurance\Notifications\InsurancePolicyIssuedNotification;
 use Kanvas\Insurance\Notifications\InsurancePolicyReminderNotification;
 use Kanvas\Insurance\Services\VehicleKeyNormalizer;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\CaptureResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
@@ -243,6 +246,43 @@ final class InsuranceJourneyTest extends TestCase
         $underpriced = $this->createFromCart($entry, ['planPrice' => 1.0]);
         $this->assertOrderFailed($underpriced);
         $this->assertSame(0, $underpriced->payments()->count());
+
+        $this->assertInsuranceOrdersOnlyAcceptAzul($underpriced);
+    }
+
+    private function assertInsuranceOrdersOnlyAcceptAzul(Order $order): void
+    {
+        $methods = [];
+
+        foreach (['portal', 'azul'] as $processor) {
+            $methods[$processor] = PaymentMethods::create([
+                'apps_id' => $this->kanvasApp->getId(),
+                'companies_id' => $order->companies_id,
+                'users_id' => $this->kanvasUser->getId(),
+                'payment_ending_numbers' => '1111',
+                'payment_methods_brand' => 'visa',
+                'expiration_date' => '2030-12',
+                'processor' => $processor,
+            ]);
+        }
+
+        foreach ([['payment_methods_id' => $methods['portal']->getId()], ['payment_method_type' => 'cash']] as $form) {
+            try {
+                new CreatePaymentAction($order, $this->kanvasUser)->execute($form + ['amount' => 1]);
+                $this->fail('A payment outside the allowed processors was accepted');
+            } catch (ValidationException $e) {
+                $this->assertStringContainsString('azul', $e->getMessage());
+            }
+        }
+
+        $this->assertSame(0, $order->payments()->count());
+
+        $payment = new CreatePaymentAction($order, $this->kanvasUser)->execute([
+            'payment_methods_id' => $methods['azul']->getId(),
+            'amount' => 1,
+        ]);
+
+        $this->assertSame('azul', $payment->processor);
     }
 
     public function testAnInsurerThatCannotEmitIsShownButNeverContracted(): void

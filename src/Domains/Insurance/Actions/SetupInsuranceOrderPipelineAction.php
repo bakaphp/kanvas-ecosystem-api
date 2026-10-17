@@ -32,7 +32,13 @@ class SetupInsuranceOrderPipelineAction
 
         $orderType->update([
             'total_statuses' => count($statuses),
-            'config' => array_merge((array) $orderType->config, [OrderReceipt::CONFIG_KEY => InsuranceCarnet::receipt()->toConfig()]),
+            'config' => array_merge(
+                (array) $orderType->config,
+                [
+                    OrderReceipt::CONFIG_KEY => InsuranceCarnet::receipt()->toConfig(),
+                    OrderTypes::ALLOWED_PAYMENT_PROCESSORS => config('insurance.payment_processors', ['azul']),
+                ]
+            ),
         ]);
 
         new SeedInsuranceTemplatesAction($this->app)->execute();

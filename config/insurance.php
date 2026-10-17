@@ -7,6 +7,7 @@ return [
     'search_cache_ttl' => (int) env('INSURANCE_SEARCH_CACHE_TTL', 300),
     'quote_binding_ttl' => (int) env('INSURANCE_QUOTE_BINDING_TTL', 1800),
     'task_workers' => (int) env('INSURANCE_TASK_WORKERS', 2),
+    'payment_processors' => ['azul'],
     'reminders' => [
         'days' => [30, 15, 7, 3, 1, 0],
         'channels' => ['mail', 'push', 'database'],
