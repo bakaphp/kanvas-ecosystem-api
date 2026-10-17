@@ -35,7 +35,7 @@ final class ConverseWithSystemAgentAction
     public function execute(): string
     {
         $app = $this->agent->app;
-        $company = $this->agent->company;
+        $company = $this->agent->companyFor($this->human);
 
         if ($app === null || $company === null) {
             throw new ValidationException(sprintf(

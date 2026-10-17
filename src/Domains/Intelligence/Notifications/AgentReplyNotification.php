@@ -20,7 +20,7 @@ class AgentReplyNotification extends Notification
     ) {
         parent::__construct($reply, [
             'app' => $reply->app,
-            'company' => $this->agent->company,
+            'company' => $this->reply->company,
             'fromUser' => $fromUser,
         ]);
 
@@ -32,9 +32,9 @@ class AgentReplyNotification extends Notification
             'agent_id' => (int) $this->agent->getId(),
             'session_id' => (string) ($this->reply->getMessage()['session_id'] ?? ''),
             'agent_name' => $this->agent->name,
-            'company' => $this->agent->company->name,
-            'company_id' => $this->agent->companies_id,
-            'company_uuid' => $this->agent->company->uuid,
+            'company' => $this->reply->company->name,
+            'company_id' => $this->reply->companies_id,
+            'company_uuid' => $this->reply->company->uuid,
         ]);
 
         $this->channels = ['push', 'expo'];
@@ -57,9 +57,9 @@ class AgentReplyNotification extends Notification
                 'message_id' => (int) $this->reply->getId(),
                 'agent_id' => (int) $this->agent->getId(),
                 'agent_name' => $this->agent->name,
-                'company' => $this->agent->company->name,
-                'company_id' => $this->agent->companies_id,
-                'company_uuid' => $this->agent->company->uuid,
+                'company' => $this->reply->company->name,
+                'company_id' => $this->reply->companies_id,
+                'company_uuid' => $this->reply->company->uuid,
             ],
         ], JSON_THROW_ON_ERROR);
     }
