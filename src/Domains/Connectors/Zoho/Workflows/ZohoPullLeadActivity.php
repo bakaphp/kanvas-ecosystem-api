@@ -11,6 +11,7 @@ use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigur
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Actions\CreateLeadSocialChannelsAction;
+use Kanvas\Guild\Leads\DataTransferObject\LeadCandidate;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
@@ -58,8 +59,9 @@ class ZohoPullLeadActivity extends KanvasActivity implements WorkflowActivityInt
             $company,
         );
 
+        // The SalesAssist pull button reads a ranked candidate list, the same shape every CRM pull returns.
         if ($localLead instanceof Lead) {
-            return ['lead' => $localLead->toArray(), 'synced' => false];
+            return [new LeadCandidate($localLead)->toArray()];
         }
 
         $receiver = ! empty($params['receiver_id'])
@@ -104,7 +106,7 @@ class ZohoPullLeadActivity extends KanvasActivity implements WorkflowActivityInt
                 report($e);
             }
 
-            return ['lead' => $lead->toArray(), 'synced' => true];
+            return [new LeadCandidate($lead)->toArray()];
         }
 
         return $this->failWorkflow(['error' => 'Failed to sync lead from Zoho', 'lead' => null]);

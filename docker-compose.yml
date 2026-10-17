@@ -62,6 +62,16 @@ services:
     queue:
         <<: *common-queue-settings
         container_name: queue
+    # Every KanvasActivity is queued on `workflow`; without a consumer an async rule starts and then
+    # sits in `waiting` forever. Sync rules run in-request and never reach this queue.
+    workflow-queue:
+        <<: *common-queue-settings
+        container_name: workflow-queue
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && exec php artisan queue:work
+              --queue=workflow --tries=3 --timeout=3750"
     reporting-queue:
         <<: *common-queue-settings
         container_name: reporting-queue
