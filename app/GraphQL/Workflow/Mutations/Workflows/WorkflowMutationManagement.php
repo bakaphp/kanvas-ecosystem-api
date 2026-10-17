@@ -116,13 +116,13 @@ class WorkflowMutationManagement
                 throw new Exception('Activity not found');
             }
 
-            Log::warning('runWorkflowFromEntity: no rule for this pull/push, falling back to the SalesAssist activity', [
-                'apps_id' => $app->getId(),
-                'companies_id' => $company->getId(),
-                'entity' => $entityClass,
-                'action' => $workflowAction,
-                'activity' => $pullActivity,
-            ]);
+            /*    Log::debug('runWorkflowFromEntity: no rule for this pull/push, falling back to the SalesAssist activity', [
+                   'apps_id' => $app->getId(),
+                   'companies_id' => $company->getId(),
+                   'entity' => $entityClass,
+                   'action' => $workflowAction,
+                   'activity' => $pullActivity,
+               ]); */
 
             return $this->runActivity($pullActivity, $entity, $app, $params, $includeRun);
         }
