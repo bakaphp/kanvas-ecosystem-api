@@ -10,7 +10,6 @@ use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
@@ -115,14 +114,6 @@ class WorkflowMutationManagement
             if ($pullActivity === null) {
                 throw new Exception('Activity not found');
             }
-
-            /*    Log::debug('runWorkflowFromEntity: no rule for this pull/push, falling back to the SalesAssist activity', [
-                   'apps_id' => $app->getId(),
-                   'companies_id' => $company->getId(),
-                   'entity' => $entityClass,
-                   'action' => $workflowAction,
-                   'activity' => $pullActivity,
-               ]); */
 
             return $this->runActivity($pullActivity, $entity, $app, $params, $includeRun);
         }
