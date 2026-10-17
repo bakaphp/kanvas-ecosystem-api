@@ -38,8 +38,8 @@ class BuildInsuranceCarnetDataAction
             'plan' => $plan?->name,
             'insured' => $this->insured($insurance->customer),
             'vehicle' => $this->vehicle($insurance->vehicle?->product),
-            'startsAt' => $this->date(InsuranceCustomFieldEnum::POLICY_STARTS_AT),
-            'endsAt' => $this->date(InsuranceCustomFieldEnum::POLICY_ENDS_AT),
+            'startsAt' => $this->date('start_at'),
+            'endsAt' => $this->date('end_at'),
             'qr' => $this->withQr ? new GenerateQrCode($policyNumber)->asBase64() : null,
         ];
     }
@@ -79,9 +79,9 @@ class BuildInsuranceCarnetDataAction
         ];
     }
 
-    private function date(InsuranceCustomFieldEnum $field): ?string
+    private function date(string $key): ?string
     {
-        $value = Str::trimToNull((string) $this->order->get($field->value));
+        $value = Str::trimToNull((string) data_get($this->order->metadata, 'data.' . $key));
 
         if ($value === null) {
             return null;

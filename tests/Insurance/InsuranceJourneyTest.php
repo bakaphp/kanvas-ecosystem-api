@@ -19,6 +19,7 @@ use Kanvas\Insurance\Actions\SyncInsuranceProductsAction;
 use Kanvas\Insurance\Activities\AttachInsuranceQuoteActivity;
 use Kanvas\Insurance\Activities\CancelInsuranceOrderActivity;
 use Kanvas\Insurance\Activities\EmitInsurancePolicyActivity;
+use Kanvas\Insurance\Activities\ExpireInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\GenerateInsuranceCarnetActivity;
 use Kanvas\Insurance\Activities\InvoiceInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\ReportInsurancePaymentActivity;
@@ -370,7 +371,10 @@ final class InsuranceJourneyTest extends TestCase
         $run($today);
         $this->assertCount(2, $sentDays());
 
-        $seven->set(InsuranceCustomFieldEnum::POLICY_ENDS_AT->value, $today->copy()->addDays(14)->toDateString());
+        $metadata = $seven->metadata;
+        $metadata['data']['end_at'] = $today->copy()->addDays(14)->toDateString();
+        $seven->metadata = $metadata;
+        $seven->saveQuietly();
         app()->instance(Apps::class, Apps::query()->where('id', '!=', $this->kanvasApp->getId())->firstOrFail());
         $run($today->copy()->addDays(7));
 
@@ -423,6 +427,30 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertStringContainsString('cannot be after', (string) $backwards->json('errors.0.message'));
 
         $this->assertPurchaseActivitiesLeaveItUntouched($order);
+        $this->assertOnlyEndedPoliciesExpire($order, $input);
+    }
+
+    private function assertOnlyEndedPoliciesExpire(Order $ended, array $input): void
+    {
+        $response = $this->graphQL(
+            'mutation($input: RegisterInsurancePolicyInput!) { registerInsurancePolicy(input: $input) { id } }',
+            ['input' => [...$input, 'policy_number' => 'STILL-ACTIVE', 'ends_at' => Carbon::today()->toDateString()]]
+        );
+        $active = Order::findOrFail($response->json('data.registerInsurancePolicy.id') ?? $this->fail(json_encode($response->json())));
+
+        $this->assertSame(0, Artisan::call('kanvas-souk:order-finish-expired', ['app_id' => $this->kanvasApp->getId()]));
+
+        $ended = $ended->fresh();
+        $this->assertSame(InsuranceOrderStatusEnum::EXPIRED->value, $ended->orderStatus?->slug);
+        $this->assertSame(InsuranceOrderStatusEnum::POLICY_ACTIVE->value, $active->fresh()->orderStatus?->slug);
+
+        $result = $this->runActivity(ExpireInsurancePolicyActivity::class, $ended, ['to_status' => InsuranceOrderStatusEnum::EXPIRED->value]);
+        $this->assertSame('success', $result['status']);
+        $this->assertSame(InsuranceStatusEnum::EXPIRED->value, $ended->fresh()->get(InsuranceCustomFieldEnum::STATUS->value));
+
+        $skipped = $this->runActivity(ExpireInsurancePolicyActivity::class, $active, ['to_status' => InsuranceOrderStatusEnum::QUOTED->value]);
+        $this->assertSame('skipped', $skipped['status']);
+        $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, $active->fresh()->get(InsuranceCustomFieldEnum::STATUS->value));
     }
 
     private function assertRegisteredPolicy(Order $order, string $variantId): void
@@ -439,15 +467,13 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, $order->get(InsuranceCustomFieldEnum::STATUS->value));
         $this->assertSame(InsuranceOrderOriginEnum::REGISTERED->value, $order->get(InsuranceCustomFieldEnum::ORIGIN->value));
         $this->assertSame('LC-2024 / 889', $order->get(InsuranceCustomFieldEnum::POLICY_NUMBER->value));
-        $this->assertSame('2025-01-01', $order->get(InsuranceCustomFieldEnum::POLICY_STARTS_AT->value));
-        $this->assertSame('2025-12-31', $order->get(InsuranceCustomFieldEnum::POLICY_ENDS_AT->value));
         $this->assertSame(
             [
                 'insurer_name' => 'Seguros Locales',
                 'plan_name' => 'Full Plus',
                 'policy_number' => 'LC-2024 / 889',
-                'starts_at' => '2025-01-01',
-                'ends_at' => '2025-12-31',
+                'start_at' => '2025-01-01',
+                'end_at' => '2025-12-31',
             ],
             $order->metadata['data']
         );
@@ -722,11 +748,11 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertSame('success', $upload['status'], json_encode($upload));
     }
 
-    private function runActivity(string $class, Order $order): array
+    private function runActivity(string $class, Order $order, array $params = []): array
     {
         $activity = new $class(0, now()->toDateTimeString(), StoredWorkflow::make(), []);
 
-        return $activity->execute($order->fresh(), $this->kanvasApp, []);
+        return $activity->execute($order->fresh(), $this->kanvasApp, $params);
     }
 
     private function fakeProcessor(): void

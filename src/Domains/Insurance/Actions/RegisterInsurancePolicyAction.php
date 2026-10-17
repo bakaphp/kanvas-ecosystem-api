@@ -53,11 +53,6 @@ class RegisterInsurancePolicyAction
 
         $order->set(InsuranceCustomFieldEnum::ORIGIN->value, InsuranceOrderOriginEnum::REGISTERED->value);
         $order->set(InsuranceCustomFieldEnum::POLICY_NUMBER->value, $this->policy->policyNumber);
-        $order->set(InsuranceCustomFieldEnum::POLICY_ENDS_AT->value, $this->policy->endsAt);
-
-        if ($this->policy->startsAt !== null) {
-            $order->set(InsuranceCustomFieldEnum::POLICY_STARTS_AT->value, $this->policy->startsAt);
-        }
 
         new RecordInsuranceStatusAction($order, InsuranceStatusEnum::POLICY_ACTIVE)->execute();
 
@@ -147,8 +142,8 @@ class RegisterInsurancePolicyAction
             'insurer_name' => $this->policy->insurerName,
             'plan_name' => $this->policy->planName,
             'policy_number' => $this->policy->policyNumber,
-            'starts_at' => $this->policy->startsAt,
-            'ends_at' => $this->policy->endsAt,
+            'start_at' => $this->policy->startsAt,
+            'end_at' => $this->policy->endsAt,
         ];
     }
 

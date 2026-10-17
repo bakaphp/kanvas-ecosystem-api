@@ -37,6 +37,11 @@ class SetupInsuranceOrderPipelineAction
                 [
                     OrderReceipt::CONFIG_KEY => InsuranceCarnet::receipt()->toConfig(),
                     OrderTypes::ALLOWED_PAYMENT_PROCESSORS => config('insurance.payment_processors', ['azul']),
+                    OrderTypes::EXPIRATION => [
+                        'date_path' => 'data.end_at',
+                        'from_status' => InsuranceOrderStatusEnum::POLICY_ACTIVE->value,
+                        'to_status' => InsuranceOrderStatusEnum::EXPIRED->value,
+                    ],
                 ]
             ),
         ]);

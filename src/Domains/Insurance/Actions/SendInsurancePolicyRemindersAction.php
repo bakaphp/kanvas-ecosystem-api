@@ -7,12 +7,14 @@ namespace Kanvas\Insurance\Actions;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderStatusEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
-use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Services\InsurancePolicyReminders;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Throwable;
 
@@ -28,17 +30,21 @@ class SendInsurancePolicyRemindersAction
 
     public function execute(): int
     {
+        $orderType = OrderTypes::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('name', InsuranceOrderTypeEnum::INSURANCE->value)
+            ->first();
+
+        if ($orderType === null) {
+            return 0;
+        }
+
         $daysByDate = $this->daysByDate();
-        $endsAt = $this->fields(InsuranceCustomFieldEnum::POLICY_ENDS_AT)
-            ->whereIn('value', array_keys($daysByDate))
-            ->pluck('value', 'entity_id')
-            ->all();
-        $active = $this->activeOrderIds($endsAt);
-        $sent = $this->sentMarkers($active);
+        $endsAt = $this->activePolicyEndDates($orderType, array_keys($daysByDate));
+        $sent = $this->sentMarkers(array_keys($endsAt));
         $due = [];
 
-        foreach ($active as $orderId) {
-            $date = (string) $endsAt[$orderId];
+        foreach ($endsAt as $orderId => $date) {
             $marker = InsurancePolicyReminders::marker($date, $daysByDate[$date]);
 
             if (! in_array($marker, $sent[$orderId] ?? [], true)) {
@@ -50,10 +56,6 @@ class SendInsurancePolicyRemindersAction
             return 0;
         }
 
-        $orderType = OrderTypes::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('name', InsuranceOrderTypeEnum::INSURANCE->value)
-            ->firstOrFail();
         $total = 0;
 
         Order::query()
@@ -94,16 +96,27 @@ class SendInsurancePolicyRemindersAction
         return $daysByDate;
     }
 
-    private function activeOrderIds(array $endsAt): array
+    private function activePolicyEndDates(OrderTypes $orderType, array $dates): array
     {
-        if ($endsAt === []) {
+        $active = OrderStatus::query()
+            ->where('order_types_id', $orderType->getId())
+            ->where('slug', InsuranceOrderStatusEnum::POLICY_ACTIVE->value)
+            ->first();
+
+        if ($active === null) {
             return [];
         }
 
-        return array_keys(array_filter(
-            $this->entityValues(InsuranceCustomFieldEnum::STATUS, array_keys($endsAt)),
-            fn (mixed $status): bool => $status === InsuranceStatusEnum::POLICY_ACTIVE->value
-        ));
+        return Order::query()
+            ->fromApp($this->app)
+            ->notDeleted()
+            ->where('order_types_id', $orderType->getId())
+            ->where('order_status_id', $active->getId())
+            ->whereRaw('JSON_VALID(metadata)')
+            ->whereIn(DB::raw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.data.end_at'))"), $dates)
+            ->get(['id', 'metadata'])
+            ->mapWithKeys(fn (Order $order): array => [$order->getId() => (string) data_get($order->metadata, 'data.end_at')])
+            ->all();
     }
 
     private function sentMarkers(array $orderIds): array

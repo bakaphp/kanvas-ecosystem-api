@@ -29,8 +29,6 @@ enum InsuranceCustomFieldEnum: string
     case QUOTE_SIGNATURE = 'insurance_quote_signature';
     case VEHICLE_VARIANT_ID = 'insurance_vehicle_variant_id';
     case FAILURE_REASON = 'insurance_failure_reason';
-    case POLICY_STARTS_AT = 'insurance_policy_starts_at';
-    case POLICY_ENDS_AT = 'insurance_policy_ends_at';
     case CARNET_URL = 'insurance_carnet_url';
     case POLICY_EMAILED_AT = 'insurance_policy_emailed_at';
     case ORIGIN = 'insurance_origin';

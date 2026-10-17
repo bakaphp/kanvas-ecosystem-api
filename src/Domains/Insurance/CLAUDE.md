@@ -371,8 +371,8 @@ once they exist). `GenerateInsuranceCarnetAction` runs `GenerateOrderReceiptActi
 
 - Both activities need a workflow rule per environment: carnet after the policy is invoiced, email after the carnet.
   A PDF failure is reported as a failed workflow step and never touches the insurance or order status.
-- `insurance_policy_starts_at` / `insurance_policy_ends_at` (ISO dates) are shown on the carnet when present and omitted
-  otherwise. Nothing fills them yet: a later increment will, once Universal's real response is known.
+- `metadata.data.start_at` / `metadata.data.end_at` (ISO dates, the same keys parking orders use) are shown on the carnet when
+  present and omitted otherwise. Only registered policies fill them today; emission will once Universal's real response is known.
 
 ## Registered policies (bought outside MoviPass)
 
@@ -381,14 +381,13 @@ Order of type `insurance` with `insurance_origin = registered` (`InsuranceOrderO
 field, so absence means bought through MoviPass. No new model: "Mis pólizas" is the same `orders` query filtered by the insurance order type.
 
 - **One item, text insurer.** The only line is the vehicle variant (quantity 1, price 0, total 0). There is no plan item and no insurer
-  relation because the insurer may not be one we integrate: `metadata.data.{insurer_name, plan_name, policy_number, starts_at, ends_at}`
+  relation because the insurer may not be one we integrate: `metadata.data.{insurer_name, plan_name, policy_number, start_at, end_at}`
   hold the plain text, flat, with no `metadata.insurance`. If that insurer is integrated later, link it then from this text.
-- **Lifecycle.** Custom fields `insurance_policy_number`, `insurance_policy_starts_at` (optional), `insurance_policy_ends_at`,
-  `insurance_status = policy_active` and the origin. The order goes `quoted -> policy_active` through `RecordInsuranceStatusAction`, so
+- **Lifecycle.** Custom fields `insurance_policy_number`, `insurance_status = policy_active` and the origin; the dates live in `metadata.data`. The order goes `quoted -> policy_active` through `RecordInsuranceStatusAction`, so
   `OrderTransitionHistory` is recorded; that direct transition exists only since this feature, so **re-run
   `kanvas:insurance-setup-order-type {app_id}` per environment** (idempotent). Until then registration is refused
   (`InsuranceOrderPipeline::allowsRegistration`) with an error in the log naming the command.
-- **Validation.** Non-empty trimmed text, real `YYYY-MM-DD` dates, `starts_at <= ends_at`; a past `ends_at` is allowed because expired
+- **Validation.** Non-empty trimmed text, real `YYYY-MM-DD` dates, `starts_at <= ends_at` (input names; stored as `start_at`/`end_at`); a past `ends_at` is allowed because expired
   policies are listed too. The vehicle variant must be a non-deleted `vehicle` product owned by the acting user in the acting app
   (`InsuranceVehicleProduct::variantOwnedBy`, shared with `contractInsurancePlan`).
 - **Idempotent.** `reference = insurance-registered-{variant id}-{policy number lowercased, non-alphanumerics stripped}`; a repeat for
@@ -412,10 +411,10 @@ has an `insurance` order type, binds each one with `overwriteAppService` before 
 
 - **Config.** `config/insurance.php` `reminders.days` (default `30, 15, 7, 3, 1, 0`, where `0` is the expiry day) and
   `reminders.channels` (notification slugs).
-- **Selection.** `SendInsurancePolicyRemindersAction` reads only the order custom fields. One indexed query on `apps_custom_fields`
-  for `insurance_policy_ends_at` in the handful of target dates, then `insurance_status = policy_active` and the marker for just those
+- **Selection.** `SendInsurancePolicyRemindersAction` selects insurance orders whose status is `policy_active` and whose
+  `metadata.data.end_at` is one of the handful of target dates, then reads the marker custom field for just those
   ids, then the orders (`fromApp`, `notDeleted`, insurance order type) in `chunkById(100)`. It never hydrates the app's orders.
-  Registered policies always match; **purchased orders only match once a later increment fills `insurance_policy_ends_at` from the
+  Registered policies always match; **purchased orders only match once a later increment fills `metadata.data.end_at` from the
   insurer**, so today they are simply not reminded.
 - **Idempotency.** Order custom field `insurance_reminders_sent` holds comma-separated `{ends_at}:{days}` markers. Keying by the end
   date means changing `ends_at` never suppresses the reminders of the new date. The marker is written only after the notification is
@@ -434,6 +433,17 @@ The restriction therefore lives on the order type, not the region: `order_types.
 `config('insurance.payment_processors')` (default `['azul']`). `CreatePaymentAction` refuses any payment whose method
 processor is not listed, including cash/transfer and processor-less intents. **Re-run the setup command per
 environment** or existing insurance order types stay unrestricted. Any order type can opt in with the same config key.
+
+## Policy expiry
+
+`expired` is a final order status reachable only from `policy_active`. It is driven by the order-type config
+`expiration` (`OrderTypes::expirationRule()`: `date_path`, `from_status`, `to_status`), written by
+`kanvas:insurance-setup-order-type` with `date_path = data.end_at`. The existing `kanvas-souk:order-finish-expired` command sweeps
+any order type that declares the rule (no slot recalculation, no reservation email, the legacy parking path is untouched) and a
+policy expires once its `end_at` day is over. The transition fires the normal `STATUS_TRANSITION` workflow event;
+`ExpireInsurancePolicyActivity` listens to it and syncs the `insurance_status` custom field to `expired`. Both need setup per
+environment: `souk_check_expired_orders` enabled for the app (otherwise the command only runs when given an `app_id`), a workflow
+rule on `STATUS_TRANSITION` for the activity, and a re-run of `kanvas:insurance-setup-order-type {app_id}`.
 
 ## Open items
 

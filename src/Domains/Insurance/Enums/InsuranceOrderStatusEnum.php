@@ -14,6 +14,7 @@ enum InsuranceOrderStatusEnum: string
     case POLICY_ACTIVE = 'policy_active';
     case CANCELLED = 'cancelled';
     case FAILED = 'failed';
+    case EXPIRED = 'expired';
 
     public static function fromInsuranceStatus(InsuranceStatusEnum $status): self
     {
@@ -26,6 +27,7 @@ enum InsuranceOrderStatusEnum: string
             InsuranceStatusEnum::POLICY_ACTIVE => self::POLICY_ACTIVE,
             InsuranceStatusEnum::CANCELLED => self::CANCELLED,
             InsuranceStatusEnum::FAILED => self::FAILED,
+            InsuranceStatusEnum::EXPIRED => self::EXPIRED,
         };
     }
 
@@ -40,6 +42,7 @@ enum InsuranceOrderStatusEnum: string
             self::POLICY_ACTIVE => 'Policy active',
             self::CANCELLED => 'Cancelled',
             self::FAILED => 'Failed',
+            self::EXPIRED => 'Expired',
         };
     }
 
@@ -55,7 +58,7 @@ enum InsuranceOrderStatusEnum: string
 
     public function isFinal(): bool
     {
-        return in_array($this, [self::POLICY_ACTIVE, self::CANCELLED, self::FAILED], true);
+        return in_array($this, [self::POLICY_ACTIVE, self::CANCELLED, self::FAILED, self::EXPIRED], true);
     }
 
     public function transitionsTo(): array
@@ -66,7 +69,8 @@ enum InsuranceOrderStatusEnum: string
             self::AWAITING_PAYMENT => [self::PAYMENT_REPORTED, self::CANCELLED, self::FAILED],
             self::PAYMENT_REPORTED => [self::EMITTED, self::POLICY_ACTIVE, self::CANCELLED, self::FAILED],
             self::EMITTED => [self::POLICY_ACTIVE, self::FAILED],
-            self::POLICY_ACTIVE, self::CANCELLED, self::FAILED => [],
+            self::POLICY_ACTIVE => [self::EXPIRED],
+            self::CANCELLED, self::FAILED, self::EXPIRED => [],
         };
     }
 }
