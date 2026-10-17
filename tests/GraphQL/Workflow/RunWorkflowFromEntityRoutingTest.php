@@ -90,7 +90,7 @@ class RunWorkflowFromEntityRoutingTest extends TestCase
             // company happens to carry) is not under test; that the call reached it is.
             $this->graphQL($this->mutation(), $this->variables('123'), [], $this->getAppKeyHeader());
 
-            Log::shouldHaveReceived('warning')
+            Log::shouldHaveReceived('debug')
                 ->withArgs(fn (string $message, array $context = []) => str_contains($message, 'falling back to the SalesAssist activity')
                     && $context['activity'] === PullLeadActivity::class)
                 ->once();
@@ -164,7 +164,7 @@ class RunWorkflowFromEntityRoutingTest extends TestCase
 
             $this->graphQL($this->mutation(), $this->variables('123'), [], $this->getAppKeyHeader());
 
-            Log::shouldHaveReceived('warning')
+            Log::shouldHaveReceived('debug')
                 ->withArgs(fn (string $message) => str_contains($message, 'falling back to the SalesAssist activity'))
                 ->once();
         } finally {
