@@ -45,7 +45,7 @@ class ZohoPullLeadActivity extends KanvasActivity implements WorkflowActivityInt
         $zohoLeadId = (string) ($params['zoho_id'] ?? $params['entity_id'] ?? '');
 
         if ($zohoLeadId === '') {
-            return ['error' => 'Zoho lead id is required', 'lead' => null];
+            return $this->failWorkflow(['error' => 'Zoho lead id is required', 'lead' => null]);
         }
 
         $localLead = Lead::getByCustomFieldTransactionSafe(
@@ -107,7 +107,7 @@ class ZohoPullLeadActivity extends KanvasActivity implements WorkflowActivityInt
             return ['lead' => $lead->toArray(), 'synced' => true];
         }
 
-        return ['error' => 'Failed to sync lead from Zoho', 'lead' => null];
+        return $this->failWorkflow(['error' => 'Failed to sync lead from Zoho', 'lead' => null]);
     }
 
     protected function syncLeadFromZoho(

@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Contracts;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Regions\Models\Regions as KanvasRegions;
+use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Models\Integrations;
 
 abstract class BaseIntegration
@@ -52,6 +53,44 @@ abstract class BaseIntegration
      * @return list<string>
      */
     protected function companySettingKeys(): array
+    {
+        return [];
+    }
+
+    /**
+     * The handler for a connected integration, with no setup payload — enough for teardown() and
+     * defaultRules(). Null when the catalog row names no handler class, or when the row's company or
+     * region no longer exists, which old rows do.
+     */
+    public static function forIntegrationCompany(IntegrationsCompany $integrationCompany, Apps $app): ?static
+    {
+        $handler = $integrationCompany->integration?->handler;
+
+        if (! is_string($handler) || ! is_subclass_of($handler, self::class)) {
+            return null;
+        }
+
+        if ($integrationCompany->company === null || $integrationCompany->region === null) {
+            return null;
+        }
+
+        return new $handler(
+            app: $app,
+            company: $integrationCompany->company,
+            region: $integrationCompany->region,
+            data: [],
+            integration: $integrationCompany->integration,
+        );
+    }
+
+    /**
+     * Rules this integration wants on the company the moment it is connected — which activity
+     * answers a `pull` or `push` for which entity. Created by CreateIntegrationCompanyAction,
+     * removed on disconnect, so nothing in the resolver has to name a connector.
+     *
+     * @return list<DefaultRule>
+     */
+    public function defaultRules(): array
     {
         return [];
     }
