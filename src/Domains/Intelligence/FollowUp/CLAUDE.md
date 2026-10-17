@@ -184,6 +184,12 @@ remaining gates to run; explicit false values skip with
 `lead_type_follow_up_disabled`, even for forced runs. First-message defaults are
 independent. This veto does not override the engine's open-leads-only restriction.
 
+The company setting `lead_follow_up_start_date` (`IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE`)
+is a cutoff: a lead created before it skips with `lead_created_before_follow_up_start_date`, forced
+runs included, and the fan-out query never queues it. Unset, empty or unparseable means no cutoff, so
+a typo in the setting never silences every lead. Read through
+`LeadConfigurationService::getFollowUpStartDate()` in both places.
+
 `should_respond: false` + `advance_stage: false` from the LLM is treated as a **transient SKIP**, not a terminal exhaustion. The next cron tick re-evaluates the lead. The skip emits `lead.follow_up.skipped` with `reason: 'agent: <text>'` for ledger visibility — no `exhausted_at` set, no operator reset required.
 
 This was a real bug: the agent was using `should_respond: false` to mean "wait longer, customer is still digesting" and the action treated that as terminal exhaustion. Leads got stuck after a single agent timing-feedback decision. Fixed 2026-06-08.
