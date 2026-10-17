@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
@@ -35,6 +37,7 @@ class Categories extends BaseModel
     use HasTranslationsDefaultFallback;
     use HasLightHouseCache;
     use AsTree;
+    use HasAdminLink;
 
     protected $table = 'categories';
     protected $guarded = [];
@@ -47,6 +50,12 @@ class Categories extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'Category';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::CATEGORY;
     }
 
     #[Override]

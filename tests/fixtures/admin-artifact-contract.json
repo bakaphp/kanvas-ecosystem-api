@@ -1,0 +1,779 @@
+{
+  "components": [
+    "chart",
+    "table",
+    "stats",
+    "keyvalue",
+    "actions",
+    "entity",
+    "progress",
+    "timeline",
+    "callout",
+    "approvals",
+    "records",
+    "metric"
+  ],
+  "bounds": {
+    "strings": {
+      "chart.xKey": {
+        "min": 1,
+        "max": null
+      },
+      "chart.series[].key": {
+        "min": 1,
+        "max": null
+      },
+      "table.columns[].key": {
+        "min": 1,
+        "max": null
+      },
+      "actions.items[].label": {
+        "min": 1,
+        "max": 40
+      },
+      "actions.items[].message": {
+        "min": 1,
+        "max": 500
+      },
+      "entity.title": {
+        "min": 1,
+        "max": null
+      },
+      "callout.heading": {
+        "min": null,
+        "max": 80
+      },
+      "callout.text": {
+        "min": 1,
+        "max": 500
+      },
+      "approvals.type": {
+        "min": 1,
+        "max": 80
+      },
+      "records.search": {
+        "min": 1,
+        "max": 80
+      },
+      "metric.metric": {
+        "min": 1,
+        "max": 80
+      }
+    },
+    "lists": {
+      "chart.data": {
+        "min": 1,
+        "max": 100
+      },
+      "chart.series": {
+        "min": 1,
+        "max": 5
+      },
+      "table.columns": {
+        "min": 1,
+        "max": 10
+      },
+      "table.rows": {
+        "min": null,
+        "max": 50
+      },
+      "stats.items": {
+        "min": 1,
+        "max": 6
+      },
+      "keyvalue.items": {
+        "min": 1,
+        "max": 30
+      },
+      "actions.items": {
+        "min": 1,
+        "max": 6
+      },
+      "entity.fields": {
+        "min": null,
+        "max": 6
+      },
+      "progress.items": {
+        "min": 1,
+        "max": 8
+      },
+      "timeline.items": {
+        "min": 1,
+        "max": 12
+      },
+      "approvals.ids": {
+        "min": 1,
+        "max": 25
+      }
+    }
+  },
+  "lenient": {
+    "records": [
+      "type",
+      "filter",
+      "filters",
+      "search",
+      "limit"
+    ],
+    "metric": [
+      "metric",
+      "window",
+      "as",
+      "chartKind",
+      "limit"
+    ]
+  },
+  "entity": {
+    "types": {
+      "lead": {
+        "idKind": "either",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "deal": {
+        "idKind": "either",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "people": {
+        "idKind": "either",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "organization": {
+        "idKind": "id",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "pipeline": {
+        "idKind": "id",
+        "needsParent": false,
+        "lookup": [
+          "id"
+        ]
+      },
+      "rotation": {
+        "idKind": "id",
+        "needsParent": false,
+        "lookup": [
+          "id"
+        ]
+      },
+      "order": {
+        "idKind": "id",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "draft_order": {
+        "idKind": "id",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "discount": {
+        "idKind": "id",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "affiliate": {
+        "idKind": "id",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "affiliate_program": {
+        "idKind": "id",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "product": {
+        "idKind": "uuid",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "variant": {
+        "idKind": "uuid",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "warehouse": {
+        "idKind": "id",
+        "needsParent": false,
+        "lookup": [
+          "id"
+        ]
+      },
+      "category": {
+        "idKind": "slug",
+        "needsParent": false,
+        "lookup": [
+          "slug"
+        ]
+      },
+      "channel": {
+        "idKind": "slug",
+        "needsParent": false,
+        "lookup": [
+          "slug"
+        ]
+      },
+      "event": {
+        "idKind": "either",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "event_version": {
+        "idKind": "either",
+        "needsParent": true,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "participant": {
+        "idKind": "either",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "facilitator": {
+        "idKind": "either",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "agent": {
+        "idKind": "uuid",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "agent_fleet": {
+        "idKind": "uuid",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "agent_project": {
+        "idKind": "id",
+        "needsParent": false,
+        "lookup": [
+          "id"
+        ]
+      },
+      "company": {
+        "idKind": "uuid",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "user": {
+        "idKind": "uuid",
+        "needsParent": false,
+        "lookup": [
+          "id",
+          "uuid"
+        ]
+      },
+      "role": {
+        "idKind": "id",
+        "needsParent": false,
+        "lookup": [
+          "id"
+        ]
+      },
+      "subscription_plan": {
+        "idKind": "id",
+        "needsParent": false,
+        "lookup": [
+          "id"
+        ]
+      },
+      "email_template": {
+        "idKind": "id",
+        "needsParent": false,
+        "lookup": [
+          "id"
+        ]
+      }
+    }
+  },
+  "records": {
+    "maxRows": 25,
+    "maxFilterValues": 25,
+    "maxSearchLength": 80,
+    "maxTextLength": 80,
+    "integerId": "^\\d{1,15}$",
+    "types": {
+      "affiliate": {
+        "searchable": true,
+        "filters": {
+          "status": {
+            "kind": "enum",
+            "many": true,
+            "values": [
+              "pending",
+              "approved",
+              "active",
+              "suspended",
+              "inactive",
+              "rejected"
+            ]
+          },
+          "affiliateType": {
+            "kind": "enum",
+            "many": true,
+            "values": [
+              "individual",
+              "business",
+              "influencer",
+              "agency"
+            ]
+          },
+          "programId": {
+            "kind": "id",
+            "many": false
+          }
+        }
+      },
+      "affiliate_program": {
+        "searchable": true,
+        "filters": {
+          "active": {
+            "kind": "boolean",
+            "many": false
+          }
+        }
+      },
+      "agent": {
+        "searchable": true,
+        "filters": {
+          "active": {
+            "kind": "boolean",
+            "many": false
+          }
+        }
+      },
+      "agent_fleet": {
+        "searchable": true,
+        "filters": {
+          "status": {
+            "kind": "enum",
+            "many": true,
+            "values": [
+              "active",
+              "draft",
+              "archived"
+            ]
+          }
+        }
+      },
+      "agent_project": {
+        "searchable": false,
+        "filters": {
+          "status": {
+            "kind": "enum",
+            "many": true,
+            "values": [
+              "draft",
+              "active",
+              "on_hold",
+              "blocked",
+              "done",
+              "archived",
+              "cancelled"
+            ]
+          },
+          "fleetId": {
+            "kind": "id",
+            "many": false
+          },
+          "agentId": {
+            "kind": "id",
+            "many": false
+          }
+        }
+      },
+      "company": {
+        "searchable": true,
+        "filters": {
+          "active": {
+            "kind": "boolean",
+            "many": false
+          }
+        }
+      },
+      "deal": {
+        "searchable": true,
+        "filters": {
+          "statusId": {
+            "kind": "id",
+            "many": true
+          },
+          "pipelineId": {
+            "kind": "id",
+            "many": false
+          },
+          "stageId": {
+            "kind": "id",
+            "many": true
+          },
+          "personId": {
+            "kind": "id",
+            "many": false
+          },
+          "organizationId": {
+            "kind": "id",
+            "many": false
+          },
+          "leadId": {
+            "kind": "id",
+            "many": false
+          }
+        }
+      },
+      "discount": {
+        "searchable": true,
+        "filters": {
+          "active": {
+            "kind": "boolean",
+            "many": false
+          },
+          "code": {
+            "kind": "text",
+            "many": false
+          }
+        }
+      },
+      "draft_order": {
+        "searchable": false,
+        "filters": {
+          "personId": {
+            "kind": "id",
+            "many": false
+          }
+        }
+      },
+      "email_template": {
+        "searchable": true,
+        "filters": {
+          "system": {
+            "kind": "boolean",
+            "many": false
+          }
+        }
+      },
+      "event": {
+        "searchable": true,
+        "filters": {
+          "statusId": {
+            "kind": "id",
+            "many": true
+          },
+          "typeId": {
+            "kind": "id",
+            "many": true
+          },
+          "categoryId": {
+            "kind": "id",
+            "many": true
+          }
+        }
+      },
+      "event_version": {
+        "searchable": true,
+        "filters": {
+          "eventId": {
+            "kind": "id",
+            "many": false
+          }
+        }
+      },
+      "facilitator": {
+        "searchable": false,
+        "filters": {
+          "personId": {
+            "kind": "id",
+            "many": false
+          }
+        }
+      },
+      "lead": {
+        "searchable": true,
+        "filters": {
+          "statusId": {
+            "kind": "id",
+            "many": true
+          },
+          "pipelineId": {
+            "kind": "id",
+            "many": false
+          },
+          "stageId": {
+            "kind": "id",
+            "many": true
+          },
+          "personId": {
+            "kind": "id",
+            "many": false
+          },
+          "ownerId": {
+            "kind": "id",
+            "many": false
+          },
+          "receiverId": {
+            "kind": "id",
+            "many": true
+          }
+        }
+      },
+      "order": {
+        "searchable": true,
+        "filters": {
+          "status": {
+            "kind": "enum",
+            "many": true,
+            "values": [
+              "pending",
+              "completed",
+              "draft",
+              "canceled",
+              "failed"
+            ]
+          },
+          "fulfillmentStatus": {
+            "kind": "enum",
+            "many": true,
+            "values": [
+              "pending",
+              "fulfilled",
+              "canceled"
+            ]
+          },
+          "orderTypeId": {
+            "kind": "id",
+            "many": true
+          },
+          "personId": {
+            "kind": "id",
+            "many": false
+          }
+        }
+      },
+      "organization": {
+        "searchable": true,
+        "filters": {
+          "ids": {
+            "kind": "id",
+            "many": true
+          }
+        }
+      },
+      "participant": {
+        "searchable": false,
+        "filters": {
+          "prospect": {
+            "kind": "boolean",
+            "many": false
+          },
+          "personId": {
+            "kind": "id",
+            "many": false
+          }
+        }
+      },
+      "people": {
+        "searchable": true,
+        "filters": {
+          "organizationId": {
+            "kind": "id",
+            "many": false
+          }
+        }
+      },
+      "pipeline": {
+        "searchable": true,
+        "filters": {}
+      },
+      "product": {
+        "searchable": true,
+        "filters": {
+          "statusId": {
+            "kind": "id",
+            "many": true
+          },
+          "categoryId": {
+            "kind": "id",
+            "many": true
+          },
+          "productTypeId": {
+            "kind": "id",
+            "many": true
+          },
+          "published": {
+            "kind": "boolean",
+            "many": false
+          }
+        }
+      },
+      "role": {
+        "searchable": true,
+        "filters": {}
+      },
+      "rotation": {
+        "searchable": true,
+        "filters": {}
+      },
+      "subscription_plan": {
+        "searchable": true,
+        "filters": {
+          "active": {
+            "kind": "boolean",
+            "many": false
+          }
+        }
+      },
+      "user": {
+        "searchable": true,
+        "filters": {
+          "active": {
+            "kind": "boolean",
+            "many": false
+          },
+          "roleId": {
+            "kind": "id",
+            "many": true
+          }
+        }
+      },
+      "variant": {
+        "searchable": true,
+        "filters": {
+          "productId": {
+            "kind": "id",
+            "many": false
+          },
+          "sku": {
+            "kind": "text",
+            "many": false
+          },
+          "published": {
+            "kind": "boolean",
+            "many": false
+          }
+        }
+      }
+    }
+  },
+  "metric": {
+    "ids": [
+      "leads.total",
+      "leads.open_count",
+      "leads.won_count",
+      "leads.lost_count",
+      "leads.win_rate",
+      "leads.over_time",
+      "leads.by_status",
+      "leads.by_source",
+      "leads.by_pipeline",
+      "leads.by_user",
+      "deals.total",
+      "deals.open_count",
+      "deals.won_count",
+      "deals.lost_count",
+      "deals.win_rate",
+      "deals.over_time",
+      "deals.by_stage",
+      "deals.by_status",
+      "deals.by_pipeline",
+      "deals.by_user",
+      "orders.total",
+      "orders.revenue",
+      "orders.aov",
+      "orders.count_over_time",
+      "orders.revenue_over_time",
+      "orders.by_status",
+      "orders.by_payment_status",
+      "orders.by_fulfillment_status",
+      "messages.total",
+      "messages.over_time",
+      "messages.by_type",
+      "events.total",
+      "events.over_time",
+      "events.by_status",
+      "events.by_type",
+      "events.by_category",
+      "events.by_class",
+      "agents.total",
+      "agents.over_time",
+      "agents.by_type",
+      "agents.by_model",
+      "agents.by_deployment_status",
+      "agents.by_user"
+    ],
+    "windows": [
+      "last_7d",
+      "last_30d",
+      "last_90d",
+      "last_12m"
+    ],
+    "as": [
+      "stats",
+      "chart",
+      "table",
+      "progress",
+      "keyvalue"
+    ],
+    "chartKinds": [
+      "bar",
+      "line",
+      "area",
+      "pie"
+    ],
+    "maxLimit": 50
+  }
+}

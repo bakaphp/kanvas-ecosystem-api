@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\BuildAdminLinkTool;
+use Kanvas\Inventory\Categories\Models\Categories;
 use NeuronAI\Tools\TrackByInputs;
 use Tests\TestCase;
 
@@ -17,7 +18,7 @@ class BuildAdminLinkToolTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence', 'social'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'inventory', 'intelligence', 'social'];
 
     private const HOST = 'https://admin.kanvas.dev';
 
@@ -87,6 +88,50 @@ class BuildAdminLinkToolTest extends TestCase
         $this->assertSame('success', $fromNumericId['status'], json_encode($fromNumericId));
         $this->assertStringEndsWith('/leads/' . $lead->uuid, $fromNumericId['url']);
         $this->assertSame($fromUuid['url'], $fromNumericId['url']);
+    }
+
+    /**
+     * The category screen opens by slug. Its model was in the resolver's map without being linkable, so
+     * every category came back as "does not exist" — and a slug with a dash was looked up as a uuid.
+     */
+    public function test_it_links_a_category_from_its_numeric_id_or_its_slug(): void
+    {
+        $company = static::$cachedUser->getCurrentCompany();
+        $category = Categories::create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => 'Summer sale',
+            'slug' => 'summer-sale-' . uniqid(),
+        ]);
+        $tool = $this->toolFor($company);
+
+        $fromNumericId = $tool('category', (string) $category->getId());
+        $fromSlug = $tool('category', $category->slug);
+
+        $this->assertSame('success', $fromNumericId['status'], json_encode($fromNumericId));
+        $this->assertStringEndsWith(
+            '/' . AdminLinkSectionEnum::CATEGORY->segment() . '/' . $category->slug,
+            $fromNumericId['url']
+        );
+        $this->assertSame($fromNumericId['url'], $fromSlug['url'] ?? null, json_encode($fromSlug));
+    }
+
+    public function test_a_record_with_nothing_to_open_it_by_is_not_blamed_on_the_app(): void
+    {
+        $company = static::$cachedUser->getCurrentCompany();
+        $category = Categories::create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => 'No slug ' . uniqid(),
+            'slug' => '',
+        ]);
+
+        $result = $this->toolFor($company)('category', (string) $category->getId());
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('has no identifier its page can open', $result['message']);
     }
 
     public function test_it_says_the_record_does_not_exist_rather_than_complaining_about_the_id_shape(): void
