@@ -27,7 +27,7 @@ class InsuranceCarnet
 
     public static function hasIssuedPolicy(Order $order): bool
     {
-        return $order->get(InsuranceCustomFieldEnum::STATUS->value) === InsuranceStatusEnum::POLICY_ACTIVE->value
+        return InsuranceStatus::of($order) === InsuranceStatusEnum::POLICY_ACTIVE
             && ! empty($order->get(InsuranceCustomFieldEnum::POLICY_NUMBER->value));
     }
 

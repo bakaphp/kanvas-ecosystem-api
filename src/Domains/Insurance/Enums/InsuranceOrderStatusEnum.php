@@ -31,6 +31,21 @@ enum InsuranceOrderStatusEnum: string
         };
     }
 
+    public function toInsuranceStatus(): InsuranceStatusEnum
+    {
+        return match ($this) {
+            self::QUOTED => InsuranceStatusEnum::QUOTED,
+            self::DOCUMENTS_UPLOADED => InsuranceStatusEnum::DOCUMENTS_UPLOADED,
+            self::AWAITING_PAYMENT => InsuranceStatusEnum::AWAITING_PAYMENT,
+            self::PAYMENT_REPORTED => InsuranceStatusEnum::PAID,
+            self::EMITTED => InsuranceStatusEnum::EMITTED,
+            self::POLICY_ACTIVE => InsuranceStatusEnum::POLICY_ACTIVE,
+            self::CANCELLED => InsuranceStatusEnum::CANCELLED,
+            self::FAILED => InsuranceStatusEnum::FAILED,
+            self::EXPIRED => InsuranceStatusEnum::EXPIRED,
+        };
+    }
+
     public function label(): string
     {
         return match ($this) {

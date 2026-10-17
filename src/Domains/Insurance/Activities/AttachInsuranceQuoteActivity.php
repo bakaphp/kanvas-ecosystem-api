@@ -27,6 +27,7 @@ use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceCommissionCalculator;
 use Kanvas\Insurance\Services\InsuranceOrderMetadata;
 use Kanvas\Insurance\Services\InsuranceRequestId;
+use Kanvas\Insurance\Services\InsuranceStatus;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
@@ -61,7 +62,7 @@ class AttachInsuranceQuoteActivity extends KanvasActivity implements WorkflowAct
             return $this->skipped($order, 'Order carries no insurance quote');
         }
 
-        if ((string) $order->get(InsuranceCustomFieldEnum::STATUS->value) !== '') {
+        if (InsuranceStatus::hasQuote($order) || InsuranceStatus::of($order) === InsuranceStatusEnum::FAILED) {
             return $this->skipped($order, 'Quote already attached to this order');
         }
 

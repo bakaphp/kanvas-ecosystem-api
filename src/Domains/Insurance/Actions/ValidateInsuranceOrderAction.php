@@ -7,7 +7,6 @@ namespace Kanvas\Insurance\Actions;
 use Kanvas\Insurance\Contracts\CustomerDataProviderInterface;
 use Kanvas\Insurance\DataTransferObject\InsuranceOrderData;
 use Kanvas\Insurance\DataTransferObject\VerifiedInsuranceOrder;
-use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceProductTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Exceptions\InsuranceValidationException;
@@ -16,6 +15,7 @@ use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceContractGate;
 use Kanvas\Insurance\Services\InsurancePlanProductResolver;
 use Kanvas\Insurance\Services\InsuranceQuoteBinding;
+use Kanvas\Insurance\Services\InsuranceStatus;
 use Kanvas\Insurance\Services\InsuranceVehicleProduct;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
@@ -161,13 +161,11 @@ class ValidateInsuranceOrderAction
 
     private function carriesLiveInsurance(Order $other): bool
     {
-        $status = (string) $other->get(InsuranceCustomFieldEnum::STATUS->value);
-
-        if (in_array($status, [InsuranceStatusEnum::FAILED->value, InsuranceStatusEnum::CANCELLED->value], true)) {
+        if (in_array(InsuranceStatus::of($other), [InsuranceStatusEnum::FAILED, InsuranceStatusEnum::CANCELLED], true)) {
             return false;
         }
 
-        return $status !== '' || (string) $other->get(InsuranceCustomFieldEnum::QUOTE_NUMBER->value) !== '';
+        return InsuranceStatus::hasQuote($other);
     }
 
     private function resolver(): InsurancePlanProductResolver

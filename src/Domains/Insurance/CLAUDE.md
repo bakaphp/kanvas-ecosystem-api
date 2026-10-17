@@ -289,15 +289,17 @@ card velocity protection.
 - **Setup, per environment and app:** `php artisan kanvas:insurance-setup-order-type {app_id}`. Idempotent. Without it,
   `contractInsurancePlan` is refused before the insurer or the customer is touched (`InsuranceOrderPipeline::isSeeded`), with an
   error in the log naming this command.
-- **`InsuranceStatusEnum` stays the source of truth.** Every write of the `insurance_status` custom field goes through
-  `RecordInsuranceStatusAction`, which sets the field and mirrors it into the order status through `TransitionOrderStateAction`.
-  Never `$order->set(InsuranceCustomFieldEnum::STATUS, ...)` directly. The mirror is best effort: an order with no type (legacy), a
-  different type, no current status, or a transition the pipeline does not allow is logged and skipped, and an exception is
-  reported, never thrown, so it cannot break or undo the money path (no hold is released or voided because of a mirror failure).
+- **The order status is the state of an `insurance` order.** Writes go through `RecordInsuranceStatusAction`, which only
+  transitions the order (`TransitionOrderStateAction`); the `insurance_status` custom field is no longer written for these
+  orders. Read the state through `InsuranceStatus::of($order)` (maps the order-status slug back to `InsuranceStatusEnum`, e.g.
+  `payment_reported` is `paid`) and "has a quote" through `InsuranceStatus::hasQuote()`, never by reading the field. Typeless
+  legacy orders (FE `metadata.insurance`) still keep the state in the custom field, which the same helper reads, so callers
+  never branch. A transition the pipeline does not allow is logged and skipped, an exception is reported, never thrown, so it
+  cannot undo the money path; the state then simply stays where it was.
 - **Card velocity** can now be configured in `order_types.config.card_velocity` for `insurance`
   (`max_cards_daily`, `ban_cards_daily`, `corporate_*`). It is off until configured; nothing is set in code.
 - **Legacy orders** created before the type existed (or by the FE with `metadata.insurance`) stay typeless and keep working;
-  the mirror is a no-op for them.
+  their state stays in the `insurance_status` custom field.
 
 ## Order shape and the cart path
 
@@ -383,7 +385,7 @@ field, so absence means bought through MoviPass. No new model: "Mis pólizas" is
 - **One item, text insurer.** The only line is the vehicle variant (quantity 1, price 0, total 0). There is no plan item and no insurer
   relation because the insurer may not be one we integrate: `metadata.data.{insurer_name, plan_name, policy_number, start_at, end_at}`
   hold the plain text, flat, with no `metadata.insurance`. If that insurer is integrated later, link it then from this text.
-- **Lifecycle.** Custom fields `insurance_policy_number`, `insurance_status = policy_active` and the origin; the dates live in `metadata.data`. The order goes `quoted -> policy_active` through `RecordInsuranceStatusAction`, so
+- **Lifecycle.** Custom fields `insurance_policy_number`, the origin; the state is the order status and the dates live in `metadata.data`. The order goes `quoted -> policy_active` through `RecordInsuranceStatusAction`, so
   `OrderTransitionHistory` is recorded; that direct transition exists only since this feature, so **re-run
   `kanvas:insurance-setup-order-type {app_id}` per environment** (idempotent). Until then registration is refused
   (`InsuranceOrderPipeline::allowsRegistration`) with an error in the log naming the command.
@@ -440,10 +442,8 @@ environment** or existing insurance order types stay unrestricted. Any order typ
 `expiration` (`OrderTypes::expirationRule()`: `date_path`, `from_status`, `to_status`), written by
 `kanvas:insurance-setup-order-type` with `date_path = data.end_at`. The existing `kanvas-souk:order-finish-expired` command sweeps
 any order type that declares the rule (no slot recalculation, no reservation email, the legacy parking path is untouched) and a
-policy expires once its `end_at` day is over. The transition fires the normal `STATUS_TRANSITION` workflow event;
-`ExpireInsurancePolicyActivity` listens to it and syncs the `insurance_status` custom field to `expired`. Both need setup per
-environment: `souk_check_expired_orders` enabled for the app (otherwise the command only runs when given an `app_id`), a workflow
-rule on `STATUS_TRANSITION` for the activity, and a re-run of `kanvas:insurance-setup-order-type {app_id}`.
+policy expires once its `end_at` day is over. Per environment: `souk_check_expired_orders` enabled for the app (otherwise the
+command only runs when given an `app_id`) and a re-run of `kanvas:insurance-setup-order-type {app_id}`.
 
 ## Open items
 

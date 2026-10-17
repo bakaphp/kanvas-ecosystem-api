@@ -50,6 +50,7 @@ use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Enums\VehicleInsuranceAttributeEnum;
 use Kanvas\Insurance\Exceptions\InsuranceValidationException;
 use Kanvas\Insurance\Services\CatalogCache;
+use Kanvas\Insurance\Services\InsuranceStatus;
 use Kanvas\Insurance\Services\InsuranceVehicleModelResolver;
 use Kanvas\Insurance\Services\VehicleAttributeReader;
 use Kanvas\Inventory\Products\Models\Products;
@@ -247,9 +248,7 @@ class UniversalSegurosProvider implements
             );
         }
 
-        $current = (string) $order->get(InsuranceCustomFieldEnum::STATUS->value);
-
-        if ($results !== [] && in_array($current, ['', InsuranceStatusEnum::QUOTED->value], true)) {
+        if ($results !== [] && in_array(InsuranceStatus::of($order), [null, InsuranceStatusEnum::QUOTED], true)) {
             new RecordInsuranceStatusAction($order, InsuranceStatusEnum::DOCUMENTS_UPLOADED)->execute();
         }
 
@@ -581,8 +580,7 @@ class UniversalSegurosProvider implements
     {
         $policy = $this->service->getPolicy($quoteNumber);
         $policyNumber = (string) ($policy['numeroPoliza'] ?? $policy['numero'] ?? '');
-        $status = InsuranceStatusEnum::tryFrom((string) $order->get(InsuranceCustomFieldEnum::STATUS->value))
-            ?? InsuranceStatusEnum::QUOTED;
+        $status = InsuranceStatus::of($order) ?? InsuranceStatusEnum::QUOTED;
 
         if ($policyNumber !== '') {
             $order->set(InsuranceCustomFieldEnum::POLICY_NUMBER->value, $policyNumber);

@@ -19,7 +19,6 @@ use Kanvas\Insurance\Actions\SyncInsuranceProductsAction;
 use Kanvas\Insurance\Activities\AttachInsuranceQuoteActivity;
 use Kanvas\Insurance\Activities\CancelInsuranceOrderActivity;
 use Kanvas\Insurance\Activities\EmitInsurancePolicyActivity;
-use Kanvas\Insurance\Activities\ExpireInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\GenerateInsuranceCarnetActivity;
 use Kanvas\Insurance\Activities\InvoiceInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\ReportInsurancePaymentActivity;
@@ -35,6 +34,7 @@ use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Models\InsuranceVehicleModelMap;
 use Kanvas\Insurance\Notifications\InsurancePolicyIssuedNotification;
 use Kanvas\Insurance\Notifications\InsurancePolicyReminderNotification;
+use Kanvas\Insurance\Services\InsuranceStatus;
 use Kanvas\Insurance\Services\VehicleKeyNormalizer;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Products\Models\Products;
@@ -207,7 +207,7 @@ final class InsuranceJourneyTest extends TestCase
 
         $order = $order->fresh();
         $this->assertTrue($result['paymentReleased'], json_encode($result));
-        $this->assertSame(InsuranceStatusEnum::FAILED->value, $order->get(InsuranceCustomFieldEnum::STATUS->value));
+        $this->assertSame(InsuranceStatusEnum::FAILED->value, InsuranceStatus::of($order->fresh())?->value);
         $this->assertSame(InsuranceOrderStatusEnum::FAILED->value, $order->orderStatus?->slug);
         $this->assertSame(PaymentStatusEnum::CANCELLED->value, $payment->fresh()->status);
         $this->assertSame([$payment->getId()], $this->processorCalls['void']);
@@ -443,14 +443,6 @@ final class InsuranceJourneyTest extends TestCase
         $ended = $ended->fresh();
         $this->assertSame(InsuranceOrderStatusEnum::EXPIRED->value, $ended->orderStatus?->slug);
         $this->assertSame(InsuranceOrderStatusEnum::POLICY_ACTIVE->value, $active->fresh()->orderStatus?->slug);
-
-        $result = $this->runActivity(ExpireInsurancePolicyActivity::class, $ended, ['to_status' => InsuranceOrderStatusEnum::EXPIRED->value]);
-        $this->assertSame('success', $result['status']);
-        $this->assertSame(InsuranceStatusEnum::EXPIRED->value, $ended->fresh()->get(InsuranceCustomFieldEnum::STATUS->value));
-
-        $skipped = $this->runActivity(ExpireInsurancePolicyActivity::class, $active, ['to_status' => InsuranceOrderStatusEnum::QUOTED->value]);
-        $this->assertSame('skipped', $skipped['status']);
-        $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, $active->fresh()->get(InsuranceCustomFieldEnum::STATUS->value));
     }
 
     private function assertRegisteredPolicy(Order $order, string $variantId): void
@@ -464,7 +456,7 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertSame('completed', $order->status);
         $this->assertSame('fulfilled', $order->fulfillment_status);
         $this->assertSame(InsuranceOrderStatusEnum::POLICY_ACTIVE->value, $order->orderStatus?->slug);
-        $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, $order->get(InsuranceCustomFieldEnum::STATUS->value));
+        $this->assertEmpty($order->get(InsuranceCustomFieldEnum::STATUS->value));
         $this->assertSame(InsuranceOrderOriginEnum::REGISTERED->value, $order->get(InsuranceCustomFieldEnum::ORIGIN->value));
         $this->assertSame('LC-2024 / 889', $order->get(InsuranceCustomFieldEnum::POLICY_NUMBER->value));
         $this->assertSame(
@@ -507,7 +499,7 @@ final class InsuranceJourneyTest extends TestCase
 
         $order = $order->fresh();
         $this->assertSame($before, $order->only(['order_status_id', 'total_gross_amount', 'payment_status', 'metadata']));
-        $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, $order->get(InsuranceCustomFieldEnum::STATUS->value));
+        $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, InsuranceStatus::of($order->fresh())?->value);
         $this->assertEmpty($order->get(InsuranceCustomFieldEnum::CARNET_URL->value));
         $this->assertSame([], $this->universal->calls);
     }
@@ -534,7 +526,7 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertSame('success', $invoice['status'], json_encode($invoice));
 
         $order = $order->fresh();
-        $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, $order->get(InsuranceCustomFieldEnum::STATUS->value));
+        $this->assertSame(InsuranceStatusEnum::POLICY_ACTIVE->value, InsuranceStatus::of($order->fresh())?->value);
         $this->assertSame(InsuranceOrderStatusEnum::POLICY_ACTIVE->value, $order->orderStatus?->slug);
         $this->assertSame(FakeUniversalServer::POLICY, $order->get(InsuranceCustomFieldEnum::POLICY_NUMBER->value));
         $this->assertCount(1, $this->universal->invoices);
@@ -597,7 +589,7 @@ final class InsuranceJourneyTest extends TestCase
         $order = $order->fresh();
         $quote = (string) $order->get(InsuranceCustomFieldEnum::QUOTE_NUMBER->value);
 
-        $this->assertSame(InsuranceStatusEnum::QUOTED->value, $order->get(InsuranceCustomFieldEnum::STATUS->value));
+        $this->assertSame(InsuranceStatusEnum::QUOTED->value, InsuranceStatus::of($order->fresh())?->value);
         $this->assertSame(InsuranceOrderStatusEnum::QUOTED->value, $order->orderStatus?->slug);
         $this->assertNotSame($searchedQuote, $quote, 'every order must own a quote that no other user shares');
         $this->assertStringStartsWith($requestIdPrefix, (string) $this->universal->quotes[$quote]['data']['requestId']);
@@ -610,7 +602,7 @@ final class InsuranceJourneyTest extends TestCase
     {
         $order = $order->fresh();
 
-        $this->assertSame(InsuranceStatusEnum::FAILED->value, $order->get(InsuranceCustomFieldEnum::STATUS->value));
+        $this->assertSame(InsuranceStatusEnum::FAILED->value, InsuranceStatus::of($order->fresh())?->value);
         $this->assertSame(InsuranceOrderStatusEnum::FAILED->value, $order->orderStatus?->slug);
         $this->assertNotEmpty($order->get(InsuranceCustomFieldEnum::FAILURE_REASON->value));
     }

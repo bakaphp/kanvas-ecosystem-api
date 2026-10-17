@@ -15,6 +15,7 @@ use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderOriginEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
+use Kanvas\Insurance\Services\InsuranceStatus;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
@@ -48,12 +49,12 @@ class EmitInsurancePolicyActivity extends KanvasActivity implements WorkflowActi
             return $this->failReleasingHold($order, $provider->name() . ' does not emit policies');
         }
 
-        $status = (string) $order->get(InsuranceCustomFieldEnum::STATUS->value);
+        $status = InsuranceStatus::of($order);
 
-        if (! in_array($status, [InsuranceStatusEnum::PAID->value, InsuranceStatusEnum::EMITTED->value], true)) {
+        if (! in_array($status, [InsuranceStatusEnum::PAID, InsuranceStatusEnum::EMITTED], true)) {
             return $this->failWorkflow([
                 'order' => $order->getId(),
-                'message' => 'Payment has not been reported to the insurer yet (status: ' . $status . ')',
+                'message' => 'Payment has not been reported to the insurer yet (status: ' . ($status?->value ?? '') . ')',
             ]);
         }
 
