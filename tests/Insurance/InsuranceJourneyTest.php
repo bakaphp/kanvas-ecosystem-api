@@ -169,6 +169,31 @@ final class InsuranceJourneyTest extends TestCase
         $this->assertArrayNotHasKey('insurance', $order->metadata);
 
         $this->assertPolicyIsIssuedAndInvoiced($order);
+        $this->assertSalesAppearInOrderPaymentStats($order);
+    }
+
+    private function assertSalesAppearInOrderPaymentStats(Order $order): void
+    {
+        $today = Carbon::today()->toDateString();
+        $query = 'query($input: OrderPaymentStatsInput) { orderPaymentStats(input: $input) {
+            ordersInPeriod { count totalAmount byServices { variantId orderCount totalAmount } }
+        } }';
+        $input = [
+            'paidStates' => [InsuranceOrderStatusEnum::POLICY_ACTIVE->value],
+            'orderTypeNames' => [InsuranceOrderTypeEnum::INSURANCE->value],
+            'startDate' => $today,
+            'endDate' => $today,
+        ];
+
+        $stats = $this->graphQL($query, ['input' => $input])->json('data.orderPaymentStats.ordersInPeriod');
+
+        $this->assertSame(1, $stats['count'], json_encode($stats));
+        $this->assertEqualsWithDelta((float) $order->fresh()->total_gross_amount, $stats['totalAmount'], 0.01);
+        $planVariantId = $order->items()->get()->first(fn ($item): bool => (int) $item->unit_price_net_amount > 0)->variant_id;
+        $this->assertContains((int) $planVariantId, array_column($stats['byServices'], 'variantId'));
+
+        $none = $this->graphQL($query, ['input' => [...$input, 'orderTypeNames' => ['parking']]])->json('data.orderPaymentStats.ordersInPeriod');
+        $this->assertSame(0, $none['count']);
     }
 
     public function testTheContractPathGoesFromSearchToAnInvoicedPolicy(): void
