@@ -8,10 +8,13 @@ use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Elead\Client;
 use Kanvas\Connectors\Elead\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\Concerns\DeclaresSalesAssistPullRules;
 use Override;
 
 class ELeadHandler extends BaseIntegration
 {
+    use DeclaresSalesAssistPullRules;
+
     #[Override]
     public function setup(): bool
     {
