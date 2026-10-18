@@ -17,6 +17,7 @@ use Kanvas\Connectors\Elead\Actions\AddVehicleAction;
 use Kanvas\Connectors\Elead\Actions\ProcessDriversLicenseAction;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\Actions\AttachTradeInPhotosAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address as AddressDto;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\Address;
@@ -125,6 +126,8 @@ class PushLeadNotesActivity extends KanvasActivity
             case ActionEnum::PAYOFF_FORM->value:
             case ActionEnum::ADD_TRADE->value:
                 if ($status === ActionStatusEnum::SUBMITTED->value) {
+                    new AttachTradeInPhotosAction($message)->execute();
+
                     $addTradeAction = new AddTradeInAction($lead);
                     $result = $addTradeAction->execute($messageData);
                 }

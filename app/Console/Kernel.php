@@ -32,6 +32,7 @@ use App\Console\Commands\Souk\CancelStalePaymentsCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use Kanvas\Workflow\Models\StoredWorkflow;
 use Override;
 use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;
 use Spatie\Health\Commands\RunHealthChecksCommand;
@@ -60,6 +61,10 @@ class Kernel extends ConsoleKernel
 
         // Ecosystem / Social / Souk / Connectors — small enough to inline today.
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
+        // Honours `workflows.prune_age`; chunked, so the first pass over the backlog is long but
+        // never one statement.
+        $schedule->command('model:prune', ['--model' => [StoredWorkflow::class]])->dailyAt('03:30')
+            ->withoutOverlapping(1380)->onOneServer();
         $schedule->command(DetectSignupAnomalyCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(ExpireApprovalRequestsCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(FlagOverdueCorporateApplicationsCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();

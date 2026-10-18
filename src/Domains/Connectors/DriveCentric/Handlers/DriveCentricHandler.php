@@ -7,10 +7,13 @@ namespace Kanvas\Connectors\DriveCentric\Handlers;
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\DriveCentric\Client;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Concerns\DeclaresSalesAssistPullRules;
 use Override;
 
 class DriveCentricHandler extends BaseIntegration
 {
+    use DeclaresSalesAssistPullRules;
+
     #[Override]
     public function setup(): bool
     {

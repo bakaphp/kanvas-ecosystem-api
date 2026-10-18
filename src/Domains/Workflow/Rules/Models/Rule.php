@@ -6,8 +6,10 @@ namespace Kanvas\Workflow\Rules\Models;
 
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Log;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
@@ -15,7 +17,10 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Rules\Factories\RuleFactory;
+use Kanvas\Workflow\Rules\Support\ExpressionData;
 use Override;
+use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
+use Throwable;
 
 /**
  * @param int $id
@@ -146,6 +151,43 @@ class Rule extends BaseModel
     public function runAsync(): bool
     {
         return $this->is_async;
+    }
+
+    /**
+     * Whether this rule's condition holds for the entity and the event params. Evaluated before a
+     * stored workflow is created for it, so a rule that does not apply costs no row.
+     */
+    public function matches(Model $entity, array $params = []): bool
+    {
+        ['expression' => $expression, 'values' => $values] = $this->getExpressionCondition();
+
+        $values = array_merge(
+            $values,
+            $entity->toArray(),
+            [
+                'entity' => $entity,
+                strtolower(class_basename($entity)) => $entity,
+            ],
+            $params
+        );
+
+        // JSON columns arrive as plain arrays; wrap them so a rule can navigate nested keys with
+        // dot syntax (metadata.data.x) — Symfony's `.` operator only works on objects, not arrays.
+        $values = ExpressionData::wrapValues($values);
+
+        try {
+            return (bool) new ExpressionLanguage()->evaluate($expression, $values);
+        } catch (Throwable $e) {
+            Log::debug('Rule expression evaluation failed; treating as non-match', [
+                'rule_id' => $this->getId(),
+                'expression' => $expression,
+                'entity' => $entity::class,
+                'entity_id' => $entity->getKey(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     #[Override]

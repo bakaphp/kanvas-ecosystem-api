@@ -14,6 +14,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Salesforce\Actions\PullProjectAction;
+use Kanvas\Connectors\Salesforce\Actions\PullProjectContactAction;
 use Kanvas\Connectors\Salesforce\Actions\PullPropertyAction;
 use Kanvas\Connectors\Salesforce\Actions\PullPropertyContactAction;
 use Kanvas\Connectors\Salesforce\Actions\PullPropertyFilesAction;
@@ -24,17 +25,22 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Throwable;
 
 /**
- * Test-only import: pulls Project__c (+ its Location__c children, their primary
- * Location_Contact__c, and any Salesforce Files attached to each Location__c) from Salesforce into
- * Kanvas — one Product per Project__c, one Variant per Location__c. Location__c.Parent_Deal__c is a
- * single required lookup to Project__c, the same shape as products_variants.products_id, which is
- * why a Project maps to a Product and its Locations map to that Product's Variants rather than each
- * Location becoming its own Product (GAGroup field names hardcoded via
+ * Test-only import: pulls Project__c (+ its Location__c children, every Location_Contact__c and
+ * Project_Contact__c on them, and any Salesforce Files attached to each Location__c) from Salesforce
+ * into Kanvas — one Product per Project__c, one Variant per Location__c. Location__c.Parent_Deal__c
+ * is a single required lookup to Project__c, the same shape as products_variants.products_id, which
+ * is why a Project maps to a Product and its Locations map to that Product's Variants rather than
+ * each Location becoming its own Product (GAGroup field names hardcoded via
  * `PullPropertyAction::attributesFromPayload()`). Deliberately unfiltered — imports every
  * Location__c regardless of Deal_Status__c/Marketing_Status__c, saving both as variant attributes;
  * the website's "which properties are listed" question is answered downstream with Kanvas's own
  * product/attribute filtering (`hasAttributeValues`/`variantAttributeValue`), not by narrowing the
  * SOQL at import time.
+ *
+ * Every Location_Contact__c and Project_Contact__c row becomes its own People — Kanvas has no
+ * dedicated People<->Product/Variant relation, so PullPropertyContactAction/PullProjectContactAction
+ * each encode the relationship (and Location_Contact__c's Interest_Level__c, standing in for a
+ * lead-variant-interest record) as a tag instead; see those classes' docblocks.
  *
  * The orchestration (grouping locations by project, batching, progress logging) runs inside a
  * queued closure rather than a dedicated Job class, since it's specific to this bulk-import shape;
@@ -47,7 +53,7 @@ class ImportSalesforcePropertiesCommand extends Command
 
     protected $signature = 'kanvas:salesforce-import-properties {app_id} {company_id} {--project_id=} {--limit=}';
 
-    protected $description = 'Pull Project__c (+ Location__c children, primary Location_Contact__c) from Salesforce and queue them for import into Kanvas Products/Variants, for testing the Project/Location mapping.';
+    protected $description = 'Pull Project__c (+ Location__c children, every Location_Contact__c and Project_Contact__c) from Salesforce and queue them for import into Kanvas Products/Variants/People, for testing the Project/Location mapping.';
 
     public function handle(): int
     {
@@ -98,24 +104,56 @@ class ImportSalesforcePropertiesCommand extends Command
                 "SELECT Id, Name FROM Project__c WHERE Id IN ('" . implode("','", $projectIds) . "')",
             );
 
-        // One bulk query for every primary broker instead of one query per location — with
+        // One bulk query for every location contact instead of one query per location — with
         // thousands of locations, a per-record contact lookup would multiply the Salesforce API
-        // calls by the same amount.
+        // calls by the same amount. Every Location_Contact__c row is imported now, not just the
+        // primary one (broker, attorney, landlord, the interested party itself all get a People).
         $contacts = $this->fetchAll(
             $client,
-            'SELECT Id, Location__c, Contact_Name__c, Contact_Email__c, Contact_Phone__c, Contact_Mobile__c, Company_Name__c '
-                . 'FROM Location_Contact__c WHERE Primary_Location_Contact__c = true',
+            'SELECT Id, Location__c, Contact_Name__c, Contact_Email__c, Contact_Phone__c, Contact_Mobile__c, '
+                . 'Company_Name__c, Location_Contact_Type__c, Interest_Level__c, Primary_Location_Contact__c '
+                . 'FROM Location_Contact__c',
         );
 
-        dispatch(function () use ($app, $company, $user, $projects, $locations, $contacts): void {
+        // Same bulk-fetch reasoning for Project__c's own contacts (attorneys, lenders, the deal's
+        // iBanker...) — a separate object from Location_Contact__c, scoped to the projects in this
+        // batch. Project_Contact__c is GAGroup-specific like the rest of this command, but not every
+        // org that has Project__c/Location__c necessarily has it deployed too (seen on a test org) —
+        // its absence shouldn't abort importing projects/locations/location-contacts, so this is the
+        // one fetch in this command allowed to fail soft.
+        $projectContacts = [];
+        if ($projectIds !== []) {
+            try {
+                $projectContacts = $this->fetchAll(
+                    $client,
+                    'SELECT Id, Project__c, First_Name__c, Last_Name__c, Email__c, Phone__c, Mobile__c, '
+                        . "Company_Name__c, Relationship__c FROM Project_Contact__c WHERE Project__c IN ('"
+                        . implode("','", $projectIds) . "')",
+                );
+            } catch (Throwable $e) {
+                Log::warning('Salesforce Project_Contact__c fetch failed — continuing without project contacts', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        dispatch(function () use ($app, $company, $user, $projects, $locations, $contacts, $projectContacts): void {
             App::scoped(Apps::class, fn () => $app);
             Bouncer::scope()->to(RolesEnums::getScope($app));
 
             $contactsByLocationId = [];
             foreach ($contacts as $contact) {
                 $locationId = (string) ($contact['Location__c'] ?? '');
-                if ($locationId !== '' && ! isset($contactsByLocationId[$locationId])) {
-                    $contactsByLocationId[$locationId] = $contact;
+                if ($locationId !== '') {
+                    $contactsByLocationId[$locationId][] = $contact;
+                }
+            }
+
+            $projectContactsByProjectId = [];
+            foreach ($projectContacts as $contact) {
+                $projectId = (string) ($contact['Project__c'] ?? '');
+                if ($projectId !== '') {
+                    $projectContactsByProjectId[$projectId][] = $contact;
                 }
             }
 
@@ -157,6 +195,7 @@ class ImportSalesforcePropertiesCommand extends Command
                         $projectSalesforceId,
                         $projectLocations,
                         $contactsByLocationId,
+                        $projectContactsByProjectId[$projectSalesforceId] ?? [],
                     );
                     $processed += count($projectLocations);
                 } catch (Throwable $e) {
@@ -171,8 +210,8 @@ class ImportSalesforcePropertiesCommand extends Command
 
                 $done += count($projectLocations);
 
-                // Projects are batches of varying size, so "every 100" means "crossed a multiple
-                // of 100" rather than the per-record `% 100 === 0` the old per-location loop used.
+                // Projects are batches of varying size, so a per-record `% 100 === 0` check could
+                // skip past 100 entirely; comparing the before/after multiple of 100 can't miss it.
                 if (intdiv($previousDone, 100) !== intdiv($done, 100) || $done === $totalLocations) {
                     Log::info('Salesforce properties import progress', [
                         'companies_id' => $company->getId(),
@@ -186,8 +225,9 @@ class ImportSalesforcePropertiesCommand extends Command
         });
 
         $this->info(
-            'Queued ' . count($projects) . ' project(s) / ' . count($locations)
-                . ' location(s) (+ ' . count($contacts) . ' brokers) for background import.',
+            'Queued ' . count($projects) . ' project(s) / ' . count($locations) . ' location(s) (+ '
+                . count($contacts) . ' location contact(s), ' . count($projectContacts)
+                . ' project contact(s)) for background import.',
         );
 
         return self::SUCCESS;
@@ -196,7 +236,8 @@ class ImportSalesforcePropertiesCommand extends Command
     /**
      * @param array<string, mixed> $project
      * @param array<int, array<string, mixed>> $projectLocations
-     * @param array<string, array<string, mixed>> $contactsByLocationId
+     * @param array<string, array<int, array<string, mixed>>> $contactsByLocationId
+     * @param array<int, array<string, mixed>> $projectContacts
      */
     private static function importProject(
         Apps $app,
@@ -207,6 +248,7 @@ class ImportSalesforcePropertiesCommand extends Command
         string $projectSalesforceId,
         array $projectLocations,
         array $contactsByLocationId,
+        array $projectContacts,
     ): Products {
         $variantsByLocationSku = [];
         foreach ($projectLocations as $location) {
@@ -237,6 +279,16 @@ class ImportSalesforcePropertiesCommand extends Command
             $projectSalesforceId,
         )->execute($variants);
 
+        foreach ($projectContacts as $projectContact) {
+            new PullProjectContactAction(
+                $app,
+                $company,
+                $product,
+                $projectContact,
+                (string) $projectContact['Id'],
+            )->execute();
+        }
+
         $variantModels = Variants::where('products_id', $product->getId())
             ->whereIn('sku', array_keys($variantsByLocationSku))
             ->get()
@@ -251,8 +303,7 @@ class ImportSalesforcePropertiesCommand extends Command
 
             $locationSalesforceId = (string) ($location['Id'] ?? '');
 
-            $contact = $contactsByLocationId[$locationSalesforceId] ?? null;
-            if ($contact !== null) {
+            foreach ($contactsByLocationId[$locationSalesforceId] ?? [] as $contact) {
                 new PullPropertyContactAction(
                     $app,
                     $company,
