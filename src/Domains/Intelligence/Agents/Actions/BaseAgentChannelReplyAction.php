@@ -16,7 +16,6 @@ use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
-use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -190,7 +189,7 @@ class BaseAgentChannelReplyAction
             // delivery message (verb='twilio-sms', 'mailgun-email', etc.). ADK is left
             // alone — its remote memory and existing legacy behavior depend on the
             // per-protocol channel only.
-            if ($this->agent->type?->handler !== ADKAgent::class) {
+            if (! $this->agent->isAdk()) {
                 new LeadChannelService()->attachMessageToLeadChannel(
                     $newMessage,
                     $lead,
