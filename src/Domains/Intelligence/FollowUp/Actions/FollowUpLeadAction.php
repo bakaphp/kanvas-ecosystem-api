@@ -25,7 +25,6 @@ use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\AgentFollowUpResult;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ChannelConfig;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
@@ -661,12 +660,13 @@ final class FollowUpLeadAction
     }
 
     /**
-     * Absent `ai_follow_up` means the triggers never configured the lead, so it passes; once
-     * present it must be explicitly on — OFF (0) and NO_FOLLOW_UP (3) both disable.
+     * Resolved like the AI mode (lead-type default, then stored `ai_follow_up`, then company).
+     * Nothing resolved means the lead was never configured, so it passes; once a value resolves
+     * it must be explicitly on — OFF (0) and NO_FOLLOW_UP (3) both disable.
      */
     private function aiFollowUpDisabled(): bool
     {
-        return filled($this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value))
+        return filled($this->lead->resolveAiFollowUp())
             && ! $this->lead->isAiFollowUpEnabled();
     }
 
