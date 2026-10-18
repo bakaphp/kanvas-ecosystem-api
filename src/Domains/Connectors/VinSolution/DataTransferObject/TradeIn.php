@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\DataTransferObject;
 
+use Baka\Support\Str;
+use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
+use Kanvas\Connectors\SalesAssist\DataTransferObject\TradeIn as SalesAssistTradeIn;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Spatie\LaravelData\Data;
@@ -33,33 +36,12 @@ class TradeIn extends Data
 
     public static function fromMultiple(Message $message, Lead $lead): self
     {
-        $messageData = $message->message;
-        $formData = $messageData['data']['form'] ?? [];
-        $files = $lead->getFiles();
-        $filesLinks = '';
+        // The attribute, not getMessage(): PushPurchaseVehicleAction overwrites it in memory first.
+        $messageData = (array) $message->message;
+        $form = SalesAssistTradeIn::fromMessageData($messageData['data'] ?? []);
+        $description = Str::trimToNull($lead->getFiles()->pluck('url')->implode(' '));
 
-        // Concatenate file URLs
-        if (count($files) > 0) {
-            foreach ($files as $file) {
-                $filesLinks .= $file->url . ' ';
-            }
-            $filesLinks = trim($filesLinks);
-        }
-
-        // Clean up mileage - remove commas and convert to int
-        $mileageRaw = $formData['mileage'] ?? '0';
-        $mileage = (int) str_replace(',', '', (string) $mileageRaw);
-
-        // Format payoff amount
-        $payoffRaw = $formData['payoff_amount'] ?? '';
-        $payoff = (float) $payoffRaw > 0 ? (float) number_format((float) $payoffRaw, 2, '.', '') : 0.0;
-
-        // Format value
-        $valueRaw = $formData['value'] ?? '';
-        $value = (float) $valueRaw > 0 ? (float) number_format((float) $valueRaw, 2, '.', '') : 0.0;
-
-        // Handle payoff-form specific logic
-        if ($messageData['verb'] === 'payoff-form') {
+        if (($messageData['verb'] ?? '') === ActionEnum::PAYOFF_FORM->value) {
             return new self(
                 vin: null,
                 year: null,
@@ -76,29 +58,29 @@ class TradeIn extends Data
                 mileage: 0,
                 value: 0.0,
                 condition: 'UNKNOWN',
-                description: $filesLinks ?: null,
-                payOff: (float) ($formData['ten_day_payoff']['value'] ?? 0),
+                description: $description,
+                payOff: (float) ($messageData['data']['form']['ten_day_payoff']['value'] ?? 0),
             );
         }
 
         return new self(
-            vin: $formData['vin'] ?? null,
-            year: $formData['year'] ?? null,
-            make: $formData['make'] ?? null,
-            model: $formData['model'] ?? null,
-            trim: isset($formData['trim']) ? substr((string) $formData['trim'], 0, 50) : null,
-            exteriorColor: $formData['ext_color'] ?? null,
-            interiorColor: $formData['int_color'] ?? null,
-            bodyStyle: $formData['body_style'] ?? null,
-            engineName: $formData['engine'] ?? null,
-            transmission: $formData['trans'] ?? null,
-            driveTrain: $formData['drive_train'] ?? null,
-            doors: $formData['doors'] ?? null,
-            mileage: $mileage,
-            value: $value,
+            vin: Str::trimToNull($form->vin),
+            year: $form->year > 0 ? (string) $form->year : null,
+            make: Str::trimToNull($form->make),
+            model: Str::trimToNull($form->model),
+            trim: Str::trimToNull($form->trim),
+            exteriorColor: Str::trimToNull($form->exteriorColor),
+            interiorColor: Str::trimToNull($form->interiorColor),
+            bodyStyle: Str::trimToNull($form->bodyStyle),
+            engineName: Str::trimToNull($form->engine),
+            transmission: Str::trimToNull($form->transmission),
+            driveTrain: Str::trimToNull($form->driveTrain),
+            doors: Str::trimToNull($form->doors),
+            mileage: $form->mileage,
+            value: $form->value,
             condition: 'UNKNOWN',
-            description: $filesLinks ?: null,
-            payOff: $payoff,
+            description: $description,
+            payOff: $form->payoff,
         );
     }
 
