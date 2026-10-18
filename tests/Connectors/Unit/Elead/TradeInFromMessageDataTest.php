@@ -26,7 +26,18 @@ final class TradeInFromMessageDataTest extends TestCase
         $this->assertSame('black', $tradeIn->interiorColor);
         $this->assertSame(12345, $tradeIn->estimatedMileage);
         $this->assertSame(0, $tradeIn->year);
+        $this->assertSame(['upload_odometer_photo' => [1000001]], $tradeIn->photoIds);
         $this->assertTrue($tradeIn->hasEnoughDetails());
+    }
+
+    public function testSplitsCommaSeparatedPhotoIds(): void
+    {
+        $tradeIn = TradeIn::fromMessageData([
+            ['label' => 'Upload vehicle photo', 'value' => '1000002, 1000003,,1000004'],
+            ['label' => 'Upload odometer photo', 'value' => ''],
+        ]);
+
+        $this->assertSame(['upload_vehicle_photo' => [1000002, 1000003, 1000004]], $tradeIn->photoIds);
     }
 
     public function testParsesTheWebFormPayload(): void

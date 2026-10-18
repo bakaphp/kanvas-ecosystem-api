@@ -14,6 +14,7 @@ use Kanvas\Connectors\Elead\Actions\AddCreditAppAction;
 use Kanvas\Connectors\Elead\Actions\AddNoteToLeadAction;
 use Kanvas\Connectors\Elead\Actions\AddTradeInAction;
 use Kanvas\Connectors\Elead\Actions\AddVehicleAction;
+use Kanvas\Connectors\Elead\Actions\AttachTradeInPhotosAction;
 use Kanvas\Connectors\Elead\Actions\ProcessDriversLicenseAction;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -125,6 +126,8 @@ class PushLeadNotesActivity extends KanvasActivity
             case ActionEnum::PAYOFF_FORM->value:
             case ActionEnum::ADD_TRADE->value:
                 if ($status === ActionStatusEnum::SUBMITTED->value) {
+                    new AttachTradeInPhotosAction($message)->execute();
+
                     $addTradeAction = new AddTradeInAction($lead);
                     $result = $addTradeAction->execute($messageData);
                 }

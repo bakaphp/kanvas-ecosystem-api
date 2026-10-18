@@ -35,6 +35,8 @@ class TradeIn extends Data
         public readonly string $interiorColor,
         public readonly string $exteriorColor,
         public readonly string $transmission = '',
+        /** @var array<string, int[]> filesystem ids per upload field, e.g. upload_vehicle_photo => [1, 2] */
+        public readonly array $photoIds = [],
     ) {
     }
 
@@ -71,7 +73,28 @@ class TradeIn extends Data
             interiorColor: $field('interior_color'),
             exteriorColor: $field('exterior_color'),
             transmission: $field('transmission'),
+            photoIds: self::photoIdsFrom($form),
         );
+    }
+
+    /**
+     * Upload fields carry comma-separated filesystem ids ("11,12,13").
+     */
+    protected static function photoIdsFrom(array $form): array
+    {
+        $photoIds = [];
+        foreach ($form as $key => $value) {
+            if (! str_contains((string) $key, 'photo') || ! is_scalar($value)) {
+                continue;
+            }
+
+            $ids = array_values(array_filter(array_map('intval', explode(',', (string) $value))));
+            if ($ids !== []) {
+                $photoIds[$key] = $ids;
+            }
+        }
+
+        return $photoIds;
     }
 
     /**
