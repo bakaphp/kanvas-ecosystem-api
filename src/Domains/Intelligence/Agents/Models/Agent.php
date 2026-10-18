@@ -32,6 +32,7 @@ use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
+use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\NervousSystem\Capability\Models\Tool;
@@ -366,6 +367,13 @@ class Agent extends BaseModel
         }
 
         return $this->type?->handler === OpenClawAgentHandler::class;
+    }
+
+    public function isAdk(): bool
+    {
+        $handler = $this->type?->handler;
+
+        return is_string($handler) && is_a($handler, ADKAgent::class, true);
     }
 
     /**
