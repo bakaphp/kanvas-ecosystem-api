@@ -49,6 +49,9 @@
         <testsuite name="Connectors">
             <directory suffix="Test.php">./tests/Connectors</directory>
         </testsuite>
+        <testsuite name="Communication">
+            <directory suffix="Test.php">./tests/Communication</directory>
+        </testsuite>
         <testsuite name="Workflow">
             <directory suffix="Test.php">./tests/Workflow</directory>
         </testsuite>

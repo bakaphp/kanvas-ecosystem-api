@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
-use Kanvas\Workflow\Rules\Models\Action;
-use Kanvas\Workflow\Services\WorkflowActionDiscoveryService;
+use Kanvas\Workflow\Services\WorkflowActionCatalog;
 
 class KanvasWorkflowSynActionCommand extends Command
 {
@@ -14,40 +13,14 @@ class KanvasWorkflowSynActionCommand extends Command
 
     protected $description = 'Sync discovered #[WorkflowAction] classes into the actions catalog.';
 
-    public function handle(WorkflowActionDiscoveryService $discovery): void
+    public function handle(WorkflowActionCatalog $catalog): void
     {
         $this->info('Syncing Workflow Actions...');
 
-        $created = [];
-        $updated = [];
+        $changes = $catalog->sync();
 
-        foreach ($discovery->discover() as $entry) {
-            $record = Action::firstOrNew(['model_name' => $entry['class']]);
-            $record->fill([
-                'name' => $entry['name'],
-                'kind' => $entry['kind'],
-                'description' => $entry['description'],
-                'integration' => $entry['integration'],
-                'requires_config' => $entry['requires_config'],
-                'params' => $entry['params'],
-                'required_params' => $entry['required_params'],
-            ]);
-
-            if (! $record->exists) {
-                $record->save();
-                $created[] = $entry['name'];
-
-                continue;
-            }
-
-            if ($record->isDirty()) {
-                $record->save();
-                $updated[] = $entry['name'];
-            }
-        }
-
-        $this->report('created', $created);
-        $this->report('updated', $updated);
+        $this->report('created', $changes['created']);
+        $this->report('updated', $changes['updated']);
 
         $this->info('Syncing Workflow Actions Done!');
     }
