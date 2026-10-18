@@ -66,6 +66,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Templates\Contracts\ExposesTemplateData;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -75,6 +76,7 @@ use NotificationChannels\Expo\ExpoPushToken;
 use Override;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
+use Throwable;
 
 /**
  * Users Model.
@@ -128,7 +130,7 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
  * @property string $created_at
  * @property string $updated_at
  */
-class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable, Confirmable
+class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable, Confirmable, ExposesTemplateData
 {
     use HashTableTrait;
     use Notifiable;
@@ -1188,5 +1190,29 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function getUnreadNotificationsCount(?AppInterface $app = null): int
     {
         return (int) ($this->getAppProfile($app ?? app(Apps::class))->unread_notifications_count ?? 0);
+    }
+
+    #[Override]
+    public function toTemplateData(): array
+    {
+        try {
+            $branchName = $this->getCurrentBranch()->name;
+        } catch (Throwable) {
+            $branchName = null;
+        }
+
+        return [
+            'id' => $this->getId(),
+            'uuid' => $this->uuid,
+            'firstname' => $this->firstname,
+            'lastname' => $this->lastname,
+            'displayname' => $this->displayname,
+            'email' => $this->email,
+            'phone_number' => $this->phone_number,
+            'cell_phone_number' => $this->cell_phone_number,
+            'timezone' => $this->timezone,
+            'language' => $this->language,
+            'current_branch' => ['name' => $branchName],
+        ];
     }
 }

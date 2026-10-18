@@ -23,7 +23,7 @@ class GenerateTemplatePdfTool extends Tool
     protected string $name = 'generate_template_pdf';
 
     protected ?string $description = 'Render a stored template to a PDF and attach it to the record currently in scope (the lead, '
-        . 'order, message, etc. you are working on). Blade expressions in the template are rendered against '
+        . 'order, message, etc. you are working on). Twig expressions in the template are rendered against '
         . 'that record. Pass the template name (from create_template) — not the id.';
 
     /**

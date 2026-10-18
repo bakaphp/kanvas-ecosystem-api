@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Leads\Actions;
 
-use Illuminate\Support\Facades\Blade;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -70,7 +69,7 @@ class CreateLeadFirstEngagementMessageAction
         $data['leadOwnerName'] = $this->lead->owner?->firstname . ' ' . $this->lead->owner?->lastname;
         $data['voice_enabled'] = ! empty($this->lead->app->get(VoiceBridgeConfigurationEnum::API_KEY->value));
         $data['available_channels'] = $this->resolveAvailableChannels();
-        $prompt = Blade::render($this->agent->roleSection('steps'), $data['additional_context_information']);
+        $prompt = $this->agent->renderRoleSection('steps', $data['additional_context_information']);
 
         try {
             $response = $this->callAi($prompt);

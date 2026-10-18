@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Leads\Actions;
 
+use Baka\Support\AllowedClass;
 use Exception;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
+use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
 class CreateLeadContextInfoAction
@@ -70,7 +72,12 @@ class CreateLeadContextInfoAction
                 throw new Exception('No contact index found for action ' . $actionClass . ' in pipeline stage ' . $firstPipelineStage->name . ', please configure it.');
             }
 
-            $actionInstance = new $actionClass($this->lead);
+            $toolClass = AllowedClass::resolve($actionClass, ContextToolInterface::class);
+            if ($toolClass === null) {
+                throw new Exception('Action ' . $actionClass . ' in pipeline stage ' . $firstPipelineStage->name . ' is not a context tool.');
+            }
+
+            $actionInstance = new $toolClass($this->lead);
             $leadContext[$contactIndex] = $actionInstance->execute($actionParams);
             $this->lead->set(
                 ConfigurationEnum::LEAD_CONTEXT_INFO->value,

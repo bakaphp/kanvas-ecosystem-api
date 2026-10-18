@@ -32,6 +32,20 @@ class ReconcileToolKanvasModulesActionTest extends TestCase
         )->execute();
     }
 
+    /**
+     * The model refuses a handler that is not a tool, so a bad one only exists when written by hand.
+     */
+    private function toolWithHandWrittenHandler(string $handler): Tool
+    {
+        $tool = $this->makeTool(null);
+
+        DB::connection('intelligence')->table('nervous_system_tools')
+            ->where('id', $tool->getId())
+            ->update(['handler' => $handler]);
+
+        return $tool->refresh();
+    }
+
     private function pivotRows(Tool $tool): array
     {
         return DB::connection('intelligence')
@@ -108,7 +122,7 @@ class ReconcileToolKanvasModulesActionTest extends TestCase
 
     public function testHandlerThatDoesNotImplementContractIsNoOp(): void
     {
-        $tool = $this->makeTool(FakeToolHandlerWithoutContract::class);
+        $tool = $this->toolWithHandWrittenHandler(FakeToolHandlerWithoutContract::class);
 
         $result = new ReconcileToolKanvasModulesAction($tool)->execute();
 
@@ -118,7 +132,7 @@ class ReconcileToolKanvasModulesActionTest extends TestCase
 
     public function testHandlerWithUnknownClassIsNoOp(): void
     {
-        $tool = $this->makeTool('App\\Doesnt\\Exist');
+        $tool = $this->toolWithHandWrittenHandler('App\\Doesnt\\Exist');
 
         $result = new ReconcileToolKanvasModulesAction($tool)->execute();
 

@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\File;
 use Kanvas\Enums\AppEnums;
 
 /**
- * Seeds global (apps_id=0, companies_id=0) email templates from Blade files. TemplatesRepository falls
+ * Seeds global (apps_id=0, companies_id=0) email templates from Twig files. TemplatesRepository falls
  * back to these for every app, and an app or company row with the same name wins on precedence, so
  * existing per-app templates are never overridden.
  *

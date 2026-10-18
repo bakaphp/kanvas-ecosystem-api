@@ -15,6 +15,10 @@ class CreateTemplateAction
     ) {
     }
 
+    /**
+     * A blade row matching the same key is hand-made and comes back unchanged, so setup and sync
+     * can run repeatedly over an app. A caller acting for a user must reject that row itself.
+     */
     public function execute(
         ?Templates $parent = null,
         bool $overwrite = true
@@ -33,6 +37,12 @@ class CreateTemplateAction
             'parent_template_id' => $this->template->parentTemplateId ?? $parent?->getKey() ?? 0,
             'is_system' => $this->template->isSystem,
         ];
+
+        $existing = Templates::query()->where($query)->first();
+
+        if ($existing?->isBlade()) {
+            return $existing;
+        }
 
         if ($overwrite) {
             return Templates::updateOrCreate($query, $attributes);

@@ -92,6 +92,7 @@
         "symfony/mailgun-mailer": "^8.0",
         "symfony/yaml": "^8.0",
         "thiagoprz/eloquent-composite-key": "^1.0",
+        "twig/twig": "^3.21",
         "twilio/sdk": "^8.11",
         "typesense/typesense-php": "^6.0",
         "vlucas/phpdotenv": "^5.5",

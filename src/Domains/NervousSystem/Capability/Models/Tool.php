@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Capability\Models;
 
 use Baka\Casts\Json;
+use Baka\Concerns\HasHandlerClass;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +18,10 @@ use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Kanvas\Workflow\Models\Integrations;
+use Laravel\Ai\Contracts\CanActAsTool;
+use Laravel\Ai\Contracts\Tool as LaravelTool;
+use NeuronAI\Tools\ToolInterface;
+use NeuronAI\Tools\Toolkits\ToolkitInterface;
 use Override;
 
 /**
@@ -46,6 +51,7 @@ use Override;
  */
 class Tool extends BaseModel
 {
+    use HasHandlerClass;
     use EmitsLedgerEventsForEntity;
     use UuidTrait;
 
@@ -67,6 +73,17 @@ class Tool extends BaseModel
             'frameworks' => Json::class,
             'is_active' => 'boolean',
             'is_deleted' => 'boolean',
+        ];
+    }
+
+    #[Override]
+    protected static function handlerContracts(): array
+    {
+        return [
+            ToolInterface::class,
+            ToolkitInterface::class,
+            LaravelTool::class,
+            CanActAsTool::class,
         ];
     }
 

@@ -20,7 +20,8 @@ class CreateTemplateTool extends Tool
 
     protected string $name = 'create_template';
 
-    protected ?string $description = 'Create a reusable HTML template (Blade syntax allowed, e.g. {{ $entity->name }}) that can '
+    protected ?string $description = 'Create a reusable HTML template (Twig syntax, e.g. {{ entity.name }}, {% if entity.email %}...{% endif %}, '
+        . '{% for item in entity.items %}...{% endfor %}; no functions or method calls) that can '
         . 'later be rendered to a PDF and attached to a record with generate_template_pdf. Give it a unique '
         . 'name you will reuse. The template belongs to you — only you can update or delete it afterwards. '
         . 'THIS is where the HTML goes: put the full markup in the `html` argument and never repeat it in '
@@ -43,7 +44,7 @@ class CreateTemplateTool extends Tool
             new ToolProperty(
                 name: 'html',
                 type: PropertyType::STRING,
-                description: 'The HTML body of the template. Blade expressions like {{ $entity->firstname }} are '
+                description: 'The HTML body of the template. Twig expressions like {{ entity.firstname }} are '
                     . 'rendered against the record the PDF is attached to.',
                 required: true,
             ),

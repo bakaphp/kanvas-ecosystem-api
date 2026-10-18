@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Laravel\KanvasGenericLaravelAgent;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\InventorySearchTool;
@@ -129,9 +130,13 @@ class KanvasGenericLaravelAgentTest extends TestCase
                 name: 'tool-bad-' . uniqid(),
                 frameworks: ['laravel'],
                 toolType: ToolTypeEnum::CUSTOM,
-                handler: 'NonExistent\\Tool\\Class',
             ),
         )->execute();
+
+        // The model refuses a handler that is not a tool, so a stale one only exists written by hand.
+        DB::connection('intelligence')->table('nervous_system_tools')
+            ->where('id', $badHandlerTool->getId())
+            ->update(['handler' => 'NonExistent\\Tool\\Class']);
 
         $agent = $this->makeAgentRecord();
         $agent->selectedTools()->sync([$nullHandlerTool->getId(), $badHandlerTool->getId()]);

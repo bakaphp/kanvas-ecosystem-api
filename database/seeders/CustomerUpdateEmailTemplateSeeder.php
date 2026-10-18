@@ -27,7 +27,7 @@ class CustomerUpdateEmailTemplateSeeder extends Seeder
 {
     public function run(): void
     {
-        $path = resource_path('views/emails/customerUpdate.blade.php');
+        $path = resource_path('views/emails/customerUpdate.twig');
 
         if (! File::exists($path)) {
             return;

@@ -29,18 +29,20 @@ class RebuildAgentToolInstructionsAction
                 ->whereIn('apps_id', [0, $this->app->getId()])
                 ->first();
 
-            if ($tool === null || $tool->handler === null || ! class_exists($tool->handler)) {
+            $handlerClass = $tool?->handlerClass();
+
+            if ($handlerClass === null) {
                 continue;
             }
 
             // Skip handlers that need constructor args (e.g. DynamicSubAgent) — we have no context to pass.
-            $constructor = new ReflectionClass($tool->handler)->getConstructor();
+            $constructor = new ReflectionClass($handlerClass)->getConstructor();
             if ($constructor !== null && $constructor->getNumberOfRequiredParameters() > 0) {
                 continue;
             }
 
             try {
-                $instance = new $tool->handler();
+                $instance = new $handlerClass();
                 if (method_exists($instance, 'instructions') && ($hint = $instance->instructions()) !== null && $hint !== '') {
                     $lines[] = '- ' . $hint;
                 }

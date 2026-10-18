@@ -54,6 +54,7 @@ use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Templates\Contracts\ExposesTemplateData;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -86,7 +87,7 @@ use Override;
  * @property bool $is_active
  */
 #[ObservedBy([CompaniesObserver::class])]
-class Companies extends BaseModel implements CompanyInterface, Customer
+class Companies extends BaseModel implements CompanyInterface, Customer, ExposesTemplateData
 {
     use HashTableTrait;
     use HasFilesystemTrait;
@@ -741,5 +742,27 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     public function isAIEnabled(): bool
     {
         return (bool) $this->get('ai');
+    }
+
+    #[Override]
+    public function toTemplateData(): array
+    {
+        return [
+            'id' => $this->getId(),
+            'uuid' => $this->uuid,
+            'name' => $this->name,
+            'profile_image' => $this->profile_image,
+            'website' => $this->website,
+            'email' => $this->email,
+            'phone' => $this->phone,
+            'address' => $this->address,
+            'address_2' => $this->address_2,
+            'city' => $this->city,
+            'state' => $this->state,
+            'zip' => $this->zip,
+            'country' => $this->country,
+            'timezone' => $this->timezone,
+            'language' => $this->language,
+        ];
     }
 }
