@@ -177,14 +177,13 @@ class LeadConfigurationServiceV2Test extends TestCase
         $this->assertTrue($lead->isAiFollowUpEnabled());
     }
 
-    public function testLeadManualAiModeKeepsStoredAiFollowUp(): void
+    public function testLeadManualAiModeDoesNotPinAiFollowUp(): void
     {
         $lead = $this->createLead('Internet', ['internet_con_fu_active_default' => FollowUpValueEnum::ON()->value]);
         $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpValueEnum::OFF()->value);
         $lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
 
-        $this->assertSame(FollowUpValueEnum::OFF()->value, $lead->resolveAiFollowUp());
-        $this->assertFalse($lead->isAiFollowUpEnabled());
+        $this->assertSame(FollowUpValueEnum::ON()->value, $lead->resolveAiFollowUp());
     }
 
     public function testLeadManualAiFollowUpKeepsStoredAiFollowUp(): void
