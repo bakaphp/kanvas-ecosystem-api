@@ -440,7 +440,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
 
     public function isAiFollowUpEnabled(): bool
     {
-        $followUpEnabled = $this->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
+        $followUpEnabled = $this->resolveAiFollowUp();
 
         return $followUpEnabled === true
             || $followUpEnabled === 1
@@ -935,6 +935,27 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
             ?? $this->company->get($configurationService->getAiModeKey($this));
 
         return IntelligenceModeEnum::tryFrom((string) $resolvedMode);
+    }
+
+    /**
+     * Same precedence as resolveAiMode(): the lead-type default for the lead's status outranks
+     * the stored value until a human pins the follow-up (or the AI mode, which do-not-contact
+     * relies on), then the company setting fills the gap.
+     */
+    public function resolveAiFollowUp(): mixed
+    {
+        $storedFollowUp = $this->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
+        if ((bool) $this->get(ConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value)
+            || (bool) $this->get(ConfigurationEnum::AI_MODE_IS_MANUAL->value)) {
+            return $storedFollowUp;
+        }
+
+        $configurationService = new LeadConfigurationService();
+        $leadTypeConfig = $this->type()->first()?->config ?? [];
+
+        return $leadTypeConfig[$configurationService->getFollowUpDefaultKey($this)]
+            ?? $storedFollowUp
+            ?? $this->company->get($configurationService->getFollowUpModeKey($this));
     }
 
     public function isAiMuted(): bool
