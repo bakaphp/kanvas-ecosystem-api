@@ -16,9 +16,12 @@ use Tests\Stubs\Intelligence\FakeCrmInventoryToolHandler;
 use Tests\Stubs\Intelligence\FakeCrmOnlyToolHandler;
 use Tests\Stubs\Intelligence\FakeToolHandlerWithoutContract;
 use Tests\TestCase;
+use Tests\Traits\ForcesStoredHandler;
 
 class ReconcileToolKanvasModulesActionTest extends TestCase
 {
+    use ForcesStoredHandler;
+
     private function makeTool(?string $handler): Tool
     {
         return new CreateToolAction(
@@ -30,20 +33,6 @@ class ReconcileToolKanvasModulesActionTest extends TestCase
                 handler: $handler,
             ),
         )->execute();
-    }
-
-    /**
-     * The model refuses a handler that is not a tool, so a bad one only exists when written by hand.
-     */
-    private function toolWithHandWrittenHandler(string $handler): Tool
-    {
-        $tool = $this->makeTool(null);
-
-        DB::connection('intelligence')->table('nervous_system_tools')
-            ->where('id', $tool->getId())
-            ->update(['handler' => $handler]);
-
-        return $tool->refresh();
     }
 
     private function pivotRows(Tool $tool): array
@@ -122,7 +111,7 @@ class ReconcileToolKanvasModulesActionTest extends TestCase
 
     public function testHandlerThatDoesNotImplementContractIsNoOp(): void
     {
-        $tool = $this->toolWithHandWrittenHandler(FakeToolHandlerWithoutContract::class);
+        $tool = $this->forceStoredHandler($this->makeTool(null), FakeToolHandlerWithoutContract::class);
 
         $result = new ReconcileToolKanvasModulesAction($tool)->execute();
 
@@ -132,7 +121,7 @@ class ReconcileToolKanvasModulesActionTest extends TestCase
 
     public function testHandlerWithUnknownClassIsNoOp(): void
     {
-        $tool = $this->toolWithHandWrittenHandler('App\\Doesnt\\Exist');
+        $tool = $this->forceStoredHandler($this->makeTool(null), 'App\\Doesnt\\Exist');
 
         $result = new ReconcileToolKanvasModulesAction($tool)->execute();
 

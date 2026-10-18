@@ -11,14 +11,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Enumerable;
 use JsonSerializable;
 use Kanvas\Templates\Contracts\ExposesTemplateData;
-use stdClass;
 use Stringable;
 use UnitEnum;
 
 /**
- * Turns a context of models and objects into plain arrays and scalars before stored text (a
- * template, a rule condition) is evaluated against it. Reading an unknown property on an Eloquent
- * model calls the method of that name, so a live model must never reach stored text.
+ * Turns a context of models and objects into plain arrays and scalars before stored text (a template,
+ * a rule condition) is evaluated against it. Reading an unknown property on an Eloquent model calls
+ * the method of that name, so a live model must never reach stored text; any other object keeps its
+ * public properties and loses its methods.
  */
 final class PlainData
 {
@@ -36,7 +36,6 @@ final class PlainData
             $value instanceof ExposesTemplateData => $value->toTemplateData(),
             $value instanceof Model => array_merge($value->attributesToArray(), $value->getRelations()),
             $value instanceof Enumerable => $value->all(),
-            $value instanceof stdClass => (array) $value,
             $value instanceof Arrayable => $value->toArray(),
             $value instanceof JsonSerializable => $value->jsonSerialize(),
             $value instanceof BackedEnum => $value->value,
@@ -45,10 +44,14 @@ final class PlainData
             default => $value,
         };
 
+        if (is_object($value)) {
+            $value = get_object_vars($value);
+        }
+
         if (is_array($value)) {
             return array_map(fn (mixed $item): mixed => self::from($item, $depth + 1), $value);
         }
 
-        return is_object($value) ? null : $value;
+        return $value;
     }
 }

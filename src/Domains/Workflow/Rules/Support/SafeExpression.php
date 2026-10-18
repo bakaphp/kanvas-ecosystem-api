@@ -24,10 +24,73 @@ use Symfony\Component\ExpressionLanguage\SyntaxError;
 final class SafeExpression
 {
     /**
-     * The read-only methods production rule conditions call (scan of 2026-10-18): custom fields and
-     * settings, order metadata, message body, tag lookup. Add one only after checking it writes nothing.
+     * Read-only methods a condition may call. A name is allowed on every model a condition reaches, so
+     * one is added only after checking it writes nothing on ANY class in src/ that declares it. Never
+     * add `isActive` (IntegrationsCompany::isActive() saves) or Users::getCurrentCompany()/getApp*()
+     * (they create rows). `Lead::isOpen()` reads a column nothing writes; use `hasOpenLeadStatus()`.
      */
-    public const array GETTERS = ['get', 'getMetadata', 'getMessage', 'hasTag'];
+    public const array GETTERS = [
+        'get',
+        'getMetadata',
+        'getMessage',
+        'hasTag',
+        'getId',
+        'getUuid',
+        'hasTags',
+        'getBool',
+        'getEmail',
+        'getPhone',
+        'getOrderNumber',
+        'getTotalAmount',
+        'getSubTotalAmount',
+        'getTotalTaxAmount',
+        'getTotalDueAmount',
+        'getPaidAmount',
+        'getRefundedAmount',
+        'isPaid',
+        'isCompleted',
+        'isFulfilled',
+        'isFullyCompleted',
+        'isDuplicate',
+        'hasAuthorizedPayment',
+        'hasProcessingPayment',
+        'hasOpenLeadStatus',
+        'isOpenLeadStatusId',
+        'hasBeenContacted',
+        'isServiceLead',
+        'isAiMuted',
+        'isAiSupport',
+        'isAiFollowUpEnabled',
+        'isFollowUpExhausted',
+        'getFollowUpStateCount',
+        'getFollowUpLastAt',
+        'getFollowUpChannelsUsed',
+        'getFollowUpExhaustedReason',
+        'getFollowUpStageEnteredAt',
+        'getCurrentPipelineStage',
+        'getNextPipelineStage',
+        'getName',
+        'getDisplayName',
+        'getFirstAndLastName',
+        'getEmails',
+        'getPhones',
+        'getCellPhones',
+        'getAllPhones',
+        'getDefaultAddress',
+        'getBillingAddressArray',
+        'getDriverLicense',
+        'isAdmin',
+        'isBanned',
+        'getAlternativeEmail',
+        'getCurrentBranch',
+        'getTimezone',
+        'isAIEnabled',
+        'isPublic',
+        'isLocked',
+        'isApproved',
+        'isCommunicationMessage',
+        'hasCategory',
+    ];
 
     public static function evaluate(string $expression, array $values): mixed
     {

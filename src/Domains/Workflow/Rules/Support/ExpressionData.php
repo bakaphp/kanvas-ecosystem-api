@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Rules\Support;
 
 use ArrayAccess;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Enumerable;
+use Kanvas\Templates\Support\PlainData;
 use Override;
 
 /**
@@ -41,13 +43,18 @@ final class ExpressionData implements ArrayAccess
         return array_map(self::wrapValue(...), $values);
     }
 
+    /**
+     * Only a model (through ExpressionModel) can take a method call. Any other object is flattened, so
+     * an allowlisted name such as get() never reaches a client or cache that happens to be in context.
+     */
     public static function wrapValue(mixed $value): mixed
     {
         return match (true) {
             is_array($value) => new self($value),
             $value instanceof Model => new ExpressionModel($value),
             $value instanceof Enumerable => new self($value->all()),
-            default => $value,
+            $value instanceof DateTimeInterface, ! is_object($value) => $value,
+            default => self::wrapValue(PlainData::from($value)),
         };
     }
 

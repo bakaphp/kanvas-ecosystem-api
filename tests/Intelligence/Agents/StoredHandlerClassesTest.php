@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Agents;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Apps\Models\Apps;
@@ -20,6 +19,7 @@ use Kanvas\Workflow\Models\WorkflowAction;
 use Kanvas\Workflow\Rules\Enums\ActionKindEnum;
 use Tests\Stubs\Intelligence\FakeCrmOnlyToolHandler;
 use Tests\TestCase;
+use Tests\Traits\ForcesStoredHandler;
 
 /**
  * Class names stored in agent types, tools, approval policies and receiver actions are built at run
@@ -27,6 +27,7 @@ use Tests\TestCase;
  */
 final class StoredHandlerClassesTest extends TestCase
 {
+    use ForcesStoredHandler;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'ecosystem', 'intelligence', 'workflow'];
@@ -43,11 +44,7 @@ final class StoredHandlerClassesTest extends TestCase
         $agentType = AgentType::factory()->create(['handler' => KanvasGenericNeuronAgent::class]);
         $this->assertSame(KanvasGenericNeuronAgent::class, $agentType->handlerClass());
 
-        DB::connection('intelligence')->table('agent_types')
-            ->where('id', $agentType->getId())
-            ->update(['handler' => Users::class]);
-
-        $this->assertNull($agentType->refresh()->handlerClass());
+        $this->assertNull($this->forceStoredHandler($agentType, Users::class)->handlerClass());
     }
 
     public function testAToolHandlerMustBeATool(): void

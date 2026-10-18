@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
-use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Laravel\KanvasGenericLaravelAgent;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\InventorySearchTool;
@@ -14,9 +13,12 @@ use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
 use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
 use Tests\TestCase;
+use Tests\Traits\ForcesStoredHandler;
 
 class KanvasGenericLaravelAgentTest extends TestCase
 {
+    use ForcesStoredHandler;
+
     public function testInstructionsConcatenatesSoulInstructionsAndOutputFormat(): void
     {
         $agent = $this->makeAgentRecord(
@@ -133,10 +135,7 @@ class KanvasGenericLaravelAgentTest extends TestCase
             ),
         )->execute();
 
-        // The model refuses a handler that is not a tool, so a stale one only exists written by hand.
-        DB::connection('intelligence')->table('nervous_system_tools')
-            ->where('id', $badHandlerTool->getId())
-            ->update(['handler' => 'NonExistent\\Tool\\Class']);
+        $this->forceStoredHandler($badHandlerTool, 'NonExistent\\Tool\\Class');
 
         $agent = $this->makeAgentRecord();
         $agent->selectedTools()->sync([$nullHandlerTool->getId(), $badHandlerTool->getId()]);

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Rules\Support\SafeExpression;
 use Tests\TestCaseUnit;
+use Throwable;
 
 final class SafeExpressionTest extends TestCaseUnit
 {
@@ -85,6 +86,34 @@ final class SafeExpressionTest extends TestCaseUnit
         }
     }
 
+    public function testAnAllowedNameCannotReachANonModelObject(): void
+    {
+        $client = new class () {
+            public static bool $called = false;
+
+            public function get(string $url): string
+            {
+                self::$called = true;
+
+                return 'response';
+            }
+        };
+
+        try {
+            SafeExpression::evaluate("client.get('http://169.254.169.254/') != ''", ['client' => $client]);
+        } catch (Throwable) {
+        }
+
+        $this->assertFalse($client::$called);
+    }
+
+    public function testASetterNamedLikeAGetterIsNotAllowed(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        SafeExpression::assertCondition('integration.isActive(false) == true');
+    }
+
     public function testTextCannotCallEvenTheAllowedGetters(): void
     {
         $this->expectException(ValidationException::class);
@@ -104,6 +133,7 @@ final class SafeExpressionTest extends TestCaseUnit
     public function testSavedConditionsAreCheckedWithoutTheirVariables(): void
     {
         SafeExpression::assertCondition("(message.getMessage()['from_me'] ?? false) == false");
+        SafeExpression::assertCondition('order.getTotalAmount() > 100 and order.isPaid() and lead.hasOpenLeadStatus()');
 
         $this->expectException(ValidationException::class);
 
