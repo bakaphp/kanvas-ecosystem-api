@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\ELead;
+namespace Tests\Connectors\Integration\SalesAssist;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Elead\Actions\AttachTradeInPhotosAction;
+use Kanvas\Connectors\SalesAssist\Actions\AttachTradeInPhotosAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;

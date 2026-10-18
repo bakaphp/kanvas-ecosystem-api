@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Elead\Actions;
+namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Baka\Enums\StateEnums;
 use Illuminate\Support\Collection;
-use Kanvas\Connectors\Elead\DataTransferObject\TradeIn;
+use Kanvas\Connectors\SalesAssist\DataTransferObject\TradeIn;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Social\Messages\Models\Message;

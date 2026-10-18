@@ -2,12 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Elead\DataTransferObject;
+namespace Kanvas\Connectors\SalesAssist\DataTransferObject;
 
 use Baka\Support\Arr;
 use Baka\Support\Str;
 use Spatie\LaravelData\Data;
 
+/**
+ * A submitted trade-in form, read the same way for every dealer CRM (Elead, VinSolution, ...)
+ * and the trade-in PDF; each connector maps it onto its own API payload.
+ */
 class TradeIn extends Data
 {
     /**
@@ -23,6 +27,12 @@ class TradeIn extends Data
         'interior_color' => ['int_color', 'interior_color'],
         'exterior_color' => ['ext_color', 'exterior_color'],
         'transmission' => ['transmission', 'trans'],
+        'body_style' => ['body_style', 'body_type'],
+        'engine' => ['engine'],
+        'drive_train' => ['drive_train', 'drivetrain'],
+        'doors' => ['doors'],
+        'value' => ['value'],
+        'payoff' => ['payoff_amount', 'payoff'],
     ];
 
     public function __construct(
@@ -31,10 +41,16 @@ class TradeIn extends Data
         public readonly string $model,
         public readonly string $trim,
         public readonly string $vin,
-        public readonly int $estimatedMileage,
+        public readonly int $mileage,
         public readonly string $interiorColor,
         public readonly string $exteriorColor,
         public readonly string $transmission = '',
+        public readonly string $bodyStyle = '',
+        public readonly string $engine = '',
+        public readonly string $driveTrain = '',
+        public readonly string $doors = '',
+        public readonly float $value = 0.0,
+        public readonly float $payoff = 0.0,
         /** @var array<string, int[]> filesystem ids per upload field, e.g. upload_vehicle_photo => [1, 2] */
         public readonly array $photoIds = [],
     ) {
@@ -62,6 +78,7 @@ class TradeIn extends Data
 
             return '';
         };
+        $number = fn (string $name): string => str_replace([',', '$'], '', $field($name));
 
         return new self(
             year: (int) $field('year'),
@@ -69,10 +86,16 @@ class TradeIn extends Data
             model: $field('model'),
             trim: substr($field('trim'), 0, 50),
             vin: strtoupper($field('vin')),
-            estimatedMileage: (int) str_replace(',', '', $field('mileage')),
+            mileage: (int) $number('mileage'),
             interiorColor: $field('interior_color'),
             exteriorColor: $field('exterior_color'),
             transmission: $field('transmission'),
+            bodyStyle: $field('body_style'),
+            engine: $field('engine'),
+            driveTrain: $field('drive_train'),
+            doors: $field('doors'),
+            value: round(max(0.0, (float) $number('value')), 2),
+            payoff: round(max(0.0, (float) $number('payoff')), 2),
             photoIds: self::photoIdsFrom($form),
         );
     }
@@ -98,7 +121,7 @@ class TradeIn extends Data
     }
 
     /**
-     * eLead rejects a trade-in without a VIN or a year/make/model (InsufficientTradeInDetails).
+     * CRMs reject a trade-in without a VIN or a year/make/model (eLead: InsufficientTradeInDetails).
      */
     public function hasEnoughDetails(): bool
     {

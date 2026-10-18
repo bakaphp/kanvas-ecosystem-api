@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Actions;
 
-use Kanvas\Connectors\Elead\DataTransferObject\TradeIn;
+use Kanvas\Connectors\SalesAssist\DataTransferObject\TradeIn;
 use Kanvas\Guild\Leads\Models\Lead;
 
 class AddTradeInAction
