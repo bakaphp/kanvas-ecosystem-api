@@ -160,12 +160,32 @@ trait ActivityIntegrationTrait
             ];
         }
 
+        return $this->runForIntegrationCompany(
+            entity: $entity,
+            app: $app,
+            integrationCompany: $integrationCompany,
+            integrationOperation: $integrationOperation,
+            additionalParams: $additionalParams,
+            throwException: $throwException
+        );
+    }
+
+    /**
+     * Runs the operation and records it in the integration's history. For an activity that already
+     * holds the integration it acts for, rather than looking one up by name and region.
+     */
+    public function runForIntegrationCompany(
+        Model $entity,
+        AppInterface $app,
+        IntegrationsCompany $integrationCompany,
+        callable $integrationOperation,
+        array $additionalParams = [],
+        bool $throwException = false
+    ): array {
         $response = null;
         $exception = null;
-        $status = $activeStatus;
 
         try {
-            // Execute the integration operation
             $response = $integrationOperation($entity, $app, $integrationCompany, $additionalParams);
             $status = $this->getStatus($this->workflowStatus ?? StatusEnum::CONNECTED);
         } catch (Throwable $exception) {
@@ -176,7 +196,6 @@ trait ActivityIntegrationTrait
             }
         }
 
-        // Record integration history
         $this->addToIntegrationHistory(
             $app,
             $integrationCompany,
@@ -195,8 +214,8 @@ trait ActivityIntegrationTrait
         if ($exception) {
             return [
                 'error' => $exception->getMessage(),
-                'company' => $company->getId(),
-                'integration' => $integration->value,
+                'company' => $integrationCompany->companies_id,
+                'integration' => $integrationCompany->integration?->name,
                 'entity_id' => $entity->getId(),
                 'trace' => $exception->getTraceAsString(),
             ];

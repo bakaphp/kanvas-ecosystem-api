@@ -30,7 +30,9 @@ trait HandlesSupportModeDelayedResponseTrait
         string $actionClass,
         ?Session $session = null
     ): ?array {
-        if (! $this->isSupportModeDelayedResponseEnabled($app)) {
+        // First: the working-hours check throws for a company with no schedule, and a lead that is
+        // not in support mode has no business asking it — that company's agent would never answer.
+        if (! $this->isSupportModeDelayedResponseEnabled($app) || ! $lead->isAiSupport()) {
             return null;
         }
 
@@ -40,10 +42,6 @@ trait HandlesSupportModeDelayedResponseTrait
             ->exists();
 
         if (! $isWithinWorkingHours && ! $hasHumanMessage) {
-            return null;
-        }
-
-        if (! $lead->isAiSupport()) {
             return null;
         }
 

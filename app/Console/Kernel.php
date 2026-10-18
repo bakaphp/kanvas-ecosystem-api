@@ -4,6 +4,7 @@ namespace App\Console;
 
 use App\Console\Commands\Analytics\Schedules\AnalyticsSchedule;
 use App\Console\Commands\Approvals\ExpireApprovalRequestsCommand;
+use App\Console\Commands\Communication\Schedules\CommunicationSchedule;
 use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
 use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
@@ -124,6 +125,9 @@ class Kernel extends ConsoleKernel
 
         // Analytics — weekly Engage usage leaderboard to each company's managers.
         AnalyticsSchedule::register($schedule);
+
+        // Communication — the setup/cleanup sweep for messaging connections.
+        CommunicationSchedule::register($schedule);
 
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()

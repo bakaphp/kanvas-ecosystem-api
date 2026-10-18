@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\GraphQL\Workflow\Mutations\Integrations;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Connections\Actions\SetIntegrationActiveAction;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Exceptions\InternalServerErrorException;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
 use Kanvas\Workflow\Integrations\Actions\RemoveIntegrationCompanyAction;
+use Kanvas\Workflow\Integrations\Actions\UpdateIntegrationCompanyAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany as ModelsIntegrationsCompany;
@@ -70,13 +73,25 @@ class IntegrationsMutation
                             ->first();
         }
 
+        $integrationDto->persistedConfig = $handlerInstance->persistedConfig();
+
         $integrationCompany = new CreateIntegrationCompanyAction(
             $integrationDto,
             $user,
             $status
         )->execute();
 
-        return $integrationCompany;
+        if ($integrationCompany->wasRecentlyCreated) {
+            return $integrationCompany;
+        }
+
+        // Saving an integration that already exists is how a tenant corrects credentials or changes
+        // the accounts it selected, so the row has to reflect this setup(), not the first one.
+        return new UpdateIntegrationCompanyAction(
+            $integrationCompany,
+            $integrationDto,
+            $status
+        )->execute();
     }
 
     // The edit must only validate the config and re-setup the integration.
@@ -90,7 +105,7 @@ class IntegrationsMutation
 
     public function removeIntegrationCompany(mixed $root, array $request): bool
     {
-        $integrationCompany = ModelsIntegrationsCompany::getById((int) $request['id']);
+        $integrationCompany = $this->manageableIntegrationCompany((int) $request['id']);
 
         CompaniesRepository::userAssociatedToCompany(
             $integrationCompany->company,
@@ -102,14 +117,18 @@ class IntegrationsMutation
 
     public function integrationCompanyIsActive(mixed $root, array $request): bool
     {
-        $integrationCompany = ModelsIntegrationsCompany::getById((int) $request['input']['id']);
+        $integrationCompany = $this->manageableIntegrationCompany((int) $request['input']['id']);
 
         CompaniesRepository::userAssociatedToCompany(
             $integrationCompany->company,
             auth()->user()
         );
 
-        return $integrationCompany->isActive((bool) $request['input']['is_active']);
+        return new SetIntegrationActiveAction(
+            app(Apps::class),
+            $integrationCompany,
+            (bool) $request['input']['is_active']
+        )->execute();
     }
 
     public function integrationWorkflowRetry(mixed $root, array $request): bool
@@ -133,5 +152,19 @@ class IntegrationsMutation
         );
 
         return true;
+    }
+
+    /**
+     * getById() alone would let a user reach an integration of the same company in another app.
+     */
+    protected function manageableIntegrationCompany(int $id): ModelsIntegrationsCompany
+    {
+        $integrationCompany = ModelsIntegrationsCompany::getById($id);
+
+        if (! $integrationCompany->isManageableFrom(app(Apps::class))) {
+            throw new ModelNotFoundException('Integration not found for this app.');
+        }
+
+        return $integrationCompany;
     }
 }

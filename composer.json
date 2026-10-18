@@ -126,6 +126,7 @@
             "Kanvas\\Souk\\": "src/Domains/Souk",
             "Kanvas\\Workflow\\": "src/Domains/Workflow",
             "Kanvas\\Connectors\\": "src/Domains/Connectors",
+            "Kanvas\\Communication\\": "src/Domains/Communication",
             "Kanvas\\Dashboard\\": "src/Domains/Dashboard",
             "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
             "Kanvas\\Event\\": "src/Domains/Event",
