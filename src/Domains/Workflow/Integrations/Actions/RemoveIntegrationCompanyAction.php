@@ -10,6 +10,7 @@ use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Rules\Actions\RemoveIntegrationDefaultRulesAction;
 
 final class RemoveIntegrationCompanyAction
 {
@@ -29,6 +30,7 @@ final class RemoveIntegrationCompanyAction
             throw new ModelNotFoundException('Integration not found for this app.');
         }
 
+        new RemoveIntegrationDefaultRulesAction($this->integrationCompany, $this->app)->execute();
         $this->retireConnections();
         $this->teardownHandler();
 
@@ -50,18 +52,6 @@ final class RemoveIntegrationCompanyAction
 
     private function teardownHandler(): void
     {
-        $handler = $this->integrationCompany->integration?->handler;
-
-        if (! is_string($handler) || ! is_subclass_of($handler, BaseIntegration::class)) {
-            return;
-        }
-
-        new $handler(
-            app: $this->app,
-            company: $this->integrationCompany->company,
-            region: $this->integrationCompany->region,
-            data: [],
-            integration: $this->integrationCompany->integration,
-        )->teardown();
+        BaseIntegration::forIntegrationCompany($this->integrationCompany, $this->app)?->teardown();
     }
 }

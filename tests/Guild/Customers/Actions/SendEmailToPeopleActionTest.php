@@ -88,6 +88,32 @@ final class SendEmailToPeopleActionTest extends TestCase
         );
     }
 
+    public function testMarksTheEmailImportantOnlyWhenRequested(): void
+    {
+        Notification::fake();
+        $person = $this->freshPerson(Companies::factory()->create());
+
+        new SendEmailToPeopleAction($person)->execute(to: 'test@example.test', message: 'Hi there', important: true);
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => $notification->isImportant(),
+        );
+    }
+
+    public function testIsNotImportantByDefault(): void
+    {
+        Notification::fake();
+        $person = $this->freshPerson(Companies::factory()->create());
+
+        new SendEmailToPeopleAction($person)->execute(to: 'test@example.test', message: 'Hi there');
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => ! $notification->isImportant(),
+        );
+    }
+
     public function testThrowsWhenThereIsNoDestinationAddress(): void
     {
         $person = $this->freshPerson(Companies::factory()->create());

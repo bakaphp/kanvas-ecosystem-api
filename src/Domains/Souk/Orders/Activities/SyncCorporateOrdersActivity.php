@@ -31,7 +31,7 @@ class SyncCorporateOrdersActivity extends KanvasActivity
                 if ($reassigned === null) {
                     return [
                         'result' => false,
-                        'message' => 'Order not reassigned: not a processed corporate order, no valid creator, or already owned by it.',
+                        'message' => 'Order not reassigned: not a corporate order, no valid creator, or already owned by it.',
                         'order_id' => $order->getId(),
                     ];
                 }

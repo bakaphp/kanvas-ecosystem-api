@@ -33,7 +33,8 @@ class AddLeadNoteTool extends Tool
     protected ?string $description = 'Write a note on a lead so the team sees it in the lead\'s activity thread. '
         . 'Use this whenever you are asked to "leave a note", "log this on the lead", or to record '
         . 'why something was done (why a lead was closed, what a customer asked for, what you did). '
-        . 'Use search_leads to get the lead_id first. '
+        . 'Use search_leads to get the lead_id first. A document the person sent with the request goes in '
+        . 'filesystem_ids so it is attached to the note, never as a URL in the text. '
         . 'This writes to the activity thread — use update_lead_description for the lead\'s main '
         . 'Description box, and set_lead_status to actually change the lead\'s status.';
 
@@ -56,13 +57,14 @@ class AddLeadNoteTool extends Tool
                 description: 'The note text, written for a human teammate to read.',
                 required: true,
             ),
+            $this->noteFilesProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $lead_id, string $note): array
+    public function __invoke(int $lead_id, string $note, array|int|string|null $filesystem_ids = null): array
     {
         $note = trim($note);
 
@@ -88,6 +90,7 @@ class AddLeadNoteTool extends Tool
             $note,
             'lead_id',
             'the lead\'s activity thread',
+            $this->normalizeIds($filesystem_ids),
         );
     }
 }

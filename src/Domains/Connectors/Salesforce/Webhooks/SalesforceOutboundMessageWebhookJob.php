@@ -8,6 +8,7 @@ use Kanvas\Connectors\Salesforce\Actions\PullDealAction;
 use Kanvas\Connectors\Salesforce\Actions\PullLeadAction;
 use Kanvas\Connectors\Salesforce\Actions\PullOrganizationAction;
 use Kanvas\Connectors\Salesforce\Actions\PullPeopleAction;
+use Kanvas\Connectors\Salesforce\Actions\PullPropertyAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
@@ -15,8 +16,8 @@ use SimpleXMLElement;
 use Throwable;
 
 /**
- * One job handles all four Salesforce objects — Salesforce Outbound Messages are configured per
- * object in Salesforce Setup (one Workflow Rule each), so there are four `ReceiverWebhook` rows
+ * One job handles all five Salesforce objects — Salesforce Outbound Messages are configured per
+ * object in Salesforce Setup (one Workflow Rule each), so there are five `ReceiverWebhook` rows
  * pointing at this same job, each carrying `configuration['salesforce_object']` to say which one.
  *
  * The Ack Salesforce needs (`<notificationsResponse><Ack>true</Ack></notificationsResponse>`) is
@@ -116,6 +117,7 @@ class SalesforceOutboundMessageWebhookJob extends ProcessWebhookJob
             'Contact' => new PullPeopleAction($app, $company, $fields, $salesforceId)->execute(),
             'Account' => new PullOrganizationAction($app, $company, $fields, $salesforceId)->execute(),
             'Opportunity' => new PullDealAction($app, $company, $fields, $salesforceId)->execute(),
+            'Location__c' => new PullPropertyAction($app, $company, $company->user, $fields, $salesforceId)->execute(),
             default => null,
         };
 

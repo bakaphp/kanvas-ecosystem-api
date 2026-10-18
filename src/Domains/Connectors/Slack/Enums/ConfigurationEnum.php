@@ -19,4 +19,10 @@ enum ConfigurationEnum: string
     case CHANNEL_DENY_LIST = 'channel_deny_list';
     case INGEST_FILES = 'ingest_files';
     case CHANNELS_JOINED = 'channels_joined';
+
+    // Agent app only: rooms whose history has been pulled once the bot could read them, and how far
+    // back that pull reaches (days). Both live on the receiver because the agent's own custom fields
+    // are shared with the container runtimes.
+    case CHANNELS_BACKFILLED = 'channels_backfilled';
+    case BACKFILL_DAYS = 'backfill_days';
 }

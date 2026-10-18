@@ -21,6 +21,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetSalesSummaryTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ImportPeopleListTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListPeopleTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadLeadActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadOrganizationActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadPersonActivityTool;
@@ -91,6 +92,7 @@ class SalesManagerAgent extends SystemUserAgent
         $core[] = new TagLeadTool()->withContext($app, $company, $user);
         $core[] = new FindPersonTool()->withContext($app, $company, $user);
         $core[] = new FindPeopleBulkTool()->withContext($app, $company, $user);
+        $core[] = new ListPeopleTool()->withContext($app, $company, $user);
         $core[] = new GetPersonTool()->withContext($app, $company, $user);
         $core[] = new AddPersonNoteTool()->withContext($app, $company, $user);
         $core[] = new AddOrganizationNoteTool()->withContext($app, $company, $user);

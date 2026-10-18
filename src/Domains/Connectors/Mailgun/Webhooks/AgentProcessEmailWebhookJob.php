@@ -61,6 +61,10 @@ class AgentProcessEmailWebhookJob extends ProcessWebhookJob
             ? null
             : MailgunConsentService::process($lead ?? $people, new MailgunPayloadService($this->webhookRequest->payload));
 
+        if ($lead !== null && $consentOutcome?->isStop() !== true) {
+            $lead->addTag('engaged');
+        }
+
         $message = new CreateMessageFromEmailAction(
             $this->webhookRequest,
             $lead,

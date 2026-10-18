@@ -6,10 +6,13 @@ namespace Kanvas\Workflow\Integrations\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Actions\ScheduleCommunicationSetupAction;
+use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany as IntegrationsCompanyModel;
 use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\Workflow\Rules\Actions\EnsureIntegrationDefaultRulesAction;
 
 class CreateIntegrationCompanyAction
 {
@@ -42,6 +45,10 @@ class CreateIntegrationCompanyAction
             // schedules setup itself.
             if ($integrationCompany->wasRecentlyCreated) {
                 new ScheduleCommunicationSetupAction($this->dto->app, $integrationCompany)->execute();
+            }
+
+            if ($this->status->slug === StatusEnum::ACTIVE->value && $this->dto->app instanceof Apps) {
+                new EnsureIntegrationDefaultRulesAction($integrationCompany, $this->dto->app, $this->user)->execute();
             }
 
             return $integrationCompany;

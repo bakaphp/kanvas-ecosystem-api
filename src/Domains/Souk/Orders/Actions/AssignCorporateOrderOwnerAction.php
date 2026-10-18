@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Support\Facades\Log;
-use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
-use Kanvas\Connectors\PasoRapido\Enums\CustomFieldEnum as PasoRapidoCustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 
 class AssignCorporateOrderOwnerAction
 {
@@ -25,7 +22,7 @@ class AssignCorporateOrderOwnerAction
         $resolver = new ResolveCorporateOrderCreatorAction($this->order);
         $rawCompanyId = $resolver->metadataValue(ResolveCorporateOrderCreatorAction::COMPANY_METADATA_KEY);
 
-        if ($rawCompanyId === null || ! $this->isProcessed()) {
+        if ($rawCompanyId === null) {
             return null;
         }
 
@@ -60,20 +57,5 @@ class AssignCorporateOrderOwnerAction
         $this->order->searchable();
 
         return $this->order;
-    }
-
-    private function isProcessed(): bool
-    {
-        if ($this->order->orderType?->name !== OrderTypeEnum::PASO_RAPIDO->value) {
-            return true;
-        }
-
-        if (($this->order->metadata['data']['is_bulk_recharge'] ?? false) === true) {
-            return collect($this->order->metadata['corporate_recharge_results'] ?? [])
-                ->contains(fn (array $result) => ($result['status'] ?? null) === 'success');
-        }
-
-        return $this->order->payment_status === PaymentStatusEnum::PAID->value
-            && $this->order->get(PasoRapidoCustomFieldEnum::PASO_RAPIDO_PAYMENT_STATUS->value) === PaymentStatusEnum::PAID->value;
     }
 }

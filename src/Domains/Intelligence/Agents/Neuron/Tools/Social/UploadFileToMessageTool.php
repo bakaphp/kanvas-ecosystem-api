@@ -33,8 +33,10 @@ class UploadFileToMessageTool extends Tool
     protected ?string $description = 'Attach a file or media to an existing message / activity post, so it shows up with the '
         . 'message instead of only as text. Normally you pass `content` — the full text of the document '
         . 'you wrote — plus a `file_name` ending in .md, .txt, .csv or .json. Pass `file_url` instead when '
-        . 'the file or image already exists at a public URL. Use create_message to create the message '
-        . 'first and take its message_id from there.';
+        . 'the file or image already exists at a public URL, or `filesystem_id` for a file already in '
+        . 'Kanvas — the id in an "Attached file on this message" marker, e.g. a document a person '
+        . 'dropped in the chat that belongs on the post you wrote. Use create_message to create the '
+        . 'message first and take its message_id from there.';
 
     /**
      * @return array<int, ToolProperty>
@@ -61,6 +63,7 @@ class UploadFileToMessageTool extends Tool
         ?string $file_name = null,
         ?string $content = null,
         ?string $file_url = null,
+        ?int $filesystem_id = null,
     ): array {
         $result = $this->resolveMessageOrError($message_id);
         if (is_array($result)) {
@@ -76,6 +79,7 @@ class UploadFileToMessageTool extends Tool
                 fileUrl: $file_url,
                 content: $content,
                 fileName: $file_name,
+                filesystemId: $filesystem_id,
             ),
         ];
     }

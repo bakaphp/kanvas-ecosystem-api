@@ -98,7 +98,7 @@ class ScoutProductIndexProcessCommand extends Command
                 options: [
                     1 => 'Delete',
                     2 => 'Reindex',
-                    3 => 'Remove products with all variants unpublished on default channel',
+                    3 => 'Remove products with no variants published on default channel',
                     4 => 'Delete all products from index',
                 ],
             );
@@ -203,7 +203,7 @@ class ScoutProductIndexProcessCommand extends Command
         }
 
         $companyInfo = " for Company ID: {$companyId}";
-        $this->info('Removing products with all variants unpublished on default channel from scout index for App ' . $app->name . $companyInfo);
+        $this->info('Removing products with no variants published on default channel from scout index for App ' . $app->name . $companyInfo);
 
         // Get the company
         $company = Companies::getById((int) $companyId);
@@ -217,19 +217,7 @@ class ScoutProductIndexProcessCommand extends Command
             return;
         }
 
-        // Get products that are published but have no variants published on the default channel
-        $query = Products::fromApp($app)
-            //->where('is_published', 1)
-            ->where('is_deleted', 0)
-            ->where('companies_id', $companyId)
-            ->whereHas('variants') // Ensure the product has variants
-            ->whereDoesntHave('variants.variantChannels', function (Builder $q) use ($defaultChannel): void {
-                $q->where('channels_id', $defaultChannel->getId())
-                  ->where('is_published', 1)
-                  ->where('is_deleted', 0);
-            });
-
-        $products = $query->cursor();
+        $products = $this->productsWithoutPublishedVariantsQuery($app, $company, $defaultChannel)->cursor();
 
         $i = 0;
         foreach ($products as $product) {
@@ -238,7 +226,22 @@ class ScoutProductIndexProcessCommand extends Command
             sleep(1);
         }
 
-        $this->info('Total products with all variants unpublished on default channel removed from search: ' . $i);
+        $this->info('Total products with no variants published on default channel removed from search: ' . $i);
+    }
+
+    /**
+     * A product with no live variants has nothing to sell on the channel, so it counts as unpublished too.
+     */
+    public function productsWithoutPublishedVariantsQuery(Apps $app, Companies $company, Channels $channel): Builder
+    {
+        return Products::fromApp($app)
+            ->where('is_deleted', 0)
+            ->where('companies_id', $company->getId())
+            ->whereDoesntHave('variants.variantChannels', function (Builder $q) use ($channel): void {
+                $q->where('channels_id', $channel->getId())
+                  ->where('is_published', 1)
+                  ->where('is_deleted', 0);
+            });
     }
 
     public function cleanAllInventoryFromIndex(Apps $app, ?string $companyId = null): void

@@ -22,6 +22,7 @@ use Kanvas\Workflow\Integrations\DataTransferObject\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory as ModelsEntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Throwable;
 
@@ -33,6 +34,16 @@ trait ActivityIntegrationTrait
     public function setWorkflowStatus(StatusEnum $status): void
     {
         $this->workflowStatus = $status;
+    }
+
+    public function workflowStatus(): ?StatusEnum
+    {
+        return $this->workflowStatus;
+    }
+
+    public function lastIntegrationHistory(): ?ModelsEntityIntegrationHistory
+    {
+        return $this->lastIntegrationHistory;
     }
 
     public function failWorkflow(array $message): array
@@ -90,7 +101,8 @@ trait ActivityIntegrationTrait
             response: $historyResponse ?? null,
             exception: $exception,
             workflowId: $this->workflowId(),
-            rule: $rule
+            rule: $rule,
+            action: Action::forHandler(static::class),
         );
 
         $this->lastIntegrationHistory = new AddEntityIntegrationHistoryAction(
@@ -102,7 +114,7 @@ trait ActivityIntegrationTrait
         return $this->lastIntegrationHistory;
     }
 
-    protected function buildIntegrationHistoryInput(Model $entity, array $params): array
+    public function buildIntegrationHistoryInput(Model $entity, array $params): array
     {
         return [
             'entity' => $entity->toArray(),

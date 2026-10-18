@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\DriveCentric\Actions;
 
+use Kanvas\Connectors\SalesAssist\Actions\RecordLeadVehicleNotesAction;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\Enums\LeadVehicleNoteEnum;
 use Kanvas\Guild\Leads\Models\Lead as LeadModel;
 use Kanvas\Social\Messages\Models\Message;
 
@@ -26,6 +28,7 @@ class ProcessPurchaseVehicleAction
         if (! empty($tradeInData)) {
             // Save trade-in data to lead custom field
             $this->lead->set(LeadCustomFieldEnum::TRADE_IN->value, $tradeInData);
+            new RecordLeadVehicleNotesAction($this->lead, LeadVehicleNoteEnum::TRADE_IN)->execute();
 
             // Push the lead with trade-in data to DriveCentric
             $pushLeadAction = new PushLeadAction($this->lead);

@@ -12,6 +12,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Support\ApiCallTracker;
+use Psr\Http\Message\ResponseInterface;
 use RuntimeException;
 
 class Client
@@ -155,12 +156,7 @@ class Client
                 $params
             );
 
-            $returnData = $response->getBody()->getContents();
-
-            return $returnData ? json_decode(
-                $returnData,
-                true
-            ) : [];
+            return $this->decodeBody($response);
         } catch (RequestException $e) {
             $this->tracker()->trackError($e->getCode());
 
@@ -188,10 +184,7 @@ class Client
                 $params
             );
 
-            return ! empty($response->getBody()->getContents()) ? json_decode(
-                $response->getBody()->getContents(),
-                true
-            ) : [];
+            return $this->decodeBody($response);
         } catch (RequestException $e) {
             $this->tracker()->trackError($e->getCode());
 
@@ -217,14 +210,21 @@ class Client
                 $params
             );
 
-            return ! empty($response->getBody()->getContents()) ? json_decode(
-                $response->getBody()->getContents(),
-                true
-            ) : [];
+            return $this->decodeBody($response);
         } catch (RequestException $e) {
             $this->tracker()->trackError($e->getCode());
 
             throw $e;
         }
+    }
+
+    /**
+     * Writes answer 204 or an empty body; a PSR-7 stream is read-once, so the body is read a single time.
+     */
+    private function decodeBody(ResponseInterface $response): array
+    {
+        $decoded = json_decode($response->getBody()->getContents(), true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Actions;
 
+use Kanvas\Connectors\SalesAssist\DataTransferObject\TradeIn as SalesAssistTradeIn;
 use Kanvas\Connectors\VinSolution\DataTransferObject\TradeIn;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
@@ -24,6 +25,13 @@ class PushTradeInAction
 
     public function execute(): array
     {
+        $tradeIn = TradeIn::from($this->message, $this->lead);
+        $form = SalesAssistTradeIn::fromMessageData((array) ($this->message->message['data'] ?? []));
+
+        if (! $tradeIn->isPayoffOnly() && ! $form->hasEnoughDetails()) {
+            return [];
+        }
+
         $vinCompany = Dealer::getById($this->lead->company->get(ConfigurationEnum::COMPANY->value), $this->lead->app);
 
         $vinUser = LeadUserService::resolve($this->lead);
@@ -45,7 +53,7 @@ class PushTradeInAction
         return $vinLead->addTradeIn(
             $vinCompany,
             $user,
-            TradeIn::from($this->message, $this->lead)->toVinSolutionArray()
+            $tradeIn->toVinSolutionArray()
         );
     }
 }

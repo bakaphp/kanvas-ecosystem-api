@@ -7,10 +7,14 @@ namespace Tests\Connectors\Integration\Slack;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Slack\Actions\CreateMessageFromSlackEventAction;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Slack\Jobs\BackfillSlackChannelHistoryJob;
+use Kanvas\Connectors\Slack\Services\SlackThreadContextService;
 use Kanvas\Connectors\Slack\Webhooks\ProcessSlackWebhookJob;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -21,6 +25,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Kanvas\Workflow\Models\WorkflowAction;
 use Tests\Stubs\Intelligence\EmptyReplyNeuronAgentStub;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
@@ -302,8 +307,9 @@ final class ProcessSlackWebhookJobTest extends TestCase
         $this->assertSame('Bot message ignored', $result['message']);
     }
 
-    public function testChannelMessageWithoutMentionIsIgnored(): void
+    public function testRoomChatterIsRecordedButNotAnswered(): void
     {
+        Queue::fake();
         $this->fakeSlackApi();
 
         $result = $this->dispatch($this->messageEvent([
@@ -311,7 +317,262 @@ final class ProcessSlackWebhookJobTest extends TestCase
             'text' => 'just two humans talking',
         ]));
 
-        $this->assertSame('Event not addressed to the agent', $result['message']);
+        $this->assertSame('Ingested', $result['message']);
+
+        $stored = $this->messagesOn(self::SLACK_CHANNEL)->firstOrFail();
+        $speakerName = trim($this->user->firstname . ' ' . $this->user->lastname);
+        $this->assertSame($speakerName . ': just two humans talking', $stored->message['content']);
+        $this->assertTrue($stored->tags->contains('name', CreateMessageFromSlackEventAction::INGEST_TAG));
+        // Room chatter is internal; is_public would put it on the public Social feeds.
+        $this->assertSame(0, (int) $stored->is_public);
+
+        // The whole point: recorded, never spoken to.
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'chat.postMessage'));
+    }
+
+    public function testARoomMessageFromSomeoneWithoutAKanvasAccountIsStillRecorded(): void
+    {
+        Queue::fake();
+        $slackUserId = 'U' . strtoupper(Str::random(7));
+        $this->fakeSlackApi(email: 'contractor-' . Str::random(6) . '@example.com');
+
+        $result = $this->dispatch($this->messageEvent([
+            'channel' => self::SLACK_CHANNEL,
+            'user' => $slackUserId,
+            'text' => 'a contractor speaking',
+        ]));
+
+        $this->assertSame('Ingested', $result['message']);
+
+        $stored = $this->messagesOn(self::SLACK_CHANNEL)->firstOrFail();
+        $this->assertFalse($stored->message['slack_speaker_resolved']);
+        // The raw Slack id survives so the row can be re-attributed once the person is invited.
+        $this->assertSame($slackUserId, $stored->message['slack_user']);
+    }
+
+    /**
+     * Slack delivers a tagged room message twice — as `app_mention` and as `message` — with two event
+     * ids. One answer, not two.
+     */
+    public function testATaggedRoomMessageDeliveredTwiceIsAnsweredOnce(): void
+    {
+        $this->fakeSlackApi();
+        $text = '<@' . self::BOT_USER_ID . '> status on the deal';
+        $ts = '1700000000.000' . random_int(100, 999);
+
+        $first = $this->dispatch($this->messageEvent([
+            'type' => 'app_mention',
+            'channel' => self::SLACK_CHANNEL,
+            'text' => $text,
+            'ts' => $ts,
+        ]));
+        $second = $this->dispatch($this->messageEvent([
+            'channel' => self::SLACK_CHANNEL,
+            'text' => $text,
+            'ts' => $ts,
+        ]));
+
+        $this->assertStringContainsString('Hola Mundo', $first['response']);
+        $this->assertSame('Duplicate message', $second['message']);
+        $this->assertCount(2, $this->messagesOn(self::SLACK_CHANNEL), 'one inbound row and one reply');
+    }
+
+    public function testATagInsideTheMessageTextIsAnsweredLikeAMention(): void
+    {
+        $this->fakeSlackApi();
+
+        $result = $this->dispatch($this->messageEvent([
+            'channel' => self::SLACK_CHANNEL,
+            'text' => 'hey <@' . self::BOT_USER_ID . '> can you take this',
+        ]));
+
+        $this->assertStringContainsString('Hola Mundo', $result['response']);
+        $this->assertSlackReplyWasPosted();
+    }
+
+    public function testAThreadReplyHangsUnderItsRootAndIsHandedToTheAgentWhenTagged(): void
+    {
+        Queue::fake();
+        $this->fakeSlackApi();
+        $rootTs = '1700000001.000' . random_int(100, 999);
+
+        $this->dispatch($this->messageEvent([
+            'channel' => self::SLACK_CHANNEL,
+            'text' => 'when does the Zoho sync land?',
+            'ts' => $rootTs,
+        ]));
+        $this->dispatch($this->messageEvent([
+            'channel' => self::SLACK_CHANNEL,
+            'text' => 'Thursday, waiting on their API key',
+            'ts' => '1700000002.000100',
+            'thread_ts' => $rootTs,
+        ]));
+        $this->dispatch($this->messageEvent([
+            'channel' => self::SLACK_CHANNEL,
+            'text' => '<@' . self::BOT_USER_ID . '>',
+            'ts' => '1700000003.000100',
+            'thread_ts' => $rootTs,
+        ]));
+
+        $messages = $this->messagesOn(self::SLACK_CHANNEL);
+        $root = $messages->first();
+        $reply = $messages->first(fn (Message $message) => str_contains((string) $message->message['content'], 'Thursday'));
+
+        $this->assertNull($root->parent_id);
+        $this->assertSame($root->getId(), (int) $reply->parent_id);
+
+        // The mention alone says nothing; the thread is what the agent gets.
+        $tagged = $messages->last(fn (Message $message) => ! ($message->message['from_ia'] ?? false));
+        $thread = new SlackThreadContextService()->render($root->channels()->firstOrFail(), $tagged);
+
+        $this->assertNotNull($thread);
+        $this->assertStringContainsString('when does the Zoho sync land?', $thread);
+        $this->assertStringContainsString('Thursday, waiting on their API key', $thread);
+        $this->assertSlackPostThreadTs($rootTs);
+    }
+
+    public function testTheBotBeingInvitedQueuesAHistoryBackfillOnce(): void
+    {
+        Queue::fake();
+        $channelId = 'C' . strtoupper(Str::random(6));
+
+        $first = $this->dispatch([
+            'type' => 'member_joined_channel',
+            'user' => self::BOT_USER_ID,
+            'channel' => $channelId,
+            'channel_type' => 'C',
+        ]);
+        $second = $this->dispatch([
+            'type' => 'member_joined_channel',
+            'user' => self::BOT_USER_ID,
+            'channel' => $channelId,
+            'channel_type' => 'C',
+        ]);
+
+        $this->assertSame('History backfill queued', $first['message']);
+        $this->assertSame('History already pulled', $second['message']);
+        Queue::assertPushed(
+            BackfillSlackChannelHistoryJob::class,
+            fn (BackfillSlackChannelHistoryJob $job): bool => $job->slackChannelId === $channelId
+                && $job->receiver->getId() === $this->receiver->getId()
+        );
+        Queue::assertPushed(BackfillSlackChannelHistoryJob::class, 1);
+    }
+
+    public function testSomeoneElseJoiningDoesNotTriggerABackfill(): void
+    {
+        Queue::fake();
+
+        $result = $this->dispatch([
+            'type' => 'member_joined_channel',
+            'user' => 'UHUMAN',
+            'channel' => self::SLACK_CHANNEL,
+        ]);
+
+        $this->assertSame('Someone else joined, nothing to do', $result['message']);
+        Queue::assertNotPushed(BackfillSlackChannelHistoryJob::class);
+    }
+
+    public function testTheFirstMessageFromARoomQueuesItsBackfill(): void
+    {
+        Queue::fake();
+        $this->fakeSlackApi();
+        $channelId = 'C' . strtoupper(Str::random(6));
+
+        $this->dispatch($this->messageEvent(['channel' => $channelId, 'text' => 'first', 'ts' => '1700000000.000201']));
+        $this->dispatch($this->messageEvent(['channel' => $channelId, 'text' => 'second', 'ts' => '1700000000.000202']));
+
+        Queue::assertPushed(BackfillSlackChannelHistoryJob::class, 1);
+    }
+
+    public function testRoomChatterRidesTheIngestQueueAndATagRidesTheReplyQueue(): void
+    {
+        $chatter = $this->webhookCall($this->messageEvent(['channel' => self::SLACK_CHANNEL, 'text' => 'chatter']));
+        $tag = $this->webhookCall($this->messageEvent([
+            'channel' => self::SLACK_CHANNEL,
+            'text' => '<@' . self::BOT_USER_ID . '> ping',
+        ]));
+        $dm = $this->webhookCall($this->messageEvent(['channel' => self::DM_CHANNEL, 'channel_type' => 'im']));
+
+        $this->assertSame('slack-ingest', new ProcessSlackWebhookJob($chatter)->queue);
+        $this->assertNull(new ProcessSlackWebhookJob($tag)->queue);
+        $this->assertNull(new ProcessSlackWebhookJob($dm)->queue);
+    }
+
+    public function testAnEditIsStoredAsItsOwnTaggedRowWithoutAReply(): void
+    {
+        Queue::fake();
+        $this->fakeSlackApi();
+        $ts = '1700000000.000' . random_int(100, 999);
+
+        $this->dispatch($this->messageEvent(['channel' => self::SLACK_CHANNEL, 'text' => 'ship it friday', 'ts' => $ts]));
+        $result = $this->dispatch([
+            'type' => 'message',
+            'subtype' => 'message_changed',
+            'channel' => self::SLACK_CHANNEL,
+            'ts' => '1700000009.000100',
+            'message' => ['user' => 'U0001', 'text' => 'ship it monday', 'ts' => $ts],
+        ]);
+
+        $this->assertSame('Ingested', $result['message']);
+
+        $messages = $this->messagesOn(self::SLACK_CHANNEL);
+        $this->assertCount(2, $messages);
+        $this->assertTrue($messages->last()->tags->contains('name', 'slack-edit'));
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'chat.postMessage'));
+    }
+
+    /**
+     * Slack marks a message that carries a file with `subtype: file_share`. It is a real message, not
+     * a correction — a DM with a picture must still be answered (regression: it came back "Ingested").
+     */
+    public function testADirectMessageWithAFileIsStillAnswered(): void
+    {
+        $this->fakeSlackApi();
+
+        $result = $this->dispatch($this->messageEvent([
+            'channel' => self::DM_CHANNEL,
+            'channel_type' => 'im',
+            'subtype' => 'file_share',
+            'text' => 'puedes ver imagenes?',
+            'files' => [[
+                'id' => 'F0C9M30TEL9',
+                'filetype' => 'jpg',
+                'file_access' => 'check_file_info',
+                'user' => null,
+            ]],
+        ]));
+
+        $this->assertStringContainsString('Hola Mundo', $result['response']);
+        $this->assertSlackReplyWasPosted();
+    }
+
+    public function testAnEditedDirectMessageIsRecordedButNotAnsweredAgain(): void
+    {
+        $this->fakeSlackApi();
+        $ts = '1700000000.000' . random_int(100, 999);
+
+        $this->dispatch($this->messageEvent(['channel' => self::DM_CHANNEL, 'channel_type' => 'im', 'text' => 'book friday', 'ts' => $ts]));
+        $this->assertCount(2, $this->messagesOn(self::DM_CHANNEL), 'the DM and the reply');
+
+        $result = $this->dispatch([
+            'type' => 'message',
+            'subtype' => 'message_changed',
+            'channel' => self::DM_CHANNEL,
+            'channel_type' => 'im',
+            'ts' => '1700000009.000100',
+            'message' => ['user' => 'U0001', 'text' => 'book monday', 'ts' => $ts],
+        ]);
+
+        $this->assertSame('Ingested', $result['message']);
+
+        $messages = $this->messagesOn(self::DM_CHANNEL);
+        $this->assertCount(3, $messages, 'the edit is one more row, not a second reply');
+        $this->assertTrue($messages->last()->tags->contains('name', 'slack-edit'));
+
+        // The placeholder and the real reply from the first message; nothing for the edit.
+        $posts = collect(Http::recorded())->filter(fn ($pair) => str_contains($pair[0]->url(), 'chat.postMessage'))->count();
+        $this->assertSame(2, $posts);
     }
 
     public function testUninstallDeactivatesTheReceiver(): void
@@ -382,7 +643,7 @@ final class ProcessSlackWebhookJobTest extends TestCase
         ];
     }
 
-    private function dispatch(array $event, ?string $eventId = null): array
+    private function webhookCall(array $event, ?string $eventId = null): ReceiverWebhookCall
     {
         $payload = [
             'type' => 'event_callback',
@@ -398,7 +659,12 @@ final class ProcessSlackWebhookJobTest extends TestCase
             $payload
         );
 
-        $webhookRequest = new ProcessWebhookAttemptAction($this->receiver, $request)->execute();
+        return new ProcessWebhookAttemptAction($this->receiver, $request)->execute();
+    }
+
+    private function dispatch(array $event, ?string $eventId = null): array
+    {
+        $webhookRequest = $this->webhookCall($event, $eventId);
 
         $result = new ProcessSlackWebhookJob($webhookRequest)->handle();
 

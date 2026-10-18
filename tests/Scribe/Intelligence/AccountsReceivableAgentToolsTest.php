@@ -172,6 +172,69 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame(InvoiceDocumentStatusEnum::VOIDED, $invoice->fresh()->document_status);
     }
 
+    public function test_apply_ar_payment_posts_an_identical_repeat_once_per_turn(): void
+    {
+        // Sentry KANVAS-ECOSYSTEM-6P5: ten payments posted in one turn, then the per-name budget killed it.
+        $customer = $this->seedTestOrganization('Repeat Payment Customer');
+        $invoice = $this->issueTestInvoice($customer, 300.0);
+        $tool = new ApplyArPaymentTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $first = $tool->__invoke(invoice_id: $invoice->getId(), amount: 100.0, reference: 'CHK-REPEAT');
+        $second = $tool->__invoke(invoice_id: $invoice->getId(), amount: 100.0, reference: 'CHK-REPEAT');
+
+        $this->assertTrue($first['applied']);
+        $this->assertSame(ToolOutcomeEnum::OK->value, $first['outcome']);
+        $this->assertTrue($second['repeat_call']);
+        $this->assertSame(ToolOutcomeEnum::NOOP->value, $second['outcome']);
+        $this->assertSame($first['payment_id'], $second['payment_id']);
+        $this->assertStringContainsString('Nothing was posted now', $second['note']);
+        $this->assertSame(200.0, (float) $invoice->fresh()->balance_due_native);
+        $this->assertSame(1, InvoicePaymentAllocation::query()->where('invoice_id', $invoice->getId())->count());
+    }
+
+    public function test_apply_ar_payment_never_replays_a_miss_as_already_applied(): void
+    {
+        $tool = new ApplyArPaymentTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $first = $tool->__invoke(invoice_id: 999999999, amount: 100.0, reference: 'CHK-MISS');
+        $second = $tool->__invoke(invoice_id: 999999999, amount: 100.0, reference: 'CHK-MISS');
+
+        $this->assertFalse($first['success']);
+        $this->assertSame(ToolOutcomeEnum::NOT_FOUND->value, $second['outcome']);
+        $this->assertArrayNotHasKey('repeat_call', $second);
+    }
+
+    public function test_apply_ar_payment_lets_a_different_payment_on_the_same_invoice_through(): void
+    {
+        $customer = $this->seedTestOrganization('Two Checks Customer');
+        $invoice = $this->issueTestInvoice($customer, 300.0);
+        $tool = new ApplyArPaymentTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $tool->__invoke(invoice_id: $invoice->getId(), amount: 100.0, reference: 'CHK-A');
+        $second = $tool->__invoke(invoice_id: $invoice->getId(), amount: 100.0, reference: 'CHK-B');
+
+        $this->assertTrue($second['applied']);
+        $this->assertArrayNotHasKey('repeat_call', $second);
+        $this->assertSame(100.0, (float) $invoice->fresh()->balance_due_native);
+    }
+
+    public function test_apply_ar_payment_reads_a_refused_allocation_as_a_failure_and_keeps_it_retryable(): void
+    {
+        $customer = $this->seedTestOrganization('Overpay Customer');
+        $invoice = $this->issueTestInvoice($customer, 300.0);
+        $tool = new ApplyArPaymentTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $first = $tool->__invoke(invoice_id: $invoice->getId(), amount: 400.0, reference: 'CHK-OVER');
+        $second = $tool->__invoke(invoice_id: $invoice->getId(), amount: 400.0, reference: 'CHK-OVER');
+
+        $this->assertFalse($first['applied']);
+        $this->assertFalse($first['success']);
+        $this->assertSame('allocation_failed', $first['reason']);
+        $this->assertSame(ToolOutcomeEnum::INVALID_ARGS->value, $first['outcome']);
+        $this->assertArrayNotHasKey('repeat_call', $second);
+        $this->assertSame(300.0, (float) $invoice->fresh()->balance_due_native);
+    }
+
     public function test_apply_ar_payment_allocates_natively_without_an_external_invoice_reference(): void
     {
         $customer = $this->seedTestOrganization('Native Payment Customer');
@@ -785,6 +848,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             new MatchInvoicesForPaymentTool(),
             new CreateArInvoiceTool(),
             new CreateArCreditMemoTool(),
+            new ApplyArPaymentTool(),
         ];
 
         foreach ($tools as $tool) {

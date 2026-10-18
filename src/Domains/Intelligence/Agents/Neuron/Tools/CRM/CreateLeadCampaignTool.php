@@ -44,7 +44,9 @@ class CreateLeadCampaignTool extends Tool
         . 'do-not-contact / undeliverable / duplicate people are excluded even if passed. Email only in v1. '
         . 'Provide schedule_at (a future date-time) to schedule instead of sending now. To use a different look '
         . 'than the default, first create_template (or list_templates to reuse one you already have) and pass '
-        . 'its name as template_name. Admin-only.';
+        . 'its name as template_name. Set important to true ONLY when the user explicitly asks for the email to '
+        . 'be flagged important/urgent in the recipient\'s mail client — it defaults to false, and routine '
+        . 'outreach must never be marked important. Admin-only.';
 
     private const int MAX_RECIPIENTS = 5000;
 
@@ -77,6 +79,13 @@ class CreateLeadCampaignTool extends Tool
                 required: false,
                 items: new ToolProperty(name: 'url', type: PropertyType::STRING, description: 'A file URL.'),
             ),
+            new ToolProperty(
+                name: 'important',
+                type: PropertyType::BOOLEAN,
+                description: 'Flag the email as important/high-priority in the recipient\'s mail client. Defaults to '
+                    . 'false — only set true when the user explicitly asks for it.',
+                required: false,
+            ),
         ];
     }
 
@@ -93,6 +102,7 @@ class CreateLeadCampaignTool extends Tool
         ?string $schedule_at = null,
         ?string $template_name = null,
         ?array $attachment_urls = null,
+        ?bool $important = null,
     ): array {
         if ($denied = $this->requireAdminOrError()) {
             return ['status' => 'error', 'message' => $denied['message']];
@@ -171,6 +181,7 @@ class CreateLeadCampaignTool extends Tool
             criteria: ['people_ids' => $ids, 'channel' => 'email'],
             attachmentUrls: $attachmentUrls,
             templateName: $templateName,
+            important: $important ?? false,
             scheduledAt: $scheduledAt,
         )->execute();
 
@@ -179,6 +190,7 @@ class CreateLeadCampaignTool extends Tool
             'campaign_id' => $campaign->getId(),
             'campaign_uuid' => $campaign->uuid,
             'campaign_status' => $campaign->status,
+            'important' => $campaign->is_important,
             'scheduled_at' => $campaign->scheduled_at?->toIso8601String(),
             'total_recipients' => $resolved['eligible_count'],
             'excluded' => $resolved['excluded'],
