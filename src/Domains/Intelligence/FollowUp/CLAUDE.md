@@ -98,8 +98,9 @@ lead-type default for the lead's status (`*con_fu_active_default`, `*con_fu_cns_
 `*con_fu_closed-sold_default`), then the stored `ai_follow_up` custom field (set by
 `TriggerIntelligenceActivity` via `ApplyLeadAiModeAction`), then the company `ai_follow_up`.
 A human pin keeps the stored value: `ai_follow_up_manual`, set by `ApplyLeadAiModeAction` on
-`FOLLOW_UP_ON` / `FOLLOW_UP_OFF` / `MANUAL_OFF` / `MANUAL_FON`, or `lead_ai_mode_is_manual`
-(do-not-contact relies on it). System triggers (`NEW_LEAD`, close, sold) never pin.
+`FOLLOW_UP_ON` / `FOLLOW_UP_OFF` / `MANUAL_OFF` / `MANUAL_FON`. System triggers (`NEW_LEAD`,
+close, sold) never pin. The pin is independent of `lead_ai_mode_is_manual`; leads pinned
+before it existed are carried over by `kanvas:intelligence:backfill-lead-follow-up-manual`.
 Nothing resolved means the lead was never configured, so the remaining gates run. Once a
 value resolves it must be explicitly on per `Lead::isAiFollowUpEnabled()` — the shapes the
 legacy engine accepted — so OFF (`0`) and a `FollowUpTypeEnum::NO_FOLLOW_UP` (`3`) type both

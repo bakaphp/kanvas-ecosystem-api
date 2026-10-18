@@ -939,14 +939,12 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
 
     /**
      * Same precedence as resolveAiMode(): the lead-type default for the lead's status outranks
-     * the stored value until a human pins the follow-up (or the AI mode, which do-not-contact
-     * relies on), then the company setting fills the gap.
+     * the stored value until a human pins the follow-up, then the company setting fills the gap.
      */
     public function resolveAiFollowUp(): mixed
     {
         $storedFollowUp = $this->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
-        if ((bool) $this->get(ConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value)
-            || (bool) $this->get(ConfigurationEnum::AI_MODE_IS_MANUAL->value)) {
+        if ((bool) $this->get(ConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value)) {
             return $storedFollowUp;
         }
 
