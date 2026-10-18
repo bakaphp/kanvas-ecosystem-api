@@ -8,10 +8,12 @@ use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\SalesAssist\Actions\AttachTradeInPhotosAction;
 use Kanvas\Connectors\VinSolution\Actions\PushCoBuyerAction;
 use Kanvas\Connectors\VinSolution\Actions\PushCreditAppAction;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Actions\PushPurchaseVehicleAction;
+use Kanvas\Connectors\VinSolution\Actions\PushTradeInAction;
 use Kanvas\Connectors\VinSolution\Actions\PushVehicleOfInterest;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -101,9 +103,10 @@ class PushLeadNotesActivity extends KanvasActivity
             case ActionEnum::TRADE_WALK->value:
             case ActionEnum::PAYOFF_FORM->value:
             case ActionEnum::ADD_TRADE->value:
+                // The note itself is already pushed by the caller; this adds the structured trade-in.
                 if ($status === ActionStatusEnum::SUBMITTED->value) {
-                    $tradeInAction = new PushNoteToLeadAction($lead, $message);
-                    $results['tradeIn'] = $tradeInAction->execute();
+                    new AttachTradeInPhotosAction($message)->execute();
+                    $results['tradeIn'] = new PushTradeInAction($lead, $message)->execute();
                 }
 
                 break;

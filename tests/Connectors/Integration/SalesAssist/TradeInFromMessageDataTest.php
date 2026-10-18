@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Unit\Elead;
+namespace Tests\Connectors\Integration\SalesAssist;
 
-use Kanvas\Connectors\Elead\DataTransferObject\TradeIn;
+use Kanvas\Connectors\SalesAssist\DataTransferObject\TradeIn;
 use Tests\TestCase;
 
 final class TradeInFromMessageDataTest extends TestCase
@@ -24,9 +24,20 @@ final class TradeInFromMessageDataTest extends TestCase
         $this->assertSame('automatic', $tradeIn->transmission);
         $this->assertSame('black', $tradeIn->exteriorColor);
         $this->assertSame('black', $tradeIn->interiorColor);
-        $this->assertSame(12345, $tradeIn->estimatedMileage);
+        $this->assertSame(12345, $tradeIn->mileage);
         $this->assertSame(0, $tradeIn->year);
+        $this->assertSame(['upload_odometer_photo' => [1000001]], $tradeIn->photoIds);
         $this->assertTrue($tradeIn->hasEnoughDetails());
+    }
+
+    public function testSplitsCommaSeparatedPhotoIds(): void
+    {
+        $tradeIn = TradeIn::fromMessageData([
+            ['label' => 'Upload vehicle photo', 'value' => '1000002, 1000003,,1000004'],
+            ['label' => 'Upload odometer photo', 'value' => ''],
+        ]);
+
+        $this->assertSame(['upload_vehicle_photo' => [1000002, 1000003, 1000004]], $tradeIn->photoIds);
     }
 
     public function testParsesTheWebFormPayload(): void

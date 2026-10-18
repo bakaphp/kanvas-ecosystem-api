@@ -10,12 +10,12 @@ use GuzzleHttp\Exception\ClientException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Actions\SyncPeopleAction;
 use Kanvas\Connectors\Elead\Client;
-use Kanvas\Connectors\Elead\DataTransferObject\TradeIn;
 use Kanvas\Connectors\Elead\DataTransferObject\Vehicle;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Exceptions\ELeadException;
 use Kanvas\Connectors\Elead\Services\LeadUserService;
 use Kanvas\Connectors\Elead\Support\EleadCache;
+use Kanvas\Connectors\SalesAssist\DataTransferObject\TradeIn;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Models\LeadSource;
 
@@ -211,7 +211,7 @@ class Lead
                 'model' => $tradeIn->model,
                 'trim' => $tradeIn->trim,
                 'vin' => $tradeIn->vin,
-                'estimatedMileage' => $tradeIn->estimatedMileage,
+                'estimatedMileage' => $tradeIn->mileage,
                 'interiorColor' => $tradeIn->interiorColor,
                 'exteriorColor' => $tradeIn->exteriorColor,
             ],
