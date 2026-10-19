@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\CRM;
 
-use Illuminate\Support\Facades\Blade;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
+use Kanvas\Templates\Support\TemplateSandbox;
 use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Chat\History\MessageStoreInterface;
 use Override;
@@ -86,7 +86,7 @@ class FollowUpAgent extends BaseRagAgent
     private function renderOrDefault(mixed $dbValue, string $localDefault, array $context): string
     {
         if (is_string($dbValue) && trim($dbValue) !== '') {
-            return Blade::render($dbValue, $context);
+            return TemplateSandbox::render($dbValue, $context);
         }
 
         return $localDefault;

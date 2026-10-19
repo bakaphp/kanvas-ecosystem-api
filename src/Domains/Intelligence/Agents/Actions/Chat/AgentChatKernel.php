@@ -201,9 +201,9 @@ class AgentChatKernel
             )->execute();
         }
 
-        $handlerClass = $this->agent->type?->handler;
+        $handlerClass = $this->agent->type?->handlerClass();
 
-        if ($handlerClass === null || $handlerClass === '' || ! class_exists($handlerClass)) {
+        if ($handlerClass === null) {
             throw new ValidationException(sprintf(
                 'Agent %d cannot run: agent_type %s has no valid handler set (got %s). '
                 . 'Set agent_types.handler to a class implementing the agent runtime contract.',

@@ -16,6 +16,7 @@ use Kanvas\Inventory\Importer\Actions\FinishProductImportAction;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\Actions\RecordProductImportBatchAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
 use Throwable;
@@ -85,7 +86,7 @@ class SuperCarrosVehicleInventoryImportAction
                 $this->app,
                 $this->company,
                 $this->user,
-                array_column($vehicles, 'Id'),
+                array_map(self::variantSku(...), array_column($vehicles, 'Id')),
             )->execute();
 
             foreach ($vehicles as $vehicleData) {
@@ -129,8 +130,11 @@ class SuperCarrosVehicleInventoryImportAction
                         }, 200, fn ($e) => str_contains($e->getMessage(), 'Deadlock'));
                     }
 
-                    // Make the product searchable
-                    $importedProduct->searchable();
+                    if ($importedProduct->shouldBeSearchable()) {
+                        $importedProduct->searchable();
+                    } else {
+                        $importedProduct->unsearchable();
+                    }
 
                     $importedProducts[] = $importedProduct;
                     $successCount++;
@@ -166,6 +170,32 @@ class SuperCarrosVehicleInventoryImportAction
             'products' => $importedProducts,
             'errors' => $errors,
         ];
+    }
+
+    /**
+     * The product and warehouse keep the bare ad id; the variant carries this prefix so the two
+     * SKUs never collide. The run stamp keys on the variant SKU, so it must use the same shape, or
+     * the finish sweep sees none of the feed and refuses to unpublish anything.
+     */
+    public static function variantSku(int|string $adId): string
+    {
+        return 'S' . $adId;
+    }
+
+    /**
+     * Products are matched by slug and the slug carries the ad title, which dealers edit. A renamed ad
+     * would otherwise get a new, variant-less product while its variant stays on the old one, so the
+     * product that already owns the ad's variant keeps its slug.
+     */
+    private function productSlug(string $name, string $sku): string
+    {
+        $existingVariant = Variants::withTrashed()
+            ->fromCompany($this->company)
+            ->fromApp($this->app)
+            ->where('sku', self::variantSku($sku))
+            ->first();
+
+        return $existingVariant?->product?->slug ?? Str::slug($name . '-' . $sku);
     }
 
     /**
@@ -215,7 +245,7 @@ class SuperCarrosVehicleInventoryImportAction
             'description' => $description,
             'price' => $price,
             'discountPrice' => null,
-            'slug' => Str::slug($name . '-' . $sku),
+            'slug' => $this->productSlug($name, $sku),
             'sku' => $sku,
             'source' => 'supercarros',
             'source_id' => $sku,
@@ -246,7 +276,7 @@ class SuperCarrosVehicleInventoryImportAction
             'name' => $name,
             'description' => $description,
             'slug' => Str::slug($name . '-' . $sku),
-            'sku' => 'S' . $sku,
+            'sku' => self::variantSku($sku),
             'price' => $price,
             'discountPrice' => null,
             'quantity' => 1,

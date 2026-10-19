@@ -33,8 +33,9 @@ final class ZohoPullLeadActivityTest extends TestCase
             'zoho_id' => 'zoho-local-123',
         ]);
 
-        $this->assertSame($lead->getId(), $result['lead']['id']);
-        $this->assertFalse($result['synced']);
+        $this->assertSame($lead->getId(), $result[0]['id']);
+        $this->assertIsFloat($result[0]['rank'], 'the pull button draws the match percentage from rank');
+        $this->assertFalse($result[0]['recentlyCreated']);
     }
 
     public function testPullsAndReturnsLeadWhenNoLocalMatchExists(): void
@@ -64,8 +65,9 @@ final class ZohoPullLeadActivityTest extends TestCase
         $result = $activity->execute($lead, $app, ['entity_id' => 'zoho-remote-456']);
 
         $this->assertTrue($activity->syncRequested);
-        $this->assertSame($lead->getId(), $result['lead']['id']);
-        $this->assertTrue($result['synced']);
+        $this->assertSame($lead->getId(), $result[0]['id']);
+        $this->assertArrayHasKey('people_id', $result[0]);
+        $this->assertArrayNotHasKey('leads_status_id', $result[0], 'must be the candidate shape, not a raw toArray()');
     }
 
     private function createLead(): Lead

@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Stubs\Intelligence;
 
+use Kanvas\Intelligence\Agents\Contracts\AgentTypeHandler;
 use Throwable;
 
 /** Minimal chat() handler double that throws instead of talking to a real provider — for RunNeuronChatAction error-path tests. */
-class ThrowingNeuronHandlerStub
+class ThrowingNeuronHandlerStub implements AgentTypeHandler
 {
     public function __construct(private readonly Throwable $exception)
     {

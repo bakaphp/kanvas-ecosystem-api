@@ -7,6 +7,7 @@ namespace Kanvas\Workflow\Integrations\Actions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Rules\Actions\RemoveIntegrationDefaultRulesAction;
 
 final class RemoveIntegrationCompanyAction
 {
@@ -22,6 +23,7 @@ final class RemoveIntegrationCompanyAction
 
     public function execute(): bool
     {
+        new RemoveIntegrationDefaultRulesAction($this->integrationCompany, $this->app)->execute();
         $this->teardownHandler();
 
         return (bool) $this->integrationCompany->delete();
@@ -29,18 +31,6 @@ final class RemoveIntegrationCompanyAction
 
     private function teardownHandler(): void
     {
-        $handler = $this->integrationCompany->integration?->handler;
-
-        if (! is_string($handler) || ! is_subclass_of($handler, BaseIntegration::class)) {
-            return;
-        }
-
-        new $handler(
-            app: $this->app,
-            company: $this->integrationCompany->company,
-            region: $this->integrationCompany->region,
-            data: [],
-            integration: $this->integrationCompany->integration,
-        )->teardown();
+        BaseIntegration::forIntegrationCompany($this->integrationCompany, $this->app)?->teardown();
     }
 }

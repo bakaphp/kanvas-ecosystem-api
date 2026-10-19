@@ -16,6 +16,7 @@ use Kanvas\Users\Models\Users;
 use Webleit\ZohoCrmApi\Exception\ApiError;
 use Webleit\ZohoCrmApi\Models\Model as ZohoModel;
 use Webleit\ZohoCrmApi\Models\Record;
+use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
 use Webleit\ZohoCrmApi\ZohoCrm;
 
 class ZohoService
@@ -295,6 +296,32 @@ class ZohoService
         }
 
         return $this->zohoCrm->vendors->update($zohoAgentId, $data);
+    }
+
+    /**
+     * Target module for lead sync. Defaults to the standard "Leads" module; a company can set the
+     * ZOHO_LEAD_MODULE custom field (e.g. "Zoho_Form_Enquiries") to route incoming leads into a
+     * staging module where Zoho's own dedup/matching workflow runs before a Leads record is created.
+     */
+    public static function resolveLeadModule(ZohoCrm $zohoCrm, CompanyInterface $company): ZohoRecordsModule
+    {
+        $moduleName = $company->get(CustomFieldEnum::ZOHO_LEAD_MODULE->value);
+
+        if (empty($moduleName) || strtolower((string) $moduleName) === 'leads') {
+            return $zohoCrm->leads;
+        }
+
+        return $zohoCrm->createRecordsModule((string) $moduleName);
+    }
+
+    public function getLeadModule(): ZohoRecordsModule
+    {
+        return self::resolveLeadModule($this->zohoCrm, $this->company);
+    }
+
+    public function getDealModule(): ZohoRecordsModule
+    {
+        return $this->zohoCrm->deals;
     }
 
     public function getLeadById(string $leadId): Record

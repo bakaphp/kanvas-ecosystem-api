@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\GraphQL\Directives;
 
 use Kanvas\Apps\Models\AppKey;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Auth\AuthServiceProvider;
 use Nuwave\Lighthouse\Auth\GuardDirective;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Nuwave\Lighthouse\Execution\ResolveInfo;
 use Nuwave\Lighthouse\Schema\Values\FieldValue;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
@@ -44,6 +47,13 @@ GRAPHQL;
 
                 $with = (array) $this->directiveArgValue('with', current(AuthServiceProvider::guards()));
                 $user = $this->authenticate($with);
+
+                // The key is the credential: a token for another user rides on it only as an owner of the key's app.
+                $isKeyUser = app(AppKey::class)->isHeldBy((int) $user->getAuthIdentifier());
+
+                if (! $isKeyUser && ! ($user instanceof Users && $user->isOwnerOf(app(Apps::class)))) {
+                    throw new AuthorizationException('This app key belongs to another user.');
+                }
 
                 return $previousResolver($root, $args, $context, $resolveInfo);
             }

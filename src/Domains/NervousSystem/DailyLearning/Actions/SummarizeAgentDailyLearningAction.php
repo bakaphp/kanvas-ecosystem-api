@@ -55,6 +55,11 @@ class SummarizeAgentDailyLearningAction
 
     public function execute(): ?DailyLearningSummary
     {
+        // The job is queued, so the agent may have been deactivated since the sweep picked it.
+        if (! $this->agent->is_active) {
+            return null;
+        }
+
         $conversations = $this->loadConversations();
         if ($conversations->isEmpty()) {
             return null;

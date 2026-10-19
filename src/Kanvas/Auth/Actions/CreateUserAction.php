@@ -299,8 +299,9 @@ class CreateUserAction
     {
         $roles = $this->data->role_ids;
         if (empty($roles)) {
+            // Roles are app-wide, so an app that wants signups to be admins says so in its settings.
             $defaultAppSettingsRole = $this->app->get(AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue());
-            $roles = [RolesEnums::getRoleBySlug($defaultAppSettingsRole ?? RolesEnums::ADMIN->value)];
+            $roles = [RolesEnums::getRoleBySlug($defaultAppSettingsRole ?? RolesEnums::USER->value)];
         }
 
         foreach ($roles as $role) {

@@ -94,8 +94,8 @@ class VoiceAgentSpecService
         $tools = [];
 
         foreach (new CapabilityProvider()->getActiveTools($this->agent, CapabilityFrameworkEnum::NEURON->value) as $catalogTool) {
-            $handlerClass = $catalogTool->handler;
-            if (empty($handlerClass) || ! class_exists($handlerClass)) {
+            $handlerClass = $catalogTool->handlerClass();
+            if ($handlerClass === null) {
                 continue;
             }
 

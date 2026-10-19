@@ -80,6 +80,7 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `app/Console/Commands/Inventory/CLAUDE.md` — what each inventory command does and the order the discovery ones must run in (enrich → index → search → score).
 - `src/Kanvas/Companies/CorporateApplications/CLAUDE.md` — a corporate application is a Lead (no model); manual approval and `is_corporate` as the only privilege switch; the two request paths, the receiver `approval_mode` precedence, required/copied field lists configured as custom fields on the receiver, the post-approval workflow rule that must exist per app, the legacy-key fallback, and the Bouncer-scope / app-scope / cross-connection traps.
 - `src/Kanvas/Imports/CLAUDE.md` — scheduled FTP/SFTP imports into the existing mapper pipeline: why all mapping lives in the `FilesystemMapper` and never in PHP, the template-`version` trap (editing a template does not update mappers already made from it), why a mapped value must satisfy the target model's PHP types, the header-row delimiter detection, the "never unpublish on a partial feed" invariant, and what a second entity type needs.
+- `src/Kanvas/Templates/CLAUDE.md` — `email_templates` engines: new rows are sandboxed Twig, `blade` rows are hand-made in the database only and refused through Eloquent; the one Blade call site, the plain-array context and `ExposesTemplateData` for models with secrets in their row.
 - `src/Kanvas/Approvals/CLAUDE.md` — generic cross-domain approval gating (policies, resolvers, the sync-handler vs workflow lanes, the transitional entity-fired event, and the `ecosystem` connection test trap).
 - `src/Domains/Insurance/CLAUDE.md` — provider-agnostic insurance layer (quote → policy). Why it is a top-level domain rather than Souk/Inventory/a connector, why only 2 direct queries exist and everything else is a workflow activity, and the hybrid generic-vs-connector custom-field split.
 
@@ -994,6 +995,19 @@ Why: a raw fetch on a user URL lets an attacker hit `http://169.254.169.254` (cl
 
 - **Single chokepoint for image downloads:** `FilesystemServices::downloadImageFromUrl()` is already guarded — route new image/file downloads through it (or the `ImageOptimizerService` / `ImageConversionService` helpers that call it) and you inherit the protection.
 - **Enforced by a coverage test:** [`tests/Baka/Unit/NoUnguardedUrlFetchTest.php`](../tests/Baka/Unit/NoUnguardedUrlFetchTest.php) fails CI if a file under `src/`/`app/` introduces a raw `file_get_contents($var)` / `curl_exec` without referencing the guard. A genuinely-local read (local file, hardcoded endpoint, admin-config CLI) goes in that test's allow-list with a one-line justification — never silence it by other means.
+
+### Stored Class Names and Stored Expressions
+
+A class name read from a row or an input (`agent_types.handler`, `nervous_system_tools.handler`,
+`approval_policies.handler`, a receiver's action, a stage-config action) is built only through
+`Baka\Support\AllowedClass::resolve($class, Contract::class)`, and the model checks it on save with
+`AllowedClass::assert()`. `class_exists()` alone lets a stored string construct any class on the
+autoloader. Agent-type handlers implement the `AgentTypeHandler` marker.
+
+A stored expression (rule pattern and conditions, notification logic, engagement message) is evaluated
+only through `Kanvas\Workflow\Rules\Support\SafeExpression`: no method or function calls, plain data
+in place of models (`ExpressionLanguageIsConfinedTest`). Stored templates follow
+[`src/Kanvas/Templates/CLAUDE.md`](../src/Kanvas/Templates/CLAUDE.md).
 
 ### Uploaded Image Handling — Trust Magic Bytes, and the ImageMagick Policy
 

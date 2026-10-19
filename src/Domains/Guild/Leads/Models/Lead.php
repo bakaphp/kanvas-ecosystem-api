@@ -20,6 +20,7 @@ use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Event\Events\Contracts\EventResourceInterface;
 use Kanvas\Guild\Agents\Models\Agent;
@@ -855,8 +856,10 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
              $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
          } */
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }

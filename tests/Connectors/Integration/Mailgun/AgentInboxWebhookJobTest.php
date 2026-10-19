@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Mailgun;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -22,7 +23,9 @@ use Kanvas\Connectors\WordPress\DataTransferObject\WordPressPost;
 use Kanvas\Connectors\WordPress\Enums\ConfigurationEnum as WordPressConfigurationEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
@@ -41,7 +44,10 @@ use Tests\TestCase;
 
 final class AgentInboxWebhookJobTest extends TestCase
 {
+    use DatabaseTransactions;
     use HasIntegrationCompany;
+
+    protected $connectionsToTransact = [null, 'social', 'crm', 'workflow', 'intelligence', 'ecosystem'];
 
     private const string DOMAIN = 'agents.kanvas.test';
 
@@ -295,6 +301,38 @@ final class AgentInboxWebhookJobTest extends TestCase
         $people = PeoplesRepository::getByEmail($stranger, $this->company, $this->kanvasApp);
         $this->assertNotNull($people, 'An open mailbox is an inbound funnel — the sender becomes a contact.');
         $this->assertSame('Jane Prospect', $people->name);
+    }
+
+    public function testInboundEmailTagsTheActiveLeadAsEngaged(): void
+    {
+        $this->fakeMailgun();
+        $email = 'known-' . Str::random(8) . '@outside.test';
+        $people = People::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->withUserId($this->user->getId())
+            ->create();
+        $people->contacts()->create([
+            'contacts_types_id' => 1,
+            'value' => $email,
+            'weight' => 100,
+        ]);
+        $lead = Lead::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->withPeopleId($people->getId())
+            ->withUserId($this->user->getId())
+            ->create();
+
+        $this->deliver([
+            'sender' => $email,
+            'from' => 'Jane Prospect <' . $email . '>',
+            'subject' => 'Pricing',
+            'stripped-text' => 'I would like to learn more.',
+            'Message-Id' => '<engaged-' . Str::random(10) . '@outside.test>',
+        ]);
+
+        $this->assertTrue($lead->fresh()->tags()->where('name', 'engaged')->exists());
     }
 
     /**

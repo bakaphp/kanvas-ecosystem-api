@@ -28,7 +28,7 @@ class AddUserCompanyAction
             $this->authUser
         );
 
-        $this->company->hasCompanyPermission($this->authUser);
+        $this->company->hasCompanyPermission($this->authUser, $this->app);
 
         $companyDefaultBranch = $this->company->defaultBranch()->first();
 

@@ -23,7 +23,7 @@ use Kanvas\Analytics\Reporting\Observers\ReportSourceObserver;
 use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Event\Participants\Models\Participant;
@@ -938,8 +938,10 @@ class People extends BaseModel
                     $query->where('companies_id', $user->getCurrentCompany()->getId());
                 } */
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }

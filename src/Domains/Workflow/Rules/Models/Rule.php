@@ -6,16 +6,21 @@ namespace Kanvas\Workflow\Rules\Models;
 
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Log;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Rules\Factories\RuleFactory;
+use Kanvas\Workflow\Rules\Support\SafeExpression;
 use Override;
+use Throwable;
 
 /**
  * @param int $id
@@ -110,8 +115,10 @@ class Rule extends BaseModel
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }
@@ -146,6 +153,49 @@ class Rule extends BaseModel
     public function runAsync(): bool
     {
         return $this->is_async;
+    }
+
+    #[Override]
+    protected static function booted(): void
+    {
+        static::saving(function (self $rule): void {
+            if (! preg_match('/^[\d\s()]*(?:(?:and|or)[\d\s()]*)*$/i', (string) $rule->pattern)) {
+                throw new ValidationException('A rule pattern can only combine condition numbers with and, or and parentheses.');
+            }
+        });
+    }
+
+    /**
+     * Whether this rule's condition holds for the entity and the event params. Evaluated before a
+     * stored workflow is created for it, so a rule that does not apply costs no row.
+     */
+    public function matches(Model $entity, array $params = []): bool
+    {
+        ['expression' => $expression, 'values' => $values] = $this->getExpressionCondition();
+
+        $values = array_merge(
+            $values,
+            $entity->toArray(),
+            [
+                'entity' => $entity,
+                strtolower(class_basename($entity)) => $entity,
+            ],
+            $params
+        );
+
+        try {
+            return (bool) SafeExpression::evaluate($expression, $values);
+        } catch (Throwable $e) {
+            Log::debug('Rule expression evaluation failed; treating as non-match', [
+                'rule_id' => $this->getId(),
+                'expression' => $expression,
+                'entity' => $entity::class,
+                'entity_id' => $entity->getKey(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     #[Override]

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Config;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\ChatHistory\LaravelHistoryBudgetTrimmer;
+use Kanvas\Intelligence\Agents\Contracts\AgentTypeHandler;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Common\CurrentTimeTool;
@@ -32,7 +33,7 @@ use Laravel\Ai\Responses\AgentResponse;
 use Override;
 use Stringable;
 
-abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
+abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools, AgentTypeHandler
 {
     use Promptable;
 

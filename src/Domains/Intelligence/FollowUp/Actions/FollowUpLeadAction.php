@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\FollowUp\Actions;
 use Carbon\CarbonInterface;
 use Carbon\CarbonInterval;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Blade;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
@@ -46,7 +45,9 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Templates\Actions\RenderTemplateAction;
 use Kanvas\Templates\Models\Templates;
+use Kanvas\Templates\Support\TemplateSandbox;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use RuntimeException;
 use Throwable;
@@ -87,8 +88,14 @@ final class FollowUpLeadAction
 
         // Lead-type defaults can veto v2, including manual/forced runs.
         // Check before retries so disabled types cannot advance stages either.
-        if (! new LeadConfigurationService()->allowsContinuedFollowUp($this->lead)) {
+        $leadConfiguration = new LeadConfigurationService();
+        if (! $leadConfiguration->allowsContinuedFollowUp($this->lead)) {
             return $this->skip('lead_type_follow_up_disabled');
+        }
+
+        // Company cutoff: leads older than the follow-up start date are never nudged, forced runs included.
+        if ($leadConfiguration->isCreatedBeforeFollowUpStartDate($this->lead)) {
+            return $this->skip('lead_created_before_follow_up_start_date');
         }
 
         // Judged on `leads_status_id`, the column CRM pulls and the UI write — not `isOpen()`'s
@@ -438,7 +445,7 @@ final class FollowUpLeadAction
 
         if (is_string($override) && $override !== '') {
             try {
-                return Blade::render($override, $context);
+                return TemplateSandbox::render($override, $context);
             } catch (Throwable $e) {
                 report($e);
             }
@@ -515,28 +522,28 @@ final class FollowUpLeadAction
     private function renderDefaultStyleReference(string $channelType): string
     {
         $body = match ($channelType) {
-            'email' => <<<'BLADE'
-                Hi {{ $people?->firstname ?? 'there' }},
+            'email' => <<<'TWIG'
+                Hi {{ people.firstname ?? 'there' }},
 
                 Just wanted to follow up briefly. Let me know if there's anything I can help clarify or if there's a better time to connect.
 
                 Best,
-                {{ $company->name }}
-                BLADE,
-            'sms', 'whatsapp' => <<<'BLADE'
-                Hi {{ $people?->firstname ?? 'there' }}! Just checking in — happy to help whenever you have a minute.
+                {{ company.name }}
+                TWIG,
+            'sms', 'whatsapp' => <<<'TWIG'
+                Hi {{ people.firstname ?? 'there' }}! Just checking in — happy to help whenever you have a minute.
 
-                — {{ $company->name }}
-                BLADE,
-            default => <<<'BLADE'
-                Hi {{ $people?->firstname ?? 'there' }}, just following up on your interest. Let me know if I can help.
+                — {{ company.name }}
+                TWIG,
+            default => <<<'TWIG'
+                Hi {{ people.firstname ?? 'there' }}, just following up on your interest. Let me know if I can help.
 
-                — {{ $company->name }}
-                BLADE,
+                — {{ company.name }}
+                TWIG,
         };
 
         try {
-            return Blade::render($body, [
+            return TemplateSandbox::render($body, [
                 'lead' => $this->lead,
                 'people' => $this->lead->people ?? null,
                 'company' => $this->company,
@@ -559,7 +566,7 @@ final class FollowUpLeadAction
         }
 
         try {
-            return Blade::render($body, [
+            return new RenderTemplateAction($this->app, $this->company)->renderBody($template, [
                 'lead' => $this->lead,
                 'people' => $this->lead->people ?? null,
                 'company' => $this->company,
@@ -586,10 +593,10 @@ final class FollowUpLeadAction
             return $agentMessage;
         }
 
-        return $this->renderTemplateBlade($template, $agentMessage);
+        return $this->renderTemplateWithMessage($template, $agentMessage);
     }
 
-    private function renderTemplateBlade(Templates $template, string $agentMessage): string
+    private function renderTemplateWithMessage(Templates $template, string $agentMessage): string
     {
         $body = (string) ($template->template ?? '');
         if ($body === '') {
@@ -597,7 +604,7 @@ final class FollowUpLeadAction
         }
 
         try {
-            return Blade::render($body, [
+            return new RenderTemplateAction($this->app, $this->company)->renderBody($template, [
                 'lead' => $this->lead,
                 'people' => $this->lead->people ?? null,
                 'company' => $this->company,

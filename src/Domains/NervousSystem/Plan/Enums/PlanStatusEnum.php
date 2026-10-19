@@ -68,6 +68,14 @@ enum PlanStatusEnum: string
     }
 
     /**
+     * @return array<int, string>
+     */
+    public static function terminalStatusValues(): array
+    {
+        return array_map(fn (self $status): string => $status->value, self::terminalStatuses());
+    }
+
+    /**
      * Like ::from() but tolerates common synonyms ("completed" → "done",
      * "canceled" → "cancelled", "started" → "active", etc.) and case
      * variations. Agents and humans naturally reach for these — accept

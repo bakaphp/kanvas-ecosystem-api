@@ -24,6 +24,7 @@ use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpOutcome;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpOutcomeKindEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
@@ -46,6 +47,7 @@ use Kanvas\Workflow\Rules\Models\RuleCondition;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
 use Mockery;
+use PHPUnit\Framework\Attributes\Group;
 use ReflectionProperty;
 use RuntimeException;
 use Tests\Stubs\FollowUp\FollowUpAgentStub;
@@ -161,6 +163,48 @@ class FollowUpLeadActionTest extends TestCase
 
         $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
         $this->assertSame('lead_not_active', $outcome->reason);
+    }
+
+    // Company settings are shared by every paratest process, so the start date must not leak.
+    #[Group('serial')]
+    public function testSkipsLeadCreatedBeforeCompanyFollowUpStartDateEvenWhenForced(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+
+        $outcome = $this->runWithFollowUpStartDate(
+            Carbon::now()->subDay()->toDateString(),
+            $lead,
+            force: true,
+        );
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertSame('lead_created_before_follow_up_start_date', $outcome->reason);
+        $this->assertFalse($lead->isFollowUpExhausted());
+    }
+
+    #[Group('serial')]
+    public function testLeadCreatedAfterCompanyFollowUpStartDatePassesTheGate(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+
+        $outcome = $this->runWithFollowUpStartDate(
+            Carbon::now()->subDays(60)->toDateString(),
+            $lead,
+        );
+
+        $this->assertNotSame('lead_created_before_follow_up_start_date', $outcome->reason);
+    }
+
+    #[Group('serial')]
+    public function testMissingOrInvalidFollowUpStartDateFollowsUpEveryLead(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+
+        foreach ([null, 'not-a-date'] as $value) {
+            $outcome = $this->runWithFollowUpStartDate($value, $lead);
+
+            $this->assertNotSame('lead_created_before_follow_up_start_date', $outcome->reason);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -978,6 +1022,24 @@ class FollowUpLeadActionTest extends TestCase
                 'is_active' => true,
                 'role' => ['background' => [], 'steps' => [], 'output' => ''],
             ]);
+    }
+
+    private function runWithFollowUpStartDate(?string $startDate, Lead $lead, bool $force = false): FollowUpOutcome
+    {
+        $key = IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value;
+        $startDate === null ? $this->company->del($key) : $this->company->set($key, $startDate);
+
+        try {
+            return new FollowUpLeadAction(
+                app: $this->testApp,
+                company: $this->company,
+                lead: $lead,
+                agent: $this->seedFollowUpAgent(),
+                force: $force,
+            )->execute();
+        } finally {
+            $this->company->del($key);
+        }
     }
 
     private function seedLeadWithStageConfig(?array $stageConfig): Lead

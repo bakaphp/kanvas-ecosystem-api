@@ -465,9 +465,9 @@ class DraftCustomerUpdateAction
 
     private function handler(): BehavesAsKanvasAgent
     {
-        $handlerClass = $this->agent->type?->handler;
+        $handlerClass = $this->agent->type?->handlerClass();
 
-        if ($handlerClass === null || ! class_exists($handlerClass)) {
+        if ($handlerClass === null) {
             throw new ValidationException(
                 'Agent ' . $this->agent->getId() . ' has no usable handler class. '
                 . 'Run kanvas:intelligence:sync-agent-types.'
