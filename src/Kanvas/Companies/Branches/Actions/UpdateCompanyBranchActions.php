@@ -26,6 +26,7 @@ class UpdateCompanyBranchActions
         $companyBranch = CompaniesBranches::getById($companyBranchId);
         $company = $companyBranch->company()->first();
 
+        $company->hasCompanyPermission($this->user);
         CompaniesRepository::userAssociatedToCompanyAndBranch($company, $companyBranch, $this->user);
 
         //@todo Add observer for is_default value on company branches.
@@ -42,8 +43,6 @@ class UpdateCompanyBranchActions
         if ($this->data->files) {
             $companyBranch->addMultipleFilesFromUrl($this->data->files);
         }
-
-        $company->associateUser($this->user, StateEnums::YES->getValue(), $companyBranch);
 
         return $companyBranch;
     }

@@ -168,9 +168,9 @@ class CompanyManagementMutation
 
     public function addUserToCompany(mixed $rootValue, array $request): bool
     {
-        $user = Users::getById($request['user_id']);
-        $company = Companies::getById($request['id']);
         $app = app(Apps::class);
+        $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
+        $company = Companies::getById($request['id']);
         $branch = app(CompaniesBranches::class);
         $authUser = auth()->user();
 

@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Branches\Actions;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Models\Users;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 class DeleteCompanyBranchActions
 {
@@ -29,8 +30,11 @@ class DeleteCompanyBranchActions
         $companyBranch = CompaniesBranches::getById($companyBranchId);
         $company = $companyBranch->company()->first();
 
-        $company->isOwner($this->user);
-        CompaniesRepository::userAssociatedToCompanyAndBranch($company, $companyBranch, $this->user);
+        $company->hasCompanyPermission($this->user);
+
+        if (! $company->isOwner($this->user) && ! $this->user->isOwnerOf(app(Apps::class))) {
+            throw new AuthorizationException('Only the owner of the company can delete a branch.');
+        }
 
         $companyBranch->softDelete();
 

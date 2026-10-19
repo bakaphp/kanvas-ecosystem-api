@@ -31,6 +31,7 @@ use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Guild\Customers\Models\People;
@@ -566,9 +567,9 @@ class Message extends BaseModel
         $app = app(Apps::class);
 
         if ($app->get('restrict_messages_by_company')) {
-            $user = auth()->user();
+            $company = LocationContext::shoppingCompany(auth()->user());
 
-            return $query->where($this->getTable() . '.companies_id', $user->getCurrentCompany()->getId());
+            return $query->where($this->getTable() . '.companies_id', $company->getId());
         }
 
         return $query;

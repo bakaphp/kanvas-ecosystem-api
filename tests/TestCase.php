@@ -2,11 +2,13 @@
 
 namespace Tests;
 
+use Baka\Support\Str;
 use Dotenv\Dotenv;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
@@ -44,7 +46,7 @@ class TestCase extends BaseTestCase
     public function createUser(): Users
     {
         $dto = RegisterPostDataDto::from([
-            'email' => fake()->email,
+            'email' => 'user-' . Str::uuid() . '@kanvas.dev',
             'password' => fake()->password(8),
             'firstname' => fake()->firstName,
             'lastname' => fake()->lastName,
@@ -110,6 +112,8 @@ class TestCase extends BaseTestCase
             ]);
             new CreateAppsAction($data, new Users())->acl($currentApp);
 
+            // Signups default to Users; the suite runs as a company admin.
+            $currentApp->set(AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue(), RolesEnums::ADMIN->value);
             $currentApp->set(AppSettingsEnums::ONE_SIGNAL_APP_ID->getValue(), 'test-onesignal-app-id');
             $currentApp->set(AppSettingsEnums::ONE_SIGNAL_REST_API_KEY->getValue(), 'test-onesignal-rest-api-key');
 

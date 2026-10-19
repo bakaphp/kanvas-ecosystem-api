@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Event\Events\Enums\TimeSlotStatusEnum;
 use Kanvas\Event\Models\BaseModel;
 
-class TimeSlots extends BaseModel
+class TimeSlots extends BaseModel implements ReadableAtLocation
 {
     protected $table = 'time_slots';
     protected $guarded = [];
@@ -58,7 +59,6 @@ class TimeSlots extends BaseModel
     {
         return $this->schedule_rules_id !== null;
     }
-
 
     public function isStandalone(): bool
     {
@@ -117,6 +117,7 @@ class TimeSlots extends BaseModel
     public function getAvailableSlots(): int
     {
         $bookedCount = $this->getBookedSlotsCount();
+
         return max(0, $this->initial_capacity - $bookedCount);
     }
 

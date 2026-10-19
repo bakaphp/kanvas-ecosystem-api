@@ -20,9 +20,10 @@ use Illuminate\Support\Carbon;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
@@ -109,7 +110,7 @@ use Spatie\LaravelData\DataCollection;
  * @property Carbon|null $updated_at
  */
 #[ObservedBy(OrderObserver::class)]
-class Order extends BaseModel implements PayableInterface, ExposesTemplateData
+class Order extends BaseModel implements PayableInterface, ExposesTemplateData, ReadableAtLocation
 {
     use HasAdminLink;
     use UuidTrait;
@@ -225,11 +226,20 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData
     {
         $user = $user instanceof UserInterface ? $user : auth()->user();
 
-        if (! $user->isAppOwner() && ! $user->can('view-all-orders')) {
-            return $query->where('users_id', $user->getId());
+        return self::canViewAllOrders($user) ? $query : $query->where('users_id', $user->getId());
+    }
+
+    /**
+     * view-all-orders is an app-wide ability, so a shopper at another company's store only sees
+     * their own orders there.
+     */
+    public static function canViewAllOrders(UserInterface $user): bool
+    {
+        if ($user->isAppOwner()) {
+            return true;
         }
 
-        return $query;
+        return ! LocationContext::isShopperOnly($user) && $user->can('view-all-orders');
     }
 
     public function getTotalAmount(): float
@@ -854,10 +864,16 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        if ($user instanceof UserInterface && ! self::canViewAllOrders($user)) {
+            $query->where('users_id', $user->getId());
         }
 
         if ($query->model->isTypesense()) {

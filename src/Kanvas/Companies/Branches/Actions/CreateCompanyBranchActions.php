@@ -7,9 +7,9 @@ namespace Kanvas\Companies\Branches\Actions;
 use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 class CreateCompanyBranchActions
 {
@@ -30,9 +30,12 @@ class CreateCompanyBranchActions
         $company = Companies::getById($this->data->companies_id);
 
         if ($company->branches()->count()) {
-            CompaniesRepository::userAssociatedToCompany($company, $this->user);
+            $company->hasCompanyPermission($this->user);
         } else {
-            $company->isOwner($this->user);
+            // The first branch is made while the company is created, before its owner is a member.
+            if (! $company->isOwner($this->user)) {
+                throw new AuthorizationException('Only the owner of the company can create its first branch.');
+            }
             $this->data->is_default = (int) StateEnums::YES->getValue();
         }
 

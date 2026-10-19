@@ -40,6 +40,7 @@ use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
@@ -598,12 +599,10 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentCompanyId(): int
     {
-        if (app()->bound(CompaniesBranches::class)) {
-            $companyId = app(CompaniesBranches::class)->company()->first()?->getId();
+        $locationBranch = LocationContext::branchFor($this);
 
-            if ($companyId > 0) {
-                return $companyId;
-            }
+        if ($locationBranch !== null && $locationBranch->companies_id > 0) {
+            return (int) $locationBranch->companies_id;
         }
 
         $companyId = (int) ($this->get(Companies::cacheKey()) ?? $this->default_company);
@@ -628,9 +627,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentBranchId(): int
     {
-        if (app()->bound(CompaniesBranches::class)) {
-            $branchId = app(CompaniesBranches::class)->getId();
-        }
+        $branchId = LocationContext::branchFor($this)?->getId();
 
         $companyId = $this->currentCompanyId();
         if ($companyId === 0) {
@@ -723,7 +720,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Generate a hash password and updated for the user model.
      */
-    public function resetPassword(string $newPassword, AppInterface $app): bool
+    /**
+     * `onlyThisApp` is for an app owner or app key changing a user's password: the global record seeds
+     * the user's profile in every other app on first login, so it stays the user's own to change.
+     */
+    public function resetPassword(string $newPassword, AppInterface $app, bool $onlyThisApp = false): bool
     {
         $user = $this->getAppProfile($app);
         $user->password = Hash::make($newPassword);
@@ -733,12 +734,17 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
          * Update the legacy user model with the new password and activation hash.
          * @todo remove once we shut down the legacy apis
          */
-        $this->password = $user->password;
-        $this->user_activation_forgot = null;
+        if (! $onlyThisApp) {
+            $this->password = $user->password;
+            $this->user_activation_forgot = null;
+        }
 
-        return DB::transaction(function () use ($user, $app) {
+        return DB::transaction(function () use ($user, $app, $onlyThisApp) {
             $user->saveOrFail();
-            $this->saveOrFail();
+
+            if (! $onlyThisApp) {
+                $this->saveOrFail();
+            }
 
             $this->fireWorkflow(
                 WorkflowEnum::AFTER_FORGOT_PASSWORD->value,
@@ -777,16 +783,21 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $user->updateOrFail();
     }
 
-    public function updateEmail(string $email, AppInterface $app): bool
+    /**
+     * `onlyThisApp` is for an app owner or app key changing a user's email: see resetPassword().
+     */
+    public function updateEmail(string $email, AppInterface $app, bool $onlyThisApp = false): bool
     {
         //@todo in the future we should remove this validation and use only the one in the app
-        $validator = Validator::make(
-            ['email' => $email],
-            ['email' => 'required|email|unique:users,email,' . $this->id]
-        );
+        if (! $onlyThisApp) {
+            $validator = Validator::make(
+                ['email' => $email],
+                ['email' => 'required|email|unique:users,email,' . $this->id]
+            );
 
-        if ($validator->fails()) {
-            throw new ValidationException($validator);
+            if ($validator->fails()) {
+                throw new ValidationException($validator);
+            }
         }
 
         $user = $this->getAppProfile($app);
@@ -796,6 +807,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             [
                 'email' => [
                     'required',
+                    'email',
                     Rule::unique('users_associated_apps')->ignore($this->id, 'users_id')
                         ->where(function ($query) use ($app) {
                             return $query->where('apps_id', $app->getId());
@@ -808,10 +820,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             throw new ValidationException($validator);
         }
 
-        $this->email = $email;
         $user->email = $email;
-
         $user->updateOrFail();
+
+        if ($onlyThisApp) {
+            return true;
+        }
+
+        $this->email = $email;
 
         return $this->saveOrFail();
     }
@@ -828,6 +844,26 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         }
 
         return false;
+    }
+
+    /**
+     * Owner of this specific app, read in that app's Bouncer scope. isAppOwner() reads whatever scope
+     * the request mounted, which on an app-key request can be a different app than the key's.
+     */
+    public function isOwnerOf(AppInterface $app): bool
+    {
+        return (bool) Bouncer::scope()->onceTo(
+            RolesEnums::getScope($app),
+            fn () => $this->isAn(RolesEnums::OWNER->value)
+        );
+    }
+
+    public function isMemberOf(CompanyInterface $company): bool
+    {
+        return UsersAssociatedCompanies::where('users_id', $this->getId())
+            ->where('companies_id', $company->getId())
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->exists();
     }
 
     #[Override]
