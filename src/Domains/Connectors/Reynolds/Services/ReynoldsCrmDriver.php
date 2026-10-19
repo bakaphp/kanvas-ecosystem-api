@@ -8,12 +8,12 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Traits\ScalarCoercionTrait;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Reynolds\Contracts\CrmLeadDriver;
+use Kanvas\Connectors\Reynolds\DataTransferObject\Crm\CrmCustomer;
+use Kanvas\Connectors\Reynolds\DataTransferObject\Crm\CrmLeadInfo;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Reynolds\Enums\CrmTypeEnum;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
-use Kanvas\Guild\Leads\Contracts\CrmLeadDriver;
-use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmCustomer;
-use Kanvas\Guild\Leads\DataTransferObject\Crm\CrmLeadInfo;
-use Kanvas\Guild\Leads\Enums\CrmTypeEnum;
 
 class ReynoldsCrmDriver implements CrmLeadDriver
 {
