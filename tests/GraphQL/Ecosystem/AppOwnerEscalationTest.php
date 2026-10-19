@@ -11,10 +11,13 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Actions\CreateAppKeyAction;
 use Kanvas\Apps\DataTransferObject\AppKeyInput;
+use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Users\Models\Users;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
+use Tests\Traits\ActsAsAppOwner;
 
 /**
  * A user who is not an owner of the app — what every self-signup is — cannot reach app ownership:
@@ -23,6 +26,8 @@ use Tests\TestCase;
  */
 final class AppOwnerEscalationTest extends TestCase
 {
+    use ActsAsAppOwner;
+
     public function testANonOwnerCannotInviteAdmins(): void
     {
         Notification::fake();
@@ -53,6 +58,28 @@ final class AppOwnerEscalationTest extends TestCase
                 'custom_fields' => [],
             ]]
         )->assertGraphQLErrorMessage('Only an owner of this app can change owner roles.');
+    }
+
+    public function testOwningAnotherAppDoesNotMakeYouOwnerOfTheKeysApp(): void
+    {
+        $app = app(Apps::class);
+        $user = $this->createUser();
+        $otherAppScope = 'app_' . ($app->getId() + 100000) . '_company_0';
+
+        Bouncer::scope()->onceTo($otherAppScope, fn () => $user->assign(RolesEnums::OWNER->value));
+        Bouncer::scope()->to($otherAppScope);
+        Bouncer::refreshFor($user);
+        app()->instance(AppKey::class, $app->keys()->firstOrFail());
+
+        $this->assertFalse($user->isAppOwner());
+    }
+
+    public function testAnOwnerOfTheKeysAppIsAppOwner(): void
+    {
+        $owner = $this->actingAsAppOwner();
+        app()->instance(AppKey::class, app(Apps::class)->keys()->firstOrFail());
+
+        $this->assertTrue($owner->isAppOwner());
     }
 
     public function testAnAppKeyDoesNotMakeItsUserAnOwner(): void

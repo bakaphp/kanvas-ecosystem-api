@@ -833,22 +833,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
-     * Is the owner of the current app.
-     *  @psalm-suppress MixedReturnStatement
+     * Owner of the app the request's app key belongs to.
      */
     #[Override]
     public function isAppOwner(): bool
     {
-        if (app()->bound(AppKey::class) && $this->isAn(RolesEnums::OWNER->value)) {
-            return true;
-        }
-
-        return false;
+        return app()->bound(AppKey::class) && $this->isOwnerOf(app(AppKey::class)->app);
     }
 
     /**
-     * Owner of this specific app, read in that app's Bouncer scope. isAppOwner() reads whatever scope
-     * the request mounted, which on an app-key request can be a different app than the key's.
+     * Read in the app's own Bouncer scope: the scope the request mounted can belong to another app.
      */
     public function isOwnerOf(AppInterface $app): bool
     {
