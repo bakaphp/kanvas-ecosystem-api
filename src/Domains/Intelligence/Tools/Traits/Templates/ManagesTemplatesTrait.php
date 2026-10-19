@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Templates\Actions\CreateTemplateAction;
@@ -40,17 +41,21 @@ trait ManagesTemplatesTrait
             return $this->invalidArgs('Both a template name and an HTML body are required.');
         }
 
-        $template = new CreateTemplateAction(
-            new TemplateInput(
-                app: $app,
-                name: $name,
-                template: $body,
-                subject: $subject,
-                title: $title,
-                company: $company,
-                user: $user,
-            )
-        )->execute(overwrite: false);
+        try {
+            $template = new CreateTemplateAction(
+                new TemplateInput(
+                    app: $app,
+                    name: $name,
+                    template: $body,
+                    subject: $subject,
+                    title: $title,
+                    company: $company,
+                    user: $user,
+                )
+            )->execute(overwrite: false);
+        } catch (ValidationException $e) {
+            return $this->invalidArgs($e->getMessage());
+        }
 
         if (! $template->wasRecentlyCreated) {
             return $this->noop(
@@ -96,12 +101,11 @@ trait ManagesTemplatesTrait
             return $owned;
         }
 
-        $template = new UpdateTemplateAction($owned['template'])
-            ->execute(
-                $body,
-                $subject,
-                $title
-            );
+        try {
+            $template = new UpdateTemplateAction($owned['template'])->execute($body, $subject, $title);
+        } catch (ValidationException $e) {
+            return $this->invalidArgs($e->getMessage());
+        }
 
         return $this->ok([
             'template_id' => $template->getId(),
@@ -301,6 +305,7 @@ trait ManagesTemplatesTrait
         $ownerId = (int) $template->users_id;
 
         return ! $template->is_system
+            && ! $template->isBlade()
             && $ownerId !== AppEnums::GLOBAL_USER_ID->getValue()
             && $ownerId === $user->getId();
     }
@@ -327,7 +332,7 @@ trait ManagesTemplatesTrait
             ]);
         }
 
-        if ($template->is_system) {
+        if ($template->is_system || $template->isBlade()) {
             return $this->denied(
                 sprintf('Template #%d is a system template and was NOT changed.', $templateId)
             );

@@ -42,7 +42,7 @@ class ReceiversTest extends TestCase
 
     public function testCreateReceiverWebhook(): void
     {
-        $action = WorkflowAction::first();
+        $action = $this->webhookJobAction();
 
         $input = [
             'action_id' => $action->getId(),
@@ -83,7 +83,7 @@ class ReceiversTest extends TestCase
 
     public function testUpdateReceiverWebhook(): void
     {
-        $action = WorkflowAction::first();
+        $action = $this->webhookJobAction();
 
         $input = [
             'action_id' => $action->getId(),
@@ -132,7 +132,7 @@ class ReceiversTest extends TestCase
 
     public function testDeleteReceiverWebhook(): void
     {
-        $action = WorkflowAction::first();
+        $action = $this->webhookJobAction();
 
         $input = [
             'action_id' => $action->getId(),
@@ -258,5 +258,12 @@ class ReceiversTest extends TestCase
 
         // Assert the payload content
         $this->assertEquals($title, $result['result']['title']);
+    }
+
+    private function webhookJobAction(): WorkflowAction
+    {
+        return WorkflowAction::query()
+            ->get()
+            ->first(fn (WorkflowAction $action) => is_a((string) $action->model_name, ProcessWebhookJob::class, true));
     }
 }

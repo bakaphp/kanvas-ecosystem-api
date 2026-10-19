@@ -46,79 +46,79 @@ class SyncEmailTemplateAction
         $templates = [
             [
                 'name' => EmailTemplateEnum::DEFAULT->value,
-                'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
+                'template' => File::get(resource_path('views/emails/defaultTemplate.twig')),
             ], [
                 'name' => 'user-email-update',
-                'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
+                'template' => File::get(resource_path('views/emails/defaultTemplate.twig')),
             ], [
                 'name' => EmailTemplateEnum::USER_INVITE->value,
-                'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
+                'template' => File::get(resource_path('views/emails/userInvite.twig')),
             ], [
                 'name' => EmailTemplateEnum::ADMIN_USER_INVITE->value,
-                'template' => File::get(resource_path('views/emails/adminUserInvite.blade.php')),
+                'template' => File::get(resource_path('views/emails/adminUserInvite.twig')),
             ], [
                 'name' => EmailTemplateEnum::ADMIN_USER_INVITE_EXISTING_USER->value,
-                'template' => File::get(resource_path('views/emails/adminUserInviteAlreadyExist.blade.php')),
+                'template' => File::get(resource_path('views/emails/adminUserInviteAlreadyExist.twig')),
             ], [
                 'name' => EmailTemplateEnum::CHANGE_PASSWORD->value,
-                'template' => File::get(resource_path('views/emails/passwordUpdated.blade.php')),
+                'template' => File::get(resource_path('views/emails/passwordUpdated.twig')),
             ], [
                 'name' => EmailTemplateEnum::RESET_PASSWORD->value,
-                'template' => File::get(resource_path('views/emails/resetPassword.blade.php')),
+                'template' => File::get(resource_path('views/emails/resetPassword.twig')),
             ], [
                 'name' => EmailTemplateEnum::WELCOME->value,
-                'template' => File::get(resource_path('views/emails/welcome.blade.php')),
+                'template' => File::get(resource_path('views/emails/welcome.twig')),
             ], [
                 'name' => EmailTemplateEnum::EMAIL_VERIFICATION->value,
-                'template' => File::get(resource_path('views/emails/emailVerification.blade.php')),
+                'template' => File::get(resource_path('views/emails/emailVerification.twig')),
             ], [
                 'name' => PushNotificationTemplateEnum::DEFAULT->value,
-                'template' => File::get(resource_path('views/emails/pushNotification.blade.php')),
+                'template' => File::get(resource_path('views/emails/pushNotification.twig')),
             ], [
                 'name' => EnumsEmailTemplateEnum::NEW_ORDER->value,
-                'template' => File::get(resource_path('views/emails/newOrder.blade.php')),
+                'template' => File::get(resource_path('views/emails/newOrder.twig')),
             ], [
                 'name' => EnumsEmailTemplateEnum::NEW_ORDER_STORE_OWNER->value,
-                'template' => File::get(resource_path('views/emails/newOrderStoreOwner.blade.php')),
+                'template' => File::get(resource_path('views/emails/newOrderStoreOwner.twig')),
             ], [
                 'name' => LeadsEnumsEmailTemplateEnum::NEW_LEAD->value,
-                'template' => File::get(resource_path('views/emails/newLead.blade.php')),
+                'template' => File::get(resource_path('views/emails/newLead.twig')),
             ], [
                 'name' => LeadsEnumsEmailTemplateEnum::NEW_LEAD_COMPANY_ADMIN->value,
-                'template' => File::get(resource_path('views/emails/newLeadCompany.blade.php')),
+                'template' => File::get(resource_path('views/emails/newLeadCompany.twig')),
             ], [
                 'name' => LeadsEnumsEmailTemplateEnum::DAILY_LEADS_DIGEST->value,
-                'template' => File::get(resource_path('views/emails/dailyLeadsDigest.blade.php')),
+                'template' => File::get(resource_path('views/emails/dailyLeadsDigest.twig')),
             ],[
                 'name' => NotificationTemplateEnum::PUSH_NEW_FOLLOWER->value,
-                'template' => File::get(resource_path('views/emails/newPushNotification.blade.php')),
+                'template' => File::get(resource_path('views/emails/newPushNotification.twig')),
             ],[
                 'name' => EnumsNotificationTemplateEnum::PUSH_NEW_MESSAGE->value,
-                'template' => File::get(resource_path('views/emails/newPushNotification.blade.php')),
+                'template' => File::get(resource_path('views/emails/newPushNotification.twig')),
             ],[
                 'name' => EnumsNotificationTemplateEnum::PUSH_NEW_INTERACTION_MESSAGE->value,
-                'template' => File::get(resource_path('views/emails/newPushNotification.blade.php')),
+                'template' => File::get(resource_path('views/emails/newPushNotification.twig')),
             ],[
                 'name' => ProductsEnumsEmailTemplateEnum::LOW_STOCK->value,
-                'template' => File::get(resource_path('views/emails/lowStock.blade.php')),
+                'template' => File::get(resource_path('views/emails/lowStock.twig')),
             ],[
                 'name' => EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED->value,
-                'template' => File::get(resource_path('views/push/engagement-status-changed.blade.php')),
+                'template' => File::get(resource_path('views/push/engagement-status-changed.twig')),
             ], [
                 'name' => EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED_DATABASE->value,
-                'template' => File::get(resource_path('views/push/engagement-status-changed-db.blade.php')),
+                'template' => File::get(resource_path('views/push/engagement-status-changed-db.twig')),
             ], [
                 'name' => EnumsNotificationTemplateEnum::EMAIL_USER_MENTION->value,
-                'template' => File::get(resource_path('views/emails/userMentioned.blade.php')),
+                'template' => File::get(resource_path('views/emails/userMentioned.twig')),
             ], [
                 'name' => IntelligenceNotificationTemplateEnum::EMAIL_AGENT_MENTION_REPLY->value,
-                'template' => File::get(resource_path('views/emails/agentMentionReply.blade.php')),
+                'template' => File::get(resource_path('views/emails/agentMentionReply.twig')),
             ], [
                 'name' => IntelligenceNotificationTemplateEnum::PUSH_AGENT_MENTION_REPLY->value,
-                'template' => File::get(resource_path('views/push/agent-mention-reply.blade.php')),
+                'template' => File::get(resource_path('views/push/agent-mention-reply.twig')),
             ], [
                 'name' => IntelligenceNotificationTemplateEnum::DATABASE_AGENT_MENTION_REPLY->value,
-                'template' => File::get(resource_path('views/push/agent-mention-reply-db.blade.php')),
+                'template' => File::get(resource_path('views/push/agent-mention-reply-db.twig')),
             ],
         ];
 

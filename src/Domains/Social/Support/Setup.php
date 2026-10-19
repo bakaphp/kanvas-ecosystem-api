@@ -177,7 +177,7 @@ class Setup
             TemplateInput::from([
                 'app' => $this->app,
                 'name' => 'test-social-notification',
-                'template' => '<html><body>Hello this is a test notification with {{ isset($dynamic) ? $dynamic : \'default value\' }} values</body></html>',
+                'template' => '<html><body>Hello this is a test notification with {{ dynamic ?? \'default value\' }} values</body></html>',
                 ])
         );
         $template = $createParentTemplate->execute();
@@ -186,7 +186,7 @@ class Setup
             TemplateInput::from([
                 'app' => $this->app,
                 'name' => 'test-social-notification-push',
-                'template' => '{"message" : "Hello this is a test notification with {{ isset($dynamic) ? $dynamic : \'default value\' }} values"}',
+                'template' => '{"message" : "Hello this is a test notification with {{ dynamic ?? \'default value\' }} values"}',
                 ])
         );
         $pushTemplate = $createPushTemplate->execute();

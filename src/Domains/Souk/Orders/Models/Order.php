@@ -46,6 +46,7 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Services\B2BConfigurationService;
 use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
 use Kanvas\Souk\Traits\PayableTrait;
+use Kanvas\Templates\Contracts\ExposesTemplateData;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
@@ -108,7 +109,7 @@ use Spatie\LaravelData\DataCollection;
  * @property Carbon|null $updated_at
  */
 #[ObservedBy(OrderObserver::class)]
-class Order extends BaseModel implements PayableInterface
+class Order extends BaseModel implements PayableInterface, ExposesTemplateData
 {
     use HasAdminLink;
     use UuidTrait;
@@ -1038,5 +1039,28 @@ class Order extends BaseModel implements PayableInterface
         );
 
         return $discountService->applyDiscountCode($code, $this);
+    }
+
+    /**
+     * The order emails print totals and contact details the model computes, so they ship as fields.
+     */
+    #[Override]
+    public function toTemplateData(): array
+    {
+        $address = $this->people?->address()->first();
+
+        return array_merge($this->attributesToArray(), [
+            'user' => $this->user,
+            'app' => $this->app,
+            'items' => $this->items,
+            'sub_total_amount' => $this->getSubTotalAmount(),
+            'total_tax_amount' => $this->getTotalTaxAmount(),
+            'total_amount' => $this->getTotalAmount(),
+            'email' => $this->getEmail(),
+            'phone' => $this->getPhone(),
+            'shipping_address' => $address === null
+                ? null
+                : array_merge($address->attributesToArray(), ['country' => $address->country]),
+        ]);
     }
 }

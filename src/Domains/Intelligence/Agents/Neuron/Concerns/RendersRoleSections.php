@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 
-use Illuminate\Support\Facades\Blade;
+use Kanvas\Templates\Support\TemplateSandbox;
 
 /**
  * A role section configured on the agent wins over the handler's local default; only the configured
- * text goes through Blade, so a default never has to be Blade-safe. Requires the `$agent` property.
+ * text goes through the template sandbox, so a default never has to be template-safe. Requires the
+ * `$agent` property.
  */
 trait RendersRoleSections
 {
@@ -19,6 +20,6 @@ trait RendersRoleSections
     {
         $configured = trim($this->agent->roleSection($key, "\n"));
 
-        return $configured !== '' ? Blade::render($configured, $context) : $default;
+        return $configured !== '' ? TemplateSandbox::render($configured, $context) : $default;
     }
 }

@@ -53,9 +53,9 @@ class AttachmentDescriptionService
      */
     public static function forAgent(Agent $agent, Users $user): ?self
     {
-        $handlerClass = $agent->type?->handler;
+        $handlerClass = $agent->type?->handlerClass();
 
-        if (! is_string($handlerClass) || $handlerClass === '' || ! class_exists($handlerClass)) {
+        if ($handlerClass === null) {
             return null;
         }
 

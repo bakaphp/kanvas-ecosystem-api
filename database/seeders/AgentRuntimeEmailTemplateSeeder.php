@@ -21,7 +21,7 @@ class AgentRuntimeEmailTemplateSeeder extends GlobalEmailTemplateSeeder
     protected function templates(): array
     {
         return collect(self::TEMPLATES)
-            ->mapWithKeys(fn (string $name): array => [$name => 'views/emails/agent_runtime/' . $name . '.blade.php'])
+            ->mapWithKeys(fn (string $name): array => [$name => 'views/emails/agent_runtime/' . $name . '.twig'])
             ->all();
     }
 }

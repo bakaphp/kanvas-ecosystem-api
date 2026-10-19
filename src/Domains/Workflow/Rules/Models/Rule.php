@@ -14,12 +14,12 @@ use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Rules\Factories\RuleFactory;
-use Kanvas\Workflow\Rules\Support\ExpressionData;
+use Kanvas\Workflow\Rules\Support\SafeExpression;
 use Override;
-use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 use Throwable;
 
 /**
@@ -153,6 +153,16 @@ class Rule extends BaseModel
         return $this->is_async;
     }
 
+    #[Override]
+    protected static function booted(): void
+    {
+        static::saving(function (self $rule): void {
+            if (! preg_match('/^[\d\s()]*(?:(?:and|or)[\d\s()]*)*$/i', (string) $rule->pattern)) {
+                throw new ValidationException('A rule pattern can only combine condition numbers with and, or and parentheses.');
+            }
+        });
+    }
+
     /**
      * Whether this rule's condition holds for the entity and the event params. Evaluated before a
      * stored workflow is created for it, so a rule that does not apply costs no row.
@@ -171,12 +181,8 @@ class Rule extends BaseModel
             $params
         );
 
-        // JSON columns arrive as plain arrays; wrap them so a rule can navigate nested keys with
-        // dot syntax (metadata.data.x) — Symfony's `.` operator only works on objects, not arrays.
-        $values = ExpressionData::wrapValues($values);
-
         try {
-            return (bool) new ExpressionLanguage()->evaluate($expression, $values);
+            return (bool) SafeExpression::evaluate($expression, $values);
         } catch (Throwable $e) {
             Log::debug('Rule expression evaluation failed; treating as non-match', [
                 'rule_id' => $this->getId(),

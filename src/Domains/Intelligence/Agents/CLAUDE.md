@@ -738,6 +738,7 @@ Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
 
 ## Don't break
 
+- **Agent types are the platform catalog.** There is no GraphQL write for them; `kanvas:intelligence:sync-agent-types` or the database writes `agent_types`. A handler is built through `AgentType::handlerClass()`, which only returns a class implementing `AgentTypeHandler` — a new runtime implements it, a raw `new $type->handler()` is never added.
 - **`AgentChatKernel` is load-bearing for 4 call sites** — `userChat` (GraphQL), channel responders (×6), `WakeAgentForPlanJob`, `AgentReceiverJob`. Any change to its constructor or `execute()` contract ripples through all of them. Test both `userChat` and at least one channel responder end-to-end after touching it.
 - **The connector path threads by entity, not by session.** `AgentChatKernel::threadId()` returns the session entity's uuid whenever `sourceChannel` is set, and that is what keeps cross-channel rollup working — a prospect emails Monday, WhatsApps Tuesday, and both land on one thread. Neuron 4 needs a thread on every run, so a new caller cannot skip it: pass `sourceChannel` when there is one and let the kernel pick the id. Never hand a session uuid to a channel agent.
 - **Don't pass `app` / `company` to the kernel.** They were removed deliberately. The agent IS the tenant.

@@ -37,6 +37,7 @@ use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
+use Kanvas\Templates\Support\TemplateSandbox;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
@@ -486,6 +487,17 @@ class Agent extends BaseModel
         $section = is_array($this->role) ? ($this->role[$key] ?? null) : null;
 
         return is_array($section) ? implode($separator, $section) : (string) $section;
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function renderRoleSection(string $key, array $context = [], string $separator = ' '): string
+    {
+        return TemplateSandbox::render(
+            $this->roleSection($key, $separator),
+            $context
+        );
     }
 
     /**
