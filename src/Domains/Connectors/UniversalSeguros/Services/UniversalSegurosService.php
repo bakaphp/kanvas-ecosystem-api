@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\UniversalSeguros\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\UniversalSeguros\Client;
+use Kanvas\Connectors\UniversalSeguros\DataTransferObject\PaymentInformation;
 use Kanvas\Connectors\UniversalSeguros\DataTransferObject\QuoteRequest;
 use Kanvas\Connectors\UniversalSeguros\Enums\DocumentOperationEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\DocumentTransactionEnum;
@@ -135,5 +136,15 @@ class UniversalSegurosService
     public function getPolicy(string $numeroCotizacion): array
     {
         return $this->client->get('/api/v1/poliza/aliado/cotizacion/' . rawurlencode($numeroCotizacion));
+    }
+
+    public function assignPaymentInformation(PaymentInformation $payment): array
+    {
+        return $this->client->post('/api/v1/pagos/asignar-informacion-pago/aliado', $payment->toArray());
+    }
+
+    public function invoicePolicy(PaymentInformation $payment): array
+    {
+        return $this->client->post('/api/v1/pagos/facturar-poliza/aliado', $payment->toArray());
     }
 }

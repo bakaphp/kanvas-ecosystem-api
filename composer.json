@@ -172,7 +172,8 @@
             "php artisan migrate --path database/migrations/Workflow/ --database workflow",
             "php artisan migrate --path database/migrations/Intelligence/ --database intelligence",
             "php artisan migrate --path database/migrations/Scribe/ --database accounting",
-            "php artisan migrate --path database/migrations/HumanResources/ --database hr"
+            "php artisan migrate --path database/migrations/HumanResources/ --database hr",
+            "php artisan migrate --path database/migrations/Insurance/ --database insurance"
         ],
         "migrate-kanvas": [
             "php artisan migrate"
@@ -212,6 +213,9 @@
         ],
         "migrate-hr": [
             "php artisan migrate --path database/migrations/HumanResources/ --database hr"
+        ],
+        "migrate-insurance": [
+            "php artisan migrate --path database/migrations/Insurance/ --database insurance"
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },
