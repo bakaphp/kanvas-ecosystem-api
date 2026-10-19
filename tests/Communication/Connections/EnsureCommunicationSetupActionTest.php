@@ -80,6 +80,27 @@ final class EnsureCommunicationSetupActionTest extends TestCase
         $this->assertCount(1, $transport->sent);
     }
 
+    public function testInstallingTheIntegrationSwitchesItsReceiverOnBeforeSetupRuns(): void
+    {
+        $this->integrateMessaging(['+18095550100']);
+
+        $receiver = $this->receiver();
+        $this->assertTrue((bool) $receiver->is_active);
+        $this->assertSame('fake', $receiver->configuration['communication']['provider']);
+    }
+
+    public function testResavingSwitchesBackOnTheSameReceiver(): void
+    {
+        $integration = $this->integrateMessaging(['+18095550100']);
+        $receiver = $this->receiver();
+        $receiver->forceFill(['is_active' => false])->saveOrFail();
+
+        $this->resaveIntegration($integration, ['+18095550100']);
+
+        $this->assertSame($receiver->getId(), $this->receiver()->getId(), 'the URL the vendor has keeps working');
+        $this->assertTrue((bool) $receiver->refresh()->is_active);
+    }
+
     public function testSavingTheIntegrationAgainCreatesNothingNew(): void
     {
         $integration = $this->integrateMessaging(['+18095550100']);

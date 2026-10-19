@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Jobs\EnsureCommunicationSetupJob;
+use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Support\ProviderRegistry;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
@@ -39,6 +40,10 @@ final class ScheduleCommunicationSetupAction
         $app = $this->app instanceof Apps ? $this->app : Apps::query()->findOrFail($this->app->getId());
 
         new EnsureCommunicationSetupAction($app, $this->integrationCompany)->reconcile($provider);
+
+        // Live from the install for every provider, not once the setup job gets to it: a vendor
+        // that checks the callback as soon as it is registered (Meta) fails on a missing receiver.
+        app(CommunicationReceivers::class)->ensure($app, $this->integrationCompany->company, $provider::slug());
 
         DB::connection('workflow')->afterCommit(
             fn () => EnsureCommunicationSetupJob::dispatch($app, $this->integrationCompany)
