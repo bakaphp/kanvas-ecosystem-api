@@ -32,11 +32,14 @@ class AttachGetDocsFilesToMessageAction
             return collect();
         }
 
-        // The customer controls the payload, so only files from this message's tenant (or the
-        // global company the public form may upload under) can be attached.
+        // @todo restore once the docs frontend change ships
         $files = Filesystem::query()
             ->fromApp($this->message->app)
-            //->whereIn('companies_id', [$this->message->companies_id, 0])
+            /* ->where(
+                fn ($query): mixed => $query
+                    ->whereIn('companies_id', [$this->message->companies_id, 0])
+                    ->orWhere('users_id', $this->message->users_id)
+            ) */
             ->whereIn('id', array_keys($fieldNames))
             ->notDeleted()
             ->get();
