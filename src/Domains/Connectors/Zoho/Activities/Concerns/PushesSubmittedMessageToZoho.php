@@ -11,6 +11,7 @@ use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
 use Kanvas\Connectors\Zoho\Actions\PushFilesToZohoRecordAction;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
@@ -43,18 +44,29 @@ trait PushesSubmittedMessageToZoho
      */
     protected function pushGetDocs(Message $message, callable $resolveTargets): array
     {
-        $files = new AttachGetDocsFilesToMessageAction($message)->execute();
+        $attachGetDocs = new AttachGetDocsFilesToMessageAction($message);
+        $files = $attachGetDocs->execute();
 
         if ($files->isEmpty()) {
             return ['files' => 0];
         }
 
+        // The funding team sorts Zoho attachments by what was asked for, and two document types can
+        // carry the same customer filename.
+        $documentTypes = $attachGetDocs->documentTypes();
+        $zohoFileNames = $files->mapWithKeys(
+            fn (Filesystem $file) => [$file->getId() => $documentTypes[$file->getId()] . ' - ' . $file->name]
+        )->all();
+
         $synced = $message->get(CustomFieldEnum::ZOHO_MESSAGE_SYNC_FILES->value) ?? [];
         $results = [];
 
         foreach ($resolveTargets() as $zohoRecordId => $module) {
-            $pushed = new PushFilesToZohoRecordAction($module, (string) $zohoRecordId)
-                ->execute($files, $synced[$zohoRecordId] ?? []);
+            $pushed = new PushFilesToZohoRecordAction($module, (string) $zohoRecordId)->execute(
+                $files,
+                $synced[$zohoRecordId] ?? [],
+                $zohoFileNames
+            );
 
             $synced[$zohoRecordId] = array_merge($synced[$zohoRecordId] ?? [], $pushed['uploaded']);
             $results[$zohoRecordId] = $pushed;

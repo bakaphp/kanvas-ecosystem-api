@@ -16,6 +16,11 @@ use Kanvas\Social\Messages\Models\Message;
  */
 class AttachGetDocsFilesToMessageAction
 {
+    /**
+     * @var array<int, string>|null
+     */
+    protected ?array $documentTypes = null;
+
     public function __construct(
         protected Message $message,
     ) {
@@ -26,9 +31,9 @@ class AttachGetDocsFilesToMessageAction
      */
     public function execute(): Collection
     {
-        $fieldNames = $this->collectFieldNamesByFileId();
+        $documentTypes = $this->documentTypes();
 
-        if ($fieldNames === []) {
+        if ($documentTypes === []) {
             return collect();
         }
 
@@ -40,42 +45,48 @@ class AttachGetDocsFilesToMessageAction
                     ->whereIn('companies_id', [$this->message->companies_id, 0])
                     ->orWhere('users_id', $this->message->users_id)
             ) */
-            ->whereIn('id', array_keys($fieldNames))
+            ->whereIn('id', array_keys($documentTypes))
             ->notDeleted()
             ->get();
 
         foreach ($files as $file) {
             // Unique per file: without app-level duplicates, a shared field name replaces the
             // previous file, and one document type can carry several files.
-            $this->message->addFile($file, $fieldNames[$file->getId()] . '_' . $file->getId());
+            $this->message->addFile($file, Str::slug($documentTypes[$file->getId()], '_') . '_' . $file->getId());
         }
 
         return $files;
     }
 
     /**
-     * @return array<int, string>
+     * The document type each file was uploaded for, as the customer saw it ("Income documents").
+     *
+     * @return array<int, string> keyed by filesystem id
      */
-    protected function collectFieldNamesByFileId(): array
+    public function documentTypes(): array
     {
-        $fieldNames = [];
+        if ($this->documentTypes !== null) {
+            return $this->documentTypes;
+        }
+
+        $this->documentTypes = [];
 
         foreach ($this->message->getMessage()['data'] ?? [] as $typeId => $document) {
             if (! is_array($document)) {
                 continue;
             }
 
-            $fieldName = Str::slug((string) ($document['type']['name'] ?? 'document_' . $typeId), '_');
+            $typeName = (string) ($document['type']['name'] ?? 'Document ' . $typeId);
 
             foreach ($document['files'] ?? [] as $file) {
                 $fileId = (int) ($file['id'] ?? 0);
 
                 if ($fileId > 0) {
-                    $fieldNames[$fileId] = $fieldName;
+                    $this->documentTypes[$fileId] = $typeName;
                 }
             }
         }
 
-        return $fieldNames;
+        return $this->documentTypes;
     }
 }
