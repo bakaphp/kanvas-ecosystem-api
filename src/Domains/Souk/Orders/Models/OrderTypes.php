@@ -12,8 +12,9 @@ use Exception;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\DataTransferObject\OrderReceipt;
 use Kanvas\Souk\Traits\DefaultTrait;
@@ -26,7 +27,7 @@ use Kanvas\Souk\Traits\DefaultTrait;
  * @property int companies_id
  * @property string $name
  * */
-class OrderTypes extends BaseModel
+class OrderTypes extends BaseModel implements ReadableAtLocation
 {
     use DefaultTrait;
     use DynamicSearchableTrait {
@@ -147,8 +148,10 @@ class OrderTypes extends BaseModel
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }

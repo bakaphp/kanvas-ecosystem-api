@@ -28,8 +28,9 @@ use Kanvas\Activities\Models\Activity;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Contracts\EntityImportFilesystemInterface;
@@ -90,7 +91,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property bool $is_deleted
  */
 #[ObservedBy(ProductsObserver::class)]
-class Products extends BaseModel implements EntityIntegrationInterface, EntityImportFilesystemInterface, ActivityLogInterface
+class Products extends BaseModel implements EntityIntegrationInterface, EntityImportFilesystemInterface, ActivityLogInterface, ReadableAtLocation
 {
     use HasAdminLink;
     use UuidTrait;
@@ -901,12 +902,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             (
                 ! auth()->user()->isAppOwner() ||
                 (
-                    app()->bound(CompaniesBranches::class) &&
+                    LocationContext::branch() !== null &&
                     $app->get('enable_company_bound_search', false)
                 )
             )
         ) {
-            $searchQuery->where('company.id', auth()->user()->getCurrentCompany()->getId());
+            $searchQuery->where('company.id', LocationContext::shoppingCompany($user)->getId());
         }
 
         if ($isTypesense) {

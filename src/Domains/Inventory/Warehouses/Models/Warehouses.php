@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Traits\DefaultTrait;
@@ -32,7 +33,7 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
  * @property string $updated_at
  */
 
-class Warehouses extends BaseModel
+class Warehouses extends BaseModel implements ReadableAtLocation
 {
     use UuidTrait;
     use DefaultTrait;

@@ -59,7 +59,6 @@ use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
-use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
@@ -543,9 +542,16 @@ class Companies extends BaseModel implements CompanyInterface, Customer, Exposes
         )?->requiresHumanApproval() ?? false;
     }
 
-    public function hasCompanyPermission(UserInterface $user): void
+    /**
+     * Roles are app-wide, so being an admin says nothing about which company: only a member of this
+     * company or an owner of the app may manage it.
+     */
+    public function hasCompanyPermission(UserInterface $user, ?AppInterface $app = null): void
     {
-        if (! UsersRepository::belongsToCompany($user, $this) && ! $user->isAdmin()) {
+        $app ??= app(Apps::class);
+        CompaniesRepository::hasAccessToThisApp($this, $app);
+
+        if (! $user instanceof Users || (! $user->isMemberOf($this) && ! $user->isOwnerOf($app))) {
             throw new AuthorizationException(
                 'You are not allowed to perform this action for company ' . $this->name
             );

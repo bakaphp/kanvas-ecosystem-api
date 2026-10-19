@@ -7,6 +7,7 @@ namespace Kanvas\Users\Actions;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\AccessControlList\Support\RoleChangeGuard;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ValidationException;
@@ -32,6 +33,7 @@ class CreateInviteAction
         $companyBranch = $this->inviteDto->companyBranch;
         $company = $companyBranch->company;
 
+        $company->hasCompanyPermission($this->user, $this->inviteDto->app);
         CompaniesRepository::userAssociatedToCompanyAndBranch(
             $company,
             $companyBranch,
@@ -47,6 +49,8 @@ class CreateInviteAction
         if (($role->isAdmin() || $role->isOwner()) && ! $this->user->isAdmin()) {
             throw new ValidationException('You can\'t invite an admin or owner');
         }
+
+        RoleChangeGuard::assertCanGrant($this->user, $role->name, $this->inviteDto->app);
 
         $invite = new UsersInvite();
         $invite->fill([

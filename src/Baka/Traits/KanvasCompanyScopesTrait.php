@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 
 trait KanvasCompanyScopesTrait
@@ -19,7 +20,7 @@ trait KanvasCompanyScopesTrait
      */
     public function scopeFromCompany(Builder $query, mixed $company = null): Builder
     {
-        $company = $company instanceof Companies ? $company : auth()->user()->getCurrentCompany();
+        $company = $company instanceof Companies ? $company : LocationContext::companyToScope($this);
 
         $table = $this instanceof Model ? $this->getTable() . '.' : '';
 
@@ -49,7 +50,7 @@ trait KanvasCompanyScopesTrait
             return $query->where($table . 'companies_id', '>=', 0);
         }
 
-        $company = $company instanceof Companies ? $company : auth()->user()->getCurrentCompany();
+        $company = $company instanceof Companies ? $company : LocationContext::companyToScope($this);
         $companyId = $company->getId();
 
         if (! app(Apps::class)->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value)) {
