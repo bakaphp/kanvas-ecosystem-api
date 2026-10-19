@@ -22,11 +22,16 @@ final class RoleChangeGuard
         string $roleName,
         AppInterface $app
     ): void {
-        if ($actor->isOwnerOf($app)) {
-            return;
-        }
+        self::assertCanGrant($actor, $roleName, $app);
 
-        if ($roleName === RolesEnums::OWNER->value || $target->isOwnerOf($app)) {
+        if ($target->isOwnerOf($app) && ! $actor->isOwnerOf($app)) {
+            throw new AuthorizationException('Only an owner of this app can change owner roles.');
+        }
+    }
+
+    public static function assertCanGrant(Users $actor, string $roleName, AppInterface $app): void
+    {
+        if ($roleName === RolesEnums::OWNER->value && ! $actor->isOwnerOf($app)) {
             throw new AuthorizationException('Only an owner of this app can change owner roles.');
         }
     }

@@ -546,9 +546,9 @@ class Companies extends BaseModel implements CompanyInterface, Customer, Exposes
      * Roles are app-wide, so being an admin says nothing about which company: only a member of this
      * company or an owner of the app may manage it.
      */
-    public function hasCompanyPermission(UserInterface $user): void
+    public function hasCompanyPermission(UserInterface $user, ?AppInterface $app = null): void
     {
-        $app = app(Apps::class);
+        $app ??= app(Apps::class);
         CompaniesRepository::hasAccessToThisApp($this, $app);
 
         if (! $user instanceof Users || (! $user->isMemberOf($this) && ! $user->isOwnerOf($app))) {

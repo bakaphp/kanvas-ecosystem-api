@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Companies;
 
+use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -179,6 +180,25 @@ final class CompanyLocationAccessTest extends TestCase
         )->assertGraphQLErrorMessage('You are not allowed to perform this action for company ' . $branch->company->name);
 
         $this->assertFalse($admin->isMemberOf($branch->company));
+    }
+
+    public function testAnAdminCannotInviteIntoAnotherCompanysBranch(): void
+    {
+        Notification::fake();
+        $branch = $this->branchOf($this->createUser());
+        $this->actingAsAdmin();
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation inviteUser($data: InviteInput!) {
+                inviteUser(input: $data) { id }
+            }',
+            ['data' => [
+                'companies_branches_id' => $branch->getId(),
+                'email' => 'invite-' . uniqid() . '@kanvas.dev',
+                'firstname' => fake()->firstName(),
+                'custom_fields' => [],
+            ]]
+        )->assertGraphQLErrorMessage('You are not allowed to perform this action for company ' . $branch->company->name);
     }
 
     public function testAnAdminCannotEditOrDeleteAnotherCompanysBranch(): void

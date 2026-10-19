@@ -33,7 +33,7 @@ class CompanyBranchManagementMutation
     {
         $request['input']['users_id'] = Auth::user()->getKey();
         $dto = CompaniesBranchPostData::from($request['input']);
-        $action = new CreateCompanyBranchActions(Auth::user(), $dto);
+        $action = new CreateCompanyBranchActions(Auth::user(), $dto, app(Apps::class));
 
         return $action->execute();
     }
@@ -44,7 +44,7 @@ class CompanyBranchManagementMutation
     public function updateCompanyBranch(mixed $root, array $request): CompaniesBranches
     {
         $dto = CompaniesBranchPutData::from($request['input']);
-        $action = new UpdateCompanyBranchActions(Auth::user(), $dto);
+        $action = new UpdateCompanyBranchActions(Auth::user(), $dto, app(Apps::class));
 
         return $action->execute((int) $request['id']);
     }
@@ -57,7 +57,7 @@ class CompanyBranchManagementMutation
 
         $company = $companyBranch->company;
 
-        $company->hasCompanyPermission($user);
+        $company->hasCompanyPermission($user, $app);
         CompaniesRepository::userAssociatedToCompanyAndBranch($company, $companyBranch, $user);
 
         return $this->uploadFileToEntity(
@@ -76,7 +76,7 @@ class CompanyBranchManagementMutation
 
         $company = $companyBranch->company;
 
-        $company->hasCompanyPermission($user);
+        $company->hasCompanyPermission($user, $app);
         CompaniesRepository::userAssociatedToCompanyAndBranch($company, $companyBranch, $user);
 
         $filesystem = new FilesystemServices(app(Apps::class));
@@ -102,7 +102,7 @@ class CompanyBranchManagementMutation
      */
     public function deleteCompanyBranch(mixed $root, array $request): bool
     {
-        $companyBranchDelete = new DeleteCompanyBranchActions(Auth::user());
+        $companyBranchDelete = new DeleteCompanyBranchActions(Auth::user(), app(Apps::class));
 
         return $companyBranchDelete->execute((int) $request['id']) instanceof CompaniesBranches;
     }
@@ -112,11 +112,12 @@ class CompanyBranchManagementMutation
      */
     public function addUserToBranch($rootValue, array $request): bool
     {
-        $user = UsersRepository::getUserOfAppById((int) $request['user_id']);
+        $app = app(Apps::class);
+        $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
         $branch = CompaniesBranches::getById($request['id']);
         $company = $branch->company;
 
-        $company->hasCompanyPermission(auth()->user());
+        $company->hasCompanyPermission(auth()->user(), $app);
 
         $company->associateUser(
             $user,
@@ -136,7 +137,8 @@ class CompanyBranchManagementMutation
      */
     public function removeUserFromBranch($rootValue, array $request): bool
     {
-        $user = UsersRepository::getUserOfAppById((int) $request['user_id']);
+        $app = app(Apps::class);
+        $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
         $branch = CompaniesBranches::getById($request['id']);
         $company = $branch->company;
 
@@ -144,7 +146,7 @@ class CompanyBranchManagementMutation
             throw new AuthenticationException('You can not remove yourself from the company');
         }
 
-        $company->hasCompanyPermission(auth()->user());
+        $company->hasCompanyPermission(auth()->user(), $app);
 
         $company->associateUser(
             $user,

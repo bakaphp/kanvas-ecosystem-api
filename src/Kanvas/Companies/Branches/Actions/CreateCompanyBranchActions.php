@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Branches\Actions;
 
+use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -13,24 +14,19 @@ use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 class CreateCompanyBranchActions
 {
-    /**
-     * Construct function.
-     */
     public function __construct(
         protected Users $user,
-        protected CompaniesBranchPostData $data
+        protected CompaniesBranchPostData $data,
+        protected AppInterface $app
     ) {
     }
 
-    /**
-     * Invoke function.
-     */
     public function execute(): CompaniesBranches
     {
         $company = Companies::getById($this->data->companies_id);
 
         if ($company->branches()->count()) {
-            $company->hasCompanyPermission($this->user);
+            $company->hasCompanyPermission($this->user, $this->app);
         } else {
             // The first branch is made while the company is created, before its owner is a member.
             if (! $company->isOwner($this->user)) {

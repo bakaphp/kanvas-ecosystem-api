@@ -36,6 +36,25 @@ final class AppOwnerEscalationTest extends TestCase
         )->assertGraphQLErrorMessage('Only an owner of this app can invite admins.');
     }
 
+    public function testANonOwnerAdminCannotInviteAnOwner(): void
+    {
+        Notification::fake();
+        $this->assertTrue($this->actingAsNonOwner()->isAdmin());
+        $owner = RolesRepository::getByMixedParamFromCompany(param: RolesEnums::OWNER->value, app: app(Apps::class));
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation inviteUser($data: InviteInput!) {
+                inviteUser(input: $data) { id }
+            }',
+            ['data' => [
+                'role_id' => $owner->id,
+                'email' => 'invite-' . uniqid() . '@kanvas.dev',
+                'firstname' => fake()->firstName(),
+                'custom_fields' => [],
+            ]]
+        )->assertGraphQLErrorMessage('Only an owner of this app can change owner roles.');
+    }
+
     public function testAnAppKeyDoesNotMakeItsUserAnOwner(): void
     {
         $app = app(Apps::class);
