@@ -27,6 +27,8 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
      * @var list<string>
      */
     private const ALLOWLIST = [
+        // Reads the bundled insurance email templates from resources/ by fixed file name.
+        'src/Domains/Insurance/Actions/SeedInsuranceTemplatesAction.php',
         // Admin-configured WSDL endpoint (S3), not user input.
         'src/Domains/Connectors/UniversalAssistance/Client.php',
         // Reads local docker-compose templates from disk.

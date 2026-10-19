@@ -57,6 +57,19 @@ class HumanoHandler extends BaseIntegration
         return true;
     }
 
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::SUBSCRIPTION_KEY->value,
+            ConfigurationEnum::USER_KEY->value,
+            ConfigurationEnum::MEDIATOR_CODE->value,
+            ConfigurationEnum::ENVIRONMENT->value,
+            InsuranceCustomFieldEnum::INSURER_COMPANY_ID->value,
+            InsuranceCustomFieldEnum::PROVIDER->value,
+        ];
+    }
+
     protected function assertCredentialsWork(): void
     {
         try {
