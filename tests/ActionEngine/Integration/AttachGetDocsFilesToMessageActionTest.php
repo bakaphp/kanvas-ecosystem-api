@@ -30,9 +30,18 @@ final class AttachGetDocsFilesToMessageActionTest extends TestCase
             2 => ['name' => 'Personal tax returns', 'files' => [$taxes]],
         ]);
 
-        $attached = new AttachGetDocsFilesToMessageAction($message)->execute();
+        $action = new AttachGetDocsFilesToMessageAction($message);
+        $attached = $action->execute();
 
         $this->assertCount(3, $attached);
+        $this->assertSame(
+            [
+                $income->getId() => 'Income documents',
+                $incomeSecond->getId() => 'Income documents',
+                $taxes->getId() => 'Personal tax returns',
+            ],
+            $action->documentTypes()
+        );
         $this->assertEqualsCanonicalizing(
             [$income->getId(), $incomeSecond->getId(), $taxes->getId()],
             $message->files()->pluck('filesystem.id')->all(),

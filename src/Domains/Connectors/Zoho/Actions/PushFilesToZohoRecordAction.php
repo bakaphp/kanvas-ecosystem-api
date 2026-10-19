@@ -20,10 +20,11 @@ class PushFilesToZohoRecordAction
     /**
      * @param iterable<Filesystem> $files
      * @param int[] $skipIds filesystem ids already on the Zoho record
+     * @param array<int, string> $fileNames name to give each file in Zoho, keyed by filesystem id; defaults to its own name
      *
      * @return array{uploaded: int[], failed: array<int, string>}
      */
-    public function execute(iterable $files, array $skipIds = []): array
+    public function execute(iterable $files, array $skipIds = [], array $fileNames = []): array
     {
         $uploaded = [];
         $failed = [];
@@ -34,7 +35,11 @@ class PushFilesToZohoRecordAction
             }
 
             try {
-                $this->module->uploadAttachment($this->recordId, $file->name, SafeUrlFetcher::fetch($file->url));
+                $this->module->uploadAttachment(
+                    $this->recordId,
+                    $fileNames[$file->getId()] ?? $file->name,
+                    SafeUrlFetcher::fetch($file->url)
+                );
 
                 $uploaded[] = $file->getId();
             } catch (Throwable $e) {
