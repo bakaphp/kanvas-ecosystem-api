@@ -26,4 +26,5 @@ enum CustomFieldEnum: string
     case ZOHO_DEAL_ID = 'ZOHO_DEAL_ID';
     case ZOHO_DEAL_FIELDS_MAP = 'ZOHO_DEAL_FIELDS_MAP';
     case ZOHO_DEAL_RAW = 'ZOHO_DEAL_RAW';
+    case ZOHO_MESSAGE_SYNC_FILES = 'ZOHO_MESSAGE_SYNC_FILES';
 }
