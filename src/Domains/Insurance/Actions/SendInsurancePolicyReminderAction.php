@@ -48,7 +48,6 @@ class SendInsurancePolicyReminderAction
             'insurer' => Str::trimToNull($registered['insurer_name'] ?? null) ?? $carnet['insurer'],
             'plan' => Str::trimToNull($registered['plan_name'] ?? null) ?? $carnet['plan'],
             'daysLeft' => $this->daysLeft,
-            'expiryPhrase' => InsurancePolicyReminders::expiryPhrase($this->daysLeft),
             'plate' => $vehicle['plate'] ?? null,
             'vehicleLabel' => Str::trimToNull(implode(' ', array_filter([
                 $vehicle['description'] ?? null,

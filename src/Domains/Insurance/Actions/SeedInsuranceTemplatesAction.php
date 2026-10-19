@@ -16,8 +16,8 @@ class SeedInsuranceTemplatesAction
 {
     private const array SUBJECTS = [
         InsuranceCarnet::TEMPLATE => null,
-        InsuranceCarnet::EMAIL_TEMPLATE => 'Tu poliza esta activa - carnet digital adjunto',
-        InsurancePolicyReminders::TEMPLATE => 'Tu poliza {{ $expiryPhrase }}',
+        InsuranceCarnet::EMAIL_TEMPLATE => 'Tu póliza está activa - carnet digital adjunto',
+        InsurancePolicyReminders::TEMPLATE => 'Tu póliza {% if daysLeft <= 0 %}vence hoy{% elseif daysLeft == 1 %}vence mañana{% else %}vence en {{ daysLeft }} días{% endif %}',
         InsurancePolicyReminders::PUSH_TITLE_TEMPLATE => null,
         InsurancePolicyReminders::PUSH_MESSAGE_TEMPLATE => null,
     ];

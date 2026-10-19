@@ -31,13 +31,4 @@ class InsurancePolicyReminders
     {
         return array_values(array_filter(explode(',', (string) $stored)));
     }
-
-    public static function expiryPhrase(int $daysLeft): string
-    {
-        return match (true) {
-            $daysLeft <= 0 => 'vence hoy',
-            $daysLeft === 1 => 'vence manana',
-            default => 'vence en ' . $daysLeft . ' dias',
-        };
-    }
 }

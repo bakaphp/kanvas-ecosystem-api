@@ -447,9 +447,11 @@ final class InsuranceJourneyTest extends TestCase
                 && $sent->data['insurer'] === 'Seguros Locales'
                 && $sent->data['plan'] === 'Full Plus'
                 && $sent->data['policyNumber'] === 'P-07'
-                && $sent->data['expiryPhrase'] === 'vence en 7 dias'
+                && $sent->data['daysLeft'] === 7
                 && $sent->channels() === ['mail', 'push', 'database']
                 && str_contains($sent->getEmailContent(), 'P-07')
+                && str_contains($sent->getEmailContent(), 'vence en 7 días')
+                && ! str_contains($sent->getEmailContent(), '{%')
                 && str_contains($sent->message(), 'Seguros Locales')
         );
 

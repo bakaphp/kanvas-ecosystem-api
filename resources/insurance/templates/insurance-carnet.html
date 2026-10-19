@@ -23,32 +23,32 @@
     <div class="card">
         <div class="header">
             <h1>Carnet digital de seguro</h1>
-            <p>{{ $insurer }}</p>
+            <p>{{ insurer }}</p>
         </div>
         <table>
-            <tr><td class="label">Poliza</td><td class="value policy">{{ $policyNumber }}</td></tr>
-            @if (! empty($plan))
-                <tr><td class="label">Plan</td><td class="value">{{ $plan }}</td></tr>
-            @endif
-            @if (! empty($insured))
-                <tr><td class="label">Asegurado</td><td class="value">{{ $insured }}</td></tr>
-            @endif
-            @if (! empty($vehicle['description']))
-                <tr><td class="label">Vehiculo</td><td class="value">{{ $vehicle['description'] }}</td></tr>
-            @endif
-            @if (! empty($vehicle['plate']))
-                <tr><td class="label">Placa</td><td class="value">{{ $vehicle['plate'] }}</td></tr>
-            @endif
-            @if (! empty($startsAt))
-                <tr><td class="label">Vigente desde</td><td class="value">{{ $startsAt }}</td></tr>
-            @endif
-            @if (! empty($endsAt))
-                <tr><td class="label">Vigente hasta</td><td class="value">{{ $endsAt }}</td></tr>
-            @endif
+            <tr><td class="label">Póliza</td><td class="value policy">{{ policyNumber }}</td></tr>
+            {% if plan %}
+                <tr><td class="label">Plan</td><td class="value">{{ plan }}</td></tr>
+            {% endif %}
+            {% if insured %}
+                <tr><td class="label">Asegurado</td><td class="value">{{ insured }}</td></tr>
+            {% endif %}
+            {% if vehicle.description %}
+                <tr><td class="label">Vehículo</td><td class="value">{{ vehicle.description }}</td></tr>
+            {% endif %}
+            {% if vehicle.plate %}
+                <tr><td class="label">Placa</td><td class="value">{{ vehicle.plate }}</td></tr>
+            {% endif %}
+            {% if startsAt %}
+                <tr><td class="label">Vigente desde</td><td class="value">{{ startsAt }}</td></tr>
+            {% endif %}
+            {% if endsAt %}
+                <tr><td class="label">Vigente hasta</td><td class="value">{{ endsAt }}</td></tr>
+            {% endif %}
         </table>
         <div class="qr">
-            <img src="{{ $qr }}" alt="QR">
-            <p>{{ $policyNumber }}</p>
+            <img src="{{ qr }}" alt="QR">
+            <p>{{ policyNumber }}</p>
         </div>
     </div>
     <div class="footer">Presenta este carnet junto a tu documento de identidad cuando te lo soliciten.</div>
