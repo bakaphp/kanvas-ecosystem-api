@@ -178,7 +178,7 @@ class CreateLeadCampaignTool extends Tool
             message: $message,
             subject: $subject !== null && trim($subject) !== '' ? trim($subject) : null,
             eligibleRecipients: $resolved['eligible'],
-            criteria: ['people_ids' => $ids, 'channel' => 'email'],
+            criteria: ['people_ids' => $ids, 'channel' => 'email', 'agents_id' => $this->contextAgent()?->getId()],
             attachmentUrls: $attachmentUrls,
             templateName: $templateName,
             important: $important ?? false,

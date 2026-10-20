@@ -34,6 +34,14 @@ class SendMailboxEmailAction
         $inReplyTo = (string) ($message->message['email_message_id'] ?? '');
         $references = trim((string) ($message->message['email_references'] ?? '') . ' ' . $inReplyTo);
 
+        $entity = $this->outboundMessage->preferredEntity(Lead::class, People::class);
+        $trackingLead = $entity instanceof Lead ? $entity : null;
+        $trackingPerson = match (true) {
+            $trackingLead !== null => $trackingLead->people,
+            $entity instanceof People => $entity,
+            default => null,
+        };
+
         return new SendAsAgentMailboxAction(
             agent: $this->agent,
             to: $recipient,
@@ -43,18 +51,8 @@ class SendMailboxEmailAction
                 'In-Reply-To' => $inReplyTo,
                 'References' => trim($references),
             ],
-            trackingPerson: $this->trackingPerson(),
+            trackingPerson: $trackingPerson,
+            trackingLead: $trackingLead,
         )->execute();
-    }
-
-    private function trackingPerson(): ?People
-    {
-        $entity = $this->outboundMessage->preferredEntity(Lead::class, People::class);
-
-        return match (true) {
-            $entity instanceof Lead => $entity->people,
-            $entity instanceof People => $entity,
-            default => null,
-        };
     }
 }
