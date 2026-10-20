@@ -21,7 +21,6 @@ use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Communication\Webhooks\ProcessCommunicationWebhookJob;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
@@ -416,10 +415,5 @@ final class EnsureCommunicationSetupActionTest extends TestCase
             ->fromCompany($this->currentCompany())
             ->whereHas('action', fn ($query) => $query->where('model_name', ProcessCommunicationWebhookJob::class))
             ->count();
-    }
-
-    private function otherCompany(): Companies
-    {
-        return Companies::factory()->create();
     }
 }

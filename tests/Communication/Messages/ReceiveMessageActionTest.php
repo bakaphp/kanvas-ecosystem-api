@@ -13,6 +13,7 @@ use Kanvas\Communication\Messages\DataTransferObject\InboundAttachment;
 use Kanvas\Communication\Messages\DataTransferObject\InboundMessage;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
@@ -94,6 +95,43 @@ final class ReceiveMessageActionTest extends TestCase
         );
     }
 
+    public function testANumberAnotherWorkspaceClaimsFilesNothingHere(): void
+    {
+        $this->claim($this->connection('fake', '+18095550700'), $this->otherCompany()->getId());
+
+        $result = $this->receive($this->inbound('+18095550705', 'wamid.5', 'Hola'));
+
+        $this->assertFalse($result[0]['filed']);
+        $this->assertSame('claimed_by_another_workspace', $result[0]['reason']);
+        $this->assertNothingFiledFor('+18095550705');
+    }
+
+    public function testAnAppWideReceiverFilesForTheWorkspaceThatClaimsTheNumber(): void
+    {
+        config(['communication.fake_shares_app_receiver' => true]);
+        $this->receiver->forceFill(['companies_id' => $this->otherCompany()->getId()])->saveOrFail();
+        $connection = $this->connection('fake', '+18095550700');
+        $this->claim($connection);
+
+        $result = $this->receive($this->inbound('+18095550706', 'wamid.6', 'Hola'));
+
+        $message = Message::query()->findOrFail($result[0]['message_id']);
+        $this->assertSame($this->currentCompany()->getId(), (int) $message->companies_id);
+        $this->assertSame($this->currentCompany()->getId(), (int) $message->entity()->companies_id);
+        $this->assertSame($connection->getId(), $message->message['communication']['connection_id']);
+    }
+
+    public function testAnUnclaimedNumberOnAnAppWideReceiverFilesNothing(): void
+    {
+        config(['communication.fake_shares_app_receiver' => true]);
+
+        $result = $this->receive($this->inbound('+18095550707', 'wamid.7', 'Hola'));
+
+        $this->assertFalse($result[0]['filed']);
+        $this->assertSame('identity_not_connected', $result[0]['reason']);
+        $this->assertNothingFiledFor('+18095550707');
+    }
+
     public function testARedeliveryUpdatesRatherThanFilesASecondCopy(): void
     {
         $first = $this->receive($this->inbound('+18095550702', 'wamid.2', 'Hola'));
@@ -157,6 +195,16 @@ final class ReceiveMessageActionTest extends TestCase
             raw: ['id' => $id],
             attachments: $attachments
         );
+    }
+
+    private function assertNothingFiledFor(string $from): void
+    {
+        $this->assertFalse(
+            PeoplesRepository::getByPhoneNumber($this->currentApp(), $this->currentCompany(), [$from])->exists(),
+            'no person is created for a message no workspace here owns'
+        );
+        $this->assertFalse(Channel::query()->where('slug', 'fake-whatsapp-' . preg_replace('/\D/', '', $from))->exists());
+        Queue::assertNotPushed(FlushMessageBurstJob::class);
     }
 
     private function receive(InboundMessage $inbound): array

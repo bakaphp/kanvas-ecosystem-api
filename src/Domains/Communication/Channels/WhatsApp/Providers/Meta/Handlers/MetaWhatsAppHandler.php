@@ -126,6 +126,15 @@ class MetaWhatsAppHandler extends BaseIntegration implements CommunicationProvid
         );
     }
 
+    /**
+     * Meta signs with the app secret and takes one callback for the whole app.
+     */
+    #[Override]
+    public static function sharesAppReceiver(): bool
+    {
+        return true;
+    }
+
     #[Override]
     public static function provisioner(): string
     {

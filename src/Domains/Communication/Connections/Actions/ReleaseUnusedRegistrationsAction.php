@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Models\SharedRegistration;
+use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Communication\Support\ProviderRegistry;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -99,11 +100,14 @@ final class ReleaseUnusedRegistrationsAction
             ->where('configuration->communication->managed', true)
             ->get();
 
+        $receiversService = app(CommunicationReceivers::class);
+
         foreach ($receivers as $receiver) {
             $provider = (string) ($receiver->configuration['communication']['provider'] ?? '');
+            // An app-wide receiver serves every workspace's numbers, so any of them keeps it on.
             $connections = Connection::query()
                 ->where('apps_id', $receiver->apps_id)
-                ->where('companies_id', $receiver->companies_id)
+                ->when(! $receiversService->sharesAppReceiver($provider), fn ($query) => $query->where('companies_id', $receiver->companies_id))
                 ->where('provider', $provider);
 
             if ((clone $connections)->live()->exists()
