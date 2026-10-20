@@ -32,6 +32,7 @@ use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
+use Kanvas\Guild\Customers\Enums\ContactCustomFieldEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Observers\PeopleObserver;
@@ -503,6 +504,25 @@ class People extends BaseModel
 
     public function setPhoneOptOut(string $phoneNumber, bool $optOut = true): int
     {
+        return $this->phoneContactsMatching($phoneNumber)
+            ->each(function (Contact $contact) use ($optOut): void {
+                $contact->is_opt_out = (int) $optOut;
+                $contact->saveOrFail();
+            })
+            ->count();
+    }
+
+    public function setPhoneLandline(string $phoneNumber, bool $isLandline): int
+    {
+        return $this->phoneContactsMatching($phoneNumber)
+            ->each(function (Contact $contact) use ($isLandline): void {
+                $contact->set(ContactCustomFieldEnum::IS_LANDLINE->value, $isLandline);
+            })
+            ->count();
+    }
+
+    protected function phoneContactsMatching(string $phoneNumber): Collection
+    {
         $normalizedPhone = Contact::normalizeValue(
             $phoneNumber,
             ContactTypeEnum::CELLPHONE->value,
@@ -516,12 +536,7 @@ class People extends BaseModel
                     $contact->value,
                     $contact->contacts_types_id,
                 ) === $normalizedPhone,
-            )
-            ->each(function (Contact $contact) use ($optOut): void {
-                $contact->is_opt_out = (int) $optOut;
-                $contact->saveOrFail();
-            })
-            ->count();
+            );
     }
 
     public static function findByEmailOrCreate(
