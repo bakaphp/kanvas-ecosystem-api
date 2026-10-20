@@ -15,7 +15,12 @@ use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Insurance Sync Policy',
+    description: 'Polls the insurer for the current state of a policy and returns whether it is ready, with the policy number when it is. '
+        . 'Use it on a schedule or on a status change for orders whose emission came back pending. It is read-only toward the customer: it does not charge, email or cancel anything. '
+        . 'It skips orders without a quote number and insurers that do not expose policies.',
+)]
 class SyncInsurancePolicyActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

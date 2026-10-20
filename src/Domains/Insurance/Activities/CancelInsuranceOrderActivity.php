@@ -16,7 +16,12 @@ use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Insurance Cancel Order',
+    description: 'Cancels an insurance order that has no policy yet: voids the held card payment and records the cancelled insurance status. '
+        . 'Use it when the order is cancelled or the customer backs out before emission. It refuses once a policy exists (emitted, active or expired) and returns a failed step, because an issued policy cannot be cancelled here. '
+        . 'It releases the customer\'s hold but does not notify the customer or the insurer.',
+)]
 class CancelInsuranceOrderActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
