@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Elead\DataTransferObject;
 
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Connectors\Elead\Entities\Customer;
 use Kanvas\Connectors\Elead\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\DataTransferObject\People;
@@ -20,56 +21,7 @@ class Lead extends DataTransferObjectLead
 {
     public static function fromLeadEntity(LeadEntity $lead, UserInterface $user): self
     {
-        $customer = $lead->customer();
-
-        $firstname = $customer->isBusiness ? $customer->businessName : $customer->firstName;
-        $country = Countries::getByCode('US');
-        $people = People::from([
-            'app' => $lead->app,
-            'company' => $lead->company,
-            'user' => $user,
-            'firstname' => $firstname,
-            'lastname' => $customer->lastName ?? null,
-            'dob' => $customer->birthday ?? null,
-            'contacts' => array_merge(
-                array_map(
-                    fn ($email) => [
-                        'value' => $email['address'],
-                        'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                        'weight' => 0,
-                    ],
-                    $customer->emails
-                ),
-                array_map(
-                    fn ($phone) => [
-                        'value' => $phone['number'] ?? '',
-                        'contacts_types_id' => isset($phone['phoneType']) && strtolower($phone['phoneType']) === 'cellular'
-                            ? ContactTypeEnum::CELLPHONE->value
-                            : ContactTypeEnum::PHONE->value,
-                        'weight' => isset($phone['phoneType']) && ((int)$phone['phoneType'] === 1 || strtolower($phone['phoneType']) === 'cellular')
-                            ? 100
-                            : 0,
-                    ],
-                    $customer->phones
-                )
-            ),
-            'address' =>
-                array_map(
-                    fn ($address) => [
-                        'address' => $address['addressLine1'] ?? '',
-                        'city' => $address['city'] ?? '',
-                        'state' => $address['state'] ?? '',
-                        'country' => $country->name,
-                        'country_id' => $country->id,
-                        'zip' => $address['zip'] ?? '',
-                    ],
-                    $customer->addresses ?? []
-                ),
-            'branch' => $lead->company->defaultBranch,
-            'custom_fields' => [
-                CustomFieldEnum::CUSTOMER_ID->value => $customer->id,
-            ],
-        ]);
+        $people = self::peopleFromCustomer($lead->customer(), $user);
 
         $eLeadOwnerId = null;
 
@@ -112,6 +64,59 @@ class Lead extends DataTransferObjectLead
             'status_id' => $status?->id ?? 0,
             'leads_owner_id' => $eLeadOwnerId?->user_id ?? 0,
             'custom_fields' => $customFields,
+        ]);
+    }
+
+    public static function peopleFromCustomer(Customer $customer, UserInterface $user): People
+    {
+        $firstname = $customer->isBusiness ? $customer->businessName : $customer->firstName;
+        $country = Countries::getByCode('US');
+
+        return People::from([
+            'app' => $customer->app,
+            'company' => $customer->company,
+            'user' => $user,
+            'firstname' => $firstname,
+            'lastname' => $customer->lastName ?? null,
+            'dob' => $customer->birthday ?? null,
+            'contacts' => array_merge(
+                array_map(
+                    fn ($email) => [
+                        'value' => $email['address'],
+                        'contacts_types_id' => ContactTypeEnum::EMAIL->value,
+                        'weight' => 0,
+                    ],
+                    $customer->emails
+                ),
+                array_map(
+                    fn ($phone) => [
+                        'value' => $phone['number'] ?? '',
+                        'contacts_types_id' => isset($phone['phoneType']) && strtolower($phone['phoneType']) === 'cellular'
+                            ? ContactTypeEnum::CELLPHONE->value
+                            : ContactTypeEnum::PHONE->value,
+                        'weight' => isset($phone['phoneType']) && ((int)$phone['phoneType'] === 1 || strtolower($phone['phoneType']) === 'cellular')
+                            ? 100
+                            : 0,
+                    ],
+                    $customer->phones
+                )
+            ),
+            'address' =>
+                array_map(
+                    fn ($address) => [
+                        'address' => $address['addressLine1'] ?? '',
+                        'city' => $address['city'] ?? '',
+                        'state' => $address['state'] ?? '',
+                        'country' => $country->name,
+                        'country_id' => $country->id,
+                        'zip' => $address['zip'] ?? '',
+                    ],
+                    $customer->addresses ?? []
+                ),
+            'branch' => $customer->company->defaultBranch,
+            'custom_fields' => [
+                CustomFieldEnum::CUSTOMER_ID->value => $customer->id,
+            ],
         ]);
     }
 }
