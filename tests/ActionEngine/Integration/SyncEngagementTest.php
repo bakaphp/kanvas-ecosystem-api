@@ -13,6 +13,7 @@ use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\Actions\UpdateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\UpdateEngagement as UpdateEngagementData;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Support\Setup;
 use Kanvas\Apps\Models\Apps;
@@ -142,13 +143,11 @@ final class SyncEngagementTest extends TestCase
         $this->assertSame($original['from'], $payload['from']);
     }
 
-    private function createSyncEngagement(bool $withSource = true)
+    private function createSyncEngagement(bool $withSource = true): Engagement
     {
-        $data = $withSource
-            ? $this->engagementData('update-lead')
-            : $this->engagementData(null);
-
-        return new CreateEngagementAction($data)->execute();
+        return new CreateEngagementAction(
+            $this->engagementData($withSource ? 'update-lead' : null)
+        )->execute();
     }
 
     private function engagementData(?string $from): EngagementData

@@ -147,6 +147,7 @@ class Setup
         foreach ($actions as $action) {
             $companyAction = CompanyAction::firstOrCreate(
                 [
+                    'apps_id' => $this->app->getId(),
                     'actions_id' => $action->getId(),
                     'companies_id' => $this->company->getId(),
                     'is_deleted' => 0,
@@ -251,6 +252,7 @@ class Setup
         $dummyEntityUuid = '00000000-0000-0000-0000-000000000000'; // Standard dummy UUID
 
         $companyActions = CompanyAction::where('companies_id', $this->company->getId())
+            ->where('apps_id', $this->app->getId())
             ->where('is_deleted', 0)
             ->get();
 
@@ -355,6 +357,7 @@ class Setup
             /** @var CompanyAction $companyAction */
             $companyAction = CompanyAction::firstOrCreate(
                 [
+                    'apps_id' => $this->app->getId(),
                     'actions_id' => $source->actions_id,
                     'companies_id' => $this->company->getId(),
                     'is_deleted' => 0,

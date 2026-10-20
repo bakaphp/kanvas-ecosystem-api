@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Engagements\DataTransferObject;
 
+use Baka\Support\Str;
 use Kanvas\ActionEngine\Engagements\Models\Engagement as EngagementModel;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
@@ -73,7 +74,7 @@ class Engagement extends Data
             parentEngagement: $parentEngagement,
             files: $request['files'] ?? [],
             filesUrl: $request['files_url'] ?? [],
-            from: isset($request['from']) ? (string) $request['from'] : null,
+            from: Str::trimToNull($request['from'] ?? null),
         );
     }
 }

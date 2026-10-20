@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\ActionEngine\Integration;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
@@ -14,10 +15,14 @@ use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
+use Tests\Traits\CreatesBareApps;
 
 final class SetupTest extends TestCase
 {
+    use CreatesBareApps;
     use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'ecosystem', 'action_engine', 'social'];
 
     public function testSetupWithNoActionsCreatesDefaults(): void
     {
@@ -93,6 +98,41 @@ final class SetupTest extends TestCase
                 'Each cloned pipeline should have stages.'
             );
         }
+    }
+
+    /**
+     * companies_actions is per (app, company). The firstOrCreate lookups must key on apps_id, or a
+     * company already set up under one app satisfies the match for every other app and the second
+     * app silently ends up with no rows.
+     */
+    public function testSetupUnderASecondAppCreatesThatAppsOwnCompanyActions(): void
+    {
+        $app = app(Apps::class);
+        $otherApp = $this->createBareApp();
+        $user = auth()->user();
+        $company = $this->makeCompany();
+
+        new Setup($app, $user, $company)->run();
+        new Setup($otherApp, $user, $company)->run();
+
+        $this->assertCount(
+            3,
+            $this->companyActionsFor($company, $otherApp),
+            'The second app must get its own companies_actions rows.'
+        );
+        $this->assertCount(
+            3,
+            $this->companyActionsFor($company, $app),
+            'Setting up a second app must leave the first app\'s rows untouched.'
+        );
+    }
+
+    private function companyActionsFor(Companies $company, Apps $app): Collection
+    {
+        return CompanyAction::where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->where('is_deleted', 0)
+            ->get();
     }
 
     private function makeCompany(): Companies

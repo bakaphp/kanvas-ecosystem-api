@@ -209,7 +209,12 @@ final class EngagementCompletedBroadcastTest extends TestCase
         $wiring['companyAction']->saveOrFail();
 
         $message = $this->makeChecklistMessage($this->lead, ['verb' => $this->actionSlug, 'status' => 'submitted']);
-        $this->makeChecklistEngagement($this->lead, $wiring['companyAction'], $this->actionSlug . '-3', $message->getId());
+        $this->makeChecklistEngagement(
+            $this->lead,
+            $wiring['companyAction'],
+            $this->actionSlug . '-3',
+            $message->getId()
+        );
 
         Event::assertDispatched(
             EngagementCompletedEvent::class,
@@ -270,6 +275,11 @@ final class EngagementCompletedBroadcastTest extends TestCase
         $wiring = $this->makeChecklistWiring($this->lead, $slug);
         $message = $this->makeChecklistMessage($this->lead, $payload);
 
-        return $this->makeChecklistEngagement($this->lead, $wiring['companyAction'], $slug, $message->getId());
+        return $this->makeChecklistEngagement(
+            $this->lead,
+            $wiring['companyAction'],
+            $slug,
+            $message->getId()
+        );
     }
 }
