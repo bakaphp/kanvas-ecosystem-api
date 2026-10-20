@@ -14,6 +14,7 @@ use Kanvas\ActionEngine\Engagements\Actions\UpdateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\UpdateEngagement as UpdateEngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\ActionEngine\Support\Setup;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -22,7 +23,7 @@ use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 /**
- * Serial: attaching `sync` writes the global `apps_id = 0` actions row every process shares.
+ * Serial: Setup writes the global `companies_id = 0` actions row every process shares.
  */
 #[Group('serial')]
 final class SyncEngagementTest extends TestCase
@@ -52,15 +53,10 @@ final class SyncEngagementTest extends TestCase
 
         // The factory leaves the lead branchless, which would make the branch assertion below
         // pass through getByAction's branch-less fallback instead of the branch lane.
-        $this->lead->companies_branches_id = $this->company->branch()->firstOrFail()->getId();
+        $this->lead->companies_branches_id = $this->company->defaultBranch()->firstOrFail()->getId();
         $this->lead->saveOrFail();
 
-        $this->artisan('kanvas-action-engine:attach-action', [
-            'app_id' => $this->currentApp->getId(),
-            'slug' => ActionEnum::SYNC->value,
-            '--company' => $this->company->getId(),
-            '--create-action' => true,
-        ])->assertSuccessful();
+        new Setup($this->currentApp, auth()->user(), $this->company)->run();
     }
 
     public function testActionEnumDefinesSync(): void
@@ -105,6 +101,12 @@ final class SyncEngagementTest extends TestCase
 
     public function testCreatesTheSyncMessageTypeAutomatically(): void
     {
+        DB::connection('social')
+            ->table('message_types')
+            ->where('apps_id', $this->currentApp->getId())
+            ->where('verb', ActionEnum::SYNC->value)
+            ->delete();
+
         $this->createSyncEngagement();
 
         $this->assertTrue(

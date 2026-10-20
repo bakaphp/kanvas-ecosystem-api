@@ -33,9 +33,10 @@ final class SetupTest extends TestCase
 
         $slugs = $companyActions->map(fn (CompanyAction $ca) => $ca->action->slug)->all();
 
-        $this->assertCount(2, $companyActions, 'A fresh company should get exactly the 2 defaults.');
+        $this->assertCount(3, $companyActions, 'A fresh company should get exactly the 3 defaults.');
         $this->assertContains(ActionEnum::VIEW_PRODUCT->value, $slugs);
         $this->assertContains(ActionEnum::GET_DOCS->value, $slugs);
+        $this->assertContains(ActionEnum::SYNC->value, $slugs);
 
         foreach ($companyActions as $companyAction) {
             $this->assertGreaterThan(0, $companyAction->pipelines_id, 'Each default action should have a pipeline.');
@@ -73,9 +74,10 @@ final class SetupTest extends TestCase
 
         $targetSlugs = $targetActions->map(fn (CompanyAction $ca) => $ca->action->slug)->all();
 
-        $this->assertCount(2, $targetActions, 'The target should mirror the source action count.');
+        $this->assertCount(3, $targetActions, 'The target should mirror the source action count.');
         $this->assertContains(ActionEnum::VIEW_PRODUCT->value, $targetSlugs);
         $this->assertContains(ActionEnum::GET_DOCS->value, $targetSlugs);
+        $this->assertContains(ActionEnum::SYNC->value, $targetSlugs);
 
         $targetGetDocs = $targetActions->first(
             fn (CompanyAction $ca) => $ca->action->slug === ActionEnum::GET_DOCS->value
