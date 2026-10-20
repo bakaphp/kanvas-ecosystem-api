@@ -411,8 +411,9 @@ push and an in-app (`database`) notification. It is scheduled daily at 09:00 in 
 be running in every environment; `--date` simulates "today" and `--app` restricts it to one app. The command iterates every app that
 has an `insurance` order type, binds each one with `overwriteAppService` before touching anything, and is safe to re-run.
 
-- **Config.** `config/insurance.php` `reminders.days` (default `30, 15, 7, 3, 1, 0`, where `0` is the expiry day) and
-  `reminders.channels` (notification slugs).
+- **Config, per app.** App settings (`apps_settings`, `InsuranceConfigurationEnum`): `insurance_reminder_days` (comma list or JSON,
+  default `30, 15, 7, 3, 1, 0`, where `0` is the expiry day) and `insurance_reminder_channels` (notification slugs, default
+  `mail, push, database`). An empty or missing setting falls back to the default (`InsuranceSettings::list`).
 - **Selection.** `SendInsurancePolicyRemindersAction` selects insurance orders whose status is `policy_active` and whose
   `metadata.data.end_at` is one of the handful of target dates, then reads the marker custom field for just those
   ids, then the orders (`fromApp`, `notDeleted`, insurance order type) in `chunkById(100)`. It never hydrates the app's orders.
@@ -432,7 +433,7 @@ has an `insurance` order type, binds each one with `overwriteAppService` before 
 Universal's payment report needs Azul-shaped data, but a region (DR) may default to another processor (Portal).
 The restriction therefore lives on the order type, not the region: `order_types.config.allowed_payment_processors`
 (`OrderTypes::allowedPaymentProcessors()`), written by `kanvas:insurance-setup-order-type` from
-`config('insurance.payment_processors')` (default `['azul']`). `CreatePaymentAction` refuses any payment whose method
+the app setting `insurance_payment_processors` (comma list or JSON, default `azul`). `CreatePaymentAction` refuses any payment whose method
 processor is not listed, including cash/transfer and processor-less intents. **Re-run the setup command per
 environment** or existing insurance order types stay unrestricted. Any order type can opt in with the same config key.
 

@@ -16,4 +16,13 @@ enum InsuranceOrderOriginEnum: string
     {
         return (string) $order->get(InsuranceCustomFieldEnum::ORIGIN->value) === self::REGISTERED->value;
     }
+
+    public static function purchaseFlowSkipped(Model $order): array
+    {
+        return [
+            'order' => $order->getId(),
+            'status' => 'skipped',
+            'message' => self::PURCHASE_FLOW_SKIPPED,
+        ];
+    }
 }

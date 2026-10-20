@@ -89,7 +89,7 @@ class SendInsurancePolicyRemindersAction
     {
         $daysByDate = [];
 
-        foreach (InsurancePolicyReminders::days() as $days) {
+        foreach (InsurancePolicyReminders::days($this->app) as $days) {
             $daysByDate[$this->today->copy()->addDays($days)->toDateString()] = $days;
         }
 

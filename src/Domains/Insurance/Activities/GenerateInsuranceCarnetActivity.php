@@ -25,11 +25,7 @@ class GenerateInsuranceCarnetActivity extends KanvasActivity implements Workflow
         $this->overwriteAppService($app);
 
         if (InsuranceOrderOriginEnum::isRegistered($order)) {
-            return [
-                'order' => $order->getId(),
-                'status' => 'skipped',
-                'message' => InsuranceOrderOriginEnum::PURCHASE_FLOW_SKIPPED,
-            ];
+            return InsuranceOrderOriginEnum::purchaseFlowSkipped($order);
         }
 
         if (! InsuranceOrderTypeEnum::INSURANCE->isTypeOf($order) || ! InsuranceCarnet::hasIssuedPolicy($order)) {

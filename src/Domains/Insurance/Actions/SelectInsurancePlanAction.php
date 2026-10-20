@@ -158,20 +158,11 @@ class SelectInsurancePlanAction
         $option = $quote->paymentOption($term)
             ?? throw new ValidationException('This payment term is not available for this plan');
 
-        return new QuoteResult(
-            success: $quote->success,
-            message: $quote->message,
-            quoteNumber: $quote->quoteNumber,
-            premium: $option->premium ?? $quote->premium,
-            ratePerKm: $quote->ratePerKm,
-            tax: $option->tax ?? $quote->tax,
-            total: $option->amount,
-            currency: $quote->currency,
-            commission: $quote->commission,
-            canEmit: $quote->canEmit,
-            inspectionStatus: $quote->inspectionStatus,
-            productCode: $quote->productCode,
-        );
+        return $quote->with([
+            'premium' => $option->premium ?? $quote->premium,
+            'tax' => $option->tax ?? $quote->tax,
+            'total' => $option->amount,
+        ]);
     }
 
     private function customFields(QuoteResult $selected): array

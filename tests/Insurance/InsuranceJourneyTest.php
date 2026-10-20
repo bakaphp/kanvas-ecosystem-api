@@ -16,6 +16,7 @@ use Kanvas\Connectors\UniversalSeguros\Providers\UniversalSegurosProvider;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Insurance\Actions\SetupInsuranceOrderPipelineAction;
 use Kanvas\Insurance\Actions\SyncInsuranceProductsAction;
 use Kanvas\Insurance\Activities\AttachInsuranceQuoteActivity;
 use Kanvas\Insurance\Activities\CancelInsuranceOrderActivity;
@@ -26,6 +27,7 @@ use Kanvas\Insurance\Activities\ReportInsurancePaymentActivity;
 use Kanvas\Insurance\Activities\SendInsurancePolicyEmailActivity;
 use Kanvas\Insurance\Activities\SyncInsurancePolicyActivity;
 use Kanvas\Insurance\Activities\UploadInsuranceDocumentsActivity;
+use Kanvas\Insurance\Enums\InsuranceConfigurationEnum;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderOriginEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderStatusEnum;
@@ -35,6 +37,7 @@ use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Models\InsuranceVehicleModelMap;
 use Kanvas\Insurance\Notifications\InsurancePolicyIssuedNotification;
 use Kanvas\Insurance\Notifications\InsurancePolicyReminderNotification;
+use Kanvas\Insurance\Services\InsurancePolicyReminders;
 use Kanvas\Insurance\Services\InsuranceQuoteSignature;
 use Kanvas\Insurance\Services\InsuranceStatus;
 use Kanvas\Insurance\Services\VehicleKeyNormalizer;
@@ -472,6 +475,31 @@ final class InsuranceJourneyTest extends TestCase
         );
         $run($today->copy()->addDays(7));
         $this->assertCount(3, $sentDays());
+    }
+
+    public function testRemindersAndPaymentProcessorsComeFromTheAppSettings(): void
+    {
+        $app = $this->kanvasApp;
+
+        $this->assertSame(InsurancePolicyReminders::DEFAULT_DAYS, InsurancePolicyReminders::days($app));
+        $this->assertSame(InsurancePolicyReminders::DEFAULT_CHANNELS, InsurancePolicyReminders::channels($app));
+
+        try {
+            $app->set(InsuranceConfigurationEnum::REMINDER_DAYS->value, '7, 1,7');
+            $app->set(InsuranceConfigurationEnum::REMINDER_CHANNELS->value, 'mail');
+            $app->set(InsuranceConfigurationEnum::PAYMENT_PROCESSORS->value, 'azul,cardnet');
+
+            $this->assertSame([7, 1], InsurancePolicyReminders::days($app));
+            $this->assertSame(['mail'], InsurancePolicyReminders::channels($app));
+            $this->assertSame(
+                ['azul', 'cardnet'],
+                new SetupInsuranceOrderPipelineAction($app)->execute()->fresh()->allowedPaymentProcessors()
+            );
+        } finally {
+            foreach (InsuranceConfigurationEnum::cases() as $setting) {
+                $app->deleteHash($setting->value);
+            }
+        }
     }
 
     public function testAUserRegistersAPolicyBoughtElsewhere(): void

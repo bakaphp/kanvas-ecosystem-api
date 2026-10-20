@@ -7,11 +7,6 @@ return [
     'search_cache_ttl' => (int) env('INSURANCE_SEARCH_CACHE_TTL', 300),
     'quote_binding_ttl' => (int) env('INSURANCE_QUOTE_BINDING_TTL', 1800),
     'task_workers' => (int) env('INSURANCE_TASK_WORKERS', 2),
-    'payment_processors' => ['azul'],
-    'reminders' => [
-        'days' => [30, 15, 7, 3, 1, 0],
-        'channels' => ['mail', 'push', 'database'],
-    ],
     'humano' => [
         'search_enabled' => filter_var(env('INSURANCE_HUMANO_SEARCH_ENABLED', true), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? true,
         'default_rc_exceso' => env('INSURANCE_HUMANO_RC_EXCESO', '1'),

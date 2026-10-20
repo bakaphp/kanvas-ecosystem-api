@@ -24,11 +24,7 @@ class SendInsurancePolicyEmailActivity extends KanvasActivity implements Workflo
         $this->overwriteAppService($app);
 
         if (InsuranceOrderOriginEnum::isRegistered($order)) {
-            return [
-                'order' => $order->getId(),
-                'status' => 'skipped',
-                'message' => InsuranceOrderOriginEnum::PURCHASE_FLOW_SKIPPED,
-            ];
+            return InsuranceOrderOriginEnum::purchaseFlowSkipped($order);
         }
 
         if ((string) $order->get(InsuranceCustomFieldEnum::POLICY_EMAILED_AT->value) !== '') {

@@ -31,11 +31,7 @@ class ReportInsurancePaymentActivity extends KanvasActivity implements WorkflowA
         $this->overwriteAppService($app);
 
         if (InsuranceOrderOriginEnum::isRegistered($order)) {
-            return [
-                'order' => $order->getId(),
-                'status' => 'skipped',
-                'message' => InsuranceOrderOriginEnum::PURCHASE_FLOW_SKIPPED,
-            ];
+            return InsuranceOrderOriginEnum::purchaseFlowSkipped($order);
         }
 
         if (empty($order->get(InsuranceCustomFieldEnum::QUOTE_NUMBER->value))) {

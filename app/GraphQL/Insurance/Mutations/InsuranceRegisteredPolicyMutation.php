@@ -18,7 +18,12 @@ class InsuranceRegisteredPolicyMutation
         $ctx = $this->actingContext();
 
         return new RegisterInsurancePolicyAction(
-            RegisteredInsurancePolicy::fromMultiple($ctx->app, $ctx->user, $ctx->company, $request['input'])
+            RegisteredInsurancePolicy::fromMultiple(
+                $ctx->app,
+                $ctx->user,
+                $ctx->company,
+                $request['input']
+            )
         )->execute();
     }
 }

@@ -26,6 +26,6 @@ class InsurancePolicyReminderNotification extends Notification
         $this->setPushMessageTemplateName(InsurancePolicyReminders::PUSH_MESSAGE_TEMPLATE);
         $this->setDatabaseTemplateName(InsurancePolicyReminders::PUSH_MESSAGE_TEMPLATE);
         $this->setData($data);
-        $this->channels = InsurancePolicyReminders::channels();
+        $this->channels = InsurancePolicyReminders::channels($order->app);
     }
 }

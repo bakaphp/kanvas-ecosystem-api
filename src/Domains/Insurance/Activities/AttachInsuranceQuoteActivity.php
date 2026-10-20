@@ -49,11 +49,7 @@ class AttachInsuranceQuoteActivity extends KanvasActivity implements WorkflowAct
         $this->overwriteAppService($app);
 
         if (InsuranceOrderOriginEnum::isRegistered($order)) {
-            return [
-                'order' => $order->getId(),
-                'status' => 'skipped',
-                'message' => InsuranceOrderOriginEnum::PURCHASE_FLOW_SKIPPED,
-            ];
+            return InsuranceOrderOriginEnum::purchaseFlowSkipped($order);
         }
 
         $isInsuranceOrder = InsuranceOrderTypeEnum::INSURANCE->isTypeOf($order);
