@@ -7,6 +7,7 @@ namespace App\GraphQL\Souk\Mutations\Orders;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Connectors\Stripe\Services\StripeCheckoutService;
 use Kanvas\Connectors\Stripe\Services\StripePaymentLinkService;
 use Kanvas\Exceptions\ValidationException;
@@ -28,7 +29,7 @@ class PaymentLinkMutation
         $app = app(Apps::class);
 
         // Find the order
-        $order = Order::fromCompany($user->getCurrentCompany())
+        $order = Order::fromCompany(LocationContext::shoppingCompany($user))
             ->fromApp($app)
             ->where('id', $args['order_id'])
             ->firstOrFail();
@@ -71,7 +72,7 @@ class PaymentLinkMutation
         $app = app(Apps::class);
 
         // Find the order
-        $order = Order::fromCompany($user->getCurrentCompany())
+        $order = Order::fromCompany(LocationContext::shoppingCompany($user))
             ->fromApp($app)
             ->where('id', $args['order_id'])
             ->firstOrFail();

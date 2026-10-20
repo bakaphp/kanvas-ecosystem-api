@@ -30,6 +30,8 @@ use Kanvas\Activities\Models\Activity;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Bundles\Models\BundleItem;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -83,7 +85,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int is_deleted
  */
 #[ObservedBy(VariantObserver::class)]
-class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface, ActivityLogInterface
+class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface, ActivityLogInterface, ReadableAtLocation
 {
     use HasAdminLink;
     use SlugTrait;
@@ -660,7 +662,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
         if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
-            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+            $query->where('company.id', LocationContext::shoppingCompany($user)->getId());
         }
 
         if ($query->model->isTypesense()) {
@@ -1005,7 +1007,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             $query->where('products_variants.companies_id', $company->getId());
         } else {
             if ($user instanceof UserInterface && ! $user->isAppOwner()) {
-                $query->where('products_variants.companies_id', $user->getCurrentCompany()->getId());
+                $query->where('products_variants.companies_id', LocationContext::shoppingCompany($user)->getId());
             }
         }
 
@@ -1089,7 +1091,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             $query->where('products_variants.companies_id', $company->getId());
         } else {
             if ($user instanceof UserInterface && ! $user->isAppOwner()) {
-                $query->where('products_variants.companies_id', $user->getCurrentCompany()->getId());
+                $query->where('products_variants.companies_id', LocationContext::shoppingCompany($user)->getId());
             }
         }
 

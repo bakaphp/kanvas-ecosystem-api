@@ -430,6 +430,35 @@ return [
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
+
+        'insurance' => [
+            'driver' => 'mysql',
+            'read' => [
+                'host' => [
+                    env('DB_INSURANCE_HOST_READ', env('DB_INSURANCE_HOST', '127.0.0.1')),
+                ],
+            ],
+            'write' => [
+                'host' => [
+                    env('DB_INSURANCE_HOST', '127.0.0.1'),
+                ],
+            ],
+            'sticky' => true,
+            'port' => env('DB_INSURANCE_PORT', '3306'),
+            'database' => env('DB_INSURANCE_DATABASE', 'insurance'),
+            'username' => env('DB_INSURANCE_USERNAME', 'kanvas'),
+            'password' => env('DB_INSURANCE_PASSWORD', ''),
+            'unix_socket' => env('DB_INSURANCE_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_520_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => 'InnoDB',
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
         'third_party' => [
             'driver' => 'mysql',
             'read' => [

@@ -6,13 +6,14 @@ namespace Kanvas\Notifications\Traits;
 
 use Baka\Support\Str;
 use Exception;
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Support\PushTemplateParser;
 use Kanvas\Templates\Actions\RenderTemplateAction;
+use Kanvas\Templates\Models\Templates;
 use Kanvas\Templates\Repositories\TemplatesRepository;
+use Kanvas\Templates\Support\TemplateSandbox;
 
 trait NotificationRenderTrait
 {
@@ -49,9 +50,14 @@ trait NotificationRenderTrait
     public function getNotificationTitle(): ?string
     {
         $template = $this->findTemplateByName();
-        $title = $template?->subject ?? $this->getType()->title;
 
-        return $title ? Blade::render($title, $this->getData()) : null;
+        if ($template instanceof Templates && $template->subject !== null) {
+            return new RenderTemplateAction($this->app, $this->company)->renderSubject($template, $this->getData());
+        }
+
+        $title = $this->getType()->title;
+
+        return $title ? TemplateSandbox::render($title, $this->getData()) : null;
     }
 
     public function setTemplateName(string $name): self

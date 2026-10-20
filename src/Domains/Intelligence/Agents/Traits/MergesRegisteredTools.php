@@ -277,13 +277,15 @@ trait MergesRegisteredTools
 
     protected function defaultRegisteredToolResolver(Tool $tool): ?object
     {
-        if ($tool->handler === null || ! class_exists($tool->handler)) {
+        $handlerClass = $tool->handlerClass();
+
+        if ($handlerClass === null) {
             return null;
         }
 
-        $ctor = new ReflectionClass($tool->handler)->getConstructor();
+        $ctor = new ReflectionClass($handlerClass)->getConstructor();
         if ($ctor === null || $ctor->getNumberOfParameters() === 0) {
-            return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $tool->handler())));
+            return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $handlerClass())));
         }
 
         $candidates = $this->dependencyCandidates();
@@ -304,7 +306,7 @@ trait MergesRegisteredTools
             }
         }
 
-        return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $tool->handler(...$args))));
+        return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $handlerClass(...$args))));
     }
 
     /**

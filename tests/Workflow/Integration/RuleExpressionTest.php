@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Workflow\Integration;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleCondition;
 use Kanvas\Workflow\Rules\Support\ExpressionData;
+use Kanvas\Workflow\Rules\Support\SafeExpression;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
@@ -268,63 +270,57 @@ final class RuleExpressionTest extends TestCase
     }
 
     /**
-     * Compliance guard for every distinct condition SHAPE currently live in production
-     * (rules_conditions dump, Jul 2026). Each expression is evaluated through the exact
-     * ExpressionData::wrapValues() the workflow applies, proving the array-wrapping change does not
-     * regress scalar comparisons, object property/method access, relation chains, or method-return
-     * bracket navigation — and that top-level JSON dot-navigation (the KANVAS-ECOSYSTEM-5VJ bug) works.
+     * Compliance guard for every distinct condition SHAPE live in production (rules_conditions dump,
+     * Oct 2026), evaluated through SafeExpression exactly as Rule::matches() does: scalar comparisons,
+     * model attributes and allowlisted getters, relation chains, method-return bracket navigation and
+     * top-level JSON dot-navigation (KANVAS-ECOSYSTEM-5VJ).
      */
     public function testAllProductionConditionShapesStillEvaluate(): void
     {
-        $message = new class () {
-            public int $message_types_id = 572;
-
+        $message = new class () extends Model {
             public function getMessage(): array
             {
                 return ['status' => 'submitted', 'from_me' => false, 'from_human' => true];
             }
         };
+        $message->setRawAttributes(['message_types_id' => 572]);
 
-        $order = new class () {
-            public array $meta = [
-                'source' => 'B2B',
-                'affiliate_id' => 'AFF123',
-                'esims' => [['data' => ['insurancePendingData' => [['insurance' => 'ACME']]]]],
-            ];
-
+        $order = new class () extends Model {
             public function getMetadata(string $key): mixed
             {
-                return $this->meta[$key] ?? null;
+                return [
+                    'source' => 'B2B',
+                    'affiliate_id' => 'AFF123',
+                    'esims' => [['data' => ['insurancePendingData' => [['insurance' => 'ACME']]]]],
+                ][$key] ?? null;
             }
         };
 
-        $company = new class () {
+        $company = new class () extends Model {
             public function get(string $key): mixed
             {
                 return $key === 'use_global_workflows' ? 1 : null;
             }
         };
 
-        $receiver = new class () {
-            public int $id = 449;
+        $receiver = new class () extends Model {
         };
+        $receiver->setRawAttributes(['id' => 449]);
 
-        $lead = new class ($company, $receiver) {
-            public function __construct(public object $company, public object $receiver)
-            {
-            }
-
+        $lead = new class () extends Model {
             public function get(string $key): mixed
             {
                 return $key === 'driver_license_images' ? 'https://img' : null;
             }
         };
+        $lead->setRelation('company', $company);
+        $lead->setRelation('receiver', $receiver);
 
         $channel = new class () {
             public string $name = 'Notes';
         };
 
-        $values = ExpressionData::wrapValues([
+        $values = [
             'id' => 5,
             'message_types_id' => 572,
             'verb' => 'trade-walk',
@@ -338,9 +334,7 @@ final class RuleExpressionTest extends TestCase
             'order' => $order,
             'lead' => $lead,
             'channel' => $channel,
-        ]);
-
-        $el = new ExpressionLanguage();
+        ];
 
         $cases = [
             'scalar gt' => ['id > 0', true],
@@ -362,12 +356,12 @@ final class RuleExpressionTest extends TestCase
 
         foreach ($cases as $label => $case) {
             $expression = is_array($case) ? $case[0] : $case;
-            $result = $el->evaluate($expression, $values);
+            $result = SafeExpression::evaluate($expression, $values);
             $this->assertTrue((bool) $result, "Production shape [{$label}] must evaluate true: {$expression}");
         }
 
         // Deep method -> array -> bracket-chain navigation (real rule 277) returns the nested value.
-        $deep = $el->evaluate(
+        $deep = SafeExpression::evaluate(
             "order.getMetadata('esims')[0]['data']['insurancePendingData'][0]['insurance'] ?? null",
             $values
         );
