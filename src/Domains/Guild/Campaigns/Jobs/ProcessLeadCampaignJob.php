@@ -12,6 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Campaigns\Enums\CampaignRecipientStatusEnum;
 use Kanvas\Guild\Campaigns\Enums\CampaignStatusEnum;
 use Kanvas\Guild\Campaigns\Models\Campaign;
@@ -282,7 +283,7 @@ class ProcessLeadCampaignJob implements ShouldQueue
 
         try {
             return Agent::getById((int) $agentId, $this->app);
-        } catch (Throwable) {
+        } catch (ModelNotFoundException) {
             return null;
         }
     }

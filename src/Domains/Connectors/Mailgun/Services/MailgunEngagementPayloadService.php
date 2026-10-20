@@ -13,13 +13,11 @@ namespace Kanvas\Connectors\Mailgun\Services;
 class MailgunEngagementPayloadService
 {
     private array $eventData;
-    private array $signature;
 
     public function __construct(mixed $payload)
     {
         $payload = is_array($payload) ? $payload : [];
         $this->eventData = is_array($payload['event-data'] ?? null) ? $payload['event-data'] : [];
-        $this->signature = is_array($payload['signature'] ?? null) ? $payload['signature'] : [];
     }
 
     public function event(): string
@@ -56,20 +54,5 @@ class MailgunEngagementPayloadService
         $value = $this->eventData['user-variables'][$name] ?? null;
 
         return is_scalar($value) ? (string) $value : null;
-    }
-
-    public function signatureToken(): string
-    {
-        return (string) ($this->signature['token'] ?? '');
-    }
-
-    public function signatureTimestamp(): string
-    {
-        return (string) ($this->signature['timestamp'] ?? '');
-    }
-
-    public function signatureValue(): string
-    {
-        return (string) ($this->signature['signature'] ?? '');
     }
 }
