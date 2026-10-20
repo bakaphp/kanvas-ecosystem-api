@@ -34,7 +34,14 @@ use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Insurance Attach Quote',
+    description: 'Validates a freshly created insurance order and binds its quote with the insurer. Checks the plan, the vehicle, the customer data and that the insurer\'s price still matches, then stamps the quote number, premium, tax and total on the order. '
+        . 'Use it on \'Order created\' for the insurance order type, and configure that rule as NOT async so a rejection is known before the buyer pays. '
+        . 'It never throws on a bad quote: it marks the order failed (final status), stores a customer-safe reason in insurance_failure_reason and releases any held payment. '
+        . 'It skips orders that already carry a quote, orders that are not insurance orders and policies the user registered themselves. '
+        . 'It calls the insurer\'s API but does not charge the customer and does not email anyone.',
+)]
 class AttachInsuranceQuoteActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     use FailsReleasingHeldPayment;

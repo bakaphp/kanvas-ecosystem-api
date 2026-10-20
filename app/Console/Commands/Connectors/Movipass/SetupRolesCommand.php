@@ -43,6 +43,7 @@ class SetupRolesCommand extends Command
                 MovipassRolesEnum::PARQUEAT,
                 MovipassRolesEnum::PARKING_MANAGER,
                 MovipassRolesEnum::PARKING_OPERATOR,
+                MovipassRolesEnum::INSURER,
             ],
             'view-order' => [
                 RolesEnums::OWNER,
@@ -53,6 +54,7 @@ class SetupRolesCommand extends Command
                 MovipassRolesEnum::PARQUEAT,
                 MovipassRolesEnum::PARKING_MANAGER,
                 MovipassRolesEnum::PARKING_OPERATOR,
+                MovipassRolesEnum::INSURER,
             ],
             'update-orders' => [
                 RolesEnums::OWNER,
@@ -82,6 +84,7 @@ class SetupRolesCommand extends Command
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::INSURER,
             ],
             'cancel-orders' => [
                 RolesEnums::OWNER,

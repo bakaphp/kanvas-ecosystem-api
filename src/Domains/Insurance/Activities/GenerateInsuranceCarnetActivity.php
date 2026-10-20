@@ -16,7 +16,12 @@ use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Insurance Generate Carnet',
+    description: 'Builds the digital carnet (PDF with QR) for an issued policy and stores it in the order\'s files and in insurance_carnet_url. '
+        . 'Use it after the policy is issued and invoiced, before the policy email, because that email attaches the carnet. It runs once per order and fails when the order has no issued policy. '
+        . 'A PDF failure is reported as a failed workflow step and never changes the insurance or order status. It does not email the customer.',
+)]
 class GenerateInsuranceCarnetActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

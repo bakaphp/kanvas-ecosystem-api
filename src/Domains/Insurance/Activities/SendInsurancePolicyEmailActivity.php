@@ -15,7 +15,12 @@ use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Insurance Send Policy Email',
+    description: 'Emails the customer their policy with the carnet attached, using the insurance-policy-issued template. '
+        . 'Use it once, after the carnet is generated. It skips when the email was already sent and fails when the policy is not active or the carnet does not exist yet. '
+        . 'This CONTACTS the customer. Do NOT use it for expiry reminders; those are sent by the scheduled reminders command, not by a rule.',
+)]
 class SendInsurancePolicyEmailActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

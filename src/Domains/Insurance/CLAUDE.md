@@ -466,4 +466,4 @@ command only runs when given an `app_id`) and a re-run of `kanvas:insurance-setu
 ## Open items
 
 - Hold vs 3DS: `SettleInsurancePaymentAction` only touches an `AUTHORIZED` payment. The 3DS challenge flow (`startPaymentChallengeWithCard`) marks a held payment `PAID`, so insurance orders must be paid through `createPaymentMethod` → `addPaymentToOrder` → `processPayment` with `use_hold`, or a failed emission will not release the hold.
-- None of the new activities has a workflow rule seeded; each env needs one per trigger.
+- None of the new activities has a workflow rule seeded; each env needs one per trigger. The per-rule table (event, required or optional, what breaks without it) and the per-environment steps live in [`DEPLOY.md`](DEPLOY.md); keep it in sync when an activity or setting is added.
