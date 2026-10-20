@@ -142,6 +142,7 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
             $deliveryStatus = StatusMap::toDeliveryStatus((string) ($status['status'] ?? ''));
             $delivery = $deliveryStatus !== null && ! empty($status['id'])
                 ? Delivery::query()
+                    ->where('apps_id', $receiver->apps_id)
                     ->where('provider', MetaWhatsAppHandler::slug())
                     ->where('external_id', (string) $status['id'])
                     ->first()

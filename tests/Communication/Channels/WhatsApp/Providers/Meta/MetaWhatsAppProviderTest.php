@@ -168,6 +168,40 @@ final class MetaWhatsAppProviderTest extends TestCase
         $this->assertSame('wa-chat-8095550202-at-swhatsappnet', $channel->slug);
     }
 
+    /**
+     * Meta posts every workspace's numbers to the one URL; the claim, not the receiver, says whose
+     * a message is.
+     */
+    public function testEveryWorkspaceOnTheAppSharesOneReceiver(): void
+    {
+        $receivers = app(CommunicationReceivers::class);
+
+        $this->assertSame(
+            $receivers->ensure($this->currentApp(), $this->currentCompany(), 'meta')->getId(),
+            $receivers->ensure($this->currentApp(), $this->otherCompany(), 'meta')->getId()
+        );
+    }
+
+    public function testInboundIsFiledForTheWorkspaceThatClaimsTheNumberWhoeverOwnsTheReceiver(): void
+    {
+        $owner = $this->otherCompany();
+        $receiver = $this->receiver();
+        $receiver->forceFill(['companies_id' => $owner->getId(), 'users_id' => $owner->users_id])->saveOrFail();
+        $this->metaConnection();
+
+        $result = $this->deliver($this->inboundPayload('wamid.IN8', '18095550208', 'Hola'));
+
+        $this->assertSame($this->currentCompany()->getId(), (int) Message::query()->findOrFail($result[0]['message_id'])->companies_id);
+    }
+
+    public function testANumberNoWorkspaceClaimsIsNotFiled(): void
+    {
+        $result = $this->deliver($this->inboundPayload('wamid.IN9', '18095550209', 'Hola'));
+
+        $this->assertFalse($result[0]['filed']);
+        $this->assertSame('identity_not_connected', $result[0]['reason']);
+    }
+
     public function testARedeliveredMessageIsFiledOnce(): void
     {
         $this->metaConnection();

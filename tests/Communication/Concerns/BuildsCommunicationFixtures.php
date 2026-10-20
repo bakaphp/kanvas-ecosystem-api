@@ -51,6 +51,11 @@ trait BuildsCommunicationFixtures
         return auth()->user()->getCurrentCompany();
     }
 
+    protected function otherCompany(): Companies
+    {
+        return Companies::factory()->create();
+    }
+
     protected function communication(): Communication
     {
         return Communication::for($this->currentApp(), $this->currentCompany());

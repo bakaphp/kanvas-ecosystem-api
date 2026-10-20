@@ -6,26 +6,30 @@ namespace Kanvas\Communication\Messages\DataTransferObject;
 
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
+use Kanvas\Companies\Models\Companies;
 
 /**
- * Where an inbound message belongs, and whether anything may answer it automatically. The message
- * is filed either way; only the automatic answer depends on this.
+ * Where an inbound message belongs, and whether anything may answer it automatically. $company is
+ * the workspace it is filed for; null when no workspace of the app may have it, and then nothing is
+ * filed at all — not a person, not a lead.
  */
 final readonly class InboundRoute
 {
     public const string ROUTED = 'routed';
 
     // Nobody claims the identity: a number the tenant had before provisioning, or one it did not
-    // select. It reached the tenant's own authenticated receiver, so it keeps answering the way it
-    // always has — turning that off is a selection, not a side effect of a deploy.
+    // select. On the tenant's own authenticated receiver it keeps answering the way it always has —
+    // turning that off is a selection, not a side effect of a deploy. On an app-wide receiver there
+    // is no tenant to file it for.
     public const string NOT_PROVISIONED = 'not_provisioned';
 
-    // Claimed by another workspace: filed for the record, never answered from here.
+    // Claimed by a workspace this receiver does not serve: never filed here, never answered.
     public const string UNROUTED = 'unrouted';
 
     public function __construct(
         public string $outcome,
         public ChannelTypeEnum $channel,
+        public ?Companies $company,
         public ?Connection $connection = null,
         public ?string $reason = null
     ) {

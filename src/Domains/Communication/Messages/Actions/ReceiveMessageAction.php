@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Communication\Messages\Actions;
 
 use Baka\Support\Str;
+use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Contracts\InboundSource;
 use Kanvas\Communication\Messages\DataTransferObject\InboundMessage;
 use Kanvas\Communication\Messages\DataTransferObject\InboundRoute;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\Actions\ProcessInboundConsentAction;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
@@ -42,6 +47,7 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use LogicException;
@@ -49,16 +55,21 @@ use Spatie\LaravelData\DataCollection;
 use Throwable;
 
 /**
- * Everything after a provider has parsed its payload, the same for every medium: which connection
- * the message arrived on, the person and lead behind it, consent, the conversation it is filed in,
- * and the announcement that lets a responder answer it.
+ * Everything after a provider has parsed its payload, the same for every medium: which workspace and
+ * connection the message arrived on, the person and lead behind it, consent, the conversation it is
+ * filed in, and the announcement that lets a responder answer it.
  *
- * The message is always filed. Only the automatic answer depends on the connection being on, and on
- * the identity not belonging to another workspace.
+ * The workspace comes from the route, before anything is written: a number claimed by a workspace
+ * the receiver does not serve, or unclaimed on an app-wide receiver, files nothing. Once filed, only
+ * the automatic answer depends on the connection being on.
  */
 final class ReceiveMessageAction
 {
     use ChainsInboundBursts;
+
+    private Companies $company;
+
+    private Users $user;
 
     public function __construct(
         private readonly ReceiverWebhook $receiver,
@@ -74,9 +85,17 @@ final class ReceiveMessageAction
     {
         $route = new RouteInboundMessageAction(
             $this->receiver->app,
-            $this->receiver->company,
+            app(CommunicationReceivers::class)->sharesAppReceiver($this->inbound->provider) ? null : $this->receiver->company,
             $this->inbound
         )->execute();
+
+        if ($route->company === null) {
+            return [$this->unfiled($route)];
+        }
+
+        $this->company = $route->company;
+        $this->user = $this->company->user;
+        $this->actForCompany();
 
         $consentSignal = $this->inbound->consentSignal ?? ConsentKeywordService::detect($this->inbound->text);
         $consentOutcome = null;
@@ -152,6 +171,21 @@ final class ReceiveMessageAction
     }
 
     /**
+     * The webhook job runs as the receiver's workspace, and an app-wide receiver belongs to whoever
+     * set it up first. Everything filed from here on, and every observer it fires, has to see the
+     * workspace that owns the number instead.
+     */
+    private function actForCompany(): void
+    {
+        if ($this->company->getId() === (int) $this->receiver->companies_id) {
+            return;
+        }
+
+        Auth::loginUsingId($this->user->getId());
+        App::scoped(CompaniesBranches::class, fn () => $this->company->defaultBranch);
+    }
+
+    /**
      * The person behind the address. Among several on file with it, the one with an open lead: that
      * is the conversation in progress.
      */
@@ -165,7 +199,7 @@ final class ReceiveMessageAction
 
         $candidates = PeoplesRepository::getByPhoneNumber(
             app: $this->receiver->app,
-            company: $this->receiver->company,
+            company: $this->company,
             phoneNumbers: [$address, str_replace('+', '', $this->inbound->from)]
         )->get();
 
@@ -178,8 +212,8 @@ final class ReceiveMessageAction
 
         $person = new PeopleDto(
             app: $this->receiver->app,
-            branch: $this->receiver->company->defaultBranch,
-            user: $this->receiver->user,
+            branch: $this->company->defaultBranch,
+            user: $this->user,
             firstname: $existing !== null ? $existing->firstname : $address,
             contacts: Contact::collect([[
                 'value' => $address,
@@ -208,7 +242,7 @@ final class ReceiveMessageAction
             return $activeLead;
         }
 
-        if ((bool) $this->receiver->company->get('use_last_lead_on_responder')) {
+        if ((bool) $this->company->get('use_last_lead_on_responder')) {
             $lastLead = LeadsRepository::getPeopleLastLead($people);
 
             if ($lastLead !== null) {
@@ -282,7 +316,7 @@ final class ReceiveMessageAction
     private function conversation(?People $people): Channel
     {
         $app = $this->receiver->app;
-        $company = $this->receiver->company;
+        $company = $this->company;
         $slug = $this->inbound->conversationSlug;
 
         return DB::transaction(function () use ($app, $company, $slug, $people): Channel {
@@ -296,7 +330,7 @@ final class ReceiveMessageAction
 
             $channel ??= Channel::firstOrCreate(
                 [
-                    'users_id' => $this->receiver->users_id,
+                    'users_id' => $this->user->getId(),
                     'apps_id' => $app->getId(),
                     'companies_id' => $company->getId(),
                     'slug' => $slug,
@@ -315,7 +349,7 @@ final class ReceiveMessageAction
             $channel->save();
 
             $channel->addTags([$this->inbound->provider, 'ai-agent']);
-            $channel->addCategory('ai-agent', $app, $this->receiver->user, $company);
+            $channel->addCategory('ai-agent', $app, $this->user, $company);
             $channel->set(IntelligenceConfigurationEnum::AGENT_CHANNEL_TYPE->value, strtoupper($this->inbound->channel->value));
 
             return $channel;
@@ -330,7 +364,7 @@ final class ReceiveMessageAction
         $existing = $this->inbound->messageSlug !== null
             ? Message::query()
                 ->where('slug', $this->inbound->messageSlug)
-                ->where('companies_id', $this->receiver->company->getId())
+                ->where('companies_id', $this->company->getId())
                 ->where('apps_id', $this->receiver->app->getId())
                 ->first()
             : null;
@@ -367,8 +401,8 @@ final class ReceiveMessageAction
 
         return new CreateMessageAction(new MessageInput(
             app: $this->receiver->app,
-            company: $this->receiver->company,
-            user: $this->receiver->user,
+            company: $this->company,
+            user: $this->user,
             type: $type,
             message: $payload,
             is_public: 1,
@@ -398,7 +432,7 @@ final class ReceiveMessageAction
      */
     private function announce(Channel $channel, Message $message): void
     {
-        $policy = $this->inbound->fromUs ? null : $this->source->burstPolicy($this->inbound, $this->receiver->company);
+        $policy = $this->inbound->fromUs ? null : $this->source->burstPolicy($this->inbound, $this->company);
 
         if ($policy === null) {
             $channel->fireWorkflow(
@@ -425,6 +459,20 @@ final class ReceiveMessageAction
             $this->source->burstHandler(),
             ['communication_channel' => $this->inbound->channel->value]
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function unfiled(InboundRoute $route): array
+    {
+        return [
+            'message_id' => null,
+            'provider_message_id' => $this->inbound->providerMessageId,
+            'inbound_identity' => $this->inbound->inboundIdentity,
+            'filed' => false,
+            'reason' => $route->reason,
+        ];
     }
 
     /**

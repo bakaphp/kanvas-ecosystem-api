@@ -58,6 +58,14 @@ final class FakeProvider implements CommunicationProvider
         return new Retention(CarbonInterval::hours(72), ['failed', 'read']);
     }
 
+    /**
+     * Per tenant unless a test asks otherwise; read from config so it resets with the app.
+     */
+    public static function sharesAppReceiver(): bool
+    {
+        return (bool) config('communication.fake_shares_app_receiver', false);
+    }
+
     public static function provisioner(): string
     {
         return FakeProvisioner::class;
