@@ -85,11 +85,26 @@ class AgentMailboxService
      */
     public function domainFor(Agent $agent): string
     {
+        return $this->domainForTenant($agent->app, $agent->company);
+    }
+
+    /**
+     * The same question asked without an agent in hand — anything resolving the sending domain for
+     * a company at large (webhook setup, a tenant-wide outbound send) needs this without pulling in
+     * an Agent that may not exist yet.
+     *
+     * Company config wins over app config: one Mailgun account can serve many tenants, each on its
+     * own sending domain. `services.mailgun.domain` is the last resort, for the single-domain install
+     * where the platform already sends all its mail through one Mailgun domain and copying it onto
+     * every company would be the same value in N places.
+     */
+    public function domainForTenant(AppInterface $app, CompanyInterface $company): string
+    {
         // `?:` not `??`, matching the signing key above: a setting cleared to '' in the UI is absent,
         // and `??` would keep the blank, skip both fallbacks and report nothing configured.
         $domain = strtolower(trim((string) (
-            $agent->company->get(ConfigurationEnum::DOMAIN->value)
-            ?: $agent->app->get(ConfigurationEnum::DOMAIN->value)
+            $company->get(ConfigurationEnum::DOMAIN->value)
+            ?: $app->get(ConfigurationEnum::DOMAIN->value)
             ?: config('services.mailgun.domain')
         )));
 
