@@ -21,7 +21,13 @@ use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Insurance Emit Policy',
+    description: 'Asks the insurer to issue the policy for an insurance order and, once the policy exists, captures the held card payment. '
+        . 'Use it after the payment has been reported to the insurer; it refuses to run before that (status paid) and, for insurers that inspect the vehicle, before the inspection documents are uploaded. Those two are recoverable ordering problems, so the hold is kept and the step can run again. '
+        . 'If the insurer rejects the emission it marks the order failed and voids the hold. If the insurer answers but the policy is not ready yet it returns pending, and the sync step picks it up later. '
+        . 'This is the step that charges the customer. Do NOT run it before the quote is attached and the payment reported.',
+)]
 class EmitInsurancePolicyActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     use FailsReleasingHeldPayment;
