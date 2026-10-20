@@ -1005,6 +1005,7 @@ class SendMessageToLeadAction
                 cc: $ccList,
                 attachmentUrls: $attachments,
                 signature: $ownerSignature,
+                trackingPerson: $this->lead->people,
             )->execute();
 
             return $this->emailResult(

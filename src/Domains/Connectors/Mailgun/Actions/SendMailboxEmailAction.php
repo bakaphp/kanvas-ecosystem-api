@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Actions;
 
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Messages\Models\Message;
 
@@ -41,6 +43,18 @@ class SendMailboxEmailAction
                 'In-Reply-To' => $inReplyTo,
                 'References' => trim($references),
             ],
+            trackingPerson: $this->trackingPerson(),
         )->execute();
+    }
+
+    private function trackingPerson(): ?People
+    {
+        $entity = $this->outboundMessage->preferredEntity(Lead::class, People::class);
+
+        return match (true) {
+            $entity instanceof Lead => $entity->people,
+            $entity instanceof People => $entity,
+            default => null,
+        };
     }
 }

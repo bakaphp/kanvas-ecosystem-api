@@ -9,6 +9,7 @@ use Baka\Support\Str;
 use Kanvas\Connectors\Mailgun\Client;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Support\UserEmailSignature;
@@ -40,6 +41,10 @@ class SendAsAgentMailboxAction
         private readonly array $headers = [],
         private readonly array $attachmentUrls = [],
         private readonly ?UserEmailSignature $signature = null,
+        // Who this mail is about, when there is one — enables Mailgun open tracking and stamps a
+        // `v:people_id` variable so EmailOpenedWebhookJob can record the open back onto them. Left
+        // null for mail with no CRM subject (an admin notice, a platform-level send).
+        private readonly ?People $trackingPerson = null,
     ) {
     }
 
@@ -72,6 +77,8 @@ class SendAsAgentMailboxAction
             headers: array_merge($this->headers, ['Reply-To' => $address]),
             cc: $this->cc,
             attachments: $this->fetchAttachments(),
+            trackOpens: $this->trackingPerson !== null,
+            variables: $this->trackingPerson !== null ? ['people_id' => (string) $this->trackingPerson->getId()] : [],
         );
     }
 
