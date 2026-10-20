@@ -49,12 +49,15 @@ final class SyncZohoLeadPersonDataTest extends TestCase
     public function testExistingLeadUpdatesPersonAddressAndDob(): void
     {
         $zohoLeadId = 'zoho-' . uniqid();
-        $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+        $first = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '742 Evergreen Terrace'));
+        $originalAddressId = $first->people->getDefaultAddress()->getKey();
 
         $lead = $this->syncAction($zohoLeadId)->execute($this->zohoRecord($zohoLeadId, '1 Infinite Loop'));
 
         $people = $lead->people->fresh();
         $this->assertSame('1 Infinite Loop', $people->getDefaultAddress()->address);
+        $this->assertSame($originalAddressId, $people->getDefaultAddress()->getKey());
+        $this->assertSame(1, $people->address()->count());
         $this->assertSame('1985-04-12', $people->dob->format('Y-m-d'));
         $this->assertSame('1 Infinite Loop', $lead->get('street'));
     }

@@ -396,6 +396,34 @@ class People extends BaseModel
         return $this->makeDefaultAddress($this->addAddress($address));
     }
 
+    /**
+     * For a source of truth (a CRM pull): edits the default row in place, because `addDefaultAddress()`
+     * keys on the full address text and so turns every correction into a second row.
+     */
+    public function replaceDefaultAddress(DataTransferObjectAddress $address): Address
+    {
+        $current = $this->getDefaultAddress();
+
+        if ($current === null) {
+            return $this->addDefaultAddress($address);
+        }
+
+        $current->fill([
+            'address' => $address->address,
+            'address_2' => $address->address_2,
+            'city' => $address->city,
+            'state' => $address->state,
+            'zip' => $address->zip,
+            'city_id' => $address->city_id ?? $current->city_id,
+            'state_id' => $address->state_id ?? $current->state_id,
+            'countries_id' => $address->country_id ?? $current->countries_id,
+            'address_type_id' => $address->address_type_id ?? $current->address_type_id,
+        ]);
+        $current->saveOrFail();
+
+        return $this->makeDefaultAddress($current);
+    }
+
     public function makeDefaultAddress(Address $address): Address
     {
         $address->is_default = 1;
