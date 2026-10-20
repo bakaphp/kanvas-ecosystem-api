@@ -6,6 +6,7 @@ namespace Tests\Souk\Orders;
 
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Internal\Handlers\InternalHandler;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
@@ -51,6 +52,7 @@ final class AssignCorporateOrderOwnerActionTest extends TestCase
 
         $this->creator = Users::factory()->create();
         $this->corporateCompany->associateUserApp($this->creator, $this->kanvasApp, 1);
+        new RegisterUsersAppAction($this->creator, $this->kanvasApp)->execute((string) $this->creator->password);
     }
 
     public function testReassignsCorporateOrderToItsCreator(): void
@@ -81,7 +83,7 @@ final class AssignCorporateOrderOwnerActionTest extends TestCase
             $this->systemUser->getId(),
             (int) $order->metadata['data'][AssignCorporateOrderOwnerAction::ACTOR_METADATA_KEY]
         );
-        $this->assertSame($peopleId, $order->people_id);
+        $this->assertNotSame($peopleId, $order->people_id);
         $this->assertSame($companyId, $order->companies_id);
     }
 
@@ -222,6 +224,172 @@ final class AssignCorporateOrderOwnerActionTest extends TestCase
         $this->assertTrue($result['result'] ?? false, json_encode($result));
         $this->assertSame($this->creator->getId(), $result['new_user_id']);
         $this->assertSame($this->systemUser->getId(), $result['actor_user_id']);
+    }
+
+    public function testMakesTheCreatorsPersonTheCustomer(): void
+    {
+        $order = $this->makeOrder(['data' => $this->corporateData($this->creator->getId())]);
+        $customer = $this->makePersonWithEmail((string) $this->creator->email, (int) $this->corporateCompany->getId());
+
+        $reassigned = new AssignCorporateOrderOwnerAction($order)->execute();
+
+        $this->assertNotNull($reassigned);
+        $this->assertSame($this->creator->getId(), (int) $reassigned->users_id);
+        $this->assertSame($customer->getId(), (int) $reassigned->people_id);
+    }
+
+    public function testFindsTheCreatorsPersonInTheCorporateCompanyBeforeTheOrderCompany(): void
+    {
+        $order = $this->makeOrder(['data' => $this->corporateData($this->creator->getId())]);
+        $inOrderCompany = $this->makePersonWithEmail((string) $this->creator->email, (int) $order->companies_id);
+        $inCorporateCompany = $this->makePersonWithEmail((string) $this->creator->email, (int) $this->corporateCompany->getId());
+
+        $reassigned = new AssignCorporateOrderOwnerAction($order)->execute();
+
+        $this->assertSame($inCorporateCompany->getId(), (int) $reassigned->people_id);
+        $this->assertNotSame($inOrderCompany->getId(), (int) $reassigned->people_id);
+    }
+
+    public function testFallsBackToThePersonLinkedToTheCreatorsAppProfile(): void
+    {
+        $order = $this->makeOrder(['data' => $this->corporateData($this->creator->getId())]);
+        $elsewhere = Companies::factory()->create(['users_id' => $this->owner->getId()]);
+        $elsewhere->associateApp($this->kanvasApp);
+        $customer = $this->makePersonWithEmail('someone.else@corp-test.example', (int) $elsewhere->getId());
+        $this->creator->getAppProfile($this->kanvasApp)->update(['people_id' => $customer->getId()]);
+
+        $reassigned = new AssignCorporateOrderOwnerAction($order)->execute();
+
+        $this->assertSame($customer->getId(), (int) $reassigned->people_id);
+    }
+
+    public function testCreatesTheCreatorsPersonWhenNoneExistsAndKeepsOrderEmail(): void
+    {
+        $order = $this->makeOrder(['data' => $this->corporateData($this->creator->getId())]);
+        $order->user_email = 'finanzas.grupo@corp-test.example';
+        $order->saveQuietly();
+        $previousPeopleId = (int) $order->people_id;
+
+        $reassigned = new AssignCorporateOrderOwnerAction($order)->execute();
+
+        $this->assertNotNull($reassigned);
+        $this->assertNotSame($previousPeopleId, (int) $reassigned->people_id);
+        $this->assertSame('finanzas.grupo@corp-test.example', $reassigned->user_email);
+        $this->assertSame(
+            (string) $this->creator->email,
+            $reassigned->people->getEmails()->first()?->value
+        );
+        $this->assertNull(new AssignCorporateOrderOwnerAction($reassigned->refresh())->execute());
+    }
+
+    public function testFixesTheCustomerOfAnOrderAlreadyOwnedByItsCreator(): void
+    {
+        $order = $this->makeOrder(['data' => $this->corporateData($this->creator->getId())]);
+        $order->users_id = $this->creator->getId();
+        $order->saveQuietly();
+        $customer = $this->makePersonWithEmail((string) $this->creator->email, (int) $this->corporateCompany->getId());
+
+        $result = new AssignCorporateOrderOwnerAction($order->refresh())->execute();
+
+        $this->assertNotNull($result);
+        $this->assertSame($customer->getId(), (int) $result->people_id);
+        $this->assertNull(new AssignCorporateOrderOwnerAction($result->refresh())->execute());
+    }
+
+    public function testUsesTheGivenCreatorInsteadOfTheMetadataOne(): void
+    {
+        $order = $this->makeOrder(['data' => $this->corporateData(null)]);
+        $customer = $this->makePersonWithEmail((string) $this->creator->email, (int) $this->corporateCompany->getId());
+
+        $reassigned = new AssignCorporateOrderOwnerAction($order, $this->creator)->execute();
+
+        $this->assertNotNull($reassigned);
+        $this->assertSame($this->creator->getId(), (int) $reassigned->users_id);
+        $this->assertSame($customer->getId(), (int) $reassigned->people_id);
+    }
+
+    public function testBackfillPlansWithoutWritingAndThenAppliesTheOwnerOfTheOrderEmail(): void
+    {
+        $order = $this->makeOrder(['data' => $this->corporateData(null)], OrderTypeEnum::PASO_RAPIDO->value);
+        $order->user_email = (string) $this->creator->email;
+        $order->saveQuietly();
+        $customer = $this->makePersonWithEmail((string) $this->creator->email, (int) $this->corporateCompany->getId());
+        $options = [
+            'app_id' => $this->kanvasApp->getId(),
+            '--order-type-id' => [$order->order_types_id],
+            '--order-id' => [$order->getId()],
+        ];
+
+        $this->artisan('kanvas-souk:backfill-corporate-order-customers', $options)->assertSuccessful();
+        $this->assertSame($this->systemUser->getId(), (int) $order->refresh()->users_id);
+
+        $this->artisan('kanvas-souk:backfill-corporate-order-customers', [...$options, '--apply' => true])->assertSuccessful();
+        $order->refresh();
+        $this->assertSame($this->creator->getId(), (int) $order->users_id);
+        $this->assertSame($customer->getId(), (int) $order->people_id);
+    }
+
+    public function testBackfillSkipsOrdersOfOtherCorporateCompanies(): void
+    {
+        $order = $this->makeOrder(['data' => $this->corporateData(null)], OrderTypeEnum::PASO_RAPIDO->value);
+        $order->user_email = (string) $this->creator->email;
+        $order->saveQuietly();
+
+        $this->artisan('kanvas-souk:backfill-corporate-order-customers', [
+            'app_id' => $this->kanvasApp->getId(),
+            '--order-type-id' => [$order->order_types_id],
+            '--order-id' => [$order->getId()],
+            '--user-company-id' => [$this->corporateCompany->getId() + 1000000],
+            '--apply' => true,
+        ])->assertSuccessful();
+
+        $this->assertSame($this->systemUser->getId(), (int) $order->refresh()->users_id);
+    }
+
+    public function testBackfillFindsCorporateOrdersByOrderProvidersAndUsesThatCompanyForTheCustomer(): void
+    {
+        $order = $this->makeOrder([], OrderTypeEnum::PASO_RAPIDO->value);
+        $order->user_email = (string) $this->creator->email;
+        $order->saveQuietly();
+        $order->providerCompanies()->attach($this->corporateCompany->getId());
+        $inOrderCompany = $this->makePersonWithEmail((string) $this->creator->email, (int) $order->companies_id);
+        $inCorporateCompany = $this->makePersonWithEmail((string) $this->creator->email, (int) $this->corporateCompany->getId());
+        $options = [
+            'app_id' => $this->kanvasApp->getId(),
+            '--order-type-id' => [$order->order_types_id],
+            '--order-id' => [$order->getId()],
+        ];
+
+        $this->artisan('kanvas-souk:backfill-corporate-order-customers', [...$options, '--apply' => true])->assertSuccessful();
+        $this->assertSame($this->systemUser->getId(), (int) $order->refresh()->users_id);
+
+        $this->artisan('kanvas-souk:backfill-corporate-order-customers', [
+            ...$options,
+            '--user-company-id' => [$this->corporateCompany->getId()],
+            '--apply' => true,
+        ])->assertSuccessful();
+
+        $order->refresh();
+        $this->assertSame($this->creator->getId(), (int) $order->users_id);
+        $this->assertSame($inCorporateCompany->getId(), (int) $order->people_id);
+        $this->assertNotSame($inOrderCompany->getId(), (int) $order->people_id);
+    }
+
+    public function testBackfillRequiresAnOrderType(): void
+    {
+        $this->artisan('kanvas-souk:backfill-corporate-order-customers', ['app_id' => $this->kanvasApp->getId()])->assertFailed();
+    }
+
+    private function makePersonWithEmail(string $email, int $companyId): People
+    {
+        $person = People::factory()
+            ->withUserId($this->systemUser->getId())
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($companyId)
+            ->create();
+        $person->addEmail($email, 0, 0);
+
+        return $person;
     }
 
     private function assertWarningLoggedFor(Order $order): void
