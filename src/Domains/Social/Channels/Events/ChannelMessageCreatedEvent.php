@@ -54,19 +54,30 @@ class ChannelMessageCreatedEvent implements ShouldBroadcast
     #[Override]
     public function broadcastOn(): array
     {
-        $appPrefix = 'app-' . $this->channel->apps_id;
+        return self::pusherChannelsFor($this->channel);
+    }
+
+    /**
+     * Every Pusher channel a client watching this Social channel subscribes to. Shared so an event
+     * about a message already in the channel (e.g. its delivery status) reaches the same listeners.
+     *
+     * @return list<Channel>
+     */
+    public static function pusherChannelsFor(ModelsChannel $channel): array
+    {
+        $appPrefix = 'app-' . $channel->apps_id;
 
         $channels = [
-            new Channel(Str::sanitizeChannelName($appPrefix . '-new-message-channel-' . $this->channel->slug . '-' . $this->channel->id)),
-            new Channel(Str::sanitizeChannelName($appPrefix . $this->channel->slug)),
+            new Channel(Str::sanitizeChannelName($appPrefix . '-new-message-channel-' . $channel->slug . '-' . $channel->id)),
+            new Channel(Str::sanitizeChannelName($appPrefix . $channel->slug)),
         ];
 
-        if (! empty($this->channel->entity_namespace)) {
-            $entityNamespace = SystemModules::convertLegacySystemModules($this->channel->entity_namespace);
+        if (! empty($channel->entity_namespace)) {
+            $entityNamespace = SystemModules::convertLegacySystemModules($channel->entity_namespace);
             $channelSlug = SystemModules::getSlugBySystemModuleNameSpace($entityNamespace);
             array_unshift(
                 $channels,
-                new Channel('new-message-channel-' . $channelSlug . '-' . ($this->channel->entity_id ?? $this->channel->id)),
+                new Channel('new-message-channel-' . $channelSlug . '-' . ($channel->entity_id ?? $channel->id)),
             );
         }
 

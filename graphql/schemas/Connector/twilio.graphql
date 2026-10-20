@@ -11,3 +11,11 @@ extend type Query @guard {
             resolver: "App\\GraphQL\\Connector\\Twilio\\Queries\\TwilioPhoneNumbersQuery@available"
         )
 }
+
+extend type Mutation @guard {
+    "Send a failed or undelivered SMS again, as the same message: same text and attachments, same number. The result arrives like any send — in `message.delivery` and the `message.delivery.updated` Pusher event."
+    twilioResendMessage(message_id: ID!): Message!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Twilio\\Mutations\\TwilioMessageMutation@resend"
+        )
+}

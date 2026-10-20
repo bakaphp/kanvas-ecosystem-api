@@ -5,22 +5,27 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Twilio;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\RecordMessageAttemptAction;
 use Kanvas\Connectors\Twilio\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Twilio\Jobs\RetryMessageAttemptJob;
 use Kanvas\Connectors\Twilio\Models\MessageAttempt;
 use Kanvas\Connectors\Twilio\Models\MessageDeliveryEvent;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioMessageStatusWebhookJob;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
-use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Customers\Enums\ContactValidationStatusEnum;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
+use Kanvas\Social\Messages\Events\MessageDeliveryStatusEvent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Kanvas\Workflow\Models\WorkflowAction;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
@@ -79,6 +84,10 @@ final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
         $this->assertSame('Twilio message status recorded', $firstResult['message']);
         $this->assertSame('Twilio message status already recorded', $secondResult['message']);
         $this->assertSame('delivered', $parent->get(CustomFieldEnum::CURRENT_STATUS->value));
+        $delivery = $parent->fresh()->getMessage()['delivery'];
+        $this->assertSame('delivered', $delivery['status']);
+        $this->assertSame('SM123', $delivery['message_sid']);
+        $this->assertNull($delivery['error_code']);
         $attempt = MessageAttempt::query()->where('message_sid', 'SM123')->firstOrFail();
         $this->assertSame('delivered', $attempt->current_status);
         $this->assertNotNull($attempt->terminal_at);
@@ -180,13 +189,22 @@ final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
         $this->assertSame(1, $attempt->events()->count());
     }
 
-    public function testSchedulesOnlyOneDelayedRetryForFirstCarrierFailure(): void
+    #[DataProvider('carrierFailureCodes')]
+    public function testMarksDestinationInvalidOnFirstCarrierFailureWithoutRetrying(string $errorCode): void
     {
         Queue::fake();
+        Event::fake([MessageDeliveryStatusEvent::class]);
 
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $destination = '+1809' . random_int(1000000, 9999999);
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create();
+        $contact = $people->addCellPhone($destination);
         $messageType = MessageType::firstOrCreate(
             [
                 'apps_id' => $app->getId(),
@@ -200,13 +218,25 @@ final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
             ->withCompanyId($company->getId())
             ->withMessageType($messageType)
             ->create(['users_id' => $user->getId()]);
-        $parent->set(CustomFieldEnum::MESSAGE_SID->value, 'SM-retry-source');
+        $channel = new CreateChannelAction(
+            ChannelDto::from([
+                'apps' => $app,
+                'companies' => $company,
+                'users' => $user,
+                'entity_id' => $people->getId(),
+                'entity_namespace' => People::class,
+                'name' => 'SMS ' . $people->getId(),
+                'slug' => 'sms-carrier-failure-' . $people->getId(),
+            ])
+        )->execute();
+        $channel->messages()->attach($parent->getId(), ['users_id' => $user->getId()]);
+        $sid = 'SM-carrier-failure-' . $errorCode;
+        $parent->set(CustomFieldEnum::MESSAGE_SID->value, $sid);
         new RecordMessageAttemptAction($parent)->execute([
-            'attempt_uuid' => 'c31ec72a-84eb-4887-8575-7c45a3049aa9',
             'messages' => [[
-                'sid' => 'SM-retry-source',
+                'sid' => $sid,
                 'status' => 'queued',
-                'to' => '+18095551234',
+                'to' => $destination,
             ]],
         ]);
 
@@ -216,130 +246,37 @@ final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
             'url' => $receiver->getUrl(),
             'headers' => [],
             'payload' => [
-                'MessageSid' => 'SM-retry-source',
+                'MessageSid' => $sid,
                 'MessageStatus' => 'undelivered',
-                'ErrorCode' => '30003',
-                'To' => '+18095551234',
-            ],
-        ]);
-        $job = new ProcessTwilioMessageStatusWebhookJob($webhookCall);
-
-        $job->execute();
-        $job->execute();
-
-        $attempt = MessageAttempt::query()->where('message_sid', 'SM-retry-source')->firstOrFail();
-        $this->assertSame('retry_scheduled', $attempt->remediation_action);
-        Queue::assertPushed(RetryMessageAttemptJob::class, 1);
-    }
-
-    public function testSuppressesSmsWhenControlledRetryAlsoFails(): void
-    {
-        Queue::fake();
-
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-        $messageType = MessageType::firstOrCreate(
-            [
-                'apps_id' => $app->getId(),
-                'languages_id' => 1,
-                'verb' => 'twilio-sms',
-            ],
-            ['name' => 'Twilio SMS'],
-        );
-        $parent = Message::factory()
-            ->withAppId($app->getId())
-            ->withCompanyId($company->getId())
-            ->withMessageType($messageType)
-            ->create(['users_id' => $user->getId()]);
-        $parent->set(CustomFieldEnum::MESSAGE_SID->value, 'SM-retry-failed');
-        new RecordMessageAttemptAction($parent)->execute([
-            'attempt_uuid' => 'e188b44e-81b8-49ce-b451-cc14c373571a',
-            'retry_number' => 1,
-            'parent_attempt_id' => 123,
-            'messages' => [[
-                'sid' => 'SM-retry-failed',
-                'status' => 'queued',
-                'to' => '+18095551234',
-            ]],
-        ]);
-
-        $receiver = $this->createReceiver($app, $company->getId(), $user);
-        $webhookCall = ReceiverWebhookCall::create([
-            'receiver_webhooks_id' => $receiver->getId(),
-            'url' => $receiver->getUrl(),
-            'headers' => [],
-            'payload' => [
-                'MessageSid' => 'SM-retry-failed',
-                'MessageStatus' => 'undelivered',
-                'ErrorCode' => '30005',
-                'To' => '+18095551234',
+                'ErrorCode' => $errorCode,
+                'To' => $destination,
             ],
         ]);
 
         new ProcessTwilioMessageStatusWebhookJob($webhookCall)->execute();
 
-        $attempt = MessageAttempt::query()->where('message_sid', 'SM-retry-failed')->firstOrFail();
+        $attempt = MessageAttempt::query()->where('message_sid', $sid)->firstOrFail();
         $this->assertSame('suppress_sms', $attempt->remediation_action);
-        Queue::assertNotPushed(RetryMessageAttemptJob::class);
+        $this->assertSame('destination_unreachable', $attempt->classification);
+        $this->assertSame(ContactValidationStatusEnum::INVALID, $contact->fresh()->validation_status);
+        $delivery = $parent->fresh()->getMessage()['delivery'];
+        $this->assertSame('undelivered', $delivery['status']);
+        $this->assertSame($errorCode, $delivery['error_code']);
+        $this->assertSame($sid, $delivery['message_sid']);
+        Event::assertDispatched(
+            MessageDeliveryStatusEvent::class,
+            fn (MessageDeliveryStatusEvent $event): bool => $event->channel->is($channel)
+                && $event->delivery['status'] === 'undelivered'
+                && $event->delivery['error_code'] === $errorCode
+        );
     }
 
-    public function testCancelsDelayedRetryWhenConversationHasNewerActivity(): void
+    public static function carrierFailureCodes(): array
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-        $lead = Lead::factory()
-            ->withAppAndCompany($app->getId(), $company->getId())
-            ->create();
-        $messageType = MessageType::firstOrCreate(
-            [
-                'apps_id' => $app->getId(),
-                'languages_id' => 1,
-                'verb' => 'twilio-sms',
-            ],
-            ['name' => 'Twilio SMS'],
-        );
-        $message = Message::factory()
-            ->withAppId($app->getId())
-            ->withCompanyId($company->getId())
-            ->withMessageType($messageType)
-            ->create([
-                'users_id' => $user->getId(),
-                'message' => ['content' => 'Old message'],
-                'created_at' => now()->subMinutes(2),
-            ]);
-        $attempt = MessageAttempt::query()->create([
-            'uuid' => '17f61b87-9127-4d75-b463-acb74225c5ee',
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'message_id' => $message->getId(),
-            'lead_id' => $lead->getId(),
-            'message_sid' => 'SM-old-message',
-            'to_number' => '+18095551234',
-            'current_status' => 'undelivered',
-            'remediation_action' => 'retry_scheduled',
-            'retry_number' => 0,
-            'created_at' => now()->subMinutes(2),
-        ]);
-        MessageAttempt::query()->create([
-            'uuid' => 'aebbf902-6830-487b-9220-71bc7a047b22',
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'lead_id' => $lead->getId(),
-            'message_sid' => 'SM-new-message',
-            'to_number' => '+18095551234',
-            'current_status' => 'sent',
-            'retry_number' => 0,
-            'created_at' => now(),
-        ]);
-
-        new RetryMessageAttemptJob($attempt->getId())->handle();
-
-        $this->assertSame(
-            'retry_canceled_superseded',
-            $attempt->fresh()->remediation_action,
-        );
+        return [
+            'unreachable handset' => ['30003'],
+            'unknown destination' => ['30005'],
+        ];
     }
 
     private function inboundTextPayload(string $sid): array
