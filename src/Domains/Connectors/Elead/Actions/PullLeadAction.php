@@ -69,6 +69,7 @@ class PullLeadAction
 
                 $eLead = new SyncLeadAction($lead, fresh: ! $isRapidCall)->execute();
                 $this->setContactStatus($lead, $eLead->subStatus);
+                new PullPeopleFromOpportunityAction($lead, $eLead, fresh: ! $isRapidCall)->execute();
 
                 if (! $isRapidCall) {
                     $this->pullAppointments($lead);

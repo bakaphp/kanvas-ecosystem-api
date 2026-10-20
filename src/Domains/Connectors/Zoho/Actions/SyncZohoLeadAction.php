@@ -220,7 +220,7 @@ class SyncZohoLeadAction
         $people->saveOrFail();
 
         if ($address !== null) {
-            $people->addDefaultAddress($address);
+            $people->replaceDefaultAddress($address);
         }
     }
 
