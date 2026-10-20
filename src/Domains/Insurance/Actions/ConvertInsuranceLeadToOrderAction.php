@@ -22,10 +22,12 @@ use Kanvas\Insurance\Enums\InsuranceCatalogStatusEnum;
 use Kanvas\Insurance\Enums\InsuranceCustomerFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
+use Kanvas\Insurance\Enums\InsurancePaymentTermEnum;
 use Kanvas\Insurance\Exceptions\InsuranceValidationException;
 use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceCommissionCalculator;
+use Kanvas\Insurance\Services\InsuranceContractGate;
 use Kanvas\Insurance\Services\InsuranceOrderMetadata;
 use Kanvas\Insurance\Services\InsuranceOrderPipeline;
 use Kanvas\Insurance\Services\InsurancePlanProductResolver;
@@ -89,6 +91,8 @@ class ConvertInsuranceLeadToOrderAction
             $this->contract->app,
             $this->credentialCompany()
         );
+        InsuranceContractGate::assertContractable($provider);
+
         $customer = $this->confirmedCustomer($lead, $provider);
         $orderData = new InsuranceOrderData(
             provider: $provider->name(),
@@ -97,6 +101,7 @@ class ConvertInsuranceLeadToOrderAction
             vehicle: $vehicle,
             plan: $this->planVariantFor($plan),
             customer: $customer,
+            paymentTerm: InsurancePaymentTermEnum::tryFrom((string) $lead->get(InsuranceCustomFieldEnum::PAYMENT_TERM->value)),
         );
         $wonStatus = $this->wonStatus();
         $region = $this->region();
@@ -186,6 +191,7 @@ class ConvertInsuranceLeadToOrderAction
             total: (float) $lead->get(InsuranceCustomFieldEnum::TOTAL->value),
             tax: (float) $lead->get(InsuranceCustomFieldEnum::TAX->value),
             vehicleVariantId: (int) $lead->get(InsuranceCustomFieldEnum::VEHICLE_VARIANT_ID->value),
+            paymentTerm: (string) $lead->get(InsuranceCustomFieldEnum::PAYMENT_TERM->value),
         );
 
         if (! $signed) {
@@ -247,26 +253,21 @@ class ConvertInsuranceLeadToOrderAction
             throw new InsuranceValidationException('Register your vehicle first and search for insurance again');
         }
 
-        $variant = Variants::query()
-            ->where('id', $variantId)
-            ->where('apps_id', $this->contract->app->getId())
-            ->notDeleted()
-            ->first();
+        return InsuranceVehicleProduct::variantOwnedBy(
+            $variantId,
+            $this->contract->app,
+            $this->contract->user->getId()
+        );
+    }
 
-        if (! InsuranceVehicleProduct::isVehicle($variant?->product)) {
-            throw new InsuranceValidationException('This vehicle is no longer available');
-        }
-
-        if (! InsuranceVehicleProduct::isOwnedBy($variant->product, $this->contract->app, $this->contract->user->getId())) {
-            throw new InsuranceValidationException('The vehicle does not belong to this account');
-        }
-
-        return $variant;
+    private function planResolver(): InsurancePlanProductResolver
+    {
+        return InsurancePlanProductResolver::forActing($this->contract->app, $this->contract->company);
     }
 
     private function planVariantFor(InsurancePlan $plan): Variants
     {
-        $variant = InsurancePlanProductResolver::forActing($this->contract->app, $this->contract->company)->variantFor($plan);
+        $variant = $this->planResolver()->variantFor($plan);
 
         return $variant ?? throw new ValidationException('This plan is not available for purchase right now');
     }
@@ -319,7 +320,12 @@ class ConvertInsuranceLeadToOrderAction
                 currency: $region->currency,
                 items: $this->orderItems($orderData, $plan, $quote),
                 email: $customer->get(InsuranceCustomerFieldEnum::EMAIL),
-                metadata: InsuranceOrderMetadata::apply(null, $quote->quoteNumber, $customer),
+                metadata: InsuranceOrderMetadata::apply(
+                    null,
+                    $quote->quoteNumber,
+                    $customer,
+                    $orderData->paymentTerm
+                ),
                 fulfillmentStatus: OrderStatusEnum::PENDING->value,
                 paymentGatewayName: ['manual'],
                 reference: $this->referenceFor($lead),

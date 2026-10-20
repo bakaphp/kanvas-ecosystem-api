@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Insurance\Actions\UploadOrderDocumentsAction;
 use Kanvas\Insurance\Contracts\InspectionProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderOriginEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -22,6 +23,10 @@ class UploadInsuranceDocumentsActivity extends KanvasActivity implements Workflo
     public function execute(Model $order, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
+
+        if (InsuranceOrderOriginEnum::isRegistered($order)) {
+            return InsuranceOrderOriginEnum::purchaseFlowSkipped($order);
+        }
 
         if (empty($order->get(InsuranceCustomFieldEnum::QUOTE_NUMBER->value))) {
             return [

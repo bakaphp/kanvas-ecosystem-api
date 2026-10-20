@@ -10,6 +10,7 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Enums\InsuranceCatalogStatusEnum;
+use Kanvas\Insurance\Enums\InsurancePaymentTermEnum;
 use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceQuoteBinding;
@@ -23,6 +24,7 @@ class InsurancePlanSelection
         public readonly InsurancePlan $plan,
         public readonly string $quoteNumber,
         public readonly ?int $vehicleVariantId = null,
+        public readonly ?InsurancePaymentTermEnum $paymentTerm = null,
     ) {
     }
 
@@ -56,6 +58,18 @@ class InsurancePlanSelection
             plan: $plan,
             quoteNumber: $quoteNumber,
             vehicleVariantId: InsuranceQuoteBinding::vehicleVariantIdFor($app->getId(), $user->getId(), $quoteNumber),
+            paymentTerm: self::paymentTermFrom($data['payment_term'] ?? null),
         );
+    }
+
+    private static function paymentTermFrom(mixed $value): ?InsurancePaymentTermEnum
+    {
+        $term = Str::trimToNull($value === null ? null : (string) $value);
+
+        if ($term === null) {
+            return null;
+        }
+
+        return InsurancePaymentTermEnum::tryFrom($term) ?? throw new ValidationException('This payment term is not available');
     }
 }

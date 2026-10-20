@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Insurance\DataTransferObject;
 
+use Baka\Support\DateHelper;
 use Baka\Support\Str;
-use DateTimeImmutable;
 use Kanvas\Insurance\Enums\CustomerDocumentTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceCustomerFieldEnum;
 use Kanvas\Insurance\Enums\MaritalStatusEnum;
@@ -125,8 +125,6 @@ class InsuranceCustomer
 
     private static function isDate(string $value): bool
     {
-        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
-
-        return $date !== false && $date->format('Y-m-d') === $value;
+        return DateHelper::parseYmd($value) !== null;
     }
 }

@@ -19,6 +19,7 @@ use Kanvas\Insurance\DataTransferObject\InsuranceOrderData;
 use Kanvas\Insurance\DataTransferObject\QuoteResult;
 use Kanvas\Insurance\DataTransferObject\VerifiedInsuranceOrder;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderOriginEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Exceptions\InsuranceValidationException;
@@ -26,6 +27,7 @@ use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceCommissionCalculator;
 use Kanvas\Insurance\Services\InsuranceOrderMetadata;
 use Kanvas\Insurance\Services\InsuranceRequestId;
+use Kanvas\Insurance\Services\InsuranceStatus;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
@@ -46,13 +48,17 @@ class AttachInsuranceQuoteActivity extends KanvasActivity implements WorkflowAct
     {
         $this->overwriteAppService($app);
 
+        if (InsuranceOrderOriginEnum::isRegistered($order)) {
+            return InsuranceOrderOriginEnum::purchaseFlowSkipped($order);
+        }
+
         $isInsuranceOrder = InsuranceOrderTypeEnum::INSURANCE->isTypeOf($order);
 
         if (! $isInsuranceOrder && ! $this->hasLegacyBlock($order)) {
             return $this->skipped($order, 'Order carries no insurance quote');
         }
 
-        if ((string) $order->get(InsuranceCustomFieldEnum::STATUS->value) !== '') {
+        if (InsuranceStatus::hasQuote($order) || InsuranceStatus::of($order) === InsuranceStatusEnum::FAILED) {
             return $this->skipped($order, 'Quote already attached to this order');
         }
 

@@ -76,6 +76,10 @@ class SelectInsurancePlanAction
             $existing->del(InsuranceCustomFieldEnum::VEHICLE_VARIANT_ID->value);
         }
 
+        if ($this->selection->paymentTerm === null) {
+            $existing->del(InsuranceCustomFieldEnum::PAYMENT_TERM->value);
+        }
+
         return new UpdateLeadAction(
             $existing,
             new LeadUpdateInput(
@@ -143,9 +147,28 @@ class SelectInsurancePlanAction
         );
     }
 
-    private function customFields(QuoteResult $quote): array
+    private function priced(QuoteResult $quote): QuoteResult
+    {
+        $term = $this->selection->paymentTerm;
+
+        if ($term === null) {
+            return $quote;
+        }
+
+        $option = $quote->paymentOption($term)
+            ?? throw new ValidationException('This payment term is not available for this plan');
+
+        return $quote->with([
+            'premium' => $option->premium ?? $quote->premium,
+            'tax' => $option->tax ?? $quote->tax,
+            'total' => $option->amount,
+        ]);
+    }
+
+    private function customFields(QuoteResult $selected): array
     {
         $plan = $this->selection->plan;
+        $quote = $this->priced($selected);
 
         return array_filter([
             InsuranceCustomFieldEnum::PROVIDER->value => $plan->insurer->provider,
@@ -163,6 +186,7 @@ class SelectInsurancePlanAction
             InsuranceCustomFieldEnum::CAN_EMIT->value => $quote->canEmit === null ? null : (int) $quote->canEmit,
             InsuranceCustomFieldEnum::INSPECTION_STATUS->value => $quote->inspectionStatus,
             InsuranceCustomFieldEnum::VEHICLE_VARIANT_ID->value => $this->selection->vehicleVariantId,
+            InsuranceCustomFieldEnum::PAYMENT_TERM->value => $this->selection->paymentTerm?->value,
             InsuranceCustomFieldEnum::QUOTE_SIGNATURE->value => InsuranceQuoteSignature::sign(
                 userId: $this->selection->user->getId(),
                 planId: $plan->getId(),
@@ -171,6 +195,7 @@ class SelectInsurancePlanAction
                 total: (float) $quote->total,
                 tax: (float) $quote->tax,
                 vehicleVariantId: (int) $this->selection->vehicleVariantId,
+                paymentTerm: (string) $this->selection->paymentTerm?->value,
             ),
         ], fn (mixed $value): bool => $value !== null && $value !== '');
     }

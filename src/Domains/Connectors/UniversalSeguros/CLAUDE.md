@@ -196,6 +196,17 @@ Cross-field rules they enforce and the doc omits:
   a clean `400` naming the allowed values (`CP, PU, M, T, C, A`); omitting `formaPago` returns a
   bare `500`. Send both (`M` / `t/c` for individual policies). This is the second field after
   `ceroDeducible` where their doc and their runtime disagree — trust the runtime.
+- **One quote already prices every payment period.** The response carries `data.primas`: one entry per `fraccionamientoPago`
+  (`A` annual, `S` semiannual, `T` quarterly, `M` monthly, `PU` single payment) with `prima`, `impuesto` and `cobro`, and
+  `terminos.totalCobro` is the `cobro` of the period we sent. Measured 2026-10-16 (same vehicle): `A` 50,979, `S` 26,509, `T` 12,745,
+  `M` 4,756 (twelve of them cost more than the annual). We send `A` by default (`DEFAULT_TERMINOS`) because the flow charges once
+  and reports one payment; `M` charged a single month of a twelve month plan and nothing collects the rest. Letting the user pick
+  another period works on the same quote: **a `PUT` with a different `fraccionamientoPago` re-rates it** (verified 2026-10-17: quote
+  `A` 50,979 became `M` 4,756 with the same number), and the `PUT` always resets `terminos` to `DEFAULT_TERMINOS`, so the term has to
+  travel with the request. The canonical `InsurancePaymentTermEnum` (`annual|semiannual|quarterly|monthly`) maps to `A|S|T|M` in
+  `PAYMENT_TERM_CODES`; `toQuoteResult` turns `primas` into `QuoteResult::$paymentOptions` (`PU` is ignored, it prices like `A`).
+  Search entries expose them as `payment_options`; the default term stays annual until Universal confirms who collects the
+  remaining installments.
 - **Always send `vehiculo.inspeccion`, including for A-PL.** Their doc says Seguro de Ley needs
   no inspection, and `requiresInspection()` reflects that for *document upload* — but omitting
   the block from the quote body returns `500`. With the block present the same request returns

@@ -35,6 +35,10 @@ class OrderTypes extends BaseModel implements ReadableAtLocation
     }
     use SlugTrait;
 
+    public const string ALLOWED_PAYMENT_PROCESSORS = 'allowed_payment_processors';
+
+    public const string EXPIRATION = 'expiration';
+
     protected $table = 'order_types';
     protected $guarded = [];
 
@@ -46,6 +50,24 @@ class OrderTypes extends BaseModel implements ReadableAtLocation
     public function isExpirable(): bool
     {
         return (bool) ($this->config['expirable'] ?? false);
+    }
+
+    public function allowedPaymentProcessors(): ?array
+    {
+        $allowed = $this->config[self::ALLOWED_PAYMENT_PROCESSORS] ?? null;
+
+        return is_array($allowed) && $allowed !== [] ? array_values(array_map('strval', $allowed)) : null;
+    }
+
+    public function expirationRule(): ?array
+    {
+        $rule = $this->config[self::EXPIRATION] ?? null;
+
+        if (! is_array($rule) || empty($rule['date_path']) || empty($rule['from_status']) || empty($rule['to_status'])) {
+            return null;
+        }
+
+        return $rule;
     }
 
     public function cardVelocityLimit(string $key): int

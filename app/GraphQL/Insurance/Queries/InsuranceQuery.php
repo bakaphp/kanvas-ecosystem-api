@@ -12,11 +12,13 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Contracts\CatalogProviderInterface;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\DataTransferObject\CanonicalQuoteInput;
+use Kanvas\Insurance\DataTransferObject\InsurancePaymentOption;
 use Kanvas\Insurance\DataTransferObject\InsuranceQuoteRequest;
 use Kanvas\Insurance\DataTransferObject\InsuranceSearchEntry;
 use Kanvas\Insurance\DataTransferObject\InsuranceSearchFailure;
 use Kanvas\Insurance\Models\InsurancePlan;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
+use Kanvas\Insurance\Services\InsuranceContractGate;
 use Kanvas\Insurance\Services\InsurancePlanProductResolver;
 use Kanvas\Insurance\Services\InsuranceQuoteBinding;
 use Kanvas\Insurance\Services\InsuranceSearchService;
@@ -88,13 +90,15 @@ class InsuranceQuery
         }
 
         $variantIds = $this->planVariantIds($ctx->app, $ctx->company, $result->entries);
+        $contractable = $this->contractableProviders($ctx->app, $ctx->company, $result->entries);
 
         return [
             'entries' => array_map(
                 fn (InsuranceSearchEntry $entry, int $index): array => $this->presentEntry(
                     $entry,
                     $index + 1,
-                    $variantIds[$entry->planId] ?? null
+                    $variantIds[$entry->planId] ?? null,
+                    $contractable[$entry->provider] ?? false
                 ),
                 $result->entries,
                 array_keys($result->entries)
@@ -120,8 +124,26 @@ class InsuranceQuery
         return $variantIds;
     }
 
-    protected function presentEntry(InsuranceSearchEntry $entry, int $rank, ?int $variantId): array
+    protected function contractableProviders(AppInterface $app, CompanyInterface $company, array $entries): array
     {
+        $credentialCompany = InsuranceProviderFactory::credentialCompany($app, $company);
+        $contractable = [];
+
+        foreach (array_unique(array_map(fn (InsuranceSearchEntry $entry): string => $entry->provider, $entries)) as $provider) {
+            $contractable[$provider] = InsuranceContractGate::isContractable(
+                InsuranceProviderFactory::make($provider, $app, $credentialCompany)
+            );
+        }
+
+        return $contractable;
+    }
+
+    protected function presentEntry(
+        InsuranceSearchEntry $entry,
+        int $rank,
+        ?int $variantId,
+        bool $contractable
+    ): array {
         $quote = $entry->quote;
 
         return [
@@ -144,8 +166,10 @@ class InsuranceQuery
             'currency' => $quote->currency,
             'can_emit' => $quote->canEmit,
             'inspection_status' => $quote->inspectionStatus,
+            'payment_options' => array_map(fn (InsurancePaymentOption $option): array => $option->toArray(), $quote->paymentOptions),
             'is_sponsored' => $entry->sponsored,
             'is_recommended' => $entry->isRecommended(),
+            'is_contractable' => $contractable,
         ];
     }
 

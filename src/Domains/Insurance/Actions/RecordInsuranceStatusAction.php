@@ -24,9 +24,9 @@ class RecordInsuranceStatusAction
 
     public function execute(): void
     {
-        $this->order->set(InsuranceCustomFieldEnum::STATUS->value, $this->status->value);
-
         if (! InsuranceOrderTypeEnum::INSURANCE->isTypeOf($this->order)) {
+            $this->order->set(InsuranceCustomFieldEnum::STATUS->value, $this->status->value);
+
             return;
         }
 

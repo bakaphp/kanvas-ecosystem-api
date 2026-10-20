@@ -14,20 +14,23 @@ class InsuranceQuoteSignature
         float $total,
         float $tax,
         int $vehicleVariantId = 0,
+        string $paymentTerm = '',
     ): string {
-        return hash_hmac(
-            'sha256',
-            implode('|', [
-                $userId,
-                $planId,
-                $provider,
-                $quoteNumber,
-                number_format($total, 4, '.', ''),
-                number_format($tax, 4, '.', ''),
-                $vehicleVariantId,
-            ]),
-            (string) config('app.key')
-        );
+        $parts = [
+            $userId,
+            $planId,
+            $provider,
+            $quoteNumber,
+            number_format($total, 4, '.', ''),
+            number_format($tax, 4, '.', ''),
+            $vehicleVariantId,
+        ];
+
+        if ($paymentTerm !== '') {
+            $parts[] = $paymentTerm;
+        }
+
+        return hash_hmac('sha256', implode('|', $parts), (string) config('app.key'));
     }
 
     public static function matches(
@@ -39,6 +42,7 @@ class InsuranceQuoteSignature
         float $total,
         float $tax,
         int $vehicleVariantId = 0,
+        string $paymentTerm = '',
     ): bool {
         return $signature !== '' && hash_equals(
             self::sign(
@@ -49,6 +53,7 @@ class InsuranceQuoteSignature
                 total: $total,
                 tax: $tax,
                 vehicleVariantId: $vehicleVariantId,
+                paymentTerm: $paymentTerm,
             ),
             $signature
         );
