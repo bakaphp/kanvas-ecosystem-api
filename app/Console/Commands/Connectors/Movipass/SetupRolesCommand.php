@@ -81,6 +81,7 @@ class SetupRolesCommand extends Command
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
+                MovipassRolesEnum::PARQUEAT,
                 MovipassRolesEnum::PARKING_MANAGER,
             ],
             'cancel-orders' => [
