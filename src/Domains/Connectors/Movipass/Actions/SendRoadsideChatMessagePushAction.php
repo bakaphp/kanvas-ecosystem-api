@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Movipass\Actions;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
+use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideChatMessageNotification;
 use Kanvas\Social\Channels\Models\Channel;
@@ -16,6 +17,8 @@ use Kanvas\Users\Models\Users;
 
 class SendRoadsideChatMessagePushAction
 {
+    use InteractsWithAssistanceCase;
+
     private const UUID_PATTERN = '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i';
 
     public const ROADSIDE_CHAT_VERB = 'assistance-chat';
@@ -48,6 +51,13 @@ class SendRoadsideChatMessagePushAction
         return $this->message->messageType?->verb === self::ROADSIDE_CHAT_VERB;
     }
 
+    public function wasPushed(Order $order): bool
+    {
+        $lastPushed = (int) ($this->assistanceCaseFrom($order)['last_pushed_chat_message_id'] ?? 0);
+
+        return (int) $this->message->getKey() <= $lastPushed;
+    }
+
     /**
      * Push the new chat message to the counterparty (the roadside order's other participant).
      * Self-guards on the 'assistance-chat' verb and a resolvable roadside order, so it is safe
@@ -63,7 +73,7 @@ class SendRoadsideChatMessagePushAction
 
         $order = $this->getRoadsideOrder();
 
-        if ($order === null) {
+        if ($order === null || ! $this->claimPush($order)) {
             return 0;
         }
 
@@ -87,6 +97,25 @@ class SendRoadsideChatMessagePushAction
         }
 
         return $recipients->count();
+    }
+
+    /**
+     * Both the channel workflow and the order sync push chat messages, so the order carries the
+     * last pushed id and whichever path gets here second sends nothing. The pointer advances before
+     * delivery, and even when nobody can be reached, so an undeliverable message is not re-picked
+     * by every later roadside event.
+     */
+    private function claimPush(Order $order): bool
+    {
+        if ($this->wasPushed($order)) {
+            return false;
+        }
+
+        $assistanceCase = $this->assistanceCaseFrom($order);
+        $assistanceCase['last_pushed_chat_message_id'] = (int) $this->message->getKey();
+        $this->saveAssistanceCase($order, $assistanceCase);
+
+        return true;
     }
 
     /**

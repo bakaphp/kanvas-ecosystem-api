@@ -39,6 +39,30 @@ trait InteractsWithAssistanceCase
         $order->saveQuietly();
     }
 
+    /**
+     * An action that pushes its own, more specific message before transitioning marks the target
+     * status here; the STATUS_TRANSITION run that the transition fires then skips its generic push
+     * for that status instead of sending the recipient a second one.
+     */
+    protected function markStatusNotified(array $assistanceCase, string $statusSlug): array
+    {
+        $assistanceCase['status_notified'] = $statusSlug;
+
+        return $assistanceCase;
+    }
+
+    /**
+     * The marker is cleared on read, so a later transition back into the same status (an operator
+     * moving the order by hand) still notifies.
+     */
+    protected function consumeStatusNotified(array &$assistanceCase, string $statusSlug): bool
+    {
+        $notified = ($assistanceCase['status_notified'] ?? null) === $statusSlug;
+        unset($assistanceCase['status_notified']);
+
+        return $notified;
+    }
+
     protected function isTerminalAssistanceStatus(?string $statusSlug): bool
     {
         return in_array($statusSlug, [

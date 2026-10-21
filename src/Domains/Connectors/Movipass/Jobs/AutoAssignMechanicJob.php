@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Jobs;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -18,6 +19,7 @@ class AutoAssignMechanicJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
+    use KanvasJobsTrait;
     use Queueable;
     use SerializesModels;
 
@@ -31,6 +33,8 @@ class AutoAssignMechanicJob implements ShouldQueue
 
     public function handle(): void
     {
+        $this->overwriteAppService($this->order->app);
+
         try {
             new AssignMechanicToOrderAction(
                 $this->order,
