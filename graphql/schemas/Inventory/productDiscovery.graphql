@@ -8,6 +8,28 @@ input ProductDiscoveryInput {
     "Anonymous browsing id, carried so a visitor's searches can be tied to their account if they sign up."
     session_id: String
     limit: Int
+    "The kind of product only, in catalog terms (\"SUV\", \"phone case\"). Identity words: always required. Defaults to the words of `query`."
+    search_query: String
+    "Descriptive words that may boost a match but are never required, e.g. [\"black\"]."
+    preferences: [String!]
+    min_price: Float
+    max_price: Float
+    "A category name as the catalog spells it; an unknown one is a validation error listing the valid names."
+    category: String
+    "male, female, kids, baby, teen or senior."
+    audience: String
+    "Numeric limits on the app's configured numeric attributes (product_discovery_numeric_attributes). An unknown field is a validation error listing the allowed ones."
+    numeric_filters: [ProductDiscoveryNumericFilterInput!]
+    "Up to 2 other phrasings of search_query that keep its product words."
+    alternative_queries: [String!]
+}
+
+input ProductDiscoveryNumericFilterInput {
+    field: String!
+    min: Float
+    max: Float
+    "Unit of min/max (\"mi\", \"km\"); converted to the field's own unit. Omit when already in it."
+    unit: String
 }
 
 type DiscoveredFile {
@@ -56,6 +78,7 @@ type DiscoveredVariant {
 
 type ProductDiscoveryMatch {
     product: DiscoveredProduct!
+    "When the search had hard limits (price, numeric filters, category), only the variants that satisfy all of them."
     variants: [DiscoveredVariant!]!
 }
 

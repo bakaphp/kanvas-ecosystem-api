@@ -46,7 +46,7 @@ class ProductDiscoveryStatusServiceTest extends TestCase
             'catalog_strategy',
             'enrichment_agent',
             'blurb_coverage',
-            'workflow_rule',
+            'enrichment_trigger',
         ], $keys);
     }
 
