@@ -55,12 +55,10 @@ the verify count stays under 100% until the `scout` worker has written them.
 
 ### Turning discovery on
 
-`kanvas-inventory:enable-product-discovery {app} [--company_id=] [--enrichment=on|off] [--discovery=on|off]`
-detects the app's engine (it never changes it), runs step 1 for that engine (skipped when only turning
-flags off), and sets each flag you pass at company scope with `--company_id`, else app scope. Turning
-enrichment **on for a company** also queues that company's backfill. App scope never backfills (it would
-spend on every company, including ones that opted out): run `backfill-product-enrichment {app} --company_id=`
-per company. The same action backs the `enableProductDiscovery` mutation (app key only).
+There is no enable command: the switches are plain company/app settings (table in
+[`Recommendations/CLAUDE.md`](../../../../src/Domains/Inventory/Recommendations/CLAUDE.md#settings)), set from
+the settings UI. Setting `product_enrichment_enabled` only covers products written from then on; run
+`backfill-product-enrichment {app} --company_id=` per company for the existing catalog.
 
 ---
 

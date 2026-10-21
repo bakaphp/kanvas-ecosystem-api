@@ -415,7 +415,7 @@ class ProductDiscoveryStatusService
             'blurb_coverage',
             $pct >= 90,
             "{$enriched}/{$total} ({$pct}%)",
-            $pct >= 90 ? null : 'run kanvas-inventory:backfill-product-enrichment — below full coverage the un-enriched majority outranks the rest',
+            'run ' . $this->backfillCommand() . ' — below full coverage the un-enriched majority outranks the rest',
         );
     }
 
@@ -434,8 +434,13 @@ class ProductDiscoveryStatusService
             $on
                 ? 'on (' . $settings->source(ConfigurationEnum::PRODUCT_ENRICHMENT_ENABLED->value) . ')'
                 : 'off — new and edited products are not enriched',
-            'kanvas-inventory:enable-product-discovery {app} --company_id=' . $this->company->getId() . ' --enrichment=on',
+            'set the company setting ' . ConfigurationEnum::PRODUCT_ENRICHMENT_ENABLED->value . ' = true, then run ' . $this->backfillCommand(),
         );
+    }
+
+    private function backfillCommand(): string
+    {
+        return 'kanvas-inventory:backfill-product-enrichment ' . $this->app->getId() . ' --company_id=' . $this->company->getId();
     }
 
     private function check(string $key, bool $ok, string $detail, ?string $fix): array

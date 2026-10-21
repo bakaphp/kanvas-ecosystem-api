@@ -63,13 +63,21 @@ query ($input: ProductDiscoveryInput!) {
 
 ## Turning it on (per app)
 
-Nothing changes on deploy: every new behaviour is opt-in and "unset" keeps what runs today.
+Nothing changes on deploy: every new behaviour is opt-in and "unset" keeps what runs today. The
+switches are plain settings from the [table below](#settings), set from the settings UI — there is no
+enable command or mutation.
+
+1. **Company setting** `product_enrichment_enabled = true` — or the app setting, to cover every company.
+   Discovery itself needs nothing: `product_discovery_enabled` unset already means on.
+2. Optional app settings: `product_discovery_numeric_attributes`, `product_discovery_query_languages`,
+   `product_enrichment_llm_config_id`.
+3. The commands — the flag only enriches products written from now on; the backfill covers the existing
+   catalog, per company (an app-wide backfill would spend on companies that opted out):
 
 ```bash
 php artisan kanvas-inventory:prepare-discovery-index {app} --dry-run   # then without --dry-run
-# optional settings (table below): numeric attributes, query languages, enrichment LLM config
-php artisan kanvas-inventory:enable-product-discovery {app} --company_id={id} --enrichment=on --discovery=on
 php artisan kanvas-inventory:backfill-product-enrichment {app} --company_id={id} --limit=20 --sync   # sample quality + cost
+php artisan kanvas-inventory:backfill-product-enrichment {app} --company_id={id}
 php artisan kanvas-inventory:scout-product-index-process {app} --action=reindex
 php artisan kanvas-inventory:verify-discovery-index {app}              # 100% coverage ⇒ range filters on
 ```
@@ -78,9 +86,6 @@ php artisan kanvas-inventory:verify-discovery-index {app}              # 100% co
   `filterOnly(audience|in_stock)` to `attributesForFaceting`, never removes or reorders; refuses an empty
   `searchableAttributes` (empty = "search every field") and proposes a list for `--from-default`.
   Typesense: PATCHes the missing discovery fields into the collection (Scout never migrates a schema).
-- `enable-product-discovery` / the `enableProductDiscovery` mutation (`@guardByAppKey`): detects the
-  engine (never forces one), prepares the index, sets the flags at company or app scope, and for a
-  company queues that company's backfill. App scope never backfills — it would spend on every company.
 - `verify-discovery-index` counts records carrying `Products::DISCOVERY_SCHEMA_VERSION`, scoped to the
   app on both counts (indexes are shared). Queued, not-yet-written records keep the old version, so it
   can't pass early. At 100% it stores the verified version in `product_discovery_range_filters`.
