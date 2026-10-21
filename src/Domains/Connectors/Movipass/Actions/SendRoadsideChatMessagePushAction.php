@@ -51,6 +51,13 @@ class SendRoadsideChatMessagePushAction
         return $this->message->messageType?->verb === self::ROADSIDE_CHAT_VERB;
     }
 
+    public function wasPushed(Order $order): bool
+    {
+        $lastPushed = (int) ($this->assistanceCaseFrom($order)['last_pushed_chat_message_id'] ?? 0);
+
+        return (int) $this->message->getKey() <= $lastPushed;
+    }
+
     /**
      * Push the new chat message to the counterparty (the roadside order's other participant).
      * Self-guards on the 'assistance-chat' verb and a resolvable roadside order, so it is safe
@@ -100,14 +107,12 @@ class SendRoadsideChatMessagePushAction
      */
     private function claimPush(Order $order): bool
     {
-        $assistanceCase = $this->assistanceCaseFrom($order);
-        $messageId = (int) $this->message->getKey();
-
-        if ($messageId <= (int) ($assistanceCase['last_pushed_chat_message_id'] ?? 0)) {
+        if ($this->wasPushed($order)) {
             return false;
         }
 
-        $assistanceCase['last_pushed_chat_message_id'] = $messageId;
+        $assistanceCase = $this->assistanceCaseFrom($order);
+        $assistanceCase['last_pushed_chat_message_id'] = (int) $this->message->getKey();
         $this->saveAssistanceCase($order, $assistanceCase);
 
         return true;

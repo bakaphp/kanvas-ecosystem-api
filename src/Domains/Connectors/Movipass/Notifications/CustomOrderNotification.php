@@ -14,9 +14,8 @@ class CustomOrderNotification extends Notification
         array $data,
         array $via
     ) {
-        // No setType('blank'): a set type makes via() filter channels by the user's settings for it,
-        // and any setting saved for the shared generic "blank" type silently stripped push/expo from
-        // every roadside notification. Subclasses that need a type set their own.
+        // No type here: a set type makes via() filter channels by the user's settings for it, and a
+        // setting saved for the shared "blank" email type would strip push/expo from roadside pushes.
         parent::__construct($order, $data);
         if ($data['email_template'] !== null) {
             $this->setTemplateName($data['email_template']);

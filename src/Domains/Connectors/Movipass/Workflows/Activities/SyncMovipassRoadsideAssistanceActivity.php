@@ -663,54 +663,13 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->slug(),
         ];
 
-        $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
-
         if (in_array($toStatus, $refreshStatuses, true)) {
+            $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
             $broadcastMechanicId = $mechanicId > 0 ? $mechanicId : (int) $order->users_id;
             RefreshActiveAssistanceEvent::dispatch($order, $broadcastMechanicId);
-        }
 
-        if (in_array($toStatus, $refreshStatuses, true) && ! $alreadyNotified) {
-            [$title, $message, $event] = match ($toStatus) {
-                MovipassOrderStatusEnum::ON_SITE->slug() => [
-                    'Mechanic on site',
-                    'The mechanic has arrived at your location.',
-                    MovipassOrderStatusEnum::ON_SITE->slug(),
-                ],
-                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug() => [
-                    'Service completed',
-                    'The roadside assistance service has been completed successfully.',
-                    MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
-                ],
-                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug() => [
-                    'Service completed',
-                    'The roadside assistance service has ended without resolution.',
-                    MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
-                ],
-                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug() => [
-                    'Service cancelled',
-                    'The roadside assistance service has been cancelled.',
-                    MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
-                ],
-                MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->slug() => [
-                    'Service not available',
-                    'We could not process this roadside assistance request.',
-                    MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->slug(),
-                ],
-                default => ['Order updated', 'Your order has been updated.', $toStatus],
-            };
-
-            $notification = new RoadsideAssistanceStatusNotification(
-                $order,
-                $title,
-                $message,
-                $event,
-            );
-            $this->notifySafely($this->resolveCaseUser($order->users_id), $notification);
-
-            // The arrival message is addressed to the customer; the mechanic is the one who arrived.
-            if ($toStatus !== MovipassOrderStatusEnum::ON_SITE->slug()) {
-                $this->notifySafely($this->resolveCaseUser($mechanicId), $notification);
+            if (! $alreadyNotified) {
+                $this->notifyStatusTransition($order, $toStatus, $mechanicId);
             }
         }
 
@@ -721,6 +680,46 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             'data' => $order->toArray(),
             'response' => $order->toArray(),
         ];
+    }
+
+    private function notifyStatusTransition($order, string $toStatus, int $mechanicId): void
+    {
+        [$title, $message] = match ($toStatus) {
+            MovipassOrderStatusEnum::ON_SITE->slug() => [
+                'Mechanic on site',
+                'The mechanic has arrived at your location.',
+            ],
+            MovipassOrderStatusEnum::SERVICE_COMPLETED->slug() => [
+                'Service completed',
+                'The roadside assistance service has been completed successfully.',
+            ],
+            MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug() => [
+                'Service completed',
+                'The roadside assistance service has ended without resolution.',
+            ],
+            MovipassOrderStatusEnum::SERVICE_CANCELLED->slug() => [
+                'Service cancelled',
+                'The roadside assistance service has been cancelled.',
+            ],
+            MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->slug() => [
+                'Service not available',
+                'We could not process this roadside assistance request.',
+            ],
+            default => ['Order updated', 'Your order has been updated.'],
+        };
+
+        $notification = new RoadsideAssistanceStatusNotification(
+            $order,
+            $title,
+            $message,
+            $toStatus,
+        );
+        $this->notifySafely($this->resolveCaseUser($order->users_id), $notification);
+
+        // The arrival message is addressed to the customer; the mechanic is the one who arrived.
+        if ($toStatus !== MovipassOrderStatusEnum::ON_SITE->slug()) {
+            $this->notifySafely($this->resolveCaseUser($mechanicId), $notification);
+        }
     }
 
     /**
@@ -779,13 +778,13 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             return ['chat_push' => 'skipped', 'chat_push_reason' => 'no chat message in channel'];
         }
 
-        $lastPushed = (int) ($assistanceCase['last_pushed_chat_message_id'] ?? 0);
+        $pushAction = new SendRoadsideChatMessagePushAction($channel, $message);
 
-        if ((int) $message->id <= $lastPushed) {
+        if ($pushAction->wasPushed($order)) {
             return ['chat_push' => 'skipped', 'chat_push_reason' => 'already pushed'];
         }
 
-        $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
+        $notified = $pushAction->execute();
 
         if ($notified === 0) {
             return [
