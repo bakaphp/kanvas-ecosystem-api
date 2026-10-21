@@ -22,7 +22,7 @@ class ArtifactsTool extends Tool
 
     protected string $name = 'get_lead_artifacts';
 
-    protected ?string $description = 'Retrieve CRM artifacts and vehicle information for the current lead, including status, stage, tags, forms, records, recent internal lead notes (newest first, with author and date), and ADF comments. Consult recent notes for contact preferences before drafting a follow-up; notes are internal context, not customer messages.';
+    protected ?string $description = 'Retrieve CRM artifacts and vehicle information for the current lead, including status, stage, tags, forms, records, internal lead notes (newest first, with author and date), and ADF comments. Consult recent notes for contact preferences before drafting a follow-up; notes are internal context, not customer messages.';
 
     #[Override]
     protected function properties(): array
@@ -87,7 +87,6 @@ class ArtifactsTool extends Tool
             ->with('user')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->limit(10)
             ->get()
             ->map(function (Message $note): array {
                 $data = $note->getMessage();
