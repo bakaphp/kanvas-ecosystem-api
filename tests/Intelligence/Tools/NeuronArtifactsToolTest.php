@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 class NeuronArtifactsToolTest extends TestCase
 {
-    public function testRecentNotesAreBoundedOrderedAndIncludeAuthorAndDate(): void
+    public function testAllNotesAreReturnedNewestFirstWithAuthorAndDate(): void
     {
         $lead = $this->lead();
         $notes = [];
@@ -29,8 +29,8 @@ class NeuronArtifactsToolTest extends TestCase
         $result = $this->tool()($lead->getId());
         $actual = $result['crm']['last_notes'];
 
-        $this->assertCount(10, $actual);
-        $this->assertSame(array_reverse(array_map(fn ($note) => $note->getId(), array_slice($notes, 2))), array_column($actual, 'id'));
+        $this->assertCount(12, $actual);
+        $this->assertSame(array_reverse(array_map(fn ($note) => $note->getId(), $notes)), array_column($actual, 'id'));
         $this->assertSame('Please speak English because his wife only speaks English.', $actual[0]['content']);
         $this->assertSame(auth()->user()->getId(), $actual[0]['author']['id']);
         $this->assertSame(auth()->user()->displayname, $actual[0]['author']['name']);
