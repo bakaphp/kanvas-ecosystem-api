@@ -1,0 +1,17 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\Ebay\Enums;
+
+enum CustomFieldEnum: string
+{
+    case EBAY_ACCESS_TOKEN = 'EBAY_ACCESS_TOKEN';
+    case EBAY_REFRESH_TOKEN = 'EBAY_REFRESH_TOKEN';
+    case EBAY_TOKEN_EXPIRES_AT = 'EBAY_TOKEN_EXPIRES_AT';
+    case EBAY_REFRESH_TOKEN_EXPIRES_AT = 'EBAY_REFRESH_TOKEN_EXPIRES_AT';
+    case EBAY_SELLER_USERNAME = 'EBAY_SELLER_USERNAME';
+    case EBAY_LISTING_ID = 'EBAY_LISTING_ID';
+    case EBAY_OFFER_ID = 'EBAY_OFFER_ID';
+    case EBAY_LISTING_URL = 'EBAY_LISTING_URL';
+}
