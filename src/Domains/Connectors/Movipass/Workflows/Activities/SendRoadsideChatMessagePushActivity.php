@@ -54,12 +54,14 @@ class SendRoadsideChatMessagePushActivity extends KanvasActivity
             integration: IntegrationsEnum::MOVIPASS,
             additionalParams: $params,
             integrationOperation: function () use ($entity, $message): array {
-                $notified = new SendRoadsideChatMessagePushAction($entity, $message)->execute();
+                $pushAction = new SendRoadsideChatMessagePushAction($entity, $message);
+                $notified = $pushAction->execute();
 
                 return [
                     'result' => $notified > 0,
-                    'message' => sprintf('Roadside chat push sent to %d recipient(s)', $notified),
+                    'message' => sprintf('Roadside chat push queued for %d recipient(s)', $notified),
                     'recipients_notified' => $notified,
+                    'deliveries' => $pushAction->deliveries(),
                     'message_id' => $message->getId(),
                 ];
             },

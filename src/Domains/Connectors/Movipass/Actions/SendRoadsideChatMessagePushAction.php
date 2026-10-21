@@ -9,11 +9,16 @@ use Illuminate\Support\Str;
 use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideChatMessageNotification;
+use Kanvas\Enums\SourceEnum;
+use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Notifications\Services\OneSignalService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersLinkedSourcesRepository;
+use Throwable;
 
 class SendRoadsideChatMessagePushAction
 {
@@ -23,6 +28,7 @@ class SendRoadsideChatMessagePushAction
 
     public const ROADSIDE_CHAT_VERB = 'assistance-chat';
 
+    private array $deliveries = [];
     private ?Order $roadsideOrder = null;
     private bool $roadsideOrderResolved = false;
 
@@ -92,11 +98,70 @@ class SendRoadsideChatMessagePushAction
             (int) $this->message->getKey(),
         );
 
+        $oneSignalConfigured = $this->isOneSignalConfigured($order);
+
         foreach ($recipients as $recipient) {
+            $this->deliveries[] = $this->describeDelivery($recipient, $notification, $oneSignalConfigured);
             $recipient->notify($notification);
         }
 
         return $recipients->count();
+    }
+
+    /**
+     * notify() only queues the push, so "notified" says nothing about delivery. Both push channels
+     * return silently when they have nowhere to send: Expo needs an ExponentPushToken linked as an
+     * "expo" source, OneSignal needs the app's keys plus an ios/android player id. This records
+     * which of those each recipient has, so a push Kanvas never sent can be told apart from one
+     * lost after it left.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function deliveries(): array
+    {
+        return $this->deliveries;
+    }
+
+    private function describeDelivery(
+        Users $recipient,
+        RoadsideChatMessageNotification $notification,
+        bool $oneSignalConfigured
+    ): array {
+        return [
+            'users_id' => (int) $recipient->getId(),
+            'channels' => array_map(
+                fn (string $channel): string => class_basename($channel),
+                $notification->via($recipient)
+            ),
+            'expo_tokens' => count($recipient->routeNotificationForExpo()),
+            'onesignal_devices' => $this->countLinkedDevices($recipient, SourceEnum::IOS)
+                + $this->countLinkedDevices($recipient, SourceEnum::ANDROID),
+            'onesignal_configured' => $oneSignalConfigured,
+        ];
+    }
+
+    /**
+     * Same check the OneSignal channel runs before sending (it skips the push when this throws),
+     * against the order's app, which is the one the notification sends for.
+     */
+    private function isOneSignalConfigured(Order $order): bool
+    {
+        try {
+            new OneSignalService($order->app);
+
+            return true;
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    private function countLinkedDevices(Users $recipient, SourceEnum $platform): int
+    {
+        try {
+            return count(UsersLinkedSourcesRepository::getLinkedSourceByPlatform($recipient, $platform));
+        } catch (ModelNotFoundException) {
+            return 0;
+        }
     }
 
     /**
