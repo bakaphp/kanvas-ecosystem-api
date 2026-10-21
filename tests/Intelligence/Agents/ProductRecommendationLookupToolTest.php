@@ -16,9 +16,8 @@ use Tests\TestCase;
 
 /**
  * The tool is a pass-through to RecommendProductsAction, so this covers the
- * agent-facing contract only — that the sentence reaches the action unmodified,
- * that the payload shape survives, and that misuse produces a message the model
- * can act on instead of an exception in the chat.
+ * agent-facing contract only — the structured arguments, the payload shape, and
+ * that misuse produces a correctable error instead of an exception in the chat.
  *
  * Matching, budgets, tenant scoping and engine selection are the action's
  * behavior and are tested in tests/Inventory/Recommendations/.
@@ -52,12 +51,10 @@ class ProductRecommendationLookupToolTest extends TestCase
         $this->assertArrayHasKey('is_available', $decoded[0]['variants'][0]['channel']);
     }
 
-    public function testPassesTheSentenceThroughWithoutPreExtraction(): void
+    public function testStillParsesABudgetOutOfTheVerbatimRequest(): void
     {
         $this->makeProduct('Perfume floral');
 
-        // The whole sentence goes to the search — a budget in it becomes a real
-        // filter, which is exactly what pre-extracting in the prompt destroyed.
         $decoded = json_decode($this->invokeTool('un perfume para mi mamá, menos de $500'), true);
 
         $this->assertIsArray($decoded);
@@ -68,8 +65,7 @@ class ProductRecommendationLookupToolTest extends TestCase
     {
         $result = $this->invokeTool('   ');
 
-        $this->assertStringContainsString('query', $result);
-        $this->assertNull(json_decode($result, true), 'A guidance message, not a payload the model would try to parse.');
+        $this->assertSame('request', json_decode($result, true)['field'] ?? null, 'A correctable error naming the missing argument, not an exception.');
     }
 
     public function testNoMatchTellsTheModelWhatToDoNext(): void
@@ -78,8 +74,8 @@ class ProductRecommendationLookupToolTest extends TestCase
 
         // A bare "no results" reads as "try again" and the model re-calls with
         // the same words until its run budget trips.
-        $this->assertStringContainsString('No products found', $result);
-        $this->assertStringContainsString('broader', $result);
+        $this->assertStringContainsString('No products match', $result);
+        $this->assertStringContainsString('relax one limit', $result);
     }
 
     public function testRespectsTheLimit(): void
@@ -93,29 +89,53 @@ class ProductRecommendationLookupToolTest extends TestCase
         $this->assertCount(2, $decoded);
     }
 
-    public function testExposesOnlyQueryAndLimitToTheModel(): void
+    public function testExposesTheStructuredContractToTheModel(): void
     {
         $schema = new ProductRecommendationLookupTool()->schema(new JsonSchemaTypeFactory());
 
-        // Every extra knob is a chance for the model to pre-parse the request
-        // and degrade the match; the sentence is the whole input.
-        $this->assertSame(['query', 'limit'], array_keys($schema));
+        $this->assertSame(
+            ['request', 'search_query', 'preferences', 'min_price', 'max_price', 'category', 'audience', 'numeric_filters', 'alternative_queries', 'limit'],
+            array_keys($schema),
+        );
     }
 
-    private function invokeTool(string $query, ?int $limit = null): string
+    public function testAnInvalidFilterComesBackAsACorrectableErrorNotResults(): void
+    {
+        $result = json_decode($this->invokeToolWith(['request' => 'a car', 'min_price' => 40000, 'max_price' => 30000]), true);
+
+        $this->assertSame('invalid_filter', $result['error'] ?? null);
+        $this->assertSame('price', $result['field']);
+    }
+
+    public function testAnExplicitBudgetFromTheAgentIsAccepted(): void
+    {
+        $this->makeProduct('Reloj de lujo');
+
+        // Enforcement itself is covered in RecommendProductsActionTest; this pins that the
+        // tool accepts the argument and still answers with the structured payload.
+        $decoded = json_decode($this->invokeToolWith(['request' => 'un reloj', 'search_query' => 'reloj', 'max_price' => 500]), true);
+
+        $this->assertIsArray($decoded);
+    }
+
+    private function invokeToolWith(array $payload): string
     {
         /** @var Users $user */
         $user = auth()->user();
 
-        $tool = new ProductRecommendationLookupTool()
-            ->withContext($this->kanvasApp, $user->getCurrentCompany());
+        return (string) new ProductRecommendationLookupTool()
+            ->withContext($this->kanvasApp, $user->getCurrentCompany())
+            ->handle(new Request($payload));
+    }
 
-        $payload = ['query' => $query];
+    private function invokeTool(string $query, ?int $limit = null): string
+    {
+        $payload = ['request' => $query];
         if ($limit !== null) {
             $payload['limit'] = $limit;
         }
 
-        return (string) $tool->handle(new Request($payload));
+        return $this->invokeToolWith($payload);
     }
 
     private function makeProduct(string $name): Products

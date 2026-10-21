@@ -509,6 +509,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'name' => (string) $this->name,
             'files' => $this->getFiles()->take(5)->map(function ($files) {
                 return [
+                    'id' => $files->getId(),
                     'uuid' => $files->uuid,
                     'name' => $files->name,
                     'url' => $files->url,
@@ -546,9 +547,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                     'id' => $channels->getId(),
                     'name' => $channels->name,
                     'price' => (float) $channels->price,
+                    'discounted_price' => (float) ($channels->pivot?->discounted_price ?? 0),
                     'is_published' => $channels->is_published,
                 ];
             }),
+            // Summed from the eager-loaded warehouses, so discovery can answer stock from the index
+            // without a database read per variant.
+            'quantity' => (int) $this->variantWarehouses->sum('quantity'),
             'description' => null, //$this->description,
             'short_description' => null, //$this->short_description,
             'attributes' => [],

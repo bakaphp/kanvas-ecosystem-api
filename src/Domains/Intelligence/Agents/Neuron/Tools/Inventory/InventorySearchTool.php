@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\Concerns\RespondsWithNoInventoryMatches;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Services\StorefrontProductUrlService;
@@ -24,6 +25,7 @@ class InventorySearchTool extends Tool
     // (RunVoiceAgentToolAction::withContext), so the search binds the agent's app
     // rather than trusting whatever app(Apps::class) happens to be.
     use HasKanvasContext;
+    use RespondsWithNoInventoryMatches;
     use TrackByInputs;
 
     protected string $name = 'inventory_search';
@@ -162,17 +164,5 @@ class InventorySearchTool extends Tool
         }
 
         return $query;
-    }
-
-    protected function noMatchesResponse(string $productName): array
-    {
-        return [
-            'status' => 'no_matches',
-            'reason' => 'no_matching_inventory',
-            'message' => "No products found matching '{$productName}' in the scoped inventory.",
-            'inventory_availability_confirmed' => false,
-            'instruction' => 'Do not interpret this result as confirmed dealership unavailability. '
-                . 'Follow the RAG business rule "No Matching Inventory Results — STRICT HANDOFF RULE".',
-        ];
     }
 }

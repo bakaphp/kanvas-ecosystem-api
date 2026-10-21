@@ -21,7 +21,7 @@ product names alone, and the results look broken rather than empty.
 
 | # | command | what it does |
 |---|---|---|
-| 1 | `kanvas-inventory:backfill-product-enrichment {app} [--company_id=] [--limit=] [--sync] [--force]` | LLM-writes the `search_blurb` + facets each product is found by. **Lives in `Commands/Connectors/ProductEnrichment/`**, not here. Start with `--limit=5 --sync` — it prints each blurb so you can judge quality before paying for the catalog. |
+| 1 | `kanvas-inventory:backfill-product-enrichment {app} [--company_id=] [--limit=] [--sync] [--force]` | LLM-writes the `search_blurb` + facets each product is found by.  Start with `--limit=5 --sync` — it prints each blurb so you can judge quality before paying for the catalog. |
 | 2 | `kanvas-inventory:scout-product-index-process {app} [--company_id=] [--action=reindex]` | Pushes products into the search engine. Creates the collection on first run from `Products::typesenseCollectionSchema()`. ~1s per product (`sleep(1)` in `reindex()`). |
 | 3 | `kanvas-inventory:discover-products {app} {company} "query" [--limit=] [--explain] [--fresh]` | **Run one search and see what comes back.** `--explain` prints the blurb each result matched on — the only way to tell a bad search from a bad blurb. `--fresh` bypasses the 30-min query cache. |
 | 4 | `kanvas-inventory:scaffold-golden-set {app} {company} [--cases=20] [--limit=10] [--out=] [--query=]` | Drafts the judged set for step 5, pre-filled with what discovery answers today, from the queries shoppers actually ran. **Every id it writes is a guess** — prune it before scoring anything. |
@@ -33,6 +33,34 @@ tokens are the number that matters — that is what response time scales with.
 
 **Diagnosing setup:** `check_product_discovery_setup` (a Neuron agent tool, not a
 command) reports every prerequisite with a fix. Faster than checking by hand.
+
+---
+
+## Index schema — prepare, reindex, verify
+
+Adding a discovery field (`price_min`/`price_max`, `discovery_schema_version`, `num_<key>_*`,
+`audience`) takes three steps in this order, once per app. Reindexing alone is not enough: a Typesense
+collection never gains a field after creation, and an Algolia index needs the blurb searchable and the
+facets declared.
+
+| # | command | what it does |
+|---|---|---|
+| 1 | `kanvas-inventory:prepare-discovery-index {app} [--dry-run] [--from-default]` | Declares the fields on whichever engine the app runs (Algolia settings or a Typesense collection PATCH), prints the diff, asks before writing (skips the question under `--no-interaction`). **Append-only**: it never removes or reorders an entry in a storefront's hand-tuned Algolia settings. If Algolia's `searchableAttributes` is empty (which means "search every attribute") it refuses to append and prints a proposed explicit list; write that list only after reviewing it, with `--from-default`. Exits non-zero on a refusal. No-op on the SQL fallback. |
+| 2 | `kanvas-inventory:scout-product-index-process {app} --action=reindex` | Writes the new values into every record. |
+| 3 | `kanvas-inventory:verify-discovery-index {app}` | Counts, scoped to this app, the records carrying `discovery_schema_version >= Products::DISCOVERY_SCHEMA_VERSION` against all of the app's records, prints the older-version ids (max 50) and the published products in the DB. At 100% (and a non-empty index) it sets `product_discovery_range_filters` to the verified version, which is what turns range filters on; otherwise it leaves the setting and exits non-zero. Records missing the field entirely appear only in the count gap, not the id list. |
+
+Re-run 1-3 whenever `Products::DISCOVERY_SCHEMA_VERSION` is bumped: the switch turns itself off until the
+app is verified again. `SCOUT_QUEUE=true` records still waiting in the queue keep their old version, so
+the verify count stays under 100% until the `scout` worker has written them.
+
+### Turning discovery on
+
+`kanvas-inventory:enable-product-discovery {app} [--company_id=] [--enrichment=on|off] [--discovery=on|off]`
+detects the app's engine (it never changes it), runs step 1 for that engine (skipped when only turning
+flags off), and sets each flag you pass at company scope with `--company_id`, else app scope. Turning
+enrichment **on for a company** also queues that company's backfill. App scope never backfills (it would
+spend on every company, including ones that opted out): run `backfill-product-enrichment {app} --company_id=`
+per company. The same action backs the `enableProductDiscovery` mutation (app key only).
 
 ---
 

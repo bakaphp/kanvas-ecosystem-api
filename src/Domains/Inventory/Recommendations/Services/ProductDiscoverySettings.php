@@ -1,0 +1,131 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Inventory\Recommendations\Services;
+
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use InvalidArgumentException;
+use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
+
+/**
+ * Both flags are tri-state on purpose: "unset" must keep whatever runs today (Typesense discovery,
+ * legacy enrichment rules), while new LLM spend only starts on an explicit true. Callers pick the
+ * accessor that matches that policy instead of defaulting a null themselves.
+ */
+final class ProductDiscoverySettings
+{
+    public const string SOURCE_COMPANY = 'company';
+    public const string SOURCE_APP = 'app';
+    public const string SOURCE_DEFAULT = 'default';
+
+    private function __construct(
+        private readonly AppInterface $app,
+        private readonly ?CompanyInterface $company,
+    ) {
+    }
+
+    /**
+     * Whether discovery may return other companies' products in this app. The one read of
+     * the setting every tenant filter in discovery branches on.
+     */
+    public static function crossCompanyVariants(AppInterface $app): bool
+    {
+        return (bool) $app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+    }
+
+    public static function for(AppInterface $app, ?CompanyInterface $company): self
+    {
+        return new self($app, $company);
+    }
+
+    public function enrichmentEnabled(): ?bool
+    {
+        return $this->resolve(ConfigurationEnum::PRODUCT_ENRICHMENT_ENABLED)[0];
+    }
+
+    public function discoveryEnabled(): ?bool
+    {
+        return $this->resolve(ConfigurationEnum::PRODUCT_DISCOVERY_ENABLED)[0];
+    }
+
+    public function enrichmentExplicitlyOn(): bool
+    {
+        return $this->enrichmentEnabled() === true;
+    }
+
+    public function enrichmentExplicitlyOff(): bool
+    {
+        return $this->enrichmentEnabled() === false;
+    }
+
+    public function discoveryExplicitlyOff(): bool
+    {
+        return $this->discoveryEnabled() === false;
+    }
+
+    /**
+     * @param string $flag the setting key, e.g. ConfigurationEnum::PRODUCT_ENRICHMENT_ENABLED->value
+     */
+    public function source(string $flag): string
+    {
+        $setting = ConfigurationEnum::tryFrom($flag);
+
+        if (! in_array($setting, [ConfigurationEnum::PRODUCT_ENRICHMENT_ENABLED, ConfigurationEnum::PRODUCT_DISCOVERY_ENABLED], true)) {
+            throw new InvalidArgumentException('Unknown product discovery flag: ' . $flag);
+        }
+
+        return $this->resolve($setting)[1];
+    }
+
+    /**
+     * @return array{0: ?bool, 1: string}
+     */
+    private function resolve(ConfigurationEnum $setting): array
+    {
+        $value = self::normalize($this->company?->get($setting->value));
+
+        if ($value !== null) {
+            return [$value, self::SOURCE_COMPANY];
+        }
+
+        $value = self::normalize($this->app->get($setting->value));
+
+        if ($value !== null) {
+            return [$value, self::SOURCE_APP];
+        }
+
+        return [null, self::SOURCE_DEFAULT];
+    }
+
+    /**
+     * The settings UI stores whatever the toggle sent, so a flag arrives as a bool, 0/1 or a string.
+     * Anything unreadable counts as unset rather than guessing a side.
+     */
+    private static function normalize(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return match ((int) $value) {
+                1 => true,
+                0 => false,
+                default => null,
+            };
+        }
+
+        if (! is_string($value)) {
+            return null;
+        }
+
+        return match (strtolower(trim($value))) {
+            '1', 'true', 'yes', 'on' => true,
+            '0', 'false', 'no', 'off' => false,
+            default => null,
+        };
+    }
+}

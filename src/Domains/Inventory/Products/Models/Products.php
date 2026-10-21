@@ -45,6 +45,7 @@ use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\Products\Observers\ProductsObserver;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
+use Kanvas\Inventory\Recommendations\Discovery\NumericAttributes;
 use Kanvas\Inventory\Recommendations\Enums\AudienceEnum;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum as RecommendationConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum;
@@ -113,6 +114,13 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use LogsActivity;
     use HasLeadReceiversTrait;
     use ResolvesAttributesTrait;
+    /**
+     * Bump whenever a discovery field is added or changes meaning. Discovery uses
+     * the range filters only once verify-discovery-index has confirmed every one
+     * of the app's records carries this version, so a bump switches them off until
+     * that app is reindexed.
+     */
+    public const int DISCOVERY_SCHEMA_VERSION = 1;
 
     protected $table = 'products';
     protected $guarded = [];
@@ -257,6 +265,19 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
      */
     public function lowestChannelPrice(): ?float
     {
+        return $this->channelPriceRange()[0];
+    }
+
+    /**
+     * [cheapest, dearest] priced variant on the default channel, [null, null] when
+     * nothing is priced. Discovery filters on overlap with the requested range —
+     * a floor tested against the cheapest variant alone drops a product whose
+     * dearer variant answers the request.
+     *
+     * @return array{0: float|null, 1: float|null}
+     */
+    public function channelPriceRange(): array
+    {
         $prices = [];
 
         foreach ($this->variants as $variant) {
@@ -271,7 +292,48 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             }
         }
 
-        return $prices === [] ? null : min($prices);
+        return $prices === [] ? [null, null] : [min($prices), max($prices)];
+    }
+
+    /**
+     * `num_<key>_min` / `num_<key>_max` for each numeric attribute the app makes
+     * filterable, in the field's canonical unit. A range rather than one value
+     * because variants differ: an upper bound filters on the min, a lower bound
+     * on the max, so the engine never drops a product that has a matching
+     * variant. A product with no parseable value gets no field ("mileage
+     * unknown"), never a 0 that would pass every upper bound.
+     *
+     * @return array<string, float>
+     */
+    public function numericDiscoveryFields(): array
+    {
+        $attributes = NumericAttributes::fromApp($this->app);
+        $fields = [];
+
+        foreach ($attributes->keys() as $key) {
+            $name = (string) $attributes->attributeFor($key);
+            $productValue = $attributes->parseValue($key, $this->getAttributeByName($name)?->value);
+            $values = [];
+
+            foreach ($this->variants as $variant) {
+                $value = $attributes->parseValue($key, $variant->getAttributeByName($name)?->value) ?? $productValue;
+
+                if ($value !== null) {
+                    $values[] = $value;
+                }
+            }
+
+            if ($values === [] && $productValue !== null) {
+                $values[] = $productValue;
+            }
+
+            if ($values !== []) {
+                $fields[NumericAttributes::minField($key)] = min($values);
+                $fields[NumericAttributes::maxField($key)] = max($values);
+            }
+        }
+
+        return $fields;
     }
 
     public function hasStockInAnyVariant(): bool
@@ -680,12 +742,15 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
      */
     public function toSearchableArray(): array
     {
+        [$priceMin, $priceMax] = $this->channelPriceRange();
+
         $product = [
             'objectID' => $this->uuid,
             'id' => (string) $this->id,
             'name' => $this->name,
             'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
                 return [
+                    'id' => $files->getId(),
                     'uuid' => $files->uuid,
                     'name' => $files->name,
                     'url' => $files->url,
@@ -757,13 +822,19 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             // 0 rather than null for an unknown price: Typesense types the field
             // as float, and a shopper's "under $50" should still surface an
             // unpriced product, which the caller then flags unavailable.
-            'price' => $this->lowestChannelPrice() ?? 0.0,
+            'price' => $priceMin ?? 0.0,
+            'price_min' => $priceMin ?? 0.0,
+            'price_max' => $priceMax ?? 0.0,
+            // Lets verify-discovery-index count records written by the code that
+            // knows the current discovery fields, scoped to one app.
+            'discovery_schema_version' => self::DISCOVERY_SCHEMA_VERSION,
             'in_stock' => $this->hasStockInAnyVariant(),
             // Flat copy of the enrichment's `audience` attribute. Nested under
             // `attributes` it cannot be a scalar filter, and this is the one axis
             // an embedding gets wrong — "for a man" and "para mujeres" are similar
             // to a vector, not opposite.
             'audience' => $this->searchableAudience(),
+            ...$this->numericDiscoveryFields(),
         ];
 
         if ($this->isTypesense()) {
@@ -1380,6 +1451,32 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'type' => 'float',
                     'optional' => true,
                     'sort' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'price_min',
+                    'type' => 'float',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'price_max',
+                    'type' => 'float',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'discovery_schema_version',
+                    'type' => 'int32',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                // One wildcard for every tenant's numeric attributes (num_mileage_min,
+                // num_year_max, …), so a new key needs no schema change.
+                [
+                    'name' => 'num_.*',
+                    'type' => 'float',
+                    'optional' => true,
                     'facet' => true,
                 ],
                 [

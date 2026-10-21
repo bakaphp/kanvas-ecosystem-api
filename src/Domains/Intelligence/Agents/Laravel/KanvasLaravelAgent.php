@@ -96,7 +96,8 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
             ?? ($this->agentRecord !== null ? AgentProviderService::resolveModel($this->agentRecord) : null);
     }
 
-    private function selectedLlmConfig(): ?AgentLlmConfig
+    /** Overridable so a structured call with no Agent row can still run on one of the tenant's LLM configs. */
+    protected function selectedLlmConfig(): ?AgentLlmConfig
     {
         return $this->agentRecord !== null
             ? AgentProviderService::selectedConfig($this->agentRecord)

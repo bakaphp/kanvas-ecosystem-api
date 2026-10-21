@@ -9,25 +9,24 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Search\SearchEngineResolver;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Inventory\Recommendations\Contracts\ProductDiscoveryInterface;
-use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
-use Kanvas\Inventory\Recommendations\Enums\AudienceEnum;
+use Kanvas\Inventory\Recommendations\Contracts\ServesSearchDocuments;
+use Kanvas\Inventory\Recommendations\Discovery\Constraints\EqualsConstraint;
+use Kanvas\Inventory\Recommendations\Discovery\Constraints\InConstraint;
+use Kanvas\Inventory\Recommendations\Discovery\Constraints\RangeConstraint;
+use Kanvas\Inventory\Recommendations\Discovery\DiscoveryQuery;
+use Kanvas\Inventory\Recommendations\Discovery\RankFusion;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
-use Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum;
-use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Override;
 use Throwable;
 use Typesense\Client;
 
 /**
- * One multi_search round trip. The sentence and the taste vector enter the same
- * vector space from different points, so they ride together rather than paying
- * the network twice.
+ * One multi_search round trip. The sentence, any alternative phrasings and the
+ * taste vector enter from different points and ride together rather than paying
+ * the network once each.
  */
-class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
+class TypesenseProductDiscoveryService implements ProductDiscoveryInterface, ServesSearchDocuments
 {
-    /** Rank-fusion dampener; stops the top slot dominating everything below. */
-    private const int RRF_K = 60;
-
     /** Long enough that the schema is not re-fetched per search, short enough that a reindex takes effect on its own. */
     private const int SCHEMA_CACHE_TTL = 600;
 
@@ -46,34 +45,81 @@ class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
      *
      * @return list<int>
      */
+    /**
+     * @param float[]|null $tasteVector
+     *
+     * @return list<int>
+     */
     #[Override]
-    public function search(ProductIntent $intent, int $limit, ?array $tasteVector = null): array
+    public function search(DiscoveryQuery $query, int $limit, ?array $tasteVector = null): array
     {
-        $searches = [$this->semanticSearch($intent, $limit)];
+        return array_map(
+            static fn (array $document): int => (int) $document['id'],
+            $this->searchDocuments($query, $limit, $tasteVector),
+        );
+    }
+
+    #[Override]
+    public function searchDocuments(DiscoveryQuery $query, int $limit, ?array $tasteVector = null): array
+    {
+        $filter = $this->filterBy($query);
+        $searches = [];
+
+        // The vector half embeds `q`. When the agent sent catalog terms, those drive
+        // the keyword half while the shopper's own sentence drives the vector half.
+        if ($this->supportsVectors() && $query->vectorText !== '' && $query->vectorText !== $query->text) {
+            $searches[] = $this->keywordSearch($query->text, $filter, $limit);
+            $searches[] = $this->semanticSearch($query->vectorText, $filter, $limit);
+        } else {
+            $searches[] = $this->semanticSearch($query->text, $filter, $limit);
+        }
+
+        foreach ($query->alternatives as $alternative) {
+            $searches[] = $this->keywordSearch($alternative, $filter, $limit);
+        }
 
         if ($tasteVector !== null && $tasteVector !== []) {
-            $searches[] = $this->tasteSearch($intent, $tasteVector, $limit);
+            $searches[] = $this->tasteSearch($tasteVector, $filter, $limit);
         }
 
         // Failures bubble: the caller degrades to SQL rather than showing an empty catalog.
         $response = $this->client()->multiSearch->perform(
             ['searches' => $searches],
-            ['exclude_fields' => 'embedding'],
+            [
+                'exclude_fields' => 'embedding',
+                'include_fields' => implode(',', ProductRecommendationPresenterService::DOCUMENT_FIELDS),
+            ],
         );
 
-        return $this->fuse($response['results'] ?? [], $limit);
+        return RankFusion::fuseDocuments(
+            $response['results'] ?? [],
+            static fn (array $hit): array => (array) ($hit['document'] ?? []),
+            $limit,
+        );
     }
 
-    private function semanticSearch(ProductIntent $intent, int $limit): array
+    #[Override]
+    public function supportsVectors(): bool
+    {
+        return $this->hasEmbeddingField($this->queryByFields());
+    }
+
+    #[Override]
+    public function canFilterOn(string $field): bool
+    {
+        return $this->collectionDeclares($field);
+    }
+
+    private function semanticSearch(string $text, string $filter, int $limit): array
     {
         $queryBy = $this->queryByFields();
 
         $search = [
             'collection' => $this->collection(),
-            'q' => $intent->sentence,
+            'q' => $text,
             'query_by' => $queryBy,
-            'filter_by' => $this->filterBy($intent),
-            'per_page' => $this->poolSize($limit),
+            'filter_by' => $filter,
+            'per_page' => RankFusion::poolSize($limit),
         ];
 
         $weights = $this->queryByWeights();
@@ -89,90 +135,65 @@ class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
         return $search;
     }
 
+    private function keywordSearch(string $text, string $filter, int $limit): array
+    {
+        $fields = array_values(array_filter(
+            array_map('trim', explode(',', $this->queryByFields())),
+            static fn (string $field): bool => $field !== '' && $field !== 'embedding',
+        ));
+
+        return [
+            'collection' => $this->collection(),
+            'q' => $text,
+            'query_by' => implode(',', $fields),
+            'filter_by' => $filter,
+            'per_page' => RankFusion::poolSize($limit),
+        ];
+    }
+
     /**
      * @param float[] $tasteVector
      */
-    private function tasteSearch(ProductIntent $intent, array $tasteVector, int $limit): array
+    private function tasteSearch(array $tasteVector, string $filter, int $limit): array
     {
         $vector = implode(',', array_map(static fn (float $value): string => (string) $value, $tasteVector));
 
         return [
             'collection' => $this->collection(),
             'q' => '*',
-            'vector_query' => 'embedding:([' . $vector . '], k: ' . $this->poolSize($limit) . ')',
-            'filter_by' => $this->filterBy($intent),
-            'per_page' => $this->poolSize($limit),
+            'vector_query' => 'embedding:([' . $vector . '], k: ' . RankFusion::poolSize($limit) . ')',
+            'filter_by' => $filter,
+            'per_page' => RankFusion::poolSize($limit),
         ];
     }
 
-    /**
-     * Narrows the pool only — the caller's DB read is the security boundary.
-     */
-    private function filterBy(ProductIntent $intent): string
+    private function filterBy(DiscoveryQuery $query): string
     {
-        $filters = ['apps_id:=' . $this->app->getId()];
-
-        if (! (bool) $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value)) {
-            $filters[] = 'companies_id:=' . $this->company->getId();
-        }
-
-        if ($intent->inStockOnly) {
-            $filters[] = 'in_stock:=true';
-        }
-
-        // 0 means "price unknown" (the field is a typed float, no null). `price:<=X`
-        // already admits it; the floor has to say so or it wipes out every unpriced product.
-        if ($intent->minPrice !== null) {
-            $filters[] = sprintf('(price:>=%s || price:=0)', $intent->minPrice);
-        }
-
-        if ($intent->maxPrice !== null) {
-            $filters[] = sprintf('price:<=%s', $intent->maxPrice);
-        }
-
-        if ($intent->audience !== null && $this->collectionDeclares(SearchFieldEnum::AUDIENCE->value)) {
-            $admitted = [$intent->audience, ...AudienceEnum::alwaysIncluded()];
-
-            $filters[] = sprintf(
-                'audience:[%s]',
-                implode(', ', array_map(static fn (AudienceEnum $a): string => $a->value, $admitted)),
-            );
-        }
-
-        return implode(' && ', $filters);
+        return implode(' && ', array_map(
+            fn (EqualsConstraint|InConstraint|RangeConstraint $constraint): string => match (true) {
+                $constraint instanceof EqualsConstraint => $constraint->field . ':=' . $this->literal($constraint->value),
+                $constraint instanceof InConstraint => $constraint->field . ':[' . implode(', ', $constraint->values) . ']',
+                default => $this->range($constraint),
+            },
+            $query->constraints,
+        ));
     }
 
-    /**
-     * Reciprocal-rank fusion. The two searches score on different scales (hybrid
-     * text+vector vs raw cosine), so they are fused on rank position, not score.
-     *
-     * @return list<int>
-     */
-    private function fuse(array $results, int $limit): array
+    private function range(RangeConstraint $constraint): string
     {
-        $scores = [];
+        $clause = implode(' && ', array_filter([
+            $constraint->min !== null ? sprintf('%s:>=%s', $constraint->field, $constraint->min) : null,
+            $constraint->max !== null ? sprintf('%s:<=%s', $constraint->field, $constraint->max) : null,
+        ]));
 
-        foreach ($results as $result) {
-            foreach (array_values($result['hits'] ?? []) as $rank => $hit) {
-                $id = (int) ($hit['document']['id'] ?? 0);
-
-                if ($id === 0) {
-                    continue;
-                }
-
-                $scores[$id] = ($scores[$id] ?? 0.0) + 1.0 / (float) (self::RRF_K + $rank + 1);
-            }
-        }
-
-        arsort($scores);
-
-        return array_slice(array_map('intval', array_keys($scores)), 0, $limit);
+        return $constraint->alsoAllow === null
+            ? $clause
+            : sprintf('(%s || %s:=%s)', $clause, $constraint->field, $constraint->alsoAllow);
     }
 
-    /** Wider than the page: fusion and caller-side filtering both drop candidates. */
-    private function poolSize(int $limit): int
+    private function literal(int|bool|string $value): string
     {
-        return min($limit * 3, 100);
+        return is_bool($value) ? ($value ? 'true' : 'false') : (string) $value;
     }
 
     private function collection(): string
