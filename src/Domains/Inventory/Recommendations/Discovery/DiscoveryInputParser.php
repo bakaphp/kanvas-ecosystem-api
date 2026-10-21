@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Recommendations\Discovery;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
 use Kanvas\Inventory\Recommendations\Enums\AudienceEnum;
@@ -32,6 +33,7 @@ class DiscoveryInputParser
 
     private const int MAX_PREFERENCES = 5;
     private const int MAX_LISTED_CATEGORIES = 30;
+    private const int CATEGORY_CACHE_TTL = 600;
 
     public function __construct(
         private readonly AppInterface $app,
@@ -131,25 +133,35 @@ class DiscoveryInputParser
     }
 
     /**
+     * Cached because an agent passes a category on most constrained searches; a category created
+     * in the last ten minutes is rejected as unknown until the entry expires.
+     *
      * @return list<string>
      */
     private function categoryNames(): array
     {
-        $query = Categories::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('is_deleted', 0);
+        $crossCompany = ProductDiscoverySettings::crossCompanyVariants($this->app);
+        $key = 'product-discovery:categories:' . $this->app->getId() . ':' . ($crossCompany ? 'all' : $this->company->getId());
 
-        if (! ProductDiscoverySettings::crossCompanyVariants($this->app)) {
-            $query->where('companies_id', $this->company->getId());
-        }
+        return Cache::remember($key, self::CATEGORY_CACHE_TTL, function () use ($crossCompany): array {
+            $query = Categories::query()
+                ->where('apps_id', $this->app->getId())
+                ->where('is_deleted', 0);
 
-        return $query->orderBy('name')
-            ->pluck('name')
-            ->map(static fn (mixed $name): string => trim((string) $name))
-            ->filter(static fn (string $name): bool => $name !== '')
-            ->unique()
-            ->values()
-            ->all();
+            if (! $crossCompany) {
+                $query->where('companies_id', $this->company->getId());
+            }
+
+            // select() replaces the model's $withCount subquery, a product count per category row.
+            return $query->select('name')
+                ->orderBy('name')
+                ->pluck('name')
+                ->map(static fn (mixed $name): string => trim((string) $name))
+                ->filter(static fn (string $name): bool => $name !== '')
+                ->unique()
+                ->values()
+                ->all();
+        });
     }
 
     /**

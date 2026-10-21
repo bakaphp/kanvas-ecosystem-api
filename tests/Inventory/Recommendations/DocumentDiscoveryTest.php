@@ -121,7 +121,7 @@ class DocumentDiscoveryTest extends TestCase
         $this->assertTrue($rendered['variants'][0]['channel']['is_available'], 'No indexed quantity falls back to the product\'s in_stock.');
     }
 
-    public function testTheDatabasePathLoadsAPageInABoundedNumberOfQueries(): void
+    public function testTheDatabasePathQueryCountDoesNotGrowWithPageSize(): void
     {
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
@@ -134,16 +134,33 @@ class DocumentDiscoveryTest extends TestCase
         }
 
         $this->warmDefaultChannel($company);
+        $presenter = new ProductRecommendationPresenterService($app, $company);
 
-        foreach (['inventory', 'ecosystem'] as $connection) {
+        // One-time lookups (system modules, settings) vary with what the database already holds.
+        $presenter->loadProducts(array_slice($ids, 0, 2));
+
+        $this->assertSame(
+            $this->countQueries(fn () => $presenter->loadProducts(array_slice($ids, 0, 4))),
+            $this->countQueries(fn () => $presenter->loadProducts($ids)),
+            'Files and attributes load per page, not per product and variant.',
+        );
+    }
+
+    private function countQueries(callable $work): int
+    {
+        $connections = ['inventory', 'ecosystem'];
+
+        foreach ($connections as $connection) {
             DB::connection($connection)->enableQueryLog();
             DB::connection($connection)->flushQueryLog();
         }
 
-        new ProductRecommendationPresenterService($app, $company)->loadProducts($ids);
+        $work();
 
-        $queries = count(DB::connection('inventory')->getQueryLog()) + count(DB::connection('ecosystem')->getQueryLog());
-        $this->assertLessThanOrEqual(12, $queries, 'Files and attributes load per page, not per product and variant.');
+        return array_sum(array_map(
+            static fn (string $connection): int => count(DB::connection($connection)->getQueryLog()),
+            $connections,
+        ));
     }
 
     private function warmDefaultChannel(mixed $company): void

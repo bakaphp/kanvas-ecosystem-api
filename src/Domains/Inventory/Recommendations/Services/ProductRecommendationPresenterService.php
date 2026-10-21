@@ -321,19 +321,21 @@ class ProductRecommendationPresenterService
 
         $this->channelResolved = true;
 
-        $this->defaultChannelId = Cache::remember(
+        // 0 stands for "this company has no default channel": Cache::remember() never stores a
+        // null, so caching the miss as null would re-query on every search.
+        $channelId = (int) Cache::remember(
             'product-discovery:default-channel:' . $this->app->getId() . ':' . $this->company->getId(),
             self::CHANNEL_CACHE_TTL,
-            function (): ?int {
+            function (): int {
                 try {
-                    return Channels::getDefault($this->company, $this->app)->getId();
+                    return (int) Channels::getDefault($this->company, $this->app)->getId();
                 } catch (Throwable) {
-                    return null;
+                    return 0;
                 }
             },
         );
 
-        return $this->defaultChannelId;
+        return $this->defaultChannelId = $channelId > 0 ? $channelId : null;
     }
 
     private function emptyChannel(int $quantity = 0): array
