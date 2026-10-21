@@ -70,5 +70,4 @@ class RepointProductEnrichmentMigrationTest extends TestCase
             'is_deleted' => 0,
         ]);
     }
-
 }

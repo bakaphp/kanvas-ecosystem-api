@@ -75,7 +75,6 @@ class ProductRecommendationLookupTool implements KanvasToolInterface
     #[Override]
     public function schema(JsonSchema $schema): array
     {
-
         return [
             'request' => $schema
                 ->string()
