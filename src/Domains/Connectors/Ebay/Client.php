@@ -193,8 +193,7 @@ class Client
         ?string $clientId = null,
         ?string $clientSecret = null,
         ?string $environment = null,
-    ): array
-    {
+    ): array {
         $clientId ??= $this->clientId();
         $clientSecret ??= $this->clientSecret();
 
