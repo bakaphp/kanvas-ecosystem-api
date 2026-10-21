@@ -34,7 +34,8 @@ final readonly class McpServerConfig
      *                                    admin still pastes only the key; the transport appends it at
      *                                    send time, so the secret never reaches a stored URL.
      * @param string|null $authHeader the header this vendor wants its bare key in instead of
-     *                                `Authorization: Bearer` (Browser Use: `x-browser-use-api-key`)
+     *                                `Authorization: Bearer` (Browser Use: `x-browser-use-api-key`). Keys
+     *                                only: an OAuth grant on the same server (Apollo) stays a bearer token
      * @param array<string, McpAsyncJobConfig> $asyncJobs remote tool name => how to follow the job it starts
      * @param class-string<CollectsMcpJobArtifacts>|null $artifactsHandler collects the files a finished job left
      * @param array<string, array<string, mixed>> $toolArguments remote tool name => arguments Kanvas fills in
