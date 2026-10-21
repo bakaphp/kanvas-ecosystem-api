@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
@@ -14,6 +15,8 @@ use Kanvas\Users\Models\Users;
 
 class CheckMechanicArrivalAction
 {
+    use InteractsWithAssistanceCase;
+
     // Threshold in meters to consider mechanic on-site
     private const ARRIVAL_THRESHOLD_METERS = 100;
 
@@ -47,23 +50,17 @@ class CheckMechanicArrivalAction
             return false;
         }
 
-        $metadata = $this->order->metadata ?? [];
-        $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
+        $assistanceCase = $this->assistanceCaseFrom($this->order);
 
         $assistanceCase['status'] = MovipassOrderStatusEnum::ON_SITE->slug();
         $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
         $assistanceCase['arrived_at'] = Carbon::now()->toISOString();
         $assistanceCase['mechanic']['location'] = $mechanicLocation;
 
-        $this->order->metadata = [
-            ...$metadata,
-            'assistance_case' => $assistanceCase,
-            'data' => [
-                ...($metadata['data'] ?? []),
-                'assistance_case' => $assistanceCase,
-            ],
-        ];
-        $this->order->saveQuietly();
+        $this->saveAssistanceCase(
+            $this->order,
+            $this->markStatusNotified($assistanceCase, MovipassOrderStatusEnum::ON_SITE->slug()),
+        );
 
         $this->order->transitionToStatus(
             $this->mechanic,
@@ -72,21 +69,22 @@ class CheckMechanicArrivalAction
 
         RefreshActiveAssistanceEvent::dispatch($this->order, $this->mechanic->getId());
 
-        $this->order->user->notify(new RoadsideAssistanceStatusNotification(
-            $this->order,
-            'Mechanic on site',
-            'The mechanic has arrived at your location.',
-            MovipassOrderStatusEnum::ON_SITE->slug(),
-        ));
+        $this->notifySafely(
+            $this->resolveCaseUser($this->order->users_id),
+            new RoadsideAssistanceStatusNotification(
+                $this->order,
+                'Mechanic on site',
+                'The mechanic has arrived at your location.',
+                MovipassOrderStatusEnum::ON_SITE->slug(),
+            ),
+        );
 
         return true;
     }
 
     private function resolveOrderLocation(): ?array
     {
-        $metadata = $this->order->metadata ?? [];
-        $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
-        $location = $assistanceCase['location'] ?? null;
+        $location = $this->assistanceCaseFrom($this->order)['location'] ?? null;
 
         if (! is_array($location) || ! isset($location['lat'], $location['lng'])) {
             return null;
@@ -106,9 +104,7 @@ class CheckMechanicArrivalAction
         }
 
         // Fallback: location stored in the order's mechanic block (sent by SDK on update)
-        $metadata = $this->order->metadata ?? [];
-        $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
-        $mechanicLocation = $assistanceCase['mechanic']['location'] ?? null;
+        $mechanicLocation = $this->assistanceCaseFrom($this->order)['mechanic']['location'] ?? null;
 
         if (is_array($mechanicLocation) && isset($mechanicLocation['lat'], $mechanicLocation['lng'])) {
             return ['lat' => (float) $mechanicLocation['lat'], 'lng' => (float) $mechanicLocation['lng']];

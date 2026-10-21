@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Movipass\Notifications;
 
 use Kanvas\Notifications\Notification;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Templates\Enums\EmailTemplateEnum;
 
 class CustomOrderNotification extends Notification
 {
@@ -15,8 +14,10 @@ class CustomOrderNotification extends Notification
         array $data,
         array $via
     ) {
+        // No setType('blank'): a set type makes via() filter channels by the user's settings for it,
+        // and any setting saved for the shared generic "blank" type silently stripped push/expo from
+        // every roadside notification. Subclasses that need a type set their own.
         parent::__construct($order, $data);
-        $this->setType(EmailTemplateEnum::BLANK->value);
         if ($data['email_template'] !== null) {
             $this->setTemplateName($data['email_template']);
         }

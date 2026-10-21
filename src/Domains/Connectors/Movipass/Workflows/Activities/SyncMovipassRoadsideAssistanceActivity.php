@@ -225,7 +225,10 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             $assistanceCase['pin_hash'] = null;
             $assistanceCase['pin_invalidated_at'] = Carbon::now()->toISOString();
 
-            $this->saveAssistanceCase($order, $assistanceCase);
+            $this->saveAssistanceCase(
+                $order,
+                $this->markStatusNotified($assistanceCase, MovipassOrderStatusEnum::SERVICE_CANCELLED->slug()),
+            );
 
             $order->transitionToStatus($user, MovipassOrderStatusEnum::SERVICE_CANCELLED->slug());
             $order->fulfillCancelled();
@@ -233,12 +236,14 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             $broadcastId = $mechanicId > 0 ? $mechanicId : (int) $order->users_id;
             RefreshActiveAssistanceEvent::dispatch($order, $broadcastId);
 
-            $this->notifySafely($user, new RoadsideAssistanceStatusNotification(
+            $notification = new RoadsideAssistanceStatusNotification(
                 $order,
                 'Service cancelled',
                 'The roadside assistance service has been cancelled.',
                 MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
-            ));
+            );
+            $this->notifySafely($user, $notification);
+            $this->notifySafely($this->resolveCaseUser($mechanicId), $notification);
 
             return [
                 'order' => $order->getId(),
@@ -356,7 +361,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             $assistanceCase['pin_hash'] = null;
             $assistanceCase['pin_invalidated_at'] = Carbon::now()->toISOString();
 
-            $this->saveAssistanceCase($order, $assistanceCase);
+            $this->saveAssistanceCase($order, $this->markStatusNotified($assistanceCase, $targetStatus));
 
             $order->transitionToStatus($user, $targetStatus);
             $order->fulfill();
@@ -595,6 +600,8 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
         $timestamp = $this->getFormattedTimestamp();
 
+        $alreadyNotified = $this->consumeStatusNotified($assistanceCase, $toStatus);
+
         $assistanceCase['status'] = $toStatus;
         $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
 
@@ -656,12 +663,20 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->slug(),
         ];
 
+        $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+
         if (in_array($toStatus, $refreshStatuses, true)) {
-            $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
             $broadcastMechanicId = $mechanicId > 0 ? $mechanicId : (int) $order->users_id;
             RefreshActiveAssistanceEvent::dispatch($order, $broadcastMechanicId);
+        }
 
+        if (in_array($toStatus, $refreshStatuses, true) && ! $alreadyNotified) {
             [$title, $message, $event] = match ($toStatus) {
+                MovipassOrderStatusEnum::ON_SITE->slug() => [
+                    'Mechanic on site',
+                    'The mechanic has arrived at your location.',
+                    MovipassOrderStatusEnum::ON_SITE->slug(),
+                ],
                 MovipassOrderStatusEnum::SERVICE_COMPLETED->slug() => [
                     'Service completed',
                     'The roadside assistance service has been completed successfully.',
@@ -692,7 +707,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 $event,
             );
             $this->notifySafely($this->resolveCaseUser($order->users_id), $notification);
-            $this->notifySafely($this->resolveCaseUser($mechanicId), $notification);
+
+            // The arrival message is addressed to the customer; the mechanic is the one who arrived.
+            if ($toStatus !== MovipassOrderStatusEnum::ON_SITE->slug()) {
+                $this->notifySafely($this->resolveCaseUser($mechanicId), $notification);
+            }
         }
 
         return [
@@ -767,11 +786,6 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         }
 
         $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
-
-        // Advance even when nobody was notified: an undeliverable message (both parties gone, mechanic
-        // unassigned mid-chat) would otherwise be re-picked by every later roadside event.
-        $assistanceCase['last_pushed_chat_message_id'] = (int) $message->id;
-        $this->saveAssistanceCase($order, $assistanceCase);
 
         if ($notified === 0) {
             return [
