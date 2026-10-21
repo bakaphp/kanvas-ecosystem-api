@@ -798,6 +798,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             'chat_push' => 'sent',
             'chat_push_message_id' => (int) $message->id,
             'chat_push_recipients' => $notified,
+            'chat_push_deliveries' => $pushAction->deliveries(),
         ];
     }
 
