@@ -373,7 +373,8 @@ services:
         --queue=scribe-pdf-ingest --tries=3 --timeout=3750"
   lead-follow-ups-queue:
     <<: *common-queue-settings
-    container_name: lead-follow-ups-queue
+    deploy:
+      replicas: 3
     command:
       - "sh"
       - "-c"
