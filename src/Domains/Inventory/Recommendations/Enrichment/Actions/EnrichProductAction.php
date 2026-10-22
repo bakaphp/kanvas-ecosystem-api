@@ -46,7 +46,12 @@ class EnrichProductAction
         $config = EnrichmentConfig::forAgent($agent);
         $handler = ProductEnrichmentAgentService::handlerFor($this->product->app, $agent, $this->product->company);
 
-        $actor = $agent?->user ?? $this->product->company->getAiAgentUserOrFail();
+        // Only creates a missing attribute definition, so enrichment must not require AI agent setup.
+        $actor = $agent?->user ?? $this->product->company->getAiAgentUser() ?? $this->product->user;
+
+        if ($actor === null) {
+            return ['status' => 'skipped', 'reason' => 'no user to attribute the enrichment to'];
+        }
 
         $response = $handler->promptWithConfig($this->productPrompt());
         $data = $response instanceof StructuredAgentResponse ? $response->structured : [];

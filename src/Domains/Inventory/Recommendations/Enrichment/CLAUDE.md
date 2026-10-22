@@ -36,7 +36,8 @@ extends `KanvasLaravelAgent` only for structured output, per-tenant provider/key
 3. The app setting `product_enrichment_model` (`ENRICHMENT_MODEL`) on Gemini with the app's `GEMINI_KEY`.
 4. `ProductEnrichmentAgent::DEFAULT_MODEL` (`gemini-2.5-flash-lite`).
 
-Without an Agent row writes are attributed to `$company->getAiAgentUserOrFail()`. An Agent row is the override for a custom prompt, vocabulary or
+The user that creates a missing attribute definition is the Agent row's user, else the company's AI agent
+user, else the product's creator — enrichment never requires `ai-agent-user-id`. An Agent row is the override for a custom prompt, vocabulary or
 model. An explicit `agent_id` that does not exist still throws. Per-tenant overrides flow from the
 `Agent` record (resolved by `ProductEnrichmentAgentService`):
 
@@ -74,7 +75,7 @@ backfill-product-enrichment ──────────┴─▶ EnrichProduc
                                                   ├ hash gate (skip if unchanged)
                                                   ├ resolve app's Agent (+ optional agent_id)
                                                   ├ promptWithConfig() → StructuredAgentResponse
-                                                  ├ facets → addAttributes(actor, …)   (agent's user, else the company AI user; validated via EnrichmentConfig::clean)
+                                                  ├ facets → addAttributes(actor, …)   (agent's user, else company AI user, else product creator; validated via EnrichmentConfig::clean)
                                                   ├ tags  → removeTags(vocab)+addTags(clean)   (NEVER syncTags — it wipes merchant tags)
                                                   ├ blurb → set(search_blurb)
                                                   └ searchable()  (re-index)

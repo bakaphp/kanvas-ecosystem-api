@@ -75,6 +75,19 @@ class ProductEnrichmentWithoutAgentTest extends TestCase
         );
     }
 
+    public function testACompanyWithoutAnAiAgentUserIsStillEnriched(): void
+    {
+        $product = $this->makeProduct();
+        $product->company->del(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
+
+        ProductEnrichmentAgent::fake([$this->structuredResponse()]);
+
+        $result = new EnrichProductAction($product)->execute();
+
+        $this->assertSame('enriched', $result['status'], 'The product creator stands in for the missing AI agent user.');
+        $this->assertStringContainsString('cordless drill', (string) $product->get(SearchFieldEnum::BLURB->value));
+    }
+
     public function testTheAppSettingChoosesTheModelWhenThereIsNoAgent(): void
     {
         $product = $this->makeProduct();
