@@ -11,9 +11,10 @@ use Kanvas\Guild\Leads\Models\Lead;
 class LeadUserService
 {
     /**
-     * DriveCentric has to see the assigned salesperson, so the owner wins over the lead's creator.
-     * Both sides are nullable — an unassigned lead carries leads_owner_id = 0 and stale imports
-     * carry users_id = 0, so callers get null instead of a fatal on a missing relation.
+     * Only a mapped owner becomes the salesperson. An unassigned lead (leads_owner_id = 0) returns
+     * null on purpose: receiver-created leads carry the company's integration account as users_id,
+     * and falling back to it would hand every inbound lead to that one DriveCentric user instead of
+     * letting the dealership's own assignment rules run.
      */
     public static function resolve(Lead $lead): ?UserInterface
     {
@@ -23,7 +24,7 @@ class LeadUserService
             return $owner;
         }
 
-        return $lead->user;
+        return null;
     }
 
     /**
