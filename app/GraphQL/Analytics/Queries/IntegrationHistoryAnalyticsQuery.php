@@ -9,7 +9,6 @@ use Kanvas\Analytics\Actions\BuildAnalyticsAction;
 use Kanvas\Analytics\DataTransferObject\AnalyticsGroupBy;
 use Kanvas\Analytics\DataTransferObject\AnalyticsRequest;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 
@@ -24,9 +23,7 @@ class IntegrationHistoryAnalyticsQuery
         /** @var Users $user */
         $user = auth()->user();
         $app = app(Apps::class);
-        $company = app()->bound(CompaniesBranches::class)
-            ? app(CompaniesBranches::class)->company
-            : $user->getCurrentCompany();
+        $company = $user->getCurrentCompany();
 
         return new BuildAnalyticsAction(
             model: EntityIntegrationHistory::class,

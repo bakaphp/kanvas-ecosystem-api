@@ -139,6 +139,36 @@ class Client
     }
 
     /**
+     * Registers (or repoints) the domain-level webhook Mailgun calls for an engagement event
+     * (`opened`, `clicked`, …) — a different mechanism from routes: a route forwards one matching
+     * recipient's inbound mail, this fires for every outbound message on the domain. The event name
+     * doubles as Mailgun's resource id under `/webhooks/{id}`, so create-or-update is a
+     * GET-then-branch exactly like the routes above.
+     *
+     * @return array<string, mixed> the webhook's Mailgun-side representation
+     */
+    public function createOrUpdateWebhook(string $domain, string $event, string $url): array
+    {
+        $exists = $this->request()->get('/v3/domains/' . rawurlencode($domain) . '/webhooks/' . rawurlencode($event))
+            ->successful();
+
+        $response = $exists
+            ? $this->request()->asMultipart()->put(
+                '/v3/domains/' . rawurlencode($domain) . '/webhooks/' . rawurlencode($event),
+                [['name' => 'url', 'contents' => $url]],
+            )
+            : $this->request()->asMultipart()->post(
+                '/v3/domains/' . rawurlencode($domain) . '/webhooks',
+                [
+                    ['name' => 'id', 'contents' => $event],
+                    ['name' => 'url', 'contents' => $url],
+                ],
+            );
+
+        return $this->assertOk($response, 'register ' . $event . ' webhook for ' . $domain)->json('webhook') ?? [];
+    }
+
+    /**
      * Send through Mailgun's API rather than SMTP: the From has to be the agent's own address, and
      * only the account that owns the domain can authorize that — an SMTP relay configured for some
      * other company domain would have the mail rejected or spam-foldered on arrival.
@@ -147,6 +177,9 @@ class Client
      * @param array<int, string> $cc
      * @param array<int, array{filename: string, contents: string}> $attachments already-read bytes,
      *        never a URL — the caller fetches through the SSRF guard.
+     * @param array<string, string> $variables `v:*` custom variables Mailgun echoes back verbatim on
+     *        every event webhook for this message (opened, clicked, …) — the only way to correlate an
+     *        "opened" event back to the People/Lead the mail was about.
      *
      * @return string the queued Message-Id, needed to thread anything that replies to this
      */
@@ -160,6 +193,8 @@ class Client
         array $headers = [],
         array $cc = [],
         array $attachments = [],
+        bool $trackOpens = false,
+        array $variables = [],
     ): string {
         $parts = [
             ['name' => 'from', 'contents' => $from],
@@ -170,6 +205,14 @@ class Client
 
         if ($html !== null && $html !== '') {
             $parts[] = ['name' => 'html', 'contents' => $html];
+        }
+
+        if ($trackOpens) {
+            $parts[] = ['name' => 'o:tracking-opens', 'contents' => 'yes'];
+        }
+
+        foreach ($variables as $name => $value) {
+            $parts[] = ['name' => 'v:' . $name, 'contents' => (string) $value];
         }
 
         // Mailgun takes one `cc` part per address, not a joined list.

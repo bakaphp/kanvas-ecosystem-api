@@ -13,9 +13,12 @@ use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
 use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
 use Tests\TestCase;
+use Tests\Traits\ForcesStoredHandler;
 
 class KanvasGenericLaravelAgentTest extends TestCase
 {
+    use ForcesStoredHandler;
+
     public function testInstructionsConcatenatesSoulInstructionsAndOutputFormat(): void
     {
         $agent = $this->makeAgentRecord(
@@ -129,9 +132,10 @@ class KanvasGenericLaravelAgentTest extends TestCase
                 name: 'tool-bad-' . uniqid(),
                 frameworks: ['laravel'],
                 toolType: ToolTypeEnum::CUSTOM,
-                handler: 'NonExistent\\Tool\\Class',
             ),
         )->execute();
+
+        $this->forceStoredHandler($badHandlerTool, 'NonExistent\\Tool\\Class');
 
         $agent = $this->makeAgentRecord();
         $agent->selectedTools()->sync([$nullHandlerTool->getId(), $badHandlerTool->getId()]);

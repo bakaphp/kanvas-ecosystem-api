@@ -31,6 +31,7 @@ class CreateOrderAction
     public bool $runWorkflow = true;
 
     private ?OrderTypes $resolvedOrderType = null;
+    public bool $sendNotifications = true;
 
     public function __construct(
         protected Order $orderData
@@ -170,6 +171,10 @@ class CreateOrderAction
                     // $this->simulateWorkflow($order);
                 }
 
+                if (! $this->sendNotifications) {
+                    return;
+                }
+
                 try {
                     $order->user->notify(new NewOrderNotification($order, [
                         'app' => $this->orderData->app,
@@ -209,6 +214,13 @@ class CreateOrderAction
     public function disableWorkflow(): self
     {
         $this->runWorkflow = false;
+
+        return $this;
+    }
+
+    public function disableNotifications(): self
+    {
+        $this->sendNotifications = false;
 
         return $this;
     }

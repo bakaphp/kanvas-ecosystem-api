@@ -134,6 +134,26 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
             && str_contains((string) $request->body(), 'spouse@example.com'));
     }
 
+    public function testTracksOpensAndStampsThePeopleIdForTheLeadBeingEmailed(): void
+    {
+        $agent = $this->agentWithMailbox();
+        $lead = $this->leadWithEmail('prospect@example.com');
+
+        new SendMessageToLeadAction($lead)->execute(
+            channel: LeadCommunicationChannelEnum::EMAIL->value,
+            message: 'Here is the quote.',
+            title: 'Your quote',
+            to: 'prospect@example.com',
+            fromAgent: $agent,
+        );
+
+        $peopleId = (string) $lead->people->getId();
+
+        Http::assertSent(fn ($request): bool => str_contains((string) $request->body(), 'name="o:tracking-opens"')
+            && str_contains((string) $request->body(), 'name="v:people_id"')
+            && str_contains((string) $request->body(), $peopleId));
+    }
+
     public function testAnAgentWithoutAMailboxStillSendsOnTheCompanyIdentity(): void
     {
         Notification::fake();

@@ -44,6 +44,8 @@ class TemplatesManagementMutation
             $templateData
         )->execute();
 
+        $template->assertNotBlade();
+
         foreach ($request['template_variables'] as $templateVariable) {
             $templateVariablesDto = new TemplatesVariablesDto(
                 $templateVariable['key'],
@@ -74,10 +76,7 @@ class TemplatesManagementMutation
         $app = app(Apps::class);
         $user = auth()->user();
 
-        $template = Templates::getById(
-            $id,
-            $app,
-        );
+        $template = Templates::getByIdFromCompanyApp((int) $id, $user->getCurrentCompany(), $app);
 
         $templateData = TemplateInput::from([
             'app' => $app,
@@ -125,11 +124,12 @@ class TemplatesManagementMutation
             throw new AuthorizationException('Only admin can create or update templates, please contact your admin');
         }
 
-        $app = app((Apps::class));
-        $template = Templates::fromApp($app)
-            //->fromCompany(auth()->user()->getCurrentCompany())
-            ->where('is_system', false)
-            ->findOrFail($request['id']);
+        $app = app(Apps::class);
+        $template = Templates::getByIdFromCompanyApp((int) $request['id'], auth()->user()->getCurrentCompany(), $app);
+
+        if ($template->is_system) {
+            throw new AuthorizationException('System templates cannot be deleted.');
+        }
 
         return $template->delete();
     }

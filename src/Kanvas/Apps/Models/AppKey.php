@@ -68,6 +68,11 @@ class AppKey extends BaseModel
         return $this->belongsTo(Users::class, 'users_id', 'id');
     }
 
+    public function isHeldBy(int $userId): bool
+    {
+        return (int) $this->users_id === $userId;
+    }
+
     public function hasExpired(): bool
     {
         return ! empty($this->expires_at) && $this->expires_at < date('Y-m-d H:i:s');

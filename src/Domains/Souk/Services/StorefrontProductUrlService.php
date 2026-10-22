@@ -34,17 +34,23 @@ class StorefrontProductUrlService
 
     public function productUrl(Products $product): ?string
     {
+        return $this->urlFor((int) $product->getId(), (string) $product->slug);
+    }
+
+    /** For a caller holding a search document rather than a model. */
+    public function urlFor(int $id, string $slug): ?string
+    {
         if ($this->template === null) {
             return null;
         }
 
         if (! str_contains($this->template, '{')) {
-            return rtrim($this->template, '/') . '/' . $product->slug;
+            return rtrim($this->template, '/') . '/' . $slug;
         }
 
         return str_replace(
             ['{slug}', '{id}'],
-            [(string) $product->slug, (string) $product->getId()],
+            [$slug, (string) $id],
             $this->template
         );
     }

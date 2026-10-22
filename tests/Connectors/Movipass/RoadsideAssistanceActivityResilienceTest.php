@@ -9,6 +9,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\SendRoadsideChatMessagePushAction;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
+use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
+use Kanvas\Connectors\Movipass\Notifications\RoadsideChatMessageNotification;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -69,6 +71,73 @@ final class RoadsideAssistanceActivityResilienceTest extends TestCase
 
         $this->assertSame('skipped', $secondResult['chat_push']);
         $this->assertSame('already pushed', $secondResult['chat_push_reason']);
+    }
+
+    /**
+     * Regression: an action that pushes its own message (arrival, cancel, completion, decline)
+     * transitions the order right after, and the STATUS_TRANSITION run sent a second, generic push
+     * for the same status.
+     */
+    public function testStatusTransitionSkipsThePushTheActionAlreadySent(): void
+    {
+        $mechanic = Users::factory()->create();
+        $order = $this->createRoadsideOrder([
+            'mechanic' => ['user_id' => $mechanic->getId()],
+            'status_notified' => 'on_site',
+        ]);
+
+        $this->gateIntegration($order);
+        Notification::fake();
+
+        $this->runActivity($order, WorkflowEnum::STATUS_TRANSITION->value, ['to_status' => 'on_site']);
+
+        Notification::assertNothingSent();
+
+        $order->refresh();
+        $this->assertArrayNotHasKey('status_notified', $order->metadata['assistance_case']);
+    }
+
+    public function testStatusTransitionNobodyNotifiedPushesArrivalToTheCustomerOnly(): void
+    {
+        $mechanic = Users::factory()->create();
+        $order = $this->createRoadsideOrder(['mechanic' => ['user_id' => $mechanic->getId()]]);
+
+        $this->gateIntegration($order);
+        Notification::fake();
+
+        $this->runActivity($order, WorkflowEnum::STATUS_TRANSITION->value, ['to_status' => 'on_site']);
+
+        Notification::assertSentTo(
+            $this->authUser,
+            RoadsideAssistanceStatusNotification::class,
+            fn (RoadsideAssistanceStatusNotification $notification) => $notification->getData()['title'] === 'Mechanic on site'
+        );
+        Notification::assertNotSentTo($mechanic, RoadsideAssistanceStatusNotification::class);
+    }
+
+    /**
+     * Regression: the channel workflow pushed a chat message without recording it, so the next
+     * order event's sync pushed the same message to the counterparty again.
+     */
+    public function testChatMessageIsPushedOnceAcrossBothPushPaths(): void
+    {
+        $mechanic = Users::factory()->create();
+        $order = $this->createRoadsideOrder(['mechanic' => ['user_id' => $mechanic->getId()]]);
+        $channel = $this->createDirectMessageChannel($order, $mechanic->getId());
+        $message = $this->createChatMessage($channel, $this->authUser);
+
+        Notification::fake();
+
+        $this->assertSame(1, new SendRoadsideChatMessagePushAction($channel, $message)->execute());
+        $this->assertSame(0, new SendRoadsideChatMessagePushAction($channel, $message)->execute());
+
+        Notification::assertSentToTimes($mechanic, RoadsideChatMessageNotification::class, 1);
+
+        $order->refresh();
+        $this->assertSame(
+            (int) $message->id,
+            (int) $order->metadata['assistance_case']['last_pushed_chat_message_id'],
+        );
     }
 
     /**

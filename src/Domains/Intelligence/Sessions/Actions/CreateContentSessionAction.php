@@ -9,7 +9,6 @@ use Carbon\Carbon;
 use Carbon\Exceptions\InvalidFormatException;
 use Carbon\Exceptions\InvalidTimeZoneException;
 use Exception;
-use Illuminate\Support\Facades\Blade;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Traits\GeneratesChecklistEngagementUrls;
 use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
@@ -30,9 +29,9 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Channels\Models\Channel as SocialChannel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
+use Kanvas\Templates\Support\TemplateSandbox;
 use Kanvas\Users\Models\Users;
 use RuntimeException;
-use Throwable;
 use Yasumi\Exception\InvalidYearException;
 use Yasumi\Exception\MissingTranslationException;
 use Yasumi\Exception\ProviderNotFoundException;
@@ -94,7 +93,7 @@ class CreateContentSessionAction
 
     /**
      * Agents store each role section (background/steps/output) either as a plain string
-     * or as an array of lines (with nulls for blank lines). Render Blade variables on each
+     * or as an array of lines (with nulls for blank lines). Render template variables on each
      * line and return the section as an array of rendered lines (null blank-line markers
      * preserved); a string section is split on newlines first. A null section stays null.
      */
@@ -107,34 +106,9 @@ class CreateContentSessionAction
         $lines = is_array($section) ? array_values($section) : explode("\n", (string) $section);
 
         return array_map(
-            fn (mixed $line): ?string => is_string($line) ? $this->renderTemplate($line, $data) : null,
+            fn (mixed $line): ?string => is_string($line) ? TemplateSandbox::render($line, $data) : null,
             $lines
         );
-    }
-
-    /**
-     * Blade fatals on a variable that was never defined (unlike a defined-but-null
-     * variable, which renders empty). Seed every referenced variable so an unknown one
-     * renders blank instead of leaving raw {{ }} syntax in the prompt the agent receives.
-     * Fall back to the raw template only if rendering still throws for another reason.
-     */
-    protected function renderTemplate(string $template, array $data): string
-    {
-        preg_match_all('/\$([a-zA-Z_]\w*)/', $template, $matches);
-
-        foreach ($matches[1] as $variableName) {
-            if (! array_key_exists($variableName, $data)) {
-                $data[$variableName] = '';
-            }
-        }
-
-        try {
-            return Blade::render($template, $data);
-        } catch (Throwable $e) {
-            report($e);
-
-            return $template;
-        }
     }
 
     protected function mapLead(Lead $lead): array

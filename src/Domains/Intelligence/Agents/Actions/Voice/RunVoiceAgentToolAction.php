@@ -104,8 +104,8 @@ class RunVoiceAgentToolAction
         $fallback = null;
 
         foreach ($tools as $catalogTool) {
-            $handlerClass = $catalogTool->handler;
-            if (empty($handlerClass) || ! class_exists($handlerClass)) {
+            $handlerClass = $catalogTool->handlerClass();
+            if ($handlerClass === null) {
                 continue;
             }
 

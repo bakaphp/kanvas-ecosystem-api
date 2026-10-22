@@ -12,8 +12,9 @@ use Exception;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\DataTransferObject\OrderReceipt;
 use Kanvas\Souk\Traits\DefaultTrait;
@@ -26,13 +27,17 @@ use Kanvas\Souk\Traits\DefaultTrait;
  * @property int companies_id
  * @property string $name
  * */
-class OrderTypes extends BaseModel
+class OrderTypes extends BaseModel implements ReadableAtLocation
 {
     use DefaultTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
     use SlugTrait;
+
+    public const string ALLOWED_PAYMENT_PROCESSORS = 'allowed_payment_processors';
+
+    public const string EXPIRATION = 'expiration';
 
     protected $table = 'order_types';
     protected $guarded = [];
@@ -45,6 +50,24 @@ class OrderTypes extends BaseModel
     public function isExpirable(): bool
     {
         return (bool) ($this->config['expirable'] ?? false);
+    }
+
+    public function allowedPaymentProcessors(): ?array
+    {
+        $allowed = $this->config[self::ALLOWED_PAYMENT_PROCESSORS] ?? null;
+
+        return is_array($allowed) && $allowed !== [] ? array_values(array_map('strval', $allowed)) : null;
+    }
+
+    public function expirationRule(): ?array
+    {
+        $rule = $this->config[self::EXPIRATION] ?? null;
+
+        if (! is_array($rule) || empty($rule['date_path']) || empty($rule['from_status']) || empty($rule['to_status'])) {
+            return null;
+        }
+
+        return $rule;
     }
 
     public function cardVelocityLimit(string $key): int
@@ -147,8 +170,10 @@ class OrderTypes extends BaseModel
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }

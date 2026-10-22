@@ -14,8 +14,9 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Recommendations\Actions\RecommendProductsAction;
 use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
+use Kanvas\Inventory\Recommendations\Discovery\DiscoveryInputParser;
+use Kanvas\Inventory\Recommendations\Exceptions\InvalidDiscoveryInputException;
 use Kanvas\Inventory\Recommendations\Jobs\LogRecommendationImpressionJob;
-use Kanvas\Inventory\Recommendations\Services\IntentLexiconService;
 use Kanvas\Inventory\Recommendations\Services\ProductDiscoveryResolver;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -29,7 +30,7 @@ use Throwable;
 class ProductDiscoveryQuery
 {
     /**
-     * @param array{input: array{query: string, request_id?: mixed, company_id?: mixed, session_id?: string, limit?: int}} $request
+     * @param array{input: array<string, mixed>} $request
      *
      * @return array{request_id: string, recommendations: array}
      */
@@ -43,14 +44,23 @@ class ProductDiscoveryQuery
         $company = $this->resolveCompany($app, $user, $input['company_id'] ?? null);
         $requestId = $this->resolveRequestId($input['request_id'] ?? null);
 
+        try {
+            $intent = new DiscoveryInputParser($app, $company)->parse([
+                ...$input,
+                'request' => $query,
+            ]);
+        } catch (InvalidDiscoveryInputException $e) {
+            throw new ValidationException((string) json_encode($e->toArray(), JSON_UNESCAPED_UNICODE));
+        }
+
         $recommendations = new RecommendProductsAction($app, $company)
-            ->execute($query, (int) ($input['limit'] ?? 8));
+            ->executeIntent($intent, (int) ($input['limit'] ?? 8));
 
         $this->logImpression(
             app: $app,
             company: $company,
             requestId: $requestId,
-            query: $query,
+            intent: $intent,
             recommendations: $recommendations,
             sessionId: $input['session_id'] ?? null,
             user: $user,
@@ -143,25 +153,21 @@ class ProductDiscoveryQuery
         AppInterface $app,
         CompanyInterface $company,
         string $requestId,
-        string $query,
+        ProductIntent $intent,
         array $recommendations,
         ?string $sessionId,
         ?Users $user,
     ): void {
-        $intent = ProductIntent::fromSentence($query, new IntentLexiconService($app));
-
         LogRecommendationImpressionJob::dispatch(
             $app,
             $company,
             $requestId,
-            $query,
+            $intent->sentence,
             array_column(array_column($recommendations, 'product'), 'id'),
             $this->isAppKeyRequest() ? null : $user?->getId(),
             $sessionId,
-            new ProductDiscoveryResolver($app, $company)->isOnTypesense() ? 'typesense' : 'sql',
-            $intent->minPrice,
-            $intent->maxPrice,
-            $intent->inStockOnly,
+            new ProductDiscoveryResolver($app, $company)->engine(),
+            $intent->summary(),
         );
     }
 }

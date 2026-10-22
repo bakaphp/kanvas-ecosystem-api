@@ -14,6 +14,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Apps\Support\MountedAppProvider;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\AppEnums;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -28,11 +29,13 @@ class KanvasAppKeyMiddleware
             return response()->json(['message' => 'No App configured with this key: ' . $appIdentifier], 500);
         }
 
-        $this->handleCompanyBranch($request);
-        $this->handleAppKey($request);
-        $this->handleKanvasIdentifier($request);
+        // The first refusal ends the request. The app key goes first because it can switch the app the
+        // branch has to belong to.
+        $refused = $this->handleAppKey($request)
+            ?? $this->handleCompanyBranch($request)
+            ?? $this->handleKanvasIdentifier($request);
 
-        return $next($request);
+        return $refused ?? $next($request);
     }
 
     private function registerApp(string $appIdentifier): bool
@@ -47,23 +50,24 @@ class KanvasAppKeyMiddleware
         }
     }
 
-    private function handleCompanyBranch(Request $request): void
+    private function handleCompanyBranch(Request $request): ?Response
     {
         $companyBranchHeader = AppEnums::KANVAS_APP_BRANCH_HEADER->getValue();
 
         if (! empty($companyBranchKey = $request->header($companyBranchHeader))) {
             try {
                 $companyBranch = CompaniesBranches::getByUuid($companyBranchKey);
+                CompaniesRepository::hasAccessToThisApp($companyBranch->company, app(Apps::class));
                 app()->scoped(CompaniesBranches::class, fn () => $companyBranch);
             } catch (Throwable $e) {
-                response()->json(['message' => 'No Company Branch configured with this key: ' . $companyBranchKey], 500)->send();
-
-                return ;
+                return response()->json(['message' => 'No Company Branch configured with this key: ' . $companyBranchKey], 500);
             }
         }
+
+        return null;
     }
 
-    public function handleKanvasIdentifier(Request $request): void
+    public function handleKanvasIdentifier(Request $request): ?Response
     {
         $kanvasIdentifierHeader = AppEnums::KANVAS_IDENTIFIER->getValue();
 
@@ -74,19 +78,19 @@ class KanvasAppKeyMiddleware
                 if (auth()->user()) {
                     $kanvasIdentifier = auth()->user()->getId();
                 } else {
-                    return;
+                    return null;
                 }
             }
 
             app()->scoped(AppEnums::KANVAS_IDENTIFIER->getValue(), fn () => $kanvasIdentifier);
         } catch (Throwable $e) {
-            response()->json(['message' => 'No App configured with this key: ' . ($kanvasIdentifier ?? 'unknown')], 500)->send();
-
-            return;
+            return response()->json(['message' => 'No App configured with this key: ' . ($kanvasIdentifier ?? 'unknown')], 500);
         }
+
+        return null;
     }
 
-    private function handleAppKey(Request $request): void
+    private function handleAppKey(Request $request): ?Response
     {
         $appKeyHeader = AppEnums::KANVAS_APP_KEY_HEADER->getValue();
 
@@ -96,20 +100,18 @@ class KanvasAppKeyMiddleware
                 $kanvasApp = $kanvasAppKey->app()->firstOrFail();
 
                 if ($kanvasAppKey->hasExpired()) {
-                    response()->json(['message' => 'App Key has expired'], 500)->send();
-
-                    return ;
+                    return response()->json(['message' => 'App Key has expired'], 500);
                 }
 
                 $this->scopeAppKeyAndApp($kanvasAppKey, $kanvasApp);
                 $this->setUserIfNoBearerToken($request, $kanvasAppKey);
                 $this->updateLastUsedDate($kanvasAppKey);
             } catch (Throwable $e) {
-                response()->json(['message' => 'No App Key configured with this key: ' . $appKey], 500)->send();
-
-                return ;
+                return response()->json(['message' => 'No App Key configured with this key: ' . $appKey], 500);
             }
         }
+
+        return null;
     }
 
     private function scopeAppKeyAndApp(AppKey $kanvasAppKey, Apps $kanvasApp): void

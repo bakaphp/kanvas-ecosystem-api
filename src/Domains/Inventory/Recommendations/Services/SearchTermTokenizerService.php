@@ -48,9 +48,31 @@ class SearchTermTokenizerService
     }
 
     /**
+     * SKU- and model-shaped tokens ("123456", "X5", "abc-123") that tokenize()
+     * drops for being numeric or short — the ones a shopper means exactly.
+     *
      * @return list<string>
      */
-    private function stopWords(): array
+    public function identifiers(string $sentence): array
+    {
+        $tokens = preg_split('/[^\p{L}\p{N}\-_]+/u', IntentLexiconService::normalize($sentence), -1, PREG_SPLIT_NO_EMPTY);
+
+        if ($tokens === false) {
+            return [];
+        }
+
+        $identifiers = array_filter(
+            array_map(static fn (string $token): string => trim($token, '-_'), $tokens),
+            static fn (string $token): bool => mb_strlen($token) >= 2 && preg_match('/\d/', $token) === 1,
+        );
+
+        return array_values(array_unique($identifiers));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function stopWords(): array
     {
         if ($this->stopWords !== null) {
             return $this->stopWords;

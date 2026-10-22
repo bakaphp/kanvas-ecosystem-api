@@ -13,11 +13,10 @@ use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Recommendations\Actions\LogRecommendationImpressionAction;
-use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
 
 /**
- * Off the request path. Intent arrives as loose scalars, not the ProductIntent
- * DTO — a Spatie Data object on a queued job is a documented foot-gun here.
+ * Off the request path. Intent arrives as ProductIntent::summary(), a plain
+ * array, not the DTO — a Spatie Data object on a queued job is a documented foot-gun here.
  */
 class LogRecommendationImpressionJob implements ShouldQueue
 {
@@ -29,6 +28,7 @@ class LogRecommendationImpressionJob implements ShouldQueue
 
     /**
      * @param list<int> $productIds
+     * @param array<string, mixed> $intent ProductIntent::summary()
      */
     public function __construct(
         public readonly Apps $app,
@@ -39,9 +39,7 @@ class LogRecommendationImpressionJob implements ShouldQueue
         public readonly ?int $usersId = null,
         public readonly ?string $sessionId = null,
         public readonly ?string $engine = null,
-        public readonly ?float $minPrice = null,
-        public readonly ?float $maxPrice = null,
-        public readonly bool $inStockOnly = false,
+        public readonly array $intent = [],
     ) {
         $this->onQueue('product-discovery');
     }
@@ -59,12 +57,7 @@ class LogRecommendationImpressionJob implements ShouldQueue
             usersId: $this->usersId,
             sessionId: $this->sessionId,
             engine: $this->engine,
-            intent: new ProductIntent(
-                sentence: $this->query,
-                minPrice: $this->minPrice,
-                maxPrice: $this->maxPrice,
-                inStockOnly: $this->inStockOnly,
-            ),
+            intent: $this->intent === [] ? null : $this->intent,
         )->execute();
     }
 }
