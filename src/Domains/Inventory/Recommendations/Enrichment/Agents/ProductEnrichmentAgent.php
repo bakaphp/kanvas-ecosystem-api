@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Recommendations\Enrichment\Agents;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
@@ -131,7 +132,7 @@ class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasProviderOp
         )->blurbFraming();
         $blurbFields = implode(', ', array_map(
             static fn (string $language): string => '`' . self::blurbField($language) . '`',
-            self::blurbLanguages($this->app),
+            self::blurbLanguages($this->app, $this->company),
         ));
 
         return $this->instructionsFromRecord(default: <<<PROMPT
@@ -207,7 +208,7 @@ class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasProviderOp
                 ->required(),
         ];
 
-        foreach (self::blurbLanguages($this->app) as $language) {
+        foreach (self::blurbLanguages($this->app, $this->company) as $language) {
             $fields[self::blurbField($language)] = $schema->string()
                 ->description("1-2 sentence search blurb written in the language with ISO 639-1 code '{$language}'.")
                 ->required();
@@ -221,9 +222,11 @@ class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasProviderOp
      *
      * @return list<string>
      */
-    public static function blurbLanguages(?AppInterface $app): array
+    public static function blurbLanguages(?AppInterface $app, ?CompanyInterface $company = null): array
     {
-        return $app !== null ? ProductDiscoverySettings::queryLanguages($app) : ProductDiscoverySettings::DEFAULT_QUERY_LANGUAGES;
+        return $app !== null
+            ? ProductDiscoverySettings::queryLanguages($app, $company)
+            : ProductDiscoverySettings::DEFAULT_QUERY_LANGUAGES;
     }
 
     public static function blurbField(string $language): string

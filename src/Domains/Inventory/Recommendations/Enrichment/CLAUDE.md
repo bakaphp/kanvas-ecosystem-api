@@ -60,7 +60,7 @@ model. An explicit `agent_id` that does not exist still throws. Per-tenant overr
 |---|---|---|
 | `audience`, `occasion`, `interests` | product **attributes** (plain names) | distinct, groupable facets → `filter_by audience:male && occasion:birthday` |
 | `tags` (elegant, romantic, luxury…) | **Tags subsystem** (`HasTagsTrait`) | flat labels — exactly what tags are; one `tags` facet |
-| `blurb` | custom field `search_blurb` (`Recommendations\Enums\SearchFieldEnum::BLURB`, which the index reads too) | semantic text → the **embedding source** for vector search. One `blurb_<lang>` per language in `product_discovery_query_languages`, joined into one field so a shopper matches in any of them without per-language query setup |
+| `blurb` | custom field `search_blurb` (`Recommendations\Enums\SearchFieldEnum::BLURB`, which the index reads too) | semantic text → the **embedding source** for vector search. One `blurb_<lang>` per language in `product_discovery_query_languages` (company setting, then app), joined into one field so a shopper matches in any of them without per-language query setup |
 | `in_stock`, `price` | **derived at index time** in `toSearchableArray()` | stay in sync with price/stock without re-enriching |
 | dedup hash | custom field `search_enrichment_hash` | skip the LLM when name/description/categories unchanged |
 

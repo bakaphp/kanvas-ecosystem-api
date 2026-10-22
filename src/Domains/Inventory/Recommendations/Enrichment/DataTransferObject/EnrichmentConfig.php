@@ -66,7 +66,7 @@ final class EnrichmentConfig
         $allowed = $this->facets[$facet] ?? [];
 
         return array_values(array_filter(
-            array_map(static fn ($v): string => (string) $v, $values),
+            array_map(static fn (mixed $v): string => is_scalar($v) ? (string) $v : '', $values),
             static fn (string $v): bool => in_array($v, $allowed, true),
         ));
     }

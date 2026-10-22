@@ -44,7 +44,7 @@ class ProductEnrichmentFingerprintService
 
         // Changing the blurb languages rewrites every blurb. The default stays out of the hash so
         // catalogs already enriched in es+en keep a current fingerprint.
-        $languages = ProductEnrichmentAgent::blurbLanguages($product->app);
+        $languages = ProductEnrichmentAgent::blurbLanguages($product->app, $product->company);
 
         if ($languages !== ProductDiscoverySettings::DEFAULT_QUERY_LANGUAGES) {
             $parts[] = implode(',', $languages);

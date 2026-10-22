@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Recommendations\Enums;
 
-use Baka\Contracts\AppInterface;
+use Baka\Contracts\HashTableInterface;
 
 enum ConfigurationEnum: string
 {
@@ -40,9 +40,9 @@ enum ConfigurationEnum: string
      *
      * @return array<mixed>
      */
-    public function listFrom(AppInterface $app): array
+    public function listFrom(HashTableInterface $holder): array
     {
-        $value = $app->get($this->value);
+        $value = $holder->get($this->value);
 
         if (is_string($value)) {
             $value = json_decode($value, true);
