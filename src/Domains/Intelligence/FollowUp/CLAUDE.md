@@ -196,8 +196,9 @@ independent. This veto does not override the engine's open-leads-only restrictio
 
 `DispatchAppLeadFollowUpsJob` calls `LeadFollowUpEligibilityService::dispatchSkipReason()` for every
 SQL candidate and only queues leads with no skip reason, so a lead followed up (or messaged) inside
-the stage interval, exhausted, manual or muted never takes a `lead_follow_ups` slot. Those skips
-leave no `lead.follow_up.skipped` ledger event, so the daily summary no longer counts them. Leads at
+the stage interval, exhausted, manual or muted never takes a `lead_follow_ups` slot. Each candidate
+still leaves a ledger record: `lead.follow_up.skipped` with the reason and `source: dispatch`, or
+`lead.follow_up.queued` (counted as `queued` in the daily summary). Leads at
 `max_retries` or handed off are still queued inside the interval: only the action exhausts them and
 applies `exhausted_action`. The action runs the same service methods, so the gates live in one place;
 channel, session, template and CRM checks stay in the action.

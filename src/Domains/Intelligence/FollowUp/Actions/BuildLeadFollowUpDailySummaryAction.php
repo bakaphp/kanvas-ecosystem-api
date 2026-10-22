@@ -23,6 +23,7 @@ final class BuildLeadFollowUpDailySummaryAction
 {
     /** @var list<string> */
     private const TRACKED_EVENT_TYPES = [
+        'lead.follow_up.queued',
         'lead.follow_up.sent',
         'lead.follow_up.skipped',
         'lead.follow_up.exhausted',
@@ -78,6 +79,7 @@ final class BuildLeadFollowUpDailySummaryAction
         $sent = ['total' => 0, 'by_channel' => [], 'by_stage' => []];
         $skipped = ['total' => 0, 'by_reason' => []];
         $exhausted = ['total' => 0, 'by_reason' => []];
+        $queued = 0;
         $resumed = 0;
         $completed = 0;
 
@@ -85,6 +87,7 @@ final class BuildLeadFollowUpDailySummaryAction
             $payload = (array) ($event->payload ?? []);
 
             match ($event->event_type) {
+                'lead.follow_up.queued' => $queued++,
                 'lead.follow_up.sent' => $this->countSent($payload, $sent),
                 'lead.follow_up.skipped' => $this->countWithReason($payload, $skipped),
                 'lead.follow_up.exhausted' => $this->countWithReason($payload, $exhausted),
@@ -95,6 +98,7 @@ final class BuildLeadFollowUpDailySummaryAction
         }
 
         return [
+            'queued' => ['total' => $queued],
             'sent' => $sent,
             'skipped' => $skipped,
             'exhausted' => $exhausted,
