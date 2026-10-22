@@ -11,6 +11,7 @@ use Kanvas\Connectors\DriveCentric\Services\LeadUserService as DriveCentricLeadU
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum as EleadCustomFieldEnum;
 use Kanvas\Connectors\Elead\Services\LeadUserService as EleadLeadUserService;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum as VinSolutionConfigurationEnum;
+use Kanvas\Connectors\VinSolution\Exceptions\VinSolutionException;
 use Kanvas\Connectors\VinSolution\Services\LeadUserService as VinSolutionLeadUserService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
@@ -86,7 +87,7 @@ final class LeadCrmUserResolutionTest extends TestCase
         $this->assertSame($lead->owner->getId(), VinSolutionLeadUserService::resolve($lead)->getId());
     }
 
-    public function testVinSolutionFallsBackToTheLeadUserWhenTheOwnerIsNotMapped(): void
+    public function testVinSolutionResolvesToNullWhenTheOwnerIsNotMapped(): void
     {
         $lead = $this->makeLead();
 
@@ -95,18 +96,79 @@ final class LeadCrmUserResolutionTest extends TestCase
             '111'
         );
 
-        $this->assertSame($lead->user->getId(), VinSolutionLeadUserService::resolve($lead)->getId());
+        $this->assertNull(VinSolutionLeadUserService::resolve($lead));
     }
 
-    public function testVinSolutionResolvesToNullWhenTheLeadHasNeitherAnOwnerNorAUser(): void
+    public function testVinSolutionResolvesToNullOnAnUnassignedLeadEvenWhenTheLeadUserIsMapped(): void
     {
         $lead = $this->makeLead();
         $lead->leads_owner_id = 0;
-        $lead->users_id = 0;
         $lead->saveQuietly();
         $lead->refresh();
+        $lead->user->set(
+            VinSolutionConfigurationEnum::getUserKey($lead->company, $lead->user),
+            '111'
+        );
 
-        $this->assertNull(VinSolutionLeadUserService::resolve($lead));
+        $this->assertNull($lead->owner, 'precondition: the lead is unassigned');
+        $this->assertNull(
+            VinSolutionLeadUserService::resolve($lead),
+            'the creating account must not become the sales rep; VinSolutions assigns unassigned leads itself'
+        );
+    }
+
+    public function testVinSolutionActsAsTheMappedOwnerWhenThereIsOne(): void
+    {
+        $lead = $this->makeLead();
+        $lead->owner->set(
+            VinSolutionConfigurationEnum::getUserKey($lead->company, $lead->owner),
+            '222'
+        );
+
+        $this->assertSame($lead->owner->getId(), VinSolutionLeadUserService::actingUser($lead)->getId());
+    }
+
+    public function testVinSolutionActsAsTheCompanyOwnerOnAnUnassignedLead(): void
+    {
+        $lead = $this->makeLead();
+        $lead->leads_owner_id = 0;
+        $lead->saveQuietly();
+        $lead->refresh();
+        $lead->company->del(VinSolutionConfigurationEnum::DOWNLOAD_ALL_LEADS_USER->value);
+
+        $acting = VinSolutionLeadUserService::actingUser($lead);
+
+        $this->assertSame($lead->company->user->getId(), $acting->getId());
+        $this->assertNotSame($lead->user->getId(), $acting->getId());
+    }
+
+    public function testVinSolutionActsAsTheDownloadUserWhenTheCompanyOptedIn(): void
+    {
+        $lead = $this->makeLead();
+        $lead->leads_owner_id = 0;
+        $lead->saveQuietly();
+        $lead->refresh();
+        $downloadUser = Users::factory()->create();
+        $lead->company->set(VinSolutionConfigurationEnum::DOWNLOAD_ALL_LEADS_USER->value, $downloadUser->getId());
+
+        try {
+            $this->assertSame($downloadUser->getId(), VinSolutionLeadUserService::actingUser($lead)->getId());
+        } finally {
+            $lead->company->del(VinSolutionConfigurationEnum::DOWNLOAD_ALL_LEADS_USER->value);
+        }
+    }
+
+    public function testVinSolutionRefusesAnUnmappedOperatingUserWithAClearMessage(): void
+    {
+        $lead = $this->makeLead();
+        $company = $lead->company;
+        $company->del(VinSolutionConfigurationEnum::DOWNLOAD_ALL_LEADS_USER->value);
+        $company->user->del(VinSolutionConfigurationEnum::getUserKey($company, $company->user));
+
+        $this->expectException(VinSolutionException::class);
+        $this->expectExceptionMessage(VinSolutionConfigurationEnum::DOWNLOAD_ALL_LEADS_USER->value);
+
+        VinSolutionLeadUserService::mappedOperatingUserOrFail($company);
     }
 
     public function testDriveCentricPrefersTheMappedOwnerOverTheLeadUser(): void

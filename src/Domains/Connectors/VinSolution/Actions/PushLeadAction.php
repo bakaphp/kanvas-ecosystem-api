@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Actions;
 
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\VinSolution\ClientCredential;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
@@ -15,13 +16,15 @@ class PushLeadAction
 {
     protected ClientCredential $vinCredential;
     protected ?Lead $vinLead = null;
+    protected ?UserInterface $salesperson;
 
     public function __construct(
         protected LeadModel $lead
     ) {
+        $this->salesperson = LeadUserService::resolve($this->lead);
         $this->vinCredential = ClientCredential::get(
             $this->lead->company,
-            LeadUserService::resolve($this->lead),
+            $this->salesperson ?? LeadUserService::mappedOperatingUserOrFail($this->lead->company),
             $this->lead->app
         );
     }
@@ -33,9 +36,7 @@ class PushLeadAction
     {
         $leadId = CustomFieldEnum::LEADS->value;
 
-        $pushContact = new PushPeopleAction(
-            $this->lead->people
-        );
+        $pushContact = new PushPeopleAction($this->lead->people, $this->salesperson);
         $contact = $pushContact->execute();
         // Check if lead exists in VinSolutions
         $vinLeadId = $this->lead->get($leadId);
@@ -161,7 +162,7 @@ class PushLeadAction
         }
 
         // Create a temporary action to push the co-buyer person
-        $pushAction = new PushPeopleAction($coBuyerPeople);
+        $pushAction = new PushPeopleAction($coBuyerPeople, $this->salesperson);
         $contact = $pushAction->execute();
 
         // Update the vin lead with co-buyer info

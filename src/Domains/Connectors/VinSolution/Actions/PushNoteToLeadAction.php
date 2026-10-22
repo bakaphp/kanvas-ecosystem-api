@@ -38,7 +38,7 @@ class PushNoteToLeadAction
 
         $vinCompany = Dealer::getById($this->lead->company->get(ConfigurationEnum::COMPANY->value), $this->lead->app);
 
-        $vinUser = LeadUserService::resolve($this->lead);
+        $vinUser = LeadUserService::actingUser($this->lead);
         $vinUserId = $vinUser?->get(ConfigurationEnum::getUserKey($this->lead->company, $vinUser));
 
         if (! $vinUserId) {

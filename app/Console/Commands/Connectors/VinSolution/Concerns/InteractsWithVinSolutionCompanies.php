@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
+use Kanvas\Connectors\VinSolution\Services\LeadUserService;
 use Kanvas\Users\Models\Users;
 
 trait InteractsWithVinSolutionCompanies
@@ -23,18 +24,8 @@ trait InteractsWithVinSolutionCompanies
         return $this->resolveConfiguredCompanies($app, $companyIdsInput, ConfigurationEnum::COMPANY->value);
     }
 
-    /**
-     * The Kanvas user whose VinSolution credentials drive read calls for a company —
-     * the opted-in DOWNLOAD_ALL_LEADS_USER when present, otherwise the company owner.
-     */
     protected function resolveOperatingUser(Companies $company): ?Users
     {
-        $downloadUserId = $company->get(ConfigurationEnum::DOWNLOAD_ALL_LEADS_USER->value);
-
-        if (! empty($downloadUserId)) {
-            return Users::getById((int) $downloadUserId);
-        }
-
-        return $company->user;
+        return LeadUserService::operatingUser($company);
     }
 }
