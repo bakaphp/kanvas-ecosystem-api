@@ -16,7 +16,6 @@ use Kanvas\Inventory\Recommendations\Discovery\Constraints\InConstraint;
 use Kanvas\Inventory\Recommendations\Discovery\Constraints\RangeConstraint;
 use Kanvas\Inventory\Recommendations\Discovery\DiscoveryQuery;
 use Kanvas\Inventory\Recommendations\Discovery\RankFusion;
-use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Override;
 use Throwable;
 
@@ -101,7 +100,7 @@ class AlgoliaProductDiscoveryService implements ProductDiscoveryInterface, Serve
      */
     private function request(string $text, DiscoveryQuery $query, int $limit): array
     {
-        $languages = $this->languages();
+        $languages = ProductDiscoverySettings::queryLanguages($this->app);
 
         return array_filter([
             'indexName' => ProductDiscoveryResolver::collectionName($this->app),
@@ -183,17 +182,6 @@ class AlgoliaProductDiscoveryService implements ProductDiscoveryInterface, Serve
                 );
             },
         );
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function languages(): array
-    {
-        $languages = ConfigurationEnum::QUERY_LANGUAGES->listFrom($this->app);
-        $languages = array_values(array_filter($languages, 'is_string'));
-
-        return $languages !== [] ? $languages : ['es', 'en'];
     }
 
     private function client(): SearchClient

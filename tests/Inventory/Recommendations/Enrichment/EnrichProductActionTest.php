@@ -14,6 +14,7 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Recommendations\Enrichment\Actions\EnrichProductAction;
 use Kanvas\Inventory\Recommendations\Enrichment\Agents\ProductEnrichmentAgent;
 use Kanvas\Inventory\Recommendations\Enrichment\Enums\CustomFieldEnum;
+use Kanvas\Inventory\Recommendations\Enrichment\Services\ProductEnrichmentFingerprintService;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum;
 use Kanvas\Inventory\Recommendations\Enums\SemanticProfileStrategyEnum;
@@ -146,6 +147,64 @@ class EnrichProductActionTest extends TestCase
         $this->assertSame(0, $usage['input_tokens']);
         $this->assertSame(0, $usage['output_tokens']);
         $this->assertNotEmpty($usage['model']);
+    }
+
+    public function testTheBlurbIsWrittenOnlyInTheCatalogsLanguages(): void
+    {
+        $product = $this->makeProductWithAgent();
+        $this->useLanguages(['en']);
+
+        ProductEnrichmentAgent::fake([[...$this->structuredResponse(), 'insufficient_information' => false]]);
+
+        $result = new EnrichProductAction($product)->execute();
+
+        $this->assertSame('A cordless drill.', $result['blurb'], 'A language the catalog does not use is dropped even if the model writes it.');
+        ProductEnrichmentAgent::assertPrompted(
+            fn ($prompt): bool => str_contains((string) $prompt->agent->instructions(), '`blurb_en`')
+                && ! str_contains((string) $prompt->agent->instructions(), '`blurb_es`'),
+        );
+    }
+
+    public function testAPlaceholderProductGetsNoBlurbAndIsNotRetriedUntilItChanges(): void
+    {
+        $product = $this->makeProductWithAgent();
+        $product->set(SearchFieldEnum::BLURB->value, 'an old blurb');
+        $product->addTags(['elegant']);
+
+        ProductEnrichmentAgent::fake([[
+            ...$this->structuredResponse(),
+            'blurb_es' => '',
+            'blurb_en' => '',
+            'insufficient_information' => true,
+        ]]);
+
+        $result = new EnrichProductAction($product)->execute();
+
+        $this->assertSame('insufficient_information', $result['status']);
+        $this->assertSame('', (string) $product->get(SearchFieldEnum::BLURB->value), 'A stale blurb must not keep matching searches.');
+        $this->assertSame([], $product->tags()->pluck('name')->all(), 'Nor stale enrichment tags.');
+        $this->assertSame('unchanged', new EnrichProductAction($product)->execute()['status']);
+    }
+
+    public function testTheDefaultLanguagesLeaveExistingFingerprintsCurrent(): void
+    {
+        $product = $this->makeProductWithAgent();
+        $default = ProductEnrichmentFingerprintService::for($product);
+
+        $this->useLanguages(['es', 'en']);
+        $this->assertSame($default, ProductEnrichmentFingerprintService::for($product), 'Deploying this must not re-enrich every catalog.');
+
+        $this->useLanguages(['en']);
+        $this->assertNotSame($default, ProductEnrichmentFingerprintService::for($product), 'Changing the languages rewrites the blurbs.');
+    }
+
+    /**
+     * @param list<string> $languages
+     */
+    private function useLanguages(array $languages): void
+    {
+        $this->rememberAppSettings(ConfigurationEnum::QUERY_LANGUAGES->value);
+        app(Apps::class)->set(ConfigurationEnum::QUERY_LANGUAGES->value, $languages);
     }
 
     private function makeProductWithAgent(?string $description = null): Products

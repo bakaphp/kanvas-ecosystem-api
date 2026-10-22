@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Recommendations\Enrichment\Services;
 
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Recommendations\Enrichment\Agents\ProductEnrichmentAgent;
 use Kanvas\Inventory\Recommendations\Enrichment\Enums\AttributeEnum;
 use Kanvas\Inventory\Recommendations\Enrichment\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum as RecommendationConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SemanticProfileStrategyEnum;
+use Kanvas\Inventory\Recommendations\Services\ProductDiscoverySettings;
 
 /**
  * What a product's blurb was written from, as one hash. Checked before a job is
@@ -30,7 +32,7 @@ class ProductEnrichmentFingerprintService
      */
     public static function for(Products $product): string
     {
-        return md5(implode('|', [
+        $parts = [
             $product->name,
             $product->description,
             $product->categories->pluck('name')->implode(','),
@@ -38,7 +40,17 @@ class ProductEnrichmentFingerprintService
             SemanticProfileStrategyEnum::fromApp(
                 $product->app?->get(RecommendationConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value),
             )->value,
-        ]));
+        ];
+
+        // Changing the blurb languages rewrites every blurb. The default stays out of the hash so
+        // catalogs already enriched in es+en keep a current fingerprint.
+        $languages = ProductEnrichmentAgent::blurbLanguages($product->app);
+
+        if ($languages !== ProductDiscoverySettings::DEFAULT_QUERY_LANGUAGES) {
+            $parts[] = implode(',', $languages);
+        }
+
+        return md5(implode('|', $parts));
     }
 
     public static function isCurrent(Products $product): bool

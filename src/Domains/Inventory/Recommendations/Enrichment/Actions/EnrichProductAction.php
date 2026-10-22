@@ -7,12 +7,14 @@ namespace Kanvas\Inventory\Recommendations\Enrichment\Actions;
 use Baka\Support\Str;
 use Illuminate\Support\Arr;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Recommendations\Enrichment\Agents\ProductEnrichmentAgent;
 use Kanvas\Inventory\Recommendations\Enrichment\DataTransferObject\EnrichmentConfig;
 use Kanvas\Inventory\Recommendations\Enrichment\Enums\AttributeEnum;
 use Kanvas\Inventory\Recommendations\Enrichment\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Recommendations\Enrichment\Services\ProductEnrichmentAgentService;
 use Kanvas\Inventory\Recommendations\Enrichment\Services\ProductEnrichmentFingerprintService;
 use Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum;
+use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 
 /**
@@ -56,6 +58,20 @@ class EnrichProductAction
         $response = $handler->promptWithConfig($this->productPrompt());
         $data = $response instanceof StructuredAgentResponse ? $response->structured : [];
 
+        // Hashed so the same record is not paid for again until someone gives it real content.
+        if (($data['insufficient_information'] ?? false) === true) {
+            $this->product->removeTags($config->facets['tags']);
+            $this->product->set(SearchFieldEnum::BLURB->value, '');
+            $this->product->set(CustomFieldEnum::ENRICHMENT_HASH->value, $hash);
+            $this->product->searchable();
+
+            return [
+                'status' => 'insufficient_information',
+                'blurb' => '',
+                'usage' => $this->usage($response),
+            ];
+        }
+
         // @todo addAttributes() forces is_visible=true — write these is_visible=false so
         //       internal enrichment facets don't render on the PDP.
         $this->product->addAttributes($actor, [
@@ -69,7 +85,10 @@ class EnrichProductAction
         $this->product->removeTags($config->facets['tags']);
         $this->product->addTags($config->clean('tags', Arr::wrap($data['tags'] ?? null)));
 
-        $blurb = trim(($data['blurb_es'] ?? '') . ' ' . ($data['blurb_en'] ?? ''));
+        $blurb = implode(' ', array_filter(array_map(
+            static fn (string $language): string => trim((string) ($data[ProductEnrichmentAgent::blurbField($language)] ?? '')),
+            ProductEnrichmentAgent::blurbLanguages($this->product->app),
+        )));
         $this->product->set(SearchFieldEnum::BLURB->value, $blurb);
 
         // Only a run that produced a blurb counts as done, or an empty one is permanent.
@@ -82,11 +101,19 @@ class EnrichProductAction
         return [
             'status' => 'enriched',
             'blurb' => $blurb,
-            'usage' => [
-                'input_tokens' => $response->usage->inputTokens,
-                'output_tokens' => $response->usage->outputTokens,
-                'model' => $response->meta->model,
-            ],
+            'usage' => $this->usage($response),
+        ];
+    }
+
+    /**
+     * @return array{input_tokens: int, output_tokens: int, model: ?string}
+     */
+    private function usage(AgentResponse $response): array
+    {
+        return [
+            'input_tokens' => $response->usage->inputTokens,
+            'output_tokens' => $response->usage->outputTokens,
+            'model' => $response->meta->model,
         ];
     }
 

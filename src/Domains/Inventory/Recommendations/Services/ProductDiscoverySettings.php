@@ -20,6 +20,7 @@ final class ProductDiscoverySettings
     public const string SOURCE_COMPANY = 'company';
     public const string SOURCE_APP = 'app';
     public const string SOURCE_DEFAULT = 'default';
+    public const array DEFAULT_QUERY_LANGUAGES = ['es', 'en'];
 
     private function __construct(
         private readonly AppInterface $app,
@@ -34,6 +35,25 @@ final class ProductDiscoverySettings
     public static function crossCompanyVariants(AppInterface $app): bool
     {
         return (bool) $app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+    }
+
+    /**
+     * The catalog's languages, read by Algolia's stop words / plurals and by enrichment, which writes
+     * the blurb in each of them and nothing else.
+     *
+     * @return list<string>
+     */
+    public static function queryLanguages(AppInterface $app): array
+    {
+        $languages = array_values(array_unique(array_filter(
+            array_map(
+                static fn (mixed $language): string => is_string($language) ? strtolower(trim($language)) : '',
+                ConfigurationEnum::QUERY_LANGUAGES->listFrom($app),
+            ),
+            static fn (string $language): bool => preg_match('/^[a-z]{2}$/', $language) === 1,
+        )));
+
+        return $languages !== [] ? $languages : self::DEFAULT_QUERY_LANGUAGES;
     }
 
     public static function for(AppInterface $app, ?CompanyInterface $company): self
