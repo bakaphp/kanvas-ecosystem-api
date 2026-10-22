@@ -62,8 +62,8 @@ final class LeadTypeContinuedFollowUpTest extends TestCase
 
     public function testActionSkipsBeforeRetryAndSendEvenWhenForced(): void
     {
-        // [stored ai_follow_up, Lead::isAiFollowUpEnabled() when consulted, type setting, expected skip]
-        // An absent field ('' or null) never consults the helper; a present one must be enabled.
+        // [resolved ai_follow_up, Lead::isAiFollowUpEnabled() when consulted, type setting, expected skip]
+        // Nothing resolved ('' or null) never consults the helper; a resolved value must be enabled.
         $cases = [
             [0, false, 1, 'lead_follow_up_disabled'],
             [3, false, 1, 'lead_follow_up_disabled'],
@@ -78,7 +78,7 @@ final class LeadTypeContinuedFollowUpTest extends TestCase
         foreach ([false, true] as $force) {
             foreach ($cases as [$stored, $enabled, $typeSetting, $reason]) {
                 $lead = $this->lead(['phone_con_fu_active_default' => $typeSetting]);
-                $lead->shouldReceive('get')->with('ai_follow_up')->once()->andReturn($stored);
+                $lead->shouldReceive('resolveAiFollowUp')->once()->andReturn($stored);
                 if ($enabled === null) {
                     $lead->shouldNotReceive('isAiFollowUpEnabled');
                 } else {

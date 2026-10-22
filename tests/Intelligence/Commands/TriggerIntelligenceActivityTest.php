@@ -310,6 +310,44 @@ class TriggerIntelligenceActivityTest extends TestCase
         $this->assertEquals(FollowUpValueEnum::OFF()->value, $lead->get($followUpKey));
     }
 
+    public function testFollowUpOffTriggerPinsTheLeadOverTheLeadTypeDefault(): void
+    {
+        $lead = $this->createLead('Internet');
+        $followUpDefaultKey = new LeadConfigurationService()->getFollowUpDefaultKey($lead);
+        $this->setLeadTypeConfig($lead, [$followUpDefaultKey => FollowUpValueEnum::ON()->value]);
+
+        new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
+
+        $this->assertTrue((bool) $lead->get(LeadsEnumsConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value));
+        $this->assertSame(FollowUpValueEnum::OFF()->value, $lead->resolveAiFollowUp());
+        $this->assertFalse($lead->isAiFollowUpEnabled());
+    }
+
+    public function testManualTriggersPinTheFollowUp(): void
+    {
+        foreach ([TriggersEnum::FOLLOW_UP_ON, TriggersEnum::MANUAL_OFF, TriggersEnum::MANUAL_FON] as $trigger) {
+            $lead = $this->createLead('Internet');
+
+            new ApplyLeadAiModeAction($lead, $trigger->value)->execute();
+
+            $this->assertTrue(
+                (bool) $lead->get(LeadsEnumsConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value),
+                $trigger->name
+            );
+        }
+    }
+
+    public function testNewLeadDoesNotPinTheFollowUp(): void
+    {
+        $lead = $this->createLead('Internet');
+        $followUpDefaultKey = new LeadConfigurationService()->getFollowUpDefaultKey($lead);
+        $this->setLeadTypeConfig($lead, [$followUpDefaultKey => FollowUpValueEnum::ON()->value]);
+
+        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+
+        $this->assertFalse((bool) $lead->get(LeadsEnumsConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value));
+    }
+
     public function testShowroomLeadManualOffSetsAiModeKey(): void
     {
         $lead = $this->createLead('Showroom');

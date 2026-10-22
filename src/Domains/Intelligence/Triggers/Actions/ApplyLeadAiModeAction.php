@@ -72,8 +72,8 @@ class ApplyLeadAiModeAction
             TriggersEnum::MANUAL_OFF->value => $this->applyManualOff(),
             TriggersEnum::MANUAL_SUPPORT->value => $this->applyManualMode(IntelligenceModeEnum::SUPPORT->value),
             TriggersEnum::MANUAL_FON->value => $this->applyManualFullOn(),
-            TriggersEnum::FOLLOW_UP_ON->value => $this->setFollowUp(FollowUpValueEnum::ON()),
-            TriggersEnum::FOLLOW_UP_OFF->value => $this->setFollowUp(FollowUpValueEnum::OFF()),
+            TriggersEnum::FOLLOW_UP_ON->value => $this->applyManualFollowUp(FollowUpValueEnum::ON()),
+            TriggersEnum::FOLLOW_UP_OFF->value => $this->applyManualFollowUp(FollowUpValueEnum::OFF()),
             TriggersEnum::CLOSE_LEAD->value => $this->closeLead(),
             TriggersEnum::SOLD_LEAD->value => $this->soldLead(),
             default => null,
@@ -84,6 +84,15 @@ class ApplyLeadAiModeAction
     {
         $this->lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
         $this->setMode($aiMode);
+    }
+
+    /**
+     * Pinned so resolveAiFollowUp() keeps the lead's value instead of the lead-type default.
+     */
+    protected function applyManualFollowUp(FollowUpValueEnum $followUpValue): void
+    {
+        $this->lead->set(LeadConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value, true);
+        $this->setFollowUp($followUpValue);
     }
 
     public function closeLead(): void
@@ -167,14 +176,14 @@ class ApplyLeadAiModeAction
     protected function applyManualOff(): void
     {
         $this->applyManualMode(IntelligenceModeEnum::IDLE->value);
-        $this->setFollowUp(FollowUpValueEnum::OFF());
+        $this->applyManualFollowUp(FollowUpValueEnum::OFF());
     }
 
     protected function applyManualFullOn(): void
     {
         $this->lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
         $this->setMode(IntelligenceModeEnum::FULL_ON->value);
-        $this->setFollowUp(FollowUpValueEnum::ON());
+        $this->applyManualFollowUp(FollowUpValueEnum::ON());
 
         try {
             foreach ($this->lead->socialChannels as $channel) {

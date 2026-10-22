@@ -9,6 +9,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Tests\TestCase;
 
@@ -165,6 +166,43 @@ class LeadConfigurationServiceV2Test extends TestCase
 
         $this->assertSame(IntelligenceModeEnum::SUPPORT, $lead->resolveAiMode(true));
         $this->assertTrue($lead->isAiSupport());
+    }
+
+    public function testLeadResolvesAiFollowUpFromLeadTypeDefault(): void
+    {
+        $lead = $this->createLead('Internet', ['internet_con_fu_active_default' => FollowUpValueEnum::ON()->value]);
+        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpValueEnum::OFF()->value);
+
+        $this->assertSame(FollowUpValueEnum::ON()->value, $lead->resolveAiFollowUp());
+        $this->assertTrue($lead->isAiFollowUpEnabled());
+    }
+
+    public function testLeadManualAiModeDoesNotPinAiFollowUp(): void
+    {
+        $lead = $this->createLead('Internet', ['internet_con_fu_active_default' => FollowUpValueEnum::ON()->value]);
+        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpValueEnum::OFF()->value);
+        $lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
+
+        $this->assertSame(FollowUpValueEnum::ON()->value, $lead->resolveAiFollowUp());
+    }
+
+    public function testLeadManualAiFollowUpKeepsStoredAiFollowUp(): void
+    {
+        $lead = $this->createLead('Internet', ['internet_con_fu_active_default' => FollowUpValueEnum::OFF()->value]);
+        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpValueEnum::ON()->value);
+        $lead->set(LeadConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value, true);
+
+        $this->assertSame(FollowUpValueEnum::ON()->value, $lead->resolveAiFollowUp());
+        $this->assertTrue($lead->isAiFollowUpEnabled());
+    }
+
+    public function testLeadAiFollowUpFallsBackToStoredValueWhenDefaultIsMissing(): void
+    {
+        $lead = $this->createLead('NoDefaults');
+        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpValueEnum::ON()->value);
+
+        $this->assertSame(FollowUpValueEnum::ON()->value, $lead->resolveAiFollowUp());
+        $this->assertTrue($lead->isAiFollowUpEnabled());
     }
 
     public function testGetFollowUpDefaultKeyReturnsActiveKeyForActiveStatus(): void

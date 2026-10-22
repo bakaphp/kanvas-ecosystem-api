@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
 use Mockery;
@@ -13,8 +12,8 @@ use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Both follow-up engines gate on this helper, so the accepted shapes are pinned:
- * only an explicit ON counts. A missing field, OFF, or a NO_FOLLOW_UP type all disable.
+ * Both follow-up engines gate on this helper, so the accepted shapes of the resolved value are
+ * pinned: only an explicit ON counts. A missing field, OFF, or a NO_FOLLOW_UP type all disable.
  */
 final class LeadAiFollowUpEnabledTest extends TestCase
 {
@@ -41,7 +40,7 @@ final class LeadAiFollowUpEnabledTest extends TestCase
 
         foreach ($cases as [$stored, $expected]) {
             $lead = Mockery::mock(Lead::class)->makePartial();
-            $lead->shouldReceive('get')->with(IntelligenceModeEnum::AI_FOLLOW_UP->value)->once()->andReturn($stored);
+            $lead->shouldReceive('resolveAiFollowUp')->once()->andReturn($stored);
 
             $this->assertSame($expected, $lead->isAiFollowUpEnabled(), json_encode($stored));
         }
