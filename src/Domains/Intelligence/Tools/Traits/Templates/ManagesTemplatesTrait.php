@@ -16,6 +16,7 @@ use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\Actions\DeleteTemplateAction;
 use Kanvas\Templates\Actions\UpdateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
+use Kanvas\Templates\Enums\TemplateEngineEnum;
 use Kanvas\Templates\Models\Templates;
 use Kanvas\Users\Models\Users;
 use Throwable;
@@ -216,6 +217,7 @@ trait ManagesTemplatesTrait
             'name' => $template->name,
             'subject' => $template->subject,
             'title' => $template->title,
+            'engine' => $template->engine->value,
             'owned' => $this->ownsTemplate($template, $user),
             'is_system' => (bool) $template->is_system,
         ])->all();
@@ -226,7 +228,8 @@ trait ManagesTemplatesTrait
                 'templates' => $rows,
             ],
             guidance: $this->editabilityGuidance(
-                in_array(false, array_column($rows, 'owned'), true)
+                in_array(false, array_column($rows, 'owned'), true),
+                in_array(TemplateEngineEnum::BLADE->value, array_column($rows, 'engine'), true)
             )
         );
     }
@@ -261,10 +264,11 @@ trait ManagesTemplatesTrait
                 'subject' => $template->subject,
                 'title' => $template->title,
                 'html' => $template->template,
+                'engine' => $template->engine->value,
                 'owned' => $owned,
                 'is_system' => (bool) $template->is_system,
             ],
-            guidance: $this->editabilityGuidance(! $owned)
+            guidance: $this->editabilityGuidance(! $owned, $template->isBlade())
         );
     }
 
@@ -273,16 +277,25 @@ trait ManagesTemplatesTrait
      * than only in the refusal that follows it. Without this the flag is a word the model can read
      * past, then promise the user an edit that update_template will refuse.
      */
-    private function editabilityGuidance(bool $anyUnowned): ?string
+    private function editabilityGuidance(bool $anyUnowned, bool $anyBlade = false): ?string
     {
-        if (! $anyUnowned) {
-            return null;
+        $notes = [];
+
+        if ($anyUnowned) {
+            $notes[] = 'Anything with "owned": false was created by someone else: update_template and '
+                . 'delete_template WILL be refused on it and nothing will change. Never promise the user an '
+                . 'edit to one — say its owner has to make the change, or offer to create_template a new '
+                . 'template and hand back the new id.';
         }
 
-        return 'Anything with "owned": false was created by someone else: update_template and '
-            . 'delete_template WILL be refused on it and nothing will change. Never promise the user an '
-            . 'edit to one — say its owner has to make the change, or offer to create_template a new '
-            . 'template and hand back the new id.';
+        if ($anyBlade) {
+            $notes[] = 'Anything with "engine": "blade" is a platform-managed template written in Blade '
+                . '({{ $var }}, @if, @foreach). Templates you create are Twig ({{ var }}, {% if %}, '
+                . '{% for %}), so never copy Blade syntax into create_template or update_template — the '
+                . 'save will be rejected.';
+        }
+
+        return $notes === [] ? null : implode(' ', $notes);
     }
 
     /**
