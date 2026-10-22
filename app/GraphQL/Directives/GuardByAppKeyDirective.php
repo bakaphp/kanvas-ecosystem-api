@@ -59,8 +59,8 @@ GRAPHQL;
 
     /**
      * The key is the credential: a token for another user rides on it only as an owner of the key's app.
-     * Until public apps stop forwarding the end-user token on their admin client, a mismatch is only
-     * logged unless the app (or the global default) opts into enforcement.
+     * Until public apps stop forwarding the end-user token on their admin client, a mismatch is let
+     * through unless the app (or the global default) opts into enforcement.
      */
     private function assertKeyMatchesUser(Authenticatable $user, string $field): void
     {

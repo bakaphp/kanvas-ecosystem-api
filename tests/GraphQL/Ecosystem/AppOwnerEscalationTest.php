@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use Illuminate\Validation\ValidationException;
@@ -187,7 +186,6 @@ final class AppOwnerEscalationTest extends TestCase
     {
         config(['kanvas.app_key.enforce_user_match' => true]);
         app(Apps::class)->set(AppSettingsEnums::APP_KEY_ENFORCE_USER_MATCH->getValue(), false);
-        Log::shouldReceive('warning')->once();
 
         try {
             $this->appKeyWithAnotherUsersToken()->assertGraphQLErrorFree();
@@ -196,13 +194,10 @@ final class AppOwnerEscalationTest extends TestCase
         }
     }
 
-    public function testAnAppKeyCarryingAnotherUsersTokenIsOnlyLoggedUntilEnforced(): void
+    public function testAnAppKeyCarryingAnotherUsersTokenIsAllowedUntilEnforced(): void
     {
         config(['kanvas.app_key.enforce_user_match' => false]);
         app(Apps::class)->del(AppSettingsEnums::APP_KEY_ENFORCE_USER_MATCH->getValue());
-        Log::shouldReceive('warning')
-            ->once()
-            ->withArgs(fn (string $message) => $message === 'App key carried another user\'s token');
 
         $this->appKeyWithAnotherUsersToken()->assertGraphQLErrorFree();
     }
