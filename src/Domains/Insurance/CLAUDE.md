@@ -93,7 +93,7 @@ Whatever the origin, everything reads the order through `ReadInsuranceOrderActio
 |---|---|---|
 | Bind the quote, send the customer, stamp premium/tax/total | `AttachInsuranceQuoteActivity` | order created |
 | Push inspection documents | `UploadInsuranceDocumentsActivity` | attach-file |
-| Report the payment we took | `ReportInsurancePaymentActivity` | card authorized |
+| Report the payment we took | `ReportInsurancePaymentActivity` | `after-payment-authorized` |
 | Emit the policy, capture the hold | `EmitInsurancePolicyActivity` | payment reported |
 | Invoice the policy | `InvoiceInsurancePolicyActivity` | policy emitted |
 | Build the PDF carnet | `GenerateInsuranceCarnetActivity` | policy invoiced (policy active) |
