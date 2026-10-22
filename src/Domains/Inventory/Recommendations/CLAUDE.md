@@ -141,7 +141,7 @@ reindexes. There is no workflow step — see [`Enrichment/CLAUDE.md`](Enrichment
 | `product_enrichment_llm_config_id` | company → app | — | any tenant LLM config (DeepSeek, Mistral, OpenAI-compatible…) for enrichment, no Agent row needed |
 | `product_enrichment_model` | app | `gemini-2.5-flash-lite` | Gemini model when nothing above is set |
 | `product_discovery_numeric_attributes` | app | — | `{"mileage": {"attribute": "Mileage", "unit": "mi"}}`; unit is canonical, inputs are converted |
-| `product_discovery_query_languages` | app | `["es","en"]` | Algolia stop words / plurals, and the languages the blurb is written in (one sentence pair per language, joined into `search_blurb`); changing it re-enriches on the next backfill |
+| `product_discovery_query_languages` | company → app | `["es","en"]` | The languages the blurb is written in (one sentence pair per language, joined into `search_blurb`); changing it re-enriches on the next backfill. Algolia stop words / plurals read the app value only, since the index is shared |
 | `product_discovery_range_filters` | app | — | set by `verify-discovery-index`; never by hand |
 | `product_discovery_cache_ttl` | app | 1800 | id cache; documents are capped at 300 |
 | `souk_allow_cross_company_variants` | app | — | read only through `ProductDiscoverySettings::crossCompanyVariants()` |

@@ -86,8 +86,8 @@ class EnrichProductAction
         $this->product->addTags($config->clean('tags', Arr::wrap($data['tags'] ?? null)));
 
         $blurb = implode(' ', array_filter(array_map(
-            static fn (string $language): string => trim((string) ($data[ProductEnrichmentAgent::blurbField($language)] ?? '')),
-            ProductEnrichmentAgent::blurbLanguages($this->product->app),
+            fn (string $language): string => $this->blurbText($data[ProductEnrichmentAgent::blurbField($language)] ?? null),
+            ProductEnrichmentAgent::blurbLanguages($this->product->app, $this->product->company),
         )));
         $this->product->set(SearchFieldEnum::BLURB->value, $blurb);
 
@@ -103,6 +103,19 @@ class EnrichProductAction
             'blurb' => $blurb,
             'usage' => $this->usage($response),
         ];
+    }
+
+    /**
+     * The schema asks for a string, but "1-2 sentences" is sometimes answered as a list of two,
+     * and a `(string)` cast on that is a warning Laravel turns into a failed job (KANVAS-ECOSYSTEM-6R8).
+     */
+    private function blurbText(mixed $value): string
+    {
+        $parts = is_array($value) ? Arr::flatten($value) : [$value];
+
+        return trim(implode(' ', array_filter(
+            array_map(static fn (mixed $part): string => is_scalar($part) ? trim((string) $part) : '', $parts),
+        )));
     }
 
     /**
