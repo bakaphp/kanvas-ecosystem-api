@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Testing\TestResponse;
 use Illuminate\Validation\ValidationException;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
@@ -14,6 +16,7 @@ use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Users\Models\Users;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
@@ -158,14 +161,60 @@ final class AppOwnerEscalationTest extends TestCase
         $user->updateEmail('not-an-email', $app, onlyThisApp: true);
     }
 
-    public function testAnAppKeyCannotCarryAnotherUsersToken(): void
+    public function testAnAppKeyCannotCarryAnotherUsersTokenWhenEnforcedGlobally(): void
+    {
+        config(['kanvas.app_key.enforce_user_match' => true]);
+        app(Apps::class)->del(AppSettingsEnums::APP_KEY_ENFORCE_USER_MATCH->getValue());
+
+        $this->appKeyWithAnotherUsersToken()
+            ->assertGraphQLErrorMessage('This app key belongs to another user.');
+    }
+
+    public function testAnAppKeyCannotCarryAnotherUsersTokenWhenTheAppEnforcesIt(): void
+    {
+        config(['kanvas.app_key.enforce_user_match' => false]);
+        app(Apps::class)->set(AppSettingsEnums::APP_KEY_ENFORCE_USER_MATCH->getValue(), true);
+
+        try {
+            $this->appKeyWithAnotherUsersToken()
+                ->assertGraphQLErrorMessage('This app key belongs to another user.');
+        } finally {
+            app(Apps::class)->del(AppSettingsEnums::APP_KEY_ENFORCE_USER_MATCH->getValue());
+        }
+    }
+
+    public function testAnAppCanOptOutOfEnforcementWhileTheDefaultIsOn(): void
+    {
+        config(['kanvas.app_key.enforce_user_match' => true]);
+        app(Apps::class)->set(AppSettingsEnums::APP_KEY_ENFORCE_USER_MATCH->getValue(), false);
+        Log::shouldReceive('warning')->once();
+
+        try {
+            $this->appKeyWithAnotherUsersToken()->assertGraphQLErrorFree();
+        } finally {
+            app(Apps::class)->del(AppSettingsEnums::APP_KEY_ENFORCE_USER_MATCH->getValue());
+        }
+    }
+
+    public function testAnAppKeyCarryingAnotherUsersTokenIsOnlyLoggedUntilEnforced(): void
+    {
+        config(['kanvas.app_key.enforce_user_match' => false]);
+        app(Apps::class)->del(AppSettingsEnums::APP_KEY_ENFORCE_USER_MATCH->getValue());
+        Log::shouldReceive('warning')
+            ->once()
+            ->withArgs(fn (string $message) => $message === 'App key carried another user\'s token');
+
+        $this->appKeyWithAnotherUsersToken()->assertGraphQLErrorFree();
+    }
+
+    private function appKeyWithAnotherUsersToken(): TestResponse
     {
         $app = app(Apps::class);
         $keyOwner = $this->createUser();
         $key = new CreateAppKeyAction(new AppKeyInput('carry-' . uniqid(), $app, $keyOwner), createUserInApp: false)->execute();
         $otherUsersToken = $this->createUser()->createToken('test')->toArray()['token'];
 
-        $this->graphQL(
+        return $this->graphQL(
             /** @lang GraphQL */
             '{ appUsers { data { id } } }',
             [],
@@ -174,7 +223,7 @@ final class AppOwnerEscalationTest extends TestCase
                 AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $key->client_secret_id,
                 'Authorization' => 'Bearer ' . $otherUsersToken,
             ]
-        )->assertGraphQLErrorMessage('This app key belongs to another user.');
+        );
     }
 
     public function testAnInvalidAppKeyStopsTheRequest(): void
