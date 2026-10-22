@@ -44,6 +44,13 @@ class BuildLeadFollowUpDailySummaryActionTest extends TestCase
         $this->seedEvent(
             $app,
             $company,
+            'lead.follow_up.queued',
+            ['stage_id' => 7, 'source' => 'dispatch'],
+            $occurredAt
+        );
+        $this->seedEvent(
+            $app,
+            $company,
             'lead.follow_up.sent',
             ['channels' => ['whatsapp'], 'stage_id' => 7],
             $occurredAt
@@ -114,6 +121,7 @@ class BuildLeadFollowUpDailySummaryActionTest extends TestCase
         $this->assertSame('follow_up.daily.summary', $summary->event_type);
         $payload = $summary->payload;
 
+        $this->assertSame(1, $payload['queued']['total']);
         $this->assertSame(3, $payload['sent']['total']);
         $this->assertSame(2, $payload['sent']['by_channel']['whatsapp']);
         $this->assertSame(1, $payload['sent']['by_channel']['sms']);
