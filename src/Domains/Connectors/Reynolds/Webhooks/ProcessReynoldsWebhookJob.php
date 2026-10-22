@@ -17,6 +17,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Throwable;
@@ -100,6 +101,20 @@ class ProcessReynoldsWebhookJob extends ProcessWebhookJob
     private function upsertLead(Companies $company, Users $user, array $record, TransactionCodeEnum $task): array
     {
         $lead = new PullLeadAction($this->receiver->app, $company, $user)->execute($record);
+
+        if ($task === TransactionCodeEnum::INSERT_SALES_LEAD) {
+            // SyncLeadByThirdPartyCustomFieldAction disables workflows on the lead it returns.
+            $lead->enableWorkflows();
+            $lead->fireWorkflow(
+                WorkflowEnum::FAKE_CONTEXT->value,
+                true,
+                [
+                    'app' => $lead->app,
+                    'company' => $lead->company,
+                    'trigger_type' => 1,
+                ]
+            );
+        }
 
         return [
             'status' => 'success',
