@@ -458,4 +458,4 @@ ansible-playbook playbooks/development-deploy.yaml \
 Note: 
 - To install Swoole you can use the command ```pecl install swoole``` 
 - For production remove `--watch` from the command.
-- roles_kanvas_legacy will be deleted in the future
+- roles_kanvas_legacy will be deleted in the future.
