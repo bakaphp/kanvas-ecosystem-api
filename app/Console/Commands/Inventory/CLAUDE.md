@@ -58,7 +58,9 @@ the verify count stays under 100% until the `scout` worker has written them.
 There is no enable command: the switches are plain company/app settings (table in
 [`Recommendations/CLAUDE.md`](../../../../src/Domains/Inventory/Recommendations/CLAUDE.md#settings)), set from
 the settings UI. Setting `product_enrichment_enabled` only covers products written from then on; run
-`backfill-product-enrichment {app} --company_id=` per company for the existing catalog.
+`backfill-product-enrichment {app} --company_id=` per company for the existing catalog. The full
+first-run checklist (queued steps and their workers, `--force` after a prompt change, how to check the
+result) is in [`Recommendations/CLAUDE.md`](../../../../src/Domains/Inventory/Recommendations/CLAUDE.md#turning-it-on-per-app).
 
 ---
 

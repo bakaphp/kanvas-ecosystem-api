@@ -78,9 +78,25 @@ enable command or mutation.
 php artisan kanvas-inventory:prepare-discovery-index {app} --dry-run   # then without --dry-run
 php artisan kanvas-inventory:backfill-product-enrichment {app} --company_id={id} --limit=20 --sync   # sample quality + cost
 php artisan kanvas-inventory:backfill-product-enrichment {app} --company_id={id}
-php artisan kanvas-inventory:scout-product-index-process {app} --action=reindex
+php artisan kanvas-inventory:scout-product-index-process {app} --company_id={id} --action=reindex
 php artisan kanvas-inventory:verify-discovery-index {app}              # 100% coverage ⇒ range filters on
 ```
+
+What trips a first run:
+
+- **Two steps are queued.** The backfill without `--sync` needs the `product-enrichment` worker; the
+  reindex with `SCOUT_QUEUE=true` needs the `scout` worker, or the DB looks done and the index stays old.
+- **Reindex is ~1s per product** (`sleep(1)` in the command). Scope it with `--company_id`.
+- **`verify` counts the whole app.** Reindexing one company leaves it under 100%, which only keeps
+  engine-side range filters off; search works and every limit is still re-checked on the results.
+- **The backfill skips products whose fingerprint is current**, which includes blurbs written by an
+  older prompt. After changing the prompt, or to clear blurbs written before the placeholder rule, run it
+  with `--force`.
+- **Check the result** on one record in the Algolia/Typesense dashboard: `search_blurb`, `audience`,
+  `price_min`/`price_max`, `discovery_schema_version`. A placeholder product shows an empty blurb. Then
+  query `discoverProducts` with a sentence that shares no word with any product name — only the blurb
+  can match it, so that is the real test. `--sync` prints every blurb plus token cost
+  (~$0.04 per 1,000 products on Flash-Lite).
 
 - `prepare-discovery-index` — Algolia: appends `search_blurb` LAST to `searchableAttributes` and
   `filterOnly(audience|in_stock)` to `attributesForFaceting`, never removes or reorders; refuses an empty
