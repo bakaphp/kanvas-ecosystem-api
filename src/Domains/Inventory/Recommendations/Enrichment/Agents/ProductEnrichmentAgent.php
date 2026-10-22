@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Recommendations\Enrichment\Agents;
 
+use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
@@ -16,6 +17,7 @@ use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Inventory\Recommendations\Enrichment\DataTransferObject\EnrichmentConfig;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum as RecommendationConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SemanticProfileStrategyEnum;
+use Kanvas\Inventory\Recommendations\Services\ProductDiscoverySettings;
 use Laravel\Ai\Contracts\HasProviderOptions;
 use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Enums\Lab;
@@ -127,6 +129,10 @@ class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasProviderOp
         $framing = SemanticProfileStrategyEnum::fromApp(
             $this->app?->get(RecommendationConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value),
         )->blurbFraming();
+        $blurbFields = implode(', ', array_map(
+            static fn (string $language): string => '`' . self::blurbField($language) . '`',
+            self::blurbLanguages($this->app),
+        ));
 
         return $this->instructionsFromRecord(default: <<<PROMPT
         You enrich ONE product into a structured profile used by a recommendation search.
@@ -135,7 +141,7 @@ class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasProviderOp
         For each facet, choose values ONLY from the allowed list shown in the output schema
         (return an empty array if none truly apply — do NOT force a value).
 
-        Write `blurb_es` and `blurb_en`: 1-2 sentences each, in natural language — a search-friendly
+        Write {$blurbFields}: 1-2 sentences each, each in its own language — a search-friendly
         summary, not a tag list.
         {$framing}
 
@@ -168,6 +174,11 @@ class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasProviderOp
         answer. A weak blurb that matches only perfume searches is worth far more than a confident
         one that matches every search in the catalog.
 
+        When the record does not identify a real product at all — a placeholder or test name ("Test
+        product", "Lorem ipsum", "Product 1"), a description asking someone to fill in details, or no
+        usable name — set `insufficient_information` to true and leave every blurb EMPTY. Never write a
+        blurb about the record being incomplete: that text would match unrelated searches.
+
         Never invent values outside the allowed lists. Be precise, not exhaustive.
         PROMPT);
     }
@@ -186,14 +197,38 @@ class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasProviderOp
     {
         $config = EnrichmentConfig::forAgent($this->agentRecord);
 
-        return [
+        $fields = [
             'audience' => $this->facetField($schema, $config, 'audience')->required(),
             'occasion' => $this->facetField($schema, $config, 'occasion'),
             'interests' => $this->facetField($schema, $config, 'interests'),
             'tags' => $this->facetField($schema, $config, 'tags'),
-            'blurb_es' => $schema->string()->description('1-2 sentence description in Spanish of who this is for and when.')->required(),
-            'blurb_en' => $schema->string()->description('1-2 sentence description in English of who this is for and when.')->required(),
+            'insufficient_information' => $schema->boolean()
+                ->description('true when the record does not identify a real product (placeholder, test data, no usable name); leave every blurb empty then.')
+                ->required(),
         ];
+
+        foreach (self::blurbLanguages($this->app) as $language) {
+            $fields[self::blurbField($language)] = $schema->string()
+                ->description("1-2 sentence search blurb written in the language with ISO 639-1 code '{$language}'.")
+                ->required();
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Only the catalog's languages: each extra one is paid output tokens and text no shopper searches in.
+     *
+     * @return list<string>
+     */
+    public static function blurbLanguages(?AppInterface $app): array
+    {
+        return $app !== null ? ProductDiscoverySettings::queryLanguages($app) : ProductDiscoverySettings::DEFAULT_QUERY_LANGUAGES;
+    }
+
+    public static function blurbField(string $language): string
+    {
+        return 'blurb_' . $language;
     }
 
     /**
