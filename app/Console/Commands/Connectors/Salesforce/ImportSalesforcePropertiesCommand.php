@@ -104,15 +104,25 @@ class ImportSalesforcePropertiesCommand extends Command
                 "SELECT Id, Name FROM Project__c WHERE Id IN ('" . implode("','", $projectIds) . "')",
             );
 
+        $locationIds = array_values(array_unique(array_filter(
+            array_map(fn (array $location) => (string) ($location['Id'] ?? ''), $locations),
+        )));
+
         // One bulk query for every location contact instead of one query per location — with
         // thousands of locations, a per-record contact lookup would multiply the Salesforce API
         // calls by the same amount. Every Location_Contact__c row is imported now, not just the
         // primary one (broker, attorney, landlord, the interested party itself all get a People).
-        $contacts = $this->fetchAll(
+        // Scoped to the locations actually pulled above, so --project_id/--limit narrow this fetch
+        // too instead of always pulling every Location_Contact__c in the org. Chunked via
+        // fetchAllByIds() — an unscoped run's location count (seen at 10,000 on a real org) makes a
+        // single IN (...) too long for the HTTP client to send at all.
+        $contacts = $this->fetchAllByIds(
             $client,
             'SELECT Id, Location__c, Contact_Name__c, Contact_Email__c, Contact_Phone__c, Contact_Mobile__c, '
                 . 'Company_Name__c, Location_Contact_Type__c, Interest_Level__c, Primary_Location_Contact__c '
                 . 'FROM Location_Contact__c',
+            'Location__c',
+            $locationIds,
         );
 
         // Same bulk-fetch reasoning for Project__c's own contacts (attorneys, lenders, the deal's
@@ -124,11 +134,12 @@ class ImportSalesforcePropertiesCommand extends Command
         $projectContacts = [];
         if ($projectIds !== []) {
             try {
-                $projectContacts = $this->fetchAll(
+                $projectContacts = $this->fetchAllByIds(
                     $client,
                     'SELECT Id, Project__c, First_Name__c, Last_Name__c, Email__c, Phone__c, Mobile__c, '
-                        . "Company_Name__c, Relationship__c FROM Project_Contact__c WHERE Project__c IN ('"
-                        . implode("','", $projectIds) . "')",
+                        . 'Company_Name__c, Relationship__c FROM Project_Contact__c',
+                    'Project__c',
+                    $projectIds,
                 );
             } catch (Throwable $e) {
                 Log::warning('Salesforce Project_Contact__c fetch failed — continuing without project contacts', [
@@ -324,6 +335,32 @@ class ImportSalesforcePropertiesCommand extends Command
         }
 
         return $product;
+    }
+
+    /**
+     * Chunks $ids into IN (...) clauses no single HTTP request can choke on — a real org had
+     * 10,000 Location__c rows, and one IN (...) listing all of them built a ~210,000-character
+     * query string the HTTP client couldn't even send (cURL SSL_write "bad length"), well past
+     * Salesforce's own 100,000-character SOQL limit too. 200 keeps each request far under both.
+     *
+     * @param list<string> $ids
+     */
+    private function fetchAllByIds(
+        SalesforceApiClient $client,
+        string $selectWithoutWhere,
+        string $filterField,
+        array $ids,
+    ): array {
+        $records = [];
+
+        foreach (array_chunk($ids, 200) as $chunk) {
+            $records = array_merge(
+                $records,
+                $this->fetchAll($client, $selectWithoutWhere . " WHERE {$filterField} IN ('" . implode("','", $chunk) . "')"),
+            );
+        }
+
+        return $records;
     }
 
     private function fetchAll(SalesforceApiClient $client, string $soql): array

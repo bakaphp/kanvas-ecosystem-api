@@ -13,6 +13,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Connectors\Recombee\Actions\GenerateRecommendCustomFeedAction;
 use Kanvas\Connectors\Recombee\Actions\GenerateRecommendForYourFeedAction;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
@@ -22,6 +23,7 @@ use Kanvas\Social\Interactions\Jobs\UserInteractionJob;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Models\UserMessage;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -68,12 +70,37 @@ class MessageBuilder
         }
 
         //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
+        if (LocationContext::isShopperOnly($user)) {
+            return $this->onShopperOrders($query, $user);
+        }
+
         if (! $user->isAppOwner()) {
             //$messages = Message::fromCompany($user->getCurrentCompany());
             return $query->fromCompany($user->getCurrentCompany());
         }
 
         return $query;
+    }
+
+    /**
+     * A shopper at another company's store reads only the messages on their own orders there, such
+     * as the store's updates on an order. Order ids are plucked because orders live on another
+     * database, where a whereHas comes back silently empty.
+     */
+    private function onShopperOrders(Builder $query, UserInterface $user): Builder
+    {
+        $store = LocationContext::company();
+        $orderIds = Order::fromApp()
+            ->fromCompany($store)
+            ->where('users_id', $user->getId())
+            ->pluck('id');
+
+        return $query->fromCompany($store)->whereHas(
+            'appModuleMessages',
+            fn (Builder $relation) => $relation
+                ->where('system_modules', Order::class)
+                ->whereIn('entity_id', $orderIds)
+        );
     }
 
     /**

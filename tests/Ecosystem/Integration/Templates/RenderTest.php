@@ -17,7 +17,7 @@ final class RenderTest extends TestCase
         $createParentTemplate = new CreateTemplateAction(
             TemplateInput::from([
                 'app' => app(Apps::class),
-                'name' => 'parent',
+                'name' => 'parent-' . uniqid(),
                 'template' => '<html><body>Body Here [body]</body></html>',
                 ])
         );
@@ -26,7 +26,7 @@ final class RenderTest extends TestCase
         $childTemplate = new CreateTemplateAction(
             TemplateInput::from([
                 'app' => app(Apps::class),
-                'name' => 'child',
+                'name' => 'child-' . uniqid(),
                 'template' => 'Im the kid',
                 ])
         );

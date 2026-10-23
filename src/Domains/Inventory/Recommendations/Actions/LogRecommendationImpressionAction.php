@@ -7,7 +7,6 @@ namespace Kanvas\Inventory\Recommendations\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Log;
-use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
 use Kanvas\Inventory\Recommendations\Models\RecommendationImpression;
 use Kanvas\Inventory\Recommendations\Services\IntentLexiconService;
 
@@ -15,6 +14,7 @@ class LogRecommendationImpressionAction
 {
     /**
      * @param list<int> $productIds in the order shown — rank position is half the signal
+     * @param array<string, mixed>|null $intent ProductIntent::summary()
      */
     public function __construct(
         private readonly AppInterface $app,
@@ -25,7 +25,7 @@ class LogRecommendationImpressionAction
         private readonly ?int $usersId = null,
         private readonly ?string $sessionId = null,
         private readonly ?string $engine = null,
-        private readonly ?ProductIntent $intent = null,
+        private readonly ?array $intent = null,
     ) {
     }
 
@@ -60,11 +60,7 @@ class LogRecommendationImpressionAction
             'query_raw' => $this->query,
             // Normalized so the no-hit report groups "Menos de $50" and "menos de 50".
             'query_normalized' => $normalizedQuery,
-            'intent' => $this->intent === null ? null : [
-                'min_price' => $this->intent->minPrice,
-                'max_price' => $this->intent->maxPrice,
-                'in_stock_only' => $this->intent->inStockOnly,
-            ],
+            'intent' => $this->intent,
             'product_ids' => $this->productIds,
             'results_count' => count($this->productIds),
                 'engine' => $this->engine,

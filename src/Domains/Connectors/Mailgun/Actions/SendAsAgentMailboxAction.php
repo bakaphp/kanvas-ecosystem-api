@@ -9,6 +9,8 @@ use Baka\Support\Str;
 use Kanvas\Connectors\Mailgun\Client;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Support\UserEmailSignature;
@@ -40,6 +42,14 @@ class SendAsAgentMailboxAction
         private readonly array $headers = [],
         private readonly array $attachmentUrls = [],
         private readonly ?UserEmailSignature $signature = null,
+        // Who this mail is about, when there is one — enables Mailgun open tracking and stamps a
+        // `v:people_id` variable so EmailOpenedWebhookJob can record the open back onto them. Left
+        // null for mail with no CRM subject (an admin notice, a platform-level send).
+        private readonly ?People $trackingPerson = null,
+        // Set alongside $trackingPerson when the mail is specifically about one Lead (as opposed to
+        // a standalone People) — stamps a second `v:lead_id` variable so the open lands on the
+        // Lead's own activity feed (RecordLeadNoteAction) instead of only the underlying People's.
+        private readonly ?Lead $trackingLead = null,
     ) {
     }
 
@@ -72,7 +82,27 @@ class SendAsAgentMailboxAction
             headers: array_merge($this->headers, ['Reply-To' => $address]),
             cc: $this->cc,
             attachments: $this->fetchAttachments(),
+            trackOpens: $this->trackingPerson !== null,
+            variables: $this->trackingVariables(),
         );
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function trackingVariables(): array
+    {
+        if ($this->trackingPerson === null) {
+            return [];
+        }
+
+        $variables = ['people_id' => (string) $this->trackingPerson->getId()];
+
+        if ($this->trackingLead !== null) {
+            $variables['lead_id'] = (string) $this->trackingLead->getId();
+        }
+
+        return $variables;
     }
 
     /**

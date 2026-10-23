@@ -1,0 +1,6 @@
+<p>Hola {{ insured }},</p>
+<p>Tu póliza <strong>{{ policyNumber }}</strong> de {{ insurer }}{% if plan %} ({{ plan }}){% endif %} {% if daysLeft <= 0 %}vence hoy{% elseif daysLeft == 1 %}vence mañana{% else %}vence en {{ daysLeft }} días{% endif %}{% if endsAt %} ({{ endsAt }}){% endif %}.</p>
+{% if vehicleLabel %}
+<p>Vehículo: {{ vehicleLabel }}</p>
+{% endif %}
+<p>Renueva a tiempo: compara las opciones disponibles desde la aplicación.</p>

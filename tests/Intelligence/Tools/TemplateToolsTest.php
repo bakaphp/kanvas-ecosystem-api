@@ -15,9 +15,12 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\ListTemplatesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\UpdateTemplateTool;
 use Kanvas\Templates\Models\Templates;
 use Tests\TestCase;
+use Tests\Traits\MakesTemplates;
 
 class TemplateToolsTest extends TestCase
 {
+    use MakesTemplates;
+
     public function testCreateTemplate(): void
     {
         $app = app(Apps::class);
@@ -248,7 +251,47 @@ class TemplateToolsTest extends TestCase
 
         $this->assertArrayNotHasKey('error', $result);
         $this->assertSame('<p>body-xyz</p>', $result['html']);
+        $this->assertSame('twig', $result['engine']);
         $this->assertTrue($result['owned']);
+    }
+
+    /**
+     * A hand-made blade row is the one place the agent can read Blade syntax; without the engine on the
+     * read it would copy that syntax into a Twig template and have the save rejected.
+     */
+    public function testGetBladeTemplateNamesTheEngineAndWarnsNotToCopyItsSyntax(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $blade = $this->makeHandMadeBladeTemplate('<p>{{ $name }}</p>', $company);
+
+        $result = new GetTemplateTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(template_id: $blade->getId());
+
+        $this->assertSame('blade', $result['engine']);
+        $this->assertFalse($result['owned']);
+        $this->assertStringContainsString('never copy Blade syntax', $result['note']);
+    }
+
+    public function testListTemplatesNamesTheEngineAndWarnsOnBladeRows(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $blade = $this->makeHandMadeBladeTemplate('<p>{{ $name }}</p>', $company);
+
+        $result = new ListTemplatesTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(search: $blade->name);
+
+        $byName = collect($result['templates'])->keyBy('name');
+
+        $this->assertSame('blade', $byName[$blade->name]['engine']);
+        $this->assertStringContainsString('never copy Blade syntax', $result['note']);
     }
 
     /**

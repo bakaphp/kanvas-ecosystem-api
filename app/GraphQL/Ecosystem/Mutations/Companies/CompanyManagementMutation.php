@@ -80,13 +80,14 @@ class CompanyManagementMutation
      */
     public function updateCompany(mixed $root, array $request): Companies
     {
+        $app = app(Apps::class);
         $company = Companies::getById((int) $request['id']);
 
-        $company->hasCompanyPermission(auth()->user());
+        $company->hasCompanyPermission(auth()->user(), $app);
 
         if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
             $user = Users::getById($request['input']['users_id']);
-            UsersRepository::belongsToThisApp($user, app(Apps::class), $company) ;
+            UsersRepository::belongsToThisApp($user, $app, $company) ;
         } else {
             $user = auth()->user();
         }
@@ -97,7 +98,7 @@ class CompanyManagementMutation
         self::syncTags(
             $company,
             $request['input'],
-            app(Apps::class),
+            $app,
             auth()->user(),
             $company
         );
@@ -110,7 +111,7 @@ class CompanyManagementMutation
         $app = app(Apps::class);
         $company = Companies::getById((int) $request['id']);
 
-        $company->hasCompanyPermission(auth()->user());
+        $company->hasCompanyPermission(auth()->user(), $app);
 
         return $this->uploadFileToEntity(
             model: $company,
@@ -122,9 +123,10 @@ class CompanyManagementMutation
 
     public function updatePhotoProfile(mixed $root, array $request): Companies
     {
+        $app = app(Apps::class);
         $company = Companies::getById($request['id']);
 
-        $company->hasCompanyPermission(auth()->user());
+        $company->hasCompanyPermission(auth()->user(), $app);
 
         if (! auth()->user()->isAdmin()) {
             $company = Companies::getById($request['id']);
@@ -136,7 +138,7 @@ class CompanyManagementMutation
 
         $this->uploadImageToEntity(
             $company,
-            app(Apps::class),
+            $app,
             auth()->user(),
             $request['file'],
             'photo'
@@ -168,9 +170,9 @@ class CompanyManagementMutation
 
     public function addUserToCompany(mixed $rootValue, array $request): bool
     {
-        $user = Users::getById($request['user_id']);
-        $company = Companies::getById($request['id']);
         $app = app(Apps::class);
+        $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
+        $company = Companies::getById($request['id']);
         $branch = app(CompaniesBranches::class);
         $authUser = auth()->user();
 
@@ -186,6 +188,7 @@ class CompanyManagementMutation
 
     public function removeUserFromCompany(mixed $rootValue, array $request): bool
     {
+        $app = app(Apps::class);
         $user = Users::getById($request['user_id']);
         $company = Companies::getById($request['id']);
 
@@ -198,7 +201,7 @@ class CompanyManagementMutation
             auth()->user()
         );
 
-        $company->hasCompanyPermission(auth()->user());
+        $company->hasCompanyPermission(auth()->user(), $app);
 
         $branch = app(CompaniesBranches::class);
 
@@ -210,7 +213,7 @@ class CompanyManagementMutation
         }
 
         if (is_object($branch)) {
-            DB::transaction(function () use ($user, $company, $branch) {
+            DB::transaction(function () use ($user, $company, $branch, $app) {
                 $baseConditions = [
                     ['users_id', '=', $user->getKey()],
                     ['companies_id', '=', $company->getKey()],
@@ -232,9 +235,6 @@ class CompanyManagementMutation
                         ->where('companies_branches_id', '=', 0)
                         ->delete();
 
-                    // Assuming getAppId() is a method you have available to get the app's ID
-                    $app = app(Apps::class);
-
                     // Delete associated apps
                     UsersAssociatedApps::where($baseConditions)
                         ->where('apps_id', '=', $app->getId())
@@ -252,6 +252,7 @@ class CompanyManagementMutation
 
     public function addAddressToCompany(mixed $rootValue, array $request): CompaniesAddress
     {
+        $app = app(Apps::class);
         $company = Companies::getById($request['id']);
         $addressInput = $request['input'];
         CompaniesRepository::userAssociatedToCompany(
@@ -259,7 +260,7 @@ class CompanyManagementMutation
             auth()->user()
         );
 
-        $company->hasCompanyPermission(auth()->user());
+        $company->hasCompanyPermission(auth()->user(), $app);
 
         $addressData = [
             'fullname' => $addressInput['fullname'] ?? '',

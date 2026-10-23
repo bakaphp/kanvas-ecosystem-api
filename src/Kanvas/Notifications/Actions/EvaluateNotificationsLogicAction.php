@@ -7,7 +7,7 @@ namespace Kanvas\Notifications\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Notifications\Models\NotificationTypesMessageLogic;
-use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
+use Kanvas\Workflow\Rules\Support\SafeExpression;
 
 class EvaluateNotificationsLogicAction
 {
@@ -25,8 +25,6 @@ class EvaluateNotificationsLogicAction
      */
     public function execute(): bool
     {
-        $expressionLanguage = new ExpressionLanguage();
-
         $logic = json_decode($this->notificationsLogic->logic);
         $conditions = (string) $logic->conditions;
 
@@ -34,7 +32,7 @@ class EvaluateNotificationsLogicAction
         $dateInTenMins = date('Y-m-d H:i:s', strtotime('+10 minutes'));
         $dateNow = date('Y-m-d H:i:s');
 
-        return $expressionLanguage->evaluate(
+        return SafeExpression::evaluate(
             $conditions,
             [
                 'user' => $this->user,

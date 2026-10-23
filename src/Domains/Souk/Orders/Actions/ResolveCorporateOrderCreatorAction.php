@@ -51,7 +51,7 @@ class ResolveCorporateOrderCreatorAction
         return $metadata['data'][$key] ?? $metadata[$key] ?? null;
     }
 
-    private function company(): ?Companies
+    public function company(): ?Companies
     {
         $companyId = (int) $this->metadataValue(self::COMPANY_METADATA_KEY);
 

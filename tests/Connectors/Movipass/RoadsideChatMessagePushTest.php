@@ -342,6 +342,12 @@ final class RoadsideChatMessagePushTest extends TestCase
         Notification::assertSentTo($mechanic, RoadsideChatMessageNotification::class);
         // The sender never gets pushed for their own message.
         Notification::assertNotSentTo($this->authUser, RoadsideChatMessageNotification::class);
+
+        $delivery = $result['deliveries'][0];
+        $this->assertSame($mechanic->getId(), $delivery['users_id']);
+        $this->assertContains('OneSignalNotificationChannel', $delivery['channels']);
+        $this->assertSame(0, $delivery['onesignal_devices']);
+        $this->assertArrayHasKey('onesignal_configured', $delivery);
     }
 
     public function testActivityIgnoresMessageWithoutAssistanceChatVerb(): void

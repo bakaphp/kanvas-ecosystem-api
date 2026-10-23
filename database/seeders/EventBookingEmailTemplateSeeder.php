@@ -18,10 +18,10 @@ class EventBookingEmailTemplateSeeder extends GlobalEmailTemplateSeeder
     protected function templates(): array
     {
         return [
-            EmailTemplateEnum::BOOKING_CREATED->value => 'views/emails/events/booking_created.blade.php',
-            EmailTemplateEnum::BOOKING_UPDATED->value => 'views/emails/events/booking_updated.blade.php',
-            EmailTemplateEnum::BOOKING_CANCELLED->value => 'views/emails/events/booking_cancelled.blade.php',
-            EmailTemplateEnum::BOOKING_REMINDER->value => 'views/emails/events/booking_reminder.blade.php',
+            EmailTemplateEnum::BOOKING_CREATED->value => 'views/emails/events/booking_created.twig',
+            EmailTemplateEnum::BOOKING_UPDATED->value => 'views/emails/events/booking_updated.twig',
+            EmailTemplateEnum::BOOKING_CANCELLED->value => 'views/emails/events/booking_cancelled.twig',
+            EmailTemplateEnum::BOOKING_REMINDER->value => 'views/emails/events/booking_reminder.twig',
         ];
     }
 

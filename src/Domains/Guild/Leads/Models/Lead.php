@@ -14,15 +14,18 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Event\Events\Contracts\EventResourceInterface;
 use Kanvas\Guild\Agents\Models\Agent;
+use Kanvas\Guild\Concerns\TracksClosedAt;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
@@ -82,6 +85,7 @@ use Throwable;
  * @property string $third_party_sync_status
  * @property int|null $merged_into_leads_id
  * @property bool $is_deleted
+ * @property Carbon|null $closed_at
  */
 class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentContext
 {
@@ -97,6 +101,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     use HasEventResources;
     use HasFollowUpState;
     use EmitsLedgerEventsForEntity;
+    use TracksClosedAt;
 
     protected $observables = [
         'softDeleting',
@@ -104,6 +109,14 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     ];
     protected $table = 'leads';
     protected $guarded = [];
+
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'closed_at' => 'datetime',
+        ];
+    }
 
     public function people(): BelongsTo
     {
@@ -450,9 +463,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
 
     public function closeSold(): bool
     {
-        $statusName = strtolower($this->status()->firstOrFail()->name);
-
-        return ! Str::contains($statusName, 'not') && Str::contains($statusName, 'sold');
+        return LeadStatus::isSoldName($this->status()->firstOrFail()->name);
     }
 
     public function closeNotSold(): bool
@@ -855,8 +866,10 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
              $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
          } */
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }

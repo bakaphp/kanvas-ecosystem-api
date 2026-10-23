@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\CRM;
 
-use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
@@ -60,9 +59,9 @@ class SalesAgent extends BaseRagAgent implements ConversesWithCustomer
     {
         $lead = $this->resolveLeadForTurn();
 
-        $background = Blade::render($this->agent->roleSection('background', "\n"), ['lead' => $lead]);
-        $steps = Blade::render($this->agent->roleSection('steps', "\n"), ['lead' => $lead]);
-        $output = Blade::render($this->agent->roleSection('output', "\n"), ['lead' => $lead]);
+        $background = $this->agent->renderRoleSection('background', ['lead' => $lead], "\n");
+        $steps = $this->agent->renderRoleSection('steps', ['lead' => $lead], "\n");
+        $output = $this->agent->renderRoleSection('output', ['lead' => $lead], "\n");
         $background = explode('\n', $background);
 
         $timezone = $lead?->company?->timezone

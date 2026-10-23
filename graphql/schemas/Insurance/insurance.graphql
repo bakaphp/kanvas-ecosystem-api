@@ -20,6 +20,12 @@ type InsuranceQuoteResult {
     tax: Float
     total: Float
     currency: String
+    "What the intermediary earns on this policy, when the insurer publishes it at quote time."
+    commission: Float
+    "The insurer's own verdict that this quote can become a policy. Null means they do not say."
+    can_emit: Boolean
+    "The insurer's inspection state for this quote, in their own words."
+    inspection_status: String
     data: Mixed
 }
 
@@ -35,5 +41,177 @@ extend type Query @guard {
     ): InsuranceQuoteResult!
         @field(
             resolver: "App\\GraphQL\\Insurance\\Queries\\InsuranceQuery@quote"
+        )
+}
+
+enum InsuranceVehicleFuelType {
+    GAS @enum(value: "gas")
+    GASOLINE_DIESEL @enum(value: "gasoline_diesel")
+    ELECTRIC @enum(value: "electric")
+}
+
+enum InsuranceSearchFailureReason {
+    REJECTED @enum(value: "rejected")
+    UNAVAILABLE @enum(value: "unavailable")
+    TIMEOUT @enum(value: "timeout")
+    INCOMPLETE_INFORMATION @enum(value: "incomplete_information")
+}
+
+input InsuranceVehicleInput {
+    variant_id: ID
+    brand: String
+    model: String
+    version: String
+    year: Int
+    fuel_type: InsuranceVehicleFuelType
+    is_zero_km: Boolean
+    estimated_value: Float
+}
+
+input InsuranceUnderwritingInput {
+    ip_address: String
+    birth_date: String
+    age: Int
+    marital_status: String
+    sex: String
+    usage: String
+    circulation_zone: String
+}
+
+input CanonicalQuoteInput {
+    category: InsuranceCoverageCategory!
+    vehicle: InsuranceVehicleInput!
+    underwriting: InsuranceUnderwritingInput
+}
+
+type InsuranceSearchInsurer {
+    id: ID!
+    name: String!
+    logo: String
+}
+
+type InsuranceSearchPlan {
+    id: ID!
+    name: String!
+    slug: String!
+    type: InsuranceCoverageCategory!
+    deductible: Float
+    validity_days: Int
+    variant_id: ID
+}
+
+enum InsurancePaymentTerm {
+    ANNUAL @enum(value: "annual")
+    SEMIANNUAL @enum(value: "semiannual")
+    QUARTERLY @enum(value: "quarterly")
+    MONTHLY @enum(value: "monthly")
+}
+
+type InsurancePaymentOption {
+    term: InsurancePaymentTerm!
+    installments: Int!
+    amount: Float!
+    premium: Float
+    tax: Float
+}
+
+type InsuranceSearchEntry {
+    rank: Int!
+    insurer: InsuranceSearchInsurer!
+    plan: InsuranceSearchPlan!
+    quote_number: String!
+    price: Float
+    premium: Float
+    tax: Float
+    total: Float
+    currency: String
+    can_emit: Boolean
+    inspection_status: String
+    payment_options: [InsurancePaymentOption!]!
+    is_sponsored: Boolean!
+    is_recommended: Boolean!
+    is_contractable: Boolean!
+}
+
+type InsuranceSearchFailure {
+    insurer: InsuranceSearchInsurer!
+    reason: InsuranceSearchFailureReason!
+    message: String!
+}
+
+type InsuranceSearchResult {
+    entries: [InsuranceSearchEntry!]!
+    failures: [InsuranceSearchFailure!]!
+}
+
+input SelectInsurancePlanInput {
+    plan_id: ID!
+    quote_number: String!
+    payment_term: InsurancePaymentTerm
+}
+
+input InsuranceCustomerInput {
+    first_name: String
+    last_name: String
+    email: String
+    phone: String
+    birth_date: String
+    sex: String
+    marital_status: String
+    document_type: String
+    document_number: String
+    nationality: String
+    occupation: String
+    country_of_residence: String
+    address_province: String
+    address_municipality: String
+    address_sector: String
+    address_building: String
+    address_street: String
+    politically_exposed: Boolean
+    has_pep_relative: Boolean
+    job_title: String
+    pep_relative_name: String
+    pep_relative_relationship: String
+    pep_relative_job_title: String
+}
+
+input ContractInsurancePlanInput {
+    lead_id: ID!
+    customer: InsuranceCustomerInput
+}
+
+input RegisterInsurancePolicyInput {
+    vehicle_variant_id: ID!
+    insurer_name: String!
+    plan_name: String!
+    policy_number: String!
+    starts_at: String
+    ends_at: String!
+}
+
+extend type Query @guard {
+    insuranceSearch(input: CanonicalQuoteInput!): InsuranceSearchResult!
+        @field(
+            resolver: "App\\GraphQL\\Insurance\\Queries\\InsuranceQuery@search"
+        )
+}
+
+extend type Mutation @guard {
+    selectInsurancePlan(input: SelectInsurancePlanInput!): Lead!
+        @field(
+            resolver: "App\\GraphQL\\Insurance\\Mutations\\InsuranceSelectionMutation@select"
+        )
+    contractInsurancePlan(input: ContractInsurancePlanInput!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Insurance\\Mutations\\InsuranceSelectionMutation@contract"
+        )
+    registerInsurancePolicy(input: RegisterInsurancePolicyInput!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Insurance\\Mutations\\InsuranceRegisteredPolicyMutation@register"
+        )
+    sendInsurancePolicyEmail(order_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Insurance\\Mutations\\InsurancePolicyEmailMutation@send"
         )
 }

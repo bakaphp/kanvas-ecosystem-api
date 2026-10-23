@@ -23,22 +23,23 @@ use Kanvas\Analytics\Reporting\Observers\ReportSourceObserver;
 use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
+use Kanvas\Guild\Concerns\HasNotesChannel;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
+use Kanvas\Guild\Customers\Enums\ContactCustomFieldEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Guild\Traits\HasNotesChannelTrait;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
@@ -85,7 +86,7 @@ class People extends BaseModel
     }
     use HasEventResources;
     use HasLightHouseCache;
-    use HasNotesChannelTrait;
+    use HasNotesChannel;
     use HasTagsTrait;
     use LikableTrait;
     use Notifiable;
@@ -395,6 +396,34 @@ class People extends BaseModel
         return $this->makeDefaultAddress($this->addAddress($address));
     }
 
+    /**
+     * For a source of truth (a CRM pull): edits the default row in place, because `addDefaultAddress()`
+     * keys on the full address text and so turns every correction into a second row.
+     */
+    public function replaceDefaultAddress(DataTransferObjectAddress $address): Address
+    {
+        $current = $this->getDefaultAddress();
+
+        if ($current === null) {
+            return $this->addDefaultAddress($address);
+        }
+
+        $current->fill([
+            'address' => $address->address,
+            'address_2' => $address->address_2,
+            'city' => $address->city,
+            'state' => $address->state,
+            'zip' => $address->zip,
+            'city_id' => $address->city_id ?? $current->city_id,
+            'state_id' => $address->state_id ?? $current->state_id,
+            'countries_id' => $address->country_id ?? $current->countries_id,
+            'address_type_id' => $address->address_type_id ?? $current->address_type_id,
+        ]);
+        $current->saveOrFail();
+
+        return $this->makeDefaultAddress($current);
+    }
+
     public function makeDefaultAddress(Address $address): Address
     {
         $address->is_default = 1;
@@ -503,6 +532,25 @@ class People extends BaseModel
 
     public function setPhoneOptOut(string $phoneNumber, bool $optOut = true): int
     {
+        return $this->phoneContactsMatching($phoneNumber)
+            ->each(function (Contact $contact) use ($optOut): void {
+                $contact->is_opt_out = (int) $optOut;
+                $contact->saveOrFail();
+            })
+            ->count();
+    }
+
+    public function setPhoneLandline(string $phoneNumber, bool $isLandline): int
+    {
+        return $this->phoneContactsMatching($phoneNumber)
+            ->each(function (Contact $contact) use ($isLandline): void {
+                $contact->set(ContactCustomFieldEnum::IS_LANDLINE->value, $isLandline);
+            })
+            ->count();
+    }
+
+    protected function phoneContactsMatching(string $phoneNumber): Collection
+    {
         $normalizedPhone = Contact::normalizeValue(
             $phoneNumber,
             ContactTypeEnum::CELLPHONE->value,
@@ -516,12 +564,7 @@ class People extends BaseModel
                     $contact->value,
                     $contact->contacts_types_id,
                 ) === $normalizedPhone,
-            )
-            ->each(function (Contact $contact) use ($optOut): void {
-                $contact->is_opt_out = (int) $optOut;
-                $contact->saveOrFail();
-            })
-            ->count();
+            );
     }
 
     public static function findByEmailOrCreate(
@@ -938,8 +981,10 @@ class People extends BaseModel
                     $query->where('companies_id', $user->getCurrentCompany()->getId());
                 } */
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }

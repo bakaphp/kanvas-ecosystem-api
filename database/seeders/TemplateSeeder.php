@@ -24,7 +24,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'parent_template_id' => 0,
             'name' => EmailTemplateEnum::DEFAULT->value,
-            'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
+            'template' => File::get(resource_path('views/emails/defaultTemplate.twig')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -35,7 +35,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'parent_template_id' => 0,
             'name' => 'user-email-update',
-            'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
+            'template' => File::get(resource_path('views/emails/defaultTemplate.twig')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -46,7 +46,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => EmailTemplateEnum::USER_INVITE->value,
             'parent_template_id' => $defaultTemplate->id,
-            'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
+            'template' => File::get(resource_path('views/emails/userInvite.twig')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -57,7 +57,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => EmailTemplateEnum::CHANGE_PASSWORD->value,
             'parent_template_id' => $defaultTemplate->id,
-            'template' => File::get(resource_path('views/emails/passwordUpdated.blade.php')),
+            'template' => File::get(resource_path('views/emails/passwordUpdated.twig')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -68,7 +68,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => EmailTemplateEnum::RESET_PASSWORD->value,
             'parent_template_id' => $defaultTemplate->id,
-            'template' => File::get(resource_path('views/emails/resetPassword.blade.php')),
+            'template' => File::get(resource_path('views/emails/resetPassword.twig')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -79,7 +79,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => EmailTemplateEnum::WELCOME->value,
             'parent_template_id' => $defaultTemplate->id,
-            'template' => File::get(resource_path('views/emails/welcome.blade.php')),
+            'template' => File::get(resource_path('views/emails/welcome.twig')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -90,7 +90,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => PushNotificationTemplateEnum::DEFAULT->value,
             'parent_template_id' => 0,
-            'template' => File::get(resource_path('views/emails/pushNotification.blade.php')),
+            'template' => File::get(resource_path('views/emails/pushNotification.twig')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -101,7 +101,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => EmailTemplateEnum::ADMIN_USER_INVITE->value,
             'parent_template_id' => $defaultTemplate->id,
-            'template' => File::get(resource_path('views/emails/adminUserInvite.blade.php')),
+            'template' => File::get(resource_path('views/emails/adminUserInvite.twig')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -112,7 +112,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => EmailTemplateEnum::ADMIN_USER_INVITE_EXISTING_USER->value,
             'parent_template_id' => $defaultTemplate->id,
-            'template' => File::get(resource_path('views/emails/adminUserInviteAlreadyExist.blade.php')),
+            'template' => File::get(resource_path('views/emails/adminUserInviteAlreadyExist.twig')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }

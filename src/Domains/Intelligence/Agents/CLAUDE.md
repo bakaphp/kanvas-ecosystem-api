@@ -738,6 +738,7 @@ Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
 
 ## Don't break
 
+- **Agent types are the platform catalog.** There is no GraphQL write for them; `kanvas:intelligence:sync-agent-types` or the database writes `agent_types`. A handler is built through `AgentType::handlerClass()`, which only returns a class implementing `AgentTypeHandler` — a new runtime implements it, a raw `new $type->handler()` is never added.
 - **`AgentChatKernel` is load-bearing for 4 call sites** — `userChat` (GraphQL), channel responders (×6), `WakeAgentForPlanJob`, `AgentReceiverJob`. Any change to its constructor or `execute()` contract ripples through all of them. Test both `userChat` and at least one channel responder end-to-end after touching it.
 - **The connector path threads by entity, not by session.** `AgentChatKernel::threadId()` returns the session entity's uuid whenever `sourceChannel` is set, and that is what keeps cross-channel rollup working — a prospect emails Monday, WhatsApps Tuesday, and both land on one thread. Neuron 4 needs a thread on every run, so a new caller cannot skip it: pass `sourceChannel` when there is one and let the kernel pick the id. Never hand a session uuid to a channel agent.
 - **Don't pass `app` / `company` to the kernel.** They were removed deliberately. The agent IS the tenant.
@@ -759,7 +760,7 @@ Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
 - [`Actions/Chat/AgentChatKernel.php`](Actions/Chat/AgentChatKernel.php) — the kernel's own class docblock explains the routing logic in 7 lines
 - [`Actions/BaseAgentChannelReplyAction.php`](Actions/BaseAgentChannelReplyAction.php) — base class docblock explains the connector-side contract
 - [`Neuron/Tools/CRM/SendEmailTool.php`](Neuron/Tools/CRM/SendEmailTool.php) — reference for tool authoring: resolve-or-error, entity-derived recipient, and the allowlist-filtered `cc` (destination-safety) pattern. Traits it leans on live in [`Neuron/Tools/Traits/`](Neuron/Tools/Traits/).
-- Product recommendation tool (`Laravel/Tools/Inventory/ProductRecommendationLookupTool.php`) — a thin pass-through to `RecommendProductsAction`; the search backend is resolved per tenant behind it. Pass the shopper's sentence verbatim. Pipeline and configuration: [`src/Domains/Inventory/CLAUDE.md`](../../Inventory/CLAUDE.md).
+- Product recommendation tool (`Laravel/Tools/Inventory/ProductRecommendationLookupTool.php`, Neuron twin in `Neuron/Tools/Inventory/`) — both parse through `DiscoveryInputParser` into `RecommendProductsAction`; the search backend is resolved per tenant behind it. The agent passes the verbatim `request` AND what it understood (catalog-terms `search_query`, preferences, price, numeric limits) in ONE call; an invalid filter comes back as a correctable error. Usage, output shape and configuration: [`src/Domains/Inventory/Recommendations/CLAUDE.md`](../../Inventory/Recommendations/CLAUDE.md).
 - Existing end-to-end tests in [`tests/Connectors/Integration/{WaSender,Mailgun,RespondIO,Twilio}/AgentChannelResponderEndToEndTest.php`](../../../../tests/Connectors/Integration/) — copy-paste shape when adding a new connector
 
 ## Laravel agents: a tool result must never be empty, and a sub-agent needs steps to answer in
