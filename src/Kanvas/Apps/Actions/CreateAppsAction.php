@@ -185,6 +185,7 @@ class CreateAppsAction
             RolesEnums::DEVELOPER->value,
             RolesEnums::INVENTORY_MANAGER->value,
             RolesEnums::ENGAGEMENT_USAGE_REPORT->value,
+            RolesEnums::FOLLOW_UP_DEV->value,
         ];
 
         foreach ($roles as $role) {

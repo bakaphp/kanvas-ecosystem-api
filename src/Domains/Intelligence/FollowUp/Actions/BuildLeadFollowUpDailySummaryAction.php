@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\FollowUp\Actions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpFailureReasonEnum;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
@@ -21,11 +22,15 @@ use Kanvas\NervousSystem\Ledger\Models\Event;
  */
 final class BuildLeadFollowUpDailySummaryAction
 {
+    private const int RECENT_FAILURES_LIMIT = 20;
+
     /** @var list<string> */
     private const TRACKED_EVENT_TYPES = [
         'lead.follow_up.queued',
         'lead.follow_up.sent',
         'lead.follow_up.skipped',
+        'lead.follow_up.send_failed',
+        'lead.follow_up.failed',
         'lead.follow_up.exhausted',
         'lead.follow_up.resumed',
         'lead.pipeline.completed',
@@ -49,7 +54,8 @@ final class BuildLeadFollowUpDailySummaryAction
             ->where('companies_id', $this->company->getId())
             ->whereIn('event_type', self::TRACKED_EVENT_TYPES)
             ->whereBetween('occurred_at', [$start, $end])
-            ->get(['event_type', 'payload']);
+            ->orderByDesc('occurred_at')
+            ->get(['event_type', 'payload', 'source_entity_id', 'occurred_at']);
 
         $summary = $this->aggregate($events);
         $summary['for_date'] = $this->forDate->copy()->setTimezone($tz)->toDateString();
@@ -78,6 +84,7 @@ final class BuildLeadFollowUpDailySummaryAction
     {
         $sent = ['total' => 0, 'by_channel' => [], 'by_stage' => []];
         $skipped = ['total' => 0, 'by_reason' => []];
+        $failed = ['total' => 0, 'by_reason' => [], 'recent' => []];
         $exhausted = ['total' => 0, 'by_reason' => []];
         $queued = 0;
         $resumed = 0;
@@ -85,6 +92,12 @@ final class BuildLeadFollowUpDailySummaryAction
 
         foreach ($events as $event) {
             $payload = (array) ($event->payload ?? []);
+
+            if (FollowUpFailureReasonEnum::isFailure((string) ($payload['reason'] ?? ''))) {
+                $this->countFailure($event, $payload, $failed);
+
+                continue;
+            }
 
             match ($event->event_type) {
                 'lead.follow_up.queued' => $queued++,
@@ -101,6 +114,7 @@ final class BuildLeadFollowUpDailySummaryAction
             'queued' => ['total' => $queued],
             'sent' => $sent,
             'skipped' => $skipped,
+            'failed' => $failed,
             'exhausted' => $exhausted,
             'resumed' => ['total' => $resumed],
             'completed' => ['total' => $completed],
@@ -138,9 +152,31 @@ final class BuildLeadFollowUpDailySummaryAction
     {
         $bucket['total']++;
 
-        $reason = (string) ($payload['reason'] ?? 'unknown');
-        $colon = strpos($reason, ':');
-        $key = $colon === false ? $reason : substr($reason, 0, $colon);
+        $key = FollowUpFailureReasonEnum::reasonKey((string) ($payload['reason'] ?? 'unknown'));
         $bucket['by_reason'][$key] = ($bucket['by_reason'][$key] ?? 0) + 1;
+    }
+
+    /**
+     * Events arrive newest first, so `recent` keeps the latest failures for the email.
+     *
+     * @param array<string, mixed> $payload
+     * @param array{total: int, by_reason: array<string, int>, recent: list<array<string, mixed>>} $bucket
+     */
+    private function countFailure(Event $event, array $payload, array &$bucket): void
+    {
+        $this->countWithReason($payload, $bucket);
+
+        if (count($bucket['recent']) >= self::RECENT_FAILURES_LIMIT) {
+            return;
+        }
+
+        $reason = (string) $payload['reason'];
+        $bucket['recent'][] = [
+            'lead_id' => $event->source_entity_id,
+            'reason' => FollowUpFailureReasonEnum::reasonKey($reason),
+            'error' => $payload['error'] ?? FollowUpFailureReasonEnum::reasonDetail($reason),
+            'channel' => $payload['channel'] ?? null,
+            'occurred_at' => $event->occurred_at?->toIso8601String(),
+        ];
     }
 }

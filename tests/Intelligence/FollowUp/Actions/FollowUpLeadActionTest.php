@@ -573,6 +573,43 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertNotNull($event);
     }
 
+    // The test company has no Twilio sender route, which SendMessageToLeadAction reports as
+    // `success: false` instead of throwing — the shape every non-retryable provider rejection takes.
+    public function testProviderRejectionLeavesASendFailedLedgerRecord(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Hello Maria, just checking in.',
+            reason: 'polite_check_in',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $event = Event::query()
+            ->where('apps_id', $this->testApp->getId())
+            ->where('event_type', 'lead.follow_up.send_failed')
+            ->where('source_entity_id', $lead->getId())
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($event);
+        $this->assertSame('send_failed', $event->payload['reason']);
+        $this->assertSame('sms', $event->payload['channel']);
+        $this->assertStringContainsString('sender route is missing', $event->payload['error']);
+    }
+
     public function testSmsFollowUpOmitsOptOutNoticeWhenTheSmsChannelAlreadyHasAnOutbound(): void
     {
         $cfg = $this->defaultStageConfig();
