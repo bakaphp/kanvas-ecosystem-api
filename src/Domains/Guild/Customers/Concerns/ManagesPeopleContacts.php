@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Customers\Traits;
+namespace Kanvas\Guild\Customers\Concerns;
 
 use Illuminate\Support\Collection;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as ContactData;
@@ -11,7 +11,7 @@ use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Spatie\LaravelData\DataCollection;
 
-trait ManagesPeopleContactsTrait
+trait ManagesPeopleContacts
 {
     protected function deduplicateContacts(DataCollection $contacts): Collection
     {

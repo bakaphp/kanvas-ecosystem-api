@@ -23,14 +23,14 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
+use Kanvas\Guild\Concerns\HasNotesChannel;
+use Kanvas\Guild\Concerns\IsBillable;
+use Kanvas\Guild\Concerns\IsPayee;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Observers\OrganizationObserver;
-use Kanvas\Guild\Traits\BillableTrait;
-use Kanvas\Guild\Traits\HasNotesChannelTrait;
-use Kanvas\Guild\Traits\PayeeTrait;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Expenses\Models\Expense;
@@ -60,14 +60,14 @@ use Override;
 class Organization extends BaseModel implements BillableInterface, PayeeInterface, ProvidesAgentContext
 {
     use HasAdminLink;
-    use BillableTrait;
+    use IsBillable;
     use CanUseWorkflow;
     use DatabaseSearchableTrait;
     use HasEventResources;
     use HasLightHouseCache;
-    use HasNotesChannelTrait;
+    use HasNotesChannel;
     use HasTagsTrait;
-    use PayeeTrait;
+    use IsPayee;
     use UuidTrait;
 
     protected $table = 'organizations';
