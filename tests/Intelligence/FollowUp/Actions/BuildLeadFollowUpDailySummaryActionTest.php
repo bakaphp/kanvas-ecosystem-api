@@ -79,6 +79,27 @@ class BuildLeadFollowUpDailySummaryActionTest extends TestCase
         $this->seedEvent(
             $app,
             $company,
+            'lead.follow_up.skipped',
+            ['reason' => 'agent_call_failed: Gemini timeout'],
+            $occurredAt
+        );
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.send_failed',
+            ['reason' => 'send_failed', 'channel' => 'sms', 'error' => 'Twilio 21211'],
+            $occurredAt
+        );
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.failed',
+            ['reason' => 'job_failed', 'error' => 'Agent not found'],
+            $occurredAt
+        );
+        $this->seedEvent(
+            $app,
+            $company,
             'lead.follow_up.exhausted',
             ['reason' => 'agent: lead disengaged'],
             $occurredAt
@@ -128,8 +149,19 @@ class BuildLeadFollowUpDailySummaryActionTest extends TestCase
         $this->assertSame(2, $payload['sent']['by_stage']['7']);
         $this->assertSame(1, $payload['sent']['by_stage']['9']);
 
+        // Failures are reported on their own and kept out of skipped.
         $this->assertSame(1, $payload['skipped']['total']);
         $this->assertSame(1, $payload['skipped']['by_reason']['too_soon']);
+
+        $this->assertSame(3, $payload['failed']['total']);
+        $this->assertEquals(
+            ['agent_call_failed' => 1, 'send_failed' => 1, 'job_failed' => 1],
+            $payload['failed']['by_reason']
+        );
+        $errors = array_column($payload['failed']['recent'], 'error', 'reason');
+        $this->assertSame('Gemini timeout', $errors['agent_call_failed']);
+        $this->assertSame('Twilio 21211', $errors['send_failed']);
+        $this->assertSame('Agent not found', $errors['job_failed']);
 
         // Reason normalization: BOTH "agent: lead disengaged" AND "agent: different reason"
         // should collapse into a single "agent" bucket of 2.

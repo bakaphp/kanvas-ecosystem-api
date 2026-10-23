@@ -222,6 +222,35 @@ This was a real bug: the agent was using `should_respond: false` to mean "wait l
 
 The inbound re-engagement hook in `BaseAgentChannelReplyAction` (which checks `str_starts_with($reason, 'agent:')` on the exhaustion reason) stays in place for legacy data — leads exhausted via the old `agent:` path will still resume cleanly on customer reply.
 
+## Reports: the daily summary email and `lead:follow-up-status`
+
+Both read the ledger, and both split real failures from skips with
+[`FollowUpFailureReasonEnum`](Enums/FollowUpFailureReasonEnum.php): `agent_call_failed`, `crm_sync_failed`,
+`no_reachable_channel`, `no_session`, `send_failed`, `job_failed`. Those count as **failed** and never as
+skipped; every other skip reason (too_soon, ai_mode_off, agent declined...) is a gate doing its job.
+
+- `lead.follow_up.send_failed` — `dispatchOutbound()` writes it per target the provider refused, with
+  `channel` and `error`. `SendMessageToLeadAction` returns `success: false` for a rejection it will not
+  retry instead of throwing, so the result is checked as well as the exception. The touch still counts
+  as `sent` (the message was stored and the count bumped), so a refused send shows in both columns.
+- `lead.follow_up.failed` — `LeadFollowUpJob::failed()` writes it once the last try is spent, so a run
+  that crashed is not left looking like one still `queued`.
+- `lead:follow-up-daily-summary` (00:30 UTC) builds `follow_up.daily.summary` with a `failed` bucket
+  (`total`, `by_reason`, the latest 20 in `recent`) and emails it through
+  `SendLeadFollowUpDailySummaryAction` to the company's active members holding the app's `FollowUpDev`
+  role (`UsersRepository::getActiveCompanyAppUsersByRole`, the same lookup as the Engage usage
+  report). New apps get the role from `CreateAppsAction::acl()`; an existing one needs
+  `kanvas:create-role FollowUpDev {app_id}`. No role holders, or a day with nothing queued, sent,
+  failed or exhausted, sends nothing. Template `lead-follow-up-daily-summary`
+  (`resources/views/emails/leadFollowUpDailySummary.twig`); an existing app gets it with
+  `kanvas:email-template-sync`.
+- `lead:follow-up-status [--app_id] [--company_id] [--hours=24]` is the `kanvas:status` of follow-ups:
+  one row per company (queued, sent, skipped, failed, exhausted, last sent, failures by reason), plus
+  the latest failures when filtered by company. Counts are grouped in SQL by
+  `LeadFollowUpActivityService` — the dispatch writes a row per candidate per hour, too many to load.
+  The queue line (`lead_follow_ups` waiting and `failed_jobs`) is global: a failed job row cannot be
+  told apart by company.
+
 ## Agent resolution — current design + planned evolution
 
 **V1 (current):** The job resolves the Agent via:
