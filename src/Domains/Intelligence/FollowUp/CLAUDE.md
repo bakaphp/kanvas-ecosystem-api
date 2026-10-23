@@ -214,7 +214,7 @@ a typo in the setting never silences every lead. Read through
 This was a real bug: the agent was using `should_respond: false` to mean "wait longer, customer is still digesting" and the action treated that as terminal exhaustion. Leads got stuck after a single agent timing-feedback decision. Fixed 2026-06-08.
 
 **Terminal exhaustion has only three sources:**
-- `max_retries` hit (count of actual sends, configured per stage)
+- `max_retries` hit (count of actual sends, configured per stage), unless `exhausted_action: advance` successfully moves to the next stage. Successful advancement returns a non-terminal skip (`max_retries_stage_advanced`); the stage observer resets the count and wait window.
 - `agent_hand_off` flag set on the lead (explicit human takeover)
 - Operator calls `resetLeadFollowUp` / clears state manually
 
@@ -315,7 +315,7 @@ Required config per stage:
 - `prompt_template`: instruct the agent to always return `advance_stage: true` on its single send. This collapses send-and-advance into one tick instead of two, and avoids spamming `lead.follow_up.exhausted` events per day-transition.
 
 **Caveats unique to Pattern B:**
-- **One-hour lag without the "always advance" prompt nudge** — without it, send happens on tick N (`count=0→1`), advance happens on tick N+1 (`count=1≥1` fires the exhaust gate). The ledger then carries one `lead.follow_up.exhausted` per day-stage with `reason: max_retries`.
+- **One-hour lag without the "always advance" prompt nudge** — without it, send happens on tick N (`count=0→1`), advance happens on tick N+1 (`count=1≥1` fires the exhaust gate). A successful transition records `lead.follow_up.skipped` with `reason: max_retries_stage_advanced`; it does not exhaust the new stage.
 - **The interval restarts on stage entry, follow-up, or any message in either direction** — `LeadFollowUpEligibilityService::silenceMinutes()` feeds the person's last message to `followUpSilenceMinutesSince`, which uses the latest of these timestamps. Without any, it falls back to entity creation time. Missing or future references yield zero elapsed minutes. Resetting state on a stage change therefore starts the full next-stage interval.
 - **Last-stage exhaust is a no-op** — `moveToNextPipelineStage()` silently does nothing when there's no next stage. The lead just parks there exhausted.
 
@@ -412,7 +412,7 @@ All three can ship independently — enum case (or branch for #1 which case alre
 | Case | Value | Behavior |
 |---|---|---|
 | `STOP` | `'stop'` | Lead exhausts in current stage. `exhausted_at` set, no advance. Operator (or customer reply) is the only way out. Default. |
-| `ADVANCE` | `'advance'` | Lead exhausts in current stage AND `moveToNextPipelineStage()` is called. Used by drip pipelines + first-touch "auto-bump cold leads" shape. |
+| `ADVANCE` | `'advance'` | Calls `moveToNextPipelineStage()`. On success, leaves the new stage eligible after its wait interval; exhausts only if there is no next stage. Used by drip pipelines + first-touch "auto-bump cold leads" shape. |
 
 **Likely future cases — discuss before adding, but keep them in mind so we don't reinvent:**
 
