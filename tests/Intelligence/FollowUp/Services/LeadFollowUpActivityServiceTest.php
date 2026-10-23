@@ -56,7 +56,8 @@ final class LeadFollowUpActivityServiceTest extends TestCase
         $counts = new LeadFollowUpActivityService()->countsByCompany(
             $this->testApp,
             $this->at->copy()->subHour(),
-            $this->company->getId(),
+            $this->at,
+            $this->company->getId()
         );
 
         $this->assertSame([$this->company->getId()], array_keys($counts));
@@ -73,9 +74,11 @@ final class LeadFollowUpActivityServiceTest extends TestCase
         $this->assertNotNull($company['last_sent_at']);
     }
 
-    public function testRecentFailuresListsOnlyFailuresNewestFirst(): void
+    public function testSummaryListsTheLatestFailuresNewestFirstWithTheLeadTitle(): void
     {
-        $lead = Lead::factory()->withAppAndCompany($this->testApp->getId(), $this->company->getId())->create();
+        $lead = Lead::factory()
+            ->withAppAndCompany($this->testApp->getId(), $this->company->getId())
+            ->create(['title' => 'Maria Follow Up']);
 
         $this->seedEvent(
             'lead.follow_up.skipped',
@@ -95,17 +98,33 @@ final class LeadFollowUpActivityServiceTest extends TestCase
             $this->at,
             $lead
         );
-
-        $failures = new LeadFollowUpActivityService()->recentFailures(
-            $this->testApp,
-            $this->at->copy()->subHour(),
-            $this->company->getId(),
-            10
+        $this->seedEvent(
+            'lead.follow_up.sent',
+            ['channels' => ['sms', 'email']],
+            $this->at,
+            $lead
+        );
+        // After the window ends.
+        $this->seedEvent(
+            'lead.follow_up.send_failed',
+            ['reason' => 'send_failed', 'error' => 'Twilio 21211'],
+            $this->at->copy()->addHours(2),
+            $lead
         );
 
-        $this->assertSame(['job_failed', 'crm_sync_failed'], array_column($failures, 'reason'));
-        $this->assertSame($lead->getId(), $failures[0]['lead_id']);
-        $this->assertSame('Agent not found', $failures[0]['error']);
+        $summary = new LeadFollowUpActivityService()->summarize(
+            $this->testApp,
+            $this->company,
+            $this->at->copy()->subHour(),
+            $this->at->copy()->addHour(),
+        );
+
+        $this->assertSame(2, $summary['failed']['total']);
+        $this->assertSame(['job_failed', 'crm_sync_failed'], array_column($summary['failed']['recent'], 'reason'));
+        $this->assertSame('Agent not found', $summary['failed']['recent'][0]['error']);
+        $this->assertSame('Maria Follow Up', $summary['failed']['recent'][0]['lead_title']);
+        $this->assertSame(['too_soon' => 1], $summary['skipped']['by_reason']);
+        $this->assertSame(['sms' => 1, 'email' => 1], $summary['sent']['by_channel']);
     }
 
     private function seedEvent(

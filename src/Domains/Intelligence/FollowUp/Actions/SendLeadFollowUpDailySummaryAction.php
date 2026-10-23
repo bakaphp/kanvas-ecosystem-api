@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpEmailTemplateEnum;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Notifications\Templates\Blank;
@@ -47,7 +46,6 @@ final class SendLeadFollowUpDailySummaryAction
             return [];
         }
 
-        $payload['failed']['recent'] = $this->withLeadTitles($payload['failed']['recent'] ?? []);
         $payload['company_name'] = $this->company->name;
 
         $notification = new Blank(
@@ -100,23 +98,5 @@ final class SendLeadFollowUpDailySummaryAction
         }
 
         return false;
-    }
-
-    /**
-     * @param list<array<string, mixed>> $failures
-     * @return list<array<string, mixed>>
-     */
-    private function withLeadTitles(array $failures): array
-    {
-        $titles = Lead::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->whereIn('id', array_column($failures, 'lead_id'))
-            ->pluck('title', 'id');
-
-        return array_map(
-            fn (array $failure): array => [...$failure, 'lead_title' => $titles[$failure['lead_id']] ?? null],
-            $failures
-        );
     }
 }
