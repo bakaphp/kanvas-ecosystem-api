@@ -240,7 +240,10 @@ class FollowUpLeadActionTest extends TestCase
         $lead->set('follow_up_state', ['count' => 1, 'last_at' => now()->subDay()->toIso8601String()]);
 
         $outcome = new FollowUpLeadAction(
-            $this->testApp, $this->company, $lead, $this->seedFollowUpAgent()
+            $this->testApp,
+            $this->company,
+            $lead,
+            $this->seedFollowUpAgent()
         )->execute();
 
         $lead->refresh();
@@ -268,7 +271,10 @@ class FollowUpLeadActionTest extends TestCase
         $lead->set('follow_up_state', ['count' => 1]);
 
         $outcome = new FollowUpLeadAction(
-            $this->testApp, $this->company, $lead, $this->seedFollowUpAgent()
+            $this->testApp,
+            $this->company,
+            $lead,
+            $this->seedFollowUpAgent()
         )->execute();
 
         $lead->refresh();
