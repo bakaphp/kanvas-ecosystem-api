@@ -8,3 +8,4 @@ metadata:
 data:
     phpini: |
         memory_limit = {{.Values.php.memoryLimit}}
+        session.upload_progress.enabled = 0
