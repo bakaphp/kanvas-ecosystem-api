@@ -42,6 +42,15 @@ class Number extends IlluminateNumber
         return $value * (float) (self::MULTIPLIERS[strtolower((string) $suffix)] ?? 1);
     }
 
+    /**
+     * Null, not zero, when there is nothing to divide by: "0 of 0" is no rate at all, and a
+     * report that prints 0% for it is lying.
+     */
+    public static function ratio(int|float $part, int|float $whole, int $precision = 4): ?float
+    {
+        return $whole > 0 ? round($part / $whole, $precision) : null;
+    }
+
     /** MULTIPLIERS as a regex alternation, so no pattern matches a suffix applyMultiplier() ignores. */
     public static function multiplierPattern(): string
     {

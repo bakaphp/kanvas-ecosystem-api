@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Analytics\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Number;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Analytics\DataTransferObject\AnalyticsRequest;
-use Kanvas\Analytics\Support\Ratio;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -124,10 +124,10 @@ class BuildAssistedSalesAttributionAction
 
         return [
             'sold' => $total,
-            'assisted_by_ai' => ['count' => $counts['ai'], 'share' => Ratio::of($counts['ai'], $total)],
+            'assisted_by_ai' => ['count' => $counts['ai'], 'share' => Number::ratio($counts['ai'], $total)],
             'assisted_by_action' => [
                 'count' => $counts['action'],
-                'share' => Ratio::of($counts['action'], $total),
+                'share' => Number::ratio($counts['action'], $total),
                 'shared_action' => $counts['shared_action'],
                 'submitted_action' => $counts['submitted_action'],
             ],
