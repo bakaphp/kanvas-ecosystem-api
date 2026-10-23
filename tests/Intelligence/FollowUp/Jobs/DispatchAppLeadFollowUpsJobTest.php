@@ -16,6 +16,7 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Jobs\DispatchAppLeadFollowUpsJob;
 use Kanvas\Intelligence\FollowUp\Jobs\LeadFollowUpJob;
+use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -33,7 +34,7 @@ class DispatchAppLeadFollowUpsJobTest extends TestCase
 
     // Leads live on `crm` and the candidate query is sensitive to lead rows
     // from prior tests — wrap both connections so rollback is complete.
-    protected array $connectionsToTransact = ['mysql', 'crm', 'social'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'social', 'intelligence'];
 
     public function testOnlyEnabledNonTerminalActiveLeadsAreQueued(): void
     {
@@ -261,6 +262,41 @@ class DispatchAppLeadFollowUpsJobTest extends TestCase
         $this->dispatchFollowUps();
 
         $this->assertQueued($atCap);
+    }
+
+    public function testEveryCandidateLeavesALedgerRecordOfTheDispatchDecision(): void
+    {
+        Queue::fake();
+
+        $stage = $this->createStage(intervalMinutes: 1440);
+        $tooSoon = $this->createLead($stage);
+        $tooSoon->bumpFollowUp(['sms'], null);
+        $due = $this->createLead($stage);
+
+        $this->dispatchFollowUps();
+
+        $skipped = $this->latestLedgerEvent($tooSoon, 'lead.follow_up.skipped');
+        $this->assertNotNull($skipped);
+        $this->assertSame('too_soon', $skipped->payload['reason']);
+        $this->assertSame('dispatch', $skipped->payload['source']);
+        $this->assertSame($stage->getId(), (int) $skipped->payload['stage_id']);
+        $this->assertNull($this->latestLedgerEvent($tooSoon, 'lead.follow_up.queued'));
+
+        $queued = $this->latestLedgerEvent($due, 'lead.follow_up.queued');
+        $this->assertNotNull($queued);
+        $this->assertSame('dispatch', $queued->payload['source']);
+        $this->assertNull($this->latestLedgerEvent($due, 'lead.follow_up.skipped'));
+    }
+
+    private function latestLedgerEvent(Lead $lead, string $eventType): ?Event
+    {
+        return Event::query()
+            ->where('apps_id', app(Apps::class)->getId())
+            ->where('event_type', $eventType)
+            ->where('source_entity_type', Lead::class)
+            ->where('source_entity_id', $lead->getId())
+            ->latest('id')
+            ->first();
     }
 
     private function createStage(int $intervalMinutes, int $maxRetries = 5): PipelineStage
