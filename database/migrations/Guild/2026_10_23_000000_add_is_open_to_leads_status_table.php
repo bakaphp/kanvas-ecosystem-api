@@ -14,7 +14,7 @@ return new class () extends Migration {
             $table->boolean('is_open')->default(false)->after('is_default');
         });
 
-        // Ids 1 and 2 were the hardcoded open set; keep them open so no lead changes state.
+        // Statuses 1 and 2 stay open so no lead changes state.
         DB::connection('crm')->table('leads_status')->whereIn('id', [1, 2])->update(['is_open' => true]);
     }
 
