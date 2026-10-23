@@ -99,9 +99,18 @@ final class InboundWebhookTest extends TestCase
         );
     }
 
-    public function testOutboundSalesLeadDoesNotFireFakeContextWorkflow(): void
+    public function testOutboundSalesLeadFiresFakeContextWorkflow(): void
     {
-        $this->assertSame(0, $this->countFakeContextWorkflowsAfterEnvelope('OSL'));
+        $this->assertSame(
+            1,
+            $this->countFakeContextWorkflowsAfterEnvelope('OSL'),
+            'OSL must fire fake-context with trigger_type = 1.'
+        );
+    }
+
+    public function testUpdateSalesLeadDoesNotFireFakeContextWorkflow(): void
+    {
+        $this->assertSame(0, $this->countFakeContextWorkflowsAfterEnvelope('USL'));
     }
 
     private function countFakeContextWorkflowsAfterEnvelope(string $task): int
