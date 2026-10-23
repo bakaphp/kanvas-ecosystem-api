@@ -235,8 +235,9 @@ skipped; every other skip reason (too_soon, ai_mode_off, agent declined...) is a
   as `sent` (the message was stored and the count bumped), so a refused send shows in both columns.
 - `lead.follow_up.failed` — `LeadFollowUpJob::failed()` writes it once the last try is spent, so a run
   that crashed is not left looking like one still `queued`.
-- `lead:follow-up-daily-summary` (00:30 UTC) builds `follow_up.daily.summary` with a `failed` bucket
-  (`total`, `by_reason`, the latest 20 in `recent`) and emails it through
+- `lead:follow-up-daily-summary` (00:30 UTC) builds `follow_up.daily.summary` from
+  `LeadFollowUpActivityService::summarize()` — totals, sent by channel, skips, failures and exhaustions
+  by reason, the latest 20 failures with the lead's title — and emails it through
   `SendLeadFollowUpDailySummaryAction` to the company's active members holding the app's `FollowUpDev`
   role (`UsersRepository::getActiveCompanyAppUsersByRole`, the same lookup as the Engage usage
   report). New apps get the role from `CreateAppsAction::acl()`; an existing one needs
@@ -244,12 +245,14 @@ skipped; every other skip reason (too_soon, ai_mode_off, agent declined...) is a
   failed or exhausted, sends nothing. Template `lead-follow-up-daily-summary`
   (`resources/views/emails/leadFollowUpDailySummary.twig`); an existing app gets it with
   `kanvas:email-template-sync`.
-- `lead:follow-up-status [--app_id] [--company_id] [--hours=24]` is the `kanvas:status` of follow-ups:
-  one row per company (queued, sent, skipped, failed, exhausted, last sent, failures by reason), plus
-  the latest failures when filtered by company. Counts are grouped in SQL by
-  `LeadFollowUpActivityService` — the dispatch writes a row per candidate per hour, too many to load.
-  The queue line (`lead_follow_ups` waiting and `failed_jobs`) is global: a failed job row cannot be
-  told apart by company.
+- `lead:follow-up-status [--app_id] [--company_id] [--from=08:00] [--to] [--hours] [--tz]` is the
+  `kanvas:status` of follow-ups over a window, by default today from 08:00 to now (in the company's
+  timezone with `--company_id`, else UTC; before 08:00 it starts at yesterday's). One row per company,
+  then each company's detail from the same `summarize()` the email renders, so the two never disagree.
+  The overview counts are grouped in SQL by `countsByCompany()` — the dispatch writes a row per
+  candidate per hour, too many to load across an app. The queue line (`lead_follow_ups` waiting,
+  `failed_jobs` total and in the window, the top errors in the window) is global: a failed job row
+  cannot be told apart by company.
 
 ## Agent resolution — current design + planned evolution
 
