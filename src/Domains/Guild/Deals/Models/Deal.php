@@ -142,17 +142,32 @@ class Deal extends BaseModel implements ProvidesAgentContext
      */
     public function hasOpenStatus(): bool
     {
-        return in_array((int) $this->status_id, Lead::openLeadsStatusIds($this->company), true);
+        return LeadStatus::isOpenFor(
+            $this,
+            'leadStatus',
+            'status_id',
+            $this->company
+        );
     }
 
     public function scopeHasOpenDealStatus(EloquentBuilder $query, ?CompanyInterface $company = null): EloquentBuilder
     {
-        return $query->whereIn('status_id', Lead::openLeadsStatusIds($company));
+        return LeadStatus::constrainToState(
+            $query,
+            'status_id',
+            true,
+            $company
+        );
     }
 
     public function scopeHasClosedDealStatus(EloquentBuilder $query, ?CompanyInterface $company = null): EloquentBuilder
     {
-        return $query->whereNotIn('status_id', Lead::openLeadsStatusIds($company));
+        return LeadStatus::constrainToState(
+            $query,
+            'status_id',
+            false,
+            $company
+        );
     }
 
     public function scopeHavingDealState(EloquentBuilder $query, string $state, ?CompanyInterface $company = null): EloquentBuilder

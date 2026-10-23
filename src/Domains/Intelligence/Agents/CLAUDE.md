@@ -508,8 +508,8 @@ A tool constructed outside that path (a test, a one-off script) must call `withC
 for every lead; marking a lead Lost writes `leads_status_id` only. A tool that reported `is_open` from
 it told an agent a lost deal was an active negotiation. In a tool, report `status` as
 `$lead->statusName()` and `is_open` as `$lead->hasOpenLeadStatus()`, and filter with the
-`hasOpenLeadStatus()` / `hasClosedLeadStatus()` scopes, which honour the company's
-`guild_open_leads_status_ids`. `search_leads`, `find_leads_bulk`, `LeadBaseFilter`, `list_stale_leads`
+`hasOpenLeadStatus()` / `hasClosedLeadStatus()` scopes, which read the status row's `is_open` (and
+still honour the company's legacy `guild_open_leads_status_ids`). `search_leads`, `find_leads_bulk`, `LeadBaseFilter`, `list_stale_leads`
 and `get_person` are the references; the follow-up and outreach gates still use `isOpen()` and are a
 known, separate decision. Deals carry the same pair (`status_id` named, integer `status` mirrored from
 the API): use `Deal::statusName()`, `hasOpenStatus()` and the `havingDealState()` scope the same way.
