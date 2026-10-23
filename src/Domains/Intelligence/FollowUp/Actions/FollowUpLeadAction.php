@@ -270,20 +270,29 @@ final class FollowUpLeadAction
         };
     }
 
-    // Sessions are keyed to People (not Lead) in the new sales-agent infra —
-    // same human spans multiple leads across pipelines but one session.
     private function resolveSession(): ?Session
     {
-        if (! $this->lead->people_id) {
-            return null;
-        }
-
-        return Session::query()
-            ->where('entity_namespace', People::class)
-            ->where('entity_id', $this->lead->people_id)
+        $sessions = Session::query()
             ->where('is_deleted', 0)
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($this->company);
+
+        if ($this->lead->people_id) {
+            $session = (clone $sessions)
+                ->where('entity_namespace', People::class)
+                ->where('entity_id', $this->lead->people_id)
+                ->latest('id')
+                ->first();
+
+            if ($session !== null) {
+                return $session;
+            }
+        }
+
+        // TODO: Remove Lead session compatibility when SalesAssist uses the native People session flow.
+        return $sessions
+            ->where('entity_namespace', Lead::class)
+            ->where('entity_id', $this->lead->getId())
             ->latest('id')
             ->first();
     }

@@ -11,6 +11,7 @@ use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Intelligence\Agents\Actions\Outreach\BootstrapChannelForLeadAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
@@ -117,6 +118,9 @@ class CreateSocialChannelForContactAction
             $contactValue = Str::normalizePhoneNumber($this->contact->value);
         }
 
+        $agent = Agent::getById($agentId);
+
+        // TODO: Remove Lead channel/session creation when SalesAssist uses the native People session flow.
         $channelDto = ChannelDto::from([
             'apps' => $this->app,
             'companies' => $lead->company,
@@ -133,7 +137,7 @@ class CreateSocialChannelForContactAction
         $channel = new CreateChannelAction($channelDto)->execute();
 
         $sessionDto = Session::from([
-            'agent' => Agent::getById($agentId),
+            'agent' => $agent,
             'channel' => $channel,
             'app' => $this->app,
             'company' => $lead->company,
@@ -147,6 +151,8 @@ class CreateSocialChannelForContactAction
         ]);
 
         $session = new CreateSessionAction($sessionDto)->execute();
+
+        new BootstrapChannelForLeadAction($lead, $communicationChannel, $contactValue, $agent)->execute();
 
         return [
             'channel' => $channel,
