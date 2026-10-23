@@ -80,7 +80,10 @@ final class FollowUpLeadAction
         }
 
         if ($this->lead->getFollowUpStateCount() >= $config->maxRetries) {
-            $this->handleExhaustedAction($config);
+            if ($config->exhaustedAction === ExhaustedActionEnum::ADVANCE && $this->advanceLeadStage()) {
+                // The stage observer resets the count and wait window. Do not exhaust the new stage.
+                return $this->skip('max_retries_stage_advanced');
+            }
 
             return $this->exhaust('max_retries');
         }
@@ -779,13 +782,6 @@ final class FollowUpLeadAction
             'email' => 'email',
             default => 'twilio-sms',
         };
-    }
-
-    private function handleExhaustedAction(FollowUpConfig $config): void
-    {
-        if ($config->exhaustedAction === ExhaustedActionEnum::ADVANCE) {
-            $this->advanceLeadStage();
-        }
     }
 
     private function advanceLeadStage(): bool

@@ -230,6 +230,61 @@ class FollowUpLeadActionTest extends TestCase
     // ─────────────────────────────────────────────────────────────────────
     // Gate 1c: count >= max_retries → exhausted(max_retries) + emit ledger event
     // ─────────────────────────────────────────────────────────────────────
+    public function testMaxRetriesAdvancesWithoutExhaustingNextStage(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['max_retries'] = 1;
+        $cfg['follow_up']['exhausted_action'] = 'advance';
+        [$lead, $stage1, $stage2] = $this->seedLeadWithTwoStages($cfg);
+        $stage2->update(['config' => $cfg]);
+        $lead->set('follow_up_state', ['count' => 1, 'last_at' => now()->subDay()->toIso8601String()]);
+
+        $outcome = new FollowUpLeadAction(
+            $this->testApp,
+            $this->company,
+            $lead,
+            $this->seedFollowUpAgent()
+        )->execute();
+
+        $lead->refresh();
+        $this->assertEquals($stage2->getId(), $lead->pipeline_stage_id);
+        $this->assertFalse($lead->isFollowUpExhausted());
+        $this->assertNull($lead->getFollowUpExhaustedReason());
+        $this->assertSame(0, $lead->getFollowUpStateCount());
+        $this->assertNotNull($lead->getFollowUpStageEnteredAt());
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertSame('max_retries_stage_advanced', $outcome->reason);
+        $this->assertNull($outcome->message);
+        $this->assertSame('too_soon', (new \Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService())->dispatchSkipReason($lead));
+        $this->assertFalse(Event::query()->where('apps_id', $this->testApp->getId())
+            ->where('source_entity_id', $lead->getId())
+            ->where('event_type', 'lead.follow_up.exhausted')->exists());
+    }
+
+    public function testMaxRetriesExhaustsWhenAdvanceHasNoNextStage(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['max_retries'] = 1;
+        $cfg['follow_up']['exhausted_action'] = 'advance';
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $stageId = $lead->pipeline_stage_id;
+        $lead->set('follow_up_state', ['count' => 1]);
+
+        $outcome = new FollowUpLeadAction(
+            $this->testApp,
+            $this->company,
+            $lead,
+            $this->seedFollowUpAgent()
+        )->execute();
+
+        $lead->refresh();
+        $this->assertEquals($stageId, $lead->pipeline_stage_id);
+        $this->assertTrue($lead->isFollowUpExhausted());
+        $this->assertSame('max_retries', $lead->getFollowUpExhaustedReason());
+        $this->assertSame(FollowUpOutcomeKindEnum::EXHAUSTED, $outcome->kind);
+        $this->assertSame('max_retries', $outcome->reason);
+    }
+
     public function testExhaustsOnMaxRetriesAndEmitsLedgerEvent(): void
     {
         $cfg = $this->defaultStageConfig();
