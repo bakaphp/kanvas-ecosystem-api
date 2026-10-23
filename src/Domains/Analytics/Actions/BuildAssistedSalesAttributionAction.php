@@ -6,12 +6,14 @@ namespace Kanvas\Analytics\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Number;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Analytics\DataTransferObject\AnalyticsRequest;
+use Kanvas\Analytics\Enums\AttributionPopulationEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -20,13 +22,16 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 
 /**
- * Of the leads marked Sold in a window, how many did the AI agent talk to and how many went
- * through an Engage action before the sale. The dealer's question is "did Sally / did an Action
- * help close this?", so a touch counts only inside the lead's own life: after it was created and
- * no later than `closed_at`. A follow-up sent after the sale is not assistance.
+ * Which leads the AI agent talked to and which went through an Engage action, and whether that
+ * made a difference. The dealer's question is "did Sally / did an Action help close this?", so a
+ * touch counts only inside the lead's own life: after it was created and no later than
+ * `closed_at` (or now, while it is still open). A follow-up sent after the sale is not assistance.
  *
- * Sold is a status name (LeadStatus::isSoldName) and the window is `leads.closed_at`, stamped by
- * the observer since 2026-10-23 with no backfill, so an earlier sale is invisible here by design.
+ * The population decides the window column (AttributionPopulationEnum::dateColumn()): sold leads
+ * are taken by `closed_at`, stamped by the observer since 2026-10-23 with no backfill, so an
+ * earlier sale is invisible here by design; open and all leads are taken by `created_at`, and for
+ * those the `outcomes` block compares the sold rate of assisted against unassisted leads, which is
+ * the impact figure.
  *
  * Leads live on `crm`, messages on `social` and engagements on `action_engine`, so this is three
  * reads folded in PHP, never a join. An AI touch is found two ways, because both links exist and
@@ -38,10 +43,14 @@ class BuildAssistedSalesAttributionAction
 {
     private const int MAX_LISTED = 100;
 
+    /** @var array<int, int> */
+    private array $soldStatusIds = [];
+
     public function __construct(
         protected readonly AppInterface $app,
         protected readonly Companies $company,
         protected readonly AnalyticsRequest $request,
+        protected readonly AttributionPopulationEnum $population = AttributionPopulationEnum::SOLD,
     ) {
     }
 
@@ -50,105 +59,150 @@ class BuildAssistedSalesAttributionAction
      */
     public function execute(): array
     {
-        $soldStatusIds = LeadStatus::soldIdsFor($this->app, $this->company);
+        $this->soldStatusIds = LeadStatus::soldIdsFor($this->app, $this->company);
 
-        if ($soldStatusIds === []) {
+        if ($this->soldStatusIds === [] && $this->population === AttributionPopulationEnum::SOLD) {
             return $this->present(collect(), [], [], 'This company has no lead status whose name reads as sold.');
         }
 
-        $sold = Lead::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('is_deleted', 0)
-            ->whereIn('leads_status_id', $soldStatusIds)
-            ->whereBetween('closed_at', [$this->request->from->copy()->utc(), $this->request->to->copy()->utc()])
-            ->orderBy('closed_at')
+        $leads = $this->populationQuery()
+            ->orderBy($this->population->dateColumn())
+            ->with('status:id,name')
             ->get(['id', 'title', 'people_id', 'created_at', 'closed_at', 'leads_status_id']);
 
-        if ($sold->isEmpty()) {
-            return $this->present($sold, [], [], null);
+        if ($leads->isEmpty()) {
+            return $this->present($leads, [], [], null);
         }
 
         return $this->present(
-            $sold,
-            $this->aiTouchesByLead($sold),
-            $this->engagementTouchesByLead($sold),
+            $leads,
+            $this->aiTouchesByLead($leads),
+            $this->engagementTouchesByLead($leads),
             null,
         );
     }
 
+    private function populationQuery(): Builder
+    {
+        $query = Lead::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->whereBetween(
+                $this->population->dateColumn(),
+                [$this->request->from->copy()->utc(), $this->request->to->copy()->utc()],
+            );
+
+        return match ($this->population) {
+            AttributionPopulationEnum::SOLD => $query->whereIn('leads_status_id', $this->soldStatusIds),
+            AttributionPopulationEnum::OPEN => $query->hasOpenLeadStatus($this->company),
+            AttributionPopulationEnum::ALL => $query,
+        };
+    }
+
     /**
-     * @param Collection<int, Lead> $sold
+     * @param Collection<int, Lead> $leads
      * @param array<int, array<int, Carbon>> $aiTouches lead id => AI message timestamps
      * @param array<int, array{shared_action: array<int, Carbon>, submitted_action: array<int, Carbon>}> $engagementTouches
      * @return array<string, mixed>
      */
     private function present(
-        Collection $sold,
+        Collection $leads,
         array $aiTouches,
         array $engagementTouches,
         ?string $note
     ): array {
-        $counts = ['ai' => 0, 'action' => 0, 'shared_action' => 0, 'submitted_action' => 0, 'either' => 0, 'both' => 0];
-        $leads = [];
+        $rows = [];
 
-        foreach ($sold as $lead) {
+        foreach ($leads as $lead) {
             $leadId = (int) $lead->getId();
             $touches = $engagementTouches[$leadId] ?? ['shared_action' => [], 'submitted_action' => []];
-
-            $ai = $this->touchedDuringLife($lead, $aiTouches[$leadId] ?? []);
             $sharedAction = $this->touchedDuringLife($lead, $touches['shared_action']);
             $submitted = $this->touchedDuringLife($lead, $touches['submitted_action']);
-            $action = $sharedAction || $submitted;
 
-            $counts['ai'] += (int) $ai;
-            $counts['action'] += (int) $action;
-            $counts['shared_action'] += (int) $sharedAction;
-            $counts['submitted_action'] += (int) $submitted;
-            $counts['either'] += (int) ($ai || $action);
-            $counts['both'] += (int) ($ai && $action);
-
-            if (count($leads) < self::MAX_LISTED) {
-                $leads[] = [
-                    'lead_id' => $leadId,
-                    'title' => $lead->title,
-                    'closed_at' => $lead->closed_at?->toDateString(),
-                    'assisted_by_ai' => $ai,
-                    'shared_action' => $sharedAction,
-                    'submitted_action' => $submitted,
-                ];
-            }
+            $rows[] = [
+                'lead_id' => $leadId,
+                'title' => $lead->title,
+                'created_at' => $lead->created_at?->toDateString(),
+                'closed_at' => $lead->closed_at?->toDateString(),
+                'status' => $lead->statusName(),
+                'sold' => in_array((int) $lead->leads_status_id, $this->soldStatusIds, true),
+                'assisted_by_ai' => $this->touchedDuringLife($lead, $aiTouches[$leadId] ?? []),
+                'assisted_by_action' => $sharedAction || $submitted,
+                'shared_action' => $sharedAction,
+                'submitted_action' => $submitted,
+            ];
         }
 
-        $total = $sold->count();
+        $total = count($rows);
+        $counts = ['sold' => 0, 'ai' => 0, 'action' => 0, 'shared' => 0, 'submitted' => 0, 'either' => 0, 'both' => 0];
 
-        return [
-            'sold' => $total,
+        foreach ($rows as $row) {
+            $counts['sold'] += (int) $row['sold'];
+            $counts['ai'] += (int) $row['assisted_by_ai'];
+            $counts['action'] += (int) $row['assisted_by_action'];
+            $counts['shared'] += (int) $row['shared_action'];
+            $counts['submitted'] += (int) $row['submitted_action'];
+            $counts['either'] += (int) ($row['assisted_by_ai'] || $row['assisted_by_action']);
+            $counts['both'] += (int) ($row['assisted_by_ai'] && $row['assisted_by_action']);
+        }
+
+        $result = [
+            'population' => $this->population->value,
+            'leads' => $total,
+            'sold' => $counts['sold'],
             'assisted_by_ai' => ['count' => $counts['ai'], 'share' => Number::ratio($counts['ai'], $total)],
             'assisted_by_action' => [
                 'count' => $counts['action'],
                 'share' => Number::ratio($counts['action'], $total),
-                'shared_action' => $counts['shared_action'],
-                'submitted_action' => $counts['submitted_action'],
+                'shared_action' => $counts['shared'],
+                'submitted_action' => $counts['submitted'],
             ],
             'assisted_by_either' => $counts['either'],
             'assisted_by_both' => $counts['both'],
             'unassisted' => $total - $counts['either'],
-            'leads' => $leads,
-            'leads_truncated' => $total > count($leads),
-            'note' => $note,
         ];
+
+        if ($this->population !== AttributionPopulationEnum::SOLD) {
+            $result['outcomes'] = [
+                'assisted_by_ai' => $this->outcome($rows, static fn (array $row): bool => $row['assisted_by_ai']),
+                'not_assisted_by_ai' => $this->outcome($rows, static fn (array $row): bool => ! $row['assisted_by_ai']),
+                'assisted_by_action' => $this->outcome($rows, static fn (array $row): bool => $row['assisted_by_action']),
+                'not_assisted_by_action' => $this->outcome($rows, static fn (array $row): bool => ! $row['assisted_by_action']),
+                'unassisted' => $this->outcome($rows, static fn (array $row): bool => ! $row['assisted_by_ai'] && ! $row['assisted_by_action']),
+            ];
+        }
+
+        $result['lead_rows'] = array_slice($rows, 0, self::MAX_LISTED);
+        $result['lead_rows_truncated'] = $total > self::MAX_LISTED;
+        $result['note'] = $note;
+
+        return $result;
     }
 
     /**
-     * Every lead here came through the `closed_at` range, so both bounds exist.
+     * How a slice of the population ended: how many leads, how many of them sold, and the rate.
      *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array{leads: int, sold: int, sold_rate: float|null}
+     */
+    private function outcome(array $rows, callable $inSlice): array
+    {
+        $slice = array_filter($rows, $inSlice);
+        $sold = count(array_filter($slice, static fn (array $row): bool => $row['sold']));
+
+        return ['leads' => count($slice), 'sold' => $sold, 'sold_rate' => Number::ratio($sold, count($slice))];
+    }
+
+    /**
      * @param array<int, Carbon> $touches
      */
     private function touchedDuringLife(Lead $lead, array $touches): bool
     {
+        $until = $lead->closed_at ?? Carbon::now();
+
         foreach ($touches as $touch) {
-            if ($touch->between($lead->created_at, $lead->closed_at)) {
+            if ($touch->between($lead->created_at, $until)) {
                 return true;
             }
         }
@@ -157,10 +211,10 @@ class BuildAssistedSalesAttributionAction
     }
 
     /**
-     * @param Collection<int, Lead> $sold
+     * @param Collection<int, Lead> $leads
      * @return array<int, array<int, Carbon>>
      */
-    private function aiTouchesByLead(Collection $sold): array
+    private function aiTouchesByLead(Collection $leads): array
     {
         $typeIds = MessagesTypesRepository::getCommunicationTypeIds($this->app);
 
@@ -169,7 +223,7 @@ class BuildAssistedSalesAttributionAction
         }
 
         $leadsByPeople = [];
-        foreach ($sold as $lead) {
+        foreach ($leads as $lead) {
             if ((int) $lead->people_id > 0) {
                 $leadsByPeople[(int) $lead->people_id][] = (int) $lead->getId();
             }
@@ -181,14 +235,14 @@ class BuildAssistedSalesAttributionAction
             ->where('messages.is_deleted', 0)
             ->where('messages.sender_type', MessageSenderTypeEnum::AGENT->value)
             ->whereIn('messages.message_types_id', $typeIds)
-            ->whereBetween('messages.created_at', [$sold->min('created_at'), $sold->max('closed_at')]);
+            ->where('messages.created_at', '>=', $leads->min('created_at'));
 
         $touches = [];
 
         $linked = (clone $aiMessages)
             ->join('app_module_message', 'app_module_message.message_id', '=', 'messages.id')
             ->where('app_module_message.system_modules', Lead::class)
-            ->whereIn('app_module_message.entity_id', $sold->pluck('id')->all())
+            ->whereIn('app_module_message.entity_id', $leads->pluck('id')->all())
             ->get(['app_module_message.entity_id as lead_id', 'messages.created_at']);
 
         foreach ($linked as $row) {
@@ -215,16 +269,16 @@ class BuildAssistedSalesAttributionAction
      * all mean it reached the customer. A submitted action is one the customer completed. An
      * engagement on a slug outside the catalog is ignored rather than guessed at.
      *
-     * @param Collection<int, Lead> $sold
+     * @param Collection<int, Lead> $leads
      * @return array<int, array{shared_action: array<int, Carbon>, submitted_action: array<int, Carbon>}>
      */
-    private function engagementTouchesByLead(Collection $sold): array
+    private function engagementTouchesByLead(Collection $leads): array
     {
         $engagements = Engagement::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('is_deleted', 0)
-            ->whereIn('leads_id', $sold->pluck('id')->all())
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->whereIn('leads_id', $leads->pluck('id')->all())
             ->with(['stage:id,slug', 'companyAction:id,actions_id', 'companyAction.action:id,slug'])
             ->get(['id', 'leads_id', 'pipelines_stages_id', 'companies_actions_id', 'created_at']);
 

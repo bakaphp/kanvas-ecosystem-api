@@ -386,16 +386,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.401.5",
+            "version": "3.402.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "4d304660ba59e185e86a17946c6be6ab07bf8546"
+                "reference": "661f6a54f2a63ac5137390c291535c74cfe6019e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/4d304660ba59e185e86a17946c6be6ab07bf8546",
-                "reference": "4d304660ba59e185e86a17946c6be6ab07bf8546",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/661f6a54f2a63ac5137390c291535c74cfe6019e",
+                "reference": "661f6a54f2a63ac5137390c291535c74cfe6019e",
                 "shasum": ""
             },
             "require": {
@@ -407,7 +407,7 @@
                 "guzzlehttp/promises": "^2.0.3 || ^3.0",
                 "guzzlehttp/psr7": "^2.6.3 || ^3.0",
                 "mtdowling/jmespath.php": "^2.9.1",
-                "php": ">=8.1",
+                "php": ">=8.2",
                 "psr/http-message": "^1.0 || ^2.0",
                 "symfony/filesystem": "^v5.4.45 || ^v6.4.3 || ^v7.1.0 || ^v8.0.0"
             },
@@ -477,9 +477,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.401.5"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.402.0"
             },
-            "time": "2026-10-21T18:10:10+00:00"
+            "time": "2026-10-22T18:09:05+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -1252,16 +1252,16 @@
         },
         {
             "name": "composer/semver",
-            "version": "3.5.1",
+            "version": "3.5.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/composer/semver.git",
-                "reference": "528948210cc46f967a4b98e83b19e76f2b504993"
+                "reference": "9dfce66f1e97360ea5e6d3e38ab14277e4cc591e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/composer/semver/zipball/528948210cc46f967a4b98e83b19e76f2b504993",
-                "reference": "528948210cc46f967a4b98e83b19e76f2b504993",
+                "url": "https://api.github.com/repos/composer/semver/zipball/9dfce66f1e97360ea5e6d3e38ab14277e4cc591e",
+                "reference": "9dfce66f1e97360ea5e6d3e38ab14277e4cc591e",
                 "shasum": ""
             },
             "require": {
@@ -1313,7 +1313,7 @@
             "support": {
                 "irc": "ircs://irc.libera.chat:6697/composer",
                 "issues": "https://github.com/composer/semver/issues",
-                "source": "https://github.com/composer/semver/tree/3.5.1"
+                "source": "https://github.com/composer/semver/tree/3.5.2"
             },
             "funding": [
                 {
@@ -1325,7 +1325,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-05T13:12:12+00:00"
+            "time": "2026-10-22T15:37:26+00:00"
         },
         {
             "name": "dasprid/enum",
@@ -1837,16 +1837,16 @@
         },
         {
             "name": "durable-workflow/workflow",
-            "version": "1.0.87",
+            "version": "1.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/durable-workflow/workflow.git",
-                "reference": "30ef620017e7b78c771c23628f5da07e88b110a2"
+                "reference": "6381450d13265bba86bddec6299abd0f4b1eba1b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/30ef620017e7b78c771c23628f5da07e88b110a2",
-                "reference": "30ef620017e7b78c771c23628f5da07e88b110a2",
+                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/6381450d13265bba86bddec6299abd0f4b1eba1b",
+                "reference": "6381450d13265bba86bddec6299abd0f4b1eba1b",
                 "shasum": ""
             },
             "require": {
@@ -1891,9 +1891,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/durable-workflow/workflow/issues",
-                "source": "https://github.com/durable-workflow/workflow/tree/1.0.87"
+                "source": "https://github.com/durable-workflow/workflow/tree/1.1.0"
             },
-            "time": "2026-10-14T14:41:03+00:00"
+            "time": "2026-10-22T10:33:29+00:00"
         },
         {
             "name": "dyrynda/laravel-cascade-soft-deletes",
@@ -3604,16 +3604,16 @@
         },
         {
             "name": "imdhemy/laravel-purchases",
-            "version": "1.19.2",
+            "version": "1.20.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/imdhemy/laravel-in-app-purchases.git",
-                "reference": "94f616d6dcd6ca0d6c46a5ac0ce45b92c546dee0"
+                "reference": "97efe10ad054e01be1e96112d4b7ba2d537d39c8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/imdhemy/laravel-in-app-purchases/zipball/94f616d6dcd6ca0d6c46a5ac0ce45b92c546dee0",
-                "reference": "94f616d6dcd6ca0d6c46a5ac0ce45b92c546dee0",
+                "url": "https://api.github.com/repos/imdhemy/laravel-in-app-purchases/zipball/97efe10ad054e01be1e96112d4b7ba2d537d39c8",
+                "reference": "97efe10ad054e01be1e96112d4b7ba2d537d39c8",
                 "shasum": ""
             },
             "require": {
@@ -3670,7 +3670,7 @@
             ],
             "support": {
                 "issues": "https://github.com/imdhemy/laravel-in-app-purchases/issues",
-                "source": "https://github.com/imdhemy/laravel-in-app-purchases/tree/1.19.2"
+                "source": "https://github.com/imdhemy/laravel-in-app-purchases/tree/1.20.0"
             },
             "funding": [
                 {
@@ -3678,7 +3678,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-20T13:42:41+00:00"
+            "time": "2026-10-22T11:12:28+00:00"
         },
         {
             "name": "inspector-apm/inspector-php",
@@ -6414,12 +6414,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/SpartnerNL/Laravel-Excel.git",
-                "reference": "aacc1f88e95932beb744766d21187a42b759ad20"
+                "reference": "90b012ef8680e0f0e20208ce7f05400a798b1c0b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/SpartnerNL/Laravel-Excel/zipball/aacc1f88e95932beb744766d21187a42b759ad20",
-                "reference": "aacc1f88e95932beb744766d21187a42b759ad20",
+                "url": "https://api.github.com/repos/SpartnerNL/Laravel-Excel/zipball/90b012ef8680e0f0e20208ce7f05400a798b1c0b",
+                "reference": "90b012ef8680e0f0e20208ce7f05400a798b1c0b",
                 "shasum": ""
             },
             "require": {
@@ -6496,7 +6496,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-21T09:16:11+00:00"
+            "time": "2026-10-23T11:35:56+00:00"
         },
         {
             "name": "maennchen/zipstream-php",
@@ -6899,16 +6899,16 @@
         },
         {
             "name": "mindee/mindee",
-            "version": "v3.2.0",
+            "version": "v3.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mindee/mindee-api-php.git",
-                "reference": "15ad0b5f7d1266fdd60da081b04927c4d69bfd14"
+                "reference": "70a971b162d1054d8ec57e9cf36c8e3fa9358cfd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/15ad0b5f7d1266fdd60da081b04927c4d69bfd14",
-                "reference": "15ad0b5f7d1266fdd60da081b04927c4d69bfd14",
+                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/70a971b162d1054d8ec57e9cf36c8e3fa9358cfd",
+                "reference": "70a971b162d1054d8ec57e9cf36c8e3fa9358cfd",
                 "shasum": ""
             },
             "require": {
@@ -6953,9 +6953,9 @@
             "description": "Mindee Client Library for PHP",
             "support": {
                 "issues": "https://github.com/mindee/mindee-api-php/issues",
-                "source": "https://github.com/mindee/mindee-api-php/tree/v3.2.0"
+                "source": "https://github.com/mindee/mindee-api-php/tree/v3.3.0"
             },
-            "time": "2026-09-11T09:20:31+00:00"
+            "time": "2026-10-22T11:38:47+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",
@@ -18904,16 +18904,16 @@
         },
         {
             "name": "larastan/larastan",
-            "version": "v3.13.0",
+            "version": "v3.13.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/larastan/larastan.git",
-                "reference": "24ee69a7705ffc7c2cd8a3c96a5f498a4c2de5e3"
+                "reference": "043139b9829917363086d6b10f916772420a6102"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/larastan/larastan/zipball/24ee69a7705ffc7c2cd8a3c96a5f498a4c2de5e3",
-                "reference": "24ee69a7705ffc7c2cd8a3c96a5f498a4c2de5e3",
+                "url": "https://api.github.com/repos/larastan/larastan/zipball/043139b9829917363086d6b10f916772420a6102",
+                "reference": "043139b9829917363086d6b10f916772420a6102",
                 "shasum": ""
             },
             "require": {
@@ -18981,7 +18981,7 @@
             ],
             "support": {
                 "issues": "https://github.com/larastan/larastan/issues",
-                "source": "https://github.com/larastan/larastan/tree/v3.13.0"
+                "source": "https://github.com/larastan/larastan/tree/v3.13.1"
             },
             "funding": [
                 {
@@ -18989,7 +18989,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-07T14:14:28+00:00"
+            "time": "2026-10-16T23:32:31+00:00"
         },
         {
             "name": "laravel/agent-detector",
