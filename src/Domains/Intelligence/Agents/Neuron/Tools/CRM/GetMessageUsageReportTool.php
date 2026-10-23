@@ -131,7 +131,7 @@ class GetMessageUsageReportTool extends Tool
                     labelColumn: 'displayname',
                 ),
             ],
-            extraScopes: fn (Builder $q) => $q->whereIn('message_types_id', $messageTypeIds),
+            extraScopes: fn (Builder $q) => $q->whereIn('message_types_id', $messageTypeIds)->notLocked(),
         )->execute();
 
         return [
