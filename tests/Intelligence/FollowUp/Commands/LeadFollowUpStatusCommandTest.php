@@ -30,11 +30,19 @@ final class LeadFollowUpStatusCommandTest extends TestCase
         parent::tearDown();
     }
 
-    public function testShowsTheCompanyWithItsFailuresWhenFilteredByCompany(): void
+    public function testShowsTheCompanyDetailForTheWindowSince8am(): void
     {
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
-        Carbon::setTestNow(now()->addYears(5));
+        Carbon::setTestNow(now()->addYears(5)->setTime(14, 30));
+        // Before 08:00, outside the default window.
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.skipped',
+            ['reason' => 'no_session'],
+            now()->setTime(7, 0)
+        );
 
         $this->seedEvent(
             $app,
@@ -49,13 +57,24 @@ final class LeadFollowUpStatusCommandTest extends TestCase
             ['reason' => 'send_failed', 'channel' => 'sms', 'error' => 'Twilio rejected the number']
         );
 
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.skipped',
+            ['reason' => 'too_soon']
+        );
+
         $this->artisan('lead:follow-up-status', [
             '--app_id' => $app->getId(),
             '--company_id' => $company->getId(),
-            '--hours' => 1,
+            '--tz' => 'UTC',
         ])
-            ->expectsOutputToContain('send_failed (1)')
+            ->expectsOutputToContain('08:00 → 14:30 UTC')
+            ->expectsOutputToContain('Sent by channel: sms (1)')
+            ->expectsOutputToContain('Failures by reason: send_failed (1)')
+            ->expectsOutputToContain('Skipped by reason: too_soon (1)')
             ->expectsOutputToContain('Twilio rejected the number')
+            ->doesntExpectOutputToContain('no_session')
             ->expectsOutputToContain('Some companies have failing follow-ups')
             ->assertSuccessful();
     }
@@ -64,7 +83,8 @@ final class LeadFollowUpStatusCommandTest extends TestCase
         Apps $app,
         Companies $company,
         string $eventType,
-        array $payload
+        array $payload,
+        ?Carbon $occurredAt = null
     ): void {
         new AppendEventAction(
             new EventData(
@@ -76,7 +96,7 @@ final class LeadFollowUpStatusCommandTest extends TestCase
                 sourceEntityType: Lead::class,
                 sourceEntityId: 1,
                 payload: $payload,
-                occurredAt: now(),
+                occurredAt: $occurredAt ?? now(),
             ),
         )->execute();
     }

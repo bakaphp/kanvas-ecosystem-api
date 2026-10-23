@@ -80,7 +80,10 @@ final class FollowUpLeadAction
         }
 
         if ($this->lead->getFollowUpStateCount() >= $config->maxRetries) {
-            $this->handleExhaustedAction($config);
+            if ($config->exhaustedAction === ExhaustedActionEnum::ADVANCE && $this->advanceLeadStage()) {
+                // The stage observer resets the count and wait window. Do not exhaust the new stage.
+                return $this->skip('max_retries_stage_advanced');
+            }
 
             return $this->exhaust('max_retries');
         }
@@ -270,20 +273,29 @@ final class FollowUpLeadAction
         };
     }
 
-    // Sessions are keyed to People (not Lead) in the new sales-agent infra —
-    // same human spans multiple leads across pipelines but one session.
     private function resolveSession(): ?Session
     {
-        if (! $this->lead->people_id) {
-            return null;
-        }
-
-        return Session::query()
-            ->where('entity_namespace', People::class)
-            ->where('entity_id', $this->lead->people_id)
+        $sessions = Session::query()
             ->where('is_deleted', 0)
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($this->company);
+
+        if ($this->lead->people_id) {
+            $session = (clone $sessions)
+                ->where('entity_namespace', People::class)
+                ->where('entity_id', $this->lead->people_id)
+                ->latest('id')
+                ->first();
+
+            if ($session !== null) {
+                return $session;
+            }
+        }
+
+        // TODO: Remove Lead session compatibility when SalesAssist uses the native People session flow.
+        return $sessions
+            ->where('entity_namespace', Lead::class)
+            ->where('entity_id', $this->lead->getId())
             ->latest('id')
             ->first();
     }
@@ -770,13 +782,6 @@ final class FollowUpLeadAction
             'email' => 'email',
             default => 'twilio-sms',
         };
-    }
-
-    private function handleExhaustedAction(FollowUpConfig $config): void
-    {
-        if ($config->exhaustedAction === ExhaustedActionEnum::ADVANCE) {
-            $this->advanceLeadStage();
-        }
     }
 
     private function advanceLeadStage(): bool
