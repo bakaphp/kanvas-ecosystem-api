@@ -155,8 +155,8 @@ class Deal extends BaseModel implements ProvidesAgentContext
         return LeadStatus::constrainToState(
             $query,
             'status_id',
-            true,
-            $company
+            open: true,
+            company: $company
         );
     }
 
@@ -165,8 +165,8 @@ class Deal extends BaseModel implements ProvidesAgentContext
         return LeadStatus::constrainToState(
             $query,
             'status_id',
-            false,
-            $company
+            open: false,
+            company: $company
         );
     }
 

@@ -363,8 +363,8 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         return LeadStatus::constrainToState(
             $query,
             'leads_status_id',
-            true,
-            $company
+            open: true,
+            company: $company
         );
     }
 
@@ -373,8 +373,8 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         return LeadStatus::constrainToState(
             $query,
             'leads_status_id',
-            false,
-            $company
+            open: false,
+            company: $company
         );
     }
 
