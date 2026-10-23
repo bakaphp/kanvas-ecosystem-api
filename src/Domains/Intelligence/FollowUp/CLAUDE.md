@@ -109,8 +109,8 @@ allowed to speak for a lead whose AI is off.
 ## "Open" means `leads_status_id`, never the `status` column
 
 Both the fan-out query and the action's `lead_not_active` gate use `hasOpenLeadStatus()` /
-`scopeHasOpenLeadStatus($company)`: the global open ids plus the company's
-`guild_open_leads_status_ids`. `Lead::isOpen()` reads the `status` integer column, which no app
+`scopeHasOpenLeadStatus($company)`: the lead's status row has `is_open` (plus the company's legacy
+`guild_open_leads_status_ids`). `Lead::isOpen()` reads the `status` integer column, which no app
 code writes (758k of 759k local rows sit at the default `0`) — a gate on it passes everyone. CRM
 pulls and the UI write `leads_status_id` (`close()` / `open()`), so that is the only column that
 reflects a close.
