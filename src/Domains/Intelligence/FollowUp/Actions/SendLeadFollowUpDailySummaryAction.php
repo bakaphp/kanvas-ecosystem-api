@@ -4,19 +4,23 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Actions;
 
-use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpEmailTemplateEnum;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 
 /**
- * Emails a company's `follow_up.daily.summary` to `lead_follow_up_summary_recipients` (company
- * setting, app as fallback). A day with nothing queued, sent, failed or exhausted sends nothing.
+ * Emails a company's `follow_up.daily.summary` to its active members holding the app's `FollowUpDev`
+ * role. A day with nothing queued, sent, failed or exhausted sends nothing.
  */
 final class SendLeadFollowUpDailySummaryAction
 {
@@ -33,9 +37,13 @@ final class SendLeadFollowUpDailySummaryAction
     public function execute(): array
     {
         $payload = (array) $this->summary->payload;
-        $recipients = $this->recipients();
 
-        if ($recipients === [] || ! $this->hasActivity($payload)) {
+        if (! $this->hasActivity($payload)) {
+            return [];
+        }
+
+        $recipients = $this->recipients();
+        if ($recipients->isEmpty()) {
             return [];
         }
 
@@ -54,26 +62,30 @@ final class SendLeadFollowUpDailySummaryAction
             $this->company->name
         ));
 
-        foreach ($recipients as $recipient) {
-            Notification::route('mail', $recipient)->notify($notification);
-        }
+        Notification::send($recipients, $notification);
 
-        return $recipients;
+        return $recipients->map(fn (Users $user): string => (string) $user->email)->values()->all();
     }
 
     /**
-     * @return list<string>
+     * @return Collection<int, Users>
      */
-    private function recipients(): array
+    private function recipients(): Collection
     {
-        $key = ConfigurationEnum::LEAD_FOLLOW_UP_SUMMARY_RECIPIENTS->value;
-        $value = $this->company->get($key) ?? $this->app->get($key);
-        $list = is_array($value) ? $value : Str::commaList(is_string($value) ? $value : null);
+        try {
+            return UsersRepository::getActiveCompanyAppUsersByRole(
+                $this->company,
+                $this->app,
+                RolesEnums::FOLLOW_UP_DEV->value
+            )->get();
+        } catch (ModelNotFoundException) {
+            Log::info('Follow-up daily summary: FollowUpDev role not created for app; run kanvas:create-role FollowUpDev {app_id}', [
+                'app_id' => $this->app->getId(),
+                'company_id' => $this->company->getId(),
+            ]);
 
-        return array_values(array_unique(array_filter(
-            array_map(fn (mixed $email): string => trim((string) $email), $list),
-            fn (string $email): bool => filter_var($email, FILTER_VALIDATE_EMAIL) !== false
-        )));
+            return new Collection();
+        }
     }
 
     /**

@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace Tests\Intelligence\FollowUp\Actions;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\AccessControlList\Actions\CreateRoleAction;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Actions\SendLeadFollowUpDailySummaryAction;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpEmailTemplateEnum;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
@@ -17,25 +21,22 @@ use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Notifications\Templates\Blank;
-use PHPUnit\Framework\Attributes\Group;
+use Kanvas\Users\Models\Users;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
 
-/**
- * Serial: the recipients list is a company setting, which lives in Redis and is shared by every
- * parallel test process.
- */
-#[Group('serial')]
 final class SendLeadFollowUpDailySummaryActionTest extends TestCase
 {
     use DatabaseTransactions;
 
     protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence'];
 
-    private const string RECIPIENTS = ConfigurationEnum::LEAD_FOLLOW_UP_SUMMARY_RECIPIENTS->value;
-
     private Apps $testApp;
 
     private Companies $company;
+
+    /** @var list<Users> */
+    private array $members = [];
 
     protected function setUp(): void
     {
@@ -44,21 +45,25 @@ final class SendLeadFollowUpDailySummaryActionTest extends TestCase
         Notification::fake();
         $this->testApp = app(Apps::class);
         $this->company = auth()->user()->getCurrentCompany();
+        $this->ensureFollowUpDevRole();
     }
 
     protected function tearDown(): void
     {
-        $this->company->del(self::RECIPIENTS);
+        Bouncer::scope()->to(RolesEnums::getScope($this->testApp));
+        foreach ($this->members as $member) {
+            Bouncer::retract(RolesEnums::FOLLOW_UP_DEV->value)->from($member);
+        }
 
         parent::tearDown();
     }
 
-    public function testEmailsEachValidRecipientWithTheFailedLeadsNamed(): void
+    public function testEmailsTheCompanyFollowUpDevsWithTheFailedLeadsNamed(): void
     {
+        $dev = $this->makeMember(RolesEnums::FOLLOW_UP_DEV);
         $lead = Lead::factory()
             ->withAppAndCompany($this->testApp->getId(), $this->company->getId())
             ->create(['title' => 'Maria Follow Up']);
-        $this->company->set(self::RECIPIENTS, 'ops@example.com, not-an-email, ops@example.com, sales@example.com');
 
         $sentTo = new SendLeadFollowUpDailySummaryAction(
             $this->testApp,
@@ -73,9 +78,9 @@ final class SendLeadFollowUpDailySummaryActionTest extends TestCase
             ]),
         )->execute();
 
-        $this->assertSame(['ops@example.com', 'sales@example.com'], $sentTo);
-        Notification::assertSentOnDemandTimes(Blank::class, 2);
-        Notification::assertSentOnDemand(
+        $this->assertContains($dev->email, $sentTo);
+        Notification::assertSentTo(
+            $dev,
             Blank::class,
             static function (Blank $notification) use ($lead): bool {
                 $failure = $notification->getData()['failed']['recent'][0];
@@ -87,23 +92,29 @@ final class SendLeadFollowUpDailySummaryActionTest extends TestCase
         );
     }
 
-    public function testSendsNothingWithoutRecipients(): void
+    public function testInactiveMembersAndOtherRolesNeverReceiveIt(): void
     {
-        $this->company->del(self::RECIPIENTS);
+        $inactiveDev = $this->makeMember(RolesEnums::FOLLOW_UP_DEV);
+        DB::table('users_associated_apps')
+            ->where('users_id', $inactiveDev->getId())
+            ->where('apps_id', $this->testApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->update(['is_active' => 0]);
+        $developer = $this->makeMember(RolesEnums::DEVELOPER);
 
-        $sentTo = new SendLeadFollowUpDailySummaryAction(
+        new SendLeadFollowUpDailySummaryAction(
             $this->testApp,
             $this->company,
             $this->summary(['sent' => ['total' => 3, 'by_channel' => [], 'by_stage' => []]]),
         )->execute();
 
-        $this->assertSame([], $sentTo);
-        Notification::assertNothingSent();
+        Notification::assertNotSentTo($inactiveDev, Blank::class);
+        Notification::assertNotSentTo($developer, Blank::class);
     }
 
     public function testSendsNothingForADayWithoutActivity(): void
     {
-        $this->company->set(self::RECIPIENTS, 'ops@example.com');
+        $dev = $this->makeMember(RolesEnums::FOLLOW_UP_DEV);
 
         $sentTo = new SendLeadFollowUpDailySummaryAction(
             $this->testApp,
@@ -112,7 +123,7 @@ final class SendLeadFollowUpDailySummaryActionTest extends TestCase
         )->execute();
 
         $this->assertSame([], $sentTo);
-        Notification::assertNothingSent();
+        Notification::assertNotSentTo($dev, Blank::class);
     }
 
     private function summary(array $payload): Event
@@ -129,5 +140,50 @@ final class SendLeadFollowUpDailySummaryActionTest extends TestCase
                 payload: [...$payload, 'for_date' => '2026-10-21'],
             ),
         )->execute();
+    }
+
+    /**
+     * The membership row goes through the default handle so the recipient query sees it inside
+     * this test's transaction.
+     */
+    private function makeMember(RolesEnums $role): Users
+    {
+        $user = Users::factory()->create();
+
+        DB::table('users_associated_apps')->insert([
+            'users_id' => $user->getId(),
+            'apps_id' => $this->testApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'email' => $user->email,
+            'displayname' => $user->displayname,
+            'password' => '',
+            'user_role' => strtolower($role->value),
+            'user_active' => 1,
+            'is_active' => 1,
+            'is_deleted' => 0,
+            'created_at' => Carbon::now(),
+        ]);
+
+        Bouncer::scope()->to(RolesEnums::getScope($this->testApp));
+        Bouncer::assign($role->value)->to($user);
+        $this->members[] = $user;
+
+        return $user;
+    }
+
+    /**
+     * The role is created per app by `CreateAppsAction::acl()`; the test app predates it.
+     */
+    private function ensureFollowUpDevRole(): void
+    {
+        try {
+            new CreateRoleAction(
+                name: RolesEnums::FOLLOW_UP_DEV->value,
+                title: 'Follow-up Dev',
+                app: $this->testApp,
+            )->execute();
+        } catch (ValidationException) {
+            // Already there from a prior run on a database that keeps roles across tests.
+        }
     }
 }
