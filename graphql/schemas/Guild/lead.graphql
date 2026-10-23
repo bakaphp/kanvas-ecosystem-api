@@ -60,6 +60,7 @@ type Lead {
     is_published: Boolean!
     created_at: DateTime!
     updated_at: DateTime!
+    closed_at: DateTime
 }
 
 type LeadVariantInterest {
@@ -270,6 +271,7 @@ extend type Query @guard {
                     "status"
                     "is_published"
                     "created_at"
+                    "closed_at"
                 ]
             )
         hasCustomFields: _
@@ -295,6 +297,7 @@ extend type Query @guard {
                     "id"
                     "created_at"
                     "updated_at"
+                    "closed_at"
                     "title"
                     "status"
                     "pipeline_stage_id"

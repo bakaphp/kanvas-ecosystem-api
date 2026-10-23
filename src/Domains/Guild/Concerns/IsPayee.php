@@ -2,37 +2,34 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Traits;
+namespace Kanvas\Guild\Concerns;
 
-trait BillableTrait
+trait IsPayee
 {
-    public function getBillableId(): int
+    public function getPayeeId(): int
     {
         return (int) $this->id;
     }
 
-    public function getBillableDisplayName(): string
+    public function getPayeeDisplayName(): string
     {
         return (string) ($this->name ?? '');
     }
 
-    public function getBillableLegalName(): ?string
+    public function getPayeeLegalName(): ?string
     {
         return (string) ($this->name ?? null) ?: null;
     }
 
-    public function getBillableTaxId(): ?string
+    public function getPayeeTaxId(): ?string
     {
         return $this->get('tax_id')
             ?? $this->get('rnc')
             ?? $this->get('ein');
     }
 
-    public function getBillingEmail(): ?string
+    public function getPayeeEmail(): ?string
     {
-        // Organizations don't have a direct email column. Surface the primary person's email when
-        // available so invoices have a delivery destination by default. The `peoples` relation lives
-        // on Organization — guard for non-Org consumers of the trait.
         if (! method_exists($this, 'peoples')) {
             return null;
         }
@@ -47,8 +44,11 @@ trait BillableTrait
     /**
      * @return array<string, mixed>|null
      */
-    public function getBillingAddressArray(): ?array
+    public function getPayeeAddressArray(): ?array
     {
+        // Vendor address = the Org's billing address. Same chain as IsBillable: walk to
+        // People::getBillingAddressArray() (typed `peoples_address` row), fall back to the
+        // Organization's free-text column.
         if (method_exists($this, 'peoples')) {
             $primary = $this->peoples()->first();
             $address = $primary?->getBillingAddressArray();
@@ -62,17 +62,7 @@ trait BillableTrait
         return $line === '' ? null : ['address' => $line];
     }
 
-    public function getDefaultPaymentTermsDays(): int
-    {
-        $stored = $this->get('default_payment_terms_days');
-        if ($stored !== null && is_numeric($stored)) {
-            return (int) $stored;
-        }
-
-        return 30;
-    }
-
-    public function getDefaultCurrency(): string
+    public function getDefaultPayableCurrency(): string
     {
         $stored = $this->get('default_currency');
 

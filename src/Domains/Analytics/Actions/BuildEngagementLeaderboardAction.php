@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFound
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Analytics\DataTransferObject\AnalyticsRequest;
+use Kanvas\Analytics\Support\Ratio;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -284,7 +285,7 @@ class BuildEngagementLeaderboardAction
             'ai_sent' => $bucket['ai_sent'],
             'rep_sent' => $bucket['rep_sent'],
             'replies' => $bucket['replies'],
-            'reply_rate' => self::ratio($bucket['replies'], $totalSent),
+            'reply_rate' => Ratio::of($bucket['replies'], $totalSent),
             'median_response_seconds' => self::median($bucket['deltas']),
             'appointments' => $bucket['appointments'],
         ];
@@ -306,11 +307,11 @@ class BuildEngagementLeaderboardAction
             'ai_sent' => $sum('ai_sent'),
             'rep_sent' => $sum('rep_sent'),
             'replies' => $sum('replies'),
-            'reply_rate' => self::ratio($sum('replies'), $totalSent),
+            'reply_rate' => Ratio::of($sum('replies'), $totalSent),
             // Median over every pair, not a mean of per-rep medians — the latter is not a median.
             'median_response_seconds' => self::median($allDeltas),
             'appointments' => $sum('appointments'),
-            'ai_share' => self::ratio($sum('ai_sent'), $totalSent),
+            'ai_share' => Ratio::of($sum('ai_sent'), $totalSent),
             'reps' => count($rows),
         ];
     }
@@ -506,11 +507,6 @@ class BuildEngagementLeaderboardAction
             $this->request->from->copy()->utc(),
             $this->request->to->copy()->utc(),
         ];
-    }
-
-    private static function ratio(int $part, int $whole): ?float
-    {
-        return $whole > 0 ? round($part / $whole, 4) : null;
     }
 
     /**
