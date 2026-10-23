@@ -7,6 +7,7 @@ namespace Tests\Connectors\Movipass;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\SendRoadsideChatMessagePushAction;
+use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
@@ -83,13 +84,13 @@ final class RoadsideAssistanceActivityResilienceTest extends TestCase
         $mechanic = Users::factory()->create();
         $order = $this->createRoadsideOrder([
             'mechanic' => ['user_id' => $mechanic->getId()],
-            'status_notified' => 'on_site',
+            'status_notified' => MovipassOrderStatusEnum::ON_SITE->slug(),
         ]);
 
         $this->gateIntegration($order);
         Notification::fake();
 
-        $this->runActivity($order, WorkflowEnum::STATUS_TRANSITION->value, ['to_status' => 'on_site']);
+        $this->runActivity($order, WorkflowEnum::STATUS_TRANSITION->value, ['to_status' => MovipassOrderStatusEnum::ON_SITE->slug()]);
 
         Notification::assertNothingSent();
 
@@ -105,7 +106,7 @@ final class RoadsideAssistanceActivityResilienceTest extends TestCase
         $this->gateIntegration($order);
         Notification::fake();
 
-        $this->runActivity($order, WorkflowEnum::STATUS_TRANSITION->value, ['to_status' => 'on_site']);
+        $this->runActivity($order, WorkflowEnum::STATUS_TRANSITION->value, ['to_status' => MovipassOrderStatusEnum::ON_SITE->slug()]);
 
         Notification::assertSentTo(
             $this->authUser,

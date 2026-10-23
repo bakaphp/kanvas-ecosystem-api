@@ -102,7 +102,7 @@ class ProcessReynoldsWebhookJob extends ProcessWebhookJob
     {
         $lead = new PullLeadAction($this->receiver->app, $company, $user)->execute($record);
 
-        if ($task === TransactionCodeEnum::INSERT_SALES_LEAD) {
+        if (in_array($task, [TransactionCodeEnum::INSERT_SALES_LEAD, TransactionCodeEnum::OUTBOUND_SALES_LEAD], true)) {
             // SyncLeadByThirdPartyCustomFieldAction disables workflows on the lead it returns.
             $lead->enableWorkflows();
             $lead->fireWorkflow(
