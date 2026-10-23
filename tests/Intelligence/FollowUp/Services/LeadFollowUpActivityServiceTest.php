@@ -77,9 +77,24 @@ final class LeadFollowUpActivityServiceTest extends TestCase
     {
         $lead = Lead::factory()->withAppAndCompany($this->testApp->getId(), $this->company->getId())->create();
 
-        $this->seedEvent('lead.follow_up.skipped', ['reason' => 'too_soon'], $this->at, $lead);
-        $this->seedEvent('lead.follow_up.skipped', ['reason' => 'crm_sync_failed'], $this->at->copy()->subMinutes(10), $lead);
-        $this->seedEvent('lead.follow_up.failed', ['reason' => 'job_failed', 'error' => 'Agent not found'], $this->at, $lead);
+        $this->seedEvent(
+            'lead.follow_up.skipped',
+            ['reason' => 'too_soon'],
+            $this->at,
+            $lead
+        );
+        $this->seedEvent(
+            'lead.follow_up.skipped',
+            ['reason' => 'crm_sync_failed'],
+            $this->at->copy()->subMinutes(10),
+            $lead
+        );
+        $this->seedEvent(
+            'lead.follow_up.failed',
+            ['reason' => 'job_failed', 'error' => 'Agent not found'],
+            $this->at,
+            $lead
+        );
 
         $failures = new LeadFollowUpActivityService()->recentFailures(
             $this->testApp,

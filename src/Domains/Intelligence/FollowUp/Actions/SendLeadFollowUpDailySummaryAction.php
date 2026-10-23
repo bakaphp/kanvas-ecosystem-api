@@ -97,6 +97,7 @@ final class SendLeadFollowUpDailySummaryAction
     private function withLeadTitles(array $failures): array
     {
         $titles = Lead::query()
+            ->where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
             ->whereIn('id', array_column($failures, 'lead_id'))
             ->pluck('title', 'id');
