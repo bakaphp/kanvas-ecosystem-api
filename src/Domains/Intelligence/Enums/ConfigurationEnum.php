@@ -56,4 +56,6 @@ enum ConfigurationEnum: string
     case LEAD_FOLLOW_UP_SYNC_INTERVAL_MINUTES = 'lead_follow_up_sync_interval_minutes';
     // Company setting: leads created before this date are never followed up. Unset = all leads.
     case LEAD_FOLLOW_UP_START_DATE = 'lead_follow_up_start_date';
+    // Company setting (app as fallback): emails for the daily follow-up summary, comma-separated or a list.
+    case LEAD_FOLLOW_UP_SUMMARY_RECIPIENTS = 'lead_follow_up_summary_recipients';
 }

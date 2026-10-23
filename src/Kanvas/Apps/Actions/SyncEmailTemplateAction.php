@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\File;
 use Kanvas\ActionEngine\Engagements\Enums\NotificationTemplateEnum as EngagementsEnumsNotificationTemplateEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Enums\EmailTemplateEnum as LeadsEnumsEmailTemplateEnum;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpEmailTemplateEnum;
 use Kanvas\Intelligence\Notifications\Enums\NotificationTemplateEnum as IntelligenceNotificationTemplateEnum;
 use Kanvas\Inventory\Products\Enums\EmailTemplateEnum as ProductsEnumsEmailTemplateEnum;
 use Kanvas\Notifications\Models\NotificationTypes;
@@ -119,6 +120,9 @@ class SyncEmailTemplateAction
             ], [
                 'name' => IntelligenceNotificationTemplateEnum::DATABASE_AGENT_MENTION_REPLY->value,
                 'template' => File::get(resource_path('views/push/agent-mention-reply-db.twig')),
+            ], [
+                'name' => FollowUpEmailTemplateEnum::DAILY_SUMMARY->value,
+                'template' => File::get(resource_path('views/emails/leadFollowUpDailySummary.twig')),
             ],
         ];
 
