@@ -7,6 +7,7 @@ namespace Tests\Intelligence\FollowUp\Commands;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
@@ -35,7 +36,12 @@ final class LeadFollowUpStatusCommandTest extends TestCase
         $company = auth()->user()->getCurrentCompany();
         Carbon::setTestNow(now()->addYears(5));
 
-        $this->seedEvent($app, $company, 'lead.follow_up.sent', ['channels' => ['sms']]);
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.sent',
+            ['channels' => ['sms']]
+        );
         $this->seedEvent(
             $app,
             $company,
@@ -54,8 +60,12 @@ final class LeadFollowUpStatusCommandTest extends TestCase
             ->assertSuccessful();
     }
 
-    private function seedEvent($app, $company, string $eventType, array $payload): void
-    {
+    private function seedEvent(
+        Apps $app,
+        Companies $company,
+        string $eventType,
+        array $payload
+    ): void {
         new AppendEventAction(
             new EventData(
                 app: $app,

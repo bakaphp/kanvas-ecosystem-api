@@ -35,6 +35,7 @@ class LeadFollowUpStatusCommand extends Command
 
     public function handle(LeadFollowUpActivityService $activity): int
     {
+        $appId = $this->option('app_id');
         $companyId = filled($this->option('company_id')) ? (int) $this->option('company_id') : null;
         $hours = max(1, (int) $this->option('hours'));
         $since = now()->subHours($hours);
@@ -42,8 +43,8 @@ class LeadFollowUpStatusCommand extends Command
         $this->reportQueue();
 
         // A named app is shown even before it turns v2 on, so its ledger can be checked first.
-        $apps = filled($this->option('app_id'))
-            ? Apps::query()->where('id', (int) $this->option('app_id'))->get()
+        $apps = filled($appId)
+            ? Apps::query()->where('id', (int) $appId)->get()
             : Apps::query()->get()->filter(fn (Apps $app) => (bool) $app->get('use_lead_follow_up_v2'));
 
         $failing = false;
@@ -107,23 +108,23 @@ class LeadFollowUpStatusCommand extends Command
         $failing = false;
         $rows = [];
 
-        foreach ($counts as $id => $company) {
-            arsort($company['failed_by_reason']);
-            $failing = $failing || $company['failed'] > 0;
+        foreach ($counts as $id => $count) {
+            arsort($count['failed_by_reason']);
+            $failing = $failing || $count['failed'] > 0;
 
             $rows[] = [
                 $id,
                 $names[$id] ?? '-',
-                $company['queued'],
-                $company['sent'],
-                $company['skipped'],
-                $company['failed'] > 0 ? "<fg=red>{$company['failed']}</>" : '0',
-                $company['exhausted'],
-                $company['last_sent_at'] ? Carbon::parse($company['last_sent_at'])->diffForHumans() : '-',
+                $count['queued'],
+                $count['sent'],
+                $count['skipped'],
+                $count['failed'] > 0 ? "<fg=red>{$count['failed']}</>" : '0',
+                $count['exhausted'],
+                $count['last_sent_at'] ? Carbon::parse($count['last_sent_at'])->diffForHumans() : '-',
                 implode(', ', array_map(
                     fn (string $reason, int $total) => "{$reason} ({$total})",
-                    array_keys($company['failed_by_reason']),
-                    $company['failed_by_reason']
+                    array_keys($count['failed_by_reason']),
+                    $count['failed_by_reason']
                 )) ?: '-',
             ];
         }
