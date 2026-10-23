@@ -26,4 +26,14 @@ class NumberTest extends TestCase
         $this->assertSame(['value' => 2019.0, 'unit' => null], Number::parseMeasurement('2019'));
         $this->assertNull(Number::parseMeasurement('low miles'));
     }
+
+    public function testRatioIsNullWithNothingToDivideBy(): void
+    {
+        $this->assertSame(0.5, Number::ratio(1, 2));
+        $this->assertSame(0.3333, Number::ratio(1, 3));
+        $this->assertSame(0.33, Number::ratio(1, 3, 2));
+        $this->assertSame(0.0, Number::ratio(0, 7));
+        $this->assertNull(Number::ratio(0, 0));
+        $this->assertNull(Number::ratio(3, 0));
+    }
 }

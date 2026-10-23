@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Traits;
+namespace Kanvas\Guild\Concerns;
 
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -15,7 +15,7 @@ use Kanvas\Social\Channels\Models\Channel;
  *
  * `self::class` inside a trait resolves to the using model, so each one scopes to its own namespace.
  */
-trait HasNotesChannelTrait
+trait HasNotesChannel
 {
     public function getStringIdAttribute(): string
     {

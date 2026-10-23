@@ -250,7 +250,7 @@ across connectors, agent tools and DTOs. The inline form silently dropped the st
 `Str::trimToNull()`, one implementation with one test.
 
 The same applies to duplicated *resolvers*, *observers* and *model relations* — if two classes need
-the same three methods, that is a trait (`HasNotesChannelTrait`) or a Concern
+the same three methods, that is a trait (`HasNotesChannel`) or a Concern
 (`App\GraphQL\Concerns\RecordsEntityNotes`), not copy-paste.
 
 ### Trait Naming — `Traits/` is a Baka-only word

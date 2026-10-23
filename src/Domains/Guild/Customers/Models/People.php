@@ -29,6 +29,7 @@ use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
+use Kanvas\Guild\Concerns\HasNotesChannel;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
@@ -39,7 +40,6 @@ use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Guild\Traits\HasNotesChannelTrait;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
@@ -86,7 +86,7 @@ class People extends BaseModel
     }
     use HasEventResources;
     use HasLightHouseCache;
-    use HasNotesChannelTrait;
+    use HasNotesChannel;
     use HasTagsTrait;
     use LikableTrait;
     use Notifiable;
