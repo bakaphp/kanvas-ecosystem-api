@@ -29,11 +29,13 @@ use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpOutcome;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ResolvedChannel;
 use Kanvas\Intelligence\FollowUp\Enums\ChannelSelectionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\ExhaustedActionEnum;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpFailureReasonEnum;
 use Kanvas\Intelligence\FollowUp\Enums\LeadSourceSyncOutcomeEnum;
 use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
 use Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
@@ -97,12 +99,12 @@ final class FollowUpLeadAction
         // Channel resolution lives on the Lead's contacts
         $candidates = new LeadOutboundChannelResolver()->resolve($this->lead, $config);
         if ($candidates === []) {
-            return $this->skip('no_reachable_channel');
+            return $this->skip(FollowUpFailureReasonEnum::NO_REACHABLE_CHANNEL->value);
         }
 
         $session = $this->resolveSession();
         if (! $session) {
-            return $this->skip('no_session');
+            return $this->skip(FollowUpFailureReasonEnum::NO_SESSION->value);
         }
 
         $lastInboundAt = $eligibility->getLastInboundAt($this->lead);
@@ -189,7 +191,7 @@ final class FollowUpLeadAction
                 $e,
             ));
 
-            return $this->skip('agent_call_failed: ' . $e->getMessage());
+            return $this->skip(FollowUpFailureReasonEnum::AGENT_CALL_FAILED->value . ': ' . $e->getMessage());
         }
 
         if (! $result->shouldRespond && ! $result->advanceStage) {
@@ -608,7 +610,7 @@ final class FollowUpLeadAction
         $sync = new SyncLeadSourceBeforeFollowUpAction($this->lead, $this->synchronizer)->execute();
 
         return match (true) {
-            $sync === LeadSourceSyncOutcomeEnum::FAILED => $this->skip('crm_sync_failed'),
+            $sync === LeadSourceSyncOutcomeEnum::FAILED => $this->skip(FollowUpFailureReasonEnum::CRM_SYNC_FAILED->value),
             $sync !== LeadSourceSyncOutcomeEnum::SYNCED => null,
             ! $this->lead->hasOpenLeadStatus() => $this->skip('lead_not_active'),
             new LeadFollowUpEligibilityService()->aiFollowUpDisabled($this->lead) => $this->skip('lead_follow_up_disabled'),
@@ -717,6 +719,8 @@ final class FollowUpLeadAction
     ): void {
         $twilioFrom = (string) $this->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value);
 
+        $providerResponse = null;
+
         try {
             $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
                 channel: $channelType,
@@ -731,6 +735,17 @@ final class FollowUpLeadAction
             // Outbound failure does NOT roll back the persisted message — the
             // record of attempt is the audit truth; the queue layer retries.
             report($e);
+            $providerResponse ??= ['success' => false, 'error' => $e->getMessage()];
+        }
+
+        // A rejection the provider will not retry comes back as `success: false`, not as a throw.
+        if (($providerResponse['success'] ?? true) === false) {
+            $this->lead->emitLedgerEvent('lead.follow_up.send_failed', EventStatusEnum::ERROR, [
+                'stage_id' => $this->lead->pipeline_stage_id,
+                'channel' => $channelType,
+                'reason' => FollowUpFailureReasonEnum::SEND_FAILED->value,
+                'error' => mb_substr((string) ($providerResponse['error'] ?? ''), 0, 500),
+            ]);
         }
     }
 

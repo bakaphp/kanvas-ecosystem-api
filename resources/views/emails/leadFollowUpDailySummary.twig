@@ -1,0 +1,90 @@
+<tr>
+    <td style="padding: 24px 12px; font-family: Arial, sans-serif; color: #263238;">
+        <h1 style="margin: 0 0 8px; font-size: 24px; line-height: 1.3;">Follow-up summary</h1>
+        <p style="margin: 0 0 22px; color: #667085; font-size: 14px;">
+            {{ company_name ?? 'Your company' }} · {{ for_date ?? '' }}
+        </p>
+
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; margin-bottom: 24px;">
+            <tr>
+                <td style="width: 25%; padding: 16px; background: #f4f7fb; border-radius: 6px;">
+                    <div style="font-size: 12px; color: #667085;">Sent</div>
+                    <strong style="display: block; margin-top: 5px; font-size: 25px;">{{ sent.total ?? 0 }}</strong>
+                </td>
+                <td style="width: 8px;"></td>
+                <td style="width: 25%; padding: 16px; background: #fdecec; border-radius: 6px;">
+                    <div style="font-size: 12px; color: #667085;">Failed</div>
+                    <strong style="display: block; margin-top: 5px; font-size: 25px; color: #b42318;">{{ failed.total ?? 0 }}</strong>
+                </td>
+                <td style="width: 8px;"></td>
+                <td style="width: 25%; padding: 16px; background: #f4f7fb; border-radius: 6px;">
+                    <div style="font-size: 12px; color: #667085;">Queued</div>
+                    <strong style="display: block; margin-top: 5px; font-size: 25px;">{{ queued.total ?? 0 }}</strong>
+                </td>
+                <td style="width: 8px;"></td>
+                <td style="width: 25%; padding: 16px; background: #f4f7fb; border-radius: 6px;">
+                    <div style="font-size: 12px; color: #667085;">Exhausted</div>
+                    <strong style="display: block; margin-top: 5px; font-size: 25px;">{{ exhausted.total ?? 0 }}</strong>
+                </td>
+            </tr>
+        </table>
+
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; margin-bottom: 22px;">
+            <tr>
+                <td style="width: 33%; padding-right: 12px; vertical-align: top;">
+                    <h2 style="margin: 0 0 8px; font-size: 16px;">Sent by channel</h2>
+                    {% for channel, count in sent.by_channel ?? {} %}
+                        <p style="margin: 5px 0; font-size: 13px;">{{ channel }} <span style="color: #667085;">({{ count }})</span></p>
+                    {% else %}
+                        <p style="margin: 5px 0; color: #667085; font-size: 13px;">Nothing sent</p>
+                    {% endfor %}
+                </td>
+                <td style="width: 33%; padding: 0 12px; vertical-align: top;">
+                    <h2 style="margin: 0 0 8px; font-size: 16px;">Failures by reason</h2>
+                    {% for reason, count in failed.by_reason ?? {} %}
+                        <p style="margin: 5px 0; font-size: 13px;">{{ reason }} <span style="color: #667085;">({{ count }})</span></p>
+                    {% else %}
+                        <p style="margin: 5px 0; color: #667085; font-size: 13px;">No failures</p>
+                    {% endfor %}
+                </td>
+                <td style="width: 33%; padding-left: 12px; vertical-align: top;">
+                    <h2 style="margin: 0 0 8px; font-size: 16px;">Skipped ({{ skipped.total ?? 0 }})</h2>
+                    {% for reason, count in skipped.by_reason ?? {} %}
+                        <p style="margin: 5px 0; font-size: 13px;">{{ reason }} <span style="color: #667085;">({{ count }})</span></p>
+                    {% else %}
+                        <p style="margin: 5px 0; color: #667085; font-size: 13px;">Nothing skipped</p>
+                    {% endfor %}
+                </td>
+            </tr>
+        </table>
+
+        {% if failed.recent ?? [] %}
+            <h2 style="margin: 0 0 8px; font-size: 16px;">Latest failures</h2>
+            <div style="width: 100%; overflow-x: auto;">
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; font-size: 12px;">
+                    <thead>
+                        <tr>
+                            <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Lead</th>
+                            <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Reason</th>
+                            <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for failure in failed.recent %}
+                            <tr>
+                                <td style="padding: 9px 6px; border-bottom: 1px solid #edf0f2;">
+                                    <strong>#{{ failure['lead_id'] }}</strong>
+                                    {% if failure['lead_title'] ?? null %}<br><span style="color: #667085;">{{ failure['lead_title'] }}</span>{% endif %}
+                                </td>
+                                <td style="padding: 9px 6px; border-bottom: 1px solid #edf0f2;">
+                                    {{ failure['reason'] }}{% if failure['channel'] ?? null %} ({{ failure['channel'] }}){% endif %}
+                                </td>
+                                <td style="padding: 9px 6px; border-bottom: 1px solid #edf0f2; color: #667085;">{{ failure['error'] ?? '' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </td>
+</tr>
