@@ -399,6 +399,54 @@ class FollowUpLeadActionTest extends TestCase
     // ─────────────────────────────────────────────────────────────────────
     // Gate 3: no session → no_session
     // ─────────────────────────────────────────────────────────────────────
+    public function testSessionResolutionSupportsLegacyLeadAndPrefersPeople(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+        $action = new FollowUpLeadAction($this->testApp, $this->company, $lead, $this->seedFollowUpAgent());
+        $resolve = new \ReflectionMethod($action, 'resolveSession');
+        $peopleSession = $this->seedSessionAndChannel($lead, 'email');
+        $legacySession = $this->seedSessionAndChannel($lead, 'sms');
+        $legacySession->update(['entity_namespace' => Lead::class, 'entity_id' => $lead->getId()]);
+
+        $this->assertSame($peopleSession->getId(), $resolve->invoke($action)?->getId());
+        $peopleSession->update(['is_deleted' => 1]);
+        $this->assertSame($legacySession->getId(), $resolve->invoke($action)?->getId());
+
+        foreach ([['companies_id' => 0], ['apps_id' => 0], ['entity_id' => 0], ['is_deleted' => 1]] as $invalid) {
+            $original = array_intersect_key($legacySession->getAttributes(), $invalid);
+            $legacySession->update($invalid);
+            $this->assertNull($resolve->invoke($action));
+            $legacySession->update($original);
+        }
+    }
+
+    public function testContactChannelCreatesBothSessionTypesWithoutDuplicates(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+        $agent = $this->seedFollowUpAgent();
+        $contact = \Kanvas\Guild\Customers\Models\Contact::factory()->create([
+            'peoples_id' => $lead->people_id,
+            'contacts_types_id' => \Kanvas\Guild\Customers\Enums\ContactTypeEnum::EMAIL->value,
+            'value' => 'session-test@example.com',
+        ]);
+        $action = new \Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelForContactAction(
+            $contact, $this->testApp, ['agent_id' => $agent->getId()], $lead
+        );
+        $first = $action->execute();
+        $second = $action->execute();
+        $this->assertTrue($first['success']);
+        $this->assertSame($first['channel_id'], $second['channel_id']);
+
+        foreach ([People::class => $lead->people_id, Lead::class => $lead->getId()] as $namespace => $id) {
+            $sessions = Session::query()->fromApp($this->testApp)->fromCompany($this->company)
+                ->where('entity_namespace', $namespace)->where('entity_id', $id)->get();
+            $this->assertCount(1, $sessions);
+            $channel = Channel::findOrFail($sessions->first()->channel_id);
+            $this->assertSame($namespace, $channel->entity_namespace);
+            $this->assertEquals($id, $channel->entity_id);
+        }
+    }
+
     public function testSkipsWhenNoSessionExists(): void
     {
         $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
