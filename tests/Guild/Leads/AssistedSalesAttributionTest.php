@@ -14,6 +14,7 @@ use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
 use Kanvas\Analytics\Actions\BuildAssistedSalesAttributionAction;
 use Kanvas\Analytics\DataTransferObject\AnalyticsRequest;
 use Kanvas\Analytics\Enums\AnalyticsBucketEnum;
+use Kanvas\Analytics\Enums\AttributionPopulationEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -103,7 +104,67 @@ class AssistedSalesAttributionTest extends TestCase
         $this->assertSame(3, $result['assisted_by_either']);
         $this->assertSame(1, $result['assisted_by_both']);
         $this->assertSame(1, $result['unassisted']);
-        $this->assertCount(4, $result['leads']);
+        $this->assertSame(4, $result['leads']);
+        $this->assertCount(4, $result['lead_rows']);
+        $this->assertArrayNotHasKey('outcomes', $result, 'Every sold lead sold; there is nothing to compare.');
+    }
+
+    public function testAllPopulationTakesTheLeadsCreatedInTheWindowAndComparesOutcomes(): void
+    {
+        $aiSold = $this->soldLead();
+        $this->aiMessage($aiSold);
+
+        $aiOpen = $this->openLead();
+        $this->aiMessage($aiOpen);
+
+        $this->soldLead();
+        $this->openLead();
+        $this->openLead();
+
+        $result = $this->attribution(AttributionPopulationEnum::ALL);
+
+        $this->assertSame('all', $result['population']);
+        $this->assertSame(5, $result['leads']);
+        $this->assertSame(2, $result['sold']);
+        $this->assertSame(2, $result['assisted_by_ai']['count']);
+        $this->assertSame(['leads' => 2, 'sold' => 1, 'sold_rate' => 0.5], $result['outcomes']['assisted_by_ai']);
+        $this->assertSame(['leads' => 3, 'sold' => 1, 'sold_rate' => 0.3333], $result['outcomes']['not_assisted_by_ai']);
+        $this->assertSame(['leads' => 0, 'sold' => 0, 'sold_rate' => null], $result['outcomes']['assisted_by_action']);
+
+        $openRow = collect($result['lead_rows'])->firstWhere('lead_id', $aiOpen->getId());
+        $this->assertFalse($openRow['sold']);
+        $this->assertNull($openRow['closed_at']);
+        $this->assertTrue($openRow['assisted_by_ai']);
+    }
+
+    public function testOpenPopulationLeavesSoldLeadsOutAndCountsTouchesUpToNow(): void
+    {
+        $sold = $this->soldLead();
+        $this->aiMessage($sold);
+
+        $open = $this->openLead();
+        $open->created_at = Carbon::now()->subDays(3);
+        $open->save();
+        $this->aiMessage($open, at: Carbon::now()->subDay());
+        $this->engagement($open, actionSlug: 'get-docs', stageSlug: 'sent');
+
+        $result = $this->attribution(AttributionPopulationEnum::OPEN);
+
+        $this->assertSame(1, $result['leads']);
+        $this->assertSame(0, $result['sold']);
+        $this->assertSame(1, $result['assisted_by_ai']['count']);
+        $this->assertSame(1, $result['assisted_by_action']['count']);
+        $this->assertSame($open->getId(), $result['lead_rows'][0]['lead_id']);
+    }
+
+    public function testTheToolRejectsAnUnknownPopulation(): void
+    {
+        $result = new GetAssistedSalesAttributionTool()
+            ->withContext($this->kanvasApp, $this->company, $this->user)
+            ->__invoke(population: 'won');
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('sold, open, all', $result['message']);
     }
 
     public function testOnlySoldLeadsClosedInsideTheWindowCount(): void
@@ -114,10 +175,9 @@ class AssistedSalesAttributionTest extends TestCase
         $earlier->closed_at = Carbon::now()->subDays(60);
         $earlier->save();
 
-        $open = Lead::factory()->withAppAndCompany($this->kanvasApp->getId(), $this->company->getId())->create();
-        $this->aiMessage($open);
+        $this->aiMessage($this->openLead());
 
-        $this->assertSame(1, $this->attribution()['sold']);
+        $this->assertSame(1, $this->attribution()['leads']);
     }
 
     public function testAnAiMessageAfterTheSaleOrBeforeTheLeadExistedIsNotAssistance(): void
@@ -210,7 +270,7 @@ class AssistedSalesAttributionTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function attribution(): array
+    private function attribution(AttributionPopulationEnum $population = AttributionPopulationEnum::SOLD): array
     {
         return new BuildAssistedSalesAttributionAction(
             app: $this->kanvasApp,
@@ -221,7 +281,15 @@ class AssistedSalesAttributionTest extends TestCase
                 bucket: AnalyticsBucketEnum::DAY,
                 timezone: 'UTC',
             ),
+            population: $population,
         )->execute();
+    }
+
+    private function openLead(): Lead
+    {
+        return Lead::factory()
+            ->withAppAndCompany($this->kanvasApp->getId(), $this->company->getId())
+            ->create();
     }
 
     private function soldLead(): Lead
