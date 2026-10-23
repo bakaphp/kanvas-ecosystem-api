@@ -410,6 +410,7 @@ class BuildEngagementLeaderboardAction
             ->where('messages.apps_id', $this->app->getId())
             ->where('messages.companies_id', $this->company->getId())
             ->where('messages.is_deleted', 0)
+            ->notLocked()
             ->whereBetween('messages.created_at', $this->range())
             ->whereIn('messages.message_types_id', $typeIds)
             ->whereNotNull('messages.sender_type')

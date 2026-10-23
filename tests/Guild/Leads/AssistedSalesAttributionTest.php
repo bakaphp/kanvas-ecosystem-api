@@ -213,6 +213,23 @@ class AssistedSalesAttributionTest extends TestCase
         $this->assertSame(0, $this->attribution()['assisted_by_ai']['count']);
     }
 
+    /**
+     * A draft held for approval is locked and never reached the customer; approving it unlocks it,
+     * rejecting it soft-deletes it. Only the first case is assistance.
+     */
+    public function testAnAiDraftPendingApprovalIsNotAssistanceUntilApproved(): void
+    {
+        $lead = $this->soldLead();
+        $draft = $this->aiMessage($lead);
+        $draft->setLock();
+
+        $this->assertSame(0, $this->attribution()['assisted_by_ai']['count']);
+
+        $draft->setUnlock();
+
+        $this->assertSame(1, $this->attribution()['assisted_by_ai']['count']);
+    }
+
     public function testAnySharedCatalogActionCountsButAnUnknownSlugDoesNot(): void
     {
         $shared = $this->soldLead();

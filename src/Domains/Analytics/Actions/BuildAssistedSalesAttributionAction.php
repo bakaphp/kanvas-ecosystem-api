@@ -233,6 +233,7 @@ class BuildAssistedSalesAttributionAction
             ->where('messages.apps_id', $this->app->getId())
             ->where('messages.companies_id', $this->company->getId())
             ->where('messages.is_deleted', 0)
+            ->notLocked()
             ->where('messages.sender_type', MessageSenderTypeEnum::AGENT->value)
             ->whereIn('messages.message_types_id', $typeIds)
             ->where('messages.created_at', '>=', $leads->min('created_at'));
