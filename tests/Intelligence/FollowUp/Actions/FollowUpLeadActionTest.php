@@ -430,7 +430,10 @@ class FollowUpLeadActionTest extends TestCase
             'value' => 'session-test@example.com',
         ]);
         $action = new \Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelForContactAction(
-            $contact, $this->testApp, ['agent_id' => $agent->getId()], $lead
+            $contact,
+            $this->testApp,
+            ['agent_id' => $agent->getId()],
+            $lead
         );
         $first = $action->execute();
         $second = $action->execute();
