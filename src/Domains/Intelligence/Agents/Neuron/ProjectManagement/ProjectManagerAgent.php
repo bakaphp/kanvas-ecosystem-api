@@ -39,6 +39,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstruction
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadChannelWindowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadThreadTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Social\SearchChannelMessagesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Supadata\GetTranscriptionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\BuildAdminLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateEmailRouteTool;
@@ -441,6 +443,8 @@ class ProjectManagerAgent extends SystemUserAgent
             new ListNervousSystemPlanFilesTool(),
             new DeleteNervousSystemTaskTool(),
             new ReadChannelWindowTool(),
+            new SearchChannelMessagesTool(),
+            new ReadThreadTool(),
             new GetTranscriptionTool(),
             new ListActiveIntegrationsTool(),
             new BuildAdminLinkTool(),

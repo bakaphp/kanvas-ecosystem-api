@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Social;
 
-use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\PresentsChannelMessages;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesChannelForTool;
 use Kanvas\Intelligence\Agents\Traits\HasEntityContext;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -29,19 +30,21 @@ class ReadChannelWindowTool extends Tool
     use GuardsRepeatCalls;
     use HasEntityContext;
     use HasKanvasContext;
+    use PresentsChannelMessages;
+    use ResolvesChannelForTool;
 
     protected string $name = 'read_channel_window';
 
     protected ?string $description = 'Read the most recent messages on a channel, newest first, with who wrote each one. '
         . 'Call it before judging a single message — a line out of a group conversation usually only '
         . 'makes sense next to the ones around it. Defaults to the channel the record you were woken '
-        . 'on belongs to, so you can normally call it with no arguments. Long messages come back '
+        . 'on belongs to, so you can normally call it with no arguments; name another one by channel_id, '
+        . 'or by channel with its name (#ops) or Slack id (C0B4P1CH1ME). Long messages come back '
         . 'truncated; use read_message_content for the full text of one. Re-reading a window you '
         . 'already read this turn returns nothing new — read it once, then act on it.';
 
     public const int DEFAULT_LIMIT = 25;
     public const int MAX_LIMIT = 100;
-    public const int PREVIEW_CHARS = 800;
 
     /**
      * Runs are keyed per channel (see getRunKey), so this bounds how many times the SAME channel may
@@ -65,8 +68,13 @@ class ReadChannelWindowTool extends Tool
     public function getRunKey(): string
     {
         $channelId = (int) $this->getInput('channel_id');
+        $reference = $this->channelReference($this->getInput('channel'));
 
-        return $this->getName() . ':' . ($channelId > 0 ? (string) $channelId : 'in-scope');
+        return $this->getName() . ':' . match (true) {
+            $channelId > 0 => (string) $channelId,
+            $reference !== '' => $reference,
+            default => 'in-scope',
+        };
     }
 
     /**
@@ -83,6 +91,13 @@ class ReadChannelWindowTool extends Tool
                 required: false,
             ),
             new ToolProperty(
+                name: 'channel',
+                type: PropertyType::STRING,
+                description: 'The channel by name (#agents-logs), slug, or Slack channel id (C0B4P1CH1ME) '
+                    . 'when you do not know its channel_id.',
+                required: false,
+            ),
+            new ToolProperty(
                 name: 'limit',
                 type: PropertyType::INTEGER,
                 description: 'How many recent messages to return. Default ' . self::DEFAULT_LIMIT
@@ -95,55 +110,49 @@ class ReadChannelWindowTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(?int $channel_id = null, ?int $limit = null): array
+    public function __invoke(?int $channel_id = null, ?string $channel = null, ?int $limit = null): array
     {
-        // Keyed on the CLAMPED limit, not the raw one: omitted, 25 and 500 all read the same rows, so
-        // keying on the argument would let a model vary a no-op parameter and re-run the same query.
-        $limit = $this->resolveLimit($limit);
+        $limit = $this->clampLimit($limit, self::DEFAULT_LIMIT, self::MAX_LIMIT);
+        $reference = $this->channelReference($channel);
 
         return $this->oncePerTurn(
             [
                 'channel_id' => $channel_id,
+                'channel' => $reference,
                 'limit' => $limit,
             ],
-            fn (): array => $this->read($channel_id, $limit),
+            fn (): array => $this->read($channel_id, $reference, $limit),
         );
-    }
-
-    private function resolveLimit(?int $limit): int
-    {
-        return min(max((int) $limit ?: self::DEFAULT_LIMIT, 1), self::MAX_LIMIT);
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function read(?int $channel_id, int $limit): array
+    private function read(?int $channelId, string $reference, int $limit): array
     {
         if (! $this->hasTenantContext()) {
-            return [
-                'status' => 'error',
-                'message' => 'This tool has no company context, so it cannot read a channel.',
-            ];
+            return $this->channelToolWithoutTenant('channel read');
         }
 
-        $channel = $channel_id !== null
-            ? $this->findChannel($channel_id)
-            : $this->channelOfRecordInScope();
+        $channel = $channelId === null && $reference === ''
+            ? $this->channelOfRecordInScope()
+            : $this->resolveChannelOrError($channelId, $reference);
 
         if ($channel === null) {
             return [
                 'status' => 'error',
-                'message' => $channel_id !== null
-                    ? 'Channel ' . $channel_id . ' does not exist in this company.'
-                    : 'The record you were woken on is not on a channel, so pass channel_id explicitly.',
+                'message' => 'The record you were woken on is not on a channel, so pass channel_id or channel explicitly.',
             ];
+        }
+
+        if (is_array($channel)) {
+            return $channel;
         }
 
         // Newest first: an agent woken on the latest message reads downward into history, so a window
         // cut short by the limit loses the oldest context rather than the message it was woken on.
         $messages = $channel->messages()
-            ->where('messages.is_deleted', 0)
+            ->notDeleted()
             ->orderByDesc('messages.id')
             ->limit($limit)
             ->get();
@@ -153,35 +162,8 @@ class ReadChannelWindowTool extends Tool
             'channel_id' => $channel->getId(),
             'channel' => $channel->name,
             'returned' => $messages->count(),
-            'messages' => $messages->map(fn (Message $message): array => $this->describe($message))->all(),
+            'messages' => $messages->map(fn (Message $message): array => $this->describeChannelMessage($message))->all(),
         ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function describe(Message $message): array
-    {
-        $text = trim($message->contentText());
-
-        return [
-            'message_id' => $message->getId(),
-            'author' => $message->user?->displayname ?? 'unknown',
-            'author_user_id' => $message->users_id,
-            'created_at' => (string) $message->created_at,
-            'text' => Str::limit($text, self::PREVIEW_CHARS),
-            'truncated' => mb_strlen($text) > self::PREVIEW_CHARS,
-        ];
-    }
-
-    private function findChannel(int $channelId): ?Channel
-    {
-        return Channel::query()
-            ->whereKey($channelId)
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('is_deleted', 0)
-            ->first();
     }
 
     /**
@@ -192,7 +174,7 @@ class ReadChannelWindowTool extends Tool
     private function channelOfRecordInScope(): ?Channel
     {
         if ($this->entity instanceof Channel) {
-            return $this->findChannel($this->entity->getId());
+            return $this->findChannelById($this->entity->getId());
         }
 
         if (! $this->entity instanceof Message) {
@@ -201,6 +183,6 @@ class ReadChannelWindowTool extends Tool
 
         $channel = $this->entity->channels()->first();
 
-        return $channel instanceof Channel ? $this->findChannel($channel->getId()) : null;
+        return $channel instanceof Channel ? $this->findChannelById($channel->getId()) : null;
     }
 }
