@@ -28,7 +28,7 @@ class PushCoBuyerAction
 
     public function execute(): ?People
     {
-        $vinUser = LeadUserService::actingUser($this->lead);
+        $vinUser = LeadUserService::resolve($this->lead);
 
         if (empty($vinUser?->get(ConfigurationEnum::getUserKey($this->lead->company, $vinUser)))) {
             throw new VinSolutionException('User not found in VinSolution');

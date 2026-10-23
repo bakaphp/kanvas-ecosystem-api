@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Actions;
 
-use Baka\Users\Contracts\UserInterface;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -13,7 +12,6 @@ use Kanvas\Connectors\VinSolution\ClientCredential;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Services\ContactService;
-use Kanvas\Connectors\VinSolution\Services\LeadUserService;
 use Kanvas\Connectors\VinSolution\Support\Address;
 use Kanvas\Connectors\VinSolution\Support\Phone;
 use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
@@ -26,18 +24,12 @@ class PushPeopleAction
 
     protected ClientCredential $vinCredential;
 
-    /**
-     * The creator of a People row is never its sales rep: a receiver-created contact carries the
-     * integration account as users_id. Without a mapped salesperson the contact goes out with
-     * CurrentSalesRepUserId 0 so VinSolutions assigns it, and the call runs as the operating account.
-     */
     public function __construct(
-        protected People $people,
-        protected ?UserInterface $salesperson = null,
+        protected People $people
     ) {
         $this->vinCredential = ClientCredential::get(
             $this->people->company,
-            $this->salesperson ?? LeadUserService::mappedOperatingUserOrFail($this->people->company),
+            $this->people->user,
             $this->people->app
         );
     }
@@ -91,7 +83,7 @@ class PushPeopleAction
                         'DoNotCall' => $hasPhoneOptOut,
                     ],
                     'LeadInformation' => [
-                        'CurrentSalesRepUserId' => $this->salesperson !== null ? $this->vinCredential->user->id : 0,
+                        'CurrentSalesRepUserId' => $this->vinCredential->user->id ?? 0,
                         'SplitSalesRepUserId' => 0,
                         'LeadSourceId' => 0,
                         'LeadTypeId' => 0,
