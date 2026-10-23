@@ -14,7 +14,6 @@ use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
-use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\CrmLeadSourceSynchronizer;
@@ -23,8 +22,6 @@ use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\AgentFollowUpResult;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ChannelConfig;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
@@ -32,12 +29,15 @@ use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpOutcome;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ResolvedChannel;
 use Kanvas\Intelligence\FollowUp\Enums\ChannelSelectionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\ExhaustedActionEnum;
-use Kanvas\Intelligence\FollowUp\Enums\FollowUpModeEnum;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpFailureReasonEnum;
 use Kanvas\Intelligence\FollowUp\Enums\LeadSourceSyncOutcomeEnum;
+use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
 use Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver;
-use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
@@ -72,41 +72,11 @@ final class FollowUpLeadAction
 
     public function execute(): FollowUpOutcome
     {
+        $eligibility = new LeadFollowUpEligibilityService();
         $config = FollowUpConfig::fromStage($this->lead->stage);
-        if ($config === null || ! $config->enabled) {
-            return $this->skip('follow_up_disabled');
-        }
-
-        // V1 ships time_based only; goal_based shape is reserved.
-        if ($config->mode !== FollowUpModeEnum::TIME_BASED || $config->timeBased === null) {
-            return $this->skip('unsupported_mode_v1');
-        }
-
-        if ($this->aiFollowUpDisabled()) {
-            return $this->skip('lead_follow_up_disabled');
-        }
-
-        // Lead-type defaults can veto v2, including manual/forced runs.
-        // Check before retries so disabled types cannot advance stages either.
-        $leadConfiguration = new LeadConfigurationService();
-        if (! $leadConfiguration->allowsContinuedFollowUp($this->lead)) {
-            return $this->skip('lead_type_follow_up_disabled');
-        }
-
-        // Company cutoff: leads older than the follow-up start date are never nudged, forced runs included.
-        if ($leadConfiguration->isCreatedBeforeFollowUpStartDate($this->lead)) {
-            return $this->skip('lead_created_before_follow_up_start_date');
-        }
-
-        // Judged on `leads_status_id`, the column CRM pulls and the UI write — not `isOpen()`'s
-        // `status` column, which nothing writes. Not bypassed by `force`, which only relaxes the
-        // silence gate.
-        if (! $this->lead->hasOpenLeadStatus()) {
-            return $this->skip('lead_not_active');
-        }
-
-        if ($this->lead->isFollowUpExhausted()) {
-            return $this->skip('exhausted');
+        $skipReason = $eligibility->skipReason($this->lead, $config);
+        if ($skipReason !== null) {
+            return $this->skip($skipReason);
         }
 
         if ($this->lead->getFollowUpStateCount() >= $config->maxRetries) {
@@ -117,33 +87,27 @@ final class FollowUpLeadAction
 
         // Handoff is terminal — operator must reset follow_up_state to bring
         // the lead back into the automated flow even if the handoff clears.
-        if ((bool) $this->lead->get(IntelligenceConfigurationEnum::AGENT_HAND_OFF->value)) {
+        if ($eligibility->isHandedOff($this->lead)) {
             return $this->exhaust('handed_off');
         }
 
-        // Manual mode is pausable — humans toggle off, next tick resumes.
-        if ((bool) $this->lead->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value)) {
-            return $this->skip('ai_mode_manual');
-        }
-
-        // IDLE/OFF silences the agent on every outbound path (reach-out, channel
-        // responders); follow-ups are no exception. Pausable like manual mode.
-        if ($this->lead->isAiMuted()) {
-            return $this->skip('ai_mode_off');
+        $pausedReason = $eligibility->pausedReason($this->lead);
+        if ($pausedReason !== null) {
+            return $this->skip($pausedReason);
         }
 
         // Channel resolution lives on the Lead's contacts
         $candidates = new LeadOutboundChannelResolver()->resolve($this->lead, $config);
         if ($candidates === []) {
-            return $this->skip('no_reachable_channel');
+            return $this->skip(FollowUpFailureReasonEnum::NO_REACHABLE_CHANNEL->value);
         }
 
         $session = $this->resolveSession();
         if (! $session) {
-            return $this->skip('no_session');
+            return $this->skip(FollowUpFailureReasonEnum::NO_SESSION->value);
         }
 
-        $lastInboundAt = $this->getLastInboundForLead();
+        $lastInboundAt = $eligibility->getLastInboundAt($this->lead);
         $targets = $this->selectTargets($candidates, $config);
         // Primary target drives prompt + template + ledger summary. For
         // FAN_OUT_ALL the same body is dispatched to every target below.
@@ -151,7 +115,7 @@ final class FollowUpLeadAction
         $channelType = $primary->channelType;
         $channelConfig = $config->channelByType($channelType);
 
-        $silenceMin = $this->lead->followUpSilenceMinutesSince($lastInboundAt);
+        $silenceMin = $eligibility->silenceMinutes($this->lead);
 
         if (! $this->force && $silenceMin < $config->timeBased->intervalMinutes) {
             return $this->skip('too_soon');
@@ -227,7 +191,7 @@ final class FollowUpLeadAction
                 $e,
             ));
 
-            return $this->skip('agent_call_failed: ' . $e->getMessage());
+            return $this->skip(FollowUpFailureReasonEnum::AGENT_CALL_FAILED->value . ': ' . $e->getMessage());
         }
 
         if (! $result->shouldRespond && ! $result->advanceStage) {
@@ -247,7 +211,7 @@ final class FollowUpLeadAction
 
             foreach ($targets as $target) {
                 $body = $this->withSmsOptOutNotice($target, $resolvedBody);
-                $message = $this->persistMessage($session, $target->channelType, $body);
+                $message = $this->persistMessage($session, $target, $body);
                 $this->dispatchOutbound(
                     $target->channelType,
                     $body,
@@ -322,44 +286,6 @@ final class FollowUpLeadAction
             ->fromCompany($this->company)
             ->latest('id')
             ->first();
-    }
-
-    // Last inbound across ALL of the person's channels (lead-scoped). The
-    // previous session-scoped version missed inbound messages that landed
-    // on a different channel than the picked session.
-    private function getLastInboundForLead(): ?Carbon
-    {
-        if (! $this->lead->people_id) {
-            return null;
-        }
-
-        $channelIds = Channel::query()
-            ->where('entity_namespace', People::class)
-            ->where('entity_id', $this->lead->people_id)
-            ->where('is_deleted', 0)
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->pluck('id');
-
-        if ($channelIds->isEmpty()) {
-            return null;
-        }
-
-        // No verb filter — `from_me = false` on a People-keyed channel is a
-        // strong-enough signal that this is the customer's inbound. The old
-        // verb=whatsapp-text filter excluded non-WhatsApp inbound (email/SMS)
-        // when the query went cross-channel.
-        $message = Message::query()
-            ->where('message->from_me', false)
-            ->where('is_deleted', 0)
-            ->whereHas(
-                'channels',
-                fn ($q) => $q->whereIn('channels.id', $channelIds),
-            )
-            ->latest('created_at')
-            ->first();
-
-        return $message?->created_at ? Carbon::parse($message->created_at) : null;
     }
 
     /**
@@ -464,7 +390,7 @@ final class FollowUpLeadAction
         $templateBody = $context['template_body'] ?? null;
         $silenceMin = (int) $context['silence_minutes'];
 
-        $silenceLine = 'Time since latest stage entry, follow-up or inbound (creation time if none): ' . CarbonInterval::minutes($silenceMin)
+        $silenceLine = 'Time since latest stage entry, follow-up or message (creation time if none): ' . CarbonInterval::minutes($silenceMin)
             ->cascade()
             ->forHumans(['parts' => 1, 'syntax' => CarbonInterface::DIFF_ABSOLUTE]) . '.';
 
@@ -617,11 +543,11 @@ final class FollowUpLeadAction
         }
     }
 
-    private function persistMessage(Session $session, string $channelType, string $body): Message
+    private function persistMessage(Session $session, ResolvedChannel $target, string $body): Message
     {
         $messageType = MessageTypeService::getOrCreate(
             $this->app,
-            $this->messageTypeVerbFor($channelType)
+            $this->messageTypeVerbFor($target->channelType)
         );
 
         $payload = new AiChatMessagePayload(
@@ -649,7 +575,9 @@ final class FollowUpLeadAction
             $this->lead->getId(),
         )->execute();
 
-        $session->channel?->addMessage($message);
+        // On the SMS/email/WhatsApp channel it was sent through, not the session's: a session opened
+        // on email must not show an SMS follow-up in the email thread.
+        $this->resolveTargetChannel($target)->addMessage($message);
         $message->addTag('followup');
 
         try {
@@ -668,16 +596,6 @@ final class FollowUpLeadAction
     }
 
     /**
-     * Absent `ai_follow_up` means the triggers never configured the lead, so it passes; once
-     * present it must be explicitly on — OFF (0) and NO_FOLLOW_UP (3) both disable.
-     */
-    private function aiFollowUpDisabled(): bool
-    {
-        return filled($this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value))
-            && ! $this->lead->isAiFollowUpEnabled();
-    }
-
-    /**
      * A CRM without webhooks never told us the lead was closed or sold, so ask it before we speak.
      * CRM calls are billed per request (Elead), which is why this sits behind every free gate and
      * why a lead that could not be verified skips the tick instead of being nudged. A pull can
@@ -692,10 +610,10 @@ final class FollowUpLeadAction
         $sync = new SyncLeadSourceBeforeFollowUpAction($this->lead, $this->synchronizer)->execute();
 
         return match (true) {
-            $sync === LeadSourceSyncOutcomeEnum::FAILED => $this->skip('crm_sync_failed'),
+            $sync === LeadSourceSyncOutcomeEnum::FAILED => $this->skip(FollowUpFailureReasonEnum::CRM_SYNC_FAILED->value),
             $sync !== LeadSourceSyncOutcomeEnum::SYNCED => null,
             ! $this->lead->hasOpenLeadStatus() => $this->skip('lead_not_active'),
-            $this->aiFollowUpDisabled() => $this->skip('lead_follow_up_disabled'),
+            new LeadFollowUpEligibilityService()->aiFollowUpDisabled($this->lead) => $this->skip('lead_follow_up_disabled'),
             $this->lead->isAiMuted() => $this->skip('ai_mode_off'),
             default => null,
         };
@@ -749,15 +667,48 @@ final class FollowUpLeadAction
             return $body;
         }
 
-        $smsChannel = Channel::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->where('slug', SessionChannelService::createChannelSlug('sms', (string) $target->contact->value))
-            ->first();
+        $smsChannel = $this->findTargetChannel($target);
 
         return $smsChannel === null
             ? SmsOptOutNoticeService::appendTo($body)
             : SmsOptOutNoticeService::appendIfFirstOutbound($smsChannel, $body);
+    }
+
+    /**
+     * The protocol channel the connectors file this contact's conversation under (`twilio-<phone>`,
+     * `email-<address>`, `wa-chat-<phone>-at-swhatsappnet`), whichever entity it was opened for.
+     */
+    private function findTargetChannel(ResolvedChannel $target): ?Channel
+    {
+        return Channel::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('slug', $this->targetChannelSlug($target))
+            ->where('is_deleted', 0)
+            ->orderByDesc('last_message_id')
+            ->first();
+    }
+
+    /**
+     * A first touch on a channel opens it on the person, like the inbound connectors do, so the
+     * conversation and the follow-up interval see it.
+     */
+    private function resolveTargetChannel(ResolvedChannel $target): Channel
+    {
+        return $this->findTargetChannel($target) ?? new CreateChannelAction(ChannelDto::from([
+            'apps' => $this->app,
+            'companies' => $this->company,
+            'users' => $this->company->getAiAgentUserOrFail(),
+            'entity_id' => $this->lead->people_id,
+            'entity_namespace' => People::class,
+            'name' => ucfirst($target->channelType) . ' People ' . $this->lead->people_id,
+            'slug' => $this->targetChannelSlug($target),
+        ]))->execute();
+    }
+
+    private function targetChannelSlug(ResolvedChannel $target): string
+    {
+        return SessionChannelService::createChannelSlug($target->channelType, (string) $target->contact->value);
     }
 
     private function dispatchOutbound(
@@ -767,6 +718,8 @@ final class FollowUpLeadAction
         Message $message,
     ): void {
         $twilioFrom = (string) $this->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value);
+
+        $providerResponse = null;
 
         try {
             $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
@@ -782,6 +735,17 @@ final class FollowUpLeadAction
             // Outbound failure does NOT roll back the persisted message — the
             // record of attempt is the audit truth; the queue layer retries.
             report($e);
+            $providerResponse ??= ['success' => false, 'error' => $e->getMessage()];
+        }
+
+        // A rejection the provider will not retry comes back as `success: false`, not as a throw.
+        if (($providerResponse['success'] ?? true) === false) {
+            $this->lead->emitLedgerEvent('lead.follow_up.send_failed', EventStatusEnum::ERROR, [
+                'stage_id' => $this->lead->pipeline_stage_id,
+                'channel' => $channelType,
+                'reason' => FollowUpFailureReasonEnum::SEND_FAILED->value,
+                'error' => mb_substr((string) ($providerResponse['error'] ?? ''), 0, 500),
+            ]);
         }
     }
 

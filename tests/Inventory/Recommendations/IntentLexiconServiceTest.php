@@ -165,6 +165,75 @@ class IntentLexiconServiceTest extends TestCase
         }
     }
 
+    public function testMileageIsNeverReadAsABudgetAndTheRealBudgetIsKept(): void
+    {
+        $intent = ProductIntent::fromSentence(
+            'do you have an SUV under 100k miles, around 60, 70, 80 no more than $20 thousand',
+            $this->lexiconWithTenantTerms([]),
+        );
+
+        $this->assertSame(20000.0, $intent->maxPrice, '"under 100k miles" is a mileage limit; the budget is $20 thousand.');
+        $this->assertNull($intent->minPrice);
+    }
+
+    public function testRangeWithASuffixOnTheSecondNumberAppliesToBoth(): void
+    {
+        $intent = ProductIntent::fromSentence(
+            'I am looking for a car between 30-40k with no more than 50k miles',
+            $this->lexiconWithTenantTerms([]),
+        );
+
+        $this->assertSame(30000.0, $intent->minPrice);
+        $this->assertSame(40000.0, $intent->maxPrice, '"no more than 50k miles" must not override the range as a $50 cap.');
+    }
+
+    public function testThousandSuffixesInEnglishAndSpanish(): void
+    {
+        $lexicon = $this->lexiconWithSpanish();
+
+        $this->assertSame(20000.0, ProductIntent::fromSentence('under 20k', $lexicon)->maxPrice);
+        $this->assertSame(20000.0, ProductIntent::fromSentence('no more than 20 thousand', $lexicon)->maxPrice);
+        $this->assertSame(20000.0, ProductIntent::fromSentence('menos de 20 mil dolares', $lexicon)->maxPrice);
+        $this->assertSame(20000.0, ProductIntent::fromSentence('algo de $20k', $lexicon)->maxPrice);
+        $this->assertSame(20000.0, ProductIntent::fromSentence('menos de 20.000', $lexicon)->maxPrice, 'A dot before three digits is a Spanish thousands separator.');
+    }
+
+    public function testSpanishRangeAndCurrencyWordRange(): void
+    {
+        $lexicon = $this->lexiconWithSpanish();
+
+        $range = ProductIntent::fromSentence('un carro de 30 a 40 mil', $lexicon);
+        $this->assertSame(30000.0, $range->minPrice);
+        $this->assertSame(40000.0, $range->maxPrice);
+
+        $dollars = ProductIntent::fromSentence('entre 300 y 500 dolares', $lexicon);
+        $this->assertSame(300.0, $dollars->minPrice);
+        $this->assertSame(500.0, $dollars->maxPrice);
+    }
+
+    public function testModelYearRangeIsNotABudget(): void
+    {
+        $intent = ProductIntent::fromSentence('a sedan between 2018 and 2020', $this->lexiconWithTenantTerms([]));
+
+        $this->assertNull($intent->minPrice);
+        $this->assertNull($intent->maxPrice);
+    }
+
+    public function testAgeAfterADirectiveIsNotABudget(): void
+    {
+        $intent = ProductIntent::fromSentence('para una mujer de mas de 30 años', $this->lexiconWithSpanish());
+
+        $this->assertNull($intent->minPrice);
+    }
+
+    public function testBothEndsFromTwoDirectives(): void
+    {
+        $intent = ProductIntent::fromSentence('more than 10k and less than 20k', $this->lexiconWithTenantTerms([]));
+
+        $this->assertSame(10000.0, $intent->minPrice);
+        $this->assertSame(20000.0, $intent->maxPrice);
+    }
+
     private function lexicon(): IntentLexiconService
     {
         return new IntentLexiconService(app(Apps::class));

@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Customers\Actions;
 use Baka\Contracts\CompanyInterface;
 use Baka\Validations\Date;
 use Kanvas\Companies\Enums\Defaults;
+use Kanvas\Guild\Customers\Concerns\ManagesPeopleContacts;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -14,7 +15,6 @@ use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
-use Kanvas\Guild\Customers\Traits\ManagesPeopleContactsTrait;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
@@ -22,7 +22,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreatePeopleAction
 {
-    use ManagesPeopleContactsTrait;
+    use ManagesPeopleContacts;
 
     public bool $runWorkflow = true;
 

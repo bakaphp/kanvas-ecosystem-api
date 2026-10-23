@@ -35,6 +35,7 @@ type Deal {
         )
     created_at: DateTime!
     updated_at: DateTime
+    closed_at: DateTime
 }
 
 input DealInput {
@@ -104,10 +105,11 @@ extend type Query @guard {
                     "pipeline_stage_id"
                     "status_id"
                     "created_at"
+                    "closed_at"
                 ]
             )
         orderBy: _
-            @orderBy(columns: ["id", "created_at", "updated_at", "title"])
+            @orderBy(columns: ["id", "created_at", "updated_at", "closed_at", "title"])
     ): [Deal!]!
         @paginate(
             model: "Kanvas\\Guild\\Deals\\Models\\Deal"

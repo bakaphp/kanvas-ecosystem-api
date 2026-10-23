@@ -72,7 +72,7 @@ class LedgerKnowledgeSourceTest extends TestCase
      */
     public function testTheOutcomesTheLedgerEmitsAreWanted(): void
     {
-        foreach (['plan.approved', 'plan.task.completed', 'lead.stage.changed', 'lead.follow_up.sent'] as $emitted) {
+        foreach (['plan.approved', 'plan.task.completed', 'lead.stage.changed', 'lead.status.changed', 'deal.status.changed', 'lead.follow_up.sent'] as $emitted) {
             $this->assertTrue(LedgerKnowledgeSource::wants($emitted), $emitted);
         }
     }

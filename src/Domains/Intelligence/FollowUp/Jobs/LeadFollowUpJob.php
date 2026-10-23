@@ -18,6 +18,9 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpFailureReasonEnum;
+use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Throwable;
 
 /**
  * Per-lead wrapper. Resolves agent at handle() so config changes between
@@ -70,6 +73,23 @@ final class LeadFollowUpJob implements ShouldQueue
             force: $this->force,
             synchronizer: $synchronizer,
         )->execute();
+    }
+
+    /**
+     * Runs once the last try is spent. Without it a crashed run leaves only `queued` in the ledger,
+     * and the follow-up reports could not tell it from one still waiting.
+     */
+    public function failed(Throwable $e): void
+    {
+        try {
+            $this->lead->emitLedgerEvent('lead.follow_up.failed', EventStatusEnum::ERROR, [
+                'stage_id' => $this->lead->pipeline_stage_id,
+                'reason' => FollowUpFailureReasonEnum::JOB_FAILED->value,
+                'error' => mb_substr($e->getMessage(), 0, 500),
+            ]);
+        } catch (Throwable $ledgerError) {
+            report($ledgerError);
+        }
     }
 
     private function resolveAgentName(): string

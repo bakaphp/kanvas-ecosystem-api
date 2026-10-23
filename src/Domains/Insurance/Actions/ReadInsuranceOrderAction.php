@@ -10,7 +10,9 @@ use Kanvas\Insurance\DataTransferObject\InsuranceCustomer;
 use Kanvas\Insurance\DataTransferObject\InsuranceOrderData;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
+use Kanvas\Insurance\Enums\InsurancePaymentTermEnum;
 use Kanvas\Insurance\Enums\InsuranceProductTypeEnum;
+use Kanvas\Insurance\Exceptions\InsuranceValidationException;
 use Kanvas\Insurance\Services\InsuranceOrderMetadata;
 use Kanvas\Insurance\Services\InsurancePlanProductResolver;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -69,6 +71,7 @@ class ReadInsuranceOrderAction
             legacyCliente: (array) ($legacy['cliente'] ?? []),
             legacy: $legacy !== [],
             legacyComplete: $this->legacyIsComplete($legacy),
+            paymentTerm: $this->paymentTerm($data),
         );
     }
 
@@ -83,6 +86,18 @@ class ReadInsuranceOrderAction
         $metadata = is_array($this->order->metadata) ? $this->order->metadata : [];
 
         return (array) ($metadata[self::LEGACY_KEY] ?? []);
+    }
+
+    private function paymentTerm(array $data): ?InsurancePaymentTermEnum
+    {
+        $value = Str::trimToNull(isset($data[InsuranceOrderMetadata::PAYMENT_TERM]) ? (string) $data[InsuranceOrderMetadata::PAYMENT_TERM] : null);
+
+        if ($value === null) {
+            return null;
+        }
+
+        return InsurancePaymentTermEnum::tryFrom($value)
+            ?? throw new InsuranceValidationException('This payment term is not available');
     }
 
     private function dataBlock(): array

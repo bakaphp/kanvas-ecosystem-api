@@ -11,6 +11,7 @@ enum InsuranceCustomFieldEnum: string
     case PRODUCT_CODE = 'insurance_product_code';
     case REQUIRES_INSPECTION = 'insurance_requires_inspection';
     case STATUS = 'insurance_status';
+    case PAYMENT_TERM = 'insurance_payment_term';
     case QUOTE_NUMBER = 'insurance_quote_number';
     case PLAN_ID = 'insurance_plan_id';
     case POLICY_NUMBER = 'insurance_policy_number';
@@ -29,4 +30,8 @@ enum InsuranceCustomFieldEnum: string
     case QUOTE_SIGNATURE = 'insurance_quote_signature';
     case VEHICLE_VARIANT_ID = 'insurance_vehicle_variant_id';
     case FAILURE_REASON = 'insurance_failure_reason';
+    case CARNET_URL = 'insurance_carnet_url';
+    case POLICY_EMAILED_AT = 'insurance_policy_emailed_at';
+    case ORIGIN = 'insurance_origin';
+    case REMINDERS_SENT = 'insurance_reminders_sent';
 }

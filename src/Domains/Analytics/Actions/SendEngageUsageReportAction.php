@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Analytics\Actions;
 
 use Baka\Contracts\AppInterface;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
@@ -115,20 +114,11 @@ class SendEngageUsageReportAction
     private function resolveRecipients(): EloquentCollection
     {
         try {
-            return UsersRepository::getCompanyAppUserByRole($this->company, $this->app, RolesEnums::ENGAGEMENT_USAGE_REPORT->value)
-                // Roles are app-wide, so only the company membership row says whether this user
-                // still belongs here; a removed, deactivated or banned member must not keep
-                // receiving the company's per-rep numbers.
-                ->where('users_associated_apps.is_deleted', 0)
-                ->where('users_associated_apps.is_active', 1)
-                ->where(
-                    fn (Builder $query) => $query->whereNull('users_associated_apps.banned')
-                        ->orWhere('users_associated_apps.banned', 0)
-                )
-                ->notDeleted()
-                ->whereNotNull('users.email')
-                ->where('users.email', '!=', '')
-                ->get();
+            return UsersRepository::getActiveCompanyAppUsersByRole(
+                $this->company,
+                $this->app,
+                RolesEnums::ENGAGEMENT_USAGE_REPORT->value
+            )->get();
         } catch (ModelNotFoundException) {
             Log::info('Engage usage report: EngagementUsageReport role not bootstrapped for app; run kanvas:create-role EngagementUsageReport {app_id}', [
                 'app_id' => $this->app->getId(),

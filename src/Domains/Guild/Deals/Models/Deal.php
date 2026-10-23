@@ -14,11 +14,13 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Event\Events\Concerns\HasEventResources;
+use Kanvas\Guild\Concerns\TracksClosedAt;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Deals\Observers\DealObserver;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -29,6 +31,7 @@ use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
@@ -56,6 +59,7 @@ use Override;
  * @property string|null $title
  * @property string|null $description
  * @property int $is_deleted
+ * @property Carbon|null $closed_at
  */
 #[ObservedBy([DealObserver::class])]
 class Deal extends BaseModel implements ProvidesAgentContext
@@ -70,6 +74,8 @@ class Deal extends BaseModel implements ProvidesAgentContext
     use FollowersTrait;
     use HasLightHouseCache;
     use HasEventResources;
+    use EmitsLedgerEventsForEntity;
+    use TracksClosedAt;
 
     protected $observables = [
         'softDeleting',
@@ -78,6 +84,14 @@ class Deal extends BaseModel implements ProvidesAgentContext
 
     protected $table = 'deals';
     protected $guarded = [];
+
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'closed_at' => 'datetime',
+        ];
+    }
 
     #[Override]
     public function getGraphTypeName(): string

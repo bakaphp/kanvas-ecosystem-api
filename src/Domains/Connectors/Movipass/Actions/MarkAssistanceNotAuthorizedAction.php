@@ -64,7 +64,10 @@ class MarkAssistanceNotAuthorizedAction
         $assistanceCase['pin_hash'] = null;
         $assistanceCase['pin_invalidated_at'] = $now;
 
-        $this->saveAssistanceCase($this->order, $assistanceCase);
+        $this->saveAssistanceCase(
+            $this->order,
+            $this->markStatusNotified($assistanceCase, MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->slug()),
+        );
 
         $this->order->transitionToStatus(
             $this->user,

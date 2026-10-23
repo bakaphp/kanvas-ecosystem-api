@@ -77,6 +77,8 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Domains/Guild/Customers/CLAUDE.md` — consent & do-not-contact: why a STOP on one channel silences all of them person-wide, the keyword-vs-agent split, every guard that enforces it, and why `do_not_contact` must never be renamed.
 - `src/Domains/Guild/Leads/CLAUDE.md` — receiver → lead → email flow: why the email template comes from the **rotation config** (not the job/receiver), the `user-`/`lead-` template-name prefixing, the `notification_mode`/`notification_user_mode` knobs, and how company onboarding differs from the `kanvas:sa-setup-receivers` default.
 - `src/Domains/Inventory/CLAUDE.md` — product search engine (dynamic per-tenant Algolia/Typesense/Meilisearch resolution + precedence), index naming, `shouldBeSearchable` gating, the tenant-aware reindex command, and Typesense Natural Language Search config for the recommendation agent.
+- `src/Domains/Inventory/Recommendations/CLAUDE.md` — product discovery + enrichment, the canonical guide: how the storefront (`discoverProducts`) and agents (Product Recommendation Lookup, `inventory_search` output shape) use it, the per-app activation sequence, how a search runs (engine documents, no DB read; SQL fallback), settings, index fields, file map, and the rules (business rules only in the builder, capabilities not engine checks, every hard limit re-checked).
+- `src/Domains/Inventory/Recommendations/Enrichment/CLAUDE.md` — product enrichment as one structured LLM call (not a real agent): which model runs (Agent row → `product_enrichment_llm_config_id` → app model → Flash-Lite), the fingerprint that stops unchanged products costing a job, the company→app flag, and why it moved out of Connectors.
 - `app/Console/Commands/Inventory/CLAUDE.md` — what each inventory command does and the order the discovery ones must run in (enrich → index → search → score).
 - `src/Kanvas/Companies/CorporateApplications/CLAUDE.md` — a corporate application is a Lead (no model); manual approval and `is_corporate` as the only privilege switch; the two request paths, the receiver `approval_mode` precedence, required/copied field lists configured as custom fields on the receiver, the post-approval workflow rule that must exist per app, the legacy-key fallback, and the Bouncer-scope / app-scope / cross-connection traps.
 - `src/Kanvas/Imports/CLAUDE.md` — scheduled FTP/SFTP imports into the existing mapper pipeline: why all mapping lives in the `FilesystemMapper` and never in PHP, the template-`version` trap (editing a template does not update mappers already made from it), why a mapped value must satisfy the target model's PHP types, the header-row delimiter detection, the "never unpublish on a partial feed" invariant, and what a second entity type needs.
@@ -248,7 +250,7 @@ across connectors, agent tools and DTOs. The inline form silently dropped the st
 `Str::trimToNull()`, one implementation with one test.
 
 The same applies to duplicated *resolvers*, *observers* and *model relations* — if two classes need
-the same three methods, that is a trait (`HasNotesChannelTrait`) or a Concern
+the same three methods, that is a trait (`HasNotesChannel`) or a Concern
 (`App\GraphQL\Concerns\RecordsEntityNotes`), not copy-paste.
 
 ### Trait Naming — `Traits/` is a Baka-only word

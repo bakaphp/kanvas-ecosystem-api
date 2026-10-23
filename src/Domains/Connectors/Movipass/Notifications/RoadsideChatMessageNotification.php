@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Notifications;
 
-use Kanvas\Notifications\Concerns\PushesTitleAndMessageFromData;
+use Kanvas\Connectors\Movipass\Notifications\Concerns\PushesConstructorContent;
 use Kanvas\Souk\Orders\Models\Order;
-use Override;
 
 class RoadsideChatMessageNotification extends CustomOrderNotification
 {
-    use PushesTitleAndMessageFromData;
+    use PushesConstructorContent;
 
     public function __construct(
         Order $order,
@@ -46,18 +45,5 @@ class RoadsideChatMessageNotification extends CustomOrderNotification
         ];
 
         parent::__construct($order, $data, $via);
-    }
-
-    // The title/message come from the constructor, not from a stored push template
-    // (push_template is null). Emit them as the JSON shape getPushContent() expects so
-    // the Expo channel ships without trying to render a missing DB template.
-    #[Override]
-    protected function getPushTemplate(): string
-    {
-        return json_encode([
-            'title' => $this->data['title'] ?? '',
-            'message' => $this->data['message'] ?? '',
-            'subtitle' => null,
-        ], JSON_THROW_ON_ERROR);
     }
 }

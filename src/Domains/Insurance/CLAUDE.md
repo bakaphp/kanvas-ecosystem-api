@@ -93,9 +93,11 @@ Whatever the origin, everything reads the order through `ReadInsuranceOrderActio
 |---|---|---|
 | Bind the quote, send the customer, stamp premium/tax/total | `AttachInsuranceQuoteActivity` | order created |
 | Push inspection documents | `UploadInsuranceDocumentsActivity` | attach-file |
-| Report the payment we took | `ReportInsurancePaymentActivity` | card authorized |
+| Report the payment we took | `ReportInsurancePaymentActivity` | `after-payment-authorized` |
 | Emit the policy, capture the hold | `EmitInsurancePolicyActivity` | payment reported |
 | Invoice the policy | `InvoiceInsurancePolicyActivity` | policy emitted |
+| Build the PDF carnet | `GenerateInsuranceCarnetActivity` | policy invoiced (policy active) |
+| Email the policy and carnet | `SendInsurancePolicyEmailActivity` | carnet generated |
 | Poll the policy back | `SyncInsurancePolicyActivity` | schedule / status change |
 | Customer backs out | `CancelInsuranceOrderActivity` | order cancelled |
 
@@ -256,6 +258,7 @@ teaching a generic Souk action about Guild leads would cross domains the wrong w
   whose product is typed `vehicle`, with `products.users_id` equal to the acting user (`InsuranceVehicleProduct`, also used by the
   validator). The signed variant is the order line, never a guess. Otherwise the contract is refused with a customer-safe message before any insurer call or order. No lead
   vehicle (search done with typed-in data) means "register your vehicle first". Vehicle products are never created implicitly.
+- **An insurer is contractable only if it can emit and take a payment report** (`InsuranceContractGate`: its provider implements `PolicyEmissionProviderInterface` and `PaymentReportProviderInterface`). `insuranceSearch` exposes it as `is_contractable`, and both the cart validator and `contractInsurancePlan` refuse otherwise, so a customer is never charged for an insurer that would fail at the end. Chassis and plate are *not* gated here: the frontend requires `vin` and `plate` on the vehicle when the plan product's `insurance_requires_inspection` attribute is `1`.
 - **Idempotent, closed-aware, retry-safe.** The Order carries `reference = insurance-lead-{lead id}`; a repeat call (or a retry
   after the Order was created but the Lead writes failed - Order is `commerce`, Lead is `crm` + custom fields in `ecosystem`, so
   no single transaction can span them) finds that Order, re-links the Lead (`insurance_order_id`) and sets it `Won`. A Lead no
@@ -286,15 +289,17 @@ card velocity protection.
 - **Setup, per environment and app:** `php artisan kanvas:insurance-setup-order-type {app_id}`. Idempotent. Without it,
   `contractInsurancePlan` is refused before the insurer or the customer is touched (`InsuranceOrderPipeline::isSeeded`), with an
   error in the log naming this command.
-- **`InsuranceStatusEnum` stays the source of truth.** Every write of the `insurance_status` custom field goes through
-  `RecordInsuranceStatusAction`, which sets the field and mirrors it into the order status through `TransitionOrderStateAction`.
-  Never `$order->set(InsuranceCustomFieldEnum::STATUS, ...)` directly. The mirror is best effort: an order with no type (legacy), a
-  different type, no current status, or a transition the pipeline does not allow is logged and skipped, and an exception is
-  reported, never thrown, so it cannot break or undo the money path (no hold is released or voided because of a mirror failure).
+- **The order status is the state of an `insurance` order.** Writes go through `RecordInsuranceStatusAction`, which only
+  transitions the order (`TransitionOrderStateAction`); the `insurance_status` custom field is no longer written for these
+  orders. Read the state through `InsuranceStatus::of($order)` (maps the order-status slug back to `InsuranceStatusEnum`, e.g.
+  `payment_reported` is `paid`) and "has a quote" through `InsuranceStatus::hasQuote()`, never by reading the field. Typeless
+  legacy orders (FE `metadata.insurance`) still keep the state in the custom field, which the same helper reads, so callers
+  never branch. A transition the pipeline does not allow is logged and skipped, an exception is reported, never thrown, so it
+  cannot undo the money path; the state then simply stays where it was.
 - **Card velocity** can now be configured in `order_types.config.card_velocity` for `insurance`
   (`max_cards_daily`, `ban_cards_daily`, `corporate_*`). It is off until configured; nothing is set in code.
 - **Legacy orders** created before the type existed (or by the FE with `metadata.insurance`) stay typeless and keep working;
-  the mirror is a no-op for them.
+  their state stays in the `insurance_status` custom field.
 
 ## Order shape and the cart path
 
@@ -356,7 +361,109 @@ when the plan is not seeded/published) so the FE can build the plan line. Souk k
   `has_pep_relative`, `job_title`, `pep_relative_name/relationship/job_title`, all optional in GraphQL. Universal requires the address
   (building optional) and `politically_exposed`; nationality and country of residence are no longer required.
 
+## Digital carnet and policy email
+
+The carnet is the order-receipt mechanism, not a parallel one: `kanvas:insurance-setup-order-type` writes
+`order_types.config.pdf_receipt` (template `insurance-carnet`, field `insurance_carnet_url`) and seeds the
+`insurance-carnet` and `insurance-policy-issued` templates (from `resources/insurance/templates/`, never overwritten
+once they exist). `GenerateInsuranceCarnetAction` runs `GenerateOrderReceiptAction` with the data from
+`BuildInsuranceCarnetDataAction`, so the PDF lands in the order's `files` and its URL in `insurance_carnet_url`.
+`SendInsurancePolicyEmailAction` is the single sender, used by `SendInsurancePolicyEmailActivity` and the
+`sendInsurancePolicyEmail(order_id)` mutation (owner only; refused until the policy is active and the carnet exists).
+
+- Both activities need a workflow rule per environment: carnet after the policy is invoiced, email after the carnet.
+  A PDF failure is reported as a failed workflow step and never touches the insurance or order status.
+- `metadata.data.start_at` / `metadata.data.end_at` (ISO dates, the same keys parking orders use) are shown on the carnet when
+  present and omitted otherwise. Only registered policies fill them today; emission will once Universal's real response is known.
+
+## Registered policies (bought outside MoviPass)
+
+`registerInsurancePolicy(input)` lets a customer integrate a policy they already hold. `RegisterInsurancePolicyAction` creates an
+Order of type `insurance` with `insurance_origin = registered` (`InsuranceOrderOriginEnum`); purchased orders carry no origin
+field, so absence means bought through MoviPass. No new model: "Mis pólizas" is the same `orders` query filtered by the insurance order type.
+
+- **One item, text insurer.** The only line is the vehicle variant (quantity 1, price 0, total 0). There is no plan item and no insurer
+  relation because the insurer may not be one we integrate: `metadata.data.{insurer_name, plan_name, policy_number, start_at, end_at}`
+  hold the plain text, flat, with no `metadata.insurance`. If that insurer is integrated later, link it then from this text.
+- **Lifecycle.** Custom fields `insurance_policy_number`, the origin; the state is the order status and the dates live in `metadata.data`. The order goes `quoted -> policy_active` through `RecordInsuranceStatusAction`, so
+  `OrderTransitionHistory` is recorded; that direct transition exists only since this feature, so **re-run
+  `kanvas:insurance-setup-order-type {app_id}` per environment** (idempotent). Until then registration is refused
+  (`InsuranceOrderPipeline::allowsRegistration`) with an error in the log naming the command.
+- **Validation.** Non-empty trimmed text, real `YYYY-MM-DD` dates, `starts_at <= ends_at` (input names; stored as `start_at`/`end_at`); a past `ends_at` is allowed because expired
+  policies are listed too. The vehicle variant must be a non-deleted `vehicle` product owned by the acting user in the acting app
+  (`InsuranceVehicleProduct::variantOwnedBy`, shared with `contractInsurancePlan`).
+- **Idempotent.** `reference = insurance-registered-{variant id}-{policy number lowercased, non-alphanumerics stripped}`; a repeat for
+  the same user, vehicle and policy number returns the existing order.
+- **No purchase flow.** No payment, quote, provider call or commission. Every purchase activity (`Attach`, `Report`, `UploadDocuments`,
+  `Emit`, `Invoice`, `Sync`, `Cancel`, `GenerateCarnet`, `SendPolicyEmail`) returns `skipped` for a registered order through
+  `InsuranceOrderOriginEnum::isRegistered`; a new purchase-flow activity must start with the same guard. We generate no carnet: the user
+  uploads their own.
+- **Documents** use the generic `attachFile` mutation on the order; there is no insurance upload path. Suggested `field_name` values:
+  `policy_document` and `carnet_document`. They are not `InsuranceDocumentTypeEnum` values, so nothing is ever forwarded to an insurer.
+- The order is created with `disableWorkflow()` and `disableNotifications()`, so neither the app-wide `Order created` rules nor the
+  standard new-order emails fire. It is stored as `completed` / `fulfilled` with `payment_status` left `unpaid` on purpose: nothing was
+  paid through MoviPass, and marking it paid would inflate payment stats.
+
+## Policy expiry reminders
+
+`kanvas:insurance-send-policy-reminders {--app=} {--date=YYYY-MM-DD}` reminds the order's user before the policy expires, over mail,
+push and an in-app (`database`) notification. It is scheduled daily at 09:00 in `Kernel` (`onOneServer`), so the scheduler worker must
+be running in every environment; `--date` simulates "today" and `--app` restricts it to one app. The command iterates every app that
+has an `insurance` order type, binds each one with `overwriteAppService` before touching anything, and is safe to re-run.
+
+- **Config, per app.** App settings (`apps_settings`, `InsuranceConfigurationEnum`): `insurance_reminder_days` (comma list or JSON,
+  default `30, 15, 7, 3, 1, 0`, where `0` is the expiry day) and `insurance_reminder_channels` (notification slugs, default
+  `mail, push, database`). An empty or missing setting falls back to the default (`InsuranceSettings::list`).
+- **Selection.** `SendInsurancePolicyRemindersAction` selects insurance orders whose status is `policy_active` and whose
+  `metadata.data.end_at` is one of the handful of target dates, then reads the marker custom field for just those
+  ids, then the orders (`fromApp`, `notDeleted`, insurance order type) in `chunkById(100)`. It never hydrates the app's orders.
+  Registered policies always match; **purchased orders only match once a later increment fills `metadata.data.end_at` from the
+  insurer**, so today they are simply not reminded.
+- **Idempotency.** Order custom field `insurance_reminders_sent` holds comma-separated `{ends_at}:{days}` markers. Keying by the end
+  date means changing `ends_at` never suppresses the reminders of the new date. The marker is written only after the notification is
+  dispatched, so an order that failed is retried on the next run; failures are reported and do not stop the batch.
+- **Content.** `InsurancePolicyReminderNotification` renders three seeded templates (`insurance-policy-reminder` for mail,
+  `-push-title`, `-push-message`, the last also used for the in-app text). They are seeded by `kanvas:insurance-setup-order-type`,
+  so **re-run it per environment** before the first scheduled run. The notification data carries `order_id` and
+  `vehicle_variant_id` so the client decides where to send the user (comparator / renewal); no frontend URL is hardcoded, and the
+  "alert on the vehicle" is something the client derives from that same notification.
+
+## Payments are restricted to Azul
+
+Universal's payment report needs Azul-shaped data, but a region (DR) may default to another processor (Portal).
+The restriction therefore lives on the order type, not the region: `order_types.config.allowed_payment_processors`
+(`OrderTypes::allowedPaymentProcessors()`), written by `kanvas:insurance-setup-order-type` from
+the app setting `insurance_payment_processors` (comma list or JSON, default `azul`). `CreatePaymentAction` refuses any payment whose method
+processor is not listed, including cash/transfer and processor-less intents. **Re-run the setup command per
+environment** or existing insurance order types stay unrestricted. Any order type can opt in with the same config key.
+
+## Payment term
+
+An insurer that prices several payment periods exposes them as `QuoteResult::$paymentOptions` (`InsurancePaymentOption`: term,
+installments, amount, premium, tax) and search entries show them as `payment_options`; the entry `total` is still the default
+term (annual). The customer picks one with `payment_term` on `selectInsurancePlan` (contract path) or `metadata.data.payment_term`
+on the cart order (cart path). It is a canonical `InsurancePaymentTermEnum`, never the insurer's code. Mapping to the insurer's own
+code lives in its provider.
+
+- **Contract path.** `SelectInsurancePlanAction` prices the lead at the option's amount and tax, stores `insurance_payment_term`
+  and includes the term in the HMAC (`InsuranceQuoteSignature`, appended only when set so leads without a term keep their
+  signature). Re-selecting without a term clears the stored one. `ConvertInsuranceLeadToOrderAction` carries the term into the
+  `PUT` and into `metadata.data.payment_term`.
+- **Cart path.** `ReadInsuranceOrderAction` reads `metadata.data.payment_term` (an unknown value fails the order as invalid) and the
+  `PUT` sends it; `assertPriceMatches` then rejects an item price that is not that term's amount.
+- **Default.** Annual. Charging one monthly installment of a twelve month policy leaves the rest uncollected until Universal
+  confirms who collects them, so do not change the default before that.
+
+## Policy expiry
+
+`expired` is a final order status reachable only from `policy_active`. It is driven by the order-type config
+`expiration` (`OrderTypes::expirationRule()`: `date_path`, `from_status`, `to_status`), written by
+`kanvas:insurance-setup-order-type` with `date_path = data.end_at`. The existing `kanvas-souk:order-finish-expired` command sweeps
+any order type that declares the rule (no slot recalculation, no reservation email, the legacy parking path is untouched) and a
+policy expires once its `end_at` day is over. Per environment: `souk_check_expired_orders` enabled for the app (otherwise the
+command only runs when given an `app_id`) and a re-run of `kanvas:insurance-setup-order-type {app_id}`.
+
 ## Open items
 
-- Hold vs 3DS: `SettleInsurancePaymentAction` only touches an `AUTHORIZED` payment. The 3DS challenge flow (`startPaymentChallengeWithCard`) marks a held payment `PAID`, so insurance orders must be paid through `createPaymentMethod` → `addPaymentToOrder` → `processPayment` with `use_hold`, or a failed emission will not release the hold.
-- None of the new activities has a workflow rule seeded; each env needs one per trigger.
+- Hold vs 3DS: `SettleInsurancePaymentAction` only touches an `AUTHORIZED` payment. Azul's 3DS path (`startChallenge` / `finalizeChallenge`) now honours the hold: it resolves `use_hold` from the call context, then the payment's `metadata.use_hold` (stored by `addPaymentToOrder`), then `AZUL_USE_HOLD`, remembers it in `metadata.data.three_ds_use_hold` and leaves an approved held payment `AUTHORIZED` instead of `PAID`. PayWay and Stripe do not read `use_hold`. Not yet exercised against the Azul sandbox; until it is, the FE keeps paying insurance orders through `createPaymentMethod` → `addPaymentToOrder` → `processPayment` with `use_hold`.
+- None of the new activities has a workflow rule seeded; each env needs one per trigger. The per-rule table (event, required or optional, what breaks without it) and the per-environment steps live in [`DEPLOY.md`](DEPLOY.md); keep it in sync when an activity or setting is added.

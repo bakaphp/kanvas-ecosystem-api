@@ -36,6 +36,7 @@ use Kanvas\Insurance\DataTransferObject\CanonicalVehicle;
 use Kanvas\Insurance\DataTransferObject\DocumentUploadResult;
 use Kanvas\Insurance\DataTransferObject\ExternalVehicleModel;
 use Kanvas\Insurance\DataTransferObject\InsuranceCustomer;
+use Kanvas\Insurance\DataTransferObject\InsurancePaymentOption;
 use Kanvas\Insurance\DataTransferObject\InsurancePaymentReport;
 use Kanvas\Insurance\DataTransferObject\InsuranceProduct;
 use Kanvas\Insurance\DataTransferObject\InsuranceQuoteRequest;
@@ -46,10 +47,12 @@ use Kanvas\Insurance\DataTransferObject\QuoteResult;
 use Kanvas\Insurance\DataTransferObject\VehicleInsuranceProfile;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceDocumentTypeEnum;
+use Kanvas\Insurance\Enums\InsurancePaymentTermEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Enums\VehicleInsuranceAttributeEnum;
 use Kanvas\Insurance\Exceptions\InsuranceValidationException;
 use Kanvas\Insurance\Services\CatalogCache;
+use Kanvas\Insurance\Services\InsuranceStatus;
 use Kanvas\Insurance\Services\InsuranceVehicleModelResolver;
 use Kanvas\Insurance\Services\VehicleAttributeReader;
 use Kanvas\Inventory\Products\Models\Products;
@@ -79,8 +82,15 @@ class UniversalSegurosProvider implements
         'seguroLey' => 'Auto Exceso',
         'asistenciaVehicular' => false,
         'autoSustituto' => 'No',
-        'fraccionamientoPago' => 'M',
+        'fraccionamientoPago' => 'A',
         'formaPago' => 't/c',
+    ];
+
+    protected const array PAYMENT_TERM_CODES = [
+        'annual' => 'A',
+        'semiannual' => 'S',
+        'quarterly' => 'T',
+        'monthly' => 'M',
     ];
 
     protected const CATALOG_TTL = [
@@ -114,7 +124,9 @@ class UniversalSegurosProvider implements
         $product = $this->productFor($request->product);
 
         return $this->toQuoteResult(
-            $this->service->quote(QuoteRequest::make($product, $this->withDefaultTerminos($this->payloadWithVehicle($request))))
+            $this->service->quote(
+                QuoteRequest::make($product, $this->withDefaultTerminos($this->payloadWithVehicle($request), $request->paymentTerm))
+            )
         );
     }
 
@@ -206,7 +218,10 @@ class UniversalSegurosProvider implements
         return $this->toQuoteResult(
             $this->service->updateQuote(
                 $quoteNumber,
-                QuoteRequest::make($product, $this->withDefaultTerminos($this->payloadForUpdate($quoteNumber, $request, $product)))
+                QuoteRequest::make(
+                    $product,
+                    $this->withDefaultTerminos($this->payloadForUpdate($quoteNumber, $request, $product), $request->paymentTerm)
+                )
             )
         );
     }
@@ -247,9 +262,7 @@ class UniversalSegurosProvider implements
             );
         }
 
-        $current = (string) $order->get(InsuranceCustomFieldEnum::STATUS->value);
-
-        if ($results !== [] && in_array($current, ['', InsuranceStatusEnum::QUOTED->value], true)) {
+        if ($results !== [] && in_array(InsuranceStatus::of($order), [null, InsuranceStatusEnum::QUOTED], true)) {
             new RecordInsuranceStatusAction($order, InsuranceStatusEnum::DOCUMENTS_UPLOADED)->execute();
         }
 
@@ -458,11 +471,37 @@ class UniversalSegurosProvider implements
             ?? throw new ValidationException('Unknown Universal Seguros product: ' . $code);
     }
 
-    protected function withDefaultTerminos(array $payload): array
+    protected function withDefaultTerminos(array $payload, ?InsurancePaymentTermEnum $paymentTerm = null): array
     {
         $payload['terminos'] = array_merge(self::DEFAULT_TERMINOS, (array) ($payload['terminos'] ?? []));
 
+        if ($paymentTerm !== null) {
+            $payload['terminos']['fraccionamientoPago'] = self::PAYMENT_TERM_CODES[$paymentTerm->value];
+        }
+
         return $payload;
+    }
+
+    protected function paymentOptions(array $response): array
+    {
+        $codes = array_flip(self::PAYMENT_TERM_CODES);
+        $options = [];
+
+        foreach ((array) ($response['data']['primas'] ?? []) as $entry) {
+            $term = InsurancePaymentTermEnum::tryFrom($codes[$entry['fraccionamientoPago'] ?? ''] ?? '');
+            $amount = $this->toFloat($entry['cobro'] ?? null);
+
+            if ($term !== null && $amount !== null) {
+                $options[] = new InsurancePaymentOption(
+                    term: $term,
+                    amount: $amount,
+                    premium: $this->toFloat($entry['prima'] ?? null),
+                    tax: $this->toFloat($entry['impuesto'] ?? null),
+                );
+            }
+        }
+
+        return $options;
     }
 
     protected function payloadWithVehicle(InsuranceQuoteRequest $request): array
@@ -581,8 +620,7 @@ class UniversalSegurosProvider implements
     {
         $policy = $this->service->getPolicy($quoteNumber);
         $policyNumber = (string) ($policy['numeroPoliza'] ?? $policy['numero'] ?? '');
-        $status = InsuranceStatusEnum::tryFrom((string) $order->get(InsuranceCustomFieldEnum::STATUS->value))
-            ?? InsuranceStatusEnum::QUOTED;
+        $status = InsuranceStatus::of($order) ?? InsuranceStatusEnum::QUOTED;
 
         if ($policyNumber !== '') {
             $order->set(InsuranceCustomFieldEnum::POLICY_NUMBER->value, $policyNumber);
@@ -618,6 +656,7 @@ class UniversalSegurosProvider implements
             productCode: Str::trimToNull(
                 is_string($response['data']['producto'] ?? null) ? $response['data']['producto'] : null
             ),
+            paymentOptions: $this->paymentOptions($response),
         );
     }
 

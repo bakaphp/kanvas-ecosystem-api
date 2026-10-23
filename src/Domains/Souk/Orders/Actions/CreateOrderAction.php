@@ -30,12 +30,42 @@ class CreateOrderAction
 {
     public bool $runWorkflow = true;
 
+    private ?OrderTypes $resolvedOrderType = null;
+    public bool $sendNotifications = true;
+
     public function __construct(
         protected Order $orderData
     ) {
     }
 
     public function execute(): ModelsOrder
+    {
+        $lockKey = new DuplicatedMetadata(
+            $this->orderData->app,
+            $this->orderData->company,
+            $this->resolveOrderType(),
+        )->lockKey($this->orderData->metadata);
+
+        if ($lockKey === null) {
+            return $this->createOrder();
+        }
+
+        $lock = Cache::lock($lockKey, 30);
+
+        try {
+            $lock->block(10);
+        } catch (LockTimeoutException) {
+            throw new ValidationException('Another order for this record is being created. Please try again.');
+        }
+
+        try {
+            return $this->createOrder();
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function createOrder(): ModelsOrder
     {
         $this->validateSlotAvailability();
 
@@ -141,6 +171,10 @@ class CreateOrderAction
                     // $this->simulateWorkflow($order);
                 }
 
+                if (! $this->sendNotifications) {
+                    return;
+                }
+
                 try {
                     $order->user->notify(new NewOrderNotification($order, [
                         'app' => $this->orderData->app,
@@ -184,6 +218,13 @@ class CreateOrderAction
         return $this;
     }
 
+    public function disableNotifications(): self
+    {
+        $this->sendNotifications = false;
+
+        return $this;
+    }
+
     private function validateScheduleAvailability(): void
     {
         $startAt = $this->orderData->metadata['data']['start_at'] ?? null;
@@ -205,7 +246,7 @@ class CreateOrderAction
             return null;
         }
 
-        return OrderTypes::where('name', $this->orderData->orderType)
+        return $this->resolvedOrderType ??= OrderTypes::where('name', $this->orderData->orderType)
             ->where('apps_id', $this->orderData->app->getId())
             ->where(function ($q) {
                 $q->where('companies_id', $this->orderData->company->getId())

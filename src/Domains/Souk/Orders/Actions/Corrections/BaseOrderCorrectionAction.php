@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Actions\Corrections;
 
 use Closure;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Enums\ConfigurationEnum;
@@ -28,10 +29,25 @@ abstract class BaseOrderCorrectionAction
                 ->lockForUpdate()
                 ->findOrFail($this->order->id);
 
+            $updatedAt = $this->order->updated_at;
+
             $callback();
+            $this->restoreUpdatedAt($updatedAt);
 
             return $this->order->refresh();
         });
+    }
+
+    protected function restoreUpdatedAt(?Carbon $updatedAt): void
+    {
+        if ($updatedAt === null) {
+            return;
+        }
+
+        $this->order->newQuery()
+            ->whereKey($this->order->getKey())
+            ->toBase()
+            ->update(['updated_at' => $updatedAt]);
     }
 
     protected function guardNotFinalStatus(): void

@@ -37,6 +37,14 @@ class FakeUniversalServer extends UniversalSegurosService
 
     public bool $refuseEmission = false;
 
+    public const array PERIODS = [
+        'A' => [5239.67, 838.33, 6078.0],
+        'S' => [2720.0, 435.2, 3155.2],
+        'T' => [1310.0, 209.6, 1519.6],
+        'M' => [483.0, 77.28, 560.28],
+        'PU' => [5239.67, 838.33, 6078.0],
+    ];
+
     private int $sequence = 355000;
 
     public function __construct()
@@ -175,7 +183,14 @@ class FakeUniversalServer extends UniversalSegurosService
         $data['numeroCotizacion'] = $number;
         $data['producto'] = $quote['producto'];
         $data['pago'] = ['pagado' => $quote['paid']];
-        $data['terminos'] = ($data['terminos'] ?? []) + ['prima' => 5239.67, 'impuesto' => 838.33, 'totalCobro' => 6078];
+        $periods = self::PERIODS;
+        $selected = $periods[$data['terminos']['fraccionamientoPago'] ?? 'A'] ?? $periods['A'];
+        $data['terminos'] = ($data['terminos'] ?? []) + ['prima' => $selected[0], 'impuesto' => $selected[1], 'totalCobro' => $selected[2]];
+        $data['primas'] = array_map(
+            fn (string $code, array $period): array => ['fraccionamientoPago' => $code, 'prima' => $period[0], 'impuesto' => $period[1], 'cobro' => $period[2]],
+            array_keys($periods),
+            $periods
+        );
 
         return ['numeroCotizacion' => $number, 'data' => $data];
     }
