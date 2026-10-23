@@ -237,9 +237,11 @@ skipped; every other skip reason (too_soon, ai_mode_off, agent declined...) is a
   that crashed is not left looking like one still `queued`.
 - `lead:follow-up-daily-summary` (00:30 UTC) builds `follow_up.daily.summary` with a `failed` bucket
   (`total`, `by_reason`, the latest 20 in `recent`) and emails it through
-  `SendLeadFollowUpDailySummaryAction` to `lead_follow_up_summary_recipients` (company setting, app
-  fallback; comma-separated or a list). No recipients, or a day with nothing queued, sent, failed or
-  exhausted, sends nothing. Template `lead-follow-up-daily-summary`
+  `SendLeadFollowUpDailySummaryAction` to the company's active members holding the app's `FollowUpDev`
+  role (`UsersRepository::getActiveCompanyAppUsersByRole`, the same lookup as the Engage usage
+  report). New apps get the role from `CreateAppsAction::acl()`; an existing one needs
+  `kanvas:create-role FollowUpDev {app_id}`. No role holders, or a day with nothing queued, sent,
+  failed or exhausted, sends nothing. Template `lead-follow-up-daily-summary`
   (`resources/views/emails/leadFollowUpDailySummary.twig`); an existing app gets it with
   `kanvas:email-template-sync`.
 - `lead:follow-up-status [--app_id] [--company_id] [--hours=24]` is the `kanvas:status` of follow-ups:

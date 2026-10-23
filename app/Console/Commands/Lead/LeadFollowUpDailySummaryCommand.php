@@ -15,7 +15,7 @@ use Throwable;
 /**
  * Daily rollup per (app, company). 'Yesterday' is per-tenant timezone, so a
  * UTC fire still aggregates the correct local-day data. The rollup is emailed
- * to the company's `lead_follow_up_summary_recipients` when it has any.
+ * to the company's active members holding the app's `FollowUpDev` role.
  */
 class LeadFollowUpDailySummaryCommand extends Command
 {
