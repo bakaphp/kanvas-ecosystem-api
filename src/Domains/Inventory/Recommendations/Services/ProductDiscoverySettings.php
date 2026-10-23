@@ -39,21 +39,39 @@ final class ProductDiscoverySettings
 
     /**
      * The catalog's languages, read by Algolia's stop words / plurals and by enrichment, which writes
-     * the blurb in each of them and nothing else.
+     * the blurb in each of them and nothing else. A company's own list wins over the app's, so one
+     * English-only catalog on a Spanish app does not pay for blurbs nobody searches in.
      *
      * @return list<string>
      */
-    public static function queryLanguages(AppInterface $app): array
+    public static function queryLanguages(AppInterface $app, ?CompanyInterface $company = null): array
     {
-        $languages = array_values(array_unique(array_filter(
+        if ($company !== null) {
+            $languages = self::parseLanguages(ConfigurationEnum::QUERY_LANGUAGES->listFrom($company));
+
+            if ($languages !== []) {
+                return $languages;
+            }
+        }
+
+        $languages = self::parseLanguages(ConfigurationEnum::QUERY_LANGUAGES->listFrom($app));
+
+        return $languages !== [] ? $languages : self::DEFAULT_QUERY_LANGUAGES;
+    }
+
+    /**
+     * @param array<mixed> $configured
+     * @return list<string>
+     */
+    private static function parseLanguages(array $configured): array
+    {
+        return array_values(array_unique(array_filter(
             array_map(
                 static fn (mixed $language): string => is_string($language) ? strtolower(trim($language)) : '',
-                ConfigurationEnum::QUERY_LANGUAGES->listFrom($app),
+                $configured,
             ),
             static fn (string $language): bool => preg_match('/^[a-z]{2}$/', $language) === 1,
         )));
-
-        return $languages !== [] ? $languages : self::DEFAULT_QUERY_LANGUAGES;
     }
 
     public static function for(AppInterface $app, ?CompanyInterface $company): self

@@ -198,6 +198,60 @@ class EnrichProductActionTest extends TestCase
         $this->assertNotSame($default, ProductEnrichmentFingerprintService::for($product), 'Changing the languages rewrites the blurbs.');
     }
 
+    public function testABlurbAnsweredAsAListOfSentencesIsJoinedNotFatal(): void
+    {
+        $product = $this->makeProductWithAgent();
+
+        ProductEnrichmentAgent::fake([[
+            'audience' => [['unisex']],
+            'occasion' => [],
+            'interests' => [],
+            'tags' => [],
+            'blurb_es' => ['Un taladro inalambrico.', 'Bateria de larga duracion.'],
+            'blurb_en' => 'A cordless drill.',
+        ]]);
+
+        $result = new EnrichProductAction($product)->execute();
+
+        $this->assertSame('enriched', $result['status']);
+        $this->assertSame(
+            'Un taladro inalambrico. Bateria de larga duracion. A cordless drill.',
+            (string) $product->get(SearchFieldEnum::BLURB->value),
+        );
+        $this->assertNotNull($product->get(CustomFieldEnum::ENRICHMENT_HASH->value));
+    }
+
+    public function testACompanyLanguageListWinsOverTheApp(): void
+    {
+        $product = $this->makeProductWithAgent();
+        $company = $product->company;
+        $this->useLanguages(['es', 'en']);
+        $appWide = ProductEnrichmentFingerprintService::for($product);
+
+        try {
+            $company->set(ConfigurationEnum::QUERY_LANGUAGES->value, ['en']);
+
+            $this->assertSame(['en'], ProductEnrichmentAgent::blurbLanguages($product->app, $company));
+            $this->assertSame(['es', 'en'], ProductEnrichmentAgent::blurbLanguages($product->app), 'Index-wide settings keep reading the app.');
+            $this->assertNotSame($appWide, ProductEnrichmentFingerprintService::for($product), 'A company override reopens the hash gate.');
+
+            ProductEnrichmentAgent::fake([[
+                'audience' => ['unisex'],
+                'occasion' => [],
+                'interests' => [],
+                'tags' => [],
+                'blurb_en' => 'A cordless drill.',
+            ]]);
+
+            $result = new EnrichProductAction($product)->execute();
+
+            $this->assertSame('enriched', $result['status']);
+            $this->assertSame('A cordless drill.', (string) $product->get(SearchFieldEnum::BLURB->value));
+        } finally {
+            $company->del(ConfigurationEnum::QUERY_LANGUAGES->value);
+        }
+    }
+
     /**
      * @param list<string> $languages
      */

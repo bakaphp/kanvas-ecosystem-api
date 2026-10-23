@@ -16,7 +16,7 @@ return [
     ],
     'app_key' => [
         // Default for apps without the `app_key_enforce_user_match` setting. When off, a request carrying
-        // an app key plus another user's token is logged, not refused. Temporary: public apps forward
+        // an app key plus another user's token is allowed through. Temporary: public apps forward
         // the end-user token on their admin client. Flip per app as they stop, then flip the default.
         'enforce_user_match' => env('APP_KEY_ENFORCE_USER_MATCH', false),
     ],
