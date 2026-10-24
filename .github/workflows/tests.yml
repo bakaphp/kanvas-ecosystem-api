@@ -169,6 +169,7 @@ jobs:
           - GraphQL-HumanResources
           - GraphQL-Other
           - Connectors
+          - Communication
           - Ecosystem
           - Social
           - Guild
