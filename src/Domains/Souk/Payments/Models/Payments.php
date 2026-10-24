@@ -150,6 +150,21 @@ class Payments extends BaseModel
         return strtolower($brand) . ':' . $lastFour;
     }
 
+    public function transitionStatus(string $from, string $to): bool
+    {
+        $claimed = static::query()
+            ->whereKey($this->getKey())
+            ->where('status', $from)
+            ->update(['status' => $to]) === 1;
+
+        if ($claimed) {
+            $this->setAttribute('status', $to);
+            $this->syncOriginalAttribute('status');
+        }
+
+        return $claimed;
+    }
+
     public function markAsPaid(array $metadata = []): void
     {
         $this->status = PaymentStatusEnum::PAID->value;

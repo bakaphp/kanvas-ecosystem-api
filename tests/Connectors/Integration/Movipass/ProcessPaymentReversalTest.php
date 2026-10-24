@@ -120,6 +120,26 @@ final class ProcessPaymentReversalTest extends TestCase
         $this->assertSame(PaymentStatusEnum::REVERSED->value, $payment->fresh()->status);
     }
 
+    public function testRetryJobSkipsPaymentsAlreadyCancelledByAVoid(): void
+    {
+        [$app, $order, $payment] = $this->makeAuthorizedOrder([RetryPaymentReversalJob::PENDING_KEY => true]);
+        $payment->update(['status' => PaymentStatusEnum::CANCELLED->value]);
+
+        $processor = Mockery::mock(PortalPaymentProcessor::class);
+        $processor->shouldNotReceive('reversePayment');
+
+        $job = new RetryPaymentReversalJob(
+            $app,
+            $payment,
+            $order,
+            'retry'
+        );
+        $job->paymentProcessor = $processor;
+        $job->handle();
+
+        $this->assertSame(PaymentStatusEnum::CANCELLED->value, $payment->fresh()->status);
+    }
+
     /**
      * An order whose card already holds an EchoPay authorization.
      *

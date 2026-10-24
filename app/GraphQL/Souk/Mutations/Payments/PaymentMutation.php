@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Payments;
 
 use Exception;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
@@ -168,6 +169,8 @@ class PaymentMutation
 
     public function initiatePayerAuthentication(mixed $root, array $request): array
     {
+        $this->logLegacyPortalUsage('initiatePayerAuthentication', $request);
+
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
         $order = Order::where([
@@ -255,6 +258,8 @@ class PaymentMutation
 
     public function completeDeviceData(mixed $root, array $request): array
     {
+        $this->logLegacyPortalUsage('completeDeviceData', $request);
+
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
         $user = auth()->user();
@@ -374,6 +379,8 @@ class PaymentMutation
 
     public function validatePayerAuthResult(mixed $root, array $request): array
     {
+        $this->logLegacyPortalUsage('validatePayerAuthResult', $request);
+
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
 
@@ -594,6 +601,8 @@ class PaymentMutation
 
     public function reversePayment(mixed $root, array $request): array
     {
+        $this->logLegacyPortalUsage('reversePayment', $request);
+
         $user = auth()->user();
 
         if (! $user->isAdmin()) {
@@ -665,5 +674,16 @@ class PaymentMutation
                 'message' => 'Error reversing payment: ' . $e->getMessage(),
             ];
         }
+    }
+
+    private function logLegacyPortalUsage(string $mutation, array $request): void
+    {
+        Log::warning('Deprecated Portal mutation called', [
+            'mutation' => $mutation,
+            'apps_id' => app(Apps::class)->getId(),
+            'users_id' => auth()->id(),
+            'order_id' => $request['orderId'] ?? null,
+            'payment_id' => $request['paymentId'] ?? null,
+        ]);
     }
 }

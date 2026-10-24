@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Payments\Providers;
 
 use Baka\Support\IPInfo;
-use Baka\Support\Str;
 use Exception;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
@@ -15,31 +14,32 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthenticationInformation;
 use Kanvas\Connectors\EchoPay\DataTransferObject\DeviceInformation;
-use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDefinedInformation;
-use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\OrderInformation;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentCaptureInput;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
-use Kanvas\Connectors\EchoPay\Enums\MerchantCategoryEnum;
-use Kanvas\Connectors\EchoPay\Enums\MerchantDocumentTypesEnum;
-use Kanvas\Connectors\EchoPay\Enums\MerchantPlatformEnum;
-use Kanvas\Connectors\EchoPay\Enums\MerchantTokenizationEnum;
 use Kanvas\Connectors\EchoPay\Enums\PaymentStatusEnum as EnumsPaymentStatusEnum;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Payments\DataTransferObject\PaymentFailure;
+use Kanvas\Souk\Payments\Concerns\LogsEchoPayFailures;
+use Kanvas\Souk\Payments\Concerns\PersistsEchoPayAuthState;
+use Kanvas\Souk\Payments\Concerns\ResolvesEchoPayMerchant;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Throwable;
 use UnexpectedValueException;
 
+/** @deprecated Use ProcessorFactory::make('portal', $app, $company) */
 class PortalPaymentProcessor
 {
+    use LogsEchoPayFailures;
+    use PersistsEchoPayAuthState;
+    use ResolvesEchoPayMerchant;
+
     protected EchoPayService $client;
     protected string $refId;
     protected Payments $payment;
@@ -60,57 +60,6 @@ class PortalPaymentProcessor
     public function setImmediateCapture(bool $immediateCapture): void
     {
         $this->params['immediate_capture'] = $immediateCapture;
-    }
-
-    protected function getMerchantCredentials(Order $order): array
-    {
-        $isMultiMerchant = $this->app->get('portal_multy_merchant') === 1;
-        $orderTypeName = $order->orderType?->name;
-
-        if ($isMultiMerchant && $orderTypeName) {
-            return [
-                'id' => $this->app->get($orderTypeName . '_ECHO_PAY_MERCHANT_ID'),
-                'key' => $this->app->get($orderTypeName . '_ECHO_PAY_MERCHANT_KEY'),
-                'secretKey' => $this->app->get($orderTypeName . '_ECHO_PAY_MERCHANT_SECRET'),
-            ];
-        }
-
-        return [
-            'id' => $this->app->get('ECHO_PAY_MERCHANT_ID') ?? '',
-            'key' => $this->app->get('ECHO_PAY_MERCHANT_KEY') ?? '',
-            'secretKey' => $this->app->get('ECHO_PAY_MERCHANT_SECRET') ?? '',
-        ];
-    }
-
-    protected function setupMerchantAuthentication(Payments $payment, Order $order, bool $includeDetails = false): MerchantDetail
-    {
-        $credentials = $this->getMerchantCredentials($order);
-
-        if (! $credentials['id']) {
-            $orderTypeName = $order->orderType?->name;
-            $isMultiMerchant = $this->app->get('portal_multy_merchant') === 1;
-
-            if ($isMultiMerchant && $orderTypeName) {
-                throw new Exception("Missing merchant credentials for order type '{$orderTypeName}'. Please configure {$orderTypeName}_ECHO_PAY_MERCHANT_ID, {$orderTypeName}_ECHO_PAY_MERCHANT_KEY, and {$orderTypeName}_ECHO_PAY_MERCHANT_SECRET.");
-            } else {
-                throw new Exception('Missing default merchant credentials. Please configure ECHO_PAY_MERCHANT_ID, ECHO_PAY_MERCHANT_KEY, and ECHO_PAY_MERCHANT_SECRET.');
-            }
-        }
-
-        return MerchantDetail::from([
-            ...$credentials,
-            ...($includeDetails
-                ? ['merchantDefinedInformation' => new MerchantDefinedInformation(
-                    category: MerchantCategoryEnum::RETAIL,
-                    cardIdentifier: $credentials['id'],
-                    platform: MerchantPlatformEnum::MOBILE,
-                    customerId: 'user_' . $payment->user->id,
-                    tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
-                    documentType: MerchantDocumentTypesEnum::DNI,
-                    documentNumber: (string) ($payment->user->get('driver_license') ?? ''),
-                )]
-                : []),
-        ]);
     }
 
     protected function setCustomerBillingAddress(Payments $payment, Order $orderInput): BillingDetail
@@ -361,14 +310,8 @@ class PortalPaymentProcessor
 
     private function requestUserValidation(Payments $payment, array $enrollmentData): array
     {
-        $statusMap = [
-            EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value => PaymentStatusEnum::PENDING_AUTHORIZATION->value,
-            EnumsPaymentStatusEnum::AUTHENTICATION_FAILED->value => PaymentStatusEnum::FAILED->value,
-            EnumsPaymentStatusEnum::PENDING_AUTHENTICATION->value => PaymentStatusEnum::PENDING_AUTHORIZATION->value,
-        ];
-
         $enrollmentStatus = (string) ($enrollmentData['status'] ?? '');
-        $paymentStatus = $statusMap[$enrollmentStatus] ?? null;
+        $paymentStatus = $this->mapEnrollmentStatusToPaymentStatus($enrollmentStatus);
 
         if ($paymentStatus === null) {
             report(new UnexpectedValueException('Unmapped EchoPay enrollment status: ' . $enrollmentStatus));
@@ -543,9 +486,7 @@ class PortalPaymentProcessor
             report($e);
 
             $errorMessage = $this->resolveErrorMessage($e);
-            $messageBody = $e instanceof RequestException && $e->hasResponse()
-                ? json_decode((string) $e->getResponse()->getBody())->data ?? []
-                : [];
+            $messageBody = $this->resolveGatewayMessageBody($e);
 
             $this->logPaymentError(
                 $payment,
@@ -848,113 +789,4 @@ class PortalPaymentProcessor
         }
     }
 
-    private function extractErrorsFromEnrollment(array $responseResult): array
-    {
-        $data = [
-            'message' => '',
-            'code' => '',
-        ];
-
-        if (isset($responseResult['errorInformation']) && is_array($responseResult['errorInformation'])) {
-            $data['message'] = (string) ($responseResult['errorInformation']['message'] ?? '');
-            $data['code'] = (string) ($responseResult['errorInformation']['reason'] ?? '');
-        }
-
-        return $data;
-    }
-
-    private function logAuthenticationFailure(
-        Payments $payment,
-        array $enrollmentData,
-        ConsumerAuthentication $consumerAuthentication,
-        array $errors
-    ): void {
-        $payment->addLog(
-            'payment_authentication_failed',
-            [
-                'order_id' => $payment->order->id,
-                'amount' => $payment->amount,
-                'enrollment_status' => $enrollmentData['status'] ?? null,
-                'reason' => $errors['code'],
-                'message' => $errors['message'],
-                'pares_status' => $consumerAuthentication->paresStatus,
-                'eci' => $consumerAuthentication->eci ?? $consumerAuthentication->eciRaw,
-                'authentication_transaction_id' => $consumerAuthentication->authenticationTransactionId,
-                'request_id' => $enrollmentData['id'] ?? null,
-            ],
-            new PaymentFailure(
-                code: Str::trimToNull($errors['code']),
-                message: Str::trimToNull($errors['message']),
-            ),
-        );
-    }
-
-    private function logPaymentError(
-        Payments $payment,
-        Throwable $e,
-        array $context,
-        ?string $errorMessage = null
-    ): void {
-        $payment->addLog('payment_error', $context, $this->paymentFailure($e, $errorMessage));
-    }
-
-    private function paymentFailure(Throwable $e, ?string $message = null): PaymentFailure
-    {
-        if ($e instanceof EchoPayException) {
-            return $e->toPaymentFailure();
-        }
-
-        return new PaymentFailure(code: class_basename($e), message: $message ?? $e->getMessage());
-    }
-
-    private function rememberAuthTransactionId(Order $order, ConsumerAuthentication $consumerAuthentication): void
-    {
-        if (! $consumerAuthentication->authenticationTransactionId) {
-            return;
-        }
-
-        if ($order->get(CustomFieldEnum::ECHO_PAY_AUTH_TRANSACTION_ID->value)) {
-            return;
-        }
-
-        $order->set(CustomFieldEnum::ECHO_PAY_AUTH_TRANSACTION_ID->value, $consumerAuthentication->authenticationTransactionId);
-    }
-
-    private function failAuthentication(
-        Payments $payment,
-        string $stage,
-        array $metadata,
-        PaymentFailure $failure
-    ): void {
-        $payment->status = PaymentStatusEnum::FAILED->value;
-        $payment->addMetadata($metadata);
-        $payment->save();
-
-        $payment->addLog(
-            'payment_authentication_error',
-            [
-                'order_id' => $payment->order->id,
-                'amount' => $payment->amount,
-                'stage' => $stage,
-                'error' => $failure->message,
-            ],
-            $failure,
-        );
-
-        $payment->order->updateQuietly([
-            'status' => OrderStatusEnum::FAILED->value,
-            'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
-        ]);
-    }
-
-    private function resolveErrorMessage(Throwable $e): string
-    {
-        if ($e instanceof RequestException && $e->hasResponse()) {
-            $message = json_decode((string) $e->getResponse()->getBody())->message ?? null;
-
-            return is_string($message) ? $message : $e->getMessage();
-        }
-
-        return $e->getMessage();
-    }
 }
