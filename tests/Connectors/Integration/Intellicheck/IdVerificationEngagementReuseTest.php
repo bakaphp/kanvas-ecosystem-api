@@ -11,6 +11,7 @@ use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdAction;
+use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdInNewEngagementAction;
 use Kanvas\Connectors\Intellicheck\Activities\GenerateIdVerificationActivity;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -42,6 +43,40 @@ final class IdVerificationEngagementReuseTest extends TestCase
 
         $this->assertNotNull($resolved);
         $this->assertSame($first->getId(), $resolved->getId(), 'a second engagement would be a second folder');
+    }
+
+    public function testGenerateIdVerificationFilesEveryScanAsANewSubmittedEngagement(): void
+    {
+        $lead = $this->makeLead();
+        $coBuyer = $this->makePerson($lead);
+
+        $existing = $this->createEngagement($lead, $coBuyer);
+        $this->assertNotNull($existing);
+
+        $first = $this->alwaysCreate($lead, $coBuyer);
+        $second = $this->alwaysCreate($lead, $coBuyer);
+
+        $this->assertNotNull($first);
+        $this->assertNotNull($second);
+        $this->assertNotContains($first->getId(), [$existing->getId(), $second->getId()], 'a scan must never reuse an engagement');
+
+        foreach ([$first, $second] as $engagement) {
+            $this->assertNull($engagement->message->parent_id, 'without eid it is a root, its own folder');
+            $this->assertSame(ConfigurationEnum::ID_VERIFICATION->value, $engagement->slug);
+            $this->assertSame(ActionStatusEnum::SUBMITTED->value, $engagement->stage->slug);
+            $this->assertSame($coBuyer->getId(), (int) $engagement->people_id);
+        }
+    }
+
+    public function testAlwaysCreatingStillThreadsUnderAnExplicitParent(): void
+    {
+        $lead = $this->makeLead();
+        $parent = $this->createEngagement($lead, $lead->people);
+        $this->assertNotNull($parent);
+
+        $child = new VerifyPeopleIdInNewEngagementAction($lead->people, $lead)->resolveEngagement($parent, true);
+
+        $this->assertSame($parent->message_id, $child?->message->parent_id);
     }
 
     public function testThreadingUnderAParentKeepsTheReportInTheSameFolder(): void
@@ -379,6 +414,11 @@ final class IdVerificationEngagementReuseTest extends TestCase
 
         return new ReflectionMethod(VerifyPeopleIdAction::class, 'resolveEngagement')
             ->invoke($action, $parent, $reuse);
+    }
+
+    private function alwaysCreate(Lead $lead, People $people): ?Engagement
+    {
+        return new VerifyPeopleIdInNewEngagementAction($people, $lead)->resolveEngagement(reuseExistingEngagement: true);
     }
 
     private function findForPeople(Lead $lead, People $people): ?Engagement
