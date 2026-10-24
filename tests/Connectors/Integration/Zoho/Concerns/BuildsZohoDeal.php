@@ -6,13 +6,13 @@ namespace Tests\Connectors\Integration\Zoho\Concerns;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use Tests\Traits\MakesGuildEntities;
 
 /**
  * Fixtures live on a fresh company so the Zoho settings a test writes (field map, default owner)
@@ -20,6 +20,8 @@ use Kanvas\Users\Models\Users;
  */
 trait BuildsZohoDeal
 {
+    use MakesGuildEntities;
+
     protected function makeZohoCompany(): Companies
     {
         return Companies::factory()->create();
@@ -42,25 +44,6 @@ trait BuildsZohoDeal
             'name' => $name,
             'weight' => 1,
         ]);
-    }
-
-    protected function makeLead(Companies $company): Lead
-    {
-        $user = auth()->user();
-        $app = app(Apps::class);
-
-        $people = People::factory()
-            ->withUserId($user->getId())
-            ->withAppId($app->getId())
-            ->withCompanyId($company->getId())
-            ->create();
-
-        return Lead::factory()
-            ->withUserId($user->getId())
-            ->withAppId($app->getId())
-            ->withCompanyId($company->getId())
-            ->withPeopleId($people->getId())
-            ->create();
     }
 
     protected function makeDeal(
