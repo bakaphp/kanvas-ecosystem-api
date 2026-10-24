@@ -33,6 +33,17 @@ abstract class BaseIntegration
     abstract public function setup(): bool;
 
     /**
+     * What stays on the integration_companies row after setup(): the accounts the tenant selected
+     * (numbers, a mailbox, a paired session) — whatever later work needs to know which of the
+     * integrated account's resources this tenant uses. Never credentials: setup() already puts
+     * those in settings, and the row is read far more widely than they are.
+     */
+    public function persistedConfig(): array
+    {
+        return [];
+    }
+
+    /**
      * Undo what setup() persisted on the company, so a disconnected integration stops resolving
      * credentials. Connector code reads straight from company settings and never checks the
      * integration_companies row, so leaving the keys behind keeps the integration live.

@@ -19,6 +19,30 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 class ReceiverController extends BaseController
 {
     /**
+     * A provider checking the URL is ours before it sends to it. Answered on an inactive receiver
+     * too, for the same reason as the POST handshake: re-verifying must not fail.
+     */
+    public function verify(string $uuid, Request $request): SymfonyResponse
+    {
+        $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
+        $jobClass = $receiver?->action?->model_name;
+
+        if (! is_string($jobClass) || ! is_a($jobClass, ProcessWebhookJob::class, true)) {
+            return response()->json(['message' => 'Receiver not found'], 404);
+        }
+
+        if (app(Apps::class)->getId() !== $receiver->apps_id) {
+            App::scoped(Apps::class, fn () => $receiver->app);
+        }
+
+        $challenge = $jobClass::verificationChallenge($request, $receiver);
+
+        return $challenge === null
+            ? response()->json(['message' => 'Unauthorized'], 403)
+            : response($challenge, 200, ['Content-Type' => 'text/plain']);
+    }
+
+    /**
      * Handle webhook receiver based on UUID.
      *
      * @throws BindingResolutionException
