@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Services;
 
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 
 final class ZohoFieldMapService
@@ -62,34 +65,70 @@ final class ZohoFieldMapService
     }
 
     /**
-     * The deal map is stored inbound-first (`zohoKey => kanvasKey`) because the webhook came first.
-     * The push reads the same setting the other way round so one config drives both directions.
+     * The pull direction of the same map: Zoho record values keyed by the Kanvas custom field they
+     * belong to. Mirrors the lead pull exactly — table columns are never written as custom fields,
+     * empty Zoho values are left alone rather than wiping what Kanvas has, and `date` entries are
+     * normalised to Y-m-d.
+     *
+     * @param array<string, string|array> $map kanvasKey => zohoKey | ['name' => zohoKey, 'type' => ...]
+     * @param array<string, mixed> $record the Zoho record as data
+     * @param list<string> $reservedKeys Kanvas keys that are table columns, not custom fields
+     * @return array<string, mixed>
      */
-    public static function invert(array $map): array
+    public static function extract(array $map, array $record, array $reservedKeys = []): array
     {
-        $inverted = [];
+        $customFields = [];
 
-        foreach ($map as $zohoKey => $kanvasKey) {
-            if (is_array($kanvasKey)) {
-                if (empty($kanvasKey['name'])) {
-                    continue;
-                }
-
-                $inverted[(string) $kanvasKey['name']] = ['name' => $zohoKey] + array_diff_key($kanvasKey, ['name' => true]);
-
+        foreach ($map as $kanvasKey => $zohoConfig) {
+            if (! is_string($kanvasKey) || in_array($kanvasKey, $reservedKeys, true)) {
                 continue;
             }
 
-            if (is_string($kanvasKey) && $kanvasKey !== '') {
-                $inverted[$kanvasKey] = $zohoKey;
+            $value = $record[self::zohoFieldName($zohoConfig, $kanvasKey)] ?? null;
+
+            if (empty($value)) {
+                continue;
             }
+
+            if (is_array($zohoConfig) && ($zohoConfig['type'] ?? null) === 'date') {
+                $value = ZohoFieldTypeService::cast($value, 'date') ?? $value;
+            }
+
+            $customFields[$kanvasKey] = $value;
         }
 
-        return $inverted;
+        return $customFields;
     }
 
     /**
-     * The company's ZOHO_DEAL_FIELDS_MAP, inbound-first (`zohoKey => kanvasKey`), or the default.
+     * A map entry is either the Zoho api name or `['name' => ..., 'type' => ...]`; an empty one
+     * means the Kanvas key is already the Zoho name.
+     */
+    public static function zohoFieldName(mixed $config, string $fallback): string
+    {
+        $name = is_array($config) ? ($config['name'] ?? null) : $config;
+
+        return is_string($name) && $name !== '' ? $name : $fallback;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function tableColumns(Model $model): array
+    {
+        $connectionName = $model->getConnection()->getName();
+        $table = $model->getTable();
+
+        return Cache::remember(
+            "zoho_table_columns_{$connectionName}_{$table}",
+            3600,
+            fn () => Schema::connection($connectionName)->getColumnListing($table)
+        );
+    }
+
+    /**
+     * The company's ZOHO_DEAL_FIELDS_MAP or the default. Same shape as the lead map, Kanvas-first:
+     * `kanvasKey => zohoKey` or `kanvasKey => ['name' => zohoKey, 'type' => phpType]`.
      */
     public static function dealMapFor(CompanyInterface $company): array
     {
@@ -99,22 +138,22 @@ final class ZohoFieldMapService
     }
 
     /**
-     * @return array<string, string> zohoKey => kanvasKey
+     * @return array<string, string> kanvasKey => zohoKey
      */
     public static function defaultDealMap(): array
     {
         return [
-            'Business_Name' => 'business_legal_name',
-            'DBA' => 'business_dba',
-            'EIN' => 'business_ein',
-            'Monthly_Business_Revenue' => 'business_stated_monthly_revenue',
-            'Annual_Revenue' => 'funding_estimated_annual_revenue',
-            'Amount_Requested' => 'funding_amount_requested',
-            'Business_Start_Date' => 'business_start_date',
-            'Employer_Address' => 'business_address_line',
-            'City' => 'business_city',
-            'State' => 'business_state',
-            'Zip_Code' => 'business_zip',
+            'business_legal_name' => 'Business_Name',
+            'business_dba' => 'DBA',
+            'business_ein' => 'EIN',
+            'business_stated_monthly_revenue' => 'Monthly_Business_Revenue',
+            'funding_estimated_annual_revenue' => 'Annual_Revenue',
+            'funding_amount_requested' => 'Amount_Requested',
+            'business_start_date' => 'Business_Start_Date',
+            'business_address_line' => 'Employer_Address',
+            'business_city' => 'City',
+            'business_state' => 'State',
+            'business_zip' => 'Zip_Code',
         ];
     }
 

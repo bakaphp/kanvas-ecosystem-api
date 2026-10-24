@@ -31,6 +31,10 @@ class ZohoLead extends Data
     ) {
     }
 
+    /**
+     * @todo Read the person's default address first and emit Street/City/State/Zip_Code from it,
+     *       falling back to the mapped custom fields only when the person has none (docs/TODO.md).
+     */
     public static function fromLead(Lead $lead): self
     {
         $customFields = $lead->getAll();

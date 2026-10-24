@@ -47,28 +47,47 @@ final class ZohoFieldMapServiceTest extends TestCase
         $this->assertSame('680-719', $data['Credit_Score']);
     }
 
-    public function testInvertTurnsTheInboundDealMapIntoAnOutboundOne(): void
+    public function testExtractReadsTheSameMapInThePullDirection(): void
     {
-        $inverted = ZohoFieldMapService::invert([
-            'Business_Name' => 'business_legal_name',
-            'Amount_Requested' => ['name' => 'funding_amount_requested', 'type' => 'double'],
-            'Ignored' => '',
-            'AlsoIgnored' => ['type' => 'double'],
-        ]);
+        $map = [
+            'zip' => ['name' => 'Zip_Code', 'type' => 'string'],
+            'business_founded' => ['name' => 'Business_Founded', 'type' => 'date'],
+            'Rating' => ['name' => 'Rating', 'type' => 'string'],
+            'Credit_Score' => 'Credit_Score',
+            'title' => 'Deal_Name',
+            'agent_notes' => 'Agent_Notes',
+        ];
+
+        $fields = ZohoFieldMapService::extract($map, [
+            'Zip_Code' => '33033',
+            'Business_Founded' => '08/28/2020',
+            'Rating' => 'Hot',
+            'Credit_Score' => '720-950',
+            'Deal_Name' => 'Acme',
+            'Agent_Notes' => '',
+        ], ['title']);
 
         $this->assertSame([
-            'business_legal_name' => 'Business_Name',
-            'funding_amount_requested' => ['name' => 'Amount_Requested', 'type' => 'double'],
-        ], $inverted);
+            'zip' => '33033',
+            'business_founded' => '2020-08-28',
+            'Rating' => 'Hot',
+            'Credit_Score' => '720-950',
+        ], $fields);
     }
 
-    public function testTheDefaultDealMapRoundTrips(): void
+    public function testAnEntryWithoutANameMeansTheKanvasKeyIsTheZohoName(): void
+    {
+        $this->assertSame('Rating', ZohoFieldMapService::zohoFieldName(['type' => 'string'], 'Rating'));
+        $this->assertSame('Zip_Code', ZohoFieldMapService::zohoFieldName(['name' => 'Zip_Code'], 'zip'));
+        $this->assertSame('Street', ZohoFieldMapService::zohoFieldName('Street', 'street'));
+    }
+
+    public function testTheDefaultDealMapIsKanvasFirstLikeTheLeadMap(): void
     {
         $default = ZohoFieldMapService::defaultDealMap();
-        $outbound = ZohoFieldMapService::invert($default);
 
-        foreach ($default as $zohoKey => $kanvasKey) {
-            $this->assertSame($zohoKey, $outbound[$kanvasKey]);
-        }
+        $this->assertSame('Zip_Code', $default['business_zip']);
+        $this->assertSame('Amount_Requested', $default['funding_amount_requested']);
+        $this->assertSame(['business_zip' => '33033'], ZohoFieldMapService::extract($default, ['Zip_Code' => '33033']));
     }
 }
