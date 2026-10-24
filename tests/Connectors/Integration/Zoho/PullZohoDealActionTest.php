@@ -52,6 +52,25 @@ final class PullZohoDealActionTest extends TestCase
         $this->assertSame(50000, $deal->get('funding_amount_requested'));
     }
 
+    public function testACompanyMapInTheLeadShapeIsReadOnThePull(): void
+    {
+        $company = $this->makeZohoCompany();
+        $company->set(CustomFieldEnum::ZOHO_DEAL_FIELDS_MAP->value, [
+            'zip' => ['name' => 'Zip_Code', 'type' => 'string'],
+            'amount_requested' => ['name' => 'Amount_Requested', 'type' => 'currency'],
+        ]);
+
+        $deal = $this->action($company, 'zd-12', [
+            'id' => 'zd-12',
+            'Deal_Name' => 'Mapped',
+            'Zip_Code' => '33033',
+            'Amount_Requested' => 25000,
+        ])->execute();
+
+        $this->assertSame('33033', (string) $deal->get('zip'));
+        $this->assertSame(25000, $deal->get('amount_requested'));
+    }
+
     public function testASecondPullUpdatesTheSameDealInsteadOfAddingOne(): void
     {
         $company = $this->makeZohoCompany();
