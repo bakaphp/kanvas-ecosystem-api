@@ -361,49 +361,39 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         return $query->where('status', '<', 2);
     }
 
-    /**
-     * TODO: `leads_status` has no `category`/`is_closed` column, so there is
-     * no reliable way to know per-tenant which custom statuses mean "open".
-     * This hardcodes the known global seed ids as a stopgap — replace with a
-     * real category lookup once `leads_status` gets that column.
-     */
-    public const array OPEN_LEADS_STATUS_IDS = [1, 2];
-
-    public static function openLeadsStatusIds(?CompanyInterface $company = null): array
-    {
-        if ($company === null) {
-            return self::OPEN_LEADS_STATUS_IDS;
-        }
-
-        $extra = $company->get(ConfigurationEnum::OPEN_LEADS_STATUS_IDS->value);
-
-        if (! is_array($extra)) {
-            $extra = $extra === null || $extra === '' ? [] : explode(',', (string) $extra);
-        }
-
-        $extra = array_filter(array_map('intval', $extra), fn (int $id): bool => $id > 0);
-
-        return array_values(array_unique([...self::OPEN_LEADS_STATUS_IDS, ...$extra]));
-    }
-
     public function isOpenLeadStatusId(?int $statusId): bool
     {
-        return in_array($statusId, self::openLeadsStatusIds($this->company), true);
+        return LeadStatus::isOpenId($statusId, $this->company);
     }
 
     public function hasOpenLeadStatus(): bool
     {
-        return $this->isOpenLeadStatusId((int) $this->getAttributeValue('leads_status_id'));
+        return LeadStatus::isOpenFor(
+            $this,
+            'status',
+            'leads_status_id',
+            $this->company
+        );
     }
 
     public function scopeHasOpenLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
     {
-        return $query->whereIn('leads_status_id', self::openLeadsStatusIds($company));
+        return LeadStatus::constrainToState(
+            $query,
+            'leads_status_id',
+            open: true,
+            company: $company
+        );
     }
 
     public function scopeHasClosedLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
     {
-        return $query->whereNotIn('leads_status_id', self::openLeadsStatusIds($company));
+        return LeadStatus::constrainToState(
+            $query,
+            'leads_status_id',
+            open: false,
+            company: $company
+        );
     }
 
     /**
@@ -424,9 +414,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
      */
     public function statusName(): ?string
     {
-        $status = $this->relationLoaded('status') ? $this->getRelation('status') : $this->status()->first();
-
-        return $status?->name;
+        return LeadStatus::resolveFor($this, 'status', 'leads_status_id')?->name;
     }
 
     /**

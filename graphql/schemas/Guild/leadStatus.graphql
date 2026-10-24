@@ -2,11 +2,13 @@ type LeadStatus {
     id: ID!
     name: String!
     is_default: Int!
+    is_open: Boolean!
 }
 
 input LeadStatusInput {
     name: String!
     is_default: Int!
+    is_open: Boolean
 }
 
 extend type Query @guard {
