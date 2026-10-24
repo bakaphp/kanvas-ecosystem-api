@@ -112,6 +112,20 @@ extend type Query @guard {
                     "closed_at"
                 ]
             )
+        hasCustomFields: _
+            @whereHasConditions(
+                relation: "customFields"
+                handler: "App\\GraphQL\\Ecosystem\\Handlers\\CompanyScopedCustomFieldsHandler"
+                columns: ["name", "value"]
+            )
+        hasStatus: _
+            @whereHasConditions(relation: "leadStatus", columns: ["name"])
+        hasPipeline: _
+            @whereHasConditions(relation: "pipeline", columns: ["name"])
+        hasStage: _
+            @whereHasConditions(relation: "pipelineStage", columns: ["name"])
+        hasOwner: _
+            @whereHasConditions(relation: "owner", columns: ["id", "uuid"])
         orderBy: _
             @orderBy(
                 columns: [
