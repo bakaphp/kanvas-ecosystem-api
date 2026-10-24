@@ -163,16 +163,14 @@ class PullZohoDealAction
 
     protected function mapCustomFields(Deal $deal, array $zohoDealInfo): void
     {
-        foreach (ZohoFieldMapService::dealMapFor($this->company) as $zohoKey => $kanvasKey) {
-            if (! is_string($kanvasKey) || $kanvasKey === '') {
-                continue;
-            }
+        $customFields = ZohoFieldMapService::extract(
+            ZohoFieldMapService::dealMapFor($this->company),
+            $zohoDealInfo,
+            ZohoFieldMapService::tableColumns(new Deal())
+        );
 
-            if (! is_string($zohoKey) || ! array_key_exists($zohoKey, $zohoDealInfo)) {
-                continue;
-            }
-
-            $deal->set($kanvasKey, $zohoDealInfo[$zohoKey]);
+        foreach ($customFields as $name => $value) {
+            $deal->set($name, $value);
         }
     }
 

@@ -22,8 +22,9 @@ final class ZohoDealDtoTest extends TestCase
     {
         $company = $this->makeZohoCompany();
         $company->set(CustomFieldEnum::ZOHO_DEAL_FIELDS_MAP->value, [
-            'Business_Name' => 'business_legal_name',
-            'Amount_Requested' => ['name' => 'funding_amount_requested', 'type' => 'double'],
+            'business_legal_name' => 'Business_Name',
+            'funding_amount_requested' => ['name' => 'Amount_Requested', 'type' => 'currency'],
+            'zip' => ['name' => 'Zip_Code', 'type' => 'string'],
         ]);
 
         $owner = Users::factory()->create();
@@ -40,6 +41,7 @@ final class ZohoDealDtoTest extends TestCase
         );
         $deal->set('business_legal_name', 'Acme LLC');
         $deal->set('funding_amount_requested', '$50,000');
+        $deal->set('zip', '33033');
 
         $data = ZohoDeal::fromDeal($deal)->toArray();
 
@@ -50,6 +52,8 @@ final class ZohoDealDtoTest extends TestCase
         $this->assertSame('zl-1', $data['ZCRM_Lead_ID']);
         $this->assertSame('Acme LLC', $data['Business_Name']);
         $this->assertSame(50000.0, $data['Amount_Requested']);
+        $this->assertSame('33033', $data['Zip_Code']);
+        $this->assertArrayNotHasKey('zip', $data, 'the Kanvas key must never reach Zoho as a field name');
         $this->assertArrayNotHasKey('additionalFields', $data);
     }
 

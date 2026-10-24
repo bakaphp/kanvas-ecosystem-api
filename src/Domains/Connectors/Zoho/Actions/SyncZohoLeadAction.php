@@ -9,10 +9,9 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Carbon\Carbon;
 use Exception;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Zoho\Services\ZohoFieldMapService;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -258,7 +257,7 @@ class SyncZohoLeadAction
 
     protected function getMappedZohoValue(Record $zohoLead, array $fieldMapping, string $localFieldName): mixed
     {
-        $zohoFieldName = $this->resolveZohoFieldName(
+        $zohoFieldName = ZohoFieldMapService::zohoFieldName(
             $fieldMapping[$localFieldName] ?? null,
             self::DEFAULT_PERSON_FIELDS[$localFieldName]
         );
@@ -266,57 +265,12 @@ class SyncZohoLeadAction
         return $zohoLead->$zohoFieldName;
     }
 
-    protected function resolveZohoFieldName(mixed $config, string $fallback): string
-    {
-        $name = is_array($config) ? ($config['name'] ?? null) : $config;
-
-        return is_string($name) && $name !== '' ? $name : $fallback;
-    }
-
     protected function extractMappedCustomFields(Record $zohoLead, array $fieldMapping): array
     {
-        $leadTableFields = $this->getLeadTableFields();
-        $customFields = [];
-
-        foreach ($fieldMapping as $localFieldName => $zohoFieldConfig) {
-            if (! is_string($localFieldName) || in_array($localFieldName, $leadTableFields)) {
-                continue;
-            }
-
-            $zohoFieldName = $this->resolveZohoFieldName($zohoFieldConfig, $localFieldName);
-
-            if (empty($zohoLead->$zohoFieldName)) {
-                continue;
-            }
-
-            $value = $zohoLead->$zohoFieldName;
-
-            if (is_array($zohoFieldConfig) && ($zohoFieldConfig['type'] ?? null) === 'date') {
-                $timestamp = strtotime((string) $value);
-                if ($timestamp !== false) {
-                    $value = date('Y-m-d', $timestamp);
-                }
-            }
-
-            $customFields[$localFieldName] = $value;
-        }
-
-        return $customFields;
-    }
-
-    protected function getLeadTableFields(): array
-    {
-        $leadModel = new Lead();
-        $tableName = $leadModel->getTable();
-        $connection = $leadModel->getConnection();
-        $connectionName = $connection->getName();
-
-        // Create a unique cache key that includes the connection and table name
-        $cacheKey = "lead_table_fields_{$connectionName}_{$tableName}";
-
-        // Cache for 1 hour (3600 seconds)
-        return Cache::remember($cacheKey, 3600, function () use ($connectionName, $tableName) {
-            return Schema::connection($connectionName)->getColumnListing($tableName);
-        });
+        return ZohoFieldMapService::extract(
+            $fieldMapping,
+            $zohoLead->getData(),
+            ZohoFieldMapService::tableColumns(new Lead())
+        );
     }
 }
