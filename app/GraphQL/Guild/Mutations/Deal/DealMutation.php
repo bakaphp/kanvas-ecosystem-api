@@ -74,17 +74,10 @@ class DealMutation
         /** @var array<string, mixed> $params */
         $params = is_array($rawParams) ? $rawParams : [];
         $taskId = $params['task_id'] ?? null;
+        $hasTask = is_string($taskId) && $taskId !== '' || is_int($taskId);
 
-        if (is_string($taskId) && $taskId !== '' || is_int($taskId)) {
+        if ($hasTask) {
             $deal->set('checklist_upload', $taskId);
-            $deal->fireWorkflow(
-                WorkflowEnum::AFTER_UPLOAD->value,
-                true,
-                [
-                    'task_id' => $taskId,
-                    'app' => $app,
-                ]
-            );
         }
 
         $this->uploadFileToEntity(
@@ -92,6 +85,13 @@ class DealMutation
             app: $app,
             user: $user,
             request: $request
+        );
+
+        // Fired after the attach so an outbound sync (Zoho) sees the new file in the same run.
+        $deal->fireWorkflow(
+            WorkflowEnum::AFTER_UPLOAD->value,
+            true,
+            ($hasTask ? ['task_id' => $taskId] : []) + ['app' => $app]
         );
 
         return $deal;

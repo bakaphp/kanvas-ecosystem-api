@@ -17,6 +17,7 @@ use Kanvas\Connectors\SalesAssist\Activities\PullPeopleActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\PushOrderActivity;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -86,7 +87,7 @@ class WorkflowMutationManagement
                 throw new ExceptionsModelNotFoundException('Record ' . class_basename($entityClass) . " {$entityId} not found");
             }
 
-            if (! in_array($entityClass, [Lead::class, People::class, Order::class], true)) {
+            if (! in_array($entityClass, [Lead::class, People::class, Order::class, Deal::class], true)) {
                 throw new ModelNotFoundException('Record ' . class_basename($entityClass) . " {$entityId} not found");
             }
 

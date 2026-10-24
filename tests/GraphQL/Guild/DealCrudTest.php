@@ -57,6 +57,63 @@ class DealCrudTest extends TestCase
             ]]]);
     }
 
+    public function testCreateDealWithCustomFieldsAndFiles(): void
+    {
+        $input = [
+            'title' => 'Deal ' . fake()->word(),
+            'custom_fields' => [
+                ['name' => 'business_legal_name', 'data' => 'Acme LLC'],
+            ],
+            'files' => [
+                ['url' => 'https://example.com/deals/application.pdf', 'name' => 'application.pdf'],
+            ],
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: DealInput!) {
+                createDeal(input: $input) {
+                    id
+                    custom_fields { data { name value } }
+                    files { data { name url } }
+                }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        $deal = $response->json('data.createDeal');
+        $this->assertSame('Acme LLC', collect($deal['custom_fields']['data'])->firstWhere('name', 'business_legal_name')['value']);
+        $this->assertSame('application.pdf', $deal['files']['data'][0]['name']);
+    }
+
+    public function testUpdateDealPersistsCustomFieldsAndFilesBeforeTheWorkflowRuns(): void
+    {
+        $id = $this->graphQL('
+            mutation($input: DealInput!) {
+                createDeal(input: $input) { id }
+            }
+        ', ['input' => ['title' => 'Deal ' . fake()->word()]])->assertSuccessful()->json('data.createDeal.id');
+
+        $response = $this->graphQL('
+            mutation($id: ID!, $input: UpdateDealInput!) {
+                updateDeal(id: $id, input: $input) {
+                    id
+                    custom_fields { data { name value } }
+                    files { data { name } }
+                }
+            }
+        ', ['id' => $id, 'input' => [
+            'custom_fields' => [
+                ['name' => 'business_dba', 'data' => 'Acme Funding'],
+            ],
+            'files' => [
+                ['url' => 'https://example.com/deals/bank-statement.pdf', 'name' => 'bank-statement.pdf'],
+            ],
+        ]])->assertSuccessful();
+
+        $deal = $response->json('data.updateDeal');
+        $this->assertSame('Acme Funding', collect($deal['custom_fields']['data'])->firstWhere('name', 'business_dba')['value']);
+        $this->assertSame('bank-statement.pdf', $deal['files']['data'][0]['name']);
+    }
+
     public function testDeleteDeal(): void
     {
         $createResponse = $this->graphQL('
