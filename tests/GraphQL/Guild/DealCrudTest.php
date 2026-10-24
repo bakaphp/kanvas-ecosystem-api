@@ -114,6 +114,41 @@ class DealCrudTest extends TestCase
         $this->assertSame('bank-statement.pdf', $deal['files']['data'][0]['name']);
     }
 
+    public function testDealsCanBeFilteredByCustomField(): void
+    {
+        $marker = 'zoho-' . uniqid();
+
+        $hit = $this->graphQL('
+            mutation($input: DealInput!) {
+                createDeal(input: $input) { id }
+            }
+        ', ['input' => [
+            'title' => 'Deal ' . fake()->word(),
+            'custom_fields' => [['name' => 'ZOHO_DEAL_ID', 'data' => $marker]],
+        ]])->assertSuccessful()->json('data.createDeal.id');
+
+        $this->graphQL('
+            mutation($input: DealInput!) {
+                createDeal(input: $input) { id }
+            }
+        ', ['input' => ['title' => 'Deal ' . fake()->word()]])->assertSuccessful();
+
+        $response = $this->graphQL('
+            query($marker: Mixed) {
+                deals(hasCustomFields: {
+                    AND: [
+                        { column: NAME, value: "ZOHO_DEAL_ID" }
+                        { column: VALUE, value: $marker }
+                    ]
+                }) {
+                    data { id title }
+                }
+            }
+        ', ['marker' => $marker])->assertSuccessful();
+
+        $this->assertSame([$hit], array_column($response->json('data.deals.data'), 'id'));
+    }
+
     public function testDeleteDeal(): void
     {
         $createResponse = $this->graphQL('
