@@ -113,7 +113,15 @@ extend type Query @guard {
                 ]
             )
         orderBy: _
-            @orderBy(columns: ["id", "created_at", "updated_at", "closed_at", "title"])
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "closed_at"
+                    "title"
+                ]
+            )
     ): [Deal!]!
         @paginate(
             model: "Kanvas\\Guild\\Deals\\Models\\Deal"
@@ -133,9 +141,7 @@ extend type Query @guard {
         timezone: String
         pipeline_id: ID
     ): DealAnalytics!
-        @field(
-            resolver: "App\\GraphQL\\Analytics\\Queries\\DealAnalyticsQuery"
-        )
+        @field(resolver: "App\\GraphQL\\Analytics\\Queries\\DealAnalyticsQuery")
 }
 
 type DealAnalytics {

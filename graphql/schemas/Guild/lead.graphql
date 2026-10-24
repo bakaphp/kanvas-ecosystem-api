@@ -332,9 +332,7 @@ extend type Query @guard {
         timezone: String
         pipeline_id: ID
     ): LeadAnalytics!
-        @field(
-            resolver: "App\\GraphQL\\Analytics\\Queries\\LeadAnalyticsQuery"
-        )
+        @field(resolver: "App\\GraphQL\\Analytics\\Queries\\LeadAnalyticsQuery")
 }
 
 type LeadAnalytics {
