@@ -50,6 +50,8 @@ input DealInput {
     status_id: Int
     status: Int
     companies_branches_id: ID
+    custom_fields: [CustomFieldEntityInput!]
+    files: [FilesystemInputUrl!]
 }
 
 input UpdateDealInput {
@@ -64,6 +66,8 @@ input UpdateDealInput {
     status_id: Int
     status: Int
     companies_branches_id: ID
+    custom_fields: [CustomFieldEntityInput!]
+    files: [FilesystemInputUrl!]
 }
 
 extend type Mutation @guard {

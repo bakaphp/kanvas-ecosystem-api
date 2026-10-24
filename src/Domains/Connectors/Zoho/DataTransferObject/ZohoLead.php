@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\Zoho\DataTransferObject;
 
 use Illuminate\Support\Str;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Zoho\Services\ZohoFieldTypeService;
+use Kanvas\Connectors\Zoho\Services\ZohoFieldMapService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Override;
 use Spatie\LaravelData\Data;
@@ -31,14 +31,9 @@ class ZohoLead extends Data
         $company = $lead->company()->first();
         $companyZohoMapFields = $company->get(CustomFieldEnum::FIELDS_MAP->value);
 
-        $additionalFields = [];
-        if ($companyZohoMapFields && is_array($companyZohoMapFields)) {
-            self::mapProperties(
-                $companyZohoMapFields,
-                $additionalFields,
-                $customFields
-            );
-        }
+        $additionalFields = is_array($companyZohoMapFields)
+            ? ZohoFieldMapService::map($companyZohoMapFields, $customFields)
+            : [];
 
         $people = $lead->people()->first();
         $leadStatus = $lead->status()->first();
@@ -72,65 +67,6 @@ class ZohoLead extends Data
 
         // Remove empty values
         return array_filter($data, fn ($value) => ! empty($value));
-    }
-
-    /**
-     * Map properties from one array to another.
-     * @todo think of a better way to do this.
-     */
-    protected static function mapProperties(array $map, array &$data, array $entity): void
-    {
-        /**
-         * map = [
-         * 'Affiliate_sOMETHING' => 'ZohoKey'
-         * ].
-         */
-        foreach ($map as $key => $name) {
-            $value = $entity[$key] ?? null;
-            if (is_array($name)) {
-                $type = (string) $name['type'];
-
-                // settype('$50,000', 'double') is 0.0 and Carbon::parse(null) is today — both send
-                // Zoho a value that is wrong rather than absent, so numbers and dates go through the
-                // caster, which yields null when the value can't be trusted and the field is skipped.
-                $value = $type === 'date' || ZohoFieldTypeService::isNumericType($type)
-                    ? ZohoFieldTypeService::cast($value, $type)
-                    : self::castScalar($value, $type);
-
-                $name = $name['name'];
-            }
-            if (strtolower($key) == 'credit_score' && $value != null) {
-                $creditScore = [
-                    1 => '720-950',
-                    'Excellent' => 'Excellent(720+)',
-                    2 => '680-719',
-                    'Great' => 'Great(680-719)',
-                    3 => '640-679',
-                    'Good' => 'Good(650-679)',
-                    4 => '639 or less',
-                    'Fair' => 'Fair(600-649)',
-                    'Poor' => 'Poor(Below 600)',
-                    'A+' => 'A+',
-                ];
-
-                $value = $creditScore[(int) $value] ?? $value;
-            }
-
-            if (strtolower($key) == 'subid' && $value != null) {
-                $value = (string) $value;
-            }
-
-            if ($value !== null) {
-                $data[$name] = $value;
-            }
-        }
-    }
-
-    private static function castScalar(mixed $value, string $type): mixed
-    {
-        settype($value, $type);
-
-        return $value;
     }
 
     public function hasMemberNumber(): bool

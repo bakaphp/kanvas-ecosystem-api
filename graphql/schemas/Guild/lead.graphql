@@ -27,6 +27,7 @@ type Lead {
     events: [Event!]! @morphToMany(relation: "events")
     variantInterests: [LeadVariantInterest!]!
         @hasMany(relation: "variantInterests")
+    deals: [Deal!]! @hasMany(relation: "deals")
     ai_session: [AIAgentSession!]!
         @hasMany(relation: "aiSession", type: PAGINATOR)
     tags: [Tag!]
