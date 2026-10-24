@@ -44,10 +44,15 @@ class SyncLeadToZohoAction
             $leadRotation = $receiver ? $receiver->rotation : null;
             $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
 
-            $zohoCrm = Client::getInstance($this->app, $company);
-            $leadModule = ZohoService::resolveLeadModule($zohoCrm, $company);
+            $leadModule = $this->leadModule($company);
 
             if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
+                $defaultOwner = $company->get(CustomFieldEnum::DEFAULT_OWNER->value);
+
+                if (! isset($zohoData['Owner']) && $lead->owner !== null && ! empty($defaultOwner)) {
+                    $zohoData['Owner'] = (string) $defaultOwner;
+                }
+
                 if ($usesAgentsModule && ! $leadRotation) {
                     $this->assignAgent($this->app, $zohoLead, $lead, $company, $zohoData);
                 } elseif ($leadRotation) {
@@ -109,6 +114,11 @@ class SyncLeadToZohoAction
 
             return $zohoData;
         });
+    }
+
+    protected function leadModule(Companies $company): ZohoRecordsModule
+    {
+        return ZohoService::resolveLeadModule(Client::getInstance($this->app, $company), $company);
     }
 
     protected function assignAgent(
@@ -196,32 +206,21 @@ class SyncLeadToZohoAction
 
     protected function uploadAttachments(ZohoRecordsModule $zohoLead, Lead $lead): void
     {
-        $lead->load('files');
-        $attachmentString = $lead->get('Attachments');
-        $attachments = $attachmentString ? explode(',', $attachmentString) : [];
-
-        if (! $lead->files()->count() && empty($attachments)) {
+        if (! ZohoLead::hasAttachments($lead)) {
             return;
         }
 
         $zohoLeadId = (string) $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value);
+        $attachmentUrls = array_filter(array_map('trim', explode(',', (string) $lead->get('Attachments'))));
 
-        if (! empty($attachments) && is_array($attachments)) {
-            foreach ($attachments as $attachment) {
-                $attachment = trim($attachment);
+        foreach ($attachmentUrls as $attachment) {
+            try {
+                $fileContent = SafeUrlFetcher::fetch($attachment);
+                $fileName = Str::fileNameFromUrl($attachment, 'attachment_' . uniqid());
 
-                if (empty($attachment)) {
-                    continue;
-                }
-
-                try {
-                    $fileContent = SafeUrlFetcher::fetch($attachment);
-                    $fileName = Str::fileNameFromUrl($attachment, 'attachment_' . uniqid());
-
-                    $zohoLead->uploadAttachment($zohoLeadId, $fileName, $fileContent);
-                } catch (Throwable $e) {
-                    report($e);
-                }
+                $zohoLead->uploadAttachment($zohoLeadId, $fileName, $fileContent);
+            } catch (Throwable $e) {
+                report($e);
             }
         }
 
