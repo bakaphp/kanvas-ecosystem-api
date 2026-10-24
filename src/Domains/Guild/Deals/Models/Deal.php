@@ -22,6 +22,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Guild\Concerns\TracksClosedAt;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Factories\DealFactory;
 use Kanvas\Guild\Deals\Observers\DealObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -421,5 +422,10 @@ class Deal extends BaseModel implements ProvidesAgentContext
         }
 
         return $query;
+    }
+
+    protected static function newFactory(): DealFactory
+    {
+        return new DealFactory();
     }
 }

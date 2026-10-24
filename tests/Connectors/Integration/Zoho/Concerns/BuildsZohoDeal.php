@@ -69,19 +69,22 @@ trait BuildsZohoDeal
         ?PipelineStage $stage = null,
         ?Lead $lead = null
     ): Deal {
-        $deal = new Deal();
-        $deal->apps_id = app(Apps::class)->getId();
-        $deal->companies_id = $company->getId();
-        $deal->users_id = auth()->user()->getId();
-        $deal->owner_id = $owner?->getId() ?? auth()->user()->getId();
-        $deal->title = 'Zoho Deal ' . uniqid();
-        $deal->description = 'Pushed from a test';
-        $deal->pipeline_id = $stage?->pipelines_id ?? 0;
-        $deal->pipeline_stage_id = $stage?->getId() ?? 0;
-        $deal->leads_id = $lead?->getId();
-        $deal->is_deleted = 0;
-        $deal->saveOrFail();
+        $factory = Deal::factory()
+            ->withCompanyId($company->getId())
+            ->state(['description' => 'Pushed from a test']);
 
-        return $deal;
+        if ($owner !== null) {
+            $factory = $factory->withOwnerId($owner->getId());
+        }
+
+        if ($stage !== null) {
+            $factory = $factory->withStage($stage);
+        }
+
+        if ($lead !== null) {
+            $factory = $factory->state(['leads_id' => $lead->getId()]);
+        }
+
+        return $factory->create();
     }
 }
