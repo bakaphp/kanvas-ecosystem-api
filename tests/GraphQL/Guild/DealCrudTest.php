@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class DealCrudTest extends TestCase
@@ -34,15 +35,7 @@ class DealCrudTest extends TestCase
 
     public function testUpdateDeal(): void
     {
-        $createInput = ['title' => 'Deal ' . fake()->word()];
-
-        $createResponse = $this->graphQL('
-            mutation($input: DealInput!) {
-                createDeal(input: $input) { id title }
-            }
-        ', ['input' => $createInput])->assertSuccessful();
-
-        $id = $createResponse->json('data.createDeal.id');
+        $id = $this->createDealId();
         $updateInput = ['title' => 'Updated ' . fake()->word()];
 
         $this->graphQL('
@@ -86,11 +79,7 @@ class DealCrudTest extends TestCase
 
     public function testUpdateDealPersistsCustomFieldsAndFilesBeforeTheWorkflowRuns(): void
     {
-        $id = $this->graphQL('
-            mutation($input: DealInput!) {
-                createDeal(input: $input) { id }
-            }
-        ', ['input' => ['title' => 'Deal ' . fake()->word()]])->assertSuccessful()->json('data.createDeal.id');
+        $id = $this->createDealId();
 
         $response = $this->graphQL('
             mutation($id: ID!, $input: UpdateDealInput!) {
@@ -118,20 +107,8 @@ class DealCrudTest extends TestCase
     {
         $marker = 'zoho-' . uniqid();
 
-        $hit = $this->graphQL('
-            mutation($input: DealInput!) {
-                createDeal(input: $input) { id }
-            }
-        ', ['input' => [
-            'title' => 'Deal ' . fake()->word(),
-            'custom_fields' => [['name' => 'ZOHO_DEAL_ID', 'data' => $marker]],
-        ]])->assertSuccessful()->json('data.createDeal.id');
-
-        $this->graphQL('
-            mutation($input: DealInput!) {
-                createDeal(input: $input) { id }
-            }
-        ', ['input' => ['title' => 'Deal ' . fake()->word()]])->assertSuccessful();
+        $hit = $this->createDealId(['custom_fields' => [['name' => 'ZOHO_DEAL_ID', 'data' => $marker]]]);
+        $this->createDealId();
 
         $response = $this->graphQL('
             query($marker: Mixed) {
@@ -149,15 +126,43 @@ class DealCrudTest extends TestCase
         $this->assertSame([$hit], array_column($response->json('data.deals.data'), 'id'));
     }
 
+    public function testAttachFilesToDealAcceptsAListOfUploads(): void
+    {
+        if (getenv('TEST_TOKEN') !== false) {
+            $this->markTestSkipped('multipartGraphQL uploads hang under paratest');
+        }
+
+        $id = $this->createDealId();
+
+        $operations = [
+            'query' => '
+                mutation ($file: [Upload!]!, $id: ID!) {
+                    attachFilesToDeal(file: $file, id: $id) {
+                        id
+                        files { data { name } }
+                    }
+                }
+            ',
+            'variables' => ['file' => [null, null], 'id' => $id],
+        ];
+
+        $response = $this->multipartGraphQL(
+            $operations,
+            ['0' => ['variables.file.0'], '1' => ['variables.file.1']],
+            [
+                '0' => UploadedFile::fake()->create('application.pdf', 10),
+                '1' => UploadedFile::fake()->create('bank-statement.pdf', 10),
+            ]
+        )->assertSuccessful();
+
+        $names = array_column($response->json('data.attachFilesToDeal.files.data'), 'name');
+        sort($names);
+        $this->assertSame(['application.pdf', 'bank-statement.pdf'], $names);
+    }
+
     public function testDeleteDeal(): void
     {
-        $createResponse = $this->graphQL('
-            mutation($input: DealInput!) {
-                createDeal(input: $input) { id }
-            }
-        ', ['input' => ['title' => 'Deal ' . fake()->word()]])->assertSuccessful();
-
-        $id = $createResponse->json('data.createDeal.id');
+        $id = $this->createDealId();
 
         $this->graphQL('
             mutation($id: ID!) { deleteDeal(id: $id) }
@@ -173,5 +178,16 @@ class DealCrudTest extends TestCase
         ')
             ->assertSuccessful()
             ->assertJsonStructure(['data' => ['deals' => ['data']]]);
+    }
+
+    private function createDealId(array $input = []): string
+    {
+        return $this->graphQL('
+            mutation($input: DealInput!) {
+                createDeal(input: $input) { id }
+            }
+        ', ['input' => $input + ['title' => 'Deal ' . fake()->word()]])
+            ->assertSuccessful()
+            ->json('data.createDeal.id');
     }
 }

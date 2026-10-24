@@ -75,17 +75,11 @@ final class LeadDealsRelationTest extends TestCase
 
     private function makeDeal(Lead $lead): Deal
     {
-        $deal = new Deal();
-        $deal->apps_id = $lead->apps_id;
-        $deal->companies_id = $lead->companies_id;
-        $deal->users_id = $lead->users_id;
-        $deal->owner_id = $lead->users_id;
-        $deal->leads_id = $lead->getId();
-        $deal->people_id = $lead->people_id;
-        $deal->title = 'Deal of lead ' . $lead->getId() . ' ' . uniqid();
-        $deal->is_deleted = 0;
-        $deal->saveOrFail();
-
-        return $deal;
+        return Deal::factory()
+            ->withAppId((int) $lead->apps_id)
+            ->withCompanyId((int) $lead->companies_id)
+            ->withUserId((int) $lead->users_id)
+            ->withLead($lead)
+            ->create();
     }
 }
