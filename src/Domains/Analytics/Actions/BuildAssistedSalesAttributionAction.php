@@ -46,11 +46,18 @@ class BuildAssistedSalesAttributionAction
     /** @var array<int, int> */
     private array $soldStatusIds = [];
 
+    /**
+     * @param array<int, int> $leadTypeIds restrict to these lead types; empty means every type. A
+     *                                      DMS sync files service appointments as leads too, so a
+     *                                      dealer's "leads" usually means Internet + Phone + walk-in.
+     */
     public function __construct(
         protected readonly AppInterface $app,
         protected readonly Companies $company,
         protected readonly AnalyticsRequest $request,
         protected readonly AttributionPopulationEnum $population = AttributionPopulationEnum::SOLD,
+        protected readonly array $leadTypeIds = [],
+        protected readonly bool $withTypeBreakdown = false,
     ) {
     }
 
@@ -67,8 +74,8 @@ class BuildAssistedSalesAttributionAction
 
         $leads = $this->populationQuery()
             ->orderBy($this->population->dateColumn())
-            ->with('status:id,name')
-            ->get(['id', 'title', 'people_id', 'created_at', 'closed_at', 'leads_status_id']);
+            ->with(['status:id,name', 'type:id,name'])
+            ->get(['id', 'title', 'people_id', 'created_at', 'closed_at', 'leads_status_id', 'leads_types_id']);
 
         if ($leads->isEmpty()) {
             return $this->present($leads, [], [], null);
@@ -91,7 +98,8 @@ class BuildAssistedSalesAttributionAction
             ->whereBetween(
                 $this->population->dateColumn(),
                 [$this->request->from->copy()->utc(), $this->request->to->copy()->utc()],
-            );
+            )
+            ->when($this->leadTypeIds !== [], fn (Builder $q) => $q->whereIn('leads_types_id', $this->leadTypeIds));
 
         return match ($this->population) {
             AttributionPopulationEnum::SOLD => $query->whereIn('leads_status_id', $this->soldStatusIds),
@@ -126,6 +134,7 @@ class BuildAssistedSalesAttributionAction
                 'created_at' => $lead->created_at?->toDateString(),
                 'closed_at' => $lead->closed_at?->toDateString(),
                 'status' => $lead->statusName(),
+                'type' => $lead->type?->name,
                 'sold' => in_array((int) $lead->leads_status_id, $this->soldStatusIds, true),
                 'assisted_by_ai' => $this->touchedDuringLife($lead, $aiTouches[$leadId] ?? []),
                 'assisted_by_action' => $sharedAction || $submitted,
@@ -163,6 +172,10 @@ class BuildAssistedSalesAttributionAction
             'unassisted' => $total - $counts['either'],
         ];
 
+        if ($this->withTypeBreakdown) {
+            $result['by_type'] = $this->byType($rows);
+        }
+
         if ($this->population !== AttributionPopulationEnum::SOLD) {
             $result['outcomes'] = [
                 'assisted_by_ai' => $this->outcome($rows, static fn (array $row): bool => $row['assisted_by_ai']),
@@ -178,6 +191,31 @@ class BuildAssistedSalesAttributionAction
         $result['note'] = $note;
 
         return $result;
+    }
+
+    /**
+     * The mix the manager is really asking about: a store whose DMS files every service visit as a
+     * lead reads "532 leads this week" as nonsense until it sees 228 of them are SERVICE.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array{type: string, leads: int, sold: int, assisted_by_ai: int, assisted_by_action: int}>
+     */
+    private function byType(array $rows): array
+    {
+        $types = [];
+
+        foreach ($rows as $row) {
+            $type = (string) ($row['type'] ?? 'Untyped');
+            $types[$type] ??= ['type' => $type, 'leads' => 0, 'sold' => 0, 'assisted_by_ai' => 0, 'assisted_by_action' => 0];
+            $types[$type]['leads']++;
+            $types[$type]['sold'] += (int) $row['sold'];
+            $types[$type]['assisted_by_ai'] += (int) $row['assisted_by_ai'];
+            $types[$type]['assisted_by_action'] += (int) $row['assisted_by_action'];
+        }
+
+        usort($types, static fn (array $a, array $b): int => $b['leads'] <=> $a['leads']);
+
+        return $types;
     }
 
     /**
