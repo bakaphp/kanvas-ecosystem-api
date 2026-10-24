@@ -27,6 +27,7 @@ use Kanvas\Event\Events\Contracts\EventResourceInterface;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Concerns\TracksClosedAt;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
@@ -309,6 +310,11 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'organization_id', 'id');
+    }
+
+    public function deals(): HasMany
+    {
+        return $this->hasMany(Deal::class, 'leads_id', 'id')->notDeleted();
     }
 
     public function pipeline(): BelongsTo
