@@ -57,14 +57,19 @@ class FindPersonTool extends Tool
                 description: 'Max people to return, most recently updated first. Defaults to 25, max 100.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $query, ?int $limit = null): array
+    public function __invoke(string $query, ?int $limit = null, ?int $tenant_company_id = null): array
     {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $query = trim($query);
         if ($query === '') {
             return ['count' => 0, 'people' => [], 'error' => 'Provide a name, email, or phone to search for.'];
@@ -75,7 +80,7 @@ class FindPersonTool extends Tool
 
         $people = People::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($this->auditedReadScope())
             ->notDeleted()
             ->where(function ($q) use ($like): void {
                 $q->where('name', 'like', $like)
@@ -86,7 +91,7 @@ class FindPersonTool extends Tool
             ->with(['contacts', 'organizations' => fn ($q) => $q->select('organizations.id', 'name')])
             ->orderByDesc('updated_at')
             ->limit($limit)
-            ->get(['id', 'firstname', 'lastname', 'name', 'updated_at']);
+            ->get(['id', 'firstname', 'lastname', 'name', 'updated_at', 'companies_id']);
 
         return [
             'count' => $people->count(),
@@ -98,6 +103,7 @@ class FindPersonTool extends Tool
                 'phone' => $this->primaryPhone($person),
                 'organization' => $person->organizations->first()?->name,
                 'last_updated' => $person->updated_at?->toDateString(),
+                ...$this->tenantLabel($person),
             ])->all(),
         ];
     }

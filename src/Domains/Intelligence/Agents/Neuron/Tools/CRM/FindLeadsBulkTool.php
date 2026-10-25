@@ -34,7 +34,7 @@ class FindLeadsBulkTool extends FindCrmRecordsBulkTool
     {
         return Lead::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($this->auditedReadScope())
             ->notDeleted()
             ->with(['owner', 'people', 'stage', 'status']);
     }
@@ -56,6 +56,7 @@ class FindLeadsBulkTool extends FindCrmRecordsBulkTool
             'is_open' => $this->isOpen($record),
             'last_updated' => $record->updated_at?->toDateString(),
             'matched_tokens' => $score,
+            ...$this->tenantLabel($record),
         ];
     }
 
@@ -73,6 +74,6 @@ class FindLeadsBulkTool extends FindCrmRecordsBulkTool
     #[Override]
     protected function applyStatus(Builder $query, string $status): Builder
     {
-        return $query->havingLeadState($status, $this->company);
+        return $query->havingLeadState($status, $this->auditedReadScope());
     }
 }

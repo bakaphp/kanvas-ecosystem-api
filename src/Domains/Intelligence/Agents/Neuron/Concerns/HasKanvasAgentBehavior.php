@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
@@ -26,6 +27,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\DynamicSubAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Fallback\UnknownToolStub;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
+use Kanvas\Intelligence\Agents\Support\AgentReadAccessCompanies;
 use Kanvas\Intelligence\Agents\Traits\HasTemporalContext;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -123,6 +125,11 @@ trait HasKanvasAgentBehavior
     protected bool $privateUserTurn = false;
     protected bool $rendersArtifacts = false;
 
+    /**
+     * Built lazily at tool wiring: the mention job names the human after setConfiguration().
+     */
+    private ?CompanyScope $companyScope = null;
+
     public function setConfiguration(Agent $agent, ?Model $entity = null, ?Users $user = null): void
     {
         if ($user === null) {
@@ -139,6 +146,44 @@ trait HasKanvasAgentBehavior
         $this->app = $agent->app;
         $this->company = $agent->companyFor($user);
         $this->user = $user;
+        $this->companyScope = null;
+    }
+
+    protected function companyScope(): ?CompanyScope
+    {
+        if ($this->agent === null || $this->company === null) {
+            return null;
+        }
+
+        $human = $this->requestingHuman();
+
+        if ($human === null) {
+            return null;
+        }
+
+        return $this->companyScope ??= AgentReadAccessCompanies::scopeFor($this->agent, $this->company, $human);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function crossCompanyLines(): array
+    {
+        $scope = $this->companyScope();
+
+        if ($scope === null || ! $scope->isCrossCompany()) {
+            return [];
+        }
+
+        return [
+            sprintf(
+                'You can read records from these companies: %s. Every row you read carries tenant_company, '
+                . 'so say which company a result belongs to; the same person may appear once per company. '
+                . 'Anything you create or change goes to %s only.',
+                implode(', ', $scope->companyNames()),
+                $scope->ownCompany->name,
+            ),
+        ];
     }
 
     /**
@@ -161,6 +206,7 @@ trait HasKanvasAgentBehavior
     public function setConversationHuman(?Users $user): void
     {
         $this->conversationHuman = $user;
+        $this->companyScope = null;
     }
 
     /**
@@ -347,6 +393,7 @@ trait HasKanvasAgentBehavior
             $this->agent,
             $this->resolveLeadForTurn(),
             $this->entity,
+            $this->companyScope(),
         ]));
     }
 
@@ -395,7 +442,12 @@ trait HasKanvasAgentBehavior
     {
         /** @var list<ToolInterface> $configured */
         $configured = array_map(
-            fn (object $tool): object => $tool->withContext($this->app, $this->company, $this->actingUser()),
+            fn (object $tool): object => $tool->withContext(
+                $this->app,
+                $this->company,
+                $this->actingUser(),
+                scope: $this->companyScope(),
+            ),
             $tools,
         );
 
@@ -636,6 +688,7 @@ trait HasKanvasAgentBehavior
                 ...$this->temporalContextLines($this->resolveTenantTimezone()),
                 ...$this->memoryRecallLines(),
                 ...self::platformContext(),
+                ...$this->crossCompanyLines(),
                 ...$this->waitingOnPersonLines(),
             ],
             steps: explode("\n", $this->agent?->roleSection('steps', "\n") ?? ''),

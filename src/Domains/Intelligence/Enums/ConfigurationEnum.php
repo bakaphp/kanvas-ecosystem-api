@@ -56,4 +56,6 @@ enum ConfigurationEnum: string
     case LEAD_FOLLOW_UP_SYNC_INTERVAL_MINUTES = 'lead_follow_up_sync_interval_minutes';
     // Company setting: leads created before this date are never followed up. Unset = all leads.
     case LEAD_FOLLOW_UP_START_DATE = 'lead_follow_up_start_date';
+    // Agent setting: company ids the agent may READ besides its own; writes stay on the home company.
+    case AGENT_READ_ACCESS_COMPANIES = 'agent-read-access-companies';
 }
