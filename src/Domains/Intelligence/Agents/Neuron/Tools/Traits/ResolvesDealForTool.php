@@ -19,6 +19,8 @@ use Kanvas\Guild\Deals\Models\Deal;
  * Unlike ResolvesLeadForTool this does NOT pull in HasKanvasContext: UpdateDealTool declares its own
  * promoted private $app/$company, and a trait re-declaring them would fatal on property composition.
  * The context is read wherever the host tool put it — via HasKanvasContext or its own constructor.
+ * For the same reason there is no read-scope variant here; GetDealRefTool, the one read-only deal
+ * tool, does its scoped lookup itself.
  *
  * Pattern:
  *
@@ -50,49 +52,14 @@ trait ResolvesDealForTool
                 ? Deal::getByIdFromCompanyApp($dealId, $this->company, $this->app)
                 : Deal::getByIdFromCompany($dealId, $this->company);
         } catch (ModelNotFoundException) {
-            $elsewhere = $this->hostReadsScopes()
-                ? $this->belongsToAnotherCompanyError(Deal::class, $dealId, 'deal')
-                : null;
-
-            return $elsewhere ?? $this->dealNotResolvedError($dealId);
+            return $this->dealNotResolvedError($dealId);
         }
-    }
-
-    /**
-     * This trait does not pull in HasKanvasContext (see the class doc), so the scope helpers exist only
-     * when the host tool brought them.
-     */
-    private function hostReadsScopes(): bool
-    {
-        return isset($this->company) && isset($this->app) && method_exists($this, 'readCompanyScope');
-    }
-
-    /**
-     * Read-only variant inside the agent's read scope; write tools keep resolveDealOrError().
-     *
-     * @return Deal|array{status: string, message: string}
-     */
-    protected function resolveDealInReadScopeOrError(int $dealId): Deal|array
-    {
-        if (! $this->hostReadsScopes()) {
-            return $this->resolveDealOrError($dealId);
-        }
-
-        /** @var Deal|null $deal */
-        $deal = Deal::query()
-            ->where('id', $dealId)
-            ->fromApp($this->app)
-            ->fromCompany($this->readCompanyScope())
-            ->notDeleted()
-            ->first();
-
-        return $deal ?? $this->dealNotResolvedError($dealId);
     }
 
     /**
      * @return array{status: string, message: string}
      */
-    private function dealNotResolvedError(int $dealId): array
+    protected function dealNotResolvedError(int $dealId): array
     {
         return [
             'status' => 'error',

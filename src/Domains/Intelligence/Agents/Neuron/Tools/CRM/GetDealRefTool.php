@@ -73,6 +73,29 @@ class GetDealRefTool extends Tool
     }
 
     /**
+     * Read-only, so the deal resolves inside the read scope; the shared trait stays home-only because
+     * UpdateDealTool cannot carry a scope.
+     *
+     * @return Deal|array{status: string, message: string}
+     */
+    private function resolveDealInReadScopeOrError(int $dealId): Deal|array
+    {
+        if (! $this->hasTenantContext()) {
+            return $this->resolveDealOrError($dealId);
+        }
+
+        /** @var Deal|null $deal */
+        $deal = Deal::query()
+            ->where('id', $dealId)
+            ->fromApp($this->app)
+            ->fromCompany($this->readCompanyScope())
+            ->notDeleted()
+            ->first();
+
+        return $deal ?? $this->dealNotResolvedError($dealId);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function describe(Deal $deal): array
