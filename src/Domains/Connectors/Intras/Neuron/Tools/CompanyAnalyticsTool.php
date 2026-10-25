@@ -64,6 +64,7 @@ class CompanyAnalyticsTool extends Tool
             new ToolProperty(name: 'comparar_desde', type: PropertyType::STRING, description: 'Periodo anterior desde. Sólo en tendencia.', required: false),
             new ToolProperty(name: 'comparar_hasta', type: PropertyType::STRING, description: 'Periodo anterior hasta. Sólo en tendencia.', required: false),
             new ToolProperty(name: 'limit', type: PropertyType::INTEGER, description: 'Máximo de empresas. Por defecto 25.', required: false),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -84,8 +85,13 @@ class CompanyAnalyticsTool extends Tool
         ?string $hasta = null,
         ?string $comparar_desde = null,
         ?string $comparar_hasta = null,
-        ?int $limit = null
+        ?int $limit = null,
+        ?int $tenant_company_id = null
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         if (! $this->hasTenantContext()) {
             return $this->tenantContextMissingError('company analytics');
         }
@@ -149,7 +155,7 @@ class CompanyAnalyticsTool extends Tool
             'empresas' => $service->aggregate(
                 $definition,
                 $this->app,
-                $this->company,
+                $this->readCompanyScope(),
                 AggregateRequest::fromInput(
                     aggregates: [
                         ['function' => 'COUNT_DISTINCT', 'column' => 'peoples_id', 'alias' => 'ejecutivos'],
@@ -191,7 +197,7 @@ class CompanyAnalyticsTool extends Tool
         $active = $service->aggregate(
             $definition,
             $this->app,
-            $this->company,
+            $this->readCompanyScope(),
             AggregateRequest::fromInput(
                 aggregates: [['function' => 'COUNT', 'alias' => 'inscripciones']],
                 groupBy: ['empresa_id'],
@@ -208,7 +214,7 @@ class CompanyAnalyticsTool extends Tool
         $everything = $service->aggregate(
             $definition,
             $this->app,
-            $this->company,
+            $this->readCompanyScope(),
             AggregateRequest::fromInput(
                 aggregates: [
                     ['function' => 'COUNT_DISTINCT', 'column' => 'peoples_id', 'alias' => 'ejecutivos_historico'],
@@ -297,7 +303,7 @@ class CompanyAnalyticsTool extends Tool
         $rows = new ReportQueryService()->aggregate(
             new ReportRegistry()->find($this->app, 'inscripcion'),
             $this->app,
-            $this->company,
+            $this->readCompanyScope(),
             AggregateRequest::fromInput(
                 aggregates: [['function' => 'COUNT_DISTINCT', 'column' => 'peoples_id', 'alias' => 'ejecutivos']],
                 groupBy: ['empresa_id', 'empresa'],
@@ -358,7 +364,7 @@ class CompanyAnalyticsTool extends Tool
         $totals = $service->aggregate(
             $definition,
             $this->app,
-            $this->company,
+            $this->readCompanyScope(),
             AggregateRequest::fromInput(aggregates: [['function' => 'COUNT', 'alias' => 'total']], limit: 1),
             $filters
         );
@@ -368,7 +374,7 @@ class CompanyAnalyticsTool extends Tool
             'empresas' => $service->search(
                 $definition,
                 $this->app,
-                $this->company,
+                $this->readCompanyScope(),
                 $filters,
                 select: ['organizations_id', 'nombre', 'sector', 'tamano', 'clasificacion', 'potencialidad', 'total_ejecutivos', 'total_inscripciones', 'ultima_inscripcion'],
                 limit: $limit
@@ -405,7 +411,7 @@ class CompanyAnalyticsTool extends Tool
         $rows = new ReportQueryService()->search(
             new ReportRegistry()->find($this->app, 'empresa'),
             $this->app,
-            $this->company,
+            $this->readCompanyScope(),
             $filters,
             select: ['organizations_id'],
             limit: ReportQueryService::MAX_LIMIT

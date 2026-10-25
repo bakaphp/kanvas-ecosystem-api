@@ -173,6 +173,7 @@ class RunReportTool extends Tool
                 description: 'Max rows or groups to return. Defaults to 50 rows / 200 groups, hard cap 1000.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -191,8 +192,13 @@ class RunReportTool extends Tool
         ?string $order_by = null,
         ?bool $descending = null,
         ?string $select = null,
-        ?int $limit = null
+        ?int $limit = null,
+        ?int $tenant_company_id = null
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         try {
             $definition = new ReportRegistry()->find($this->app, $model);
             $service = new ReportQueryService();
@@ -205,7 +211,7 @@ class RunReportTool extends Tool
             $counts = $service->count(
                 $definition,
                 $this->app,
-                $this->company,
+                $this->readCompanyScope(),
                 $parsed,
                 $distinct
             );
@@ -219,7 +225,13 @@ class RunReportTool extends Tool
                     $descending ?? true,
                     $limit ?? self::DEFAULT_GROUP_LIMIT
                 );
-                $breakdown = $service->aggregate($definition, $this->app, $this->company, $request, $parsed);
+                $breakdown = $service->aggregate(
+                    $definition,
+                    $this->app,
+                    $this->readCompanyScope(),
+                    $request,
+                    $parsed
+                );
 
                 return [
                     'model' => $model,
@@ -235,7 +247,7 @@ class RunReportTool extends Tool
             $rows = $service->search(
                 $definition,
                 $this->app,
-                $this->company,
+                $this->readCompanyScope(),
                 $parsed,
                 select: Str::commaList($select) ?: null,
                 limit: $limit ?? 50,

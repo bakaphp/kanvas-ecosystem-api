@@ -61,23 +61,34 @@ class ListStaleLeadsTool extends Tool
                 description: 'Max leads to return, stalest first. Defaults to 25, max 100.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(?int $idle_days = null, ?string $owner = null, ?int $limit = null): array
-    {
+    public function __invoke(
+        ?int $idle_days = null,
+        ?string $owner = null,
+        ?int $limit = null,
+        ?int $tenant_company_id = null,
+    ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $idleDays = max(0, $idle_days ?? 7);
         $limit = max(1, min(100, $limit ?? 25));
         $cutoff = Carbon::now()->subDays($idleDays);
 
+        $scope = $this->readCompanyScope();
+
         $leads = Lead::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($scope)
             ->notDeleted()
-            ->hasOpenLeadStatus($this->company)
+            ->hasOpenLeadStatus($scope)
             ->where('updated_at', '<=', $cutoff)
             ->when($owner !== null && $owner !== '', function ($q) use ($owner): void {
                 // owner is a Users relation on the `ecosystem` connection — resolve ids first
@@ -121,8 +132,10 @@ class ListStaleLeadsTool extends Tool
                     'last_follow_up_at' => $lastFollowUp?->toIso8601String(),
                     'follow_up_exhausted' => $lead->isFollowUpExhausted(),
                     'is_handed_off' => (bool) ($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) ?? false),
+                    ...$this->tenantLabel($lead),
                 ];
             })->all(),
+            ...$this->scopeSummary(),
         ];
     }
 }

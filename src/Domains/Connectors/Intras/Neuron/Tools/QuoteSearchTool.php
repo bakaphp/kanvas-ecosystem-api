@@ -59,6 +59,7 @@ class QuoteSearchTool extends Tool
             new ToolProperty(name: 'hasta', type: PropertyType::STRING, description: 'Fecha de solicitud hasta, YYYY-MM-DD.', required: false),
             new ToolProperty(name: 'group_by', type: PropertyType::STRING, description: 'Agrupar en vez de listar: "empresa", "estatus", "area", "sector".', required: false),
             new ToolProperty(name: 'limit', type: PropertyType::INTEGER, description: 'Máximo de filas. Por defecto 25.', required: false),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -75,8 +76,13 @@ class QuoteSearchTool extends Tool
         ?string $desde = null,
         ?string $hasta = null,
         ?string $group_by = null,
-        ?int $limit = null
+        ?int $limit = null,
+        ?int $tenant_company_id = null
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         if (! $this->hasTenantContext()) {
             return $this->tenantContextMissingError('quote search');
         }
@@ -123,7 +129,7 @@ class QuoteSearchTool extends Tool
             $totals = $service->aggregate(
                 $definition,
                 $this->app,
-                $this->company,
+                $this->readCompanyScope(),
                 AggregateRequest::fromInput(
                     aggregates: [
                         ['function' => 'COUNT', 'alias' => 'cotizaciones'],
@@ -146,7 +152,7 @@ class QuoteSearchTool extends Tool
                 $result['breakdown'] = $service->aggregate(
                     $definition,
                     $this->app,
-                    $this->company,
+                    $this->readCompanyScope(),
                     AggregateRequest::fromInput(
                         aggregates: [
                             ['function' => 'COUNT', 'alias' => 'cotizaciones'],
@@ -165,7 +171,7 @@ class QuoteSearchTool extends Tool
             $result['cotizaciones_detalle'] = $service->search(
                 $definition,
                 $this->app,
-                $this->company,
+                $this->readCompanyScope(),
                 $filters,
                 select: ['numero', 'empresa', 'estatus', 'es_aprobada', 'monto', 'area', 'fecha_solicitud', 'facilitadores', 'temas'],
                 limit: $limit ?? 25

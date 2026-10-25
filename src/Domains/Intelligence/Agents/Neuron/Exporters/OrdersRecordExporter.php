@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Exporters;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\Traits\ReadsExportFilters;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
@@ -48,7 +49,7 @@ class OrdersRecordExporter implements RecordExporterInterface
     }
 
     #[Override]
-    public function rows(Apps $app, Companies $company, array $filters): array
+    public function rows(Apps $app, Companies|CompanyScope $company, array $filters): array
     {
         $status = $this->filterString($filters, 'status');
         $orderType = $this->filterString($filters, 'order_type');

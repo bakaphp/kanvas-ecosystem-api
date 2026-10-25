@@ -45,21 +45,32 @@ class GetLeadAnalyticsTool extends Tool
             new ToolProperty(name: 'from', type: PropertyType::STRING, description: 'Custom range start (YYYY-MM-DD). Requires "to".', required: false),
             new ToolProperty(name: 'to', type: PropertyType::STRING, description: 'Custom range end (YYYY-MM-DD). Requires "from".', required: false),
             new ToolProperty(name: 'pipeline_id', type: PropertyType::INTEGER, description: 'Restrict to a single pipeline.', required: false),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(?string $timeframe = null, ?string $from = null, ?string $to = null, ?int $pipeline_id = null): array
-    {
+    public function __invoke(
+        ?string $timeframe = null,
+        ?string $from = null,
+        ?string $to = null,
+        ?int $pipeline_id = null,
+        ?int $tenant_company_id = null,
+    ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $args = $this->analyticsRangeArgs($timeframe, $from, $to);
 
+        $scope = $this->readCompanyScope();
         $result = new BuildAnalyticsAction(
             model: Lead::class,
             app: $this->app,
-            company: $this->company,
-            request: AnalyticsRequest::fromGraphQL($args, $this->company),
+            company: $scope,
+            request: AnalyticsRequest::fromGraphQL($args, $scope),
             groupBys: [
                 'by_status' => new AnalyticsGroupBy(column: 'leads_status_id', relation: 'status', labelColumn: 'name'),
                 'by_source' => new AnalyticsGroupBy(column: 'leads_sources_id', relation: 'source', labelColumn: 'name'),
@@ -71,6 +82,6 @@ class GetLeadAnalyticsTool extends Tool
                 : null,
         )->execute();
 
-        return ['status' => 'success', 'timeframe' => ['from' => $args['from'], 'to' => $args['to']], ...$result];
+        return ['status' => 'success', 'timeframe' => ['from' => $args['from'], 'to' => $args['to']], ...$result, ...$this->scopeSummary()];
     }
 }

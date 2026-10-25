@@ -12,6 +12,7 @@ use Kanvas\Analytics\DataTransferObject\AnalyticsGroupBy;
 use Kanvas\Analytics\DataTransferObject\AnalyticsRequest;
 use Kanvas\Analytics\Support\PeriodFormatter;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 
 /**
  * Shared analytics aggregation action. Every analytics resolver funnels through this.
@@ -41,7 +42,7 @@ class BuildAnalyticsAction
     public function __construct(
         protected readonly string $model,
         protected readonly AppInterface $app,
-        protected readonly Companies $company,
+        protected readonly Companies|CompanyScope $company,
         protected readonly AnalyticsRequest $request,
         protected readonly array $groupBys = [],
         protected readonly ?string $sumColumn = null,
@@ -90,7 +91,7 @@ class BuildAnalyticsAction
         $table = $instance->getTable();
 
         $query->where("{$table}.apps_id", $this->app->getId());
-        $query->where("{$table}.companies_id", $this->company->getId());
+        CompanyScope::constrain($query, "{$table}.companies_id", $this->company);
         $query->where("{$table}.is_deleted", 0);
 
         $query->whereBetween(

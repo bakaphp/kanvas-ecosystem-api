@@ -56,17 +56,22 @@ class ExportBouncesTool extends Tool
                 description: 'When true, also include recoverable soft bounces. Defaults to false (permanent failures only).',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(?string $granularity = null, ?bool $include_soft_bounce = null): array
+    public function __invoke(?string $granularity = null, ?bool $include_soft_bounce = null, ?int $tenant_company_id = null): array
     {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $granularity = $granularity === 'per_person' ? 'per_person' : 'per_email';
 
-        $rows = new PeopleBouncesFeedService($this->app, $this->company)->rows(
+        $rows = new PeopleBouncesFeedService($this->app, $this->readCompanyScope())->rows(
             includeSoftBounce: (bool) $include_soft_bounce,
             granularity: $granularity,
         );

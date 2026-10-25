@@ -20,7 +20,9 @@ use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Event\Events\Contracts\EventResourceInterface;
@@ -396,21 +398,71 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         return $this->isOpenLeadStatusId((int) $this->getAttributeValue('leads_status_id'));
     }
 
-    public function scopeHasOpenLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
+    public function scopeHasOpenLeadStatus(Builder $query, CompanyInterface|CompanyScope|null $company = null): Builder
     {
-        return $query->whereIn('leads_status_id', self::openLeadsStatusIds($company));
+        return self::constrainOpenStatus(
+            $query,
+            'leads_status_id',
+            $company,
+            open: true
+        );
     }
 
-    public function scopeHasClosedLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
+    public function scopeHasClosedLeadStatus(Builder $query, CompanyInterface|CompanyScope|null $company = null): Builder
     {
-        return $query->whereNotIn('leads_status_id', self::openLeadsStatusIds($company));
+        return self::constrainOpenStatus(
+            $query,
+            'leads_status_id',
+            $company,
+            open: false
+        );
+    }
+
+    /**
+     * "Open" is partly per-company config, so across a scope the predicate is one group per company,
+     * never a union of ids: a status open at one company may be closed at another.
+     */
+    public static function constrainOpenStatus(
+        Builder $query,
+        string $column,
+        CompanyInterface|CompanyScope|null $company,
+        bool $open
+    ): Builder {
+        if (! $company instanceof CompanyScope) {
+            $ids = self::openLeadsStatusIds($company);
+
+            return $open ? $query->whereIn($column, $ids) : $query->whereNotIn($column, $ids);
+        }
+
+        $tenantColumn = $query->getModel()->getTable() . '.companies_id';
+        $companies = $company->ids === [(int) $company->home->getId()]
+            ? collect([$company->home])
+            : Companies::query()->whereIn('id', $company->ids)->get();
+
+        return $query->where(function (Builder $outer) use ($companies, $tenantColumn, $column, $open): void {
+            foreach ($companies as $member) {
+                $outer->orWhere(function (Builder $one) use ($member, $tenantColumn, $column, $open): void {
+                    $ids = self::openLeadsStatusIds($member);
+                    $one->where($tenantColumn, $member->getId());
+
+                    if ($open) {
+                        $one->whereIn($column, $ids);
+                    } else {
+                        $one->whereNotIn($column, $ids);
+                    }
+                });
+            }
+        });
     }
 
     /**
      * The "open" (default), "closed" or "all" switch every lead-listing tool exposes, in one place.
      */
-    public function scopeHavingLeadState(Builder $query, string $state, ?CompanyInterface $company = null): Builder
-    {
+    public function scopeHavingLeadState(
+        Builder $query,
+        string $state,
+        CompanyInterface|CompanyScope|null $company = null
+    ): Builder {
         return match ($state) {
             'closed' => $query->hasClosedLeadStatus($company),
             'all' => $query,

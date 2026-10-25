@@ -47,17 +47,22 @@ class ListBouncesTool extends Tool
                 description: 'When true, also include recoverable soft bounces. Defaults to false (permanent failures only).',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(?int $limit = null, ?bool $include_soft_bounce = null): array
+    public function __invoke(?int $limit = null, ?bool $include_soft_bounce = null, ?int $tenant_company_id = null): array
     {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $limit = max(1, min(100, $limit ?? 25));
 
-        $rows = new PeopleBouncesFeedService($this->app, $this->company)
+        $rows = new PeopleBouncesFeedService($this->app, $this->readCompanyScope())
             ->rows(
                 includeSoftBounce: (bool) $include_soft_bounce,
                 granularity: 'per_person',
@@ -73,9 +78,11 @@ class ListBouncesTool extends Tool
                     'company' => $row['company'],
                     'email' => $row['email'],
                     'status' => $row['status'],
+                    ...(isset($row['tenant_company_id']) ? ['tenant_company_id' => $row['tenant_company_id']] : []),
                 ],
                 $rows,
             ),
+            ...$this->scopeSummary(),
         ];
     }
 }

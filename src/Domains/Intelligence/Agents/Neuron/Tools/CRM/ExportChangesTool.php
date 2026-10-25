@@ -69,6 +69,7 @@ class ExportChangesTool extends Tool
                 description: 'Optional range end as an ISO date (YYYY-MM-DD).',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -77,9 +78,17 @@ class ExportChangesTool extends Tool
      *
      * @return array<string, mixed>
      */
-    public function __invoke(?array $change_types = null, ?string $from = null, ?string $to = null): array
-    {
-        $rows = new PeopleChangesFeedService($this->app, $this->company)->rows(
+    public function __invoke(
+        ?array $change_types = null,
+        ?string $from = null,
+        ?string $to = null,
+        ?int $tenant_company_id = null,
+    ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
+        $rows = new PeopleChangesFeedService($this->app, $this->readCompanyScope())->rows(
             changeTypes: $change_types,
             from: ! empty($from) ? Carbon::parse($from)->startOfDay() : null,
             to: ! empty($to) ? Carbon::parse($to)->endOfDay() : null,

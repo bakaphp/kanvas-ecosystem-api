@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Guild\Customers\Contracts\PeopleCandidateSourceInterface;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Search\PeopleCandidateSourceResolver;
@@ -31,7 +32,7 @@ trait MatchesPeopleByName
      */
     protected function matchPeopleByName(
         Apps $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         string $names,
         ?int $maxMatchesPerName = null,
         ?int $maxTerms = null,
@@ -58,6 +59,7 @@ trait MatchesPeopleByName
                     'phone' => $this->primaryPhone($person),
                     'organization' => $person->organizations->first()?->name,
                     'matched_tokens' => $score,
+                    ...($company instanceof CompanyScope ? $company->tenantLabel((int) $person->companies_id) : []),
                 ],
             );
 
@@ -75,7 +77,7 @@ trait MatchesPeopleByName
      *
      * @return list<array{record: People, tokens: list<string>}>
      */
-    private function fetchPeopleCandidates(Apps $app, Companies $company, array $terms): array
+    private function fetchPeopleCandidates(Apps $app, Companies|CompanyScope $company, array $terms): array
     {
         return $this->candidateSource($app)
             ->candidatesFor($app, $company, $terms)
