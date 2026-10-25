@@ -35,7 +35,7 @@ use Tests\TestCase;
 
 /**
  * An agent granted several companies reads across them in one query, never past them, and never
- * writes anywhere but its home company.
+ * writes anywhere but its own company.
  */
 class CrossCompanyReadScopeTest extends TestCase
 {
@@ -85,9 +85,9 @@ class CrossCompanyReadScopeTest extends TestCase
 
         $scope = AgentReadAccessCompanies::scopeFor($agent, $home, $this->human);
 
-        $this->assertEqualsCanonicalizing([$home->getId(), $member->getId()], $scope->ids);
+        $this->assertEqualsCanonicalizing([$home->getId(), $member->getId()], $scope->companyIds);
         $this->assertTrue($scope->isCrossCompany());
-        $this->assertSame(['tenant_company_id' => $member->getId(), 'tenant_company' => $member->name], $scope->tenantLabel($member->getId()));
+        $this->assertSame(['tenant_company_id' => $member->getId(), 'tenant_company' => $member->name], $scope->tenantLabelFor($member->getId()));
     }
 
     public function testACustomerFacingAgentAndAnAiIdentityCollapseToHome(): void
@@ -96,11 +96,11 @@ class CrossCompanyReadScopeTest extends TestCase
         $member = $this->company();
 
         $customerFacing = $this->agent($home, [$member->getId()], SalesAgent::class);
-        $this->assertSame([$home->getId()], AgentReadAccessCompanies::scopeFor($customerFacing, $home, $this->human)->ids);
+        $this->assertSame([$home->getId()], AgentReadAccessCompanies::scopeFor($customerFacing, $home, $this->human)->companyIds);
 
         $internal = $this->agent($home, [$member->getId()]);
-        $this->assertSame([$home->getId()], AgentReadAccessCompanies::scopeFor($internal, $home, $internal->user)->ids);
-        $this->assertEqualsCanonicalizing([$home->getId(), $member->getId()], AgentReadAccessCompanies::scopeFor($internal, $home, $this->human)->ids);
+        $this->assertSame([$home->getId()], AgentReadAccessCompanies::scopeFor($internal, $home, $internal->user)->companyIds);
+        $this->assertEqualsCanonicalizing([$home->getId(), $member->getId()], AgentReadAccessCompanies::scopeFor($internal, $home, $this->human)->companyIds);
     }
 
     public function testAScopeIsNeverWidenedByABoundAppKey(): void
@@ -126,7 +126,7 @@ class CrossCompanyReadScopeTest extends TestCase
 
             $this->assertEqualsCanonicalizing([$ids[0], $ids[1], $ids[2]], $read($home), 'a bare company under an app key is the pre-existing app-wide read');
             $this->assertEqualsCanonicalizing([$ids[0], $ids[1]], $read($scope), 'the scope must win over the app key');
-            $this->assertSame([$ids[0]], $read(CompanyScope::homeOnly($this->kanvasApp, $home)), 'a one-company scope must also win');
+            $this->assertSame([$ids[0]], $read(CompanyScope::ownCompanyOnly($this->kanvasApp, $home)), 'a one-company scope must also win');
         } finally {
             app()->forgetInstance(AppKey::class);
         }
@@ -152,7 +152,7 @@ class CrossCompanyReadScopeTest extends TestCase
         $home = $this->company();
         $this->person($home, 'Yara');
 
-        $result = $this->scoped(new FindPersonTool(), $home, CompanyScope::homeOnly($this->kanvasApp, $home))
+        $result = $this->scoped(new FindPersonTool(), $home, CompanyScope::ownCompanyOnly($this->kanvasApp, $home))
             ->__invoke('Yara Scope');
 
         $this->assertSame(1, $result['count']);
@@ -286,7 +286,7 @@ class CrossCompanyReadScopeTest extends TestCase
     {
         $home = $this->company();
         $agent = $this->agent($home);
-        $scope = CompanyScope::homeOnly($this->kanvasApp, $home);
+        $scope = CompanyScope::ownCompanyOnly($this->kanvasApp, $home);
 
         $probe = new class () extends Tool {
             use HasKanvasContext;
@@ -312,7 +312,7 @@ class CrossCompanyReadScopeTest extends TestCase
 
         $probe->withContext($this->kanvasApp, $home, $this->human);
         $this->assertNull($probe->agentOrNull());
-        $this->assertSame([$home->getId()], $probe->scope()->ids, 'no scope falls back to home');
+        $this->assertSame([$home->getId()], $probe->scope()->companyIds, 'no scope falls back to home');
 
         $probe->withContext(
             $this->kanvasApp,

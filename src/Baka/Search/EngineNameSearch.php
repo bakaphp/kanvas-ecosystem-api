@@ -40,7 +40,7 @@ class EngineNameSearch implements NameSearchInterface
         // call throws and catches a BadMethodCallException before re-reading the app settings.
         $model->setRelation('app', $app);
         $queryByIsRequired = method_exists($model, 'isTypesense') && $model->isTypesense();
-        $companyIds = CompanyScope::idsOf($company);
+        $companyIds = CompanyScope::companyIdsOf($company);
 
         $ids = [];
 

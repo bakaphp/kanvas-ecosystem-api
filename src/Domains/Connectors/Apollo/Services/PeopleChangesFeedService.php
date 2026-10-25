@@ -113,7 +113,7 @@ class PeopleChangesFeedService
                 $seen[$dedupeKey] = true;
 
                 $rows[] = [
-                    'crm' => $person['crm'] ?? $this->homeName(),
+                    'crm' => $person['crm'] ?? $this->ownCompanyName(),
                     'person' => $person['name'] ?? '—',
                     'company' => (string) ($payload['company'] ?? '—'),
                     'type' => $type,

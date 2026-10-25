@@ -22,7 +22,7 @@ trait HasKanvasContext
     protected Users $user;
 
     /**
-     * The companies a READ may span; `$company` stays the home company every write uses.
+     * The companies a READ may span; `$company` stays the own company every write uses.
      */
     protected ?CompanyScope $companyScope = null;
 
@@ -62,9 +62,9 @@ trait HasKanvasContext
      */
     protected function readCompanyScope(): CompanyScope
     {
-        $scope = $this->companyScope ?? CompanyScope::homeOnly($this->app, $this->company);
+        $scope = $this->companyScope ?? CompanyScope::ownCompanyOnly($this->app, $this->company);
 
-        if ($scope->audits()) {
+        if ($scope->shouldAudit()) {
             CrossCompanyReadLedger::record(
                 $scope,
                 method_exists($this, 'getName') ? $this->getName() : static::class
@@ -90,15 +90,16 @@ trait HasKanvasContext
                 name: 'tenant_company_id',
                 type: PropertyType::INTEGER,
                 description: 'Read only one of your companies instead of all of them. One of: '
-                    . $this->companyScope->menu() . '. Omit to read every company you can see.',
+                    . $this->companyScope->describeCompanies() . '. Omit to read every company you can see.',
                 required: false,
             ),
         ];
     }
 
     /**
-     * For a WRITE resolver that missed at home: when the id is real inside the read scope, say so.
-     * "Does not exist, create one" would make the model create a copy at home and act on that.
+     * For a WRITE resolver that missed in the agent's own company: when the id is real inside the
+     * read scope, say so. "Does not exist, create one" would make the model create a copy in the
+     * own company and act on that.
      *
      * @param class-string<Model> $modelClass
      *
@@ -106,7 +107,7 @@ trait HasKanvasContext
      */
     protected function belongsToAnotherCompanyError(string $modelClass, int $id, string $noun): ?array
     {
-        if (! CompanyScope::spans($this->companyScope)) {
+        if (! CompanyScope::spansCompanies($this->companyScope)) {
             return null;
         }
 
@@ -129,7 +130,7 @@ trait HasKanvasContext
                 . 'create a copy here and do not retry this change.',
                 ucfirst($noun),
                 $id,
-                $this->companyScope->nameOf((int) $record->getAttribute('companies_id')),
+                $this->companyScope->companyName((int) $record->getAttribute('companies_id')),
                 $this->company->name,
             ),
         ];
@@ -146,7 +147,7 @@ trait HasKanvasContext
             return null;
         }
 
-        $scope = $this->companyScope ?? CompanyScope::homeOnly($this->app, $this->company);
+        $scope = $this->companyScope ?? CompanyScope::ownCompanyOnly($this->app, $this->company);
 
         if (! $scope->contains($tenantCompanyId)) {
             return [
@@ -154,12 +155,12 @@ trait HasKanvasContext
                 'message' => sprintf(
                     'Company %d is not one you can read. Your companies: %s. Do not retry with that id.',
                     $tenantCompanyId,
-                    $scope->menu(),
+                    $scope->describeCompanies(),
                 ),
             ];
         }
 
-        $this->companyScope = $scope->narrowTo($tenantCompanyId);
+        $this->companyScope = $scope->narrowToCompany($tenantCompanyId);
 
         return null;
     }
@@ -175,7 +176,7 @@ trait HasKanvasContext
 
         $companyId = $record instanceof Model ? (int) $record->getAttribute('companies_id') : $record;
 
-        return $this->companyScope->tenantLabel($companyId);
+        return $this->companyScope->tenantLabelFor($companyId);
     }
 
     /**
@@ -193,7 +194,7 @@ trait HasKanvasContext
      */
     protected function tenantGroupBy(): array
     {
-        return CompanyScope::spans($this->companyScope) ? ['companies_id'] : [];
+        return CompanyScope::spansCompanies($this->companyScope) ? ['companies_id'] : [];
     }
 
     /**

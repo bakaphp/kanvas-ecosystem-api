@@ -93,7 +93,7 @@ trait ResolvesOrganizationForTool
                 'candidates' => $matches->map(fn (Organization $org): array => [
                     'organization_id' => $org->getId(),
                     'name' => $org->name,
-                    ...($company instanceof CompanyScope ? $company->tenantLabel((int) $org->companies_id) : []),
+                    ...($company instanceof CompanyScope ? $company->tenantLabelFor((int) $org->companies_id) : []),
                 ])->all(),
             ];
         }

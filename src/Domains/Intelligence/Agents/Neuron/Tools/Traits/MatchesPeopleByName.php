@@ -59,7 +59,7 @@ trait MatchesPeopleByName
                     'phone' => $this->primaryPhone($person),
                     'organization' => $person->organizations->first()?->name,
                     'matched_tokens' => $score,
-                    ...($company instanceof CompanyScope ? $company->tenantLabel((int) $person->companies_id) : []),
+                    ...($company instanceof CompanyScope ? $company->tenantLabelFor((int) $person->companies_id) : []),
                 ],
             );
 

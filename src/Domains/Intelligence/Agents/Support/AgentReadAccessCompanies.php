@@ -114,27 +114,28 @@ final class AgentReadAccessCompanies
     }
 
     /**
-     * Home only on a customer surface (a prospect must never see another company) or with no human at
-     * the keyboard (channel turns run as the shared AI user, which may belong to several companies).
+     * Own company only on a customer surface (a prospect must never see another company) or with no
+     * human at the keyboard (channel turns run as the shared AI user, which may belong to several
+     * companies).
      */
-    public static function scopeFor(Agent $agent, Companies $home, Users $human): CompanyScope
+    public static function scopeFor(Agent $agent, Companies $ownCompany, Users $requestingUser): CompanyScope
     {
         $requested = self::configured($agent);
         $agentId = (int) $agent->getId();
 
         $app = $agent->app;
 
-        $homeOnly = $requested === []
+        $ownCompanyOnly = $requested === []
             || $agent->conversesWithCustomer()
-            || KanvasConversationStore::actsAsAi($human, $agent);
+            || KanvasConversationStore::actsAsAi($requestingUser, $agent);
 
-        $allowed = $homeOnly ? [] : array_values(array_intersect($requested, self::membership($human, $app)));
+        $allowed = $ownCompanyOnly ? [] : array_values(array_intersect($requested, self::membership($requestingUser, $app)));
 
         if ($allowed === []) {
-            return CompanyScope::homeOnly(
+            return CompanyScope::ownCompanyOnly(
                 $app,
-                $home,
-                $human,
+                $ownCompany,
+                $requestingUser,
                 $agentId
             );
         }
@@ -146,11 +147,11 @@ final class AgentReadAccessCompanies
             ->map(fn ($id): int => (int) $id)
             ->all();
 
-        return CompanyScope::of(
+        return CompanyScope::withCompanies(
             $app,
-            $home,
+            $ownCompany,
             $live,
-            $human,
+            $requestingUser,
             $agentId
         );
     }

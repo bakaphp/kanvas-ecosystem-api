@@ -283,18 +283,18 @@ trait ManagesTemplatesTrait
      */
     private function templateTenantFields(Templates $template, Companies|CompanyScope $company, Users $user): array
     {
-        if (! CompanyScope::spans($company)) {
+        if (! CompanyScope::spansCompanies($company)) {
             return [];
         }
 
         $companiesId = (int) $template->companies_id;
         $editableHere = $this->ownsTemplate($template, $user)
-            && in_array($companiesId, [(int) $company->home->getId(), AppEnums::GLOBAL_COMPANY_ID->getValue()], true);
+            && in_array($companiesId, [(int) $company->ownCompany->getId(), AppEnums::GLOBAL_COMPANY_ID->getValue()], true);
 
         return [
             ...($companiesId === AppEnums::GLOBAL_COMPANY_ID->getValue()
                 ? ['tenant_company_id' => $companiesId, 'tenant_company' => 'global']
-                : $company->tenantLabel($companiesId)),
+                : $company->tenantLabelFor($companiesId)),
             'editable_here' => $editableHere,
         ];
     }
@@ -331,7 +331,7 @@ trait ManagesTemplatesTrait
      */
     private function visibleTemplatesQuery(Apps $app, Companies|CompanyScope $company): Builder
     {
-        return CompanyScope::constrain(
+        return CompanyScope::applyToQuery(
             Templates::notDeleted()->whereIn('apps_id', [AppEnums::LEGACY_APP_ID->getValue(), $app->getId()]),
             'companies_id',
             $company,

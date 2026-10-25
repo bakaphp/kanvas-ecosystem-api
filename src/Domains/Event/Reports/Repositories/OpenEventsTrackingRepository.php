@@ -65,7 +65,7 @@ class OpenEventsTrackingRepository
                     ->orWhereBetween('first_date.first_event_date', [$now->toDateString(), $endDate->toDateString()]);
             });
 
-        CompanyScope::constrain($query, 'event_versions.companies_id', $company);
+        CompanyScope::applyToQuery($query, 'event_versions.companies_id', $company);
         self::applyDomainFilters($query, $filters);
 
         $versions = $query

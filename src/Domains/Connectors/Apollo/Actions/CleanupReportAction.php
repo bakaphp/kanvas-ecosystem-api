@@ -101,13 +101,13 @@ class CleanupReportAction
      */
     private function tenantBreakdown(EventAnalyticsService $service): array
     {
-        if (! CompanyScope::spans($this->company)) {
+        if (! CompanyScope::spansCompanies($this->company)) {
             return [];
         }
 
         $rows = [];
 
-        foreach (Companies::query()->whereIn('id', $this->company->ids)->orderBy('name')->get() as $company) {
+        foreach (Companies::query()->whereIn('id', $this->company->companyIds)->orderBy('name')->get() as $company) {
             $verified = $service->countDistinctEntities($this->analyticsQuery($company));
             $total = $this->totalPeople($company);
 

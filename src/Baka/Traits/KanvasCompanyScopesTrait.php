@@ -25,7 +25,7 @@ trait KanvasCompanyScopesTrait
         $table = $this instanceof Model ? $this->getTable() . '.' : '';
 
         if ($company instanceof CompanyScope) {
-            return CompanyScope::constrain($query, $table . 'companies_id', $company);
+            return CompanyScope::applyToQuery($query, $table . 'companies_id', $company);
         }
 
         $company = $company instanceof Companies ? $company : LocationContext::companyToScope($this);
@@ -55,7 +55,7 @@ trait KanvasCompanyScopesTrait
         if ($company instanceof CompanyScope) {
             $allowGlobal = (bool) $company->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
 
-            return CompanyScope::constrain(
+            return CompanyScope::applyToQuery(
                 $query,
                 $table . 'companies_id',
                 $company,

@@ -250,14 +250,14 @@ class ScorecardTool extends Tool
     }
 
     /**
-     * A record is scored against its own agency's base, not the home company's; on a cross-company
-     * read the matched row says which agency that is.
+     * A record is scored against its own agency's base, not the agent's own company; on a
+     * cross-company read the matched row says which agency that is.
      *
      * @param array<string, mixed> $row
      */
     private function measurementsFor(array $row): ScorecardMeasurementService
     {
-        $company = CompanyScope::spans($this->companyScope) && isset($row['companies_id'])
+        $company = CompanyScope::spansCompanies($this->companyScope) && isset($row['companies_id'])
             ? Companies::getById((int) $row['companies_id'])
             : $this->company;
 

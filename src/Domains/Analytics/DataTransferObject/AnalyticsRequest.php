@@ -36,9 +36,9 @@ class AnalyticsRequest
     {
         $timezone = (string) ($args['timezone'] ?? '');
         if ($timezone === '') {
-            // A cross-company window runs on the home company's clock.
-            $home = $company instanceof CompanyScope ? $company->home : $company;
-            $companyTimezone = (string) ($home->timezone ?? '');
+            // A cross-company window runs on the clock of the agent's own company.
+            $ownCompany = $company instanceof CompanyScope ? $company->ownCompany : $company;
+            $companyTimezone = (string) ($ownCompany->timezone ?? '');
             $timezone = $companyTimezone !== '' ? $companyTimezone : ((string) (config('app.timezone') ?? 'UTC'));
         }
 

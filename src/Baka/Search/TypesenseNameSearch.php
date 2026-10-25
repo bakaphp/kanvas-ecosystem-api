@@ -45,7 +45,7 @@ class TypesenseNameSearch implements NameSearchInterface
         $model->setRelation('app', $app);
 
         $collection = $model->searchableAs();
-        $filter = sprintf('apps_id:=%d && companies_id:=[%s]', $app->getId(), implode(',', CompanyScope::idsOf($company)));
+        $filter = sprintf('apps_id:=%d && companies_id:=[%s]', $app->getId(), implode(',', CompanyScope::companyIdsOf($company)));
 
         $ids = [];
 

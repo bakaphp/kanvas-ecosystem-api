@@ -180,8 +180,8 @@ trait HasKanvasAgentBehavior
                 'You can read records from these companies: %s. Every row you read carries tenant_company, '
                 . 'so say which company a result belongs to; the same person may appear once per company. '
                 . 'Anything you create or change goes to %s only.',
-                implode(', ', $scope->names()),
-                $scope->home->name,
+                implode(', ', $scope->companyNames()),
+                $scope->ownCompany->name,
             ),
         ];
     }

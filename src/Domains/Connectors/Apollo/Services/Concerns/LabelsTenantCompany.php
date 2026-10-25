@@ -15,10 +15,10 @@ trait LabelsTenantCompany
     private function tenantName(int $companiesId): string
     {
         if ($this->company instanceof CompanyScope) {
-            return (string) ($this->company->nameOf($companiesId) ?? $this->homeName());
+            return (string) ($this->company->companyName($companiesId) ?? $this->ownCompanyName());
         }
 
-        return (string) $this->company->name;
+        return $this->ownCompanyName();
     }
 
     /**
@@ -26,11 +26,11 @@ trait LabelsTenantCompany
      */
     private function tenantId(int $companiesId): array
     {
-        return CompanyScope::spans($this->company) ? ['tenant_company_id' => $companiesId] : [];
+        return CompanyScope::spansCompanies($this->company) ? ['tenant_company_id' => $companiesId] : [];
     }
 
-    private function homeName(): string
+    private function ownCompanyName(): string
     {
-        return (string) ($this->company instanceof CompanyScope ? $this->company->home->name : $this->company->name);
+        return (string) ($this->company instanceof CompanyScope ? $this->company->ownCompany->name : $this->company->name);
     }
 }
