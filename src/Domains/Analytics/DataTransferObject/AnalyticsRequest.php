@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Date;
 use Kanvas\Analytics\Enums\AnalyticsBucketEnum;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 
 class AnalyticsRequest
 {
@@ -31,11 +32,13 @@ class AnalyticsRequest
      *
      * @param  array<string, mixed>  $args
      */
-    public static function fromGraphQL(array $args, Companies $company): self
+    public static function fromGraphQL(array $args, Companies|CompanyScope $company): self
     {
         $timezone = (string) ($args['timezone'] ?? '');
         if ($timezone === '') {
-            $companyTimezone = (string) ($company->timezone ?? '');
+            // A cross-company window runs on the home company's clock.
+            $home = $company instanceof CompanyScope ? $company->home : $company;
+            $companyTimezone = (string) ($home->timezone ?? '');
             $timezone = $companyTimezone !== '' ? $companyTimezone : ((string) (config('app.timezone') ?? 'UTC'));
         }
 

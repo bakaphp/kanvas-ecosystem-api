@@ -8,6 +8,7 @@ use Baka\Search\Contracts\NameSearchInterface;
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Guild\Customers\Contracts\PeopleCandidateSourceInterface;
 use Kanvas\Guild\Customers\Models\People;
 use Override;
@@ -26,7 +27,7 @@ class PeopleEngineCandidateSource implements PeopleCandidateSourceInterface
     }
 
     #[Override]
-    public function candidatesFor(Apps $app, Companies $company, array $terms): Collection
+    public function candidatesFor(Apps $app, Companies|CompanyScope $company, array $terms): Collection
     {
         return $this->hydrateCandidates($app, $company, $this->search->idsFor(
             new People(),

@@ -43,35 +43,41 @@ class GetCustomerStatsTool extends Tool
                 description: 'How many of the most recently added customers to list. Defaults to 10, max 50.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(?int $limit = null): array
+    public function __invoke(?int $limit = null, ?int $tenant_company_id = null): array
     {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $limit = max(1, min(50, $limit ?? 10));
+        $scope = $this->readCompanyScope();
 
         $totalCustomers = (int) Organization::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($scope)
             ->notDeleted()
             ->count();
 
         $totalPeople = (int) People::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($scope)
             ->notDeleted()
             ->count();
 
         $recent = Organization::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($scope)
             ->notDeleted()
             ->orderByDesc('created_at')
             ->limit($limit)
-            ->get(['id', 'name', 'created_at']);
+            ->get(['id', 'name', 'created_at', 'companies_id']);
 
         return [
             'total_customers' => $totalCustomers,
@@ -80,7 +86,9 @@ class GetCustomerStatsTool extends Tool
                 'organization_id' => $org->getId(),
                 'name' => $org->name,
                 'created_at' => $org->created_at?->toIso8601String(),
+                ...$this->tenantLabel($org),
             ])->all(),
+            ...$this->scopeSummary(),
         ];
     }
 }

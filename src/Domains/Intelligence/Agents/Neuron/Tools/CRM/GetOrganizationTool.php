@@ -46,7 +46,7 @@ class GetOrganizationTool extends Tool
      */
     public function __invoke(?int $organization_id = null, ?string $organization_name = null): array
     {
-        $result = $this->resolveOrganization($organization_id, $organization_name);
+        $result = $this->resolveOrganizationInReadScope($organization_id, $organization_name);
         if (is_array($result)) {
             return $result;
         }
@@ -67,6 +67,7 @@ class GetOrganizationTool extends Tool
             'tags' => $organization->tags->pluck('name')->all(),
             'people_count' => $organization->peoples()->count(),
             'custom_fields' => $this->relevantCustomFields($organization),
+            ...$this->tenantLabel($organization),
         ];
     }
 }

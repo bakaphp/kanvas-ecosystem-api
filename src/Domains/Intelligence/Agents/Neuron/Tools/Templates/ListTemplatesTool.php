@@ -22,6 +22,7 @@ class ListTemplatesTool extends Tool
 
     protected ?string $description = 'List the templates available to render in this company (including shared/global ones). Each '
         . 'result shows its id, name, and an "owned" flag — you can only update or delete the ones you own. '
+        . 'When "editable_here" is present and false, that template is read-only in this company even if owned. '
         . 'Use this to discover templates before rendering, updating, or deleting.';
 
     /**
@@ -37,14 +38,24 @@ class ListTemplatesTool extends Tool
                 description: 'Optional text to filter templates by name.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(?string $search = null): array
+    public function __invoke(?string $search = null, ?int $tenant_company_id = null): array
     {
-        return $this->listTemplates($this->app, $this->company, $this->user, $search);
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
+        return $this->listTemplates(
+            $this->app,
+            $this->readCompanyScope(),
+            $this->user,
+            $search
+        );
     }
 }

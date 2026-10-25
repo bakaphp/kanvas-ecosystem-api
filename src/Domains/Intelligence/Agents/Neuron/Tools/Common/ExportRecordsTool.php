@@ -66,14 +66,19 @@ class ExportRecordsTool extends Tool
                     . 'Omit it, or pass "{}", for no filters.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $record_type, array|string|null $filters = null): array
+    public function __invoke(string $record_type, array|string|null $filters = null, ?int $tenant_company_id = null): array
     {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $filters = $this->decodeJsonObjectParam($filters);
         $registry = new RecordExporterRegistry();
         $exporter = $registry->for($record_type);
@@ -84,7 +89,7 @@ class ExportRecordsTool extends Tool
         }
 
         try {
-            $rows = $exporter->rows($this->app, $this->company, $filters);
+            $rows = $exporter->rows($this->app, $this->readCompanyScope(), $filters);
         } catch (Throwable $e) {
             return ['error' => $e->getMessage()];
         }

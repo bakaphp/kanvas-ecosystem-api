@@ -60,7 +60,7 @@ class GetDealRefTool extends Tool
      */
     public function __invoke(int $deal_id): array
     {
-        $result = $this->resolveDealOrError($deal_id);
+        $result = $this->resolveDealInReadScopeOrError($deal_id);
         $detail = is_array($result) ? $result : $this->describe($result);
 
         return $this->oncePerTurn(
@@ -108,6 +108,7 @@ class GetDealRefTool extends Tool
                 'id' => $deal->organization->getId(),
                 'name' => $deal->organization->name,
             ] : null,
+            ...$this->tenantLabel($deal),
         ];
     }
 }

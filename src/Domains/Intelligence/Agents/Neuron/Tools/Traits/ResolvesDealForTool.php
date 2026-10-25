@@ -50,8 +50,43 @@ trait ResolvesDealForTool
                 ? Deal::getByIdFromCompanyApp($dealId, $this->company, $this->app)
                 : Deal::getByIdFromCompany($dealId, $this->company);
         } catch (ModelNotFoundException) {
-            return $this->dealNotResolvedError($dealId);
+            $elsewhere = $this->hostReadsScopes()
+                ? $this->belongsToAnotherCompanyError(Deal::class, $dealId, 'deal')
+                : null;
+
+            return $elsewhere ?? $this->dealNotResolvedError($dealId);
         }
+    }
+
+    /**
+     * This trait does not pull in HasKanvasContext (see the class doc), so the scope helpers exist only
+     * when the host tool brought them.
+     */
+    private function hostReadsScopes(): bool
+    {
+        return isset($this->company) && isset($this->app) && method_exists($this, 'readCompanyScope');
+    }
+
+    /**
+     * Read-only variant inside the agent's read scope; write tools keep resolveDealOrError().
+     *
+     * @return Deal|array{status: string, message: string}
+     */
+    protected function resolveDealInReadScopeOrError(int $dealId): Deal|array
+    {
+        if (! $this->hostReadsScopes()) {
+            return $this->resolveDealOrError($dealId);
+        }
+
+        /** @var Deal|null $deal */
+        $deal = Deal::query()
+            ->where('id', $dealId)
+            ->fromApp($this->app)
+            ->fromCompany($this->readCompanyScope())
+            ->notDeleted()
+            ->first();
+
+        return $deal ?? $this->dealNotResolvedError($dealId);
     }
 
     /**

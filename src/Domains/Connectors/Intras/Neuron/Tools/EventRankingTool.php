@@ -80,6 +80,7 @@ class EventRankingTool extends Tool
             new ToolProperty(name: 'categoria', type: PropertyType::STRING, description: 'Categoría de evento.', required: false),
             new ToolProperty(name: 'desde', type: PropertyType::STRING, description: 'Fecha inicial YYYY-MM-DD.', required: false),
             new ToolProperty(name: 'hasta', type: PropertyType::STRING, description: 'Fecha final YYYY-MM-DD.', required: false),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -95,8 +96,13 @@ class EventRankingTool extends Tool
         ?string $categoria = null,
         ?string $desde = null,
         ?string $hasta = null,
-        ?int $min_respuestas = null
+        ?int $min_respuestas = null,
+        ?int $tenant_company_id = null
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         if (! $this->hasTenantContext()) {
             return $this->tenantContextMissingError('event ranking');
         }
@@ -140,7 +146,7 @@ class EventRankingTool extends Tool
                 $rows = $service->aggregate(
                     $definition,
                     $this->app,
-                    $this->company,
+                    $this->readCompanyScope(),
                     AggregateRequest::fromInput(
                         aggregates: [
                             ['function' => 'AVG', 'column' => $column, 'alias' => 'promedio'],
@@ -162,20 +168,20 @@ class EventRankingTool extends Tool
                 'top' => $service->aggregate(
                     $definition,
                     $this->app,
-                    $this->company,
+                    $this->readCompanyScope(),
                     AggregateRequest::fromInput(
                         aggregates: [
                             ['function' => 'MAX', 'column' => $column, 'alias' => 'valor'],
                             ['function' => 'MAX', 'column' => 'inscripciones', 'alias' => 'inscripciones'],
                             ['function' => 'MAX', 'column' => 'fecha_inicio', 'alias' => 'fecha'],
                         ],
-                        groupBy: ['version_id', 'evento', 'version'],
+                        groupBy: [...$this->tenantGroupBy(), 'version_id', 'evento', 'version'],
                         orderBy: 'valor',
                         limit: $top_n ?? 5
                     ),
                     $filters
                 ),
-                'scope' => $scope,
+                'scope' => [...$scope, ...($this->scopeSummary()['scope'] ?? [])],
             ];
         } catch (Throwable $e) {
             return ['error' => $e->getMessage()];
@@ -232,7 +238,7 @@ class EventRankingTool extends Tool
             $rows = $service->aggregate(
                 $definition,
                 $this->app,
-                $this->company,
+                $this->readCompanyScope(),
                 AggregateRequest::fromInput(
                     aggregates: [
                         ['function' => 'AVG', 'column' => 'puntuacion', 'alias' => 'promedio'],
@@ -257,13 +263,13 @@ class EventRankingTool extends Tool
         $ranked = $service->aggregate(
             $definition,
             $this->app,
-            $this->company,
+            $this->readCompanyScope(),
             AggregateRequest::fromInput(
                 aggregates: [
                     ['function' => 'AVG', 'column' => 'puntuacion', 'alias' => 'satisfaccion'],
                     ['function' => 'COUNT', 'alias' => 'respuestas'],
                 ],
-                groupBy: ['version_id', 'evento'],
+                groupBy: [...$this->tenantGroupBy(), 'version_id', 'evento'],
                 orderBy: 'satisfaccion',
                 limit: ReportQueryService::MAX_LIMIT
             ),

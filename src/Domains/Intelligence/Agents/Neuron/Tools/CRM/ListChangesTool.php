@@ -54,6 +54,7 @@ class ListChangesTool extends Tool
                 description: 'Max change rows to return, most recent first. Defaults to 25, max 100.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -62,11 +63,15 @@ class ListChangesTool extends Tool
      *
      * @return array<string, mixed>
      */
-    public function __invoke(?array $change_types = null, ?int $limit = null): array
+    public function __invoke(?array $change_types = null, ?int $limit = null, ?int $tenant_company_id = null): array
     {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $limit = max(1, min(100, $limit ?? 25));
 
-        $rows = new PeopleChangesFeedService($this->app, $this->company)
+        $rows = new PeopleChangesFeedService($this->app, $this->readCompanyScope())
             ->rows(changeTypes: $change_types, limit: $limit);
 
         return [
@@ -80,9 +85,11 @@ class ListChangesTool extends Tool
                     'from' => $row['from'],
                     'to' => $row['to'],
                     'occurred_at' => $row['occurred_at'],
+                    ...(isset($row['tenant_company_id']) ? ['tenant_company_id' => $row['tenant_company_id']] : []),
                 ],
                 $rows,
             ),
+            ...$this->scopeSummary(),
         ];
     }
 }

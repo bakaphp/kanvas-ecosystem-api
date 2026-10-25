@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Exporters;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\Traits\ReadsExportFilters;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExtractsPersonContacts;
@@ -35,7 +36,7 @@ class PeopleRecordExporter implements RecordExporterInterface
     }
 
     #[Override]
-    public function rows(Apps $app, Companies $company, array $filters): array
+    public function rows(Apps $app, Companies|CompanyScope $company, array $filters): array
     {
         $organization = $this->filterString($filters, 'organization');
         $tag = $this->filterString($filters, 'tag');

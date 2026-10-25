@@ -87,6 +87,7 @@ class EvaluationInsightsTool extends Tool
             new ToolProperty(name: 'desde', type: PropertyType::STRING, description: 'Fecha del evento desde, YYYY-MM-DD.', required: false),
             new ToolProperty(name: 'hasta', type: PropertyType::STRING, description: 'Fecha del evento hasta, YYYY-MM-DD.', required: false),
             new ToolProperty(name: 'limit', type: PropertyType::INTEGER, description: 'Máximo de filas. Por defecto 50 en resumen, 200 en texto.', required: false),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -102,8 +103,13 @@ class EvaluationInsightsTool extends Tool
         ?string $clase = null,
         ?string $desde = null,
         ?string $hasta = null,
-        ?int $limit = null
+        ?int $limit = null,
+        ?int $tenant_company_id = null
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         if (! $this->hasTenantContext()) {
             return $this->tenantContextMissingError('evaluation insights');
         }
@@ -182,7 +188,7 @@ class EvaluationInsightsTool extends Tool
         $rows = new ReportQueryService()->aggregate(
             new ReportRegistry()->find($this->app, 'evaluacion'),
             $this->app,
-            $this->company,
+            $this->readCompanyScope(),
             AggregateRequest::fromInput(
                 aggregates: [
                     ['function' => 'AVG', 'column' => 'puntuacion', 'alias' => 'promedio'],
@@ -242,7 +248,7 @@ class EvaluationInsightsTool extends Tool
         $rows = $service->search(
             $definition,
             $this->app,
-            $this->company,
+            $this->readCompanyScope(),
             [...$filters, new ReportFilter('es_numerica', '=', 0)],
             select: ['pregunta', 'tipo_pregunta', 'respuesta', 'evento', 'empresa', 'fecha_evento'],
             limit: ReportQueryService::MAX_LIMIT

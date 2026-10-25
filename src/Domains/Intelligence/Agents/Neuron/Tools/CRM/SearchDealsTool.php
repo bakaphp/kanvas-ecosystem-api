@@ -86,6 +86,7 @@ class SearchDealsTool extends Tool
                 description: 'Max deals to return, most recently updated first. Defaults to 25, max 100.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -99,7 +100,12 @@ class SearchDealsTool extends Tool
         ?string $updated_since = null,
         ?string $updated_until = null,
         ?int $limit = null,
+        ?int $tenant_company_id = null,
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $query = trim((string) $query);
         $owner = trim((string) $owner);
 
@@ -124,11 +130,13 @@ class SearchDealsTool extends Tool
         $limit = max(1, min(100, $limit ?? 25));
         $like = '%' . $query . '%';
 
+        $scope = $this->readCompanyScope();
+
         $deals = Deal::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($scope)
             ->notDeleted()
-            ->havingDealState($status, $this->company)
+            ->havingDealState($status, $scope)
             ->when($query !== '', function ($q) use ($like): void {
                 $q->where(function ($inner) use ($like): void {
                     $inner->where('title', 'like', $like)
@@ -180,7 +188,9 @@ class SearchDealsTool extends Tool
                 'is_open' => $deal->hasOpenStatus(),
                 'last_updated' => $deal->updated_at?->copy()->setTimezone($window['timezone'])->toDateString(),
                 'last_updated_at' => $deal->updated_at?->copy()->setTimezone($window['timezone'])->toIso8601String(),
+                ...$this->tenantLabel($deal),
             ])->all(),
+            ...$this->scopeSummary(),
         ];
     }
 }

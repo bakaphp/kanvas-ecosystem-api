@@ -75,6 +75,7 @@ class GetMessageUsageReportTool extends Tool
                 description: 'Custom range end date (YYYY-MM-DD). Overrides timeframe. Requires "from".',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -86,7 +87,12 @@ class GetMessageUsageReportTool extends Tool
         ?string $channel = null,
         ?string $from = null,
         ?string $to = null,
+        ?int $tenant_company_id = null,
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $channel = strtolower(trim((string) $channel)) ?: 'all';
         if (! in_array($channel, ['sms', 'email', 'all'], true)) {
             return [
@@ -108,11 +114,12 @@ class GetMessageUsageReportTool extends Tool
 
         $args = $this->analyticsRangeArgs($timeframe, $from, $to);
 
+        $scope = $this->readCompanyScope();
         $result = new BuildAnalyticsAction(
             model: Message::class,
             app: $this->app,
-            company: $this->company,
-            request: AnalyticsRequest::fromGraphQL($args, $this->company),
+            company: $scope,
+            request: AnalyticsRequest::fromGraphQL($args, $scope),
             groupBys: [
                 'by_sender' => new AnalyticsGroupBy(
                     column: 'sender_type',
@@ -136,6 +143,7 @@ class GetMessageUsageReportTool extends Tool
 
         return [
             'status' => 'success',
+            ...$this->scopeSummary(),
             'timeframe' => ['from' => $args['from'], 'to' => $args['to']],
             'channel' => $channel,
             'totals' => [

@@ -103,6 +103,7 @@ class EventSearchTool extends Tool
                 description: 'Máximo de versiones. Por defecto 15, tope 50.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -116,8 +117,13 @@ class EventSearchTool extends Tool
         ?string $hasta = null,
         ?string $estatus = null,
         ?bool $solo_con_inscritos = null,
-        ?int $limit = null
+        ?int $limit = null,
+        ?int $tenant_company_id = null
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $nombre = trim((string) $nombre);
         $codigo = trim((string) $codigo);
         $desde = trim((string) $desde);
@@ -179,7 +185,7 @@ class EventSearchTool extends Tool
 
         // The tenant predicate is explicit because this reads the physical table rather than going
         // through ReportQueryService — the squashed-name comparison is not expressible as a filter.
-        $query = $connection->table($table)->where('companies_id', $this->company->getId());
+        $query = $connection->table($table)->whereIn('companies_id', $this->readCompanyScope()->ids);
 
         if ($nombre !== '') {
             $needle = $this->squash($nombre);
@@ -256,6 +262,7 @@ class EventSearchTool extends Tool
             // A cancelled version with zero registrations looks like missing data unless the tool
             // says outright that it is not.
             'aviso' => $this->caveat($row),
+            ...$this->tenantLabel((int) $row->companies_id),
         ], fn ($value) => $value !== null && $value !== '');
     }
 

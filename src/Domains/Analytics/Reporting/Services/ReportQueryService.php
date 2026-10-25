@@ -12,6 +12,7 @@ use Kanvas\Analytics\Reporting\DataTransferObject\AggregateRequest;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportColumn;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportFilter;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Exceptions\ValidationException;
 
 /**
@@ -55,12 +56,14 @@ class ReportQueryService
     public function builder(
         ReportDefinitionInterface $definition,
         AppInterface $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         array $filters = []
     ): Builder {
-        $query = $this->schema->connection()
-            ->table($this->schema->tableFor($definition, $app->getId()))
-            ->where(ReportSchemaService::TENANT_COLUMN, $company->getId());
+        $query = CompanyScope::constrain(
+            $this->schema->connection()->table($this->schema->tableFor($definition, $app->getId())),
+            ReportSchemaService::TENANT_COLUMN,
+            $company,
+        );
 
         $columns = $this->columnsByName($definition);
 
@@ -80,7 +83,7 @@ class ReportQueryService
     public function search(
         ReportDefinitionInterface $definition,
         AppInterface $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         array $filters = [],
         ?array $select = null,
         int $limit = 50,
@@ -93,6 +96,11 @@ class ReportQueryService
         if ($select !== null) {
             foreach ($select as $name) {
                 $this->assertColumn($name, $columns);
+            }
+
+            // A cross-company read labels every row, which needs the tenant column in the projection.
+            if (CompanyScope::spans($company) && ! in_array(ReportSchemaService::TENANT_COLUMN, $select, true)) {
+                $select[] = ReportSchemaService::TENANT_COLUMN;
             }
         }
 
@@ -109,8 +117,25 @@ class ReportQueryService
             ->limit(min($limit, self::MAX_LIMIT))
             ->offset($offset)
             ->get()
-            ->map(fn ($row) => (array) $row)
+            ->map(fn ($row) => $this->labelTenant((array) $row, $company))
             ->all();
+    }
+
+    /**
+     * Combined aggregates carry no `companies_id` and stay unlabelled; grouping by it is how a caller
+     * asks for the per-company split.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @return array<string, mixed>
+     */
+    private function labelTenant(array $row, Companies|CompanyScope $company): array
+    {
+        if (! CompanyScope::spans($company) || ! isset($row[ReportSchemaService::TENANT_COLUMN])) {
+            return $row;
+        }
+
+        return [...$row, ...$company->tenantLabel((int) $row[ReportSchemaService::TENANT_COLUMN])];
     }
 
     /**
@@ -125,7 +150,7 @@ class ReportQueryService
     public function count(
         ReportDefinitionInterface $definition,
         AppInterface $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         array $filters = [],
         ?string $distinctColumn = null
     ): array {
@@ -155,7 +180,7 @@ class ReportQueryService
     public function breakdown(
         ReportDefinitionInterface $definition,
         AppInterface $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         string $groupBy,
         array $filters = [],
         ?string $distinctColumn = null
@@ -174,7 +199,10 @@ class ReportQueryService
             $select[] = DB::raw(sprintf('COUNT(DISTINCT `%s`) as `distinct_total`', $distinctColumn));
         }
 
-        return $query->select($select)->get()->map(fn ($row) => (array) $row)->all();
+        return $query->select($select)
+            ->get()
+            ->map(fn ($row) => $this->labelTenant((array) $row, $company))
+            ->all();
     }
 
     /**
@@ -193,7 +221,7 @@ class ReportQueryService
     public function aggregate(
         ReportDefinitionInterface $definition,
         AppInterface $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         AggregateRequest $request,
         array $filters = []
     ): array {
@@ -260,7 +288,7 @@ class ReportQueryService
         return $query->select($select)
             ->limit(min($request->limit, self::MAX_LIMIT))
             ->get()
-            ->map(fn ($row) => $this->numericAggregates((array) $row, $aliases))
+            ->map(fn ($row) => $this->labelTenant($this->numericAggregates((array) $row, $aliases), $company))
             ->all();
     }
 

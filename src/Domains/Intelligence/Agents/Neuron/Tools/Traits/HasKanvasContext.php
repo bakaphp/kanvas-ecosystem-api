@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
 
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Support\CrossCompanyReadLedger;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\PropertyType;
+use NeuronAI\Tools\ToolProperty;
 
 trait HasKanvasContext
 {
@@ -17,9 +22,14 @@ trait HasKanvasContext
     protected Users $user;
 
     /**
+     * The companies a READ may span; `$company` stays the home company every write uses.
+     */
+    protected ?CompanyScope $companyScope = null;
+
+    /**
      * The agent running this turn, when the host knows it.
      *
-     * Nullable and last, so the ~90 existing `withContext($app, $company, $user)` call sites keep
+     * Optional in slot four, so the existing `withContext($app, $company, $user)` call sites keep
      * working. It cannot be recovered from `$user`: an agent's user is routinely shared — one user in
      * production backs 28 agents — so `Agent::fromUser()` returns an arbitrary one of them.
      *
@@ -35,13 +45,155 @@ trait HasKanvasContext
         Companies $company,
         Users $user,
         ?Agent $agent = null,
+        ?CompanyScope $scope = null,
     ): static {
         $this->app = $app;
         $this->company = $company;
         $this->user = $user;
         $this->actingAgent = $agent;
+        $this->companyScope = $scope;
 
         return $this;
+    }
+
+    /**
+     * Always a scope, never the bare company, so the AppKey branch in `scopeFromCompany()` cannot
+     * widen it.
+     */
+    protected function readCompanyScope(): CompanyScope
+    {
+        $scope = $this->companyScope ?? CompanyScope::homeOnly($this->app, $this->company);
+
+        if ($scope->audits()) {
+            CrossCompanyReadLedger::record(
+                $scope,
+                method_exists($this, 'getName') ? $this->getName() : static::class
+            );
+        }
+
+        return $scope;
+    }
+
+    /**
+     * Declared only when the scope spans companies, so single-company agents keep their exact schema.
+     *
+     * @return list<ToolProperty>
+     */
+    protected function tenantCompanyProperty(): array
+    {
+        if ($this->companyScope === null || ! $this->companyScope->isCrossCompany()) {
+            return [];
+        }
+
+        return [
+            new ToolProperty(
+                name: 'tenant_company_id',
+                type: PropertyType::INTEGER,
+                description: 'Read only one of your companies instead of all of them. One of: '
+                    . $this->companyScope->menu() . '. Omit to read every company you can see.',
+                required: false,
+            ),
+        ];
+    }
+
+    /**
+     * For a WRITE resolver that missed at home: when the id is real inside the read scope, say so.
+     * "Does not exist, create one" would make the model create a copy at home and act on that.
+     *
+     * @param class-string<Model> $modelClass
+     *
+     * @return array{status: string, message: string}|null
+     */
+    protected function belongsToAnotherCompanyError(string $modelClass, int $id, string $noun): ?array
+    {
+        if (! CompanyScope::spans($this->companyScope)) {
+            return null;
+        }
+
+        /** @var Model|null $record */
+        $record = $modelClass::query()
+            ->where('id', $id)
+            ->fromApp($this->app)
+            ->fromCompany($this->companyScope)
+            ->notDeleted()
+            ->first();
+
+        if ($record === null) {
+            return null;
+        }
+
+        return [
+            'status' => 'error',
+            'message' => sprintf(
+                '%s %d belongs to %s. This agent only changes %s records: read it if you need to, but do not '
+                . 'create a copy here and do not retry this change.',
+                ucfirst($noun),
+                $id,
+                $this->companyScope->nameOf((int) $record->getAttribute('companies_id')),
+                $this->company->name,
+            ),
+        ];
+    }
+
+    /**
+     * An id outside the scope is refused, so a guessed id reads nothing.
+     *
+     * @return array{status: string, message: string}|null the refusal, or null when the read may proceed
+     */
+    protected function narrowReadScope(?int $tenantCompanyId): ?array
+    {
+        if ($tenantCompanyId === null || $tenantCompanyId <= 0) {
+            return null;
+        }
+
+        $scope = $this->companyScope ?? CompanyScope::homeOnly($this->app, $this->company);
+
+        if (! $scope->contains($tenantCompanyId)) {
+            return [
+                'status' => 'error',
+                'message' => sprintf(
+                    'Company %d is not one you can read. Your companies: %s. Do not retry with that id.',
+                    $tenantCompanyId,
+                    $scope->menu(),
+                ),
+            ];
+        }
+
+        $this->companyScope = $scope->narrowTo($tenantCompanyId);
+
+        return null;
+    }
+
+    /**
+     * @return array{tenant_company_id: int, tenant_company: string|null}|array{}
+     */
+    protected function tenantLabel(Model|int|null $record): array
+    {
+        if ($this->companyScope === null || $record === null) {
+            return [];
+        }
+
+        $companyId = $record instanceof Model ? (int) $record->getAttribute('companies_id') : $record;
+
+        return $this->companyScope->tenantLabel($companyId);
+    }
+
+    /**
+     * @return array{scope: array{tenant_companies: list<string>}}|array{}
+     */
+    protected function scopeSummary(): array
+    {
+        return $this->companyScope?->summary() ?? [];
+    }
+
+    /**
+     * An event name can exist in two companies; grouping by company keeps the ranking per company.
+     *
+     * @return list<string>
+     */
+    protected function tenantGroupBy(): array
+    {
+        return CompanyScope::spans($this->companyScope) ? ['companies_id'] : [];
     }
 
     /**
