@@ -67,7 +67,7 @@ class GetDealAnalyticsTool extends Tool
 
         $args = $this->analyticsRangeArgs($timeframe, $from, $to);
 
-        $scope = $this->readCompanyScope();
+        $scope = $this->auditedReadScope();
         $result = new BuildAnalyticsAction(
             model: Deal::class,
             app: $this->app,
@@ -84,6 +84,6 @@ class GetDealAnalyticsTool extends Tool
                 : null,
         )->execute();
 
-        return ['status' => 'success', 'timeframe' => ['from' => $args['from'], 'to' => $args['to']], ...$result, ...$this->scopeSummary()];
+        return ['status' => 'success', 'timeframe' => ['from' => $args['from'], 'to' => $args['to']], ...$result, ...$this->tenantScopeSummary()];
     }
 }

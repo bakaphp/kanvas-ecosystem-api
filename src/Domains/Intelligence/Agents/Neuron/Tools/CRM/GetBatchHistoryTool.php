@@ -60,7 +60,7 @@ class GetBatchHistoryTool extends Tool
 
         $campaigns = Campaign::query()
             ->fromApp($this->app)
-            ->fromCompany($this->readCompanyScope())
+            ->fromCompany($this->auditedReadScope())
             ->notDeleted()
             ->orderByDesc('created_at')
             ->limit($limit)
@@ -70,7 +70,7 @@ class GetBatchHistoryTool extends Tool
             'status' => 'success',
             'count' => $campaigns->count(),
             'campaigns' => $campaigns->map(fn (Campaign $c): array => $this->summary($c))->all(),
-            ...$this->scopeSummary(),
+            ...$this->tenantScopeSummary(),
         ];
     }
 
@@ -86,7 +86,7 @@ class GetBatchHistoryTool extends Tool
         $campaign = Campaign::query()
             ->where('id', $campaignId)
             ->fromApp($this->app)
-            ->fromCompany($this->readCompanyScope())
+            ->fromCompany($this->auditedReadScope())
             ->notDeleted()
             ->first();
 

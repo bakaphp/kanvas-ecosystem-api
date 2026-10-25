@@ -501,17 +501,17 @@ A tool constructed outside that path (a test, a one-off script) must call `withC
   tool-layer mirror of `@guardByAdmin`) — not on the agent's own user.
 - Honor the audience/memory-scope rule from the top of this file: a customer-facing tool must be
   entity-scoped, never company-wide `read_my_ledger`.
-- **A READ tool scopes with `fromCompany($this->readCompanyScope())`, a WRITE tool with `$this->company`.**
+- **A READ tool scopes with `fromCompany($this->auditedReadScope())`, a WRITE tool with `$this->company`.**
   An agent may be granted other companies to read (`agent-read-access-companies`, set through
   `setAgentSetting`); the scope reaching the tool is that grant ∩ the requesting human's membership,
-  and it collapses to home on a customer surface or when no human is at the keyboard. `CompanyScope`
+  and it collapses to the agent's own company on a customer surface or when no human is at the keyboard. `CompanyScope`
   is always a scope, even with one id, and `scopeFromCompany()` checks it **before** the AppKey
   branch, so a bound app key can never widen it. Every cross-company row carries `tenant_company_id`
   + `tenant_company` (`tenantLabel()`), never `company`, which already means the employer in Apollo
   rows; an explicit `get([...])` projection must include `companies_id` for that. Combined aggregates
-  carry `scopeSummary()`; an entity ranking prepends `tenantGroupBy()` to its group-by. The scope is
+  carry `tenantScopeSummary()`; an entity ranking prepends `tenantGroupBy()` to its group-by. The scope is
   the **fifth** `withContext()` argument (the fourth is the agent) and arrives through both
-  `fillKanvasContext()` and `addToolContext()`; hand-wired tools stay home-only. One
+  `fillKanvasContext()` and `addToolContext()`; hand-wired tools stay own-company-only. One
   `agent.cross_company_read` ledger event per turn and reach, however many tools read. A read tool also declares
   `...$this->tenantCompanyProperty()` and opens `__invoke` with `narrowReadScope($tenant_company_id)`,
   so the model can ask for one company; a by-id READ resolves with `resolve*InReadScopeOrError()`,

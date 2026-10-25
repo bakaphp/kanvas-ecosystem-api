@@ -63,7 +63,7 @@ trait ResolvesPersonForTool
         $person = People::query()
             ->where('id', $personId)
             ->fromApp($this->app)
-            ->fromCompany($this->readCompanyScope())
+            ->fromCompany($this->auditedReadScope())
             ->notDeleted()
             ->first();
 

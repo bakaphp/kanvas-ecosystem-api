@@ -53,7 +53,7 @@ class ListTemplatesTool extends Tool
 
         return $this->listTemplates(
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             $this->user,
             $search
         );

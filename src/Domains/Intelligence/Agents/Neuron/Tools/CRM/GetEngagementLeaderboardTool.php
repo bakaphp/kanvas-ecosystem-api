@@ -113,7 +113,7 @@ class GetEngagementLeaderboardTool extends Tool
 
         $args = $this->analyticsRangeArgs($timeframe, $from, $to);
 
-        $scope = $this->readCompanyScope();
+        $scope = $this->auditedReadScope();
         $result = new BuildEngagementLeaderboardAction(
             app: $this->app,
             company: $scope,
@@ -123,7 +123,7 @@ class GetEngagementLeaderboardTool extends Tool
 
         return [
             'status' => 'success',
-            ...$this->scopeSummary(),
+            ...$this->tenantScopeSummary(),
             'timeframe' => ['from' => $args['from'], 'to' => $args['to']],
             'channel' => $channelEnum->value,
             'sort_by' => $sortBy,

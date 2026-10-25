@@ -146,7 +146,7 @@ class EventRankingTool extends Tool
                 $rows = $service->aggregate(
                     $definition,
                     $this->app,
-                    $this->readCompanyScope(),
+                    $this->auditedReadScope(),
                     AggregateRequest::fromInput(
                         aggregates: [
                             ['function' => 'AVG', 'column' => $column, 'alias' => 'promedio'],
@@ -168,7 +168,7 @@ class EventRankingTool extends Tool
                 'top' => $service->aggregate(
                     $definition,
                     $this->app,
-                    $this->readCompanyScope(),
+                    $this->auditedReadScope(),
                     AggregateRequest::fromInput(
                         aggregates: [
                             ['function' => 'MAX', 'column' => $column, 'alias' => 'valor'],
@@ -181,7 +181,7 @@ class EventRankingTool extends Tool
                     ),
                     $filters
                 ),
-                'scope' => [...$scope, ...($this->scopeSummary()['scope'] ?? [])],
+                'scope' => [...$scope, ...($this->tenantScopeSummary()['scope'] ?? [])],
             ];
         } catch (Throwable $e) {
             return ['error' => $e->getMessage()];
@@ -238,7 +238,7 @@ class EventRankingTool extends Tool
             $rows = $service->aggregate(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 AggregateRequest::fromInput(
                     aggregates: [
                         ['function' => 'AVG', 'column' => 'puntuacion', 'alias' => 'promedio'],
@@ -263,7 +263,7 @@ class EventRankingTool extends Tool
         $ranked = $service->aggregate(
             $definition,
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(
                 aggregates: [
                     ['function' => 'AVG', 'column' => 'puntuacion', 'alias' => 'satisfaccion'],

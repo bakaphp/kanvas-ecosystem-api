@@ -149,7 +149,7 @@ abstract class FindCrmRecordsBulkTool extends Tool
             : $this->hydrate($search->idsFor(
                 $model,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 $model->searchQueryBy(),
                 $terms,
                 NameSearchInterface::DEFAULT_CANDIDATES_PER_TERM,

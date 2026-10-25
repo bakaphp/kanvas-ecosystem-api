@@ -71,7 +71,7 @@ class ListChangesTool extends Tool
 
         $limit = max(1, min(100, $limit ?? 25));
 
-        $rows = new PeopleChangesFeedService($this->app, $this->readCompanyScope())
+        $rows = new PeopleChangesFeedService($this->app, $this->auditedReadScope())
             ->rows(changeTypes: $change_types, limit: $limit);
 
         return [
@@ -89,7 +89,7 @@ class ListChangesTool extends Tool
                 ],
                 $rows,
             ),
-            ...$this->scopeSummary(),
+            ...$this->tenantScopeSummary(),
         ];
     }
 }

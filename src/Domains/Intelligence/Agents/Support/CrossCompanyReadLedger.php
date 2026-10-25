@@ -22,7 +22,7 @@ final class CrossCompanyReadLedger
 
     public static function record(CompanyScope $scope, string $tool): void
     {
-        if (! $scope->audits() || ! $scope->markAudited(implode(',', $scope->ids))) {
+        if (! $scope->shouldAudit() || ! $scope->markAudited(implode(',', $scope->companyIds))) {
             return;
         }
 
@@ -30,15 +30,15 @@ final class CrossCompanyReadLedger
             new AppendEventAction(
                 new EventData(
                     app: $scope->app,
-                    company: $scope->home,
+                    company: $scope->ownCompany,
                     sourceDomain: 'Intelligence',
                     eventType: self::EVENT_TYPE,
                     status: EventStatusEnum::INFO,
                     sourceEntityType: $scope->agentId !== null ? Agent::class : null,
                     sourceEntityId: $scope->agentId,
-                    actorType: $scope->human !== null ? 'User' : 'System',
-                    actorId: $scope->human?->getId(),
-                    payload: ['first_tool' => $tool, 'companies' => $scope->ids, 'narrowed' => $scope->narrowed],
+                    actorType: $scope->requestingUser !== null ? 'User' : 'System',
+                    actorId: $scope->requestingUser?->getId(),
+                    payload: ['first_tool' => $tool, 'companies' => $scope->companyIds, 'narrowed' => $scope->narrowed],
                     occurredAt: Carbon::now(),
                 ),
             )->execute();

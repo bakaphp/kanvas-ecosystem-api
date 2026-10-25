@@ -80,7 +80,7 @@ class FindPersonTool extends Tool
 
         $people = People::query()
             ->fromApp($this->app)
-            ->fromCompany($this->readCompanyScope())
+            ->fromCompany($this->auditedReadScope())
             ->notDeleted()
             ->where(function ($q) use ($like): void {
                 $q->where('name', 'like', $like)

@@ -82,7 +82,7 @@ class ListStaleLeadsTool extends Tool
         $limit = max(1, min(100, $limit ?? 25));
         $cutoff = Carbon::now()->subDays($idleDays);
 
-        $scope = $this->readCompanyScope();
+        $scope = $this->auditedReadScope();
 
         $leads = Lead::query()
             ->fromApp($this->app)
@@ -135,7 +135,7 @@ class ListStaleLeadsTool extends Tool
                     ...$this->tenantLabel($lead),
                 ];
             })->all(),
-            ...$this->scopeSummary(),
+            ...$this->tenantScopeSummary(),
         ];
     }
 }

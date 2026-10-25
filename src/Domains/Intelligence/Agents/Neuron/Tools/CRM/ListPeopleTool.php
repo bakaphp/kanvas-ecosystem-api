@@ -70,7 +70,7 @@ class ListPeopleTool extends Tool
 
         $people = People::query()
             ->fromApp($this->app)
-            ->fromCompany($this->readCompanyScope())
+            ->fromCompany($this->auditedReadScope())
             ->notDeleted()
             ->when($organization !== null && $organization !== '', fn ($q): mixed => $q->whereHas(
                 'organizations',

@@ -216,7 +216,7 @@ class SearchLeadsTool extends Tool
         string $owner,
         array $window,
     ): Builder {
-        $scope = $this->readCompanyScope();
+        $scope = $this->auditedReadScope();
 
         return Lead::query()
             ->fromApp($this->app)

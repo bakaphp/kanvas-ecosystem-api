@@ -81,7 +81,7 @@ class CrossCompanyNarrowingAndLeadsTest extends TestCase
             }
         };
 
-        $probe->withContext($this->kanvasApp, $home, $this->human, scope: CompanyScope::homeOnly($this->kanvasApp, $home));
+        $probe->withContext($this->kanvasApp, $home, $this->human, scope: CompanyScope::ownCompanyOnly($this->kanvasApp, $home));
         $this->assertNotContains('tenant_company_id', $probe->declared(), 'single-company agents keep their exact schema');
 
         $probe->withContext($this->kanvasApp, $home, $this->human, scope: $this->scope($home, $member));

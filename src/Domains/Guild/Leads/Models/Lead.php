@@ -435,9 +435,9 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         }
 
         $tenantColumn = $query->getModel()->getTable() . '.companies_id';
-        $companies = $company->ids === [(int) $company->home->getId()]
-            ? collect([$company->home])
-            : Companies::query()->whereIn('id', $company->ids)->get();
+        $companies = $company->companyIds === [(int) $company->ownCompany->getId()]
+            ? collect([$company->ownCompany])
+            : Companies::query()->whereIn('id', $company->companyIds)->get();
 
         return $query->where(function (Builder $outer) use ($companies, $tenantColumn, $column, $open): void {
             foreach ($companies as $member) {

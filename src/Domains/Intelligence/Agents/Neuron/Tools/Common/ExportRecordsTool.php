@@ -89,7 +89,7 @@ class ExportRecordsTool extends Tool
         }
 
         try {
-            $rows = $exporter->rows($this->app, $this->readCompanyScope(), $filters);
+            $rows = $exporter->rows($this->app, $this->auditedReadScope(), $filters);
         } catch (Throwable $e) {
             return ['error' => $e->getMessage()];
         }

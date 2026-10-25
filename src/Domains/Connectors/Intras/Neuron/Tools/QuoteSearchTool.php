@@ -129,7 +129,7 @@ class QuoteSearchTool extends Tool
             $totals = $service->aggregate(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 AggregateRequest::fromInput(
                     aggregates: [
                         ['function' => 'COUNT', 'alias' => 'cotizaciones'],
@@ -152,7 +152,7 @@ class QuoteSearchTool extends Tool
                 $result['breakdown'] = $service->aggregate(
                     $definition,
                     $this->app,
-                    $this->readCompanyScope(),
+                    $this->auditedReadScope(),
                     AggregateRequest::fromInput(
                         aggregates: [
                             ['function' => 'COUNT', 'alias' => 'cotizaciones'],
@@ -171,7 +171,7 @@ class QuoteSearchTool extends Tool
             $result['cotizaciones_detalle'] = $service->search(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 $filters,
                 select: ['numero', 'empresa', 'estatus', 'es_aprobada', 'monto', 'area', 'fecha_solicitud', 'facilitadores', 'temas'],
                 limit: $limit ?? 25

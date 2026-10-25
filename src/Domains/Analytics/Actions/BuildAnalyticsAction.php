@@ -91,7 +91,7 @@ class BuildAnalyticsAction
         $table = $instance->getTable();
 
         $query->where("{$table}.apps_id", $this->app->getId());
-        CompanyScope::constrain($query, "{$table}.companies_id", $this->company);
+        CompanyScope::applyToQuery($query, "{$table}.companies_id", $this->company);
         $query->where("{$table}.is_deleted", 0);
 
         $query->whereBetween(

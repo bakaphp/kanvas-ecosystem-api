@@ -59,7 +59,7 @@ class ReportQueryService
         Companies|CompanyScope $company,
         array $filters = []
     ): Builder {
-        $query = CompanyScope::constrain(
+        $query = CompanyScope::applyToQuery(
             $this->schema->connection()->table($this->schema->tableFor($definition, $app->getId())),
             ReportSchemaService::TENANT_COLUMN,
             $company,
@@ -99,7 +99,7 @@ class ReportQueryService
             }
 
             // A cross-company read labels every row, which needs the tenant column in the projection.
-            if (CompanyScope::spans($company) && ! in_array(ReportSchemaService::TENANT_COLUMN, $select, true)) {
+            if (CompanyScope::needsTenantLabel($company) && ! in_array(ReportSchemaService::TENANT_COLUMN, $select, true)) {
                 $select[] = ReportSchemaService::TENANT_COLUMN;
             }
         }
@@ -131,11 +131,11 @@ class ReportQueryService
      */
     private function labelTenant(array $row, Companies|CompanyScope $company): array
     {
-        if (! CompanyScope::spans($company) || ! isset($row[ReportSchemaService::TENANT_COLUMN])) {
+        if (! CompanyScope::needsTenantLabel($company) || ! isset($row[ReportSchemaService::TENANT_COLUMN])) {
             return $row;
         }
 
-        return [...$row, ...$company->tenantLabel((int) $row[ReportSchemaService::TENANT_COLUMN])];
+        return [...$row, ...$company->tenantLabelFor((int) $row[ReportSchemaService::TENANT_COLUMN])];
     }
 
     /**

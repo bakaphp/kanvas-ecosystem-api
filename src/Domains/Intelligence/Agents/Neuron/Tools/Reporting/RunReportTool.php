@@ -211,7 +211,7 @@ class RunReportTool extends Tool
             $counts = $service->count(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 $parsed,
                 $distinct
             );
@@ -228,7 +228,7 @@ class RunReportTool extends Tool
                 $breakdown = $service->aggregate(
                     $definition,
                     $this->app,
-                    $this->readCompanyScope(),
+                    $this->auditedReadScope(),
                     $request,
                     $parsed
                 );
@@ -247,7 +247,7 @@ class RunReportTool extends Tool
             $rows = $service->search(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 $parsed,
                 select: Str::commaList($select) ?: null,
                 limit: $limit ?? 50,

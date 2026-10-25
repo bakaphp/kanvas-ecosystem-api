@@ -229,10 +229,10 @@ class ReportQueryServiceTest extends TestCase
     public function test_a_company_scope_reads_every_company_in_it_and_labels_the_rows(): void
     {
         $this->seedRowForTheOtherCompany();
-        $scope = CompanyScope::of($this->kanvasApp, $this->company, [self::COMPANY + 1]);
+        $scope = CompanyScope::withCompanies($this->kanvasApp, $this->company, [self::COMPANY + 1]);
 
         $this->assertSame(4, $this->service->count($this->definition, $this->kanvasApp, $scope)['rows']);
-        $this->assertSame(3, $this->service->count($this->definition, $this->kanvasApp, CompanyScope::homeOnly($this->kanvasApp, $this->company))['rows']);
+        $this->assertSame(3, $this->service->count($this->definition, $this->kanvasApp, CompanyScope::ownCompanyOnly($this->kanvasApp, $this->company))['rows']);
 
         $rows = $this->service->search(
             $this->definition,

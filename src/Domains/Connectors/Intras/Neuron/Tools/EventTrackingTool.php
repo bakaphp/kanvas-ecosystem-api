@@ -147,7 +147,7 @@ class EventTrackingTool extends Tool
     {
         $rows = OpenEventsTrackingRepository::forCompany(
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             ['weeks_ahead' => $weeksAhead]
         );
 
@@ -186,7 +186,7 @@ class EventTrackingTool extends Tool
             'eventos' => array_slice($events, 0, $limit),
             'total' => count($events),
             'reglas' => $this->rules(),
-            ...$this->scopeSummary(),
+            ...$this->tenantScopeSummary(),
         ];
     }
 

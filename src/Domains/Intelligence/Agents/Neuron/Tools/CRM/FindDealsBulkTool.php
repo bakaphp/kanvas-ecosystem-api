@@ -34,7 +34,7 @@ class FindDealsBulkTool extends FindCrmRecordsBulkTool
     {
         return Deal::query()
             ->fromApp($this->app)
-            ->fromCompany($this->readCompanyScope())
+            ->fromCompany($this->auditedReadScope())
             ->notDeleted()
             ->with(['owner', 'people', 'pipelineStage', 'leadStatus']);
     }
@@ -70,6 +70,6 @@ class FindDealsBulkTool extends FindCrmRecordsBulkTool
     #[Override]
     protected function applyStatus(Builder $query, string $status): Builder
     {
-        return $query->havingDealState($status, $this->readCompanyScope());
+        return $query->havingDealState($status, $this->auditedReadScope());
     }
 }
