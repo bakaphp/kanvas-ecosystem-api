@@ -62,6 +62,8 @@ class UpdateProductAction
                     'upc' => $this->productDto->upc ?? $this->product->upc,
                     'status_id' => $this->productDto->status_id ?? $this->product->status_id,
                     'weight' => $this->productDto->weight ?? $this->product->weight ?? 0,
+                    'tax_category' => $this->productDto->tax_category ?? $this->product->tax_category,
+                    'tax_code_override' => $this->productDto->tax_code_override ?? $this->product->tax_code_override,
                 ]
             );
 

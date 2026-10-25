@@ -113,6 +113,11 @@ class CreateExternalOrderAction
         $kanvasOrder->fulfillment_status = $order->fulfillment_status;
         $kanvasOrder->resources_id = $order->id;
         $kanvasOrder->resources_type = $order->getMorphClass();
+
+        if ($kanvasOrder->tax_amount > 0) {
+            $kanvasOrder->tax_source = 'imported';
+        }
+
         $kanvasOrder->saveQuietly();
 
         return $kanvasOrder;

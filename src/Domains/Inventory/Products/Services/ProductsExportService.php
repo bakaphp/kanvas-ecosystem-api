@@ -52,7 +52,7 @@ class ProductsExportService
             (string) ($variant->sku ?? $variant->id),
             (int) $variant->quantity,
             (float) $variant->price,
-            (float) ($variant->tax ?? 0),
+            (float) ($variant->tax_amount ?? 0),
             (float) ($variant->discount ?? 0),
             'USD',
             $config['minimum_quantity'] ?? "N/A",

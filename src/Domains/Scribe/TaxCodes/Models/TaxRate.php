@@ -17,6 +17,7 @@ use Kanvas\Scribe\Ledger\Models\Account;
  * @property float $rate
  * @property int|null $tax_account_id
  * @property int $sort_order
+ * @property bool $is_active
  * @property Carbon $effective_from
  * @property Carbon|null $effective_to
  * @property array|null $metadata
@@ -29,6 +30,7 @@ class TaxRate extends EloquentModel
 
     protected $casts = [
         'rate' => 'float',
+        'is_active' => 'boolean',
         'effective_from' => 'date',
         'effective_to' => 'date',
         'metadata' => Json::class,

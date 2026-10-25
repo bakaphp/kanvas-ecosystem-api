@@ -230,6 +230,14 @@ services:
             - "-c"
             - "php artisan config:cache && exec php artisan queue:work
               --queue=lead_follow_ups --tries=3 --timeout=3750"
+    souk-tax-queue:
+        <<: *common-queue-settings
+        container_name: souk-tax-queue
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && php artisan queue:work
+              --queue=souk-tax --tries=3 --timeout=3750"
 
     reverb:
         container_name: reverb${APP_CONTAINER_NAME}

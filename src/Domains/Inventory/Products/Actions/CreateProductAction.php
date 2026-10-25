@@ -59,6 +59,8 @@ class CreateProductAction
                 'status_id' => $this->productDto->status_id,
                 'users_id' => $this->user->getId(),
                 'weight' => $this->productDto->weight ?? $existingProduct?->weight ?? 0,
+                'tax_category' => $this->productDto->tax_category,
+                'tax_code_override' => $this->productDto->tax_code_override,
             ];
 
             //for now use isAdmin until we have the full role online
