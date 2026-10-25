@@ -15,4 +15,5 @@ enum MovipassRolesEnum: string
     case PARQUEAT = 'parqueat';
     case PARKING_MANAGER = 'Parqueos';
     case PARKING_OPERATOR = 'ParkingSales';
+    case INSURER = 'Aseguradora';
 }

@@ -8,6 +8,7 @@ type Contact {
     validation_status: String! @method(name: "validationStatusValue")
     bounced_at: String
     is_deliverable: Boolean! @method(name: "isDeliverable")
+    is_landline: Boolean @method(name: "isLandline")
 }
 
 type ContactType {

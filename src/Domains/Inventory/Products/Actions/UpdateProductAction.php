@@ -10,6 +10,7 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Recommendations\Enrichment\Jobs\EnrichProductJob;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -103,6 +104,8 @@ class UpdateProductAction
             WorkflowEnum::UPDATED->value,
             true
         );
+
+        EnrichProductJob::dispatchIfEnabled($this->product);
 
         return $this->product;
     }

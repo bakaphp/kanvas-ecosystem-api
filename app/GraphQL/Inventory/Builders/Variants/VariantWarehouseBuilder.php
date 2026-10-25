@@ -6,6 +6,7 @@ namespace App\GraphQL\Inventory\Builders\Variants;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Models\Variants as ModelsVariants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
@@ -25,7 +26,7 @@ class VariantWarehouseBuilder
         $warehouse = Warehouses::fromApp()
         ->where('id', $warehouseId)
         ->unless(auth()->user()->isAppOwner(), function (Builder $warehouse) {
-            $warehouse->fromCompany(auth()->user()->getCurrentCompany());
+            $warehouse->fromCompany(LocationContext::shoppingCompany(auth()->user()));
         })
         ->firstOrFail();
 
@@ -56,15 +57,16 @@ class VariantWarehouseBuilder
         $warehouse = Warehouses::fromApp()
         ->where('id', $warehouseId)
         ->unless(auth()->user()->isAppOwner(), function (Builder $warehouse) {
-            $warehouse->fromCompany(auth()->user()->getCurrentCompany());
+            $warehouse->fromCompany(LocationContext::shoppingCompany(auth()->user()));
         });
 
         $statusId = collect($statusId)->map(function ($id) {
             $status = Status::fromApp()
             ->where('id', $id)
             ->unless(auth()->user()->isAppOwner(), function (Builder $status) {
-                $status->fromCompany(auth()->user()->getCurrentCompany());
+                $status->fromCompany(LocationContext::shoppingCompany(auth()->user()));
             });
+
             return $status->firstOrFail()->getId();
         })->toArray();
 
@@ -85,6 +87,7 @@ class VariantWarehouseBuilder
         if (! auth()->user()->isAppOwner()) {
             $builder->where($variantWarehouse->getTable() . '.warehouses_id', '=', $warehouse->getId());
         }
+
         /**
          * @var Builder
          */

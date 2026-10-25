@@ -1,0 +1,219 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Guild\Customers\Concerns;
+
+use Illuminate\Support\Collection;
+use Kanvas\Guild\Customers\DataTransferObject\Contact as ContactData;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People;
+use Spatie\LaravelData\DataCollection;
+
+trait ManagesPeopleContacts
+{
+    protected function deduplicateContacts(DataCollection $contacts): Collection
+    {
+        return $contacts
+            ->toCollection()
+            ->filter(fn ($contact) => ! empty($contact->value))
+            ->unique(fn ($contact) => Contact::normalizeValue($contact->value, $contact->contacts_types_id) . '_' . $contact->contacts_types_id)
+            ->values();
+    }
+
+    protected function findExistingContact(People $people, ContactData $contact, string $normalizedValue): ?Contact
+    {
+        if (isset($contact->id) && (int) $contact->id > 0) {
+            /** @var Contact|null $byId */
+            $byId = $people->contacts()
+                ->withTrashed()
+                ->where('id', $contact->id)
+                ->first();
+
+            if ($byId !== null) {
+                return $byId;
+            }
+
+            // The incoming id is stale or belongs to a third-party system (after a prior sync
+            // recreated the row, its local id no longer matches what the provider sends back).
+            // Never treat that as "new" — fall through to natural-key matching so we update the
+            // existing row in place instead of deleting + recreating it on every sync.
+        }
+
+        // Match against soft-deleted rows too, ordered active-first. When a value we've seen
+        // before comes back (e.g. a number that flipped away and back), we restore the existing
+        // row instead of inserting a duplicate — so soft-deleted rows don't pile up and the
+        // contact keeps a stable id. The caller clears is_deleted on the matched row.
+        $query = $people->contacts()
+            ->withTrashed()
+            ->where('contacts_types_id', $contact->contacts_types_id)
+            ->orderBy('is_deleted');
+
+        if (Contact::isPhoneType($contact->contacts_types_id)) {
+            // Match on the canonical NANP form (last 10 digits) so a country-code prefix or
+            // punctuation difference (+1 / (201) / -) doesn't read as a removed-then-added phone.
+            $query->whereRaw("RIGHT(REGEXP_REPLACE(value, '[^0-9]', ''), 10) = ?", [$normalizedValue]);
+        } else {
+            $query->where('value', $normalizedValue);
+        }
+
+        /** @var Contact|null */
+        return $query->first();
+    }
+
+    protected function addNewContact(People $people, ContactData $contact): ?Contact
+    {
+        $isOptOut = (int) ($contact->is_opt_out ?? 0);
+
+        /** @var Contact|null */
+        return match ($contact->contacts_types_id) {
+            ContactTypeEnum::PHONE->value => $people->addPhone($contact->value, $isOptOut, $contact->weight),
+            ContactTypeEnum::CELLPHONE->value => $people->addCellphone($contact->value, $isOptOut, $contact->weight),
+            ContactTypeEnum::EMAIL->value => $people->addEmail($contact->value, $isOptOut, $contact->weight),
+            default => null,
+        };
+    }
+
+    protected function syncContactsForCreate(People $people, DataCollection $contacts): void
+    {
+        if (! $contacts->count()) {
+            return;
+        }
+
+        $existingContacts = $people->contacts()
+            ->select('value', 'contacts_types_id')
+            ->get()
+            ->map(fn ($c) => Contact::normalizeValue($c->value, $c->contacts_types_id) . '_' . $c->contacts_types_id)
+            ->toArray();
+
+        $deduplicatedContacts = $this->deduplicateContacts($contacts);
+        $contactsToAdd = [];
+
+        foreach ($deduplicatedContacts as $contact) {
+            $contactKey = Contact::normalizeValue($contact->value, $contact->contacts_types_id) . '_' . $contact->contacts_types_id;
+
+            if (in_array($contactKey, $existingContacts)) {
+                continue;
+            }
+
+            $createdContact = $this->addNewContact($people, $contact);
+
+            if ($createdContact === null) {
+                $contactsToAdd[] = new Contact([
+                    'contacts_types_id' => $contact->contacts_types_id,
+                    'value' => $contact->value,
+                    'is_opt_out' => (int) ($contact->is_opt_out ?? 0),
+                    'weight' => $contact->weight,
+                ]);
+            }
+        }
+
+        if (! empty($contactsToAdd)) {
+            $people->contacts()->saveMany($contactsToAdd);
+        }
+    }
+
+    /**
+     * @todo remove once frontend sends opt-out updates via a separate mutation
+     */
+    protected function isOptOutOnlyUpdate(Collection $contacts, People $people): bool
+    {
+        if ($contacts->count() !== 1) {
+            return false;
+        }
+
+        $contact = $contacts->first();
+        if ($contact->is_opt_out === null) {
+            return false;
+        }
+
+        $normalizedValue = Contact::normalizeValue($contact->value, $contact->contacts_types_id);
+        $existingContact = $this->findExistingContact($people, $contact, $normalizedValue);
+
+        //use a normal query without call existing cause of the id issue we cant us it because if overwritten
+        if (! $existingContact) {
+            $existingContact = $people->contacts()
+                ->where('contacts_types_id', $contact->contacts_types_id)
+                ->whereRaw("RIGHT(REGEXP_REPLACE(value, '[^0-9]', ''), 10) = ?", [$normalizedValue])
+                ->first();
+        }
+
+        if (! $existingContact) {
+            return true;
+        }
+
+        $existingContact->is_opt_out = (int) ($contact->is_opt_out ?? 0);
+        $existingContact->value = $contact->value;
+        $existingContact->saveOrFail();
+
+        return true;
+    }
+
+    /**
+     * $merge = the incoming list is a partial payload (one webhook's phone, one enrichment email),
+     * so contacts it doesn't mention are left alone. Default stays authoritative: whatever is
+     * missing from the list is removed, which is what a full form/provider sync means.
+     */
+    protected function syncContactsForUpdate(People $people, DataCollection $contacts, bool $merge = false): void
+    {
+        if (! $contacts->count()) {
+            return;
+        }
+
+        $deduplicatedContacts = $this->deduplicateContacts($contacts);
+
+        // @todo remove once frontend sends opt-out updates via a separate mutation
+        if ($this->isOptOutOnlyUpdate($deduplicatedContacts, $people)) {
+            return;
+        }
+
+        $keepIds = [];
+        $contactsToAdd = [];
+
+        foreach ($deduplicatedContacts as $contact) {
+            $normalizedValue = Contact::normalizeValue($contact->value, $contact->contacts_types_id);
+            $existingContact = $this->findExistingContact($people, $contact, $normalizedValue);
+
+            if ($existingContact) {
+                $existingContact->value = $contact->value;
+                $existingContact->contacts_types_id = $contact->contacts_types_id;
+                $existingContact->weight = $contact->weight;
+                $existingContact->is_opt_out = (int) ($contact->is_opt_out ?? $existingContact->is_opt_out);
+                $existingContact->is_deleted = 0; // restore in place if the matched row was soft-deleted
+                $existingContact->saveOrFail();
+                $keepIds[] = $existingContact->id;
+            } else {
+                $createdContact = $this->addNewContact($people, $contact);
+
+                if ($createdContact !== null) {
+                    $keepIds[] = $createdContact->id;
+                } else {
+                    $contactsToAdd[] = new Contact([
+                        'contacts_types_id' => $contact->contacts_types_id,
+                        'value' => $contact->value,
+                        'is_opt_out' => (int) ($contact->is_opt_out ?? 0),
+                        'weight' => $contact->weight,
+                    ]);
+                }
+            }
+        }
+
+        if (! empty($contactsToAdd)) {
+            $savedContacts = $people->contacts()->saveMany($contactsToAdd);
+            foreach ($savedContacts as $saved) {
+                $keepIds[] = $saved->id;
+            }
+        }
+
+        if ($merge) {
+            return;
+        }
+
+        if (! empty($keepIds)) {
+            $people->contacts()->whereNotIn('id', $keepIds)->delete();
+        } else {
+            $people->contacts()->delete();
+        }
+    }
+}

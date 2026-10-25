@@ -10,12 +10,12 @@ class Inspeccion extends Data
 {
     public function __construct(
         public string $tipo,
-        public string $placa,
-        public string $color,
-        public int $cilindraje,
-        public int $puertas,
-        public string $chasis,
-        public string $motor,
+        public string $placa = '',
+        public string $color = '',
+        public int $cilindraje = 0,
+        public int $puertas = 0,
+        public string $chasis = '',
+        public string $motor = '',
     ) {
     }
 }

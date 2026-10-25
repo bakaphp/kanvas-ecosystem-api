@@ -23,7 +23,7 @@ use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
@@ -37,6 +37,7 @@ use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
+use Kanvas\Templates\Support\TemplateSandbox;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
@@ -489,6 +490,17 @@ class Agent extends BaseModel
     }
 
     /**
+     * @param array<string, mixed> $context
+     */
+    public function renderRoleSection(string $key, array $context = [], string $separator = ' '): string
+    {
+        return TemplateSandbox::render(
+            $this->roleSection($key, $separator),
+            $context
+        );
+    }
+
+    /**
      * The agent whose identity is this user, within a tenant — how any user-targeted
      * signal (assignment, @mention, ...) asks "is this teammate actually an agent?".
      * Company-scoped, so it never resolves an agent from another tenant.
@@ -559,8 +571,10 @@ class Agent extends BaseModel
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }

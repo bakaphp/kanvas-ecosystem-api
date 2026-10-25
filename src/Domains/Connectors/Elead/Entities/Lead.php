@@ -480,12 +480,9 @@ class Lead
         );
     }
 
-    /**
-     * Get customer.
-     */
-    public function customer(): Customer
+    public function customer(bool $fresh = false): Customer
     {
-        return Customer::getById($this->app, $this->company, $this->customerId);
+        return Customer::getById($this->app, $this->company, $this->customerId, $fresh);
     }
 
     /**

@@ -9,8 +9,8 @@ use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Recommendations\Contracts\ProductDiscoveryInterface;
-use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
-use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
+use Kanvas\Inventory\Recommendations\Discovery\DiscoveryQuery;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Override;
 
 /**
@@ -27,28 +27,78 @@ class SqlProductDiscoveryService implements ProductDiscoveryInterface
     }
 
     /**
+     * Constraints are not applied here: price and numeric attributes live on
+     * variants and attribute rows, and the caller re-checks every hard constraint
+     * against the database after this nominates ids.
+     *
      * @param float[]|null $tasteVector ignored — SQL has no vector space
      *
      * @return list<int>
      */
     #[Override]
-    public function search(ProductIntent $intent, int $limit, ?array $tasteVector = null): array
+    public function search(DiscoveryQuery $query, int $limit, ?array $tasteVector = null): array
     {
-        $terms = $this->tokenizer->tokenize($intent->sentence);
-        $query = $this->baseQuery();
+        $exact = $this->exactMatches($this->tokenizer->identifiers($query->text), $limit);
+        $terms = $this->tokenizer->tokenize($query->text);
 
-        if ($terms !== []) {
-            $query->where(function (Builder $builder) use ($terms): void {
+        // A sentence the tokenizer emptied ("X5", "123456") would otherwise skip the
+        // `where` and return the whole catalog by rating.
+        if ($terms === []) {
+            return $exact;
+        }
+
+        $matches = $this->baseQuery()
+            ->where(function (Builder $builder) use ($terms): void {
                 foreach ($terms as $term) {
                     $escaped = '%' . addcslashes($term, '%_\\') . '%';
                     $builder->orWhere('name', 'LIKE', $escaped)
                         ->orWhere('description', 'LIKE', $escaped);
                 }
-            });
+            })
+            ->orderByDesc('rating')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->pluck('id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->all();
+
+        return array_slice(array_values(array_unique([...$exact, ...$matches])), 0, $limit);
+    }
+
+    #[Override]
+    public function supportsVectors(): bool
+    {
+        return false;
+    }
+
+    #[Override]
+    public function canFilterOn(string $field): bool
+    {
+        return false;
+    }
+
+    /**
+     * @param list<string> $identifiers
+     *
+     * @return list<int>
+     */
+    private function exactMatches(array $identifiers, int $limit): array
+    {
+        if ($identifiers === []) {
+            return [];
         }
 
-        return $query->orderByDesc('rating')
-            ->orderByDesc('id')
+        $variantProductIds = Variants::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('is_deleted', 0)
+            ->whereIn('sku', $identifiers)
+            ->pluck('products_id');
+
+        return $this->baseQuery()
+            ->where(function (Builder $builder) use ($identifiers, $variantProductIds): void {
+                $builder->whereIn('slug', $identifiers)
+                    ->orWhereIn('id', $variantProductIds);
+            })
             ->limit($limit)
             ->pluck('id')
             ->map(static fn (mixed $id): int => (int) $id)
@@ -63,7 +113,7 @@ class SqlProductDiscoveryService implements ProductDiscoveryInterface
             ->notDeleted()
             ->where('is_published', 1);
 
-        if (! (bool) $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value)) {
+        if (! ProductDiscoverySettings::crossCompanyVariants($this->app)) {
             $query->where('companies_id', $this->company->getId());
         }
 

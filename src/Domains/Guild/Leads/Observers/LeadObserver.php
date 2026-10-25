@@ -72,6 +72,8 @@ class LeadObserver
 
             $lead->leads_receivers_id = $receiver ? $receiver->id : 0;
         }
+
+        $lead->stampClosedAtOnCreate('leads_status_id');
     }
 
     // Stage changes can originate from many call sites (UI, deal-won actions,
@@ -96,6 +98,11 @@ class LeadObserver
                 fromStageId: $fromStageId !== null ? (int) $fromStageId : null,
                 toStageId: (int) $toStageId,
             )->execute();
+        }
+
+        $transition = $lead->syncClosedAtFromStatusChange('leads_status_id');
+        if ($transition !== null) {
+            $lead->emitLedgerEvent('lead.status.changed', payload: $transition);
         }
     }
 

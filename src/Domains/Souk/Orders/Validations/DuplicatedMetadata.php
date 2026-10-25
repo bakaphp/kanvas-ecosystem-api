@@ -26,25 +26,48 @@ class DuplicatedMetadata implements ValidationRule
     #[Override]
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if (! $this->app->get(ConfigurationEnum::VALIDATE_METADATA_DUPLICATED_ENABLED->value)) {
+        $target = $this->resolveTarget($value);
+
+        if ($target === null) {
             return;
+        }
+
+        [$settings, $fieldValue] = $target;
+
+        if ($this->isDuplicate($fieldValue, $settings)) {
+            $fail("The {$attribute} contains a duplicate value for field '{$settings['field']}'.");
+        }
+    }
+
+    public function lockKey(mixed $metadata): ?string
+    {
+        $target = $this->resolveTarget($metadata);
+
+        if ($target === null) {
+            return null;
+        }
+
+        [$settings, $fieldValue] = $target;
+        $normalizedValue = is_string($fieldValue) ? strtolower($fieldValue) : json_encode($fieldValue);
+
+        return 'order_duplicate:' . $this->app->getId() . ':' . sha1($settings['field'] . '|' . $normalizedValue);
+    }
+
+    private function resolveTarget(mixed $metadata): ?array
+    {
+        if (! $this->app->get(ConfigurationEnum::VALIDATE_METADATA_DUPLICATED_ENABLED->value)) {
+            return null;
         }
 
         $settings = $this->resolveSettings($this->orderType?->config ?? []);
 
         if (! $settings['field']) {
-            return;
+            return null;
         }
 
-        $fieldValue = $this->extractFieldValue($value, $settings['field']);
+        $fieldValue = $this->extractFieldValue($metadata, $settings['field']);
 
-        if (! $fieldValue) {
-            return;
-        }
-
-        if ($this->isDuplicate($fieldValue, $settings)) {
-            $fail("The {$attribute} contains a duplicate value for field '{$settings['field']}'.");
-        }
+        return $fieldValue ? [$settings, $fieldValue] : null;
     }
 
     private function resolveSettings(array $config): array

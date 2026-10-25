@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Rules\Support;
 
 use ArrayAccess;
+use DateTimeInterface;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Enumerable;
+use Kanvas\Templates\Support\PlainData;
 use Override;
 
 /**
@@ -27,9 +31,8 @@ final class ExpressionData implements ArrayAccess
     }
 
     /**
-     * Wrap every array entry in the ExpressionLanguage values map so top-level JSON/array attributes
-     * become dot-navigable. Scalars and objects (the entity, relations, app) pass through untouched —
-     * only arrays are wrapped, and only navigation (dot/bracket) semantics change, never comparison.
+     * Wrap every entry in the ExpressionLanguage values map: arrays become dot-navigable and models
+     * become an ExpressionModel. Only navigation changes, never comparison.
      *
      * @param array<array-key, mixed> $values
      *
@@ -37,15 +40,27 @@ final class ExpressionData implements ArrayAccess
      */
     public static function wrapValues(array $values): array
     {
-        return array_map(
-            fn (mixed $value): mixed => is_array($value) ? new self($value) : $value,
-            $values
-        );
+        return array_map(self::wrapValue(...), $values);
+    }
+
+    /**
+     * Only a model (through ExpressionModel) can take a method call. Any other object is flattened, so
+     * an allowlisted name such as get() never reaches a client or cache that happens to be in context.
+     */
+    public static function wrapValue(mixed $value): mixed
+    {
+        return match (true) {
+            is_array($value) => new self($value),
+            $value instanceof Model => new ExpressionModel($value),
+            $value instanceof Enumerable => new self($value->all()),
+            $value instanceof DateTimeInterface, ! is_object($value) => $value,
+            default => self::wrapValue(PlainData::from($value)),
+        };
     }
 
     public function __get(string $name): mixed
     {
-        return $this->wrap($this->data[$name] ?? null);
+        return self::wrapValue($this->data[$name] ?? null);
     }
 
     public function __isset(string $name): bool
@@ -62,7 +77,7 @@ final class ExpressionData implements ArrayAccess
     #[Override]
     public function offsetGet(mixed $offset): mixed
     {
-        return $this->wrap($this->data[$offset] ?? null);
+        return self::wrapValue($this->data[$offset] ?? null);
     }
 
     #[Override]
@@ -73,10 +88,5 @@ final class ExpressionData implements ArrayAccess
     #[Override]
     public function offsetUnset(mixed $offset): void
     {
-    }
-
-    private function wrap(mixed $value): mixed
-    {
-        return is_array($value) ? new self($value) : $value;
     }
 }

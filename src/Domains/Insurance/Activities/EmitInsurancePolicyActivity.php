@@ -1,0 +1,99 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Insurance\Activities;
+
+use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Insurance\Actions\SettleInsurancePaymentAction;
+use Kanvas\Insurance\Concerns\FailsReleasingHeldPayment;
+use Kanvas\Insurance\Contracts\InspectionProviderInterface;
+use Kanvas\Insurance\Contracts\PolicyEmissionProviderInterface;
+use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderOriginEnum;
+use Kanvas\Insurance\Enums\InsuranceStatusEnum;
+use Kanvas\Insurance\Providers\InsuranceProviderFactory;
+use Kanvas\Insurance\Services\InsuranceStatus;
+use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\KanvasActivity;
+use Override;
+
+#[WorkflowAction(
+    name: 'Insurance Emit Policy',
+    description: 'Asks the insurer to issue the policy for an insurance order and, once the policy exists, captures the held card payment. '
+        . 'Use it after the payment has been reported to the insurer; it refuses to run before that (status paid) and, for insurers that inspect the vehicle, before the inspection documents are uploaded. Those two are recoverable ordering problems, so the hold is kept and the step can run again. '
+        . 'If the insurer rejects the emission it marks the order failed and voids the hold. If the insurer answers but the policy is not ready yet it returns pending, and the sync step picks it up later. '
+        . 'This is the step that charges the customer. Do NOT run it before the quote is attached and the payment reported.',
+)]
+class EmitInsurancePolicyActivity extends KanvasActivity implements WorkflowActivityInterface
+{
+    use FailsReleasingHeldPayment;
+
+    #[Override]
+    public function execute(Model $order, AppInterface $app, array $params = []): array
+    {
+        $this->overwriteAppService($app);
+
+        if (InsuranceOrderOriginEnum::isRegistered($order)) {
+            return InsuranceOrderOriginEnum::purchaseFlowSkipped($order);
+        }
+
+        if (empty($order->get(InsuranceCustomFieldEnum::QUOTE_NUMBER->value))) {
+            return $this->failReleasingHold($order, 'Order has no insurance quote number');
+        }
+
+        $provider = InsuranceProviderFactory::forOrder($order);
+
+        if (! $provider instanceof PolicyEmissionProviderInterface) {
+            return $this->failReleasingHold($order, $provider->name() . ' does not emit policies');
+        }
+
+        $status = InsuranceStatus::of($order);
+
+        if (! in_array($status, [InsuranceStatusEnum::PAID, InsuranceStatusEnum::EMITTED], true)) {
+            return $this->failWorkflow([
+                'order' => $order->getId(),
+                'message' => 'Payment has not been reported to the insurer yet (status: ' . ($status?->value ?? '') . ')',
+            ]);
+        }
+
+        if (
+            $provider instanceof InspectionProviderInterface
+            && $provider->requiresInspection($order)
+            && trim((string) $order->get(InsuranceCustomFieldEnum::UPLOADED_DOCUMENTS->value)) === ''
+        ) {
+            return $this->failWorkflow([
+                'order' => $order->getId(),
+                'message' => 'Inspection documents are required before emission',
+            ]);
+        }
+
+        return $this->executeIntegration(
+            entity: $order,
+            app: $app,
+            integration: $provider->integration(),
+            additionalParams: $params,
+            integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($provider) {
+                try {
+                    $policy = $provider->emit($order);
+                } catch (ValidationException $e) {
+                    return $this->failReleasingHold($order, $e->getMessage());
+                }
+
+                $captured = $policy->success ? new SettleInsurancePaymentAction($order)->capture() : null;
+
+                return [
+                    'order' => $order->getId(),
+                    'status' => $policy->success ? 'success' : 'pending',
+                    'message' => $policy->message,
+                    'policyNumber' => $policy->policyNumber,
+                    'paymentCaptured' => $captured === true,
+                ];
+            },
+            company: $order->company,
+        );
+    }
+}

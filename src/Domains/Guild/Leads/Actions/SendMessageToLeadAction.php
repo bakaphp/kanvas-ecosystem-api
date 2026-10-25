@@ -54,6 +54,7 @@ class SendMessageToLeadAction
     private const int TWILIO_UNSUBSCRIBED_RECIPIENT_CODE = 21610;
     private const int DEFAULT_TWILIO_MAX_MESSAGE_BODY_LENGTH = 1600;
     private const array APPROVED_A2P_REGISTRATION_STATUSES = ['approved', 'registered', 'verified', 'active'];
+    private const string SMS_ALLOWED_LINE_TYPE = 'mobile';
 
     /**
      * Default media items per Twilio MMS API call. Override per-app via
@@ -76,8 +77,6 @@ class SendMessageToLeadAction
     protected string $attemptUuid;
     protected ?string $attemptedFrom = null;
     protected ?string $attemptedTo = null;
-    protected int $retryNumber = 0;
-    protected ?int $parentAttemptId = null;
     protected bool $isOptOutConfirmation = false;
     protected ?Users $signatureOwner = null;
 
@@ -92,14 +91,6 @@ class SendMessageToLeadAction
         protected Lead $lead,
     ) {
         $this->attemptUuid = Uuid::uuid4()->toString();
-    }
-
-    public function withRetryContext(int $parentAttemptId, int $retryNumber = 1): self
-    {
-        $this->parentAttemptId = $parentAttemptId;
-        $this->retryNumber = $retryNumber;
-
-        return $this;
     }
 
     /**
@@ -155,8 +146,6 @@ class SendMessageToLeadAction
 
             if ($channel === LeadCommunicationChannelEnum::SMS->value) {
                 $result['attempt_uuid'] = $this->attemptUuid;
-                $result['parent_attempt_id'] = $this->parentAttemptId;
-                $result['retry_number'] = $this->retryNumber;
                 $this->recordTwilioAttempt($result);
             }
 
@@ -190,8 +179,6 @@ class SendMessageToLeadAction
             'account_sid' => $this->lead->company?->get(TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value),
             'from' => $this->attemptedFrom,
             'to' => $this->attemptedTo,
-            'parent_attempt_id' => $this->parentAttemptId,
-            'retry_number' => $this->retryNumber,
         ], $classification);
 
         if ($channel === LeadCommunicationChannelEnum::SMS->value) {
@@ -775,15 +762,25 @@ class SendMessageToLeadAction
             );
         }
 
-        $unsupportedLine = match (strtolower((string) ($phoneNumber->lineTypeIntelligence['type'] ?? ''))) {
-            'landline' => 'a landline',
-            'premium' => 'a premium line',
-            default => null,
-        };
-        if ($unsupportedLine !== null) {
-            throw new LeadMissingContactException(
-                sprintf('Lead cellphone number %s is %s and cannot receive SMS messages', $cellphone, $unsupportedLine)
-            );
+        $receivedLineType = trim((string) ($phoneNumber->lineTypeIntelligence['type'] ?? ''));
+        $lineType = strtolower($receivedLineType);
+        if ($lineType !== '') {
+            $this->lead->people?->setPhoneLandline($cellphone, $lineType === 'landline');
+        }
+
+        // Allow-list on purpose: a type Twilio adds later, or a number it could not classify, must not slip through.
+        if ($lineType !== self::SMS_ALLOWED_LINE_TYPE) {
+            $lookupErrorCode = $phoneNumber->lineTypeIntelligence['error_code'] ?? null;
+
+            throw new LeadMissingContactException(sprintf(
+                'Lead cellphone number %s has line type %s; our policy only allows SMS to mobile numbers',
+                $cellphone,
+                match (true) {
+                    $lineType !== '' => $receivedLineType,
+                    $lookupErrorCode !== null => sprintf('unknown (Twilio lookup error %s)', $lookupErrorCode),
+                    default => 'unknown (Twilio returned no line type)',
+                },
+            ));
         }
 
         $lineStatus = strtolower((string) ($phoneNumber->lineStatus['status'] ?? 'unknown'));
@@ -1008,6 +1005,8 @@ class SendMessageToLeadAction
                 cc: $ccList,
                 attachmentUrls: $attachments,
                 signature: $ownerSignature,
+                trackingPerson: $this->lead->people,
+                trackingLead: $this->lead,
             )->execute();
 
             return $this->emailResult(

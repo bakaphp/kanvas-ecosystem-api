@@ -38,6 +38,7 @@ use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserContactsService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 class UserManagementMutation
 {
@@ -67,8 +68,15 @@ class UserManagementMutation
         $canEditUser = $user->isAdmin() || $user->can(AbilityEnum::MANAGE_USERS->value) || $user->isAppOwner();
         $userId = $canEditUser && (int) $request['id'] > 0 ? (int) $request['id'] : $user->getId();
 
-        if ($user->isAdmin()) {
+        if ($user->isOwnerOf($app)) {
             $userToEdit = UsersRepository::getUserOfAppById($userId, $app);
+        } elseif ($user->isAdmin()) {
+            // Roles are app-wide, so an admin reaches only the users of their own company, never an owner.
+            $userToEdit = UsersRepository::getUserOfCompanyById($company, $userId);
+
+            if ($userToEdit->getId() !== $user->getId() && $userToEdit->isOwnerOf($app)) {
+                throw new AuthorizationException('Only an owner of this app can edit an owner.');
+            }
         } else {
             UsersRepository::belongsToThisApp($user, $app);
             $userToEdit = $user; //UsersRepository::getUserOfCompanyById($company, (int) $userId); @todo lets wait and see if still needed

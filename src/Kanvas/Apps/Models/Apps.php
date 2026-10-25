@@ -27,6 +27,7 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Templates\Contracts\ExposesTemplateData;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -52,7 +53,7 @@ use Override;
  * @property string $updated_at
  * @property int $is_deleted
  */
-class Apps extends BaseModel implements AppInterface
+class Apps extends BaseModel implements AppInterface, ExposesTemplateData
 {
     use Cachable;
     use HashTableTrait;
@@ -348,5 +349,18 @@ class Apps extends BaseModel implements AppInterface
     public function getLogo(): ?FilesystemEntities
     {
         return $this->getFileByName('logo');
+    }
+
+    #[Override]
+    public function toTemplateData(): array
+    {
+        return [
+            'id' => $this->getId(),
+            'name' => $this->name,
+            'description' => $this->description,
+            'url' => $this->url,
+            'domain' => $this->domain,
+            'frontend_url' => config('kanvas.app.frontend_url'),
+        ];
     }
 }

@@ -10,24 +10,33 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Recommendations\Contracts\ProductDiscoveryInterface;
+use Kanvas\Inventory\Recommendations\Contracts\ServesSearchDocuments;
 use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
+use Kanvas\Inventory\Recommendations\Discovery\DiscoveryQuery;
+use Kanvas\Inventory\Recommendations\Discovery\DiscoveryQueryBuilder;
+use Kanvas\Inventory\Recommendations\Discovery\HardConstraintVerifier;
+use Kanvas\Inventory\Recommendations\Discovery\NumericAttributes;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Services\IntentLexiconService;
 use Kanvas\Inventory\Recommendations\Services\ProductDiscoveryResolver;
+use Kanvas\Inventory\Recommendations\Services\ProductDiscoverySettings;
 use Kanvas\Inventory\Recommendations\Services\ProductRecommendationPresenterService;
 use Kanvas\Inventory\Recommendations\Services\SearchTermTokenizerService;
-use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Throwable;
 
 /**
- * The engine only nominates ids; the DB read below is the tenant boundary.
+ * Answers from a third-party engine's documents without touching the database; the
+ * SQL fallback reads products back, tenant-scoped. Either way every hard constraint
+ * is re-checked on the rendered result before it leaves.
  */
 class RecommendProductsAction
 {
     private const int DEFAULT_LIMIT = 8;
     private const int MAX_LIMIT = 24;
     private const int DEFAULT_CACHE_TTL = 1800;
+    private const int MAX_DOCUMENT_CACHE_TTL = 300;
     private const int MAX_CANDIDATE_POOL = 60;
+    private const int MAX_CONSTRAINED_CANDIDATE_POOL = 100;
     private const int DEFAULT_MAX_PER_GROUP = 2;
     private const int DEFAULT_GROUP_BY_TOKENS = 2;
     private const int DEFAULT_UNAVAILABLE_PENALTY = 3;
@@ -54,55 +63,114 @@ class RecommendProductsAction
             return [];
         }
 
-        $limit = min(max($limit, 1), self::MAX_LIMIT);
-        $intent = ProductIntent::fromSentence($query, new IntentLexiconService($this->app));
-
-        // Wider than the page so diversify() has something to promote.
-        $ids = $this->candidateIds($intent, $this->candidatePoolSize($limit), $tasteVector);
-
-        return $ids === [] ? [] : $this->hydrate($ids, $intent, $limit);
+        return $this->executeIntent(
+            ProductIntent::fromSentence($query, new IntentLexiconService($this->app)),
+            $limit,
+            $tasteVector,
+        );
     }
 
     /**
+     * For callers that already hold structured, validated input (the agent's
+     * tool call, a storefront filter UI) laid over the parsed sentence.
+     *
      * @param float[]|null $tasteVector
      *
-     * @return list<int>
+     * @return array<int, array{product: array, variants: array}>
      */
-    private function candidateIds(ProductIntent $intent, int $limit, ?array $tasteVector): array
+    public function executeIntent(ProductIntent $intent, int $limit = self::DEFAULT_LIMIT, ?array $tasteVector = null): array
     {
-        if ($tasteVector !== null && $tasteVector !== []) {
-            return $this->runSearch($intent, $limit, $tasteVector);
+        if (trim($intent->sentence) === '' && $intent->query === null) {
+            return [];
         }
 
-        $key = $this->cacheKey($intent, $limit);
-        $cached = Cache::get($key);
+        $limit = min(max($limit, 1), self::MAX_LIMIT);
 
-        if (is_array($cached)) {
-            return $cached;
+        // Wider than the page so diversify() has something to promote, and wider
+        // still under hard constraints, which the recheck can thin out a lot.
+        [$candidates, $fromDocuments] = $this->candidates($intent, $this->candidatePoolSize($limit, $intent), $tasteVector);
+
+        if ($candidates === []) {
+            return [];
         }
 
-        $ids = $this->runSearch($intent, $limit, null);
+        $verifier = new HardConstraintVerifier($intent, NumericAttributes::fromApp($this->app));
+        $presenter = new ProductRecommendationPresenterService($this->app, $this->company);
 
-        // Never cache empty: an engine blip would answer "nothing matched" for the whole TTL.
-        if ($ids !== []) {
-            Cache::put($key, $ids, $this->cacheTtl());
-        }
+        $ranked = $fromDocuments
+            ? $this->fromDocuments($candidates, $presenter, $verifier)
+            : $this->fromDatabase($candidates, $presenter, $verifier);
 
-        return $ids;
+        $ranked = array_values(array_filter($ranked, fn (array $result): bool => ! $this->isExcludedCategory($result)));
+
+        return $this->diversify($this->demoteUnavailable($ranked), $limit);
     }
 
     /**
      * @param float[]|null $tasteVector
      *
-     * @return list<int>
+     * @return array{0: list<array<string, mixed>>|list<int>, 1: bool} candidates, and whether they are documents
      */
-    private function runSearch(ProductIntent $intent, int $limit, ?array $tasteVector): array
+    private function candidates(ProductIntent $intent, int $limit, ?array $tasteVector): array
     {
         $resolver = new ProductDiscoveryResolver($this->app, $this->company);
-        $service = $this->discovery ?? $resolver->resolve();
 
+        // Switched off for this company or app: keyword fallback only. Unset keeps
+        // today's behaviour, so the flag can never switch discovery off on deploy.
+        $explicitlyOff = $this->discovery === null
+            && ProductDiscoverySettings::for($this->app, $this->company)->discoveryExplicitlyOff();
+        $service = $this->discovery ?? ($explicitlyOff ? $resolver->fallback() : $resolver->resolve());
+        $query = new DiscoveryQueryBuilder($this->app, $this->company)->build($intent, $service);
+
+        if ($tasteVector !== null && $tasteVector !== []) {
+            return $this->runSearch(
+                $service,
+                $query,
+                $intent,
+                $limit,
+                $tasteVector
+            );
+        }
+
+        $key = $this->cacheKey($query, $limit, $explicitlyOff ? ProductDiscoveryResolver::ENGINE_SQL : $resolver->engine());
+        $cached = Cache::get($key);
+
+        if (is_array($cached) && isset($cached['candidates'], $cached['documents'])) {
+            return [$cached['candidates'], (bool) $cached['documents']];
+        }
+
+        [$candidates, $fromDocuments] = $this->runSearch(
+            $service,
+            $query,
+            $intent,
+            $limit,
+            tasteVector: null
+        );
+
+        // Never cache empty: an engine blip would answer "nothing matched" for the whole TTL.
+        if ($candidates !== []) {
+            Cache::put($key, ['candidates' => $candidates, 'documents' => $fromDocuments], $this->cacheTtl($fromDocuments));
+        }
+
+        return [$candidates, $fromDocuments];
+    }
+
+    /**
+     * @param float[]|null $tasteVector
+     *
+     * @return array{0: list<array<string, mixed>>|list<int>, 1: bool}
+     */
+    private function runSearch(
+        ProductDiscoveryInterface $service,
+        DiscoveryQuery $query,
+        ProductIntent $intent,
+        int $limit,
+        ?array $tasteVector
+    ): array {
         try {
-            return $service->search($intent, $limit, $tasteVector);
+            return $service instanceof ServesSearchDocuments
+                ? [$service->searchDocuments($query, $limit, $tasteVector), true]
+                : [$service->search($query, $limit, $tasteVector), false];
         } catch (Throwable $e) {
             Log::warning('Product discovery engine failed, falling back to SQL', [
                 'app_id' => $this->app->getId(),
@@ -111,44 +179,115 @@ class RecommendProductsAction
             ]);
 
             if ($this->discovery !== null) {
-                return [];
+                return [[], false];
             }
 
-            return $resolver->fallback()->search($intent, $limit, null);
+            $fallback = new ProductDiscoveryResolver($this->app, $this->company)->fallback();
+
+            return [
+                $fallback->search(
+                    new DiscoveryQueryBuilder($this->app, $this->company)->build($intent, $fallback),
+                    $limit,
+                ),
+                false,
+            ];
         }
     }
 
     /**
-     * @param list<int> $ids
+     * A third-party engine answered: render from its documents with no database read,
+     * so search traffic never lands on the database. The engine query already filtered
+     * on the tenant; the check here is the second guard, against a mis-scoped or shared
+     * index.
      *
-     * @return array<int, array{product: array, variants: array}>
+     * @param list<array<string, mixed>> $documents
+     *
+     * @return list<array{product: array, variants: array}>
      */
-    private function hydrate(array $ids, ProductIntent $intent, int $limit): array
+    private function fromDocuments(array $documents, ProductRecommendationPresenterService $presenter, HardConstraintVerifier $verifier): array
     {
-        $position = array_flip($ids);
-        $presenter = new ProductRecommendationPresenterService($this->app, $this->company);
+        $crossCompany = ProductDiscoverySettings::crossCompanyVariants($this->app);
+        $ranked = [];
 
-        $query = Products::fromApp($this->app)
-            ->notDeleted()
-            ->where('is_published', 1)
-            ->whereIn('id', $ids)
-            ->with(['categories', 'variants.variantChannels.productVariantWarehouse']);
+        foreach ($documents as $document) {
+            $ownTenant = (int) ($document['apps_id'] ?? 0) === (int) $this->app->getId()
+                && ($crossCompany || (int) ($document['companies_id'] ?? 0) === (int) $this->company->getId());
 
-        // Not fromCompany(): it widens to `companies_id > 0` under an AppKey binding.
-        if (! (bool) $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value)) {
-            $query->where('companies_id', $this->company->getId());
+            $result = $ownTenant ? $presenter->document($document) : null;
+            $result = $result === null ? null : $verifier->filter($result, $this->documentAttributeLookup($document));
+
+            if ($result !== null) {
+                $ranked[] = $result;
+            }
         }
 
-        $ranked = $query->get()
-            ->sortBy(fn (Products $product): int => $position[$product->getId()] ?? PHP_INT_MAX)
-            ->map(fn (Products $product) => $presenter->product($product))
-            ->filter()
-            ->filter(fn (array $result): bool => ! $this->isExcludedCategory($result))
-            ->filter(fn (array $result): bool => $this->withinBudget($result, $intent))
-            ->values()
-            ->all();
+        return $ranked;
+    }
 
-        return $this->diversify($this->demoteUnavailable($ranked), $limit);
+    /**
+     * @param array<string, mixed> $document
+     *
+     * @return callable(int, string): mixed
+     */
+    private function documentAttributeLookup(array $document): callable
+    {
+        $variantAttributes = [];
+        foreach ((array) ($document['variants'] ?? []) as $variant) {
+            if (is_array($variant)) {
+                $variantAttributes[(int) ($variant['id'] ?? 0)] = (array) ($variant['attributes'] ?? []);
+            }
+        }
+
+        $productAttributes = (array) ($document['attributes'] ?? []);
+
+        return static fn (int $variantId, string $attribute): mixed => $variantAttributes[$variantId][$attribute]
+            ?? $productAttributes[$attribute]
+            ?? null;
+    }
+
+    /**
+     * The SQL fallback only nominates ids, so the products are read back, tenant-scoped,
+     * with files and attributes loaded in batches.
+     *
+     * @param list<int> $ids
+     *
+     * @return list<array{product: array, variants: array}>
+     */
+    private function fromDatabase(array $ids, ProductRecommendationPresenterService $presenter, HardConstraintVerifier $verifier): array
+    {
+        $position = array_flip($ids);
+        $products = $presenter->loadProducts($ids)
+            ->sortBy(fn (Products $product): int => $position[$product->getId()] ?? PHP_INT_MAX)
+            ->values();
+
+        $ranked = [];
+
+        foreach ($products as $product) {
+            $result = $presenter->product($product);
+            $result = $result === null ? null : $verifier->filter($result, $this->modelAttributeLookup($product));
+
+            if ($result !== null) {
+                $ranked[] = $result;
+            }
+        }
+
+        return $ranked;
+    }
+
+    /**
+     * Read only when the request has numeric filters. A variant's own attribute wins;
+     * a product-level attribute applies to every variant.
+     *
+     * @return callable(int, string): mixed
+     */
+    private function modelAttributeLookup(Products $product): callable
+    {
+        return static function (int $variantId, string $attribute) use ($product): mixed {
+            $variant = $product->variants->firstWhere('id', $variantId);
+
+            return $variant?->getAttributeByName($attribute)?->value
+                ?? $product->getAttributeByName($attribute)?->value;
+        };
     }
 
     /**
@@ -248,9 +387,11 @@ class RecommendProductsAction
         return implode(' ', array_slice($this->tokenizer->tokenize($name), 0, $take));
     }
 
-    private function candidatePoolSize(int $limit): int
+    private function candidatePoolSize(int $limit, ProductIntent $intent): int
     {
-        return min($limit * 3, self::MAX_CANDIDATE_POOL);
+        return $intent->hasHardConstraints()
+            ? min($limit * 6, self::MAX_CONSTRAINED_CANDIDATE_POOL)
+            : min($limit * 3, self::MAX_CANDIDATE_POOL);
     }
 
     private function maxResultsPerGroup(): int
@@ -313,56 +454,47 @@ class RecommendProductsAction
     }
 
     /**
-     * Price lives on the variant channel, so the SQL path cannot filter it in-query.
+     * Everything that can change the candidates is in the key: the complete
+     * normalized query (structured filters included — "SUV" under 100k miles and
+     * under 50k miles must never share an entry), the engine and index, and the
+     * settings that steer the search, so changing one doesn't serve stale
+     * candidates for the rest of the TTL.
      */
-    private function withinBudget(array $result, ProductIntent $intent): bool
+    private function cacheKey(DiscoveryQuery $query, int $limit, string $engine): string
     {
-        if (! $intent->hasPriceConstraint()) {
-            return true;
-        }
+        $settings = array_map(
+            fn (string $key): mixed => $this->app->get($key),
+            [
+                ConfigurationEnum::RANGE_FILTERS->value,
+                ConfigurationEnum::TYPESENSE_QUERY_BY->value,
+                ConfigurationEnum::VECTOR_ALPHA->value,
+                ConfigurationEnum::QUERY_LANGUAGES->value,
+                ConfigurationEnum::NUMERIC_ATTRIBUTES->value,
+                ConfigurationEnum::STOP_WORDS->value,
+            ],
+        );
 
-        foreach ($result['variants'] as $variant) {
-            $price = $variant['channel']['price'] ?? null;
-
-            if ($price === null || $price <= 0) {
-                continue;
-            }
-
-            $aboveFloor = $intent->minPrice === null || $price >= $intent->minPrice;
-            $belowCeiling = $intent->maxPrice === null || $price <= $intent->maxPrice;
-
-            if ($aboveFloor && $belowCeiling) {
-                return true;
-            }
-        }
-
-        // Unpriced cannot be shown to break a budget, so it stays.
-        return ! $this->hasAnyPricedVariant($result);
-    }
-
-    private function hasAnyPricedVariant(array $result): bool
-    {
-        foreach ($result['variants'] as $variant) {
-            if (($variant['channel']['price'] ?? null) > 0) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function cacheKey(ProductIntent $intent, int $limit): string
-    {
         return 'product-discovery:' . $this->app->getId()
             . ':' . $this->company->getId()
             . ':' . $limit
-            . ':' . md5(IntentLexiconService::normalize($intent->sentence));
+            . ':' . md5((string) json_encode([
+                $engine,
+                ProductDiscoveryResolver::collectionName($this->app),
+                $settings,
+                $query->signature(),
+            ]));
     }
 
-    private function cacheTtl(): int
+    /**
+     * Cached ids are re-read from the database, so they can live long. Cached documents carry
+     * price and stock, so they are capped short: the cache must not add half an hour of
+     * staleness on top of the index's own.
+     */
+    private function cacheTtl(bool $documents): int
     {
         $ttl = $this->app->get(ConfigurationEnum::CACHE_TTL->value);
+        $ttl = is_numeric($ttl) ? (int) $ttl : self::DEFAULT_CACHE_TTL;
 
-        return is_numeric($ttl) ? (int) $ttl : self::DEFAULT_CACHE_TTL;
+        return $documents ? min($ttl, self::MAX_DOCUMENT_CACHE_TTL) : $ttl;
     }
 }

@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\SalesAssist\Actions;
 use Baka\Enums\StateEnums;
 use Illuminate\Support\Collection;
 use Kanvas\Connectors\SalesAssist\DataTransferObject\TradeIn;
-use Kanvas\Enums\AppEnums;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Social\Messages\Models\Message;
 
@@ -28,14 +27,16 @@ class AttachTradeInPhotosAction
     {
         $photoIds = TradeIn::fromMessageData($this->message->getMessage()['data'] ?? [])->photoIds;
 
-        // The ids come from the customer's form payload, so never resolve outside this tenant.
+        // TODO: restore the companies_id filter below once the action page sends X-Kanvas-Location.
+        // It uploads with the app key and no branch header, so its files land in the key owner's
+        // company, not the dealer's (needs `use Kanvas\Enums\AppEnums;` back).
         $files = Filesystem::query()
             ->whereIn('id', array_merge([], ...array_values($photoIds)))
             ->where('apps_id', $this->message->apps_id)
-            ->whereIn('companies_id', [
-                $this->message->companies_id,
-                AppEnums::GLOBAL_COMPANY_ID->getValue(),
-            ])
+            // ->whereIn('companies_id', [
+            //     $this->message->companies_id,
+            //     AppEnums::GLOBAL_COMPANY_ID->getValue(),
+            // ])
             ->where('is_deleted', StateEnums::NO->getValue())
             ->get()
             ->keyBy('id');

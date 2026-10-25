@@ -6,14 +6,13 @@ namespace App\GraphQL\Inventory\Mutations\Variants;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class VariantMediaMutation
 {
     use HasMutationUploadFiles;
 
-    public function attachFileToVariant(mixed $root, array $request): Products
+    public function attachFileToVariant(mixed $root, array $request): Variants
     {
         $app = app(Apps::class);
         $variant = Variants::getById((int) $request['id'], $app);

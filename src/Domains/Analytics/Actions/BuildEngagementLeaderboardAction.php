@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Analytics\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Number;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
@@ -284,7 +285,7 @@ class BuildEngagementLeaderboardAction
             'ai_sent' => $bucket['ai_sent'],
             'rep_sent' => $bucket['rep_sent'],
             'replies' => $bucket['replies'],
-            'reply_rate' => self::ratio($bucket['replies'], $totalSent),
+            'reply_rate' => Number::ratio($bucket['replies'], $totalSent),
             'median_response_seconds' => self::median($bucket['deltas']),
             'appointments' => $bucket['appointments'],
         ];
@@ -306,11 +307,11 @@ class BuildEngagementLeaderboardAction
             'ai_sent' => $sum('ai_sent'),
             'rep_sent' => $sum('rep_sent'),
             'replies' => $sum('replies'),
-            'reply_rate' => self::ratio($sum('replies'), $totalSent),
+            'reply_rate' => Number::ratio($sum('replies'), $totalSent),
             // Median over every pair, not a mean of per-rep medians — the latter is not a median.
             'median_response_seconds' => self::median($allDeltas),
             'appointments' => $sum('appointments'),
-            'ai_share' => self::ratio($sum('ai_sent'), $totalSent),
+            'ai_share' => Number::ratio($sum('ai_sent'), $totalSent),
             'reps' => count($rows),
         ];
     }
@@ -409,6 +410,7 @@ class BuildEngagementLeaderboardAction
             ->where('messages.apps_id', $this->app->getId())
             ->where('messages.companies_id', $this->company->getId())
             ->where('messages.is_deleted', 0)
+            ->notLocked()
             ->whereBetween('messages.created_at', $this->range())
             ->whereIn('messages.message_types_id', $typeIds)
             ->whereNotNull('messages.sender_type')
@@ -506,11 +508,6 @@ class BuildEngagementLeaderboardAction
             $this->request->from->copy()->utc(),
             $this->request->to->copy()->utc(),
         ];
-    }
-
-    private static function ratio(int $part, int $whole): ?float
-    {
-        return $whole > 0 ? round($part / $whole, 4) : null;
     }
 
     /**

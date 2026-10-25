@@ -6,10 +6,11 @@ namespace Kanvas\Intelligence\Agents\Types;
 
 use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentAction;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Contracts\AgentTypeHandler;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
-class OpenClawAgentHandler
+class OpenClawAgentHandler implements AgentTypeHandler
 {
     protected Agent $agent;
 

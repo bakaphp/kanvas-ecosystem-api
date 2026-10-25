@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
+use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
+use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -19,7 +22,7 @@ class ArtifactsTool extends Tool
 
     protected string $name = 'get_lead_artifacts';
 
-    protected ?string $description = 'Retrieve CRM artifacts and vehicle information for the current lead, including status, stage, tags, forms, records, and ADF comments.';
+    protected ?string $description = 'Retrieve CRM artifacts and vehicle information for the current lead, including status, stage, tags, forms, records, internal lead notes (newest first, with author and date), and ADF comments. Consult recent notes for contact preferences before drafting a follow-up; notes are internal context, not customer messages.';
 
     #[Override]
     protected function properties(): array
@@ -50,7 +53,7 @@ class ArtifactsTool extends Tool
                 'status' => $lead->status()->first()?->name,
                 'stage' => $lead->stage->name,
                 'tags' => $lead->tags->pluck('name')->toArray(),
-                'last_notes' => [],
+                'last_notes' => $this->recentNotes($lead),
                 'forms' => [
                     'prequal' => null,
                     'credit_app' => null,
@@ -67,5 +70,37 @@ class ArtifactsTool extends Tool
             'transcript_snippet' => null,
             'comments' => $comment,
         ];
+    }
+
+    private function recentNotes(Lead $lead): array
+    {
+        return Message::query()
+            ->where('apps_id', $lead->apps_id)
+            ->where('companies_id', $lead->companies_id)
+            ->where('is_deleted', 0)
+            ->whereHas('messageType', fn ($query) => $query->where('verb', LeadMessageTypeEnum::NOTES->value))
+            ->whereHas('appModuleMessages', fn ($query) => $query
+                ->where('apps_id', $lead->apps_id)
+                ->where('companies_id', $lead->companies_id)
+                ->where('system_modules', Lead::class)
+                ->where('entity_id', $lead->getId()))
+            ->with('user')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get()
+            ->map(function (Message $note): array {
+                $data = $note->getMessage();
+
+                return [
+                    'id' => $note->getId(),
+                    'content' => $data['content'] ?? $data['text'] ?? '',
+                    'created_at' => $note->created_at?->toIso8601String(),
+                    'author' => $note->user ? [
+                        'id' => $note->user->getId(),
+                        'name' => $note->user->displayname,
+                    ] : null,
+                ];
+            })
+            ->all();
     }
 }

@@ -23,7 +23,8 @@ class UpdateTemplateTool extends Tool
     protected ?string $description = 'Change the HTML (or subject/title) of a template you previously created — use this when a '
         . 'rendered PDF does not look right and you want to fix the markup. Only templates you created can '
         . 'be updated: on any other one the call is refused and NOTHING changes, so report it as blocked '
-        . 'rather than as updated. Pass the template_id returned by create_template.';
+        . 'rather than as updated. Pass the template_id returned by create_template. The body is Twig '
+        . '({{ entity.name }}, {% if %}, {% for %}; no functions or method calls), same as create_template.';
 
     /**
      * @return array<int, ToolProperty>
@@ -41,7 +42,7 @@ class UpdateTemplateTool extends Tool
             new ToolProperty(
                 name: 'html',
                 type: PropertyType::STRING,
-                description: 'The new HTML body. Omit to leave the body unchanged.',
+                description: 'The new HTML body in Twig syntax. Omit to leave the body unchanged.',
                 required: false,
             ),
             new ToolProperty(

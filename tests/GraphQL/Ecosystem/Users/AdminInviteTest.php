@@ -11,9 +11,18 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
+use Tests\Traits\ActsAsAppOwner;
 
 class AdminInviteTest extends TestCase
 {
+    use ActsAsAppOwner;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->actingAsAppOwner();
+    }
+
     public function testInviteNewAdmin(): void
     {
         Notification::fake();
