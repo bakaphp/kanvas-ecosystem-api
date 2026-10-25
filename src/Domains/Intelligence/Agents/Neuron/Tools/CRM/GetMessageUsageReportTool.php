@@ -114,7 +114,7 @@ class GetMessageUsageReportTool extends Tool
 
         $args = $this->analyticsRangeArgs($timeframe, $from, $to);
 
-        $scope = $this->readCompanyScope();
+        $scope = $this->auditedReadScope();
         $result = new BuildAnalyticsAction(
             model: Message::class,
             app: $this->app,
@@ -143,7 +143,7 @@ class GetMessageUsageReportTool extends Tool
 
         return [
             'status' => 'success',
-            ...$this->scopeSummary(),
+            ...$this->tenantScopeSummary(),
             'timeframe' => ['from' => $args['from'], 'to' => $args['to']],
             'channel' => $channel,
             'totals' => [

@@ -125,7 +125,7 @@ class ParticipationStatsTool extends Tool
             $totals = $service->aggregate(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 AggregateRequest::fromInput(aggregates: $aggregates, limit: 1),
                 $filters
             );
@@ -147,7 +147,7 @@ class ParticipationStatsTool extends Tool
                 $result['breakdown'] = $service->aggregate(
                     $definition,
                     $this->app,
-                    $this->readCompanyScope(),
+                    $this->auditedReadScope(),
                     AggregateRequest::fromInput(
                         aggregates: $aggregates,
                         groupBy: [$breakdown_by],

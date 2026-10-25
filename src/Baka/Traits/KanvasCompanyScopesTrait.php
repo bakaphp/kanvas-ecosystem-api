@@ -59,7 +59,7 @@ trait KanvasCompanyScopesTrait
                 $query,
                 $table . 'companies_id',
                 $company,
-                alsoIds: $allowGlobal ? [0] : []
+                extraCompanyIds: $allowGlobal ? [0] : []
             );
         }
 

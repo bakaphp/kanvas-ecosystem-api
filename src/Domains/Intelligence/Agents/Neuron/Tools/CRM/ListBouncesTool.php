@@ -62,7 +62,7 @@ class ListBouncesTool extends Tool
 
         $limit = max(1, min(100, $limit ?? 25));
 
-        $rows = new PeopleBouncesFeedService($this->app, $this->readCompanyScope())
+        $rows = new PeopleBouncesFeedService($this->app, $this->auditedReadScope())
             ->rows(
                 includeSoftBounce: (bool) $include_soft_bounce,
                 granularity: 'per_person',
@@ -82,7 +82,7 @@ class ListBouncesTool extends Tool
                 ],
                 $rows,
             ),
-            ...$this->scopeSummary(),
+            ...$this->tenantScopeSummary(),
         ];
     }
 }

@@ -88,7 +88,7 @@ class ExportChangesTool extends Tool
             return $refusal;
         }
 
-        $rows = new PeopleChangesFeedService($this->app, $this->readCompanyScope())->rows(
+        $rows = new PeopleChangesFeedService($this->app, $this->auditedReadScope())->rows(
             changeTypes: $change_types,
             from: ! empty($from) ? Carbon::parse($from)->startOfDay() : null,
             to: ! empty($to) ? Carbon::parse($to)->endOfDay() : null,

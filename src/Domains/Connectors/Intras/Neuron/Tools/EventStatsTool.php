@@ -116,7 +116,7 @@ class EventStatsTool extends Tool
             $totals = $service->aggregate(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 AggregateRequest::fromInput(
                     aggregates: [['function' => 'COUNT', 'alias' => 'total']],
                     limit: 1
@@ -141,7 +141,7 @@ class EventStatsTool extends Tool
                 $result['breakdown'] = $service->aggregate(
                     $definition,
                     $this->app,
-                    $this->readCompanyScope(),
+                    $this->auditedReadScope(),
                     AggregateRequest::fromInput(
                         aggregates: [['function' => 'COUNT', 'alias' => 'total']],
                         groupBy: [$breakdown_by],
@@ -178,7 +178,7 @@ class EventStatsTool extends Tool
         $grouped = $service->aggregate(
             $definition,
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(
                 aggregates: [['function' => 'COUNT', 'alias' => 'versiones']],
                 groupBy: [...$this->tenantGroupBy(), 'evento'],

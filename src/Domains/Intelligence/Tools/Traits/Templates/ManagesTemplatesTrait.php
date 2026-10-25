@@ -283,7 +283,7 @@ trait ManagesTemplatesTrait
      */
     private function templateTenantFields(Templates $template, Companies|CompanyScope $company, Users $user): array
     {
-        if (! CompanyScope::spansCompanies($company)) {
+        if (! CompanyScope::needsTenantLabel($company)) {
             return [];
         }
 

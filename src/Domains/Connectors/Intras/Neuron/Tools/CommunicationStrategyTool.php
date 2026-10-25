@@ -247,7 +247,7 @@ class CommunicationStrategyTool extends Tool
         $total = $service->count(
             $definition,
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             $filters
         )['rows'];
 
@@ -258,7 +258,7 @@ class CommunicationStrategyTool extends Tool
             'contactos' => $service->search(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 $filters,
                 select: self::CONTACT_COLUMNS,
                 limit: $limit,
@@ -281,7 +281,7 @@ class CommunicationStrategyTool extends Tool
         $openSeminars = new ReportQueryService()->builder(
             new ReportRegistry()->find($this->app, 'evento_version'),
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             [
                 new ReportFilter('tipo', '=', 'ABIERTO'),
                 new ReportFilter('clase', '=', 'SEMINARIO'),
@@ -292,7 +292,7 @@ class CommunicationStrategyTool extends Tool
 
         $seminars = [];
 
-        foreach (OpenEventsTrackingRepository::forCompany($this->app, $this->readCompanyScope(), ['weeks_ahead' => 3]) as $row) {
+        foreach (OpenEventsTrackingRepository::forCompany($this->app, $this->auditedReadScope(), ['weeks_ahead' => 3]) as $row) {
             if (! in_array((int) $row->event_version_id, $openSeminars, true) || $row->event_date === null) {
                 continue;
             }
@@ -341,7 +341,7 @@ class CommunicationStrategyTool extends Tool
         return new ReportQueryService()->builder(
             new ReportRegistry()->find($this->app, $model),
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             $filters
         )->distinct()->pluck('peoples_id')->map(fn ($id) => (int) $id)->all();
     }
@@ -354,7 +354,7 @@ class CommunicationStrategyTool extends Tool
         return new ReportQueryService()->builder(
             new ReportRegistry()->find($this->app, 'empresa_plan'),
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
         )
             ->where(
                 fn (Builder $query) => $query->whereNull('fecha_expiracion')->orWhere('fecha_expiracion', '>=', $today)

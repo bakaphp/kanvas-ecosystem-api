@@ -63,7 +63,7 @@ class GetCleanupReportTool extends Tool
 
         $report = new CleanupReportAction(
             app: $this->app,
-            company: $this->readCompanyScope(),
+            company: $this->auditedReadScope(),
             from: ! empty($from) ? Carbon::parse($from)->startOfDay() : null,
             to: ! empty($to) ? Carbon::parse($to)->endOfDay() : null,
         )->execute();
@@ -72,6 +72,6 @@ class GetCleanupReportTool extends Tool
         unset($report['byCompany']);
         $report['company'] = $this->company->name;
 
-        return [...$report, ...$this->scopeSummary()];
+        return [...$report, ...$this->tenantScopeSummary()];
     }
 }

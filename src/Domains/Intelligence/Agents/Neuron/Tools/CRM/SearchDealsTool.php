@@ -130,7 +130,7 @@ class SearchDealsTool extends Tool
         $limit = max(1, min(100, $limit ?? 25));
         $like = '%' . $query . '%';
 
-        $scope = $this->readCompanyScope();
+        $scope = $this->auditedReadScope();
 
         $deals = Deal::query()
             ->fromApp($this->app)
@@ -190,7 +190,7 @@ class SearchDealsTool extends Tool
                 'last_updated_at' => $deal->updated_at?->copy()->setTimezone($window['timezone'])->toIso8601String(),
                 ...$this->tenantLabel($deal),
             ])->all(),
-            ...$this->scopeSummary(),
+            ...$this->tenantScopeSummary(),
         ];
     }
 }

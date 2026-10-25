@@ -301,7 +301,7 @@ class CrossCompanyReadScopeTest extends TestCase
 
             public function scope(): CompanyScope
             {
-                return $this->readCompanyScope();
+                return $this->auditedReadScope();
             }
 
             public function __invoke(): array

@@ -257,7 +257,7 @@ class ScorecardTool extends Tool
      */
     private function measurementsFor(array $row): ScorecardMeasurementService
     {
-        $company = CompanyScope::spansCompanies($this->companyScope) && isset($row['companies_id'])
+        $company = CompanyScope::needsTenantLabel($this->companyScope) && isset($row['companies_id'])
             ? Companies::getById((int) $row['companies_id'])
             : $this->company;
 
@@ -366,7 +366,7 @@ class ScorecardTool extends Tool
             $rows = $service->search(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 [new ReportFilter($key, '=', $id)],
                 limit: 1
             );
@@ -385,7 +385,7 @@ class ScorecardTool extends Tool
         $rows = $service->search(
             $definition,
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             [new ReportFilter($nameColumn, 'LIKE', '%' . $nombre . '%')],
             limit: 10
         );
@@ -431,7 +431,7 @@ class ScorecardTool extends Tool
         $rows = new ReportQueryService()->aggregate(
             new ReportRegistry()->find($this->app, 'evento_version'),
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(
                 aggregates: [['function' => 'COUNT', 'alias' => 'versiones']],
                 groupBy: [...$this->tenantGroupBy(), 'evento_id', 'evento'],

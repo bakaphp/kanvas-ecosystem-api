@@ -118,7 +118,7 @@ class EntitlementsTool extends Tool
         $totals = $service->aggregate(
             $definition,
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(
                 aggregates: [
                     ['function' => 'COUNT', 'alias' => 'planes'],
@@ -144,7 +144,7 @@ class EntitlementsTool extends Tool
             'detalle' => $service->search(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 $filters,
                 select: ['empresa', 'plan', 'tier', 'cupos', 'usados', 'disponibles', 'estado', 'fecha_expiracion', 'consumido'],
                 limit: $limit
@@ -186,7 +186,7 @@ class EntitlementsTool extends Tool
         $totals = $service->aggregate(
             $definition,
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(
                 aggregates: [
                     ['function' => 'COUNT', 'alias' => 'pases'],
@@ -208,7 +208,7 @@ class EntitlementsTool extends Tool
             'por_estado' => $service->aggregate(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 AggregateRequest::fromInput(
                     aggregates: [['function' => 'COUNT', 'alias' => 'pases']],
                     groupBy: ['estado'],
@@ -220,7 +220,7 @@ class EntitlementsTool extends Tool
             'detalle' => $service->search(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 $filters,
                 select: ['codigo', 'empresa', 'ejecutivo', 'evento', 'motivo', 'tipo', 'estado', 'vigente', 'fecha_emision', 'fecha_expiracion', 'fecha_uso'],
                 limit: $limit

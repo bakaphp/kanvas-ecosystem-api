@@ -64,7 +64,7 @@ class FindPeopleBulkTool extends Tool
 
         $results = $this->matchPeopleByName(
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             $names,
             $max_matches_per_name
         );

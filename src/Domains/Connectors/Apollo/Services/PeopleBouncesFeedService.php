@@ -78,7 +78,7 @@ class PeopleBouncesFeedService
                     'email' => (string) $contact->value,
                     'status' => $this->statusValue($contact),
                     'bounced_at' => $contact->bounced_at?->toDateString(),
-                    ...$this->tenantId((int) $person->companies_id),
+                    ...$this->tenantIdLabel((int) $person->companies_id),
                 ];
 
                 if ($limit !== null && count($rows) >= $limit) {

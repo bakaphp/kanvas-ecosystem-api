@@ -188,7 +188,7 @@ class EvaluationInsightsTool extends Tool
         $rows = new ReportQueryService()->aggregate(
             new ReportRegistry()->find($this->app, 'evaluacion'),
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(
                 aggregates: [
                     ['function' => 'AVG', 'column' => 'puntuacion', 'alias' => 'promedio'],
@@ -248,7 +248,7 @@ class EvaluationInsightsTool extends Tool
         $rows = $service->search(
             $definition,
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             [...$filters, new ReportFilter('es_numerica', '=', 0)],
             select: ['pregunta', 'tipo_pregunta', 'respuesta', 'evento', 'empresa', 'fecha_evento'],
             limit: ReportQueryService::MAX_LIMIT

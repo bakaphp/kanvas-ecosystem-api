@@ -155,7 +155,7 @@ class CompanyAnalyticsTool extends Tool
             'empresas' => $service->aggregate(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 AggregateRequest::fromInput(
                     aggregates: [
                         ['function' => 'COUNT_DISTINCT', 'column' => 'peoples_id', 'alias' => 'ejecutivos'],
@@ -197,7 +197,7 @@ class CompanyAnalyticsTool extends Tool
         $active = $service->aggregate(
             $definition,
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(
                 aggregates: [['function' => 'COUNT', 'alias' => 'inscripciones']],
                 groupBy: ['empresa_id'],
@@ -214,7 +214,7 @@ class CompanyAnalyticsTool extends Tool
         $everything = $service->aggregate(
             $definition,
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(
                 aggregates: [
                     ['function' => 'COUNT_DISTINCT', 'column' => 'peoples_id', 'alias' => 'ejecutivos_historico'],
@@ -303,7 +303,7 @@ class CompanyAnalyticsTool extends Tool
         $rows = new ReportQueryService()->aggregate(
             new ReportRegistry()->find($this->app, 'inscripcion'),
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(
                 aggregates: [['function' => 'COUNT_DISTINCT', 'column' => 'peoples_id', 'alias' => 'ejecutivos']],
                 groupBy: ['empresa_id', 'empresa'],
@@ -364,7 +364,7 @@ class CompanyAnalyticsTool extends Tool
         $totals = $service->aggregate(
             $definition,
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(aggregates: [['function' => 'COUNT', 'alias' => 'total']], limit: 1),
             $filters
         );
@@ -374,7 +374,7 @@ class CompanyAnalyticsTool extends Tool
             'empresas' => $service->search(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 $filters,
                 select: ['organizations_id', 'nombre', 'sector', 'tamano', 'clasificacion', 'potencialidad', 'total_ejecutivos', 'total_inscripciones', 'ultima_inscripcion'],
                 limit: $limit
@@ -411,7 +411,7 @@ class CompanyAnalyticsTool extends Tool
         $rows = new ReportQueryService()->search(
             new ReportRegistry()->find($this->app, 'empresa'),
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             $filters,
             select: ['organizations_id'],
             limit: ReportQueryService::MAX_LIMIT

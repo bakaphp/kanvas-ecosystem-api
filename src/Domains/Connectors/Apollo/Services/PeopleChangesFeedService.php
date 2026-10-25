@@ -176,7 +176,7 @@ class PeopleChangesFeedService
                     'name' => $person->getName(),
                     'deliverability' => $this->deliverabilityLabel($person),
                     'crm' => $this->tenantName((int) $person->companies_id),
-                    ...$this->tenantId((int) $person->companies_id),
+                    ...$this->tenantIdLabel((int) $person->companies_id),
                 ],
             ])
             ->all();

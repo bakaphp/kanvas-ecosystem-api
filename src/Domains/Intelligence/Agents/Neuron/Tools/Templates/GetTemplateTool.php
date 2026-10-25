@@ -53,7 +53,7 @@ class GetTemplateTool extends Tool
 
         return $this->getTemplate(
             $this->app,
-            $this->readCompanyScope(),
+            $this->auditedReadScope(),
             $this->user,
             $template_id
         );

@@ -58,9 +58,11 @@ trait HasKanvasContext
 
     /**
      * Always a scope, never the bare company, so the AppKey branch in `scopeFromCompany()` cannot
-     * widen it.
+     * widen it. Calling it is the read: a cross-company scope writes its ledger event here, once per
+     * turn, so anything that only inspects the scope (building tool properties, labelling) reads
+     * `$this->companyScope` directly instead.
      */
-    protected function readCompanyScope(): CompanyScope
+    protected function auditedReadScope(): CompanyScope
     {
         $scope = $this->companyScope ?? CompanyScope::ownCompanyOnly($this->app, $this->company);
 
@@ -107,7 +109,7 @@ trait HasKanvasContext
      */
     protected function belongsToAnotherCompanyError(string $modelClass, int $id, string $noun): ?array
     {
-        if (! CompanyScope::spansCompanies($this->companyScope)) {
+        if (! CompanyScope::needsTenantLabel($this->companyScope)) {
             return null;
         }
 
@@ -149,7 +151,7 @@ trait HasKanvasContext
 
         $scope = $this->companyScope ?? CompanyScope::ownCompanyOnly($this->app, $this->company);
 
-        if (! $scope->contains($tenantCompanyId)) {
+        if (! $scope->containsCompany($tenantCompanyId)) {
             return [
                 'status' => 'error',
                 'message' => sprintf(
@@ -182,9 +184,9 @@ trait HasKanvasContext
     /**
      * @return array{scope: array{tenant_companies: list<string>}}|array{}
      */
-    protected function scopeSummary(): array
+    protected function tenantScopeSummary(): array
     {
-        return $this->companyScope?->summary() ?? [];
+        return $this->companyScope?->tenantScopeSummary() ?? [];
     }
 
     /**
@@ -194,7 +196,7 @@ trait HasKanvasContext
      */
     protected function tenantGroupBy(): array
     {
-        return CompanyScope::spansCompanies($this->companyScope) ? ['companies_id'] : [];
+        return CompanyScope::needsTenantLabel($this->companyScope) ? ['companies_id'] : [];
     }
 
     /**

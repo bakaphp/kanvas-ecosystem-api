@@ -71,7 +71,7 @@ class ExportBouncesTool extends Tool
 
         $granularity = $granularity === 'per_person' ? 'per_person' : 'per_email';
 
-        $rows = new PeopleBouncesFeedService($this->app, $this->readCompanyScope())->rows(
+        $rows = new PeopleBouncesFeedService($this->app, $this->auditedReadScope())->rows(
             includeSoftBounce: (bool) $include_soft_bounce,
             granularity: $granularity,
         );

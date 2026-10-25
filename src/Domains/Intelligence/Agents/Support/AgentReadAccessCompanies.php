@@ -49,7 +49,7 @@ final class AgentReadAccessCompanies
     /**
      * @return list<int>
      */
-    public static function configured(Agent $agent): array
+    public static function grantedCompanyIds(Agent $agent): array
     {
         return self::normalize($agent->get(ConfigurationEnum::AGENT_READ_ACCESS_COMPANIES->value));
     }
@@ -84,7 +84,7 @@ final class AgentReadAccessCompanies
         }
 
         if (! $actor->isOwnerOf($app)) {
-            $notMember = array_diff($ids, self::membership($actor, $app));
+            $notMember = array_diff($ids, self::memberCompanyIds($actor, $app));
 
             if ($notMember !== []) {
                 throw new ValidationException(
@@ -100,7 +100,7 @@ final class AgentReadAccessCompanies
     /**
      * @return list<int>
      */
-    public static function membership(Users $user, Apps $app): array
+    public static function memberCompanyIds(Users $user, Apps $app): array
     {
         return UsersAssociatedApps::query()
             ->where('users_id', $user->getId())
@@ -120,7 +120,7 @@ final class AgentReadAccessCompanies
      */
     public static function scopeFor(Agent $agent, Companies $ownCompany, Users $requestingUser): CompanyScope
     {
-        $requested = self::configured($agent);
+        $requested = self::grantedCompanyIds($agent);
         $agentId = (int) $agent->getId();
 
         $app = $agent->app;
@@ -129,7 +129,7 @@ final class AgentReadAccessCompanies
             || $agent->conversesWithCustomer()
             || KanvasConversationStore::actsAsAi($requestingUser, $agent);
 
-        $allowed = $ownCompanyOnly ? [] : array_values(array_intersect($requested, self::membership($requestingUser, $app)));
+        $allowed = $ownCompanyOnly ? [] : array_values(array_intersect($requested, self::memberCompanyIds($requestingUser, $app)));
 
         if ($allowed === []) {
             return CompanyScope::ownCompanyOnly(

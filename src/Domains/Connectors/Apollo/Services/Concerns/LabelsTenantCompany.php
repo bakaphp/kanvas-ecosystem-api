@@ -24,9 +24,9 @@ trait LabelsTenantCompany
     /**
      * @return array{tenant_company_id: int}|array{}
      */
-    private function tenantId(int $companiesId): array
+    private function tenantIdLabel(int $companiesId): array
     {
-        return CompanyScope::spansCompanies($this->company) ? ['tenant_company_id' => $companiesId] : [];
+        return CompanyScope::needsTenantLabel($this->company) ? ['tenant_company_id' => $companiesId] : [];
     }
 
     private function ownCompanyName(): string

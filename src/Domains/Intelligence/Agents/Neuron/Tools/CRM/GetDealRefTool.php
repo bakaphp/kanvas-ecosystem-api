@@ -88,7 +88,7 @@ class GetDealRefTool extends Tool
         $deal = Deal::query()
             ->where('id', $dealId)
             ->fromApp($this->app)
-            ->fromCompany($this->readCompanyScope())
+            ->fromCompany($this->auditedReadScope())
             ->notDeleted()
             ->first();
 

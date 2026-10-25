@@ -99,7 +99,7 @@ class ReportQueryService
             }
 
             // A cross-company read labels every row, which needs the tenant column in the projection.
-            if (CompanyScope::spansCompanies($company) && ! in_array(ReportSchemaService::TENANT_COLUMN, $select, true)) {
+            if (CompanyScope::needsTenantLabel($company) && ! in_array(ReportSchemaService::TENANT_COLUMN, $select, true)) {
                 $select[] = ReportSchemaService::TENANT_COLUMN;
             }
         }
@@ -131,7 +131,7 @@ class ReportQueryService
      */
     private function labelTenant(array $row, Companies|CompanyScope $company): array
     {
-        if (! CompanyScope::spansCompanies($company) || ! isset($row[ReportSchemaService::TENANT_COLUMN])) {
+        if (! CompanyScope::needsTenantLabel($company) || ! isset($row[ReportSchemaService::TENANT_COLUMN])) {
             return $row;
         }
 

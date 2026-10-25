@@ -87,7 +87,7 @@ final class CompanyScope
      */
     public function narrowToCompany(int $companyId): self
     {
-        if (! $this->contains($companyId)) {
+        if (! $this->containsCompany($companyId)) {
             throw new InvalidArgumentException(sprintf('Company %d is not in this scope.', $companyId));
         }
 
@@ -116,7 +116,7 @@ final class CompanyScope
         return $this->isCrossCompany() || ($this->narrowed && $this->companyIds[0] !== (int) $this->ownCompany->getId());
     }
 
-    public function contains(int $companyId): bool
+    public function containsCompany(int $companyId): bool
     {
         return in_array($companyId, $this->companyIds, true);
     }
@@ -129,21 +129,21 @@ final class CompanyScope
         return $company instanceof self ? $company->companyIds : [(int) $company->getId()];
     }
 
-    public static function spansCompanies(CompanyInterface|self|null $company): bool
+    public static function needsTenantLabel(CompanyInterface|self|null $company): bool
     {
         return $company instanceof self && $company->shouldLabelRows();
     }
 
     /**
-     * @param list<int> $alsoIds folded into the predicate; the global company, usually
+     * @param list<int> $extraCompanyIds folded into the predicate; the global company, usually
      */
     public static function applyToQuery(
         EloquentBuilder|QueryBuilder $query,
         string $column,
         CompanyInterface|self $company,
-        array $alsoIds = []
+        array $extraCompanyIds = []
     ): EloquentBuilder|QueryBuilder {
-        $ids = array_values(array_unique([...$alsoIds, ...self::companyIdsOf($company)]));
+        $ids = array_values(array_unique([...$extraCompanyIds, ...self::companyIdsOf($company)]));
 
         return count($ids) === 1
             ? $query->where($column, $ids[0])
@@ -208,7 +208,7 @@ final class CompanyScope
     /**
      * @return array{scope: array{tenant_companies: list<string>, narrowed_to?: string}}|array{}
      */
-    public function summary(): array
+    public function tenantScopeSummary(): array
     {
         if (! $this->shouldLabelRows()) {
             return [];

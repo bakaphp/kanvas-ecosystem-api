@@ -57,7 +57,7 @@ class GetCustomerStatsTool extends Tool
         }
 
         $limit = max(1, min(50, $limit ?? 10));
-        $scope = $this->readCompanyScope();
+        $scope = $this->auditedReadScope();
 
         $totalCustomers = (int) Organization::query()
             ->fromApp($this->app)
@@ -88,7 +88,7 @@ class GetCustomerStatsTool extends Tool
                 'created_at' => $org->created_at?->toIso8601String(),
                 ...$this->tenantLabel($org),
             ])->all(),
-            ...$this->scopeSummary(),
+            ...$this->tenantScopeSummary(),
         ];
     }
 }

@@ -101,7 +101,7 @@ class CleanupReportAction
      */
     private function tenantBreakdown(EventAnalyticsService $service): array
     {
-        if (! CompanyScope::spansCompanies($this->company)) {
+        if (! CompanyScope::needsTenantLabel($this->company)) {
             return [];
         }
 

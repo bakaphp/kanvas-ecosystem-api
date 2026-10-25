@@ -41,7 +41,7 @@ trait ResolvesOrganizationForTool
             return $this->tenantContextMissingError('organization');
         }
 
-        return $this->findOrganization($organizationId, $organizationName, $this->readCompanyScope());
+        return $this->findOrganization($organizationId, $organizationName, $this->auditedReadScope());
     }
 
     /**

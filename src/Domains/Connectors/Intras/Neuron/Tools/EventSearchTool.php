@@ -185,7 +185,7 @@ class EventSearchTool extends Tool
 
         // The tenant predicate is explicit because this reads the physical table rather than going
         // through ReportQueryService — the squashed-name comparison is not expressible as a filter.
-        $query = $connection->table($table)->whereIn('companies_id', $this->readCompanyScope()->ids);
+        $query = $connection->table($table)->whereIn('companies_id', $this->auditedReadScope()->ids);
 
         if ($nombre !== '') {
             $needle = $this->squash($nombre);

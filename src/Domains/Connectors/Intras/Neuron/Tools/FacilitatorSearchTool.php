@@ -101,7 +101,7 @@ class FacilitatorSearchTool extends Tool
             $facilitators = $service->search(
                 $definition,
                 $this->app,
-                $this->readCompanyScope(),
+                $this->auditedReadScope(),
                 $filters,
                 select: ['facilitator_id', 'nombre_completo', 'estatus', 'aliado', 'pais', 'email', 'temas', 'idiomas', 'total_versiones', 'ultima_version'],
                 limit: $limit ?? 25
@@ -125,7 +125,7 @@ class FacilitatorSearchTool extends Tool
                 $result['asignaciones'] = $service->aggregate(
                     new ReportRegistry()->find($this->app, 'facilitador_asignacion'),
                     $this->app,
-                    $this->readCompanyScope(),
+                    $this->auditedReadScope(),
                     AggregateRequest::fromInput(
                         aggregates: [
                             ['function' => 'COUNT', 'alias' => 'versiones'],

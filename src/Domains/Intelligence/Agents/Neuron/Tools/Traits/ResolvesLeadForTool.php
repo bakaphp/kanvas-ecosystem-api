@@ -69,7 +69,7 @@ trait ResolvesLeadForTool
         $lead = Lead::query()
             ->where('id', $leadId)
             ->fromApp($this->app)
-            ->fromCompany($this->readCompanyScope())
+            ->fromCompany($this->auditedReadScope())
             ->notDeleted()
             ->first();
 
