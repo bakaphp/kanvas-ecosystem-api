@@ -201,8 +201,8 @@ class PullZohoDealAction
     /**
      * A stock deal carries its person as `Contact_Name: {name, id}` and nothing else; the email,
      * phone and mailing address live on the Contact record, laid here under the names the deal
-     * map reads. The Contact is the person, so it wins: a deal's own City/State/Zip_Code is the
-     * business address on the layouts seen so far, not the person's.
+     * map reads. The deal being pulled is the record the user just edited, so a field it carries
+     * wins; the Contact only fills what the deal layout leaves empty.
      */
     protected function withLinkedContact(array $zohoDealInfo, array $fieldMapping): array
     {
@@ -231,7 +231,12 @@ class PullZohoDealAction
             }
         }
 
-        return $fromContact + $zohoDealInfo;
+        $dealValues = array_filter(
+            $zohoDealInfo,
+            fn ($value) => ! is_string($value) || Str::trimToNull($value) !== null
+        );
+
+        return $dealValues + $fromContact;
     }
 
     protected function fetchContact(string $contactId): array

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Common;
 
 use Kanvas\Connectors\Apollo\Services\CsvExportService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\RecordExporterRegistry;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
@@ -90,8 +91,12 @@ class ExportRecordsTool extends Tool
 
         try {
             $rows = $exporter->rows($this->app, $this->auditedReadScope(), $filters);
-        } catch (Throwable $e) {
+        } catch (ValidationException $e) {
             return ['error' => $e->getMessage()];
+        } catch (Throwable $e) {
+            report($e);
+
+            return ['error' => 'The export failed unexpectedly. Do not retry; tell the user the export is unavailable right now.'];
         }
 
         return app(CsvExportService::class)->export(

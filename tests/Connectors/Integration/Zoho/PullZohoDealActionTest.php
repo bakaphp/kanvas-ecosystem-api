@@ -207,25 +207,29 @@ final class PullZohoDealActionTest extends TestCase
         $this->assertSame('62704', $people->getDefaultAddress()->zip);
     }
 
-    public function testTheLinkedContactWinsOverTheDealsOwnBusinessAddress(): void
+    public function testTheDealsOwnFieldsWinAndTheLinkedContactFillsTheGaps(): void
     {
         $company = $this->makeZohoCompany();
+        $contactEmail = 'ned-' . uniqid() . '@example.com';
 
         $deal = $this->action(
             $company,
             'zd-26',
             [
                 'id' => 'zd-26',
-                'Deal_Name' => 'Business city on the deal',
+                'Deal_Name' => 'Address edited on the deal',
                 'Contact_Name' => ['name' => 'Ned Flanders', 'id' => '778'],
-                'City' => 'Miami',
-                'State' => 'FL',
-                'Zip_Code' => '33033',
+                'Street' => '1 Infinite Loop',
+                'City' => 'Cupertino',
+                'State' => 'CA',
+                'Zip_Code' => '95014',
+                'Email' => '',
             ],
             [
                 'id' => '778',
                 'First_Name' => 'Ned',
                 'Last_Name' => 'Flanders',
+                'Email' => $contactEmail,
                 'Mailing_Street' => '744 Evergreen Terrace',
                 'Mailing_City' => 'Springfield',
                 'Mailing_State' => 'IL',
@@ -234,10 +238,12 @@ final class PullZohoDealActionTest extends TestCase
         )->execute();
 
         $address = $deal->people->getDefaultAddress();
-        $this->assertSame('Springfield', $address->city);
-        $this->assertSame('IL', $address->state);
-        $this->assertSame('62704', $address->zip);
-        $this->assertSame('Miami', $deal->get('business_city'), 'the deal keeps its business address');
+        $this->assertSame('1 Infinite Loop', $address->address);
+        $this->assertSame('Cupertino', $address->city);
+        $this->assertSame('CA', $address->state);
+        $this->assertSame('95014', $address->zip);
+        $this->assertSame('1 Infinite Loop', $deal->get('address'));
+        $this->assertSame($contactEmail, $deal->people->getEmails()->first()->value, 'an empty deal field does not shadow the contact');
     }
 
     public function testMirrorsThePersonsAddressOntoTheDealsCustomFields(): void

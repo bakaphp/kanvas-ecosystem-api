@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\OrdersRecordExporter;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\ListOrderTypesTool;
@@ -452,5 +453,24 @@ class OrderReportToolsTest extends TestCase
         // Order Type and Payment Status columns sit at index 2 and 4.
         $this->assertSame(['paso_rapido'], array_values(array_unique(array_column($rows, 2))));
         $this->assertSame('paid', $rows[0][4]);
+    }
+
+    public function test_orders_export_accepts_a_company_scope(): void
+    {
+        [$app, $company] = $this->seedOrders();
+        $exporter = new OrdersRecordExporter();
+
+        // The shared CI database holds orders other suites committed to this company, so every
+        // assertion is relative to the own-company result rather than an absolute row count.
+        $own = CompanyScope::ownCompanyOnly($app, $company);
+        $ownRows = $exporter->rows($app, $own, ['order_type' => 'paso_rapido']);
+
+        $this->assertNotEmpty($ownRows);
+        $this->assertSame(['paso_rapido'], array_values(array_unique(array_column($ownRows, 2))));
+
+        $other = Companies::factory()->create(['users_id' => auth()->user()->getId()]);
+        $wide = CompanyScope::withCompanies($app, $company, [$other->getId()]);
+
+        $this->assertSame($ownRows, $exporter->rows($app, $wide, ['order_type' => 'paso_rapido']));
     }
 }
