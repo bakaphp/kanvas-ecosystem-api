@@ -31,25 +31,23 @@ class ZohoLead extends Data
     ) {
     }
 
-    /**
-     * @todo Read the person's default address first and emit Street/City/State/Zip_Code from it,
-     *       falling back to the mapped custom fields only when the person has none (docs/TODO.md).
-     */
     public static function fromLead(Lead $lead): self
     {
         $customFields = $lead->getAll();
         $company = $lead->company()->first();
         $companyZohoMapFields = $company->get(CustomFieldEnum::FIELDS_MAP->value);
+        $companyZohoMapFields = is_array($companyZohoMapFields) ? $companyZohoMapFields : [];
+        $people = $lead->people()->first();
 
-        $additionalFields = is_array($companyZohoMapFields)
-            ? ZohoFieldMapService::map($companyZohoMapFields, $customFields)
-            : [];
+        $additionalFields = [
+            ...ZohoFieldMapService::map($companyZohoMapFields, $customFields),
+            ...ZohoFieldMapService::addressFields($people?->getDefaultAddress(), $companyZohoMapFields),
+        ];
 
         if (self::hasAttachments($lead)) {
             $additionalFields[self::HAS_ATTACHMENT_FIELD] = true;
         }
 
-        $people = $lead->people()->first();
         $leadStatus = $lead->status()->first();
         // Only the owner's own Zoho user. The company default is a create-time fallback that lives in
         // SyncLeadToZohoAction; from here it would reach every update and move the Zoho owner.

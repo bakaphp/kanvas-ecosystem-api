@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\Zoho;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoDeal;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Users\Models\Users;
 use Tests\Connectors\Integration\Zoho\Concerns\BuildsZohoDeal;
 use Tests\TestCase;
@@ -80,6 +81,45 @@ final class ZohoDealDtoTest extends TestCase
         $this->assertSame(ZohoDeal::DEFAULT_STAGE, $data['Stage']);
         $this->assertArrayNotHasKey('Owner', $data, 'an unresolved owner is dropped so Zoho assigns its API user');
         $this->assertArrayNotHasKey('ZCRM_Lead_ID', $data);
+    }
+
+    public function testThePersonsDefaultAddressWinsOverTheMappedCustomFields(): void
+    {
+        $company = $this->makeZohoCompany();
+        $people = $this->makePeople($company);
+        $people->addDefaultAddress(Address::fromArray([
+            'address' => '742 Evergreen Terrace',
+            'address_2' => 'Apt 2',
+            'city' => 'Springfield',
+            'state' => 'IL',
+            'zip' => '62704',
+            'is_default' => true,
+        ]));
+
+        $deal = $this->makeDeal($company, people: $people);
+        $deal->set('business_city', 'Miami');
+        $deal->set('business_zip', '33033');
+
+        $data = ZohoDeal::fromDeal($deal)->toArray();
+
+        $this->assertSame('742 Evergreen Terrace Apt 2', $data['Street']);
+        $this->assertSame('Springfield', $data['City']);
+        $this->assertSame('IL', $data['State']);
+        $this->assertSame('62704', $data['Zip_Code']);
+    }
+
+    public function testFallsBackToTheMappedCustomFieldsWhenThePersonHasNoAddress(): void
+    {
+        $company = $this->makeZohoCompany();
+        $deal = $this->makeDeal($company, people: $this->makePeople($company));
+        $deal->set('business_city', 'Miami');
+        $deal->set('business_zip', '33033');
+
+        $data = ZohoDeal::fromDeal($deal)->toArray();
+
+        $this->assertSame('Miami', $data['City']);
+        $this->assertEquals('33033', $data['Zip_Code']);
+        $this->assertArrayNotHasKey('Street', $data);
     }
 
     public function testADealWhoseLeadIsNotInZohoIsStillPushedWithoutTheLink(): void

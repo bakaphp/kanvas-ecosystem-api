@@ -29,14 +29,11 @@ class ZohoDeal extends Data
     ) {
     }
 
-    /**
-     * @todo Read the deal person's default address first and emit the address fields from it,
-     *       falling back to the mapped custom fields only when the person has none (docs/TODO.md).
-     */
     public static function fromDeal(Deal $deal): self
     {
         $company = $deal->company;
         $stage = $deal->pipelineStage;
+        $fieldMap = ZohoFieldMapService::dealMapFor($company);
         $owner = $deal->owner?->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value)
             ?? $company->get(CustomFieldEnum::DEFAULT_OWNER->value);
 
@@ -46,7 +43,10 @@ class ZohoDeal extends Data
             Description: $deal->description,
             Owner: Str::trimToNull((string) ($owner ?? '')),
             ZCRM_Lead_ID: Str::trimToNull((string) ($deal->lead?->get(CustomFieldEnum::ZOHO_LEAD_ID->value) ?? '')),
-            additionalFields: ZohoFieldMapService::map(ZohoFieldMapService::dealMapFor($company), $deal->getAll()),
+            additionalFields: [
+                ...ZohoFieldMapService::map($fieldMap, $deal->getAll()),
+                ...ZohoFieldMapService::addressFields($deal->people?->getDefaultAddress(), $fieldMap),
+            ],
         );
     }
 
