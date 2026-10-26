@@ -21,6 +21,7 @@ use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductsDto;
 use Kanvas\Inventory\Products\Models\Products as ProductsModel;
 use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
+use Kanvas\Inventory\ProductsTypes\Actions\ResolveProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -134,14 +135,14 @@ class ProductImporterAction
         return null;
     }
 
-    /**
-     * productType.
-     */
     protected function productType(): void
     {
-        $productType = null;
+        $productType = isset($this->importedProduct->productType['id'])
+            ? new ResolveProductTypeAction($this->app, $this->company, $this->user)
+                ->execute(id: (int) $this->importedProduct->productType['id'])
+            : null;
 
-        if (isset($this->importedProduct->productType['source_id'])) {
+        if ($productType === null && isset($this->importedProduct->productType['source_id'])) {
             $productType = ProductsTypesModel::getByCustomField(
                 $this->importedProduct->getSourceKey(),
                 $this->importedProduct->productType['source_id'],
@@ -159,7 +160,7 @@ class ProductImporterAction
                 'weight' => $this->importedProduct->productType['weight'] ?? null,
             ]);
 
-            $productType = (new CreateProductTypeAction($productTypeDto, $this->user))->execute();
+            $productType = new CreateProductTypeAction($productTypeDto, $this->user)->execute();
 
             if (isset($this->importedProduct->productType['source_id']) && $this->importedProduct->isFromThirdParty()) {
                 $productType->setLinkedSource(

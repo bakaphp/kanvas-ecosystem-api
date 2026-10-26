@@ -57,3 +57,23 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ImportMutation@finish"
         )
 }
+
+input ProductFileImportInput {
+    filesystem_id: ID!
+    mapping: Mixed!
+    configuration: Mixed!
+}
+
+type ProductFileImport {
+    id: ID!
+    uuid: String!
+    status: String!
+    results: Mixed
+    exception: Mixed
+    filesystem: Filesystem! @belongsTo(relation: "filesystem")
+}
+
+extend type Mutation @guard {
+    importProductFromFile(input: ProductFileImportInput!): ProductFileImport!
+        @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductFileImportMutation@import")
+}
