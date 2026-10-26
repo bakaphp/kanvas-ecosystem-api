@@ -28,7 +28,8 @@ use Override;
  * The prompt replaces Neuron's rather than extending it: the stock "always search before concluding"
  * reads as "search first", and the model searched for tools it already held. The tool also gets the
  * tools the request declares, so a search for one of them answers "you already hold it" rather than
- * a miss list.
+ * a miss list. The prompt also names the pool (toolkits as one line with a count), because the only
+ * tools the model can see are the ones a search loaded, and it reported those as all it had.
  */
 class KanvasToolSearchMiddleware extends ToolSearchMiddleware
 {
@@ -53,11 +54,34 @@ class KanvasToolSearchMiddleware extends ToolSearchMiddleware
      */
     public function __construct(array $toolPool, int $topN = 5)
     {
-        parent::__construct($toolPool, $topN, self::SYSTEM_PROMPT);
+        $topN = max(1, $topN);
+        parent::__construct($toolPool, $topN, self::SYSTEM_PROMPT . "\n\n" . self::poolSummary($toolPool, $topN));
 
         foreach ($toolPool as $tool) {
             $this->poolByName[$tool->getName()] = $tool;
         }
+    }
+
+    /**
+     * @param ToolInterface[] $toolPool
+     */
+    private static function poolSummary(array $toolPool, int $topN): string
+    {
+        $summary = <<<'PROMPT'
+            Your searchable pool holds %d tools: %s.
+
+            A search shows at most %d matches and says how many more matched.
+            A tool it names but does not load is loaded by searching its exact name.
+            Tools a search loaded stay callable until the next user message, so a new turn needs a new search.
+            When asked which tools or integrations you have, answer from this pool and the declared tools, never from what one search returned.
+            PROMPT;
+
+        return sprintf(
+            $summary,
+            count($toolPool),
+            implode(', ', KanvasToolSearchTool::inventory($toolPool)),
+            $topN,
+        );
     }
 
     #[Override]
