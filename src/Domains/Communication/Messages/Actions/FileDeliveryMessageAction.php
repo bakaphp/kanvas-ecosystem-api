@@ -37,7 +37,7 @@ final class FileDeliveryMessageAction
         $company = $this->delivery->company;
         $user = Users::query()->find($request->users_id) ?? $company->user;
 
-        $conversation = app(TransportManager::class)
+        $conversation = new TransportManager()
             ->for($connection->provider, $this->delivery->channel)
             ->conversation($connection, (string) $this->delivery->to_address);
 

@@ -12,7 +12,7 @@ use Kanvas\Social\Messages\Models\Message;
 final class TransportManager
 {
     public function __construct(
-        private readonly ProviderRegistry $providers
+        private readonly ProviderRegistry $providers = new ProviderRegistry()
     ) {
     }
 

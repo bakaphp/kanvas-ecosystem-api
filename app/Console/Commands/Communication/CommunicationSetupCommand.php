@@ -105,7 +105,7 @@ class CommunicationSetupCommand extends Command
             ->when($this->option('company'), fn ($query, $company) => $query->where('companies_id', (int) $company))
             ->with('integration')
             ->get()
-            ->filter(fn (IntegrationsCompany $row): bool => app(ProviderRegistry::class)->forIntegration($row) !== null);
+            ->filter(fn (IntegrationsCompany $row): bool => new ProviderRegistry()->forIntegration($row) !== null);
 
         foreach ($legacy as $row) {
             $result = new ResolveIntegrationAppAction($row)->execute();
@@ -142,7 +142,7 @@ class CommunicationSetupCommand extends Command
      */
     private function importLegacySelection(IntegrationsCompany $integrationCompany): void
     {
-        $provider = app(ProviderRegistry::class)->forIntegration($integrationCompany);
+        $provider = new ProviderRegistry()->forIntegration($integrationCompany);
 
         if ($provider === null || $provider::accounts($integrationCompany) !== []) {
             return;
@@ -182,7 +182,7 @@ class CommunicationSetupCommand extends Command
             ->when($this->option('company'), fn ($query, $company) => $query->where('companies_id', (int) $company))
             ->with('integration')
             ->get()
-            ->filter(fn (IntegrationsCompany $row): bool => app(ProviderRegistry::class)->forIntegration($row) !== null)
+            ->filter(fn (IntegrationsCompany $row): bool => new ProviderRegistry()->forIntegration($row) !== null)
             ->values();
     }
 
@@ -204,7 +204,7 @@ class CommunicationSetupCommand extends Command
             ->where('is_deleted', 0)
             ->with('integration')
             ->get()
-            ->filter(fn (IntegrationsCompany $row): bool => app(ProviderRegistry::class)->forIntegration($row) !== null)
+            ->filter(fn (IntegrationsCompany $row): bool => new ProviderRegistry()->forIntegration($row) !== null)
             ->pluck('apps_id')
             ->merge(Connection::query()->distinct()->pluck('apps_id'))
             ->unique()

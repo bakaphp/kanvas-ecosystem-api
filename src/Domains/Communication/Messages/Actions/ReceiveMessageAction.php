@@ -85,7 +85,7 @@ final class ReceiveMessageAction
     {
         $route = new RouteInboundMessageAction(
             $this->receiver->app,
-            app(CommunicationReceivers::class)->sharesAppReceiver($this->inbound->provider) ? null : $this->receiver->company,
+            new CommunicationReceivers()->sharesAppReceiver($this->inbound->provider) ? null : $this->receiver->company,
             $this->inbound
         )->execute();
 

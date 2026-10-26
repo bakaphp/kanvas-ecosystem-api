@@ -49,7 +49,7 @@ final class RetireConnectionAction
             $this->retireAccountOnIntegration();
             $this->skipPendingDeliveries();
             $this->persistCleanupTasks();
-            app(SharedRegistry::class)->detach($this->connection);
+            new SharedRegistry()->detach($this->connection);
             $this->moveChannelDefaults();
         });
 

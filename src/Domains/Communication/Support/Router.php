@@ -61,7 +61,7 @@ final class Router
             );
         }
 
-        $conversation = app(TransportManager::class)->conversationOf($message);
+        $conversation = new TransportManager()->conversationOf($message);
 
         if ($conversation === null) {
             return null;
@@ -96,7 +96,7 @@ final class Router
      */
     private function everyUsableChannel(Recipient $recipient): array
     {
-        $eligibility = app(EligibilityResolver::class);
+        $eligibility = new EligibilityResolver();
         $routes = [];
 
         $defaults = ChannelDefault::query()

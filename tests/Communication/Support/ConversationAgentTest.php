@@ -78,7 +78,7 @@ final class ConversationAgentTest extends TestCase
 
     private function resolve(): Agent
     {
-        return app(AutoReplyPolicy::class)->conversationAgent($this->currentApp(), $this->currentCompany());
+        return new AutoReplyPolicy()->conversationAgent($this->currentApp(), $this->currentCompany());
     }
 
     private function agentNamed(string $name): Agent

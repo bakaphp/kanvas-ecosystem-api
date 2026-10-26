@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Integrations\Actions;
 
 use Illuminate\Support\Facades\DB;
-use Kanvas\Communication\Connections\Actions\ScheduleCommunicationSetupAction;
+use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany as IntegrationsCompanyModel;
@@ -35,7 +35,7 @@ class UpdateIntegrationCompanyAction
             $this->integrationCompany->config = $this->dto->persistedConfig ?: null;
             $this->integrationCompany->saveOrFail();
 
-            new ScheduleCommunicationSetupAction($this->dto->app, $this->integrationCompany)->execute();
+            BaseIntegration::forIntegrationCompany($this->integrationCompany, $this->dto->app)?->saved($this->integrationCompany);
 
             return $this->integrationCompany;
         });

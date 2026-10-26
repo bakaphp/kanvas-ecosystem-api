@@ -52,7 +52,7 @@ final class DispatchDeliveryAction
         $request = $this->delivery->request;
         $recipient = Recipient::inConversation($request->people, (string) $this->delivery->to_address);
 
-        $refusal = app(EligibilityResolver::class)->reasonNotToContact(
+        $refusal = new EligibilityResolver()->reasonNotToContact(
             $recipient,
             $this->delivery->channel,
             (string) $this->delivery->to_address
@@ -67,7 +67,7 @@ final class DispatchDeliveryAction
         $content = Content::fromArray($request->content);
 
         try {
-            $result = app(TransportManager::class)
+            $result = new TransportManager()
                 ->for($connection->provider, $this->delivery->channel)
                 ->send($this->delivery, $content);
         } catch (Throwable $exception) {

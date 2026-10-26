@@ -44,7 +44,7 @@ final class CommunicationPresenter
 
     public static function connection(Connection $connection): array
     {
-        $provider = app(ProviderRegistry::class)->all()[$connection->provider] ?? null;
+        $provider = new ProviderRegistry()->all()[$connection->provider] ?? null;
 
         return [
             'id' => $connection->getId(),

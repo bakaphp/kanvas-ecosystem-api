@@ -16,7 +16,7 @@ use Kanvas\Workflow\Rules\Models\Action;
 class WorkflowActionCatalog
 {
     public function __construct(
-        protected WorkflowActionDiscoveryService $discovery
+        protected WorkflowActionDiscoveryService $discovery = new WorkflowActionDiscoveryService()
     ) {
     }
 

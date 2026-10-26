@@ -42,7 +42,7 @@ final class RunConnectionCleanupAction
             return $this->connection;
         }
 
-        $provisioner = app(ProviderRegistry::class)->provisioner($this->connection->provider);
+        $provisioner = new ProviderRegistry()->provisioner($this->connection->provider);
 
         foreach ($this->dueTasks() as $task) {
             $this->run($task, fn (CleanupTask $task) => $provisioner->cleanup($task));

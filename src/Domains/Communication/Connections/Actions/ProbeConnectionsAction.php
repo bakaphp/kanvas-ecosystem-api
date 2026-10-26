@@ -36,7 +36,7 @@ final class ProbeConnectionsAction
             ->get()
             ->groupBy('integrations_company_id');
 
-        $registry = app(ProviderRegistry::class);
+        $registry = new ProviderRegistry();
         $registered = $registry->all();
 
         foreach ($connections as $sameIntegration) {

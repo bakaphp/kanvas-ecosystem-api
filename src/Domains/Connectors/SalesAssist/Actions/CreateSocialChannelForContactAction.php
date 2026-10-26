@@ -187,7 +187,15 @@ class CreateSocialChannelForContactAction
 
         $session = new CreateSessionAction($sessionDto)->execute();
 
-        new BootstrapChannelForLeadAction($lead, $communicationChannel, $contactValue, $agent)->execute();
+        // The People conversation already is the person's channel; only a lead's needs one bootstrapped.
+        if ($entity instanceof Lead) {
+            new BootstrapChannelForLeadAction(
+                $entity,
+                $communicationChannel,
+                $contactValue,
+                $agent
+            )->execute();
+        }
 
         return [
             'channel' => $channel,

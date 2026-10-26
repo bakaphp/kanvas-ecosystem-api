@@ -69,7 +69,7 @@ final class AutoReplyTest extends TestCase
 
     public function testCommunicationWorksWithoutAnAgent(): void
     {
-        $this->assertNull(app(AutoReplyPolicy::class)->agentFor($this->currentApp(), $this->currentCompany(), ChannelTypeEnum::SMS));
+        $this->assertNull(new AutoReplyPolicy()->agentFor($this->currentApp(), $this->currentCompany(), ChannelTypeEnum::SMS));
     }
 
     public function testTheConfiguredAgentGetsOneRuleOnTheConversationResponder(): void
@@ -77,7 +77,7 @@ final class AutoReplyTest extends TestCase
         $agent = $this->agent();
         $this->currentCompany()->set(AutoReplyPolicy::SETTING, $agent->getId());
 
-        $resolved = app(AutoReplyPolicy::class)->agentFor($this->currentApp(), $this->currentCompany(), ChannelTypeEnum::SMS);
+        $resolved = new AutoReplyPolicy()->agentFor($this->currentApp(), $this->currentCompany(), ChannelTypeEnum::SMS);
         $this->assertSame($agent->getId(), $resolved?->getId());
 
         $rule = $this->ensureRule($agent);
@@ -118,7 +118,7 @@ final class AutoReplyTest extends TestCase
         $providersResponder = RuleWorkflowAction::query()->firstOrCreate(
             [
                 'system_modules_id' => $current->system_modules_id,
-                'actions_id' => app(WorkflowActionCatalog::class)->register(self::LEGACY_RESPONDER)->getId(),
+                'actions_id' => new WorkflowActionCatalog()->register(self::LEGACY_RESPONDER)->getId(),
             ],
             ['is_deleted' => 0]
         );

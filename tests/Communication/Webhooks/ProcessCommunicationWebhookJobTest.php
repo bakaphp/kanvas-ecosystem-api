@@ -46,7 +46,7 @@ final class ProcessCommunicationWebhookJobTest extends TestCase
 
     public function testSetupGivesEachProviderOneReceiverOnTheSharedJob(): void
     {
-        $receivers = app(CommunicationReceivers::class);
+        $receivers = new CommunicationReceivers();
 
         $first = $receivers->ensure($this->currentApp(), $this->currentCompany(), 'fake');
         $again = $receivers->ensure($this->currentApp(), $this->currentCompany(), 'fake');
@@ -104,7 +104,7 @@ final class ProcessCommunicationWebhookJobTest extends TestCase
 
     private function receiver(?string $provider): ReceiverWebhook
     {
-        $receiver = app(CommunicationReceivers::class)->ensure($this->currentApp(), $this->currentCompany(), 'fake');
+        $receiver = new CommunicationReceivers()->ensure($this->currentApp(), $this->currentCompany(), 'fake');
 
         if ($provider === 'fake') {
             return $receiver;

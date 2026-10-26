@@ -23,8 +23,8 @@ use Kanvas\Workflow\Services\WorkflowActionCatalog;
 class CommunicationReceivers
 {
     public function __construct(
-        protected WorkflowActionCatalog $catalog,
-        protected ProviderRegistry $registry
+        protected WorkflowActionCatalog $catalog = new WorkflowActionCatalog(),
+        protected ProviderRegistry $registry = new ProviderRegistry()
     ) {
     }
 

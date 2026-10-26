@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Communication\Fixtures;
 
 use Carbon\CarbonInterval;
+use Kanvas\Communication\Connections\Concerns\ProvisionsConnections;
 use Kanvas\Communication\Connections\DataTransferObject\AccountSelection;
 use Kanvas\Communication\Connections\DataTransferObject\Retention;
 use Kanvas\Communication\Contracts\CommunicationProvider;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
+use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
@@ -16,8 +18,15 @@ use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
  * A provider that, unlike Twilio, keeps reporting after `delivered` — so the tests can tell a
  * delivered message from one the provider has finished talking about.
  */
-final class FakeProvider implements CommunicationProvider
+final class FakeProvider extends BaseIntegration implements CommunicationProvider
 {
+    use ProvisionsConnections;
+
+    public function setup(): bool
+    {
+        return true;
+    }
+
     public static function slug(): string
     {
         return 'fake';

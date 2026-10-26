@@ -23,6 +23,7 @@ use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\ConversationAgentEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
+use Kanvas\Communication\Setup\Jobs\SetupPeopleChannelsJob;
 use Kanvas\Communication\Webhooks\ProcessCommunicationWebhookJob;
 use Kanvas\Communication\Workflows\AgentChannelResponderActivity;
 use Kanvas\Guild\Leads\Models\LeadType;
@@ -174,7 +175,7 @@ final class MetaWhatsAppProviderTest extends TestCase
      */
     public function testEveryWorkspaceOnTheAppSharesOneReceiver(): void
     {
-        $receivers = app(CommunicationReceivers::class);
+        $receivers = new CommunicationReceivers();
 
         $this->assertSame(
             $receivers->ensure($this->currentApp(), $this->currentCompany(), 'meta')->getId(),
@@ -299,7 +300,9 @@ final class MetaWhatsAppProviderTest extends TestCase
 
     public function testSetupSubscribesTheWabaToTheTenantsReceiverAndReadsItBack(): void
     {
-        $receiverUrl = app(CommunicationReceivers::class)->ensure($this->currentApp(), $this->currentCompany(), 'meta')->getUrl();
+        $this->globalAgentTemplates();
+        Queue::fake([SetupPeopleChannelsJob::class]);
+        $receiverUrl = new CommunicationReceivers()->ensure($this->currentApp(), $this->currentCompany(), 'meta')->getUrl();
         $subscribed = [];
         Http::fake(function (HttpRequest $request) use (&$subscribed, $receiverUrl) {
             if (str_ends_with($request->url(), '/subscribed_apps') && $request->method() === 'POST') {
@@ -324,6 +327,7 @@ final class MetaWhatsAppProviderTest extends TestCase
         $this->assertEquals(['phone_number_id' => self::PHONE_NUMBER_ID, 'waba_id' => self::WABA_ID], $connection->config);
         $this->assertSame([['override_callback_uri' => $receiverUrl, 'verify_token' => 'verify-me']], $subscribed);
         $this->assertSame($connection->getId(), InboundClaim::query()->where('provider', 'meta')->where('inbound_identity', self::OUR_NUMBER)->value('connection_id'));
+        Queue::assertPushed(SetupPeopleChannelsJob::class, 1);
     }
 
     public function testAWabaAlreadySendingToAnotherKanvasReceiverIsNotTakenOver(): void
@@ -399,7 +403,7 @@ final class MetaWhatsAppProviderTest extends TestCase
 
     private function receiver(): ReceiverWebhook
     {
-        return app(CommunicationReceivers::class)->ensure($this->currentApp(), $this->currentCompany(), 'meta');
+        return new CommunicationReceivers()->ensure($this->currentApp(), $this->currentCompany(), 'meta');
     }
 
     private function signedRequest(ReceiverWebhook $receiver, string $body, ?string $signature = null): Request

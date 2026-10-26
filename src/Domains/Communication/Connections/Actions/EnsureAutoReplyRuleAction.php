@@ -46,7 +46,7 @@ final class EnsureAutoReplyRuleAction
 
     public function execute(): ?Rule
     {
-        $catalog = app(WorkflowActionCatalog::class);
+        $catalog = new WorkflowActionCatalog();
         $action = $catalog->register(AgentChannelResponderActivity::class);
         $ruleType = RuleType::query()->where('name', WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value)->firstOrFail();
         $systemModule = SystemModulesRepository::getByModelName(Channel::class, $this->app);

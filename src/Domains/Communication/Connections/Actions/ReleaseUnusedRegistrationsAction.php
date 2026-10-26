@@ -62,7 +62,7 @@ final class ReleaseUnusedRegistrationsAction
                 }
 
                 try {
-                    $outcome = app(ProviderRegistry::class)->provisioner($registration->provider)->releaseShared($registration);
+                    $outcome = new ProviderRegistry()->provisioner($registration->provider)->releaseShared($registration);
                 } catch (Throwable $exception) {
                     report($exception);
 
@@ -100,7 +100,7 @@ final class ReleaseUnusedRegistrationsAction
             ->where('configuration->communication->managed', true)
             ->get();
 
-        $receiversService = app(CommunicationReceivers::class);
+        $receiversService = new CommunicationReceivers();
 
         foreach ($receivers as $receiver) {
             $provider = (string) ($receiver->configuration['communication']['provider'] ?? '');

@@ -135,7 +135,7 @@ class AgentChannelResponderActivity extends KanvasActivity
         $mappedAgentId = $channelAgentMapping[$chatJid]['agent_id'] ?? null;
         $agent = $mappedAgentId !== null
             ? Agent::getById($mappedAgentId, $app)
-            : app(AutoReplyPolicy::class)->conversationAgent($app, $channel->company);
+            : new AutoReplyPolicy()->conversationAgent($app, $channel->company);
         $defaultAgentId = $agent->getId();
         $session = $this->session($channel, $app, $message, $person, $agent);
 
