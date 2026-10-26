@@ -286,31 +286,27 @@ class PullZohoDealAction
         }
     }
 
+    /**
+     * Each Zoho attachment id is remembered with the file it became, so a refresh never downloads
+     * it twice. Files pulled before that record existed, or uploaded by hand under the same name,
+     * are matched on name: `field_name` is the Zoho name as given, `name` can differ once an
+     * image has been converted on upload.
+     */
     protected function pullAttachments(Deal $deal): void
     {
-        try {
-            $attachmentsRaw = $this->zohoClient()->deals->getRelatedRecords($this->zohoDealId, 'Attachments');
-        } catch (Throwable) {
-            return;
-        }
-
-        if (! is_array($attachmentsRaw) || $attachmentsRaw === []) {
-            return;
-        }
-
-        // Zoho wraps records in {"data": [...], "info": {...}} — unwrap the data list
-        $attachments = isset($attachmentsRaw['data']) && is_array($attachmentsRaw['data'])
-            ? $attachmentsRaw['data']
-            : $attachmentsRaw;
+        $attachments = $this->fetchAttachments();
 
         if ($attachments === []) {
             return;
         }
 
+        $pulled = $deal->get(CustomFieldEnum::ZOHO_DEAL_PULLED_ATTACHMENTS->value) ?? [];
+        $pulledBefore = $pulled;
         $existingNames = [];
 
         foreach ($deal->getFiles() as $existing) {
-            $existingNames[] = (string) ($existing->name ?? '');
+            $existingNames[] = (string) $existing->field_name;
+            $existingNames[] = (string) $existing->name;
         }
 
         $filesystemService = new FilesystemServices($this->app, $this->company);
@@ -331,17 +327,45 @@ class PullZohoDealAction
                 continue;
             }
 
-            if (in_array($fileName, $existingNames, true)) {
+            if (isset($pulled[$attachmentId]) || in_array($fileName, $existingNames, true)) {
                 continue;
             }
 
-            $this->downloadAndAttach(
+            $filesystemId = $this->downloadAndAttach(
                 $deal,
                 $attachmentId,
                 $fileName,
                 $filesystemService
             );
+
+            if ($filesystemId !== null) {
+                $pulled[$attachmentId] = $filesystemId;
+            }
         }
+
+        // set() is a Redis write, a DB upsert and a workflow event; a refresh with nothing new skips all three.
+        if ($pulled !== $pulledBefore) {
+            $deal->set(CustomFieldEnum::ZOHO_DEAL_PULLED_ATTACHMENTS->value, $pulled);
+        }
+    }
+
+    /**
+     * @return list<array>
+     */
+    protected function fetchAttachments(): array
+    {
+        try {
+            $raw = $this->zohoClient()->deals->getRelatedRecords($this->zohoDealId, 'Attachments');
+        } catch (Throwable) {
+            return [];
+        }
+
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        // Zoho wraps records in {"data": [...], "info": {...}}
+        return isset($raw['data']) && is_array($raw['data']) ? $raw['data'] : $raw;
     }
 
     protected function downloadAndAttach(
@@ -349,11 +373,11 @@ class PullZohoDealAction
         string $attachmentId,
         string $fileName,
         FilesystemServices $filesystemService
-    ): void {
+    ): ?int {
         $tmpPath = tempnam(sys_get_temp_dir(), 'zoho-attach-');
 
         if ($tmpPath === false) {
-            return;
+            return null;
         }
 
         $resource = fopen($tmpPath, 'w+');
@@ -361,7 +385,7 @@ class PullZohoDealAction
         if ($resource === false) {
             @unlink($tmpPath);
 
-            return;
+            return null;
         }
 
         try {
@@ -373,7 +397,7 @@ class PullZohoDealAction
             }
             @unlink($tmpPath);
 
-            return;
+            return null;
         }
         /** @psalm-suppress RedundantCondition — Zoho SDK may close the stream itself */
         if (is_resource($resource)) {
@@ -391,7 +415,10 @@ class PullZohoDealAction
             $filesystem = $filesystemService->upload($uploadedFile, $this->user);
             new AttachFilesystemAction($filesystem, $deal)->execute($fileName);
             $this->rememberSyncedFiles($deal, CustomFieldEnum::ZOHO_DEAL_SYNC_FILES, [$filesystem->getId()]);
+
+            return $filesystem->getId();
         } catch (Throwable) {
+            return null;
         } finally {
             if (file_exists($tmpPath)) {
                 @unlink($tmpPath);

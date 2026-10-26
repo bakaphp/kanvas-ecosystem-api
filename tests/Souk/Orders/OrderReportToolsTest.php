@@ -127,6 +127,19 @@ class OrderReportToolsTest extends TestCase
         $payment->saveOrFail();
     }
 
+    /**
+     * @param array<string, mixed> $attributes
+     */
+    private function backdateLatestOrder(Companies $company, string $status, array $attributes): void
+    {
+        Order::query()
+            ->where('companies_id', $company->getId())
+            ->where('status', $status)
+            ->latest('id')
+            ->limit(1)
+            ->update($attributes);
+    }
+
     public function test_list_order_types_returns_tenant_types(): void
     {
         [$app, $company, $user] = $this->seedOrders();
@@ -276,12 +289,7 @@ class OrderReportToolsTest extends TestCase
         [$app, $company, $user] = $this->seedOrders();
 
         // Push one order two months back so the series has more than a single bucket.
-        Order::query()
-            ->where('companies_id', $company->getId())
-            ->where('status', 'cancelled')
-            ->latest('id')
-            ->limit(1)
-            ->update(['created_at' => now()->subMonths(2)->startOfMonth()->addDay()]);
+        $this->backdateLatestOrder($company, 'cancelled', ['created_at' => now()->subMonths(2)->startOfMonth()->addDay()]);
 
         $result = new OrderTrendTool()
             ->withContext($app, $company, $user)
@@ -313,15 +321,10 @@ class OrderReportToolsTest extends TestCase
     {
         [$app, $company, $user] = $this->seedOrders();
 
-        Order::query()
-            ->where('companies_id', $company->getId())
-            ->where('status', 'completed')
-            ->latest('id')
-            ->limit(1)
-            ->update([
-                'created_at' => now()->subMonths(2)->startOfMonth()->addDay(),
-                'paid_at' => now()->subMonth()->startOfMonth()->addDay(),
-            ]);
+        $this->backdateLatestOrder($company, 'completed', [
+            'created_at' => now()->subMonths(2)->startOfMonth()->addDay(),
+            'paid_at' => now()->subMonth()->startOfMonth()->addDay(),
+        ]);
 
         $result = new OrderTrendTool()
             ->withContext($app, $company, $user)
@@ -340,12 +343,7 @@ class OrderReportToolsTest extends TestCase
         [$app, $company, $user] = $this->seedOrders();
         $utcEarlyMorning = now()->utc()->startOfDay()->addHours(2);
 
-        Order::query()
-            ->where('companies_id', $company->getId())
-            ->where('status', 'cancelled')
-            ->latest('id')
-            ->limit(1)
-            ->update(['created_at' => $utcEarlyMorning]);
+        $this->backdateLatestOrder($company, 'cancelled', ['created_at' => $utcEarlyMorning]);
 
         Order::query()
             ->where('companies_id', $company->getId())
@@ -373,12 +371,7 @@ class OrderReportToolsTest extends TestCase
     {
         [$app, $company, $user] = $this->seedOrders();
 
-        Order::query()
-            ->where('companies_id', $company->getId())
-            ->where('status', 'completed')
-            ->latest('id')
-            ->limit(1)
-            ->update(['created_at' => now()->subMonths(2)->startOfMonth()->addDay()]);
+        $this->backdateLatestOrder($company, 'completed', ['created_at' => now()->subMonths(2)->startOfMonth()->addDay()]);
 
         $result = new OrderTrendTool()
             ->withContext($app, $company, $user)
@@ -386,6 +379,94 @@ class OrderReportToolsTest extends TestCase
 
         $this->assertSame(now()->subMonths(2)->startOfMonth()->toDateString(), $result['peak_gross_revenue_period']['period']);
         $this->assertSame(120.0, (float) $result['peak_gross_revenue_period']['gross_revenue']);
+    }
+
+    public function test_order_trend_counts_a_customer_as_new_only_in_their_first_period(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+
+        $this->backdateLatestOrder($company, 'cancelled', ['created_at' => now()->subMonths(2)->startOfMonth()->addDay()]);
+
+        $result = new OrderTrendTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(group_by: 'month', order_types: 'movipass,paso_rapido');
+
+        $series = collect($result['series'])->keyBy('period');
+        $first = $series[now()->subMonths(2)->startOfMonth()->toDateString()];
+        $current = $series[now()->startOfMonth()->toDateString()];
+
+        // The cancelled, unpaid order two months back is still the person's first order: "any order" counts.
+        $this->assertSame(1, $first['new_customers']);
+        $this->assertSame(1, $first['new_to_company']);
+        $this->assertSame(0, $current['new_customers']);
+        $this->assertSame(0, $current['new_to_company']);
+        $this->assertSame(1, $result['total_new_customers']);
+        $this->assertSame(1, $result['total_new_to_company']);
+    }
+
+    public function test_order_trend_splits_new_to_the_vertical_from_new_to_the_company(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+        $pasoRapido = OrderTypes::query()->where('companies_id', $company->getId())->where('name', 'paso_rapido')->firstOrFail();
+
+        $this->backdateLatestOrder($company, 'cancelled', ['created_at' => now()->subMonths(2)->startOfMonth()->addDay()]);
+
+        $newcomer = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create(['firstname' => 'First', 'lastname' => 'Timer']);
+
+        Order::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->withPeopleId($newcomer->getId())
+            ->create(['order_types_id' => $pasoRapido->getId(), 'status' => 'completed', 'payment_status' => 'paid']);
+
+        Order::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withPeopleId(0)
+            ->create([
+                'order_types_id' => $pasoRapido->getId(),
+                'users_id' => null,
+                'user_email' => null,
+                'status' => 'completed',
+                'payment_status' => 'paid',
+            ]);
+
+        $result = new OrderTrendTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(group_by: 'month', order_types: 'paso_rapido');
+
+        $this->assertCount(1, $result['series']);
+        $row = $result['series'][0];
+
+        // Toll Payer is new to paso_rapido this month but bought movipass two months ago;
+        // First Timer has never ordered anything; the guest order has no customer at all.
+        $this->assertSame(3, $row['orders']);
+        $this->assertSame(2, $row['new_customers']);
+        $this->assertSame(1, $row['new_to_company']);
+        $this->assertSame(1, $row['orders_without_customer']);
+        $this->assertSame(1, $result['total_orders_without_customer']);
+    }
+
+    public function test_order_trend_paid_only_ignores_unpaid_orders_when_finding_the_first_order(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+
+        $this->backdateLatestOrder($company, 'cancelled', ['created_at' => now()->subMonths(2)->startOfMonth()->addDay()]);
+
+        $result = new OrderTrendTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(group_by: 'month', order_types: 'movipass,paso_rapido', paid_only: true);
+
+        $series = collect($result['series'])->keyBy('period');
+
+        $this->assertCount(1, $series);
+        $this->assertSame(1, $series[now()->startOfMonth()->toDateString()]['new_customers']);
+        $this->assertSame(1, $series[now()->startOfMonth()->toDateString()]['new_to_company']);
     }
 
     public function test_order_trend_rejects_an_unknown_timezone(): void

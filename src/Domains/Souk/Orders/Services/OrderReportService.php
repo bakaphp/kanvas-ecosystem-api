@@ -23,6 +23,17 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 class OrderReportService
 {
     /**
+     * One customer across orders: the CRM person when the order has one, else the auth user, else
+     * the email. `people_id` is NOT NULL on `orders`, so a guest order carries 0 and must fall through.
+     * An order with none of the three has no customer and is counted separately, never guessed.
+     */
+    private const string CUSTOMER_KEY = 'COALESCE('
+        . "CONCAT('p:', NULLIF(orders.people_id, 0)), "
+        . "CONCAT('u:', NULLIF(orders.users_id, 0)), "
+        . "CONCAT('e:', LOWER(NULLIF(TRIM(orders.user_email), '')))"
+        . ')';
+
+    /**
      * Statuses that take an order out of the operational pipeline — a cancelled order is not a
      * backlog item no matter what its payment/fulfillment columns still say.
      */
@@ -145,20 +156,31 @@ class OrderReportService
         $timezone = $this->validTimezone($timezone);
         $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
 
-        $rows = $this->baseQuery(
+        $cohorts = $this->newCustomersByPeriod(
+            $typeIds,
+            $since,
+            $until,
+            $interval,
+            $column,
+            $paidOnly,
+            $timezone
+        );
+
+        $orders = $this->baseQuery(
             $typeIds,
             $since,
             $until,
             $column,
             $timezone
-        )
-            ->when($anchor === 'paid', fn ($q) => $q->whereNotNull('orders.paid_at'))
-            ->when($paidOnly, fn ($q) => $q->where('orders.payment_status', PaymentStatusEnum::PAID->value))
+        );
+
+        $rows = $this->anchorFilters($orders, $column, $paidOnly)
             ->selectRaw(
-                $this->periodExpression($interval, $this->localizedColumn($column, $timezone)) . ' as period, '
+                $this->periodExpression($interval, $this->localizedColumn('orders.' . $column, $timezone)) . ' as period, '
                 . 'COUNT(*) as orders, '
                 . 'COALESCE(SUM(total_gross_amount), 0) as gross_revenue, '
-                . 'COALESCE(SUM(total_net_amount), 0) as net_revenue'
+                . 'COALESCE(SUM(total_net_amount), 0) as net_revenue, '
+                . 'SUM(' . self::CUSTOMER_KEY . ' IS NULL) as orders_without_customer'
             )
             ->groupBy('period')
             ->orderBy('period')
@@ -168,6 +190,9 @@ class OrderReportService
                 'orders' => (int) $r->orders,
                 'gross_revenue' => round((float) $r->gross_revenue, 2),
                 'net_revenue' => round((float) $r->net_revenue, 2),
+                'new_customers' => (int) ($cohorts[(string) $r->period]['new_customers'] ?? 0),
+                'new_to_company' => (int) ($cohorts[(string) $r->period]['new_to_company'] ?? 0),
+                'orders_without_customer' => (int) $r->orders_without_customer,
             ])->all();
 
         $periods = count($rows);
@@ -184,6 +209,9 @@ class OrderReportService
             'total_orders' => $totalOrders,
             'total_gross_revenue' => round((float) array_sum(array_column($rows, 'gross_revenue')), 2),
             'total_net_revenue' => round((float) $totalNet, 2),
+            'total_new_customers' => array_sum(array_column($rows, 'new_customers')),
+            'total_new_to_company' => array_sum(array_column($rows, 'new_to_company')),
+            'total_orders_without_customer' => array_sum(array_column($rows, 'orders_without_customer')),
             'average_orders_per_period' => $periods > 0 ? round($totalOrders / $periods, 2) : 0.0,
             'average_net_revenue_per_period' => $periods > 0 ? round((float) $totalNet / $periods, 2) : 0.0,
             'peak_period' => $byOrders->first(),
@@ -329,6 +357,17 @@ class OrderReportService
             );
     }
 
+    /**
+     * A paid anchor only sees orders that were paid; paid_only additionally drops orders whose
+     * payment is still open. The trend series and the cohort it merges into must agree on both.
+     */
+    private function anchorFilters(Builder $query, string $column, bool $paidOnly): Builder
+    {
+        return $query
+            ->when($column === 'paid_at', fn ($q) => $q->whereNotNull('orders.paid_at'))
+            ->when($paidOnly, fn ($q) => $q->where('orders.payment_status', PaymentStatusEnum::PAID->value));
+    }
+
     private function validTimezone(?string $timezone): string
     {
         $timezone = trim((string) $timezone);
@@ -347,8 +386,78 @@ class OrderReportService
     private function localizedColumn(string $column, string $timezone): string
     {
         return $timezone === 'UTC'
-            ? 'orders.' . $column
-            : "CONVERT_TZ(orders.{$column}, 'UTC', '{$timezone}')";
+            ? $column
+            : "CONVERT_TZ({$column}, 'UTC', '{$timezone}')";
+    }
+
+    /**
+     * New customers per period, keyed by the period string `trend()` buckets on.
+     *
+     * A customer is new in the period that holds their FIRST order within the selected order types,
+     * computed over the vertical's whole history and only then cut to the requested window. Of those,
+     * `new_to_company` are the ones with no earlier order in any order type: their first order anywhere
+     * is this one. With no order-type filter the two numbers are the same. A customer is new in exactly
+     * one period, so the series sums to the vertical's distinct customers.
+     *
+     * @param int[]|null $typeIds
+     *
+     * @return array<string, array{new_customers: int, new_to_company: int}>
+     */
+    private function newCustomersByPeriod(
+        ?array $typeIds,
+        ?string $since,
+        ?string $until,
+        string $interval,
+        string $column,
+        bool $paidOnly,
+        string $timezone
+    ): array {
+        $period = $this->periodExpression($interval, $this->localizedColumn('vertical.first_at', $timezone));
+        $vertical = $this->firstOrderPerCustomer($typeIds, $column, $paidOnly);
+
+        return $vertical->newQuery()
+            ->fromSub($vertical, 'vertical')
+            ->joinSub(
+                $this->firstOrderPerCustomer(null, $column, $paidOnly),
+                'company',
+                'company.customer_key',
+                '=',
+                'vertical.customer_key'
+            )
+            ->when(
+                $since !== null && $since !== '',
+                fn ($q) => $q->where('vertical.first_at', '>=', Carbon::parse($since, $timezone)->startOfDay()->utc())
+            )
+            ->when(
+                $until !== null && $until !== '',
+                fn ($q) => $q->where('vertical.first_at', '<=', Carbon::parse($until, $timezone)->endOfDay()->utc())
+            )
+            ->selectRaw(
+                $period . ' as period, '
+                . 'COUNT(*) as new_customers, '
+                . 'SUM(company.first_at >= vertical.first_at) as new_to_company'
+            )
+            ->groupBy('period')
+            ->get()
+            ->mapWithKeys(fn ($r): array => [
+                (string) $r->period => [
+                    'new_customers' => (int) $r->new_customers,
+                    'new_to_company' => (int) $r->new_to_company,
+                ],
+            ])
+            ->all();
+    }
+
+    /**
+     * @param int[]|null $typeIds
+     */
+    private function firstOrderPerCustomer(?array $typeIds, string $column, bool $paidOnly): QueryBuilder
+    {
+        return $this->anchorFilters($this->baseQuery($typeIds, null, null), $column, $paidOnly)
+            ->whereRaw(self::CUSTOMER_KEY . ' IS NOT NULL')
+            ->selectRaw(self::CUSTOMER_KEY . ' as customer_key, MIN(orders.' . $column . ') as first_at')
+            ->groupBy('customer_key')
+            ->toBase();
     }
 
     private function firstOrderDate(string $timezone): string
