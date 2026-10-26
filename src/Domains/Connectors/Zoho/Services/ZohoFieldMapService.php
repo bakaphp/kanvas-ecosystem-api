@@ -5,13 +5,31 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Services;
 
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Guild\Customers\Models\Address;
 
 final class ZohoFieldMapService
 {
+    /**
+     * Zoho field each person attribute lives in unless the company's map (lead or deal) overrides
+     * the Kanvas key. Read on the pull and written on the push, so both directions agree.
+     */
+    public const array PERSON_FIELDS = [
+        'first_name' => 'First_Name',
+        'last_name' => 'Last_Name',
+        'email' => 'Email',
+        'phone' => 'Phone',
+        'street' => 'Street',
+        'city' => 'City',
+        'state' => 'State',
+        'zip' => 'Zip_Code',
+        'Date_of_Birth' => 'Date_of_Birth',
+    ];
+
     private const array CREDIT_SCORES = [
         1 => '720-950',
         'Excellent' => 'Excellent(720+)',
@@ -109,6 +127,52 @@ final class ZohoFieldMapService
         $name = is_array($config) ? ($config['name'] ?? null) : $config;
 
         return is_string($name) && $name !== '' ? $name : $fallback;
+    }
+
+    /**
+     * @param string $key one of the PERSON_FIELDS keys
+     */
+    public static function personFieldName(array $map, string $key): string
+    {
+        return self::zohoFieldName($map[$key] ?? null, self::PERSON_FIELDS[$key]);
+    }
+
+    /**
+     * The person's address row as Zoho fields. Merge it after the custom-field map so the row wins
+     * and the `street`/`city`/`state`/`zip` custom fields only reach Zoho when the person has none.
+     *
+     * @return array<string, string>
+     */
+    public static function addressFields(?Address $address, array $map): array
+    {
+        $fields = [];
+
+        foreach (self::addressValues($address) as $key => $value) {
+            $fields[self::personFieldName($map, $key)] = $value;
+        }
+
+        return $fields;
+    }
+
+    /**
+     * The address row as the four person keys, both street lines in one, empties dropped.
+     *
+     * @return array<string, string>
+     */
+    public static function addressValues(?Address $address): array
+    {
+        if ($address === null) {
+            return [];
+        }
+
+        $values = [
+            'street' => trim((string) $address->address . ' ' . (string) $address->address_2),
+            'city' => $address->city,
+            'state' => $address->state,
+            'zip' => $address->zip,
+        ];
+
+        return array_filter(array_map(fn ($value) => Str::trimToNull((string) $value), $values));
     }
 
     /**

@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\Zoho\Concerns;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -50,7 +51,8 @@ trait BuildsZohoDeal
         Companies $company,
         ?Users $owner = null,
         ?PipelineStage $stage = null,
-        ?Lead $lead = null
+        ?Lead $lead = null,
+        ?People $people = null
     ): Deal {
         $factory = Deal::factory()
             ->withCompanyId($company->getId())
@@ -66,6 +68,10 @@ trait BuildsZohoDeal
 
         if ($lead !== null) {
             $factory = $factory->state(['leads_id' => $lead->getId()]);
+        }
+
+        if ($people !== null) {
+            $factory = $factory->state(['people_id' => $people->getId()]);
         }
 
         return $factory->create();
