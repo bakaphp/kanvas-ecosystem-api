@@ -30,7 +30,7 @@ use Tests\TestCase;
  * (Sentry KANVAS-ECOSYSTEM-600). Time must therefore reach every agent regardless of
  * which tools an operator selected in the registry.
  */
-final class UniversalAgentToolsTest extends TestCase
+final class NeuronSkillsUniversalAgentToolsTest extends TestCase
 {
     use DatabaseTransactions;
 
