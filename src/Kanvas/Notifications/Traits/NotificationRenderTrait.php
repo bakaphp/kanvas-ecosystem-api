@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Support\PushTemplateParser;
+use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Templates\Actions\RenderTemplateAction;
 use Kanvas\Templates\Models\Templates;
 use Kanvas\Templates\Repositories\TemplatesRepository;
@@ -44,7 +45,40 @@ trait NotificationRenderTrait
 
     public function getEmailContent(): string
     {
-        return $this->getType()->hasEmailTemplate() ? $this->getEmailTemplate() : '';
+        if (! $this->getType()->hasEmailTemplate()) {
+            return '';
+        }
+
+        $body = $this->getEmailTemplate();
+        $signature = $this->data['user_signature'] ?? null;
+
+        if (! is_string($signature) || $signature === '' || str_contains($body, UserEmailSignature::MARKER)) {
+            return $body;
+        }
+
+        // The template did not place `{{ user_signature|raw }}` itself: re-render with it closing the
+        // content, so it sits right under the message instead of below the template's footer.
+        if (is_string($this->data['content'] ?? null)) {
+            $body = $this->renderTemplate(
+                $this->getTemplateName(),
+                ['content' => $this->data['content'] . $signature] + $this->getData()
+            );
+        }
+
+        return UserEmailSignature::ensureIn($body, $signature);
+    }
+
+    /**
+     * Exposed to the template as `user_signature` (already-rendered HTML, so `{{ user_signature|raw }}`);
+     * getEmailContent() adds it when the template does not.
+     */
+    public function setUserSignature(?UserEmailSignature $signature): self
+    {
+        if ($signature !== null) {
+            $this->data['user_signature'] = $signature->toHtml();
+        }
+
+        return $this;
     }
 
     public function getNotificationTitle(): ?string
@@ -223,10 +257,10 @@ trait NotificationRenderTrait
         }
     }
 
-    protected function renderTemplate(string $templateName): string
+    protected function renderTemplate(string $templateName, ?array $data = null): string
     {
         $renderTemplate = new RenderTemplateAction($this->app, $this->company);
 
-        return $renderTemplate->execute($templateName, $this->getData());
+        return $renderTemplate->execute($templateName, $data ?? $this->getData());
     }
 }

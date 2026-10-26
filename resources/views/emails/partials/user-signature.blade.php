@@ -1,4 +1,4 @@
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, Helvetica, sans-serif; color: #222222; line-height: 1.4; margin: 20px 0 0; text-align: left;">
+<table data-kanvas-user-signature="1" role="presentation" cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, Helvetica, sans-serif; color: #222222; line-height: 1.4; margin: 20px 0 0; text-align: left;">
     <tr>
         <td colspan="{{ $photoUrl ? 3 : 1 }}" style="font-size: 14px; color: #444444; padding-bottom: 12px;">Best Regards,</td>
     </tr>

@@ -31,6 +31,7 @@ use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\SetMyEmailSignatureTool;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
@@ -436,6 +437,17 @@ class Agent extends BaseModel
             && $handler !== ''
             && class_exists($handler)
             && is_subclass_of($handler, ConversesWithUser::class);
+    }
+
+    /**
+     * Sending email and signing it as the person the agent acts for are separate capabilities: an agent
+     * signs only once set_my_email_signature is granted to it, so granting plain sending never starts
+     * putting someone's name under mail they did not configure.
+     */
+    public function signsEmailsAsOwner(): bool
+    {
+        return $this->conversesWithUser()
+            && $this->selectedTools()->active()->where('handler', SetMyEmailSignatureTool::class)->exists();
     }
 
     /**

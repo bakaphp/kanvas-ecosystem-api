@@ -112,7 +112,7 @@ class ProcessLeadCampaignJob implements ShouldQueue
         }
 
         try {
-            $sent = new SendMessageToLeadAction($lead)->execute(
+            $sent = new SendMessageToLeadAction($lead)->withSignatureOwner($manager)->execute(
                 channel: $channel,
                 message: $this->campaign->message,
                 title: $this->campaign->subject,
@@ -190,6 +190,7 @@ class ProcessLeadCampaignJob implements ShouldQueue
                 templateName: $this->campaign->template_name,
                 important: (bool) $this->campaign->is_important,
                 fromAgent: $agent,
+                signatureOwner: $manager,
             );
             $recipient->destination = $to;
             $recipient->sent_at = Carbon::now();
