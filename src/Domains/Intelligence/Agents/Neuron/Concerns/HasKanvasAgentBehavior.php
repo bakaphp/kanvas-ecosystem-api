@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\CancelsOnRequestMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasToolSearchMiddleware;
+use Kanvas\Intelligence\Agents\Neuron\Skills\Services\SkillCatalog;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
@@ -25,6 +26,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Common\CurrentTimeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\DynamicSubAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Fallback\UnknownToolStub;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Skills\LoadSkillTool;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
 use Kanvas\Intelligence\Agents\Support\AgentReadAccessCompanies;
@@ -91,6 +93,7 @@ trait HasKanvasAgentBehavior
         'render_artifact',
         'build_admin_link',
         'capability_lookup',
+        'load_skill',
         'tool_search',
     ];
 
@@ -362,6 +365,7 @@ trait HasKanvasAgentBehavior
         // a customer-facing agent talked into a filesystem_id would read another prospect's quote.
         return [
             new CurrentTimeTool($this->resolveTenantTimezone()),
+            new LoadSkillTool(app(SkillCatalog::class)),
             ...$this->memoryTools(),
         ];
     }
@@ -485,6 +489,11 @@ trait HasKanvasAgentBehavior
     protected function resources(): AgentResources
     {
         [$instructions, $tools] = $this->resolveTools();
+        $skillSummary = app(SkillCatalog::class)->getPromptSummary();
+        if ($skillSummary !== '') {
+            $instructions .= "\n\n" . $skillSummary;
+        }
+
         [$tools, $this->toolSearchPool] = $this->splitForToolSearch($tools);
         $this->registeredToolNames = self::toolNames($tools);
 

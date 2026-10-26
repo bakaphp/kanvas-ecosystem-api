@@ -50,6 +50,14 @@ final class UniversalAgentToolsTest extends TestCase
         $this->assertContains('get_current_time', $this->neuronToolNames($handler->getTools()));
     }
 
+    public function testGenericNeuronAgentAlwaysExposesLoadSkill(): void
+    {
+        $handler = new KanvasGenericNeuronAgent();
+        $handler->setConfiguration($this->makeAgent('neuron'), user: auth()->user());
+
+        $this->assertContains('load_skill', $this->neuronToolNames($handler->getTools()));
+    }
+
     public function testHardcodedToolAgentStillExposesCurrentTime(): void
     {
         $handler = new CFOAgent();
