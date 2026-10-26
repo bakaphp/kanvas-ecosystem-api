@@ -70,6 +70,35 @@ final class ZohoPullLeadActivityTest extends TestCase
         $this->assertArrayNotHasKey('leads_status_id', $result[0], 'must be the candidate shape, not a raw toArray()');
     }
 
+    public function testRefreshReSyncsAnExistingLeadInsteadOfReturningItAsIs(): void
+    {
+        $lead = $this->createLead();
+        $lead->set(CustomFieldEnum::ZOHO_LEAD_ID->value, 'zoho-local-789');
+        $activity = new class ($lead) extends ZohoPullLeadActivity {
+            public ?string $syncedId = null;
+
+            public function __construct(private Lead $lead)
+            {
+            }
+
+            protected function syncLeadFromZoho(
+                AppInterface $app,
+                Companies $company,
+                LeadReceiver $receiver,
+                string $zohoLeadId
+            ): ?Lead {
+                $this->syncedId = $zohoLeadId;
+
+                return $this->lead;
+            }
+        };
+
+        $result = $activity->execute($lead, app(Apps::class), ['zoho_id' => 'zoho-local-789', 'refresh' => true]);
+
+        $this->assertSame('zoho-local-789', $activity->syncedId);
+        $this->assertSame($lead->getId(), $result[0]['id']);
+    }
+
     private function createLead(): Lead
     {
         $user = auth()->user();
