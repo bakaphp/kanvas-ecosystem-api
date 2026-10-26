@@ -8,7 +8,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Models\InboundClaim;
 use Kanvas\Communication\Messages\DataTransferObject\InboundMessage;
 use Kanvas\Communication\Messages\DataTransferObject\InboundRoute;
-use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Companies\Models\Companies;
 
 /**
@@ -40,27 +39,32 @@ final class RouteInboundMessageAction
         if ($claim !== null && $this->serves($claim)) {
             return new InboundRoute(
                 InboundRoute::ROUTED,
-                $this->channel(),
+                $this->inbound->channel,
                 $claim->company,
                 $claim->connection
             );
         }
 
         if ($claim !== null) {
-            return new InboundRoute(InboundRoute::UNROUTED, $this->channel(), company: null, reason: 'claimed_by_another_workspace');
+            return new InboundRoute(
+                InboundRoute::UNROUTED,
+                $this->inbound->channel,
+                company: null,
+                reason: 'claimed_by_another_workspace'
+            );
         }
 
-        return new InboundRoute(InboundRoute::NOT_PROVISIONED, $this->channel(), $this->company, reason: 'identity_not_connected');
+        return new InboundRoute(
+            InboundRoute::NOT_PROVISIONED,
+            $this->inbound->channel,
+            $this->company,
+            reason: 'identity_not_connected'
+        );
     }
 
     private function serves(InboundClaim $claim): bool
     {
         return (int) $claim->apps_id === $this->app->getId()
             && ($this->company === null || (int) $claim->companies_id === $this->company->getId());
-    }
-
-    private function channel(): ChannelTypeEnum
-    {
-        return $this->inbound->channel;
     }
 }

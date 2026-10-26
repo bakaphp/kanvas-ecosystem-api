@@ -51,7 +51,12 @@ final class ReplyTest extends TestCase
         $this->useFakeProvider();
         $this->defaultSmsConnection(number: '+18095550100');
         $sent = $this->communication()
-            ->send($this->personWithCellphone('+18095550172'), 'Hello', channels: ['sms'], sync: true)
+            ->send(
+                $this->personWithCellphone('+18095550172'),
+                'Hello',
+                channels: ['sms'],
+                sync: true
+            )
             ->delivery(ChannelTypeEnum::SMS);
         $conversation = Message::query()->findOrFail($sent->message_id);
 
@@ -62,7 +67,12 @@ final class ReplyTest extends TestCase
         $messagesBefore = Message::query()->count();
 
         $delivery = $this->communication()
-            ->reply($conversation, 'Thanks!', sync: true, filedAs: $filed)
+            ->reply(
+                $conversation,
+                'Thanks!',
+                sync: true,
+                filedAs: $filed
+            )
             ->delivery(ChannelTypeEnum::SMS);
 
         $this->assertSame($filed->getId(), $delivery->message_id);

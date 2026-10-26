@@ -27,7 +27,7 @@ final class ProbeConnectionsAction
         $probed = 0;
 
         $connections = Connection::query()
-            ->where('apps_id', $this->app->getId())
+            ->fromApp($this->app)
             ->where('setup_status', SetupStatusEnum::READY->value)
             ->where(fn ($query) => $query
                 ->whereNull('last_probed_at')

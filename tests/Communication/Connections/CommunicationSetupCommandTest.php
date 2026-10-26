@@ -139,7 +139,12 @@ final class CommunicationSetupCommandTest extends TestCase
         );
 
         return $this->communication()
-            ->send($this->personWithCellphone(), 'Hello', channels: ['sms'], sync: true)
+            ->send(
+                $this->personWithCellphone(),
+                'Hello',
+                channels: ['sms'],
+                sync: true
+            )
             ->delivery(ChannelTypeEnum::SMS);
     }
 

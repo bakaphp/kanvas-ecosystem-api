@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Connections\Actions;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Communication\Connections\Enums\CleanupTaskStatusEnum;
@@ -72,8 +73,10 @@ final class RunConnectionCleanupAction
 
     /**
      * Pending tasks that are due, and running ones whose worker's lease ran out.
+     *
+     * @return Collection<int, CleanupTask>
      */
-    private function dueTasks()
+    private function dueTasks(): Collection
     {
         return $this->connection->cleanupTasks()
             ->where(fn ($query) => $query

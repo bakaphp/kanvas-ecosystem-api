@@ -230,7 +230,12 @@ final class MetaWhatsAppProviderTest extends TestCase
         $this->metaConnection(default: true);
 
         $delivery = $this->communication()
-            ->send($this->personWithCellphone('+18095550205'), 'Your quote is ready', channels: ['whatsapp'], sync: true)
+            ->send(
+                $this->personWithCellphone('+18095550205'),
+                'Your quote is ready',
+                channels: ['whatsapp'],
+                sync: true
+            )
             ->delivery(ChannelTypeEnum::WHATSAPP);
 
         Http::assertSent(fn (HttpRequest $request): bool => str_ends_with($request->url(), '/' . self::PHONE_NUMBER_ID . '/messages')
@@ -266,7 +271,12 @@ final class MetaWhatsAppProviderTest extends TestCase
         $this->metaConnection(default: true);
 
         $delivery = $this->communication()
-            ->send($this->personWithCellphone('+18095550206'), 'Following up', channels: ['whatsapp'], sync: true)
+            ->send(
+                $this->personWithCellphone('+18095550206'),
+                'Following up',
+                channels: ['whatsapp'],
+                sync: true
+            )
             ->delivery(ChannelTypeEnum::WHATSAPP);
 
         $this->assertSame(DeliveryStatusEnum::FAILED, $delivery->status);
@@ -282,7 +292,12 @@ final class MetaWhatsAppProviderTest extends TestCase
         $inbound = Message::query()->findOrFail($result[0]['message_id']);
         $this->agent();
 
-        $response = new AgentChannelResponderActivity(0, now()->toDateTimeString(), new StoredWorkflow(), [])->execute(
+        $response = new AgentChannelResponderActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        )->execute(
             Channel::query()->findOrFail($result[0]['channel_id']),
             $this->currentApp(),
             ['message' => $inbound]

@@ -169,9 +169,6 @@ class MetaProvisioner implements Provisioner
     }
 
     /**
-     * Other apps on the WABA (a CRM, another vendor) are none of our business; only callbacks that
-     * point at a Kanvas receiver are.
-     *
      * @param list<array<string, mixed>> $subscriptions
      *
      * @return list<string>
@@ -183,16 +180,11 @@ class MetaProvisioner implements Provisioner
         foreach ($subscriptions as $subscription) {
             $callback = (string) ($subscription['override_callback_uri'] ?? '');
 
-            if ($this->isKanvasReceiver($callback)) {
+            if (SharedRegistry::isKanvasReceiverUrl($callback)) {
                 $callbacks[] = $callback;
             }
         }
 
         return array_values(array_unique($callbacks));
-    }
-
-    private function isKanvasReceiver(string $url): bool
-    {
-        return $url !== '' && str_starts_with($url, rtrim((string) config('app.url'), '/') . '/v1/receiver/');
     }
 }

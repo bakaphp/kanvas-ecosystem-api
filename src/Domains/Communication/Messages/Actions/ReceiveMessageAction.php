@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Communication\Messages\Actions;
 
 use Baka\Support\Str;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Contracts\InboundSource;
 use Kanvas\Communication\Messages\DataTransferObject\InboundMessage;
@@ -45,8 +46,7 @@ use Kanvas\Social\Messages\Concerns\ChainsInboundBursts;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -150,7 +150,12 @@ final class ReceiveMessageAction
                 new SendOptOutConfirmationAction($lead, $this->inbound->channel->value)->execute();
             }
 
-            return [$this->summary($message, $channel, $consentOutcome, suppressed: true)];
+            return [$this->summary(
+                $message,
+                $channel,
+                $consentOutcome,
+                suppressed: true
+            )];
         }
 
         $this->attachFiles($message, $lead);
@@ -167,7 +172,12 @@ final class ReceiveMessageAction
             $message->addTag('communication-' . ($route->reason ?? $route->connection?->unavailableReason() ?? 'unrouted'));
         }
 
-        return [$this->summary($message, $channel, $consentOutcome, suppressed: false)];
+        return [$this->summary(
+            $message,
+            $channel,
+            $consentOutcome,
+            suppressed: false
+        )];
     }
 
     /**
@@ -251,10 +261,7 @@ final class ReceiveMessageAction
         }
 
         $medium = $this->inbound->channel->value;
-        $leadType = LeadType::fromApp($people->app)
-            ->fromCompany($people->company)
-            ->where('name', 'Warm')
-            ->firstOrFail();
+        $leadType = LeadType::getByNameFromCompanyApp('Warm', $people->company, $people->app);
 
         $leadSource = new CreateLeadSourceAction(
             new LeadSource(
@@ -310,8 +317,10 @@ final class ReceiveMessageAction
     }
 
     /**
-     * One conversation per counterpart and provider. Locked, because parts of a burst arrive as
-     * parallel jobs and would otherwise open two.
+     * One conversation per counterpart and provider. Parts of a burst arrive as parallel jobs, so
+     * creation is serialised on a cache lock — never on the row: `channels` has no unique index on
+     * the slug, and a locking read of a row that does not exist yet only locks the gap, which
+     * deadlocks the insert that follows (see CreateChannelAction).
      */
     private function conversation(?People $people): Channel
     {
@@ -319,41 +328,46 @@ final class ReceiveMessageAction
         $company = $this->company;
         $slug = $this->inbound->conversationSlug;
 
-        return DB::transaction(function () use ($app, $company, $slug, $people): Channel {
-            $channel = Channel::query()
-                ->where('slug', $slug)
-                ->where('companies_id', $company->getId())
-                ->where('apps_id', $app->getId())
-                ->orderByDesc('last_message_id')
-                ->lockForUpdate()
-                ->first();
+        $findOrCreate = fn (): Channel => Channel::query()
+            ->where('slug', $slug)
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->orderByDesc('last_message_id')
+            ->first()
+            ?? Channel::create([
+                'users_id' => $this->user->getId(),
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'slug' => $slug,
+                'name' => $this->inbound->from,
+                'description' => 'Channel ' . ucfirst($this->inbound->provider) . ' for ' . $this->inbound->from,
+            ]);
 
-            $channel ??= Channel::firstOrCreate(
-                [
-                    'users_id' => $this->user->getId(),
-                    'apps_id' => $app->getId(),
-                    'companies_id' => $company->getId(),
-                    'slug' => $slug,
-                ],
-                [
-                    'name' => $this->inbound->from,
-                    'description' => 'Channel ' . ucfirst($this->inbound->provider) . ' for ' . $this->inbound->from,
-                ]
-            );
+        try {
+            $channel = Cache::lock("communication:conversation:{$app->getId()}:{$company->getId()}:{$slug}", 10)
+                ->block(5, $findOrCreate);
+        } catch (LockTimeoutException) {
+            // A duplicate serves a contended inbound better than a lost message does.
+            $channel = $findOrCreate();
+        }
 
-            if ($people !== null) {
-                $channel->entity_namespace = $people::class;
-                $channel->entity_id = $people->getId();
-            }
+        if ($people !== null) {
+            $channel->entity_namespace = $people::class;
+            $channel->entity_id = $people->getId();
+        }
 
-            $channel->save();
+        $channel->save();
 
-            $channel->addTags([$this->inbound->provider, 'ai-agent']);
-            $channel->addCategory('ai-agent', $app, $this->user, $company);
-            $channel->set(IntelligenceConfigurationEnum::AGENT_CHANNEL_TYPE->value, strtoupper($this->inbound->channel->value));
+        $channel->addTags([$this->inbound->provider, 'ai-agent']);
+        $channel->addCategory(
+            'ai-agent',
+            $app,
+            $this->user,
+            $company
+        );
+        $channel->set(IntelligenceConfigurationEnum::AGENT_CHANNEL_TYPE->value, strtoupper($this->inbound->channel->value));
 
-            return $channel;
-        }, 5);
+        return $channel;
     }
 
     /**
@@ -373,14 +387,7 @@ final class ReceiveMessageAction
             return $existing;
         }
 
-        $type = new CreateMessageTypeAction(
-            new MessageTypeInput(
-                $this->receiver->app->getId(),
-                0,
-                $this->inbound->messageVerb,
-                $this->inbound->messageVerb,
-            )
-        )->execute();
+        $type = MessageTypeService::getOrCreate($this->receiver->app, $this->inbound->messageVerb);
 
         $payload = AiChatMessagePayload::from([
             'content' => $this->inbound->text,

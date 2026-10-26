@@ -39,7 +39,12 @@ final readonly class Content
             $normalized[] = $attachment instanceof Attachment ? $attachment : new Attachment($attachment);
         }
 
-        return new self($this->text, $this->subject, $normalized, $required);
+        return new self(
+            $this->text,
+            $this->subject,
+            $normalized,
+            $required
+        );
     }
 
     public function withSubject(string $subject): self

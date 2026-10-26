@@ -98,7 +98,7 @@ class CreateSocialChannelForContactAction
         } elseif ($this->opensWhatsAppChannel()) {
             $whatsappResult = $this->openWhatsAppConversation();
             $isNewChannel = $isNewChannel || $whatsappResult['is_new_channel'];
-            $channel = Channel::query()->findOrFail($whatsappResult['channel_id']);
+            $channel = Channel::getById($whatsappResult['channel_id'], $this->app);
         }
 
         $crmNoteResult = null;

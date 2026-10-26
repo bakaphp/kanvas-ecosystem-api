@@ -37,7 +37,12 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         Agent $agent,
         ?Session $session = null
     ) {
-        parent::__construct($channel, $message, $agent, $session);
+        parent::__construct(
+            $channel,
+            $message,
+            $agent,
+            $session
+        );
 
         // The reply is filed as the same kind of message it answers, so whatever reads a
         // conversation by type (the CRM's channel views, the delivery status jobs) finds both.
@@ -79,11 +84,11 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             $to,
             $this->message,
             $this->channel,
-            $this->senderAddress($params)
+            $this->senderAddress()
         );
 
         if (! $reply->is_locked) {
-            $this->deliver($to, $text, $reply, $params);
+            $this->deliver($to, $text, $reply);
         }
 
         return [
@@ -108,7 +113,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             ?? throw new AgentReplySkippedException('The conversation has no counterpart address');
     }
 
-    protected function senderAddress(array $params): ?string
+    protected function senderAddress(): ?string
     {
         return $this->connection()?->account_key;
     }
@@ -127,7 +132,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
      * Sent synchronously so the activity's retries cover the send. The consent guards and the
      * connection's switch are checked at the moment of sending, not when the turn started.
      */
-    protected function deliver(string $to, string $text, Message $reply, array $params): void
+    protected function deliver(string $to, string $text, Message $reply): void
     {
         $delivery = Communication::for($this->message->app, $this->message->company)
             ->reply(

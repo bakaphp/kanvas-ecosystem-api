@@ -110,7 +110,7 @@ abstract class BaseIntegration
         }
 
         return new $handler(
-            app: $app instanceof Apps ? $app : Apps::query()->findOrFail($app->getId()),
+            app: $app instanceof Apps ? $app : Apps::getById($app->getId()),
             company: $integrationCompany->company,
             region: $integrationCompany->region,
             data: [],

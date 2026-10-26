@@ -140,13 +140,7 @@ final class AutoReplyTest extends TestCase
         string $pattern = '/^fake-/',
         ?string $legacyResponder = self::LEGACY_RESPONDER
     ): ?Rule {
-        return new EnsureAutoReplyRuleAction(
-            app: $this->currentApp(),
-            company: $this->currentCompany(),
-            agent: $agent,
-            channelSlugPattern: $pattern,
-            legacyResponder: $legacyResponder
-        )->execute();
+        return new EnsureAutoReplyRuleAction($agent, $pattern, $legacyResponder)->execute();
     }
 
     private function inbound(array $communication): Message

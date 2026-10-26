@@ -159,7 +159,7 @@ class CommunicationSetupCommand extends Command
     private function runPendingCleanups(Apps $app): void
     {
         Connection::query()
-            ->where('apps_id', $app->getId())
+            ->fromApp($app)
             ->where('setup_status', SetupStatusEnum::DISCONNECTING->value)
             ->get()
             ->each(function (Connection $connection) {
@@ -177,7 +177,7 @@ class CommunicationSetupCommand extends Command
     private function integrations(Apps $app): Collection
     {
         return IntegrationsCompany::query()
-            ->where('apps_id', $app->getId())
+            ->fromApp($app)
             ->where('is_deleted', 0)
             ->when($this->option('company'), fn ($query, $company) => $query->where('companies_id', (int) $company))
             ->with('integration')

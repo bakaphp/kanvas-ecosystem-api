@@ -293,11 +293,9 @@ final class EnsureCommunicationSetupAction
 
             if ($agent !== null) {
                 new EnsureAutoReplyRuleAction(
-                    app: $this->app,
-                    company: $this->integrationCompany->company,
-                    agent: $agent,
-                    channelSlugPattern: $autoReply['channel_slug_pattern'],
-                    legacyResponder: $autoReply['legacy_responder']
+                    $agent,
+                    $autoReply['channel_slug_pattern'],
+                    $autoReply['legacy_responder']
                 )->execute();
 
                 return;

@@ -72,7 +72,12 @@ final class EnsureCommunicationSetupActionTest extends TestCase
         // Nothing else to do: the person can be messaged right away.
         $transport = app(FakeTransport::class);
         $delivery = $this->communication()
-            ->send($this->personWithCellphone('+18095550199'), 'Hello', channels: ['sms'], sync: true)
+            ->send(
+                $this->personWithCellphone('+18095550199'),
+                'Hello',
+                channels: ['sms'],
+                sync: true
+            )
             ->delivery(ChannelTypeEnum::SMS);
 
         $this->assertSame(DeliveryStatusEnum::ACCEPTED, $delivery->status);

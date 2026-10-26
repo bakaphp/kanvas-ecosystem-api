@@ -138,7 +138,12 @@ final class MetaWhatsAppHandlerTest extends TestCase
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
 
-        return new MetaWhatsAppHandler($app, $company, Regions::getDefault($company, $app), $data);
+        return new MetaWhatsAppHandler(
+            $app,
+            $company,
+            Regions::getDefault($company, $app),
+            $data
+        );
     }
 
     private function clearSettings(): void

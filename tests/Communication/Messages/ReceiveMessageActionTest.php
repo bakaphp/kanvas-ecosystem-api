@@ -150,9 +150,12 @@ final class ReceiveMessageActionTest extends TestCase
 
     public function testAFileTheProviderHoldsIsDownloadedWithItsCredentials(): void
     {
-        $result = $this->receive(
-            $this->inbound('+18095550704', 'wamid.4', 'Mira', [new InboundAttachment('https://vendor.test/media/1', 'image/jpeg')])
-        );
+        $result = $this->receive($this->inbound(
+            '+18095550704',
+            'wamid.4',
+            'Mira',
+            [new InboundAttachment('https://vendor.test/media/1', 'image/jpeg')]
+        ));
 
         $this->assertSame(['https://vendor.test/media/1'], $this->source->downloaded);
         $this->assertSame(1, Message::query()->findOrFail($result[0]['message_id'])->files()->count());
