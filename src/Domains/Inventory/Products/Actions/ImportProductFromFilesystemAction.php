@@ -216,8 +216,7 @@ class ImportProductFromFilesystemAction
         string $modelName,
         array $variants,
         ProductsTypes $productType
-    ): void
-    {
+    ): void {
         if ($modelName !== Products::class || $variants === []) {
             return;
         }

@@ -204,8 +204,7 @@ class ProductSimpleMutation
         Apps $app,
         Companies $company,
         Users $user
-    ): void
-    {
+    ): void {
         if (! isset($input['products_types']) || isset($input['products_types_id'])) {
             return;
         }
