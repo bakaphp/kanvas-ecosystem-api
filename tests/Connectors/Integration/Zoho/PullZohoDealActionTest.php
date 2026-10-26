@@ -12,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Actions\PullZohoDealAction;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Deals\Models\Deal;
 use Tests\Connectors\Integration\Zoho\Concerns\BuildsZohoDeal;
 use Tests\TestCase;
@@ -266,6 +267,66 @@ final class PullZohoDealActionTest extends TestCase
         $this->assertEquals('62704', $deal->get('zip'));
     }
 
+    public function testARefreshDoesNotDownloadAttachmentsItAlreadyPulled(): void
+    {
+        $company = $this->makeZohoCompany();
+        $info = ['id' => 'zd-30', 'Deal_Name' => 'With docs'];
+        $attachments = [
+            ['id' => 'att-1', 'File_Name' => 'bank-statement.pdf'],
+            ['id' => 'att-2', 'File_Name' => 'license.jpg'],
+        ];
+
+        $first = $this->action(
+            $company,
+            'zd-30',
+            $info,
+            attachments: $attachments
+        );
+        $deal = $first->execute();
+
+        $this->assertSame(['att-1', 'att-2'], $first->downloaded);
+        $this->assertCount(2, $deal->getFiles());
+
+        $second = $this->action(
+            $company,
+            'zd-30',
+            $info,
+            attachments: [
+                ...$attachments,
+                ['id' => 'att-3', 'File_Name' => 'tax-return.pdf'],
+            ]
+        );
+        $deal = $second->execute();
+
+        $this->assertSame(['att-3'], $second->downloaded, 'only the attachment Zoho added since is fetched');
+        $this->assertCount(3, $deal->getFiles());
+        $this->assertSame(
+            ['att-1', 'att-2', 'att-3'],
+            array_keys($deal->get(CustomFieldEnum::ZOHO_DEAL_PULLED_ATTACHMENTS->value))
+        );
+    }
+
+    public function testAFileAlreadyOnTheDealUnderTheSameNameIsNotDownloadedAgain(): void
+    {
+        $company = $this->makeZohoCompany();
+        $deal = $this->makeDeal($company);
+        $deal->set(CustomFieldEnum::ZOHO_DEAL_ID->value, 'zd-31');
+        $deal->addFileFromUrl('https://example.com/manual/bank-statement.pdf', 'bank-statement.pdf');
+
+        $action = $this->action(
+            $company,
+            'zd-31',
+            ['id' => 'zd-31', 'Deal_Name' => 'Manual upload'],
+            attachments: [
+                ['id' => 'att-9', 'File_Name' => 'bank-statement.pdf'],
+            ]
+        );
+        $action->execute();
+
+        $this->assertSame([], $action->downloaded);
+        $this->assertCount(1, $deal->getFiles());
+    }
+
     public function testADealWithNoPersonAtAllIsCreatedWithoutOne(): void
     {
         $company = $this->makeZohoCompany();
@@ -313,7 +374,8 @@ final class PullZohoDealActionTest extends TestCase
         Companies $company,
         string $zohoDealId,
         array $fetched,
-        array $contact = []
+        array $contact = [],
+        array $attachments = []
     ): PullZohoDealAction {
         return new class (
             app(Apps::class),
@@ -321,15 +383,20 @@ final class PullZohoDealActionTest extends TestCase
             auth()->user(),
             $zohoDealId,
             $fetched,
-            $contact
+            $contact,
+            $attachments
         ) extends PullZohoDealAction {
+            /** @var list<string> */
+            public array $downloaded = [];
+
             public function __construct(
                 AppInterface $app,
                 CompanyInterface $company,
                 UserInterface $user,
                 string $zohoDealId,
                 private array $fetched,
-                private array $contact
+                private array $contact,
+                private array $attachments
             ) {
                 parent::__construct($app, $company, $user, $zohoDealId);
             }
@@ -344,8 +411,22 @@ final class PullZohoDealActionTest extends TestCase
                 return $this->contact;
             }
 
-            protected function pullAttachments(Deal $deal): void
+            protected function fetchAttachments(): array
             {
+                return $this->attachments;
+            }
+
+            protected function downloadAndAttach(
+                Deal $deal,
+                string $attachmentId,
+                string $fileName,
+                FilesystemServices $filesystemService
+            ): ?int {
+                $this->downloaded[] = $attachmentId;
+
+                $deal->addFileFromUrl('https://example.com/zoho/' . $fileName, $fileName);
+
+                return (int) $deal->getFileByName($fileName)?->filesystem_id;
             }
         };
     }
