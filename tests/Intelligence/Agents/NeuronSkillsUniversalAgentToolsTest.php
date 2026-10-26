@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsReceivableAgent;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\CFOAgent;
+use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Kanvas\Intelligence\Agents\Neuron\KanvasGenericNeuronAgent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
@@ -30,7 +31,7 @@ use Tests\TestCase;
  * (Sentry KANVAS-ECOSYSTEM-600). Time must therefore reach every agent regardless of
  * which tools an operator selected in the registry.
  */
-final class UniversalAgentToolsTest extends TestCase
+final class NeuronSkillsUniversalAgentToolsTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -50,12 +51,21 @@ final class UniversalAgentToolsTest extends TestCase
         $this->assertContains('get_current_time', $this->neuronToolNames($handler->getTools()));
     }
 
-    public function testGenericNeuronAgentAlwaysExposesLoadSkill(): void
+    public function testInternalSystemAgentsExposeLoadSkill(): void
     {
-        $handler = new KanvasGenericNeuronAgent();
+        foreach ([new SystemUserAgent(), new CFOAgent()] as $handler) {
+            $handler->setConfiguration($this->makeAgent('neuron'), user: auth()->user());
+
+            $this->assertContains('load_skill', $this->neuronToolNames($handler->getTools()));
+        }
+    }
+
+    public function testCustomerFacingSalesAgentDoesNotExposeLoadSkillWithoutGrant(): void
+    {
+        $handler = new SalesAgent();
         $handler->setConfiguration($this->makeAgent('neuron'), user: auth()->user());
 
-        $this->assertContains('load_skill', $this->neuronToolNames($handler->getTools()));
+        $this->assertNotContains('load_skill', $this->neuronToolNames($handler->getTools()));
     }
 
     public function testHardcodedToolAgentStillExposesCurrentTime(): void
