@@ -13,13 +13,11 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
-use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\CancelsOnRequestMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasToolSearchMiddleware;
-use Kanvas\Intelligence\Agents\Neuron\Skills\Services\SkillCatalog;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
@@ -488,13 +486,6 @@ trait HasKanvasAgentBehavior
     protected function resources(): AgentResources
     {
         [$instructions, $tools] = $this->resolveTools();
-        if ($this instanceof ConversesWithUser && in_array('load_skill', self::toolNames($tools), true)) {
-            $skillSummary = app(SkillCatalog::class)->getPromptSummary();
-            if ($skillSummary !== '') {
-                $instructions .= "\n\n" . $skillSummary;
-            }
-        }
-
         [$tools, $this->toolSearchPool] = $this->splitForToolSearch($tools);
         $this->registeredToolNames = self::toolNames($tools);
 
