@@ -344,58 +344,34 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id');
     }
 
+    /**
+     * Open means the named status (`leads_status_id`), which is what the UI and every CRM pull
+     * write. Never gate on the integer `status` column: nothing writes it, so it is the default
+     * on every row and reads as open for a closed lead.
+     */
     public function isOpen(): bool
     {
-        // `status` is both a column AND a relation (status()). On a partially
-        // hydrated model `$this->status` resolves to the LeadStatus relation
-        // object (TypeError on `< 2`), so read the column explicitly. A missing
-        // status means a freshly created lead → treat as open.
-        return (int) ($this->getAttributeValue('status') ?? 0) < 2;
+        return $this->hasOpenLeadStatus();
     }
 
-    /**
-     * Query-side counterpart to isOpen() — same `status < 2` rule, kept in
-     * one place so bulk queries (e.g. RecalculateActiveLeadsCountCommand)
-     * can't drift from the instance check.
-     */
-    public function scopeIsOpen(Builder $query): Builder
+    public function scopeIsOpen(Builder $query, CompanyInterface|CompanyScope|null $company = null): Builder
     {
-        return $query->where('status', '<', 2);
-    }
-
-    /**
-     * TODO: `leads_status` has no `category`/`is_closed` column, so there is
-     * no reliable way to know per-tenant which custom statuses mean "open".
-     * This hardcodes the known global seed ids as a stopgap — replace with a
-     * real category lookup once `leads_status` gets that column.
-     */
-    public const array OPEN_LEADS_STATUS_IDS = [1, 2];
-
-    public static function openLeadsStatusIds(?CompanyInterface $company = null): array
-    {
-        if ($company === null) {
-            return self::OPEN_LEADS_STATUS_IDS;
-        }
-
-        $extra = $company->get(ConfigurationEnum::OPEN_LEADS_STATUS_IDS->value);
-
-        if (! is_array($extra)) {
-            $extra = $extra === null || $extra === '' ? [] : explode(',', (string) $extra);
-        }
-
-        $extra = array_filter(array_map('intval', $extra), fn (int $id): bool => $id > 0);
-
-        return array_values(array_unique([...self::OPEN_LEADS_STATUS_IDS, ...$extra]));
+        return $this->scopeHasOpenLeadStatus($query, $company);
     }
 
     public function isOpenLeadStatusId(?int $statusId): bool
     {
-        return in_array($statusId, self::openLeadsStatusIds($this->company), true);
+        return LeadStatus::isOpenId($statusId, $this->company);
     }
 
     public function hasOpenLeadStatus(): bool
     {
-        return $this->isOpenLeadStatusId((int) $this->getAttributeValue('leads_status_id'));
+        return LeadStatus::isOpenFor(
+            $this,
+            'status',
+            'leads_status_id',
+            $this->company
+        );
     }
 
     public function scopeHasOpenLeadStatus(Builder $query, CompanyInterface|CompanyScope|null $company = null): Builder
@@ -419,8 +395,8 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     }
 
     /**
-     * "Open" is partly per-company config, so across a scope the predicate is one group per company,
-     * never a union of ids: a status open at one company may be closed at another.
+     * "Open" is the status row's `is_open` plus, for now, a per-company setting, so across a scope the
+     * predicate is one group per company: a status open at one company may be closed at another.
      */
     public static function constrainOpenStatus(
         Builder $query,
@@ -429,9 +405,12 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         bool $open
     ): Builder {
         if (! $company instanceof CompanyScope) {
-            $ids = self::openLeadsStatusIds($company);
-
-            return $open ? $query->whereIn($column, $ids) : $query->whereNotIn($column, $ids);
+            return LeadStatus::constrainToState(
+                $query,
+                $column,
+                open: $open,
+                company: $company
+            );
         }
 
         $tenantColumn = $query->getModel()->getTable() . '.companies_id';
@@ -442,14 +421,14 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         return $query->where(function (Builder $outer) use ($companies, $tenantColumn, $column, $open): void {
             foreach ($companies as $member) {
                 $outer->orWhere(function (Builder $one) use ($member, $tenantColumn, $column, $open): void {
-                    $ids = self::openLeadsStatusIds($member);
                     $one->where($tenantColumn, $member->getId());
 
-                    if ($open) {
-                        $one->whereIn($column, $ids);
-                    } else {
-                        $one->whereNotIn($column, $ids);
-                    }
+                    LeadStatus::constrainToState(
+                        $one,
+                        $column,
+                        open: $open,
+                        company: $member
+                    );
                 });
             }
         });
@@ -476,9 +455,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
      */
     public function statusName(): ?string
     {
-        $status = $this->relationLoaded('status') ? $this->getRelation('status') : $this->status()->first();
-
-        return $status?->name;
+        return LeadStatus::resolveFor($this, 'status', 'leads_status_id')?->name;
     }
 
     /**

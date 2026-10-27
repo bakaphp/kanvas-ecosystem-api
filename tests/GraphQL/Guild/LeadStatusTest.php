@@ -16,6 +16,7 @@ class LeadStatusTest extends TestCase
         $input = [
             'name' => fake()->word,
             'is_default' => (int) fake()->boolean,
+            'is_open' => true,
         ];
 
         $this->graphQL(
@@ -24,6 +25,7 @@ class LeadStatusTest extends TestCase
                 createLeadStatus(input: $input){
                     name,
                     is_default,
+                    is_open,
                 }
             }
             ',
@@ -35,6 +37,32 @@ class LeadStatusTest extends TestCase
                 'createLeadStatus' => [
                     'name' => $input['name'],
                     'is_default' => $input['is_default'],
+                    'is_open' => true,
+                ],
+            ],
+        ]);
+    }
+
+    public function testCreateLeadStatusWithoutIsOpenIsClosed(): void
+    {
+        $this->graphQL(
+            '
+            mutation createLeadStatus($input: LeadStatusInput!) {
+                createLeadStatus(input: $input){
+                    is_open,
+                }
+            }
+            ',
+            [
+                'input' => [
+                    'name' => 'Closed-' . fake()->unique()->uuid(),
+                    'is_default' => 0,
+                ],
+            ]
+        )->assertJson([
+            'data' => [
+                'createLeadStatus' => [
+                    'is_open' => false,
                 ],
             ],
         ]);
@@ -45,6 +73,7 @@ class LeadStatusTest extends TestCase
         $input = [
             'name' => fake()->word,
             'is_default' => (int) fake()->boolean,
+            'is_open' => false,
         ];
         $response = $this->graphQL(
             '
@@ -53,6 +82,7 @@ class LeadStatusTest extends TestCase
                     id,
                     name,
                     is_default,
+                    is_open,
                 }
             }
             ',
@@ -65,6 +95,7 @@ class LeadStatusTest extends TestCase
         $input = [
             'name' => fake()->word,
             'is_default' => (int) fake()->boolean,
+            'is_open' => true,
         ];
         $this->graphQL(
             '
@@ -72,6 +103,7 @@ class LeadStatusTest extends TestCase
                 updateLeadStatus(id: $id, input: $input){
                     name,
                     is_default,
+                    is_open,
                 }
             }
             ',
@@ -84,6 +116,50 @@ class LeadStatusTest extends TestCase
                 'updateLeadStatus' => [
                     'name' => $input['name'],
                     'is_default' => $input['is_default'],
+                    'is_open' => true,
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdateLeadStatusWithoutIsOpenKeepsIt(): void
+    {
+        $id = $this->graphQL(
+            '
+            mutation createLeadStatus($input: LeadStatusInput!) {
+                createLeadStatus(input: $input){
+                    id,
+                }
+            }
+            ',
+            [
+                'input' => [
+                    'name' => 'Open-' . fake()->unique()->uuid(),
+                    'is_default' => 0,
+                    'is_open' => true,
+                ],
+            ]
+        )->json('data.createLeadStatus.id');
+
+        $this->graphQL(
+            '
+            mutation updateLeadStatus($id: ID!, $input: LeadStatusInput!) {
+                updateLeadStatus(id: $id, input: $input){
+                    is_open,
+                }
+            }
+            ',
+            [
+                'id' => $id,
+                'input' => [
+                    'name' => 'Renamed-' . fake()->unique()->uuid(),
+                    'is_default' => 0,
+                ],
+            ]
+        )->assertJson([
+            'data' => [
+                'updateLeadStatus' => [
+                    'is_open' => true,
                 ],
             ],
         ]);
@@ -137,6 +213,7 @@ class LeadStatusTest extends TestCase
                             id,
                             name,
                             is_default,
+                            is_open,
                         }
                     }
                 }
@@ -149,6 +226,7 @@ class LeadStatusTest extends TestCase
                             'id',
                             'name',
                             'is_default',
+                            'is_open',
                         ],
                     ],
                 ],
