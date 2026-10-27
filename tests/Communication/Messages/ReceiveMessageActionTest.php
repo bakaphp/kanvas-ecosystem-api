@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Tests\Communication\Messages;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Messages\Actions\FlushInboundBurstAction;
 use Kanvas\Communication\Messages\Actions\ReceiveMessageAction;
 use Kanvas\Communication\Messages\DataTransferObject\InboundAttachment;
@@ -108,9 +106,9 @@ final class ReceiveMessageActionTest extends TestCase
         $this->assertNothingFiledFor('+18095550705');
     }
 
-    public function testTheGlobalReceiverFilesForTheWorkspaceThatClaimsTheNumber(): void
+    public function testAnAppWideReceiverFilesForTheWorkspaceThatClaimsTheNumber(): void
     {
-        config(['communication.fake_shares_global_receiver' => true]);
+        config(['communication.fake_shares_app_receiver' => true]);
         $this->receiver->forceFill(['companies_id' => $this->otherCompany()->getId()])->saveOrFail();
         $connection = $this->connection('fake', '+18095550700');
         $this->claim($connection);
@@ -123,44 +121,9 @@ final class ReceiveMessageActionTest extends TestCase
         $this->assertSame($connection->getId(), $message->message['communication']['connection_id']);
     }
 
-    /**
-     * The job runs as the receiver's app; what is filed, and every observer it fires, must run as
-     * the app that claims the number.
-     */
-    public function testTheGlobalReceiverFilesInTheAppThatClaimsTheNumber(): void
+    public function testAnUnclaimedNumberOnAnAppWideReceiverFilesNothing(): void
     {
-        config(['communication.fake_shares_global_receiver' => true]);
-        $claimingApp = $this->currentApp();
-        $connection = $this->connection('fake', '+18095550700');
-        $this->claim($connection);
-        $receiverApp = $this->otherApp();
-        $this->receiver->forceFill(['apps_id' => $receiverApp->getId()])->saveOrFail();
-        App::scoped(Apps::class, fn () => $receiverApp);
-
-        $result = $this->receive($this->inbound('+18095550708', 'wamid.8', 'Hola'));
-
-        $message = Message::query()->findOrFail($result[0]['message_id']);
-        $this->assertSame($claimingApp->getId(), (int) $message->apps_id);
-        $this->assertSame($claimingApp->getId(), (int) $message->entity()->apps_id);
-        $this->assertSame($claimingApp->getId(), (int) Channel::query()->findOrFail($result[0]['channel_id'])->apps_id);
-        $this->assertSame($claimingApp->getId(), app(Apps::class)->getId());
-    }
-
-    public function testATenantReceiverDoesNotFileANumberClaimedInAnotherApp(): void
-    {
-        $connection = $this->connection('fake', '+18095550700');
-        $this->claim($connection);
-        $this->receiver->forceFill(['apps_id' => $this->otherApp()->getId()])->saveOrFail();
-
-        $result = $this->receive($this->inbound('+18095550709', 'wamid.9', 'Hola'));
-
-        $this->assertFalse($result[0]['filed']);
-        $this->assertSame('claimed_by_another_workspace', $result[0]['reason']);
-    }
-
-    public function testAnUnclaimedNumberOnTheGlobalReceiverFilesNothing(): void
-    {
-        config(['communication.fake_shares_global_receiver' => true]);
+        config(['communication.fake_shares_app_receiver' => true]);
 
         $result = $this->receive($this->inbound('+18095550707', 'wamid.7', 'Hola'));
 

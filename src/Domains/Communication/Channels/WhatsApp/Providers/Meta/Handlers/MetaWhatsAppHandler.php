@@ -130,10 +130,10 @@ class MetaWhatsAppHandler extends BaseIntegration implements CommunicationProvid
     }
 
     /**
-     * Each WABA takes one callback override, so every app's numbers post to the one URL.
+     * Meta signs with the app secret and takes one callback for the whole app.
      */
     #[Override]
-    public static function sharesGlobalReceiver(): bool
+    public static function sharesAppReceiver(): bool
     {
         return true;
     }

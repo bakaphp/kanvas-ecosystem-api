@@ -15,11 +15,11 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Services\WorkflowActionCatalog;
 
 /**
- * One receiver per provider per tenant — or one for the whole platform, for a provider that shares
- * it — all running the one communication webhook job, which reads the provider from the receiver.
- * Still one per provider because each vendor is given its own URL, and Twilio signs over that exact
- * URL. Shared by every connection behind it: routing to a connection happens on the payload's
- * verified identity, never on the receiver.
+ * One receiver per provider per tenant — or per app, for a provider that shares one across the app
+ * — all running the one communication webhook job, which reads the provider from the receiver. Still
+ * one per provider because each vendor is given its own URL, and Twilio signs over that exact URL.
+ * Shared by every connection behind it: routing to a connection happens on the payload's verified
+ * identity, never on the receiver.
  */
 class CommunicationReceivers
 {
@@ -30,8 +30,7 @@ class CommunicationReceivers
     }
 
     /**
-     * The global receiver's row needs an owner, and the job runs as it until a message names its
-     * own app and workspace.
+     * Holds the settings of an endpoint every app shares, which no receiver of its own can name.
      */
     public static function platformApp(): Apps
     {
@@ -39,12 +38,11 @@ class CommunicationReceivers
     }
 
     /**
-     * $app and $company own a tenant receiver. A global one belongs to the platform whoever asks for
-     * it: the messages it takes are filed for the app and workspace that claim each number.
+     * $company owns the receiver row. For an app-wide provider that is only whoever set it up first:
+     * the messages it takes are filed for the workspace that claims each number.
      */
     public function ensure(AppInterface $app, Companies $company, string $provider): ReceiverWebhook
     {
-        [$app, $company] = $this->owner($app, $company, $provider);
         $receiver = $this->find($app, $company, $provider);
 
         if ($receiver === null) {
@@ -73,11 +71,9 @@ class CommunicationReceivers
 
     public function find(AppInterface $app, Companies $company, string $provider): ?ReceiverWebhook
     {
-        [$app, $company] = $this->owner($app, $company, $provider);
-
         return ReceiverWebhook::query()
             ->fromApp($app)
-            ->fromCompany($company)
+            ->when(! $this->sharesAppReceiver($provider), fn (Builder $query) => $query->fromCompany($company))
             ->where('is_deleted', 0)
             ->where('configuration->communication->provider', $provider)
             ->whereHas('action', fn (Builder $query) => $query->where('model_name', ProcessCommunicationWebhookJob::class))
@@ -87,26 +83,12 @@ class CommunicationReceivers
     }
 
     /**
-     * @return array{0: AppInterface, 1: Companies}
-     */
-    private function owner(AppInterface $app, Companies $company, string $provider): array
-    {
-        if (! $this->sharesGlobalReceiver($provider)) {
-            return [$app, $company];
-        }
-
-        $platform = self::platformApp();
-
-        return [$platform, $platform->getAppCompany()];
-    }
-
-    /**
      * A provider no longer registered keeps the per-tenant behaviour it was created with.
      */
-    public function sharesGlobalReceiver(string $provider): bool
+    public function sharesAppReceiver(string $provider): bool
     {
         try {
-            return $this->registry->get($provider)::sharesGlobalReceiver();
+            return $this->registry->get($provider)::sharesAppReceiver();
         } catch (InvalidArgumentException) {
             return false;
         }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Communication\Concerns;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\DataTransferObject\AppInput;
@@ -47,6 +48,8 @@ use Tests\Communication\Fixtures\FakeTransport;
 
 trait BuildsCommunicationFixtures
 {
+    use KanvasJobsTrait;
+
     protected function currentApp(): Apps
     {
         return app(Apps::class);
@@ -62,22 +65,32 @@ trait BuildsCommunicationFixtures
         return Companies::factory()->create();
     }
 
+    /**
+     * Creating an app leaves it, and its permission scope, as the current one; the test, and its
+     * tearDown, still run as the app they started on.
+     */
     protected function otherApp(): Apps
     {
-        return new CreateAppsAction(
-            AppInput::from([
-                'url' => 'communication.test',
-                'is_actived' => '1',
-                'ecosystem_auth' => '1',
-                'payments_active' => '1',
-                'is_public' => '1',
-                'domain_based' => '1',
-                'name' => 'Communication app ' . uniqid(),
-                'description' => 'Second app for the global receiver',
-                'domain' => 'communication.test',
-            ]),
-            auth()->user()
-        )->execute();
+        $app = $this->currentApp();
+
+        try {
+            return new CreateAppsAction(
+                AppInput::from([
+                    'url' => 'communication.test',
+                    'is_actived' => '1',
+                    'ecosystem_auth' => '1',
+                    'payments_active' => '1',
+                    'is_public' => '1',
+                    'domain_based' => '1',
+                    'name' => 'Communication app ' . uniqid(),
+                    'description' => 'Second app for another tenant',
+                    'domain' => 'communication.test',
+                ]),
+                auth()->user()
+            )->execute();
+        } finally {
+            $this->overwriteAppService($app);
+        }
     }
 
     protected function communication(): Communication

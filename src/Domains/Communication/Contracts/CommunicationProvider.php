@@ -50,12 +50,12 @@ interface CommunicationProvider
     public static function eventRetention(): Retention;
 
     /**
-     * True for a vendor that posts every tenant's webhooks to one URL (Meta): the platform gets one
-     * receiver, and the app and workspace a message belongs to are read from the claim on the
-     * identity it was delivered to. False for a vendor that signs with each tenant's own
-     * credentials, which the receiver has to name before anything is checked.
+     * True for a vendor that posts every tenant's webhooks to one URL and signs them with an
+     * app-level secret (Meta): the app gets one receiver, and the workspace a message belongs to is
+     * read from the claim on the identity it was delivered to. False for a vendor that signs with
+     * each tenant's own credentials, which the receiver has to name before anything is checked.
      */
-    public static function sharesGlobalReceiver(): bool;
+    public static function sharesAppReceiver(): bool;
 
     /**
      * Resolved through the container, so a test can stand a fake in for the vendor's API.

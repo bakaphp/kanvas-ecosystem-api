@@ -59,39 +59,41 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
     }
 
     /**
-     * `X-Hub-Signature-256` is an HMAC of the raw body with the Meta app's secret. Every app whose
-     * numbers the payload names must have signed it: an app that brings its own Meta app can then
-     * only post for its own numbers. A payload naming no claimed number files nothing, and is
-     * checked against the receiver's app. Without a secret nothing can be verified, so nothing is
-     * accepted.
+     * `X-Hub-Signature-256` is an HMAC of the raw body with the Meta app's secret. Without a secret
+     * configured nothing can be verified, so nothing is accepted.
      */
     #[Override]
     public function authenticate(Request $request, ReceiverWebhook $receiver): bool
     {
+        $secret = $receiver->app->get(ConfigurationEnum::APP_SECRET->value);
         $signature = (string) $request->header('X-Hub-Signature-256', '');
 
-        if (! str_starts_with($signature, 'sha256=')) {
+        if (! is_string($secret) || $secret === '' || ! str_starts_with($signature, 'sha256=')) {
             return false;
         }
 
-        $body = $request->getContent();
-        $payload = json_decode($body, true);
+        return hash_equals('sha256=' . hash_hmac('sha256', $request->getContent(), $secret), $signature);
+    }
 
-        foreach ($this->signingApps(is_array($payload) ? $payload : [], $receiver) as $app) {
-            $secret = $app->get(ConfigurationEnum::APP_SECRET->value);
-
-            if (! is_string($secret) || $secret === '' || ! hash_equals('sha256=' . hash_hmac('sha256', $body, $secret), $signature)) {
-                return false;
-            }
-        }
-
-        return true;
+    /**
+     * The one URL every app's WABAs post to: a WABA takes one callback override, and whose numbers
+     * a payload carries is only known from the payload. Under /v1/receiver/ so it reads as a Kanvas
+     * receiver.
+     */
+    public static function callbackUrl(): string
+    {
+        return rtrim((string) config('app.url'), '/') . '/v1/receiver/meta';
     }
 
     #[Override]
     public function challenge(Request $request, ReceiverWebhook $receiver): ?string
     {
-        $token = $receiver->app->get(ConfigurationEnum::WEBHOOK_VERIFY_TOKEN->value);
+        return $this->answerChallenge($request, $receiver->app);
+    }
+
+    public function answerChallenge(Request $request, AppInterface $app): ?string
+    {
+        $token = $app->get(ConfigurationEnum::WEBHOOK_VERIFY_TOKEN->value);
 
         if ($this->hubParameter($request, 'mode') !== 'subscribe' || ! is_string($token) || $token === '') {
             return null;
@@ -111,6 +113,26 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
     private function hubParameter(Request $request, string $name): string
     {
         return (string) ($request->query('hub_' . $name) ?? $request->query('hub.' . $name) ?? '');
+    }
+
+    /**
+     * The claim on the number the payload is for. A payload comes from one WABA, so its numbers
+     * belong to one company: the first claimed one names it.
+     */
+    public function claimFor(array $payload): ?InboundClaim
+    {
+        foreach ($this->changes($payload) as $value) {
+            $number = (string) ($value['metadata']['display_phone_number'] ?? '');
+            $claim = $number === ''
+                ? null
+                : InboundClaim::forIdentity(MetaWhatsAppHandler::slug(), ChannelTypeEnum::WHATSAPP, $number);
+
+            if ($claim !== null) {
+                return $claim;
+            }
+        }
+
+        return null;
     }
 
     #[Override]
@@ -134,9 +156,8 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
     }
 
     /**
-     * Routed by the message id Meta gave us when we sent it, in the app that claims the number it
-     * went out from. A status for a message that never went through this domain is counted and left
-     * alone.
+     * Routed by the message id Meta gave us when we sent it. A status for a message that never went
+     * through this domain is counted and left alone.
      */
     #[Override]
     public function recordStatuses(array $payload, ReceiverWebhook $receiver): ?array
@@ -144,15 +165,7 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
         $statuses = [];
 
         foreach ($this->changes($payload) as $value) {
-            if (empty($value['statuses'])) {
-                continue;
-            }
-
-            $appsId = (int) ($this->claimFor($value)?->apps_id ?? $receiver->apps_id);
-
-            foreach ($value['statuses'] as $status) {
-                $statuses[] = [$status, $appsId];
-            }
+            array_push($statuses, ...($value['statuses'] ?? []));
         }
 
         if ($statuses === []) {
@@ -161,11 +174,11 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
 
         $summary = ['recorded' => 0, 'duplicates' => 0, 'unmatched' => 0];
 
-        foreach ($statuses as [$status, $appsId]) {
+        foreach ($statuses as $status) {
             $deliveryStatus = StatusMap::toDeliveryStatus((string) ($status['status'] ?? ''));
             $delivery = $deliveryStatus !== null && ! empty($status['id'])
                 ? Delivery::query()
-                    ->where('apps_id', $appsId)
+                    ->where('apps_id', $receiver->apps_id)
                     ->where('provider', MetaWhatsAppHandler::slug())
                     ->where('external_id', (string) $status['id'])
                     ->first()
@@ -261,36 +274,6 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
         }
 
         return $values;
-    }
-
-    /**
-     * @return list<AppInterface>
-     */
-    private function signingApps(array $payload, ReceiverWebhook $receiver): array
-    {
-        $apps = [];
-
-        foreach ($this->changes($payload) as $value) {
-            $app = $this->claimFor($value)?->app;
-
-            if ($app !== null) {
-                $apps[$app->getId()] = $app;
-            }
-        }
-
-        return $apps === [] ? [$receiver->app] : array_values($apps);
-    }
-
-    /**
-     * Each change names the number it is for.
-     */
-    private function claimFor(array $value): ?InboundClaim
-    {
-        $number = (string) ($value['metadata']['display_phone_number'] ?? '');
-
-        return $number === ''
-            ? null
-            : InboundClaim::forIdentity(MetaWhatsAppHandler::slug(), ChannelTypeEnum::WHATSAPP, $number);
     }
 
     private function parse(array $message, array $metadata, string $ourNumber): InboundMessage

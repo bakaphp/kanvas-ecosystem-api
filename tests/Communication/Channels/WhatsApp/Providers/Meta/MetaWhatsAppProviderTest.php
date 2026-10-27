@@ -7,10 +7,11 @@ namespace Tests\Communication\Channels\WhatsApp\Providers\Meta;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\ConfigurationEnum;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Handlers\MetaWhatsAppHandler;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\MetaInbound;
@@ -153,6 +154,69 @@ final class MetaWhatsAppProviderTest extends TestCase
         $this->get($url . '?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=1158201444')->assertForbidden();
     }
 
+    public function testMetaVerifiesTheSharedCallbackWithThePlatformsToken(): void
+    {
+        $this->assertSame($this->currentApp()->getId(), CommunicationReceivers::platformApp()->getId());
+
+        $this->get('/v1/receiver/meta?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=1158201444')
+            ->assertOk()
+            ->assertSeeText('1158201444');
+
+        $this->get('/v1/receiver/meta?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=1158201444')->assertForbidden();
+    }
+
+    public function testTheSharedCallbackGoesToTheReceiverOfTheAppThatClaimsTheNumber(): void
+    {
+        $this->metaConnection();
+        $receiver = $this->receiver();
+        $before = $receiver->webhookCalls()->count();
+
+        $this->postToCallback(json_encode($this->inboundPayload('wamid.CB1', '18095550211', 'Hola')))->assertOk();
+        $this->postToCallback(json_encode($this->inboundPayload('wamid.CB2', '18095550212', 'Hola')), 'someone-else')
+            ->assertUnauthorized();
+
+        $this->assertSame($before + 1, $receiver->webhookCalls()->count());
+    }
+
+    public function testTheSharedCallbackAcknowledgesANumberNoCompanyClaims(): void
+    {
+        $receiver = $this->receiver();
+        $before = $receiver->webhookCalls()->count();
+
+        $this->postToCallback(json_encode($this->inboundPayload('wamid.CB3', '18095550213', 'Hola')))->assertOk();
+
+        $this->assertSame($before, $receiver->webhookCalls()->count());
+    }
+
+    /**
+     * The request runs as the app of the company that claims the number: that app's secret signs it
+     * and that app's receiver takes it.
+     */
+    public function testTheSharedCallbackRunsAsTheAppOfTheCompanyThatClaimsTheNumber(): void
+    {
+        $app = $this->currentApp();
+        $ownReceiver = $this->receiver();
+        $ownCalls = $ownReceiver->webhookCalls()->count();
+        $otherApp = $this->otherApp();
+        $otherApp->set(ConfigurationEnum::APP_SECRET->value, 'other-app-secret');
+        $this->metaConnection();
+        InboundClaim::query()->where('provider', 'meta')->where('inbound_identity', self::OUR_NUMBER)->update(['apps_id' => $otherApp->getId()]);
+        $otherReceiver = new CommunicationReceivers()->ensure($otherApp, $this->currentCompany(), 'meta');
+        $body = json_encode($this->inboundPayload('wamid.CB4', '18095550214', 'Hola'));
+
+        try {
+            $this->postToCallback($body)->assertUnauthorized();
+            $this->postToCallback($body, 'other-app-secret')->assertOk();
+
+            $this->assertSame($otherApp->getId(), app(Apps::class)->getId());
+            $this->assertSame(1, $otherReceiver->webhookCalls()->count());
+            $this->assertSame($ownCalls, $ownReceiver->webhookCalls()->count());
+        } finally {
+            $this->overwriteAppService($app);
+            $otherApp->del(ConfigurationEnum::APP_SECRET->value);
+        }
+    }
+
     public function testInboundIsFiledOnTheConnectionAndTheContactsWhatsAppChannel(): void
     {
         $connection = $this->metaConnection();
@@ -171,58 +235,29 @@ final class MetaWhatsAppProviderTest extends TestCase
     }
 
     /**
-     * Meta posts every app's numbers to the one URL; the claim, not the receiver, says whose a
-     * message is.
+     * Meta posts every workspace's numbers to the one URL; the claim, not the receiver, says whose
+     * a message is.
      */
-    public function testEveryAppAndWorkspaceSharesOnePlatformReceiver(): void
+    public function testEveryWorkspaceOnTheAppSharesOneReceiver(): void
     {
         $receivers = new CommunicationReceivers();
-        $receiver = $receivers->ensure($this->currentApp(), $this->currentCompany(), 'meta');
-        $platform = CommunicationReceivers::platformApp();
 
-        $this->assertSame($receiver->getId(), $receivers->ensure($this->currentApp(), $this->otherCompany(), 'meta')->getId());
-        $this->assertSame($receiver->getId(), $receivers->ensure($this->otherApp(), $this->otherCompany(), 'meta')->getId());
-        $this->assertSame($platform->getId(), (int) $receiver->apps_id);
-        $this->assertSame($platform->getAppCompany()->getId(), (int) $receiver->companies_id);
-    }
-
-    public function testANumberClaimedInAnotherAppMustBeSignedWithThatAppsSecret(): void
-    {
-        $receiver = $this->receiver();
-        $otherApp = $this->otherApp();
-        $otherApp->set(ConfigurationEnum::APP_SECRET->value, 'other-app-secret');
-        $this->metaConnection();
-        InboundClaim::query()
-            ->where('provider', 'meta')
-            ->where('inbound_identity', self::OUR_NUMBER)
-            ->update(['apps_id' => $otherApp->getId()]);
-        $body = json_encode($this->inboundPayload('wamid.APP', '+18095550210', 'Hola'));
-
-        try {
-            $this->assertFalse(
-                ProcessCommunicationWebhookJob::authenticateRequest($this->signedRequest($receiver, $body), $receiver),
-                "the receiver's own secret does not sign for another app's number"
-            );
-            $this->assertTrue(ProcessCommunicationWebhookJob::authenticateRequest(
-                $this->signedRequest($receiver, $body, signature: 'sha256=' . hash_hmac('sha256', $body, 'other-app-secret')),
-                $receiver
-            ));
-        } finally {
-            $otherApp->del(ConfigurationEnum::APP_SECRET->value);
-        }
+        $this->assertSame(
+            $receivers->ensure($this->currentApp(), $this->currentCompany(), 'meta')->getId(),
+            $receivers->ensure($this->currentApp(), $this->otherCompany(), 'meta')->getId()
+        );
     }
 
     public function testInboundIsFiledForTheWorkspaceThatClaimsTheNumberWhoeverOwnsTheReceiver(): void
     {
-        $claiming = $this->currentCompany();
         $owner = $this->otherCompany();
         $receiver = $this->receiver();
         $receiver->forceFill(['companies_id' => $owner->getId(), 'users_id' => $owner->users_id])->saveOrFail();
         $this->metaConnection();
 
-        $result = $this->deliver($this->inboundPayload('wamid.IN8', '18095550208', 'Hola'), $receiver);
+        $result = $this->deliver($this->inboundPayload('wamid.IN8', '18095550208', 'Hola'));
 
-        $this->assertSame($claiming->getId(), (int) Message::query()->findOrFail($result[0]['message_id'])->companies_id);
+        $this->assertSame($this->currentCompany()->getId(), (int) Message::query()->findOrFail($result[0]['message_id'])->companies_id);
     }
 
     public function testANumberNoWorkspaceClaimsIsNotFiled(): void
@@ -343,11 +378,11 @@ final class MetaWhatsAppProviderTest extends TestCase
         Http::assertSent(fn (HttpRequest $request): bool => $request['to'] === '18095550207' && $request['text']['body'] === 'Hola Mundo');
     }
 
-    public function testSetupSubscribesTheWabaToTheTenantsReceiverAndReadsItBack(): void
+    public function testSetupSubscribesTheWabaToTheSharedCallbackAndReadsItBack(): void
     {
         $this->globalAgentTemplates();
         Queue::fake([SetupPeopleChannelsJob::class]);
-        $receiverUrl = new CommunicationReceivers()->ensure($this->currentApp(), $this->currentCompany(), 'meta')->getUrl();
+        $receiverUrl = MetaInbound::callbackUrl();
         $subscribed = [];
         Http::fake(function (HttpRequest $request) use (&$subscribed, $receiverUrl) {
             if (str_ends_with($request->url(), '/subscribed_apps') && $request->method() === 'POST') {
@@ -464,21 +499,25 @@ final class MetaWhatsAppProviderTest extends TestCase
         return $request;
     }
 
-    /**
-     * The job ends as the receiver's user, who is the platform's and not the test's; the test goes
-     * on as its own.
-     */
-    private function deliver(array $payload, ?ReceiverWebhook $receiver = null): array
+    private function postToCallback(string $body, string $secret = self::SECRET): TestResponse
     {
-        $receiver ??= $this->receiver();
-        $call = new ProcessWebhookAttemptAction($receiver, $this->signedRequest($receiver, json_encode($payload)))->execute();
-        $user = auth()->user();
+        return $this->call(
+            'POST',
+            '/v1/receiver/meta',
+            server: [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_X_HUB_SIGNATURE_256' => 'sha256=' . hash_hmac('sha256', $body, $secret),
+            ],
+            content: $body
+        );
+    }
 
-        try {
-            return new ProcessCommunicationWebhookJob($call)->handle();
-        } finally {
-            Auth::setUser($user);
-        }
+    private function deliver(array $payload): array
+    {
+        $receiver = $this->receiver();
+        $call = new ProcessWebhookAttemptAction($receiver, $this->signedRequest($receiver, json_encode($payload)))->execute();
+
+        return new ProcessCommunicationWebhookJob($call)->handle();
     }
 
     private function inboundPayload(string $id, string $from, string $text): array

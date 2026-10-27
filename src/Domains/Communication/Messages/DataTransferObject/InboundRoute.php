@@ -10,8 +10,8 @@ use Kanvas\Companies\Models\Companies;
 
 /**
  * Where an inbound message belongs, and whether anything may answer it automatically. $company is
- * the workspace it is filed for; null when no workspace the receiver serves may have it, and then
- * nothing is filed at all — not a person, not a lead.
+ * the workspace it is filed for; null when no workspace of the app may have it, and then nothing is
+ * filed at all — not a person, not a lead.
  */
 final readonly class InboundRoute
 {
@@ -19,7 +19,7 @@ final readonly class InboundRoute
 
     // Nobody claims the identity: a number the tenant had before provisioning, or one it did not
     // select. On the tenant's own authenticated receiver it keeps answering the way it always has —
-    // turning that off is a selection, not a side effect of a deploy. On the global receiver there
+    // turning that off is a selection, not a side effect of a deploy. On an app-wide receiver there
     // is no tenant to file it for.
     public const string NOT_PROVISIONED = 'not_provisioned';
 

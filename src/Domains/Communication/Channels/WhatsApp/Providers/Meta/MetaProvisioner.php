@@ -76,6 +76,10 @@ class MetaProvisioner implements Provisioner
         ];
     }
 
+    /**
+     * Every WABA posts to the shared callback rather than to $inboundUrl, the app's receiver: the
+     * callback hands each app's numbers to that receiver.
+     */
     #[Override]
     public function registerInbound(Connection $connection, string $inboundUrl): InboundRegistration
     {
@@ -89,15 +93,16 @@ class MetaProvisioner implements Provisioner
         }
 
         $client = Client::forCompany($connection->app, $connection->company);
+        $callback = MetaInbound::callbackUrl();
 
         return new InboundRegistration(shared: $this->sharedRegistry->attach(
             $connection,
             $wabaId,
             self::WABA_SUBSCRIPTION,
             $wabaId,
-            function () use ($client, $connection, $wabaId, $inboundUrl): string {
+            function () use ($client, $wabaId, $callback): string {
                 $current = $this->kanvasCallbacks($client->subscribedApps($wabaId));
-                $foreign = array_values(array_diff($current, [$inboundUrl]));
+                $foreign = array_values(array_diff($current, [$callback]));
 
                 // Another Kanvas receiver already takes this WABA's messages — another workspace, or
                 // a receiver since replaced. Overriding it would silently cut that one off.
@@ -108,16 +113,16 @@ class MetaProvisioner implements Provisioner
                     );
                 }
 
-                // The token the global receiver answers Meta's check with, not the tenant's.
+                // The shared callback is verified with the platform's token, not the tenant's.
                 if ($current === []) {
-                    $client->subscribe($wabaId, $inboundUrl, MetaInbound::verifyToken(CommunicationReceivers::platformApp()));
+                    $client->subscribe($wabaId, $callback, MetaInbound::verifyToken(CommunicationReceivers::platformApp()));
                 }
 
-                if (! in_array($inboundUrl, $this->kanvasCallbacks($client->subscribedApps($wabaId)), true)) {
+                if (! in_array($callback, $this->kanvasCallbacks($client->subscribedApps($wabaId)), true)) {
                     throw new RuntimeException('Meta did not keep the webhook on WhatsApp Business Account ' . $wabaId);
                 }
 
-                return $inboundUrl;
+                return $callback;
             }
         ));
     }

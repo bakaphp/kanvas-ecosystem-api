@@ -57,13 +57,8 @@ class ProcessCommunicationWebhookJob extends ProcessWebhookJob
         $statuses = $source->recordStatuses($payload, $this->receiver);
         $received = [];
 
-        // One payload can carry numbers of several apps, and each message switches to its own.
         foreach ($source->messages($payload, $this->receiver) as $inbound) {
-            try {
-                array_push($received, ...new ReceiveMessageAction($this->receiver, $inbound, $source)->execute());
-            } finally {
-                $this->actAsReceiver();
-            }
+            array_push($received, ...new ReceiveMessageAction($this->receiver, $inbound, $source)->execute());
         }
 
         if ($statuses === null) {
