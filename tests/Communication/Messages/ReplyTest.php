@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Tests\Communication\Messages;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Kanvas\Communication\Messages\Actions\FileDeliveryMessageAction;
+use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Messages\Enums\OperationKindEnum;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
@@ -92,5 +95,25 @@ final class ReplyTest extends TestCase
         $this->expectException(ValidationException::class);
 
         $this->communication()->reply($note, 'Thanks!');
+    }
+
+    public function testADeliveryCannotBeFiledOnAnotherCompanysMessage(): void
+    {
+        $this->useFakeProvider();
+        $this->defaultSmsConnection();
+        $delivery = $this->communication()
+            ->send($this->personWithCellphone(), 'Hello', channels: ['sms'])
+            ->delivery(ChannelTypeEnum::SMS);
+
+        $foreignMessage = Message::factory()
+            ->withAppId($this->currentApp()->getId())
+            ->withCompanyId($this->otherCompany()->getId())
+            ->create(['users_id' => auth()->user()->getId(), 'message' => ['content' => 'Private conversation']]);
+
+        $delivery->request->update(['filed_message_id' => $foreignMessage->getId()]);
+
+        $this->expectException(ModelNotFoundException::class);
+
+        new FileDeliveryMessageAction($delivery, Content::text('Hello'))->execute();
     }
 }

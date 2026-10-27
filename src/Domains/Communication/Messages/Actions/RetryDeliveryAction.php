@@ -10,9 +10,8 @@ use Kanvas\Communication\Messages\Models\Delivery;
 
 final class RetryDeliveryAction
 {
-    public function __construct(
-        private readonly Delivery $delivery
-    ) {
+    public function __construct(private readonly Delivery $delivery)
+    {
     }
 
     /**
@@ -21,13 +20,13 @@ final class RetryDeliveryAction
      */
     public function execute(): bool
     {
+        if ($this->delivery->status !== DeliveryStatusEnum::FAILED || $this->delivery->to_address === null) {
+            return false;
+        }
+
         $connection = $this->delivery->connection;
 
-        $isRetryable = $this->delivery->status === DeliveryStatusEnum::FAILED
-            && $this->delivery->to_address !== null
-            && $connection !== null;
-
-        if (! $isRetryable) {
+        if ($connection === null) {
             return false;
         }
 

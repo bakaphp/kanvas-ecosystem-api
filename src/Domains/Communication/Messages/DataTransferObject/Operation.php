@@ -17,9 +17,8 @@ use Kanvas\Communication\Messages\Models\Request;
  */
 final readonly class Operation
 {
-    public function __construct(
-        public Request $request
-    ) {
+    public function __construct(public Request $request)
+    {
     }
 
     public function id(): int
@@ -37,7 +36,7 @@ final readonly class Operation
 
     public function delivery(ChannelTypeEnum $channel): ?Delivery
     {
-        return $this->deliveries()->first(fn (Delivery $delivery): bool => $delivery->channel === $channel);
+        return $this->request->deliveries()->where('channel', $channel->value)->orderBy('id')->first();
     }
 
     /**

@@ -56,9 +56,9 @@ final class StoreInboundFileAction
         $tempPath = sys_get_temp_dir() . '/' . $filename;
         file_put_contents($tempPath, $this->contents);
 
-        $user = $this->message->company->getAiAgentUser() ?? Users::getById($this->message->users_id);
-
         try {
+            $user = $this->message->company->getAiAgentUser() ?? Users::getById($this->message->users_id);
+
             return new FilesystemServices($this->message->app, $this->message->company)->upload(
                 new UploadedFile(
                     $tempPath,

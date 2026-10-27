@@ -19,7 +19,7 @@ final class CommunicationPresenter
         return [
             'id' => $operation->id(),
             'status' => $operation->status(),
-            'deliveries' => $operation->deliveries()->map(fn (Delivery $delivery): array => self::delivery($delivery))->all(),
+            'deliveries' => $operation->deliveries()->loadMissing('connection')->map(fn (Delivery $delivery): array => self::delivery($delivery))->all(),
         ];
     }
 

@@ -23,12 +23,10 @@ enum ChannelTypeEnum: string
 
     public function normalizeAddress(string $address): ?string
     {
-        $address = match (true) {
+        return Str::trimToNull(match (true) {
             $this->isAddressedByPhone() => Str::toE164($address),
-            $this === self::EMAIL => strtolower(trim($address)),
-            default => trim($address),
-        };
-
-        return $address === '' ? null : $address;
+            $this === self::EMAIL => strtolower($address),
+            default => $address,
+        });
     }
 }

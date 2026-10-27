@@ -84,7 +84,7 @@ final class FileDeliveryMessageAction
      */
     private function stampFiledMessage(int $messageId, string $thread): Message
     {
-        $message = Message::getById($messageId, $this->delivery->app);
+        $message = Message::getByIdFromCompanyApp($messageId, $this->delivery->company, $this->delivery->app);
 
         $payload = $message->message;
         $payload['message_id'] = $this->delivery->external_id;
