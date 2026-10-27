@@ -964,9 +964,8 @@ class SendMessageToLeadAction
 
         $this->guardDestinationOptOut((string) $leadEmail, LeadCommunicationChannelEnum::EMAIL->value);
 
-        $ownerSignature = ($fromAgent?->conversesWithUser() ?? false)
-            ? UserEmailSignature::fromUser($this->signatureOwner)
-            : null;
+        $ownerSignature = UserEmailSignature::forSender($this->signatureOwner, $this->lead->company, $fromAgent);
+        $signature = $signature && $ownerSignature === null;
 
         $mailboxAddress = $fromAgent !== null
             ? new AgentMailboxService()->addressFor($fromAgent)
@@ -999,7 +998,6 @@ class SendMessageToLeadAction
 
         // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
         $message = MarkdownEmailRenderer::toEmailHtml($message);
-        $message .= $ownerSignature?->toHtml() ?? '';
 
         $notification = new Blank(
             'first-time-agent-engagement',
@@ -1016,6 +1014,7 @@ class SendMessageToLeadAction
         );
         $notification->setFromUser($this->lead->user);
         $notification->setSubject($subject);
+        $notification->setUserSignature($ownerSignature);
         if ($ccList !== []) {
             $notification->setCc($ccList);
         }
