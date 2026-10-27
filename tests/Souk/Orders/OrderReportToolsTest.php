@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Souk\Orders;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Support\CompanyScope;
@@ -27,7 +27,7 @@ class OrderReportToolsTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'commerce', 'crm'];
+    protected array $connectionsToTransact = ['mysql', 'commerce', 'crm', 'social'];
 
     /**
      * Two order types + three orders on one company:
@@ -127,17 +127,20 @@ class OrderReportToolsTest extends TestCase
         $payment->saveOrFail();
     }
 
+    private function latestOrder(Companies $company, string $status): Builder
+    {
+        return Order::query()
+            ->where('companies_id', $company->getId())
+            ->where('status', $status)
+            ->latest('id');
+    }
+
     /**
      * @param array<string, mixed> $attributes
      */
     private function backdateLatestOrder(Companies $company, string $status, array $attributes): void
     {
-        Order::query()
-            ->where('companies_id', $company->getId())
-            ->where('status', $status)
-            ->latest('id')
-            ->limit(1)
-            ->update($attributes);
+        $this->latestOrder($company, $status)->limit(1)->update($attributes);
     }
 
     public function test_list_order_types_returns_tenant_types(): void
@@ -261,15 +264,17 @@ class OrderReportToolsTest extends TestCase
         $this->assertSame(100.0, (float) $result['total_amount']);
     }
 
-    public function test_order_payment_stats_rejects_an_unknown_timezone(): void
+    public function test_order_payment_stats_rejects_an_unknown_timezone_without_ending_the_turn(): void
     {
         [$app, $company, $user] = $this->seedOrders();
 
-        $this->expectException(InvalidArgumentException::class);
-
-        new OrderPaymentStatsTool()
+        $result = new OrderPaymentStatsTool()
             ->withContext($app, $company, $user)
             ->__invoke(timezone: 'Mars/Olympus_Mons');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('invalid_args', $result['outcome']);
+        $this->assertStringContainsString('Mars/Olympus_Mons', $result['error']);
     }
 
     public function test_order_commission_stats_only_counts_commissioned_orders(): void
@@ -469,15 +474,17 @@ class OrderReportToolsTest extends TestCase
         $this->assertSame(1, $series[now()->startOfMonth()->toDateString()]['new_to_company']);
     }
 
-    public function test_order_trend_rejects_an_unknown_timezone(): void
+    public function test_order_trend_rejects_an_unknown_timezone_without_ending_the_turn(): void
     {
         [$app, $company, $user] = $this->seedOrders();
 
-        $this->expectException(InvalidArgumentException::class);
-
-        new OrderTrendTool()
+        $result = new OrderTrendTool()
             ->withContext($app, $company, $user)
             ->__invoke(timezone: 'Mars/Olympus_Mons');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('invalid_args', $result['outcome']);
+        $this->assertStringContainsString('Mars/Olympus_Mons', $result['error']);
     }
 
     public function test_order_fulfillment_stats_backlog_ignores_cancelled_orders(): void
@@ -522,6 +529,92 @@ class OrderReportToolsTest extends TestCase
         $this->assertSame(10.0, (float) $row['commission']);
         $this->assertSame(90.0, (float) $row['provider_payout']);
         $this->assertSame(2, (int) $result['orders_without_provider']);
+    }
+
+    private function tagLatestOrder(
+        Companies $company,
+        string $status,
+        string $tag,
+        Apps $app,
+        mixed $user
+    ): void {
+        /** @var Order $order */
+        $order = $this->latestOrder($company, $status)->firstOrFail();
+
+        $order->addTag($tag, $app, $user, $company);
+    }
+
+    public function test_list_order_types_lists_the_tags_carried_by_this_companys_orders(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+        $this->tagLatestOrder($company, 'completed', 'Corporativo', $app, $user);
+
+        $result = new ListOrderTypesTool()->withContext($app, $company, $user)->__invoke();
+
+        $this->assertContains('Corporativo', $result['tags']);
+    }
+
+    public function test_order_trend_filters_by_tag_alone_and_combined_with_an_order_type(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+        $this->tagLatestOrder($company, 'completed', 'corporativo', $app, $user);
+        $this->tagLatestOrder($company, 'pending', 'corporativo', $app, $user);
+
+        $tagged = new OrderTrendTool()->withContext($app, $company, $user)->__invoke(tags: 'corporativo');
+
+        $this->assertSame(2, (int) $tagged['total_orders']);
+        $this->assertSame(180.0, (float) $tagged['total_gross_revenue']);
+        $this->assertSame(1, (int) $tagged['total_new_customers']);
+        $this->assertSame(1, (int) $tagged['total_new_to_company']);
+
+        $taggedMovipass = new OrderTrendTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(order_types: 'movipass', tags: 'Corporativo');
+
+        $this->assertSame(1, (int) $taggedMovipass['total_orders']);
+        $this->assertSame(120.0, (float) $taggedMovipass['total_gross_revenue']);
+    }
+
+    public function test_order_breakdown_and_payment_stats_honour_the_tag_filter(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+        $this->tagLatestOrder($company, 'completed', 'corporativo', $app, $user);
+
+        $breakdown = new OrderBreakdownTool()->withContext($app, $company, $user)->__invoke(tags: 'corporativo');
+        $payments = new OrderPaymentStatsTool()->withContext($app, $company, $user)->__invoke(tags: 'corporativo');
+
+        $this->assertSame(1, (int) $breakdown['total_orders']);
+        $this->assertSame(120.0, (float) $breakdown['total_revenue']);
+        $this->assertSame(1, (int) $payments['orders']);
+        $this->assertSame(100.0, (float) $payments['total_amount']);
+    }
+
+    public function test_order_trend_rejects_an_unknown_tag_and_names_the_tags_in_use(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+        $this->tagLatestOrder($company, 'completed', 'corporativo', $app, $user);
+
+        $result = new OrderTrendTool()->withContext($app, $company, $user)->__invoke(tags: 'corporate');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('invalid_args', $result['outcome']);
+        $this->assertStringContainsString('corporate', $result['error']);
+        $this->assertStringContainsString('corporativo', $result['error']);
+    }
+
+    public function test_order_trend_rejects_an_unknown_order_type_and_names_the_valid_ones(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+
+        $result = new OrderTrendTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(order_types: 'paso_rapido_corporativo');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('invalid_args', $result['outcome']);
+        $this->assertStringContainsString('paso_rapido_corporativo', $result['error']);
+        $this->assertStringContainsString('movipass', $result['error']);
+        $this->assertStringContainsString('paso_rapido', $result['error']);
     }
 
     public function test_orders_export_filters_by_order_type(): void
