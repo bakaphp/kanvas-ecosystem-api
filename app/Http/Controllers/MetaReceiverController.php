@@ -42,11 +42,7 @@ class MetaReceiverController extends ReceiverController
         }
 
         $this->overwriteAppService($claim->app);
-        $receiver = new CommunicationReceivers()->find(
-            $claim->app,
-            $claim->company,
-            MetaWhatsAppHandler::slug()
-        );
+        $receiver = new CommunicationReceivers()->find($claim->app, $claim->company, MetaWhatsAppHandler::slug());
 
         return $receiver === null
             ? response()->json(['message' => 'Receiver not found'], 404)

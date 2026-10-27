@@ -84,7 +84,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             $to,
             $this->message,
             $this->channel,
-            $this->senderAddress()
+            $this->senderAddress(),
+            rawResponse: $response
         );
 
         if (! $reply->is_locked) {

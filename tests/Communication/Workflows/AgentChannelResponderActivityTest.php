@@ -177,17 +177,22 @@ final class AgentChannelResponderActivityTest extends TestCase
         $lead = $this->leadOf($this->personWithCellphone($from));
         $channel = $this->conversationChannel($lead);
 
-        $inbound = $this->fileInConversation($channel, $lead, 'fake-sms', [
-            'content' => 'Is it still available?',
-            'from_me' => false,
-            'chat_jid' => $from,
-            'communication' => [
-                'connection_id' => $connection->getId(),
-                'channel' => ChannelTypeEnum::SMS->value,
-                'thread' => $from,
-                'activation_version' => $connection->activation_version,
-            ],
-        ]);
+        $inbound = $this->fileInConversation(
+            $channel,
+            $lead,
+            'fake-sms',
+            [
+                'content' => 'Is it still available?',
+                'from_me' => false,
+                'chat_jid' => $from,
+                'communication' => [
+                    'connection_id' => $connection->getId(),
+                    'channel' => ChannelTypeEnum::SMS->value,
+                    'thread' => $from,
+                    'activation_version' => $connection->activation_version,
+                ],
+            ]
+        );
 
         return [$channel, $inbound];
     }
@@ -201,11 +206,7 @@ final class AgentChannelResponderActivityTest extends TestCase
             now()->toDateTimeString(),
             new StoredWorkflow(),
             []
-        )->execute(
-            $channel,
-            $this->currentApp(),
-            ['message' => $inbound]
-        );
+        )->execute($channel, $this->currentApp(), ['message' => $inbound]);
     }
 
     private function agent(string $handler): Agent

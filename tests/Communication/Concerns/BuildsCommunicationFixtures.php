@@ -103,7 +103,11 @@ trait BuildsCommunicationFixtures
      */
     protected function useFakeProvider(): FakeTransport
     {
-        config(['communication.providers' => [FakeProvider::class]]);
+        config([
+            'communication.providers' => [FakeProvider::class],
+            // Cached application config can override phpunit.xml's synchronous queue.
+            'queue.default' => 'sync',
+        ]);
 
         $transport = new FakeTransport();
         app()->instance(FakeTransport::class, $transport);
@@ -191,8 +195,7 @@ trait BuildsCommunicationFixtures
 
     /**
      * The app's global agents a company's setup copies; without them setup is blocked.
-     */
-    /**
+     *
      * @return array<string, Agent> by name
      */
     protected function globalAgentTemplates(): array

@@ -23,20 +23,14 @@ use Kanvas\Users\Models\Users;
  */
 final class FileDeliveryMessageAction
 {
-    public function __construct(
-        private readonly Delivery $delivery,
-        private readonly Content $content
-    ) {
+    public function __construct(private readonly Delivery $delivery, private readonly Content $content)
+    {
     }
 
     public function execute(): Message
     {
         $connection = $this->delivery->connection;
         $request = $this->delivery->request;
-        $app = $this->delivery->app;
-        $company = $this->delivery->company;
-        $user = Users::query()->find($request->users_id) ?? $company->user;
-
         $conversation = new TransportManager()
             ->for($connection->provider, $this->delivery->channel)
             ->conversation($connection, (string) $this->delivery->to_address);
@@ -45,6 +39,9 @@ final class FileDeliveryMessageAction
             return $this->stampFiledMessage((int) $request->filed_message_id, $conversation->thread);
         }
 
+        $app = $this->delivery->app;
+        $company = $this->delivery->company;
+        $user = Users::query()->find($request->users_id) ?? $company->user;
         $fromAgent = ($request->sender['type'] ?? null) === 'agent';
 
         $payload = new AiChatMessagePayload(
