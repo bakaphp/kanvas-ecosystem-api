@@ -7,10 +7,14 @@ namespace Kanvas\Souk\Payments\Models;
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Payments\Actions\SyncPayablePaymentStatusAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
+use Kanvas\Souk\Taxes\Jobs\ReverseTaxTransactionJob;
+use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
+use Kanvas\Souk\Taxes\Models\TaxOperation;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -81,6 +85,56 @@ class PaymentRefund extends BaseModel
             'amount' => $this->amount,
             'fully_refunded' => $payment->isFullyRefunded(),
         ]);
+
+        $this->dispatchTaxReversal($payment);
+    }
+
+    private function dispatchTaxReversal(Payments $payment): void
+    {
+        $payable = $payment->payable;
+
+        if ($payable === null) {
+            return;
+        }
+
+        $snapshot = OrderTaxSnapshot::query()
+            ->where('order_id', $payable->id)
+            ->whereNotIn('status', ['voided', 'superseded'])
+            ->first();
+
+        if ($snapshot === null) {
+            return;
+        }
+
+        $isFullReversal = (float) $this->amount >= (float) $snapshot->remaining_reversible_amount;
+
+        $idempotencyKey = hash('sha256', 'reverse:' . $snapshot->uuid . ':' . $this->uuid);
+
+        $existing = TaxOperation::query()
+            ->where('idempotency_key', $idempotencyKey)
+            ->whereNotIn('status', ['reversed', 'reversal_failed'])
+            ->first();
+
+        if ($existing === null) {
+            $operation = new TaxOperation();
+            $operation->snapshot_id = $snapshot->id;
+            $operation->kind = 'reverse';
+            $operation->idempotency_key = $idempotencyKey;
+            $operation->status = 'pending';
+            $operation->provider_response = ['refund_uuid' => $this->uuid];
+            $operation->saveOrFail();
+        }
+
+        /** @var Apps $app */
+        $app = app(Apps::class);
+
+        ReverseTaxTransactionJob::dispatch(
+            $snapshot,
+            $this,
+            (float) $this->amount,
+            $isFullReversal,
+            $app,
+        );
     }
 
     public function markAsFailed(array $metadata = []): void
