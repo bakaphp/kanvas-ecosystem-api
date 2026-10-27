@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Guild\Integration;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\ConfigurationEnum as MetaConfigurationEnum;
+use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Handlers\MetaWhatsAppHandler;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -13,7 +15,14 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Sessions\Models\Session as SessionModel;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Regions\Models\Regions;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\Workflow\Models\Integrations;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
@@ -23,6 +32,10 @@ final class ContactObserverSocialChannelsTest extends TestCase
 {
     private const int ACTIVE_STATUS_ID = 1;
     private const int LOST_STATUS_ID = 9;
+
+    private ?IntegrationsCompany $whatsAppIntegration = null;
+
+    private ?Integrations $createdIntegration = null;
 
     protected function setUp(): void
     {
@@ -42,6 +55,10 @@ final class ContactObserverSocialChannelsTest extends TestCase
         $company->del(ConfigurationEnum::CREATE_SOCIAL_CHANNELS_ON_CONTACT_SAVE->value);
         $company->del(SalesAssistConfigurationEnum::AGENT_NAME->value);
         app(Apps::class)->del(ConfigurationEnum::CREATE_SOCIAL_CHANNELS_ON_CONTACT_SAVE->value);
+        $company->del(MetaConfigurationEnum::PHONE_NUMBER_ID->value);
+        // Not in a transaction (the observers write on several connections), so the row goes by hand.
+        $this->whatsAppIntegration?->delete();
+        $this->createdIntegration?->delete();
 
         parent::tearDown();
     }
@@ -81,7 +98,7 @@ final class ContactObserverSocialChannelsTest extends TestCase
         $people = $this->createPerson();
         $olderActiveLead = $this->createLead($people, self::ACTIVE_STATUS_ID);
 
-        app(Apps::class)->del(ConfigurationEnum::CREATE_SOCIAL_CHANNELS_ON_CONTACT_SAVE->value);
+        app(Apps::class)->set(ConfigurationEnum::CREATE_SOCIAL_CHANNELS_ON_CONTACT_SAVE->value, false);
         $phone = $this->uniquePhone();
         $people->addCellPhone($phone);
         app(Apps::class)->set(ConfigurationEnum::CREATE_SOCIAL_CHANNELS_ON_CONTACT_SAVE->value, true);
@@ -140,9 +157,16 @@ final class ContactObserverSocialChannelsTest extends TestCase
         );
     }
 
-    public function testDoesNothingWhenTheAppSettingIsOff(): void
+    public function testOnWhenNothingIsConfigured(): void
     {
         app(Apps::class)->del(ConfigurationEnum::CREATE_SOCIAL_CHANNELS_ON_CONTACT_SAVE->value);
+
+        $this->assertTrue($this->channelOpensForNewContact());
+    }
+
+    public function testAppCanSwitchItOff(): void
+    {
+        app(Apps::class)->set(ConfigurationEnum::CREATE_SOCIAL_CHANNELS_ON_CONTACT_SAVE->value, false);
         auth()->user()->getCurrentCompany()->set(ConfigurationEnum::CREATE_SOCIAL_CHANNELS_ON_CONTACT_SAVE->value, true);
 
         $this->assertFalse($this->channelOpensForNewContact());
@@ -172,6 +196,115 @@ final class ContactObserverSocialChannelsTest extends TestCase
         $contact = $people->addCellPhone($this->uniquePhone());
 
         $this->assertTrue($contact->exists);
+    }
+
+    public function testCellphoneOpensAWhatsAppChannelWhenTheIntegrationIsOn(): void
+    {
+        $this->turnOnWhatsAppIntegration();
+        $people = $this->createPerson();
+        $lead = $this->createLead($people, self::ACTIVE_STATUS_ID);
+
+        $phone = $this->uniquePhone();
+        $people->addCellPhone($phone);
+
+        $this->assertTrue($lead->socialChannels()->where('slug', SessionChannelService::createChannelSlug('sms', $phone))->exists());
+        $this->assertFalse($lead->socialChannels()->where('slug', SessionChannelService::createChannelSlug('whatsapp', $phone))->exists());
+        $this->assertTrue($this->hasWhatsAppConversation($people, $phone));
+    }
+
+    public function testAPersonWithoutALeadStillGetsTheirWhatsAppConversation(): void
+    {
+        $this->turnOnWhatsAppIntegration();
+        $people = $this->createPerson();
+
+        $phone = $this->uniquePhone();
+        $people->addCellPhone($phone);
+
+        $this->assertTrue($this->hasWhatsAppConversation($people, $phone));
+        $this->assertFalse($people->socialChannels()->where('slug', SessionChannelService::createChannelSlug('sms', $phone))->exists());
+    }
+
+    public function testUpdatedCellphoneOpensAWhatsAppChannelForTheNewNumber(): void
+    {
+        $this->turnOnWhatsAppIntegration();
+        $people = $this->createPerson();
+        $this->createLead($people, self::ACTIVE_STATUS_ID);
+        $contact = $people->addCellPhone($this->uniquePhone());
+
+        $newPhone = $this->uniquePhone();
+        $contact->value = $newPhone;
+        $contact->saveOrFail();
+
+        $this->assertTrue($this->hasWhatsAppConversation($people, $newPhone));
+    }
+
+    public function testNoWhatsAppChannelWithoutTheIntegration(): void
+    {
+        $people = $this->createPerson();
+        $this->createLead($people, self::ACTIVE_STATUS_ID);
+
+        $phone = $this->uniquePhone();
+        $people->addCellPhone($phone);
+
+        $this->assertFalse($people->socialChannels()->where('slug', SessionChannelService::createChannelSlug('whatsapp', $phone))->exists());
+    }
+
+    public function testNoWhatsAppChannelWhileTheIntegrationIsSwitchedOff(): void
+    {
+        $this->turnOnWhatsAppIntegration()->isActive(false);
+        $people = $this->createPerson();
+        $this->createLead($people, self::ACTIVE_STATUS_ID);
+
+        $phone = $this->uniquePhone();
+        $people->addCellPhone($phone);
+
+        $this->assertFalse($people->socialChannels()->where('slug', SessionChannelService::createChannelSlug('whatsapp', $phone))->exists());
+    }
+
+    public function testOnlyACellphoneOpensAWhatsAppChannel(): void
+    {
+        $this->turnOnWhatsAppIntegration();
+        $people = $this->createPerson();
+        $this->createLead($people, self::ACTIVE_STATUS_ID);
+
+        $people->addEmail('contact-observer-' . uniqid() . '@example.com');
+        $people->addPhone($this->uniquePhone());
+
+        $this->assertFalse($people->socialChannels()->where('slug', 'like', 'wa-chat-%')->exists());
+    }
+
+    private function turnOnWhatsAppIntegration(): IntegrationsCompany
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $integration = Integrations::firstOrCreate(
+            ['name' => IntegrationsEnum::META_WHATSAPP->value],
+            ['apps_id' => 0, 'config' => [], 'handler' => MetaWhatsAppHandler::class]
+        );
+        $this->createdIntegration = $integration->wasRecentlyCreated ? $integration : null;
+        $company->set(MetaConfigurationEnum::PHONE_NUMBER_ID->value, '106540352242922');
+
+        return $this->whatsAppIntegration = IntegrationsCompany::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'integrations_id' => $integration->getId(),
+            'region_id' => Regions::getDefault($company, $app)->getId(),
+            'status_id' => Status::where('slug', StatusEnum::ACTIVE->value)->where('apps_id', 0)->firstOrFail()->getId(),
+        ]);
+    }
+
+    private function hasWhatsAppConversation(People $people, string $phone): bool
+    {
+        $channel = $people->socialChannels()
+            ->where('slug', SessionChannelService::createChannelSlug('whatsapp', $phone))
+            ->first();
+
+        return $channel !== null && SessionModel::query()
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', (string) $people->getId())
+            ->where('canal_id', SessionChannelService::createCanalId('whatsapp', $phone))
+            ->exists();
     }
 
     private function channelOpensForNewContact(): bool
