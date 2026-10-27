@@ -93,14 +93,14 @@ final class OpenLeadStatusTest extends TestCase
         $deal->status_id = $this->statusId(isOpen: true);
         $deal->saveOrFail();
         $this->assertTrue($deal->hasOpenStatus());
-        $this->assertTrue(Deal::query()->where('id', $deal->getId())->hasOpenDealStatus($company)->exists());
-        $this->assertFalse(Deal::query()->where('id', $deal->getId())->hasClosedDealStatus($company)->exists());
+        $this->assertTrue($this->dealOpenScopeMatches($deal));
+        $this->assertFalse($this->dealClosedScopeMatches($deal));
 
         $deal->status_id = $this->statusId(isOpen: false);
         $deal->saveOrFail();
         $this->assertFalse($deal->hasOpenStatus());
-        $this->assertFalse(Deal::query()->where('id', $deal->getId())->hasOpenDealStatus($company)->exists());
-        $this->assertTrue(Deal::query()->where('id', $deal->getId())->hasClosedDealStatus($company)->exists());
+        $this->assertFalse($this->dealOpenScopeMatches($deal));
+        $this->assertTrue($this->dealClosedScopeMatches($deal));
     }
 
     /**
@@ -151,5 +151,15 @@ final class OpenLeadStatusTest extends TestCase
     private function closedScopeMatches(Lead $lead): bool
     {
         return Lead::query()->where('id', $lead->getId())->hasClosedLeadStatus($this->company())->exists();
+    }
+
+    private function dealOpenScopeMatches(Deal $deal): bool
+    {
+        return Deal::query()->where('id', $deal->getId())->hasOpenDealStatus($this->company())->exists();
+    }
+
+    private function dealClosedScopeMatches(Deal $deal): bool
+    {
+        return Deal::query()->where('id', $deal->getId())->hasClosedDealStatus($this->company())->exists();
     }
 }

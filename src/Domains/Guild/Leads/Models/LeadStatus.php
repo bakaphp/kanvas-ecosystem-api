@@ -150,7 +150,8 @@ class LeadStatus extends BaseModel
     }
 
     /**
-     * The closed side is a negation, so it is two `NOT IN` in AND; an `OR` there would let a legacy-open id through.
+     * The closed side is a negation, so it is two `NOT IN` in AND; an `OR` there would let a
+     * legacy-open id through.
      */
     public static function constrainToState(
         Builder $query,
@@ -165,13 +166,19 @@ class LeadStatus extends BaseModel
             return $query->where(
                 fn (Builder $group) => $group
                     ->whereIn($column, $openIds)
-                    ->when($legacy !== [], fn (Builder $withLegacy) => $withLegacy->orWhereIn($column, $legacy))
+                    ->when(
+                        $legacy !== [],
+                        fn (Builder $withLegacy) => $withLegacy->orWhereIn($column, $legacy)
+                    )
             );
         }
 
         return $query
             ->whereNotIn($column, $openIds)
-            ->when($legacy !== [], fn (Builder $withLegacy) => $withLegacy->whereNotIn($column, $legacy));
+            ->when(
+                $legacy !== [],
+                fn (Builder $withLegacy) => $withLegacy->whereNotIn($column, $legacy)
+            );
     }
 
     /**
@@ -192,6 +199,8 @@ class LeadStatus extends BaseModel
             $ids = $ids === null || $ids === '' ? [] : explode(',', (string) $ids);
         }
 
-        return array_values(array_unique(array_filter(array_map('intval', $ids), fn (int $id): bool => $id > 0)));
+        $ids = array_filter(array_map('intval', $ids), fn (int $id): bool => $id > 0);
+
+        return array_values(array_unique($ids));
     }
 }
