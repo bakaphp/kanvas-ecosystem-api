@@ -19,6 +19,7 @@ enum DefaultAgentEnum: string
     case SALLY = ConversationAgentEnum::DEFAULT_NAME->value;
     case POLLY = 'Polly';
     case FOLLOW_UP_ENGAGER = AgentEnum::FOLLOW_UP_ENGAGER->value;
+    case FIRST_MESSAGE_ENGAGER = AgentEnum::FIRST_MESSAGE_ENGAGER->value;
 
     public function of(Apps $app, Companies $company): ?Agent
     {

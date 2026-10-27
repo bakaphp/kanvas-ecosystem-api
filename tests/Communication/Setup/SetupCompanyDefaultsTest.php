@@ -30,7 +30,6 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
@@ -204,7 +203,10 @@ final class SetupCompanyDefaultsTest extends TestCase
         $this->assertNotNull($this->company->get(IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value));
         $this->assertSame($sally->getId(), (int) $this->company->get(ConversationAgentEnum::SETTING->value));
         $this->assertSame((int) $sally->user_id, (int) $this->company->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value));
-        $this->assertSame($sally->getId(), (int) $this->company->get(CompanyConfigurationEnum::AGENT_REACH_OUT_DEFAULT_AGENT_ID->value));
+        $this->assertSame(
+            $this->companyAgent(DefaultAgentEnum::FIRST_MESSAGE_ENGAGER)->getId(),
+            (int) $this->company->get(CompanyConfigurationEnum::AGENT_REACH_OUT_DEFAULT_AGENT_ID->value)
+        );
         $this->assertSame(10, $this->company->get(CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value));
     }
 
@@ -224,14 +226,14 @@ final class SetupCompanyDefaultsTest extends TestCase
         $this->assertCount(count(DefaultAgentEnum::cases()), array_unique($users));
     }
 
-    public function testTheReachOutOpensWithTheFirstMessageAgentWhenTheCompanyHasOne(): void
+    public function testTheReachOutOpensWithTheCompanysOwnFirstMessageAgent(): void
     {
         $this->globalAgentTemplates();
-        $this->setupDefaults();
         $firstMessage = Agent::factory()
             ->withAppId($this->currentApp()->getId())
             ->withCompanyId($this->company->getId())
-            ->create(['name' => AgentEnum::FIRST_MESSAGE_ENGAGER->value]);
+            ->create(['name' => DefaultAgentEnum::FIRST_MESSAGE_ENGAGER->value]);
+        $this->setupDefaults();
 
         new SetupCompanySettingsAction($this->currentApp(), $this->company)->execute();
 
@@ -261,7 +263,7 @@ final class SetupCompanyDefaultsTest extends TestCase
         $this->assertNotContains(IntelligenceConfigurationEnum::AI_ENABLE->value, $written);
         $this->assertFalse((bool) $this->company->get(IntelligenceConfigurationEnum::AI_ENABLE->value));
         $this->assertSame('2026-01-01 00:00:00', $this->company->get(IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value));
-        $this->assertNotContains(CompanyConfigurationEnum::AGENT_REACH_OUT_DEFAULT_AGENT_ID->value, $written, 'no Sally, no reach-out agent');
+        $this->assertNotContains(CompanyConfigurationEnum::AGENT_REACH_OUT_DEFAULT_AGENT_ID->value, $written, 'no first-message agent, no reach-out agent');
     }
 
     public function testTheBackfillGivesEveryPersonTheirConversationThenSwitchesOn(): void

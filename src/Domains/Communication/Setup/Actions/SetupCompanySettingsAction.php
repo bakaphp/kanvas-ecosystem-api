@@ -9,7 +9,6 @@ use Kanvas\Communication\Messages\Enums\ConversationAgentEnum;
 use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 
 /**
@@ -34,8 +33,7 @@ final class SetupCompanySettingsAction
     public function execute(): array
     {
         $sally = DefaultAgentEnum::SALLY->of($this->app, $this->company);
-        // The reach-out opens with the company's first-message agent when it has one.
-        $reachOut = DefaultAgentEnum::named($this->app, $this->company, AgentEnum::FIRST_MESSAGE_ENGAGER->value) ?? $sally;
+        $reachOut = DefaultAgentEnum::FIRST_MESSAGE_ENGAGER->of($this->app, $this->company);
 
         $defaults = [
             IntelligenceConfigurationEnum::AI_ENABLE->value => true,
