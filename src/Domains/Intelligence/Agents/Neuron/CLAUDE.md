@@ -203,7 +203,13 @@ real hook, and only `ConversationMessageStore` implements it (`archived_at`).
   `summary` verb) on the session channel and entity, with the covered id range, `archived_count` and the
   token counts before and after. That write never fails the turn.
 - `EntityRollupMessageStore` lists `agent_summary` among its internal verbs and `ChannelMessageStore`
-  skips it, so a customer-facing agent never replays the agent's own compaction note.
+  skips it, so a customer-facing agent never replays the agent's own compaction note. Three more
+  readers skip it through `AgentChannelActivity::isCompactionNote()`: `MessageObserver` never parses
+  it for mentions (it quotes the thread, handles included, so it woke the PM that wrote it with its own
+  summary, which summarized and posted again, six hops per human comment on project 23),
+  `agentPostedSince()` does not count it as the agent having answered (it swallowed the real reply on
+  every wake that compacted), and `ProjectContextService` leaves it out of the bundle. A new place
+  that reads channel rows as agent history or as "did the agent speak" uses the same predicate.
 - The summary prompt is Kanvas's own (`KanvasSummarization::SUMMARY_PROMPT`). Neuron's default asks
   for "action items or next steps", and a PM reading its own summary after a compaction executed them
   again. Ours records done work as done with its ids, lists only open requests the person actually
