@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Support;
 
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Support\Facades\File;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Templates\Support\TemplateSandbox;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -127,11 +129,14 @@ final readonly class UserEmailSignature
         $lines = preg_split('/\R/u', $this->text) ?: [$this->text];
 
         // Some company templates call nl2br(content): avoid inserting <br> between table tags.
-        return str_replace(["\r", "\n"], '', view('emails.partials.user-signature', [
-            'name' => array_shift($lines),
-            'lines' => $lines,
-            'photoUrl' => $this->photoUrl,
-        ])->render());
+        return str_replace(["\r", "\n"], '', TemplateSandbox::renderHtml(
+            File::get(resource_path('views/emails/partials/user-signature.twig')),
+            [
+                'name' => array_shift($lines),
+                'lines' => $lines,
+                'photo_url' => $this->photoUrl,
+            ]
+        ));
     }
 
     private static function enabledSetting(mixed $setting): ?array
