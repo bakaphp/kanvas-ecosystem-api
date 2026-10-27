@@ -22,6 +22,7 @@ class TaxRoutingRule extends BaseModel
     protected function casts(): array
     {
         return [
+            'is_active' => 'boolean',
             'category_codes' => Json::class,
         ];
     }

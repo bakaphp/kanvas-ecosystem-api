@@ -22,6 +22,7 @@ class TaxRegistration extends BaseModel
     protected function casts(): array
     {
         return [
+            'is_active' => 'boolean',
             'metadata' => Json::class,
         ];
     }

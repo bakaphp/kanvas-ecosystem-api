@@ -8,7 +8,9 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Taxes\Contracts\TaxProviderInterface;
+use Kanvas\Souk\Taxes\DataTransferObject\TaxAddress;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxContext;
+use Kanvas\Souk\Taxes\DataTransferObject\TaxCoverage;
 use Kanvas\Souk\Taxes\Enums\ConfigurationEnum;
 use Kanvas\Souk\Taxes\Enums\TaxProviderEnum;
 use Kanvas\Souk\Taxes\Models\CustomerTaxExemption;
@@ -41,7 +43,7 @@ class TaxProviderResolver
         $rule = TaxRoutingRule::query()
             ->fromApp($this->app)
             ->notDeleted()
-            ->where('destination_country', $country)
+            ->where('condition_country', $country)
             ->where('is_active', true)
             ->orderBy('priority', 'asc')
             ->first();
@@ -89,6 +91,56 @@ class TaxProviderResolver
         }
 
         throw new ValidationException('tax_not_configured_for_destination');
+    }
+
+    public function coverage(TaxAddress $address): TaxCoverage
+    {
+        $country = $address->country ?? '';
+
+        if (! $this->app->get(ConfigurationEnum::TAX_ENGINE_ENABLED->value)) {
+            return new TaxCoverage(
+                country: $country,
+                state: $address->state,
+                provider: TaxProviderEnum::NONE->value,
+                isSupported: false,
+                unsupportedReason: 'tax_engine_disabled',
+            );
+        }
+
+        if (! $this->hasActiveRegistration($country)) {
+            return new TaxCoverage(
+                country: $country,
+                state: $address->state,
+                provider: TaxProviderEnum::NONE->value,
+                isSupported: false,
+                unsupportedReason: 'no_active_registration',
+            );
+        }
+
+        $rule = TaxRoutingRule::query()
+            ->fromApp($this->app)
+            ->notDeleted()
+            ->where('condition_country', $country)
+            ->where('is_active', true)
+            ->orderBy('priority', 'asc')
+            ->first();
+
+        if ($rule === null) {
+            return new TaxCoverage(
+                country: $country,
+                state: $address->state,
+                provider: TaxProviderEnum::NONE->value,
+                isSupported: false,
+                unsupportedReason: 'no_routing_rule',
+            );
+        }
+
+        return new TaxCoverage(
+            country: $country,
+            state: $address->state,
+            provider: $rule->provider,
+            isSupported: $rule->provider !== TaxProviderEnum::NONE->value,
+        );
     }
 
     private function findExemption(TaxContext $context, string $country): ?CustomerTaxExemption

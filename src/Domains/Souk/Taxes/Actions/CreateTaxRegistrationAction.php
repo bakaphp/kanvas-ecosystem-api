@@ -19,8 +19,9 @@ class CreateTaxRegistrationAction
 
     public function execute(): TaxRegistration
     {
+        $this->assertNoOverlap();
+
         return DB::connection('commerce')->transaction(function () {
-            $this->assertNoOverlap();
 
             $registration = new TaxRegistration();
             $registration->apps_id = $this->app->getId();
@@ -30,6 +31,7 @@ class CreateTaxRegistrationAction
             $registration->provider = $this->data['provider'] ?? 'manual';
             $registration->effective_from = $this->data['effective_from'] ?? null;
             $registration->effective_to = $this->data['effective_to'] ?? null;
+            $registration->is_active = $this->data['is_active'] ?? true;
             $registration->metadata = $this->data['metadata'] ?? null;
             $registration->saveOrFail();
 
@@ -47,7 +49,6 @@ class CreateTaxRegistrationAction
             ->where('jurisdiction_country', $this->data['jurisdiction_country'])
             ->where('jurisdiction_state', $this->data['jurisdiction_state'] ?? null)
             ->notDeleted()
-            ->lockForUpdate()
             ->get();
 
         foreach ($existing as $registration) {
