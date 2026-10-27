@@ -226,9 +226,8 @@ class LeadObserver
     /**
      * Maintains the active_leads_count counter cache on People. "Counted"
      * mirrors Lead::hasOpenLeadStatus() (the global open ids plus the
-     * company's `guild_open_leads_status_ids` setting) — NOT Lead::isOpen()'s
-     * `status` int column, which no app code writes and is stuck at its DB
-     * default.
+     * company's `guild_open_leads_status_ids` setting), never the `status`
+     * int column, which no app code writes and is stuck at its DB default.
      */
     private function syncActiveLeadsCount(Lead $lead): void
     {

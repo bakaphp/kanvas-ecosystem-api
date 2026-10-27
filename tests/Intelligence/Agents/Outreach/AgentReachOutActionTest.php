@@ -59,8 +59,10 @@ class AgentReachOutActionTest extends TestCase
     public function testSkipsWhenLeadIsNotOpen(): void
     {
         $lead = $this->makeLeadWithCellphone();
-        $lead->status = 2; // closed (won/lost) → isOpen() false
-        $lead->saveOrFail();
+        // The UI and CRM pulls close a lead through leads_status_id; the integer `status`
+        // column stays at its default. The guard must read the named status.
+        $lead->close();
+        $this->assertSame(0, (int) $lead->fresh()->getAttributeValue('status'));
 
         // agent_id 999 would throw if the guard didn't short-circuit first.
         $result = new AgentReachOutAction($lead, ['agent_id' => 999])->execute();

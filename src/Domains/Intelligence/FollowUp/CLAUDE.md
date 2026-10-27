@@ -110,10 +110,10 @@ allowed to speak for a lead whose AI is off.
 
 Both the fan-out query and the action's `lead_not_active` gate use `hasOpenLeadStatus()` /
 `scopeHasOpenLeadStatus($company)`: the global open ids plus the company's
-`guild_open_leads_status_ids`. `Lead::isOpen()` reads the `status` integer column, which no app
-code writes (758k of 759k local rows sit at the default `0`) — a gate on it passes everyone. CRM
-pulls and the UI write `leads_status_id` (`close()` / `open()`), so that is the only column that
-reflects a close.
+`guild_open_leads_status_ids`. `Lead::isOpen()` and the `isOpen` scope delegate to those. Never gate
+on the `status` integer column: no app code writes it (758k of 759k local rows sit at the default
+`0`), so a gate on it passes everyone. CRM pulls and the UI write `leads_status_id` (`close()` /
+`open()`), so that is the only column that reflects a close.
 
 ## Third-party leads are pulled from their CRM before the follow-up runs
 
@@ -347,15 +347,13 @@ The agent prompt shows the rendered body either way — with `[agent message slo
 
 The verb filter (`whatsapp-text`) was dropped from the inbound query. `from_me = false` on a People-keyed channel is the only test; this catches email/SMS/WhatsApp inbound uniformly.
 
-## Only open leads are nudged (`isOpen()` / status < 2)
+## Only open leads are nudged (`hasOpenLeadStatus()`)
 
-Follow-up (and the outbound outreach in `AgentReachOutAction`) only act on **open** leads — `Lead::isOpen()` (`status < 2`). A closed lead (won/lost/inactive) sitting in a non-terminal nudge stage is excluded two ways:
-- [`DispatchAppLeadFollowUpsJob`](Jobs/DispatchAppLeadFollowUpsJob.php) SQL-filters candidates to `status IS NULL OR status < 2` (null = open, matching the model; the column is nullable default 0) so closed leads never spawn a job.
-- [`FollowUpLeadAction`](Actions/FollowUpLeadAction.php) re-checks `isOpen()` as a hard gate → `skip('lead_not_active')`. **Not bypassed by `force`** — force only relaxes the silence gate.
+Follow-up (and the outbound outreach in `AgentReachOutAction`) only act on **open** leads — the named status, see "Open means `leads_status_id`" above. A closed lead (won/lost/inactive) sitting in a non-terminal nudge stage is excluded two ways:
+- [`DispatchAppLeadFollowUpsJob`](Jobs/DispatchAppLeadFollowUpsJob.php) SQL-filters candidates with the `hasOpenLeadStatus($company)` scope so closed leads never spawn a job.
+- [`FollowUpLeadAction`](Actions/FollowUpLeadAction.php) re-checks `hasOpenLeadStatus()` as a hard gate → `skip('lead_not_active')`. **Not bypassed by `force`** — force only relaxes the silence gate.
 
 Inbound agent **replies** are intentionally NOT gated on status — if a customer writes back even on a closed lead, the agent still answers. Only proactive touches (outreach + follow-up) require an open lead.
-
-`Lead::isOpen()` reads the `status` column explicitly (`getAttributeValue`) because `status` is both a column and a `status()` relation — `$this->status` on a partially-hydrated model resolves to the `LeadStatus` object and TypeErrors on `< 2`.
 
 ## Email follow-ups thread under the original outreach (`title_email_follow_up`)
 
