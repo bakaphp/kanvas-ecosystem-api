@@ -518,17 +518,20 @@ A tool constructed outside that path (a test, a one-off script) must call `withC
   a write keeps `resolve*OrError()`. Plan and decisions: `docs/agents/agent-cross-company-read-scope.md`;
   coverage `CrossCompanyReadScopeTest`, `CrossCompanyNarrowingAndLeadsTest`.
 
-### A lead's open state is its named status, never `Lead::isOpen()`
+### A lead's open state is its named status
 
-`Lead::isOpen()` reads the integer `status` column, which nothing in the app writes, so it is `true`
-for every lead; marking a lead Lost writes `leads_status_id` only. A tool that reported `is_open` from
-it told an agent a lost deal was an active negotiation. In a tool, report `status` as
-`$lead->statusName()` and `is_open` as `$lead->hasOpenLeadStatus()`, and filter with the
-`hasOpenLeadStatus()` / `hasClosedLeadStatus()` scopes, which read the status row's `is_open` (and
-still honour the company's legacy `guild_open_leads_status_ids`). `search_leads`, `find_leads_bulk`, `LeadBaseFilter`, `list_stale_leads`
-and `get_person` are the references; the follow-up and outreach gates still use `isOpen()` and are a
-known, separate decision. Deals carry the same pair (`status_id` named, integer `status` mirrored from
-the API): use `Deal::statusName()`, `hasOpenStatus()` and the `havingDealState()` scope the same way.
+A lead is open when its status row has `is_open` (plus, for now, the company's legacy
+`guild_open_leads_status_ids`); the integer `status` column is written by nothing and sits at its
+default on every row. `Lead::isOpen()` and the `isOpen` scope delegate to `hasOpenLeadStatus()` /
+`scopeHasOpenLeadStatus()`. Never gate on the `status` column: a `status < 2` gate passes every lead,
+which is how the reach-out lane texted a closed lead (lead 521104, app 2, 2026-10-27). A status row
+created without an explicit `is_open` is flagged open when its name is one of
+`LeadStatus::OPEN_STATUS_NAMES` or it is the company default, so a connector-seeded "Active" is open
+without a manual step. In a tool, report `status` as `$lead->statusName()` and `is_open` as
+`$lead->hasOpenLeadStatus()`, and filter with the `hasOpenLeadStatus()` / `hasClosedLeadStatus()`
+scopes. `search_leads`, `find_leads_bulk`, `LeadBaseFilter`, `list_stale_leads` and `get_person` are the
+references. Deals carry the same pair (`status_id` named, integer `status` mirrored from the API): use
+`Deal::statusName()`, `hasOpenStatus()` and the `havingDealState()` scope the same way.
 
 ### Destination safety — the recipient is never a free LLM param
 

@@ -8,10 +8,12 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Traits\PublicAppScopeTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
+use Kanvas\Guild\Leads\Observers\LeadStatusObserver;
 use Kanvas\Guild\Models\BaseModel;
 
 /**
@@ -25,6 +27,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $updated_at
  * @property int $is_deleted
  */
+#[ObservedBy([LeadStatusObserver::class])]
 class LeadStatus extends BaseModel
 {
     use PublicAppScopeTrait;
@@ -46,6 +49,34 @@ class LeadStatus extends BaseModel
         return [
             'is_open' => 'boolean',
         ];
+    }
+
+    /**
+     * Names tenants give a live lead's status, as found across production: the dealer CRMs' Active /
+     * Open / Lead and the finance apps' pipeline steps. Exact and case-insensitive on purpose, so
+     * "Inactive" and "new lead (dupe)" stay closed.
+     */
+    public const array OPEN_STATUS_NAMES = [
+        'created',
+        'active',
+        'open',
+        'new',
+        'lead',
+        'new lead',
+        'engaged',
+        'visit',
+        'proposal',
+        'hot',
+        'follow up',
+        '1st attempt',
+        '2nd attempt',
+        '3rd attempt',
+        'attempted to contact',
+    ];
+
+    public static function looksOpen(string $name, bool $isDefault = false): bool
+    {
+        return $isDefault || in_array(strtolower(trim($name)), self::OPEN_STATUS_NAMES, true);
     }
 
     /**

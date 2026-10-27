@@ -344,23 +344,19 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id');
     }
 
+    /**
+     * Open means the named status (`leads_status_id`), which is what the UI and every CRM pull
+     * write. Never gate on the integer `status` column: nothing writes it, so it is the default
+     * on every row and reads as open for a closed lead.
+     */
     public function isOpen(): bool
     {
-        // `status` is both a column AND a relation (status()). On a partially
-        // hydrated model `$this->status` resolves to the LeadStatus relation
-        // object (TypeError on `< 2`), so read the column explicitly. A missing
-        // status means a freshly created lead → treat as open.
-        return (int) ($this->getAttributeValue('status') ?? 0) < 2;
+        return $this->hasOpenLeadStatus();
     }
 
-    /**
-     * Query-side counterpart to isOpen() — same `status < 2` rule, kept in
-     * one place so bulk queries (e.g. RecalculateActiveLeadsCountCommand)
-     * can't drift from the instance check.
-     */
-    public function scopeIsOpen(Builder $query): Builder
+    public function scopeIsOpen(Builder $query, CompanyInterface|CompanyScope|null $company = null): Builder
     {
-        return $query->where('status', '<', 2);
+        return $this->scopeHasOpenLeadStatus($query, $company);
     }
 
     public function isOpenLeadStatusId(?int $statusId): bool
