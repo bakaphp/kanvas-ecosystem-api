@@ -29,10 +29,6 @@ final class PreviewEmailSignatureToolTest extends TestCase
     {
         parent::setUp();
 
-        if (! is_executable(PdfService::IMAGE_BINARY_PATH)) {
-            $this->markTestSkipped('wkhtmltoimage is not installed at ' . PdfService::IMAGE_BINARY_PATH);
-        }
-
         $this->user = auth()->user();
         $this->company = $this->user->getCurrentCompany();
     }
@@ -46,6 +42,11 @@ final class PreviewEmailSignatureToolTest extends TestCase
 
     public function testPreviewsEachDesignThenSavesExactlyTheOneApproved(): void
     {
+        // The only test that renders; the rejections below fail before reaching the binary.
+        if (! is_executable(PdfService::IMAGE_BINARY_PATH)) {
+            $this->markTestSkipped('wkhtmltoimage is not installed at ' . PdfService::IMAGE_BINARY_PATH);
+        }
+
         $logo = $this->file('logo.png', $this->company);
 
         $preview = $this->preview()->__invoke(designs: [
