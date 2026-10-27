@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Kanvas\Intelligence\Agents\Enums\AgentMessageTypeEnum;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
@@ -71,6 +72,28 @@ final class AgentWakeReplySuppressionTest extends TestCase
         $baseline = $this->guard()->latestOn($channel);
 
         $this->agentComment($plan, 'Recording that the import finished.', $this->someoneElse());
+
+        $this->assertFalse($this->guard()->postedDuringRun($channel, $baseline, $author));
+    }
+
+    /**
+     * History compaction writes its summary to the channel as the agent's own private note, mid-turn.
+     * It is bookkeeping, not the agent's answer, so it must not count as "already said its piece" —
+     * on project 23 every wake that compacted posted a summary and then swallowed the real reply.
+     */
+    public function testACompactionNoteWrittenDuringTheRunDoesNotSuppressTheReply(): void
+    {
+        [, $channel, $author] = $this->board();
+        $baseline = $this->guard()->latestOn($channel);
+
+        new PostChannelMessageAction(
+            channel: $channel,
+            author: $author,
+            verb: AgentMessageTypeEnum::AGENT_SUMMARY->value,
+            content: 'What the person asked for: track the notes. Done: nothing new.',
+            extraPayload: ['from_ia' => true],
+            messageTypeName: AgentMessageTypeEnum::AGENT_SUMMARY->value,
+        )->execute();
 
         $this->assertFalse($this->guard()->postedDuringRun($channel, $baseline, $author));
     }
