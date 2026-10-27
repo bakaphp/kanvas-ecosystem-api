@@ -119,6 +119,7 @@ type LeadStatus {
     id: ID!
     name: String!
     is_default: Boolean!
+    is_open: Boolean!
 }
 
 type LeadSource {

@@ -11,6 +11,7 @@ use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 use Tests\TestCase;
 
 final class LeadActiveLeadsCounterObserverTest extends TestCase
@@ -57,10 +58,10 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
         });
     }
 
-    public function testCompanySettingKeepsDefaultOpenStatusIds(): void
+    public function testCompanySettingKeepsStatusRowsFlaggedOpen(): void
     {
         $this->withOpenLeadStatusIds('3, 7', function ($company): void {
-            $this->assertSame([1, 2, 3, 7], Lead::openLeadsStatusIds($company));
+            $this->assertSame([3, 7], LeadStatus::legacyOpenIds($company));
 
             $person = $this->createPerson();
             $this->createLead($person, leadsStatusId: 1);
@@ -83,9 +84,23 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
         });
     }
 
-    public function testOpenLeadsStatusIdsWithoutCompanyReturnsDefaults(): void
+    public function testLegacyOpenStatusIdsWithoutCompanyAreEmpty(): void
     {
-        $this->assertSame([1, 2], Lead::openLeadsStatusIds());
+        $this->assertSame([], LeadStatus::legacyOpenIds());
+    }
+
+    public function testStatusChangeIsSeenThroughAnAlreadyLoadedStatusRelation(): void
+    {
+        $person = $this->createPerson();
+        $lead = $this->createLead($person, leadsStatusId: 1);
+        $lead->load('status');
+        $this->assertTrue($lead->hasOpenLeadStatus());
+
+        $lead->leads_status_id = 3;
+        $lead->saveOrFail();
+
+        $this->assertFalse($lead->hasOpenLeadStatus());
+        $this->assertSame(0, $this->activeLeadsCount($person));
     }
 
     /**
