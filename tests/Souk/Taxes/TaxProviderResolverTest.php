@@ -94,7 +94,7 @@ final class TaxProviderResolverTest extends TestCase
     {
         $rule = new TaxRoutingRule();
         $rule->apps_id = $this->kanvasApp->getId();
-        $rule->destination_country = $country;
+        $rule->condition_country = $country;
         $rule->provider = $provider;
         $rule->rate = $rate;
         $rule->priority = 100;
