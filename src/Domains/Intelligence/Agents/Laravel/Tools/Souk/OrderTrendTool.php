@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\Souk;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Concerns\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Laravel\Concerns\RunsOrderReports;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Souk\Orders\Services\OrderReportService;
 use Laravel\Ai\Tools\Request;
@@ -17,6 +18,7 @@ use Stringable;
 class OrderTrendTool implements KanvasToolInterface
 {
     use HasKanvasContext;
+    use RunsOrderReports;
 
     #[Override]
     public function description(): Stringable|string
@@ -24,7 +26,11 @@ class OrderTrendTool implements KanvasToolInterface
         return 'Order count and revenue over time, bucketed by day, week or month, with the per-period averages '
             . 'plus the busiest and slowest period in the range. Use for "how are orders trending", "revenue month '
             . 'by month", "which week was our best", "is volume going up or down". Returns one row per period that '
-            . 'actually has orders — periods with none are omitted, not zero-filled. For a single total instead of '
+            . 'actually has orders — periods with none are omitted, not zero-filled. Filter by order_types and/or tags '
+            . '(both from list_order_types); a tag such as "corporativo" is how a customer segment is marked on orders. '
+            . 'Each row also carries new_customers and new_to_company (first order within the filter / first order '
+            . 'anywhere). An unknown order type or tag comes back as invalid_args listing the valid names: pick one '
+            . 'of those, never retry a spelling. For a single total instead of '
             . 'a series use sales_revenue or order_payment_stats. Set date_anchor to "paid" to bucket by the date each '
             . 'order was paid instead of the date it was created, and pass timezone so days are cut in local time '
             . 'instead of UTC.';
@@ -33,20 +39,16 @@ class OrderTrendTool implements KanvasToolInterface
     #[Override]
     public function handle(Request $request): Stringable|string
     {
-        $orderTypes = array_filter((array) ($request['order_types'] ?? []));
-
-        return json_encode(
-            new OrderReportService($this->app, $this->company)->trend(
-                orderTypeNames: $orderTypes,
-                since: $request->string('since') ? (string) $request->string('since') : null,
-                until: $request->string('until') ? (string) $request->string('until') : null,
-                groupBy: $request->string('group_by') ? (string) $request->string('group_by') : null,
-                paidOnly: $request->boolean('paid_only', false),
-                dateAnchor: $request->string('date_anchor') ? (string) $request->string('date_anchor') : null,
-                timezone: $request->string('timezone') ? (string) $request->string('timezone') : null,
-            ),
-            JSON_PRETTY_PRINT
-        );
+        return $this->report(fn (): array => new OrderReportService($this->app, $this->company)->trend(
+            orderTypeNames: $this->names($request, 'order_types'),
+            since: $request->string('since') ? (string) $request->string('since') : null,
+            until: $request->string('until') ? (string) $request->string('until') : null,
+            groupBy: $request->string('group_by') ? (string) $request->string('group_by') : null,
+            paidOnly: $request->boolean('paid_only', false),
+            dateAnchor: $request->string('date_anchor') ? (string) $request->string('date_anchor') : null,
+            timezone: $request->string('timezone') ? (string) $request->string('timezone') : null,
+            tagNames: $this->names($request, 'tags'),
+        ));
     }
 
     #[Override]
@@ -55,6 +57,7 @@ class OrderTrendTool implements KanvasToolInterface
         return [
             'group_by' => $schema->string()->description('Bucket size: "day", "week" (weeks start Monday) or "month" (default).'),
             'order_types' => $schema->array()->items($schema->string())->description('Optional order-type names to restrict to (see list_order_types). Omit for all types.'),
+            'tags' => $schema->array()->items($schema->string())->description('Optional order tag names to restrict to, e.g. "corporativo" (see list_order_types for the tags in use). An order matching any of them counts. Omit for all orders.'),
             'since' => $schema->string()->description('Lower-bound order date, ISO YYYY-MM-DD. Omit for all-time.'),
             'until' => $schema->string()->description('Upper-bound order date, ISO YYYY-MM-DD. Omit for open-ended.'),
             'paid_only' => $schema->boolean()->description('Count only orders with payment_status=paid. Default false (every order in the range, including draft and cancelled).'),

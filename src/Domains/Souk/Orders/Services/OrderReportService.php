@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Services;
 
+use Baka\Support\Str;
 use DateTimeZone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -12,7 +13,10 @@ use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Souk\Orders\Actions\GetOrderPaymentStatsAction;
+use Kanvas\Souk\Orders\DataTransferObject\OrderReportScope;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
@@ -48,10 +52,7 @@ class OrderReportService
      */
     public function orderTypes(): array
     {
-        $types = OrderTypes::query()
-            ->where('apps_id', $this->app->getId())
-            ->whereIn('companies_id', [$this->company->getId(), 0])
-            ->where('is_deleted', false)
+        $types = $this->orderTypesQuery()
             ->orderBy('name')
             ->get(['id', 'name']);
 
@@ -61,19 +62,26 @@ class OrderReportService
                 'id' => (int) $t->id,
                 'name' => (string) $t->name,
             ])->all(),
+            'tags' => $this->orderTagsInUse(),
         ];
     }
 
     /**
      * @param string[]|null $orderTypeNames
+     * @param string[]|null $tagNames
      *
      * @return array<string, mixed>
      */
-    public function breakdown(?string $groupBy, ?array $orderTypeNames, ?string $since, ?string $until): array
-    {
+    public function breakdown(
+        ?string $groupBy,
+        ?array $orderTypeNames,
+        ?string $since,
+        ?string $until,
+        ?array $tagNames = null
+    ): array {
         $dimension = strtolower($groupBy ?? 'status') === 'type' ? 'type' : 'status';
-        $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
-        $base = fn (): Builder => $this->baseQuery($typeIds, $since, $until);
+        $scope = $this->resolveScope($orderTypeNames, $tagNames);
+        $base = fn (): Builder => $this->baseQuery($scope, $since, $until);
 
         return [
             'group_by' => $dimension,
@@ -85,6 +93,7 @@ class OrderReportService
 
     /**
      * @param string[]|null $orderTypeNames
+     * @param string[]|null $tagNames
      *
      * @return array<string, mixed>
      */
@@ -93,9 +102,11 @@ class OrderReportService
         ?string $since,
         ?string $until,
         ?string $timezone,
-        ?string $periodBreakdown
+        ?string $periodBreakdown,
+        ?array $tagNames = null
     ): array {
         $timezone = $this->validTimezone($timezone);
+        $scope = $this->resolveScope($orderTypeNames, $tagNames);
         $since = $since !== null && $since !== '' ? $since : $this->firstOrderDate($timezone);
         $until = $until !== null && $until !== '' ? $until : Carbon::now($timezone)->toDateString();
         $breakdown = strtoupper(trim($periodBreakdown ?? 'MONTH'));
@@ -105,6 +116,7 @@ class OrderReportService
             app: $this->app,
             orderTypeNames: array_values(array_filter($orderTypeNames ?? [])),
             company: $this->company,
+            orderIds: $scope->orderIds,
         )->execute(
             startDate: $since,
             endDate: $until,
@@ -136,6 +148,7 @@ class OrderReportService
 
     /**
      * @param string[]|null $orderTypeNames
+     * @param string[]|null $tagNames
      *
      * @return array<string, mixed>
      */
@@ -146,7 +159,8 @@ class OrderReportService
         ?string $groupBy,
         bool $paidOnly,
         ?string $dateAnchor = null,
-        ?string $timezone = null
+        ?string $timezone = null,
+        ?array $tagNames = null
     ): array {
         $interval = in_array(strtolower($groupBy ?? 'month'), ['day', 'week', 'month'], true)
             ? strtolower($groupBy ?? 'month')
@@ -154,10 +168,10 @@ class OrderReportService
         $anchor = strtolower(trim($dateAnchor ?? 'created')) === 'paid' ? 'paid' : 'created';
         $column = $anchor === 'paid' ? 'paid_at' : 'created_at';
         $timezone = $this->validTimezone($timezone);
-        $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
+        $scope = $this->resolveScope($orderTypeNames, $tagNames);
 
         $cohorts = $this->newCustomersByPeriod(
-            $typeIds,
+            $scope,
             $since,
             $until,
             $interval,
@@ -167,7 +181,7 @@ class OrderReportService
         );
 
         $orders = $this->baseQuery(
-            $typeIds,
+            $scope,
             $since,
             $until,
             $column,
@@ -229,10 +243,14 @@ class OrderReportService
      *
      * @return array<string, mixed>
      */
-    public function fulfillmentStats(?array $orderTypeNames, ?string $since, ?string $until): array
-    {
-        $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
-        $base = fn (): Builder => $this->baseQuery($typeIds, $since, $until);
+    public function fulfillmentStats(
+        ?array $orderTypeNames,
+        ?string $since,
+        ?string $until,
+        ?array $tagNames = null
+    ): array {
+        $scope = $this->resolveScope($orderTypeNames, $tagNames);
+        $base = fn (): Builder => $this->baseQuery($scope, $since, $until);
         $open = fn (): Builder => $base()->whereNotIn('orders.status', OrderStatusEnum::closedValues());
 
         $paid = PaymentStatusEnum::PAID->value;
@@ -266,12 +284,13 @@ class OrderReportService
         ?array $orderTypeNames,
         ?string $since,
         ?string $until,
-        int $limit
+        int $limit,
+        ?array $tagNames = null
     ): array {
-        $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
+        $scope = $this->resolveScope($orderTypeNames, $tagNames);
         $pivot = OrderProvider::getQualifiedTableName();
 
-        $rows = $this->baseQuery($typeIds, $since, $until)
+        $rows = $this->baseQuery($scope, $since, $until)
             ->join($pivot . ' as order_providers', 'order_providers.order_id', '=', 'orders.id')
             ->selectRaw(
                 'order_providers.company_id as company_id, '
@@ -298,7 +317,7 @@ class OrderReportService
                 'commission' => round((float) $r->commission, 2),
                 'provider_payout' => round((float) $r->provider_payout, 2),
             ])->all(),
-            'orders_without_provider' => $this->baseQuery($typeIds, $since, $until)
+            'orders_without_provider' => $this->baseQuery($scope, $since, $until)
                 ->whereNotExists(fn (QueryBuilder $q) => $q->select(DB::raw(1))
                     ->from($pivot . ' as op')
                     ->whereColumn('op.order_id', 'orders.id'))
@@ -311,11 +330,15 @@ class OrderReportService
      *
      * @return array<string, mixed>
      */
-    public function commissionStats(?array $orderTypeNames, ?string $since, ?string $until): array
-    {
-        $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
+    public function commissionStats(
+        ?array $orderTypeNames,
+        ?string $since,
+        ?string $until,
+        ?array $tagNames = null
+    ): array {
+        $scope = $this->resolveScope($orderTypeNames, $tagNames);
 
-        $row = $this->baseQuery($typeIds, $since, $until)
+        $row = $this->baseQuery($scope, $since, $until)
             ->whereNotNull('orders.commission_rate')
             ->selectRaw(
                 'COUNT(*) as order_count, '
@@ -332,11 +355,8 @@ class OrderReportService
         ];
     }
 
-    /**
-     * @param int[]|null $typeIds
-     */
     private function baseQuery(
-        ?array $typeIds,
+        OrderReportScope $scope,
         ?string $since,
         ?string $until,
         string $column = 'created_at',
@@ -346,7 +366,8 @@ class OrderReportService
             ->where('orders.apps_id', $this->app->getId())
             ->where('orders.companies_id', $this->company->getId())
             ->where('orders.is_deleted', false)
-            ->when($typeIds !== null, fn ($q) => $q->whereIn('orders.order_types_id', $typeIds))
+            ->when($scope->typeIds !== null, fn ($q) => $q->whereIn('orders.order_types_id', $scope->typeIds))
+            ->when($scope->orderIds !== null, fn ($q) => $q->whereIn('orders.id', $scope->orderIds))
             ->when(
                 $since !== null && $since !== '',
                 fn ($q) => $q->where('orders.' . $column, '>=', Carbon::parse($since, $timezone)->startOfDay()->utc())
@@ -397,14 +418,13 @@ class OrderReportService
      * computed over the vertical's whole history and only then cut to the requested window. Of those,
      * `new_to_company` are the ones with no earlier order in any order type: their first order anywhere
      * is this one. With no order-type filter the two numbers are the same. A customer is new in exactly
-     * one period, so the series sums to the vertical's distinct customers.
-     *
-     * @param int[]|null $typeIds
+     * one period, so the series sums to the vertical's distinct customers. A tag filter narrows the
+     * vertical the same way a type does; the company side always reads every order.
      *
      * @return array<string, array{new_customers: int, new_to_company: int}>
      */
     private function newCustomersByPeriod(
-        ?array $typeIds,
+        OrderReportScope $scope,
         ?string $since,
         ?string $until,
         string $interval,
@@ -413,12 +433,12 @@ class OrderReportService
         string $timezone
     ): array {
         $period = $this->periodExpression($interval, $this->localizedColumn('vertical.first_at', $timezone));
-        $vertical = $this->firstOrderPerCustomer($typeIds, $column, $paidOnly);
+        $vertical = $this->firstOrderPerCustomer($scope, $column, $paidOnly);
 
         return $vertical->newQuery()
             ->fromSub($vertical, 'vertical')
             ->joinSub(
-                $this->firstOrderPerCustomer(null, $column, $paidOnly),
+                $this->firstOrderPerCustomer(OrderReportScope::everything(), $column, $paidOnly),
                 'company',
                 'company.customer_key',
                 '=',
@@ -448,12 +468,9 @@ class OrderReportService
             ->all();
     }
 
-    /**
-     * @param int[]|null $typeIds
-     */
-    private function firstOrderPerCustomer(?array $typeIds, string $column, bool $paidOnly): QueryBuilder
+    private function firstOrderPerCustomer(OrderReportScope $scope, string $column, bool $paidOnly): QueryBuilder
     {
-        return $this->anchorFilters($this->baseQuery($typeIds, null, null), $column, $paidOnly)
+        return $this->anchorFilters($this->baseQuery($scope, null, null), $column, $paidOnly)
             ->whereRaw(self::CUSTOMER_KEY . ' IS NOT NULL')
             ->selectRaw(self::CUSTOMER_KEY . ' as customer_key, MIN(orders.' . $column . ') as first_at')
             ->groupBy('customer_key')
@@ -462,18 +479,186 @@ class OrderReportService
 
     private function firstOrderDate(string $timezone): string
     {
-        $first = $this->baseQuery(null, null, null)->min('orders.created_at');
+        $first = $this->baseQuery(OrderReportScope::everything(), null, null)->min('orders.created_at');
 
         return $first !== null
             ? Carbon::parse($first)->timezone($timezone)->toDateString()
             : Carbon::now($timezone)->toDateString();
     }
 
-    private function resolveOrderTypeIds(?array $names): ?array
+    /**
+     * An unknown name is an error naming the valid ones, never an empty result: an agent reads an
+     * empty series as "try another spelling" and loops until its run budget kills the turn.
+     *
+     * @param string[]|null $typeNames
+     * @param string[]|null $tagNames
+     */
+    private function resolveScope(?array $typeNames, ?array $tagNames): OrderReportScope
     {
-        $names = array_filter(array_map('trim', $names ?? []), fn (string $name): bool => $name !== '');
+        $typeNames = $this->cleanNames($typeNames);
+        $tagNames = $this->cleanNames($tagNames);
 
-        return $names === [] ? null : OrderTypes::idsForNames($this->app, $this->company, $names);
+        return new OrderReportScope(
+            typeIds: $typeNames === [] ? null : $this->resolveOrderTypeIds($typeNames),
+            orderIds: $tagNames === [] ? null : $this->taggedOrderIds($this->resolveTagIds($tagNames)),
+        );
+    }
+
+    /**
+     * @param string[]|null $names
+     *
+     * @return list<string>
+     */
+    private function cleanNames(?array $names): array
+    {
+        return array_values(array_filter(
+            array_map(trim(...), $names ?? []),
+            fn (string $name): bool => $name !== ''
+        ));
+    }
+
+    /**
+     * @param list<string> $names
+     *
+     * @return int[]
+     */
+    private function resolveOrderTypeIds(array $names): array
+    {
+        $found = $this->orderTypesQuery()
+            ->whereIn('name', $names)
+            ->pluck('id', 'name');
+
+        // Keys are compared lowercased, and cast first: a numeric name ("2025") comes back as an int key.
+        $this->assertAllKnown(
+            array_combine(array_map(fn (string $name): string => strtolower($name), $names), $names),
+            $found->keys()->map(fn (mixed $name): string => strtolower((string) $name))->all(),
+            'order type',
+            fn (): array => array_column($this->orderTypes()['order_types'], 'name')
+        );
+
+        return $found->map(fn ($id): int => (int) $id)->values()->all();
+    }
+
+    private function orderTypesQuery(): Builder
+    {
+        return OrderTypes::query()
+            ->fromApp($this->app)
+            ->whereIn('companies_id', [$this->company->getId(), 0])
+            ->notDeleted();
+    }
+
+    /**
+     * Tags are app-wide by name (`CreateTagAction` dedupes on apps_id + name), so a tag is matched on
+     * its slug and the company cut happens on the orders side.
+     *
+     * @param list<string> $names
+     *
+     * @return int[]
+     */
+    private function resolveTagIds(array $names): array
+    {
+        $bySlug = array_combine(array_map(fn (string $name): string => Str::slug($name), $names), $names);
+
+        $found = Tag::query()
+            ->fromApp($this->app)
+            ->notDeleted()
+            ->whereIn('slug', array_keys($bySlug))
+            ->pluck('id', 'slug');
+
+        $this->assertAllKnown($bySlug, $found->keys()->all(), 'tag', fn (): array => $this->orderTagsInUse());
+
+        return $found->map(fn ($id): int => (int) $id)->values()->all();
+    }
+
+    /**
+     * @param array<string, string> $requested comparable key => the name as the caller wrote it
+     * @param list<string> $found the comparable keys that resolved
+     * @param callable(): list<string> $valid
+     */
+    private function assertAllKnown(
+        array $requested,
+        array $found,
+        string $kind,
+        callable $valid
+    ): void {
+        $unknown = array_values(array_diff_key($requested, array_flip($found)));
+        if ($unknown === []) {
+            return;
+        }
+
+        $validNames = $valid();
+
+        throw new ValidationException(sprintf(
+            'Unknown %s: %s. The %ss this company has are: %s. Pick from that list; do not retry a spelling.',
+            $kind,
+            implode(', ', $unknown),
+            $kind,
+            $validNames === [] ? '(none)' : implode(', ', $validNames)
+        ));
+    }
+
+    /**
+     * Never `whereHas('tags')` here: the pivot lives on the social connection and the correlated
+     * subquery crosses that boundary matching nothing, silently. Read the pivot and feed the ids back.
+     *
+     * @param int[] $tagIds
+     *
+     * @return int[]
+     */
+    private function taggedOrderIds(array $tagIds): array
+    {
+        return $this->orderTagPivot()
+            ->whereIn('tags_entities.tags_id', $tagIds)
+            ->distinct()
+            ->pluck('tags_entities.entity_id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
+    }
+
+    private function orderTagPivot(): QueryBuilder
+    {
+        return DB::connection('social')
+            ->table('tags_entities')
+            ->where('tags_entities.taggable_type', new Order()->getMorphClass())
+            ->where('tags_entities.is_deleted', 0);
+    }
+
+    /**
+     * Tag names carried by at least one order of this company. The pivot does not reliably carry the
+     * company, so the tagged ids are read first and then cut to this company's orders.
+     *
+     * @return list<string>
+     */
+    private function orderTagsInUse(): array
+    {
+        $tagged = $this->orderTagPivot()
+            ->join('tags', 'tags.id', '=', 'tags_entities.tags_id')
+            ->where('tags.apps_id', $this->app->getId())
+            ->where('tags.is_deleted', 0)
+            ->distinct()
+            ->get(['tags_entities.entity_id', 'tags.name']);
+
+        if ($tagged->isEmpty()) {
+            return [];
+        }
+
+        $owned = $tagged->pluck('entity_id')
+            ->unique()
+            ->chunk(5000)
+            ->flatMap(fn ($ids) => $this->baseQuery(OrderReportScope::everything(), null, null)
+                ->whereIn('orders.id', $ids->all())
+                ->pluck('orders.id'))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->flip();
+
+        return $tagged
+            ->filter(fn ($row): bool => $owned->has((int) $row->entity_id))
+            ->pluck('name')
+            ->map(fn ($name): string => (string) $name)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
     }
 
     /**
