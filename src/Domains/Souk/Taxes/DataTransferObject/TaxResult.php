@@ -16,6 +16,7 @@ class TaxResult extends Data
         public readonly array $components,
         public readonly ?string $providerTransactionId = null,
         public readonly ?string $failureReason = null,
+        public readonly array $metadata = [],
     ) {
     }
 
@@ -37,6 +38,28 @@ class TaxResult extends Data
             totalTax: '0',
             totalTaxable: '0',
             components: [],
+        );
+    }
+
+    public static function failed(string $reason): self
+    {
+        return new self(
+            treatment: TaxTreatmentEnum::NO_BASE,
+            totalTax: '0',
+            totalTaxable: '0',
+            components: [],
+            failureReason: $reason,
+        );
+    }
+
+    public static function unsupported(string $reason): self
+    {
+        return new self(
+            treatment: TaxTreatmentEnum::NOT_COLLECTING,
+            totalTax: '0',
+            totalTaxable: '0',
+            components: [],
+            failureReason: $reason,
         );
     }
 }

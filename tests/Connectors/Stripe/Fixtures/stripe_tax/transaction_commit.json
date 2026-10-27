@@ -1,0 +1,29 @@
+{
+    "id": "tax_txn_test_001",
+    "object": "tax.transaction",
+    "created": 1730000000,
+    "currency": "usd",
+    "customer": null,
+    "customer_details": {
+        "address": {
+            "city": "San Francisco",
+            "country": "US",
+            "line1": null,
+            "line2": null,
+            "postal_code": "94105",
+            "state": "CA"
+        },
+        "address_source": "shipping",
+        "ip_address": null,
+        "tax_ids": [],
+        "taxability_override": "none"
+    },
+    "livemode": false,
+    "metadata": {},
+    "reference": "test-snapshot-uuid",
+    "reversal": null,
+    "ship_from_details": null,
+    "shipping_cost": null,
+    "tax_date": 1730000000,
+    "type": "transaction"
+}

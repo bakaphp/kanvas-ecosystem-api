@@ -6,6 +6,10 @@ namespace Kanvas\Souk\Taxes\Providers;
 
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Stripe\Providers\StripeTaxProvider;
+use Kanvas\Connectors\Stripe\Services\StripeTaxService;
+use Kanvas\Connectors\Stripe\Support\StripeAccount;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Taxes\Contracts\TaxProviderInterface;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxContext;
@@ -18,8 +22,10 @@ use Kanvas\Souk\Taxes\Models\TaxRoutingRule;
 
 class TaxProviderResolver
 {
-    public function __construct(private readonly Apps $app)
-    {
+    public function __construct(
+        private readonly Apps $app,
+        private readonly ?Companies $company = null,
+    ) {
     }
 
     public function resolve(TaxContext $context): TaxProviderInterface
@@ -55,6 +61,7 @@ class TaxProviderResolver
                 rule: $rule,
                 exemption: $this->findExemption($context, $country),
             ),
+            TaxProviderEnum::STRIPE_TAX->value => $this->resolveStripeTaxProvider(),
             TaxProviderEnum::NONE->value => new NullTaxProvider(),
             default => throw new InvalidArgumentException("Unknown provider: {$rule->provider}"),
         };
@@ -66,8 +73,34 @@ class TaxProviderResolver
             TaxProviderEnum::MANUAL->value => new ManualRateTaxProvider(
                 rule: new TaxRoutingRule(),
             ),
+            TaxProviderEnum::STRIPE_TAX->value => $this->resolveStripeTaxProvider(),
             default => new NullTaxProvider(),
         };
+    }
+
+    private function resolveStripeTaxProvider(): TaxProviderInterface
+    {
+        $company = $this->company;
+
+        if ($company === null) {
+            throw new ValidationException('unsupported_stripe_account_not_owned_by_seller');
+        }
+
+        $account = StripeAccount::resolve($this->app, $company);
+
+        if ($account->secretKey === null) {
+            throw new ValidationException('unsupported_stripe_account_not_owned_by_seller');
+        }
+
+        if ($account->sharedAppAccount && ! $this->app->get('stripe_tax_same_legal_entity_as_app_account')) {
+            throw new ValidationException('unsupported_stripe_account_not_owned_by_seller');
+        }
+
+        return new StripeTaxProvider(
+            app: $this->app,
+            company: $company,
+            taxService: new StripeTaxService(),
+        );
     }
 
     private function hasActiveRegistration(string $country): bool
