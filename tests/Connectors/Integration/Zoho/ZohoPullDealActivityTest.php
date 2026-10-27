@@ -42,6 +42,19 @@ final class ZohoPullDealActivityTest extends TestCase
         $this->assertArrayHasKey('custom_fields', $result[0]);
     }
 
+    public function testRefreshRePullsADealThatAlreadyExistsLocally(): void
+    {
+        $company = $this->makeZohoCompany();
+        $deal = $this->makeDeal($company);
+        $deal->set(CustomFieldEnum::ZOHO_DEAL_ID->value, 'zd-local-4');
+        $activity = $this->activity($deal);
+
+        $result = $activity->execute($deal, app(Apps::class), ['zoho_id' => 'zd-local-4', 'refresh' => true]);
+
+        $this->assertSame('zd-local-4', $activity->requestedId);
+        $this->assertSame($deal->getId(), $result[0]['id']);
+    }
+
     public function testPullsFromZohoWhenNothingLocalMatches(): void
     {
         $company = $this->makeZohoCompany();

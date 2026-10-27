@@ -23,7 +23,8 @@ use Override;
     name: 'Zoho Pull Deal',
     description: 'Resolves a Zoho deal by zoho_id or entity_id. If Kanvas already has it, returns it directly; '
         . 'otherwise pulls it from Zoho CRM, links it to its lead and person and downloads its attachments. '
-        . 'Inbound one-way; returns the same candidate shape every CRM pull returns.',
+        . 'Pass refresh=true to re-read an existing deal from Zoho. Inbound one-way; returns the same '
+        . 'candidate shape every CRM pull returns.',
     integration: IntegrationsEnum::ZOHO,
 )]
 class ZohoPullDealActivity extends KanvasActivity implements WorkflowActivityInterface
@@ -53,7 +54,10 @@ class ZohoPullDealActivity extends KanvasActivity implements WorkflowActivityInt
             $company,
         );
 
-        if ($localDeal instanceof Deal) {
+        // The pull answers "do we have this?" without touching Zoho; `refresh` re-reads the deal and its person.
+        $refresh = filter_var($params['refresh'] ?? false, FILTER_VALIDATE_BOOL);
+
+        if ($localDeal instanceof Deal && ! $refresh) {
             return [new DealCandidate($localDeal)->toArray()];
         }
 

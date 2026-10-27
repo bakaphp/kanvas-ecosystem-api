@@ -12,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Actions\PullZohoDealAction;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Deals\Models\Deal;
 use Tests\Connectors\Integration\Zoho\Concerns\BuildsZohoDeal;
 use Tests\TestCase;
@@ -71,6 +72,270 @@ final class PullZohoDealActionTest extends TestCase
         $this->assertSame(25000, $deal->get('amount_requested'));
     }
 
+    public function testCreatesThePersonFromTheDealWhenNobodyMatches(): void
+    {
+        $company = $this->makeZohoCompany();
+        $email = 'marge-' . uniqid() . '@example.com';
+
+        $deal = $this->action($company, 'zd-20', [
+            'id' => 'zd-20',
+            'Deal_Name' => 'Marge funding',
+            'First_Name' => 'Marge',
+            'Last_Name' => 'Bouvier',
+            'Email' => $email,
+            'Phone' => '(939) 555-0114',
+            'Street' => '742 Evergreen Terrace',
+            'City' => 'Springfield',
+            'State' => 'IL',
+            'Zip_Code' => '62704',
+            'Date_of_Birth' => '1956-03-19',
+        ])->execute();
+
+        $people = $deal->people;
+        $this->assertNotNull($people);
+        $this->assertSame('Marge', $people->firstname);
+        $this->assertSame('Bouvier', $people->lastname);
+        $this->assertSame('1956-03-19', $people->dob->format('Y-m-d'));
+        $this->assertSame($email, $people->getEmails()->first()->value);
+        $this->assertSame('9395550114', $people->getPhones()->first()->value);
+
+        $address = $people->getDefaultAddress();
+        $this->assertSame('742 Evergreen Terrace', $address->address);
+        $this->assertSame('Springfield', $address->city);
+        $this->assertSame('IL', $address->state);
+        $this->assertSame('62704', $address->zip);
+    }
+
+    public function testTheDealOverwritesItsLeadsPersonWithWhatItCarries(): void
+    {
+        $company = $this->makeZohoCompany();
+        $lead = $this->makeLead($company);
+        $lead->set(CustomFieldEnum::ZOHO_LEAD_ID->value, 'zl-21');
+        $originalEmails = $lead->people->getEmails()->count();
+
+        $deal = $this->action($company, 'zd-21', [
+            'id' => 'zd-21',
+            'Deal_Name' => 'Updated person',
+            'ZCRM_Lead_ID' => 'zl-21',
+            'First_Name' => 'Marge',
+            'Phone' => '(939) 555-0115',
+            'Street' => '1 Infinite Loop',
+            'City' => 'Cupertino',
+            'State' => 'CA',
+            'Zip_Code' => '95014',
+        ])->execute();
+
+        $people = $deal->people->fresh();
+        $this->assertSame((int) $lead->people_id, $people->getId());
+        $this->assertSame('Marge', $people->firstname);
+        $this->assertSame($lead->people->lastname, $people->lastname, 'a field the deal does not carry is left alone');
+        $this->assertSame($originalEmails, $people->getEmails()->count());
+        $this->assertContains('9395550115', $people->getPhones()->pluck('value')->all());
+        $this->assertSame('1 Infinite Loop', $people->getDefaultAddress()->address);
+        $this->assertSame('95014', $people->getDefaultAddress()->zip);
+    }
+
+    public function testADealThatNamesNobodyLeavesTheLeadsPersonAlone(): void
+    {
+        $company = $this->makeZohoCompany();
+        $lead = $this->makeLead($company);
+        $lead->set(CustomFieldEnum::ZOHO_LEAD_ID->value, 'zl-22');
+        $before = $lead->people->fresh();
+
+        $deal = $this->action($company, 'zd-22', [
+            'id' => 'zd-22',
+            'Deal_Name' => 'Nobody named',
+            'ZCRM_Lead_ID' => 'zl-22',
+            'Amount_Requested' => 1000,
+        ])->execute();
+
+        $people = $deal->people->fresh();
+        $this->assertSame($before->firstname, $people->firstname);
+        $this->assertSame($before->lastname, $people->lastname);
+        $this->assertSame($before->address()->count(), $people->address()->count());
+        $this->assertSame($before->contacts()->count(), $people->contacts()->count());
+    }
+
+    public function testADealWithoutNameFieldsSplitsItsContactName(): void
+    {
+        $company = $this->makeZohoCompany();
+
+        $deal = $this->action($company, 'zd-23', [
+            'id' => 'zd-23',
+            'Deal_Name' => 'Contact name only',
+            'Contact_Name' => ['name' => 'Ned Flanders', 'id' => '555'],
+            'Email' => 'ned-' . uniqid() . '@example.com',
+        ])->execute();
+
+        $this->assertSame('Ned', $deal->people->firstname);
+        $this->assertSame('Flanders', $deal->people->lastname);
+    }
+
+    public function testReadsThePersonFromTheLinkedZohoContact(): void
+    {
+        $company = $this->makeZohoCompany();
+        $email = 'ned-' . uniqid() . '@example.com';
+
+        $deal = $this->action(
+            $company,
+            'zd-25',
+            [
+                'id' => 'zd-25',
+                'Deal_Name' => 'Contact linked',
+                'Contact_Name' => ['name' => 'Ned Flanders', 'id' => '777'],
+            ],
+            [
+                'id' => '777',
+                'First_Name' => 'Nedward',
+                'Last_Name' => 'Flanders',
+                'Email' => $email,
+                'Mobile' => '(939) 555-0116',
+                'Mailing_Street' => '744 Evergreen Terrace',
+                'Mailing_City' => 'Springfield',
+                'Mailing_State' => 'IL',
+                'Mailing_Zip' => '62704',
+                'Date_of_Birth' => '1960-02-29',
+            ]
+        )->execute();
+
+        $people = $deal->people;
+        $this->assertSame('Nedward', $people->firstname);
+        $this->assertSame('Flanders', $people->lastname);
+        $this->assertSame($email, $people->getEmails()->first()->value);
+        $this->assertSame('9395550116', $people->getPhones()->first()->value);
+        $this->assertSame('1960-02-29', $people->dob->format('Y-m-d'));
+        $this->assertSame('744 Evergreen Terrace', $people->getDefaultAddress()->address);
+        $this->assertSame('62704', $people->getDefaultAddress()->zip);
+    }
+
+    public function testTheDealsOwnFieldsWinAndTheLinkedContactFillsTheGaps(): void
+    {
+        $company = $this->makeZohoCompany();
+        $contactEmail = 'ned-' . uniqid() . '@example.com';
+
+        $deal = $this->action(
+            $company,
+            'zd-26',
+            [
+                'id' => 'zd-26',
+                'Deal_Name' => 'Address edited on the deal',
+                'Contact_Name' => ['name' => 'Ned Flanders', 'id' => '778'],
+                'Street' => '1 Infinite Loop',
+                'City' => 'Cupertino',
+                'State' => 'CA',
+                'Zip_Code' => '95014',
+                'Email' => '',
+            ],
+            [
+                'id' => '778',
+                'First_Name' => 'Ned',
+                'Last_Name' => 'Flanders',
+                'Email' => $contactEmail,
+                'Mailing_Street' => '744 Evergreen Terrace',
+                'Mailing_City' => 'Springfield',
+                'Mailing_State' => 'IL',
+                'Mailing_Zip' => '62704',
+            ]
+        )->execute();
+
+        $address = $deal->people->getDefaultAddress();
+        $this->assertSame('1 Infinite Loop', $address->address);
+        $this->assertSame('Cupertino', $address->city);
+        $this->assertSame('CA', $address->state);
+        $this->assertSame('95014', $address->zip);
+        $this->assertSame('1 Infinite Loop', $deal->get('address'));
+        $this->assertSame($contactEmail, $deal->people->getEmails()->first()->value, 'an empty deal field does not shadow the contact');
+    }
+
+    public function testMirrorsThePersonsAddressOntoTheDealsCustomFields(): void
+    {
+        $company = $this->makeZohoCompany();
+
+        $deal = $this->action($company, 'zd-27', [
+            'id' => 'zd-27',
+            'Deal_Name' => 'Mirrored address',
+            'First_Name' => 'Maude',
+            'Street' => '744 Evergreen Terrace',
+            'City' => 'Springfield',
+            'State' => 'IL',
+            'Zip_Code' => '62704',
+        ])->execute();
+
+        $this->assertSame('744 Evergreen Terrace', $deal->get('address'));
+        $this->assertSame('Springfield', $deal->get('city'));
+        $this->assertSame('IL', $deal->get('state'));
+        $this->assertEquals('62704', $deal->get('zip'));
+    }
+
+    public function testARefreshDoesNotDownloadAttachmentsItAlreadyPulled(): void
+    {
+        $company = $this->makeZohoCompany();
+        $info = ['id' => 'zd-30', 'Deal_Name' => 'With docs'];
+        $attachments = [
+            ['id' => 'att-1', 'File_Name' => 'bank-statement.pdf'],
+            ['id' => 'att-2', 'File_Name' => 'license.jpg'],
+        ];
+
+        $first = $this->action(
+            $company,
+            'zd-30',
+            $info,
+            attachments: $attachments
+        );
+        $deal = $first->execute();
+
+        $this->assertSame(['att-1', 'att-2'], $first->downloaded);
+        $this->assertCount(2, $deal->getFiles());
+
+        $second = $this->action(
+            $company,
+            'zd-30',
+            $info,
+            attachments: [
+                ...$attachments,
+                ['id' => 'att-3', 'File_Name' => 'tax-return.pdf'],
+            ]
+        );
+        $deal = $second->execute();
+
+        $this->assertSame(['att-3'], $second->downloaded, 'only the attachment Zoho added since is fetched');
+        $this->assertCount(3, $deal->getFiles());
+        $this->assertSame(
+            ['att-1', 'att-2', 'att-3'],
+            array_keys($deal->get(CustomFieldEnum::ZOHO_DEAL_PULLED_ATTACHMENTS->value))
+        );
+    }
+
+    public function testAFileAlreadyOnTheDealUnderTheSameNameIsNotDownloadedAgain(): void
+    {
+        $company = $this->makeZohoCompany();
+        $deal = $this->makeDeal($company);
+        $deal->set(CustomFieldEnum::ZOHO_DEAL_ID->value, 'zd-31');
+        $deal->addFileFromUrl('https://example.com/manual/bank-statement.pdf', 'bank-statement.pdf');
+
+        $action = $this->action(
+            $company,
+            'zd-31',
+            ['id' => 'zd-31', 'Deal_Name' => 'Manual upload'],
+            attachments: [
+                ['id' => 'att-9', 'File_Name' => 'bank-statement.pdf'],
+            ]
+        );
+        $action->execute();
+
+        $this->assertSame([], $action->downloaded);
+        $this->assertCount(1, $deal->getFiles());
+    }
+
+    public function testADealWithNoPersonAtAllIsCreatedWithoutOne(): void
+    {
+        $company = $this->makeZohoCompany();
+
+        $deal = $this->action($company, 'zd-24', ['id' => 'zd-24', 'Deal_Name' => 'Anonymous'])->execute();
+
+        $this->assertSame(0, (int) $deal->people_id);
+    }
+
     public function testASecondPullUpdatesTheSameDealInsteadOfAddingOne(): void
     {
         $company = $this->makeZohoCompany();
@@ -105,21 +370,33 @@ final class PullZohoDealActionTest extends TestCase
         $this->assertSame('Fetched', $deal->title);
     }
 
-    private function action(Companies $company, string $zohoDealId, array $fetched): PullZohoDealAction
-    {
+    private function action(
+        Companies $company,
+        string $zohoDealId,
+        array $fetched,
+        array $contact = [],
+        array $attachments = []
+    ): PullZohoDealAction {
         return new class (
             app(Apps::class),
             $company,
             auth()->user(),
             $zohoDealId,
-            $fetched
+            $fetched,
+            $contact,
+            $attachments
         ) extends PullZohoDealAction {
+            /** @var list<string> */
+            public array $downloaded = [];
+
             public function __construct(
                 AppInterface $app,
                 CompanyInterface $company,
                 UserInterface $user,
                 string $zohoDealId,
-                private array $fetched
+                private array $fetched,
+                private array $contact,
+                private array $attachments
             ) {
                 parent::__construct($app, $company, $user, $zohoDealId);
             }
@@ -129,8 +406,27 @@ final class PullZohoDealActionTest extends TestCase
                 return $this->fetched;
             }
 
-            protected function pullAttachments(Deal $deal): void
+            protected function fetchContact(string $contactId): array
             {
+                return $this->contact;
+            }
+
+            protected function fetchAttachments(): array
+            {
+                return $this->attachments;
+            }
+
+            protected function downloadAndAttach(
+                Deal $deal,
+                string $attachmentId,
+                string $fileName,
+                FilesystemServices $filesystemService
+            ): ?int {
+                $this->downloaded[] = $attachmentId;
+
+                $deal->addFileFromUrl('https://example.com/zoho/' . $fileName, $fileName);
+
+                return (int) $deal->getFileByName($fileName)?->filesystem_id;
             }
         };
     }

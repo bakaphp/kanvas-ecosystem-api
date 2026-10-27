@@ -6,11 +6,13 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Sales;
 
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Souk\Orders\Models\Order;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -20,7 +22,9 @@ use Override;
 #[AgentTool(name: 'Sales By Customer', category: 'commerce')]
 class SalesByCustomerTool extends Tool
 {
+    use GuardsRepeatCalls;
     use HasKanvasContext;
+    use TrackByInputs;
 
     protected string $name = 'sales_by_customer';
 
@@ -43,10 +47,26 @@ class SalesByCustomerTool extends Tool
         ];
     }
 
+    public function __construct()
+    {
+        $this->initRepeatGuard();
+    }
+
     /**
      * @return array<string, mixed>
      */
     public function __invoke(?int $limit = null, ?string $since = null, ?string $until = null): array
+    {
+        return $this->oncePerTurn(
+            ['limit' => $limit, 'since' => $since, 'until' => $until],
+            fn (): array => $this->report($limit, $since, $until),
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function report(?int $limit, ?string $since, ?string $until): array
     {
         $limit = max(1, min(50, $limit ?? 10));
 

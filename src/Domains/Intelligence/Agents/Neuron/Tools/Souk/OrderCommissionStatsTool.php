@@ -7,7 +7,8 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Souk;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsOrderReports;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Souk\Orders\Services\OrderReportService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -20,13 +21,14 @@ class OrderCommissionStatsTool extends Tool
 {
     use GuardsRepeatCalls;
     use HasKanvasContext;
-    use ParsesOrderTypesFilter;
+    use ReportsToolOutcome;
+    use RunsOrderReports;
     use TrackByInputs;
 
     protected string $name = 'order_commission_stats';
 
     protected ?string $description = 'Revenue split for commissioned orders: gross revenue, platform commission earned, and '
-        . 'provider payout owed, plus the order count. Optional date range and order-type filter. Use for '
+        . 'provider payout owed, plus the order count. Optional date range, order-type and tag filters. Use for '
         . '"how much commission did we earn", "what do we owe provider X", marketplace take-rate questions. '
         . 'Counts only orders with a commission configured, anchored on order creation date.';
 
@@ -43,6 +45,7 @@ class OrderCommissionStatsTool extends Tool
     {
         return [
             new ToolProperty(name: 'order_types', type: PropertyType::STRING, description: 'Optional comma-separated order-type names to restrict to (see list_order_types). Omit for all types.', required: false),
+            new ToolProperty(name: 'tags', type: PropertyType::STRING, description: 'Optional comma-separated order tag names to restrict to, e.g. "corporativo" (see list_order_types for the tags in use). An order matching any of them counts. Omit for all orders.', required: false),
             new ToolProperty(name: 'since', type: PropertyType::STRING, description: 'Lower-bound order date, ISO YYYY-MM-DD. Omit for all-time.', required: false),
             new ToolProperty(name: 'until', type: PropertyType::STRING, description: 'Upper-bound order date, ISO YYYY-MM-DD. Omit for open-ended.', required: false),
         ];
@@ -53,17 +56,25 @@ class OrderCommissionStatsTool extends Tool
      */
     public function __invoke(
         ?string $order_types = null,
+        ?string $tags = null,
         ?string $since = null,
         ?string $until = null,
     ): array {
         return $this->oncePerTurn(
             [
                 'order_types' => $order_types,
+                'tags' => $tags,
                 'since' => $since,
                 'until' => $until,
             ],
-            fn (): array => new OrderReportService($this->app, $this->company)
-                ->commissionStats($this->parseOrderTypes($order_types), $since, $until),
+            fn (): array => $this->runReport(
+                fn (): array => new OrderReportService($this->app, $this->company)->commissionStats(
+                    $this->parseNames($order_types),
+                    $since,
+                    $until,
+                    $this->parseNames($tags),
+                )
+            ),
         );
     }
 }
