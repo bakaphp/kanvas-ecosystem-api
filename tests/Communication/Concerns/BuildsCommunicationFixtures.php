@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Communication\Concerns;
 
 use Illuminate\Support\Facades\Queue;
+use Kanvas\Apps\Actions\CreateAppsAction;
+use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Communication;
 use Kanvas\Communication\Connections\Actions\EnsureCommunicationSetupAction;
@@ -58,6 +60,24 @@ trait BuildsCommunicationFixtures
     protected function otherCompany(): Companies
     {
         return Companies::factory()->create();
+    }
+
+    protected function otherApp(): Apps
+    {
+        return new CreateAppsAction(
+            AppInput::from([
+                'url' => 'communication.test',
+                'is_actived' => '1',
+                'ecosystem_auth' => '1',
+                'payments_active' => '1',
+                'is_public' => '1',
+                'domain_based' => '1',
+                'name' => 'Communication app ' . uniqid(),
+                'description' => 'Second app for the global receiver',
+                'domain' => 'communication.test',
+            ]),
+            auth()->user()
+        )->execute();
     }
 
     protected function communication(): Communication

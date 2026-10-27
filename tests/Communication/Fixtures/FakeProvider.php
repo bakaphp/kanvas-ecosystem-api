@@ -70,9 +70,9 @@ final class FakeProvider extends BaseIntegration implements CommunicationProvide
     /**
      * Per tenant unless a test asks otherwise; read from config so it resets with the app.
      */
-    public static function sharesAppReceiver(): bool
+    public static function sharesGlobalReceiver(): bool
     {
-        return (bool) config('communication.fake_shares_app_receiver', false);
+        return (bool) config('communication.fake_shares_global_receiver', false);
     }
 
     public static function provisioner(): string

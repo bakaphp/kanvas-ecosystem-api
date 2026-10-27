@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace Kanvas\Communication\Messages\Actions;
 
 use Baka\Support\Str;
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Contracts\Cache\LockTimeoutException;
-use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Contracts\InboundSource;
 use Kanvas\Communication\Messages\DataTransferObject\InboundMessage;
 use Kanvas\Communication\Messages\DataTransferObject\InboundRoute;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\Actions\ProcessInboundConsentAction;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
@@ -59,13 +59,16 @@ use Throwable;
  * connection the message arrived on, the person and lead behind it, consent, the conversation it is
  * filed in, and the announcement that lets a responder answer it.
  *
- * The workspace comes from the route, before anything is written: a number claimed by a workspace
- * the receiver does not serve, or unclaimed on an app-wide receiver, files nothing. Once filed, only
- * the automatic answer depends on the connection being on.
+ * The app and workspace come from the route, before anything is written: a number claimed by a
+ * workspace the receiver does not serve, or unclaimed on the global receiver, files nothing. Once
+ * filed, only the automatic answer depends on the connection being on.
  */
 final class ReceiveMessageAction
 {
     use ChainsInboundBursts;
+    use KanvasJobsTrait;
+
+    private Apps $app;
 
     private Companies $company;
 
@@ -83,9 +86,10 @@ final class ReceiveMessageAction
      */
     public function execute(): array
     {
+        $global = new CommunicationReceivers()->sharesGlobalReceiver($this->inbound->provider);
         $route = new RouteInboundMessageAction(
-            $this->receiver->app,
-            new CommunicationReceivers()->sharesAppReceiver($this->inbound->provider) ? null : $this->receiver->company,
+            $global ? null : $this->receiver->app,
+            $global ? null : $this->receiver->company,
             $this->inbound
         )->execute();
 
@@ -93,6 +97,7 @@ final class ReceiveMessageAction
             return [$this->unfiled($route)];
         }
 
+        $this->app = $route->connection?->app ?? $this->receiver->app;
         $this->company = $route->company;
         $this->user = $this->company->user;
         $this->actForCompany();
@@ -181,18 +186,20 @@ final class ReceiveMessageAction
     }
 
     /**
-     * The webhook job runs as the receiver's workspace, and an app-wide receiver belongs to whoever
-     * set it up first. Everything filed from here on, and every observer it fires, has to see the
-     * workspace that owns the number instead.
+     * The webhook job runs as the receiver's app and workspace, and the global receiver belongs to
+     * the platform. Everything filed from here on, and every observer it fires, has to see the app
+     * and workspace that own the number instead.
      */
     private function actForCompany(): void
     {
-        if ($this->company->getId() === (int) $this->receiver->companies_id) {
+        if ($this->app->getId() !== (int) $this->receiver->apps_id) {
+            $this->overwriteAppService($this->app);
+        } elseif ($this->company->getId() === (int) $this->receiver->companies_id) {
             return;
         }
 
         Auth::loginUsingId($this->user->getId());
-        App::scoped(CompaniesBranches::class, fn () => $this->company->defaultBranch);
+        $this->overwriteAppServiceLocation($this->company->defaultBranch);
     }
 
     /**
@@ -208,7 +215,7 @@ final class ReceiveMessageAction
         $address = Str::normalizePhoneNumber($this->inbound->from);
 
         $candidates = PeoplesRepository::getByPhoneNumber(
-            app: $this->receiver->app,
+            app: $this->app,
             company: $this->company,
             phoneNumbers: [$address, str_replace('+', '', $this->inbound->from)]
         )->get();
@@ -221,7 +228,7 @@ final class ReceiveMessageAction
         }
 
         $person = new PeopleDto(
-            app: $this->receiver->app,
+            app: $this->app,
             branch: $this->company->defaultBranch,
             user: $this->user,
             firstname: $existing !== null ? $existing->firstname : $address,
@@ -324,7 +331,7 @@ final class ReceiveMessageAction
      */
     private function conversation(?People $people): Channel
     {
-        $app = $this->receiver->app;
+        $app = $this->app;
         $company = $this->company;
         $slug = $this->inbound->conversationSlug;
 
@@ -379,7 +386,7 @@ final class ReceiveMessageAction
             ? Message::query()
                 ->where('slug', $this->inbound->messageSlug)
                 ->where('companies_id', $this->company->getId())
-                ->where('apps_id', $this->receiver->app->getId())
+                ->where('apps_id', $this->app->getId())
                 ->first()
             : null;
 
@@ -387,7 +394,7 @@ final class ReceiveMessageAction
             return $existing;
         }
 
-        $type = MessageTypeService::getOrCreate($this->receiver->app, $this->inbound->messageVerb);
+        $type = MessageTypeService::getOrCreate($this->app, $this->inbound->messageVerb);
 
         $payload = AiChatMessagePayload::from([
             'content' => $this->inbound->text,
@@ -407,7 +414,7 @@ final class ReceiveMessageAction
         }
 
         return new CreateMessageAction(new MessageInput(
-            app: $this->receiver->app,
+            app: $this->app,
             company: $this->company,
             user: $this->user,
             type: $type,
@@ -459,7 +466,7 @@ final class ReceiveMessageAction
         }
 
         $this->fileIntoBurst(
-            $this->receiver->app,
+            $this->app,
             $channel,
             $message,
             $policy,

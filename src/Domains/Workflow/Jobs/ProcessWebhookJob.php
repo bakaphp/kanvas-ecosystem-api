@@ -41,9 +41,7 @@ abstract class ProcessWebhookJob implements ShouldQueue
 
         try {
             config(['laravel-model-caching.disabled' => true]);
-            Auth::loginUsingId($this->receiver->user->getId());
-            $this->overwriteAppService($this->receiver->app);
-            $this->overwriteAppServiceLocation($this->receiver->company->defaultBranch);
+            $this->actAsReceiver();
 
             $results = $this->execute();
 
@@ -65,6 +63,16 @@ abstract class ProcessWebhookJob implements ShouldQueue
         }
 
         return $results;
+    }
+
+    /**
+     * Also how a job that switched to another tenant mid-payload gets back to the receiver's.
+     */
+    protected function actAsReceiver(): void
+    {
+        Auth::loginUsingId($this->receiver->user->getId());
+        $this->overwriteAppService($this->receiver->app);
+        $this->overwriteAppServiceLocation($this->receiver->company->defaultBranch);
     }
 
     public function getFailedReturnHttpCode(): int

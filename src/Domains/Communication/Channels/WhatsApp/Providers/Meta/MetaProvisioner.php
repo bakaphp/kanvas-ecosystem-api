@@ -14,6 +14,7 @@ use Kanvas\Communication\Connections\Exceptions\SetupBlockedException;
 use Kanvas\Communication\Connections\Models\CleanupTask;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Models\SharedRegistration;
+use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Connections\Services\SharedRegistry;
 use Kanvas\Communication\Contracts\Provisioner;
 use Kanvas\Connectors\WaSender\Workflows\AgentChannelResponderActivity as WaSenderResponderActivity;
@@ -107,8 +108,9 @@ class MetaProvisioner implements Provisioner
                     );
                 }
 
+                // The token the global receiver answers Meta's check with, not the tenant's.
                 if ($current === []) {
-                    $client->subscribe($wabaId, $inboundUrl, MetaInbound::verifyToken($connection->app));
+                    $client->subscribe($wabaId, $inboundUrl, MetaInbound::verifyToken(CommunicationReceivers::platformApp()));
                 }
 
                 if (! in_array($inboundUrl, $this->kanvasCallbacks($client->subscribedApps($wabaId)), true)) {

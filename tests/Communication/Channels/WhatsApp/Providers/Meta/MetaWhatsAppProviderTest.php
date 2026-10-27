@@ -7,6 +7,7 @@ namespace Tests\Communication\Channels\WhatsApp\Providers\Meta;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -170,29 +171,58 @@ final class MetaWhatsAppProviderTest extends TestCase
     }
 
     /**
-     * Meta posts every workspace's numbers to the one URL; the claim, not the receiver, says whose
-     * a message is.
+     * Meta posts every app's numbers to the one URL; the claim, not the receiver, says whose a
+     * message is.
      */
-    public function testEveryWorkspaceOnTheAppSharesOneReceiver(): void
+    public function testEveryAppAndWorkspaceSharesOnePlatformReceiver(): void
     {
         $receivers = new CommunicationReceivers();
+        $receiver = $receivers->ensure($this->currentApp(), $this->currentCompany(), 'meta');
+        $platform = CommunicationReceivers::platformApp();
 
-        $this->assertSame(
-            $receivers->ensure($this->currentApp(), $this->currentCompany(), 'meta')->getId(),
-            $receivers->ensure($this->currentApp(), $this->otherCompany(), 'meta')->getId()
-        );
+        $this->assertSame($receiver->getId(), $receivers->ensure($this->currentApp(), $this->otherCompany(), 'meta')->getId());
+        $this->assertSame($receiver->getId(), $receivers->ensure($this->otherApp(), $this->otherCompany(), 'meta')->getId());
+        $this->assertSame($platform->getId(), (int) $receiver->apps_id);
+        $this->assertSame($platform->getAppCompany()->getId(), (int) $receiver->companies_id);
+    }
+
+    public function testANumberClaimedInAnotherAppMustBeSignedWithThatAppsSecret(): void
+    {
+        $receiver = $this->receiver();
+        $otherApp = $this->otherApp();
+        $otherApp->set(ConfigurationEnum::APP_SECRET->value, 'other-app-secret');
+        $this->metaConnection();
+        InboundClaim::query()
+            ->where('provider', 'meta')
+            ->where('inbound_identity', self::OUR_NUMBER)
+            ->update(['apps_id' => $otherApp->getId()]);
+        $body = json_encode($this->inboundPayload('wamid.APP', '+18095550210', 'Hola'));
+
+        try {
+            $this->assertFalse(
+                ProcessCommunicationWebhookJob::authenticateRequest($this->signedRequest($receiver, $body), $receiver),
+                "the receiver's own secret does not sign for another app's number"
+            );
+            $this->assertTrue(ProcessCommunicationWebhookJob::authenticateRequest(
+                $this->signedRequest($receiver, $body, signature: 'sha256=' . hash_hmac('sha256', $body, 'other-app-secret')),
+                $receiver
+            ));
+        } finally {
+            $otherApp->del(ConfigurationEnum::APP_SECRET->value);
+        }
     }
 
     public function testInboundIsFiledForTheWorkspaceThatClaimsTheNumberWhoeverOwnsTheReceiver(): void
     {
+        $claiming = $this->currentCompany();
         $owner = $this->otherCompany();
         $receiver = $this->receiver();
         $receiver->forceFill(['companies_id' => $owner->getId(), 'users_id' => $owner->users_id])->saveOrFail();
         $this->metaConnection();
 
-        $result = $this->deliver($this->inboundPayload('wamid.IN8', '18095550208', 'Hola'));
+        $result = $this->deliver($this->inboundPayload('wamid.IN8', '18095550208', 'Hola'), $receiver);
 
-        $this->assertSame($this->currentCompany()->getId(), (int) Message::query()->findOrFail($result[0]['message_id'])->companies_id);
+        $this->assertSame($claiming->getId(), (int) Message::query()->findOrFail($result[0]['message_id'])->companies_id);
     }
 
     public function testANumberNoWorkspaceClaimsIsNotFiled(): void
@@ -434,12 +464,21 @@ final class MetaWhatsAppProviderTest extends TestCase
         return $request;
     }
 
-    private function deliver(array $payload): array
+    /**
+     * The job ends as the receiver's user, who is the platform's and not the test's; the test goes
+     * on as its own.
+     */
+    private function deliver(array $payload, ?ReceiverWebhook $receiver = null): array
     {
-        $receiver = $this->receiver();
+        $receiver ??= $this->receiver();
         $call = new ProcessWebhookAttemptAction($receiver, $this->signedRequest($receiver, json_encode($payload)))->execute();
+        $user = auth()->user();
 
-        return new ProcessCommunicationWebhookJob($call)->handle();
+        try {
+            return new ProcessCommunicationWebhookJob($call)->handle();
+        } finally {
+            Auth::setUser($user);
+        }
     }
 
     private function inboundPayload(string $id, string $from, string $text): array

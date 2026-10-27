@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Communication\Connections\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Models\BaseModel;
 
 /**
@@ -33,5 +34,17 @@ class InboundClaim extends BaseModel
     public function connection(): BelongsTo
     {
         return $this->belongsTo(Connection::class, 'connection_id');
+    }
+
+    /**
+     * Global on purpose: the identity is what decides the app and workspace, so nothing may scope
+     * the lookup before it.
+     */
+    public static function forIdentity(string $provider, ChannelTypeEnum $channel, string $identity): ?self
+    {
+        return self::query()
+            ->where('provider', $provider)
+            ->where('inbound_identity', $channel->normalizeAddress($identity) ?? $identity)
+            ->first();
     }
 }

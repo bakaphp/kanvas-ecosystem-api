@@ -104,10 +104,12 @@ final class ReleaseUnusedRegistrationsAction
 
         foreach ($receivers as $receiver) {
             $provider = (string) ($receiver->configuration['communication']['provider'] ?? '');
-            // An app-wide receiver serves every workspace's numbers, so any of them keeps it on.
+            // The global receiver serves every app's numbers, so any of them keeps it on.
             $connections = Connection::query()
-                ->where('apps_id', $receiver->apps_id)
-                ->when(! $receiversService->sharesAppReceiver($provider), fn ($query) => $query->where('companies_id', $receiver->companies_id))
+                ->when(
+                    ! $receiversService->sharesGlobalReceiver($provider),
+                    fn ($query) => $query->where('apps_id', $receiver->apps_id)->where('companies_id', $receiver->companies_id)
+                )
                 ->where('provider', $provider);
 
             if ((clone $connections)->live()->exists()
