@@ -4,20 +4,25 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Skills;
 
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Skills\Services\SkillCatalog;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
+#[AgentTool(name: 'Load Skill', category: 'ecosystem')]
 final class LoadSkillTool extends Tool
 {
     protected string $name = 'load_skill';
 
     protected ?string $description = 'Load the full instructions for one available skill by its exact name. Use only names listed in your skill summary.';
 
-    public function __construct(private readonly SkillCatalog $catalog)
+    private readonly SkillCatalog $catalog;
+
+    public function __construct(?SkillCatalog $catalog = null)
     {
+        $this->catalog = $catalog ?? app(SkillCatalog::class);
     }
 
     #[Override]

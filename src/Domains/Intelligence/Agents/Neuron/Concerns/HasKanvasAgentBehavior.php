@@ -488,7 +488,7 @@ trait HasKanvasAgentBehavior
     protected function resources(): AgentResources
     {
         [$instructions, $tools] = $this->resolveTools();
-        if ($this instanceof ConversesWithUser) {
+        if ($this instanceof ConversesWithUser && in_array('load_skill', self::toolNames($tools), true)) {
             $skillSummary = app(SkillCatalog::class)->getPromptSummary();
             if ($skillSummary !== '') {
                 $instructions .= "\n\n" . $skillSummary;
