@@ -27,6 +27,7 @@ class CreateTaxRegistrationAction
             $registration->jurisdiction_country = $this->data['jurisdiction_country'];
             $registration->jurisdiction_state = $this->data['jurisdiction_state'] ?? null;
             $registration->registration_number = $this->data['registration_number'] ?? null;
+            $registration->provider = $this->data['provider'] ?? 'manual';
             $registration->effective_from = $this->data['effective_from'] ?? null;
             $registration->effective_to = $this->data['effective_to'] ?? null;
             $registration->metadata = $this->data['metadata'] ?? null;

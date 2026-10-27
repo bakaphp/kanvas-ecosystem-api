@@ -18,7 +18,7 @@ class TaxRateResolverServiceTest extends TestCase
 
     protected array $connectionsToTransact = ['mysql', 'accounting'];
 
-    private Apps $app;
+    protected $app;
     private TaxRateResolverService $service;
 
     protected function setUp(): void

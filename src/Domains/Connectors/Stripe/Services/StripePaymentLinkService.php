@@ -7,13 +7,15 @@ namespace Kanvas\Connectors\Stripe\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
+use Illuminate\Validation\ValidationException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Stripe\Support\StripeAccount;
-use Kanvas\Exceptions\ValidationException;
+use Kanvas\Exceptions\ValidationException as KanvasValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Stripe\PaymentLink;
 use Stripe\StripeClient;
 
@@ -21,37 +23,34 @@ class StripePaymentLinkService
 {
     private const int CUSTOM_FIELD_DEFAULT_VALUE_MAX_LENGTH = 50;
 
-    protected StripeClient $stripe;
+    private ?StripeClient $stripeOverride;
 
     public function __construct(
         protected AppInterface $app,
         protected ?Companies $company = null,
         ?StripeClient $stripe = null
     ) {
-        $this->stripe = $stripe ?? StripeAccount::resolve($app, $company)->client();
+        $this->stripeOverride = $stripe;
     }
 
-    /**
-     * Generate a Stripe Payment Link for the given order
-     */
+    private function stripe(): StripeClient
+    {
+        return $this->stripeOverride ?? StripeAccount::resolve($this->app, $this->company)->client();
+    }
+
     public function generatePaymentLink(Order $order, array $options = []): PaymentLink
     {
-        // Validate order has required data
         $this->validateOrder($order);
 
-        // Check if payment link already exists for this order
         if ($existingPaymentLinkId = $order->getMetadata(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value)) {
             try {
-                return $this->stripe->paymentLinks->retrieve($existingPaymentLinkId);
+                return $this->stripe()->paymentLinks->retrieve($existingPaymentLinkId);
             } catch (Exception $e) {
-                // If retrieval fails, create a new one
             }
         }
 
-        // Create line items from order items
         $lineItems = $this->createLineItems($order);
 
-        // Prepare payment link data
         $paymentLinkData = [
             'line_items' => $lineItems,
             'metadata' => [
@@ -62,7 +61,6 @@ class StripePaymentLinkService
             ],
         ];
 
-        // Add shipping options if applicable
         if ($this->orderRequiresShipping($order)) {
             $paymentLinkData['shipping_address_collection'] = [
                 'allowed_countries' => $options['allowed_countries'] ?? ['US', 'CA'],
@@ -73,7 +71,6 @@ class StripePaymentLinkService
             }
         }
 
-        // Add customer information if available
         if ($order->people_id && $order->people) {
             $paymentLinkData['customer_creation'] = 'if_required';
             if ($email = $order->getEmail()) {
@@ -85,12 +82,10 @@ class StripePaymentLinkService
             $paymentLinkData['after_completion'] = $afterCompletion;
         }
 
-        // Add automatic tax calculation if enabled
         if ($options['automatic_tax'] ?? false) {
             $paymentLinkData['automatic_tax'] = ['enabled' => true];
         }
 
-        // Add custom fields if provided
         if (isset($options['custom_fields'])) {
             $paymentLinkData['custom_fields'] = $this->normalizeCustomFields($options['custom_fields']);
         }
@@ -102,10 +97,8 @@ class StripePaymentLinkService
             $paymentLinkData['discounts'] = [['coupon' => $couponId]];
         }
 
-        // Create the payment link
-        $paymentLink = $this->stripe->paymentLinks->create($paymentLinkData);
+        $paymentLink = $this->stripe()->paymentLinks->create($paymentLinkData);
 
-        // Store payment link ID in order metadata
         $order->addMetadata(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value, $paymentLink->id);
         $order->addMetadata(CustomFieldEnum::STRIPE_PAYMENT_LINK_URL->value, $paymentLink->url);
 
@@ -117,46 +110,38 @@ class StripePaymentLinkService
         $amount = (float) ($message->message['amount'] ?? $message->message['data']['amount'] ?? null);
 
         if (! $amount || $amount <= 0) {
-            throw new ValidationException('Amount must be greater than 0');
+            throw new KanvasValidationException('Amount must be greater than 0');
         }
 
-        // Check if payment link already exists for this order
         if ($existingPaymentLinkId = $message->get(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value)) {
             try {
-                return $this->stripe->paymentLinks->retrieve($existingPaymentLinkId);
+                return $this->stripe()->paymentLinks->retrieve($existingPaymentLinkId);
             } catch (Exception $e) {
-                // If retrieval fails, create a new one
             }
         }
 
         $paymentLinkData = [
             'line_items' => [
-            [
-                'price_data' => [
-                    'currency' => 'usd',
-                    'product_data' => [
-                        'name' => $options['product_name'] ?? 'Payment',
-                        'description' => $options['product_description'] ?? '',
+                [
+                    'price_data' => [
+                        'currency' => 'usd',
+                        'product_data' => [
+                            'name' => $options['product_name'] ?? 'Payment',
+                            'description' => $options['product_description'] ?? '',
+                        ],
+                        'unit_amount' => $this->convertToStripeAmount($amount),
                     ],
-                    'unit_amount' => $this->convertToStripeAmount($amount), // Amount in cents
+                    'quantity' => 1,
                 ],
-                'quantity' => 1,
-            ],
             ],
             'customer_creation' => 'if_required',
             'payment_method_types' => ['card'],
         ];
 
-        /*    if ($lead->people_id && $lead->people && $email = $lead->people->getEmails()->first()?->value) {
-               //$paymentLinkData['customer_creation'] = $email;
-               //$paymentLinkData['prefill_customer_email'] = $email;
-           } */
-
         if (isset($options['custom_fields'])) {
             $paymentLinkData['custom_fields'] = $this->normalizeCustomFields($options['custom_fields']);
         }
 
-        // Add metadata if provided
         if (isset($options['metadata'])) {
             $paymentLinkData['metadata'] = $options['metadata'];
         }
@@ -165,9 +150,8 @@ class StripePaymentLinkService
             $paymentLinkData['after_completion'] = $afterCompletion;
         }
 
-        $paymentLink = $this->stripe->paymentLinks->create($paymentLinkData);
+        $paymentLink = $this->stripe()->paymentLinks->create($paymentLinkData);
 
-        // Store payment link ID in order metadata
         $message->set(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value, $paymentLink->id);
         $message->set(CustomFieldEnum::STRIPE_PAYMENT_LINK_URL->value, $paymentLink->url);
 
@@ -232,15 +216,11 @@ class StripePaymentLinkService
         return $customFields;
     }
 
-    /**
-     * Create line items from order items
-     */
     protected function createLineItems(Order $order): array
     {
         $lineItems = [];
 
         foreach ($order->items as $item) {
-            // Create or get existing price object
             $priceId = $this->getOrCreatePrice($item);
 
             $lineItems[] = [
@@ -252,26 +232,20 @@ class StripePaymentLinkService
         return $lineItems;
     }
 
-    /**
-     * Get or create a Stripe price for the order item
-     */
     protected function getOrCreatePrice($orderItem): string
     {
-        // Check if price already exists for this item
         $priceKey = 'stripe_price_' . md5($orderItem->product_sku . '_' . $orderItem->unit_price_gross_amount);
 
         if ($existingPriceId = $orderItem->getMetadata($priceKey)) {
             try {
-                $this->stripe->prices->retrieve($existingPriceId);
+                $this->stripe()->prices->retrieve($existingPriceId);
 
                 return $existingPriceId;
             } catch (Exception $e) {
-                // If price doesn't exist, create a new one
             }
         }
 
-        // Create new price
-        $price = $this->stripe->prices->create([
+        $price = $this->stripe()->prices->create([
             'currency' => strtolower($orderItem->currency ?? 'usd'),
             'unit_amount' => $this->convertToStripeAmount($orderItem->unit_price_gross_amount, $orderItem->currency),
             'product_data' => [
@@ -283,7 +257,6 @@ class StripePaymentLinkService
             ],
         ]);
 
-        // Store price ID for future use
         $orderItem->addMetadata($priceKey, $price->id);
 
         return $price->id;
@@ -303,7 +276,7 @@ class StripePaymentLinkService
             return null;
         }
 
-        $coupon = $this->stripe->coupons->create([
+        $coupon = $this->stripe()->coupons->create([
             'amount_off' => $this->convertToStripeAmount($discountAmount, $order->currency),
             'currency' => strtolower($order->currency ?? 'usd'),
             'duration' => 'once',
@@ -317,9 +290,6 @@ class StripePaymentLinkService
         return $coupon->id;
     }
 
-    /**
-     * Create shipping options for the payment link
-     */
     protected function createShippingOptions(Order $order): array
     {
         return [
@@ -336,20 +306,13 @@ class StripePaymentLinkService
         ];
     }
 
-    /**
-     * Check if order requires shipping
-     */
     protected function orderRequiresShipping(Order $order): bool
     {
         return $order->items->where('is_shipping_required', true)->count() > 0;
     }
 
-    /**
-     * Convert amount to Stripe's format (cents)
-     */
     protected function convertToStripeAmount(float $amount, ?string $currency = 'USD'): int
     {
-        // Currencies that don't use subunits (like JPY, KRW)
         $zeroDecimalCurrencies = ['jpy', 'krw', 'vnd', 'clp', 'gnf', 'kmf', 'mga', 'pyg', 'rwf', 'ugx', 'vuv', 'xaf', 'xof', 'xpf'];
 
         $currency = strtolower($currency ?? 'usd');
@@ -361,27 +324,21 @@ class StripePaymentLinkService
         return (int) round($amount * 100);
     }
 
-    /**
-     * Validate that order has required data for payment link
-     */
     protected function validateOrder(Order $order): void
     {
         if ($order->items->isEmpty()) {
-            throw new ValidationException('Order must have at least one item to create a payment link');
+            throw new KanvasValidationException('Order must have at least one item to create a payment link');
         }
 
         if ($order->total_gross_amount <= 0) {
-            throw new ValidationException('Order total must be greater than 0');
+            throw new KanvasValidationException('Order total must be greater than 0');
         }
 
         if (empty($order->currency)) {
-            throw new ValidationException('Order must have a currency specified');
+            throw new KanvasValidationException('Order must have a currency specified');
         }
     }
 
-    /**
-     * Retrieve payment link by order
-     */
     public function getPaymentLinkByOrder(Order $order): ?PaymentLink
     {
         $paymentLinkId = $order->getMetadata(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value);
@@ -391,15 +348,12 @@ class StripePaymentLinkService
         }
 
         try {
-            return $this->stripe->paymentLinks->retrieve($paymentLinkId);
+            return $this->stripe()->paymentLinks->retrieve($paymentLinkId);
         } catch (Exception $e) {
             return null;
         }
     }
 
-    /**
-     * Deactivate payment link for order
-     */
     public function deactivatePaymentLink(Order $order): bool
     {
         $paymentLinkId = $order->getMetadata(CustomFieldEnum::STRIPE_PAYMENT_LINK_ID->value);
@@ -409,7 +363,7 @@ class StripePaymentLinkService
         }
 
         try {
-            $this->stripe->paymentLinks->update($paymentLinkId, ['active' => false]);
+            $this->stripe()->paymentLinks->update($paymentLinkId, ['active' => false]);
             $order->addMetadata('stripe_payment_link_deactivated', true);
 
             return true;
@@ -418,19 +372,93 @@ class StripePaymentLinkService
         }
     }
 
-    /**
-     * Create payment link with customer from existing person
-     */
     public function generatePaymentLinkWithCustomer(Order $order, array $options = []): PaymentLink
     {
         if ($order->people_id && $order->people) {
             $stripeCustomerService = new StripeCustomerService($this->app);
             $customer = $stripeCustomerService->getOrCreateCustomerByPerson($order->people);
-
-            // Add customer to options
             $options['customer'] = $customer->id;
         }
 
         return $this->generatePaymentLink($order, $options);
+    }
+
+    /**
+     * Create a Stripe Payment Link pinned to a tax snapshot.
+     *
+     * - Amount comes from snapshot->gateway_due (checkout_payload.totals.gateway_due)
+     * - Stores snapshot uuid in the STRIPE_PAYMENT_LINK_TAX_REVISION custom field
+     * - Reuses the existing link when the snapshot hasn't changed (stripe_payment_link_id present)
+     * - Rejects automatic_tax: Souk owns tax, not Stripe Tax
+     * - Shipping collection is disabled: Souk owns shipping
+     */
+    public function createLinkFromSnapshot(
+        OrderTaxSnapshot $snapshot,
+        array $options = []
+    ): PaymentLink {
+        if (isset($options['automatic_tax']) && $options['automatic_tax'] === true) {
+            throw ValidationException::withMessages(['automatic_tax' => 'automatic_tax_not_allowed_with_souk_tax']);
+        }
+
+        if ($snapshot->stripe_payment_link_id) {
+            try {
+                return $this->stripe()->paymentLinks->retrieve($snapshot->stripe_payment_link_id);
+            } catch (Exception) {
+            }
+        }
+
+        $gatewayDue = (float) ($snapshot->checkout_payload['totals']['gateway_due'] ?? 0.0);
+        $currency = strtolower($options['currency'] ?? 'usd');
+
+        $taxRevisionField = [
+            'key' => CustomFieldEnum::STRIPE_PAYMENT_LINK_TAX_REVISION->value,
+            'label' => ['type' => 'custom', 'custom' => 'Tax Revision'],
+            'type' => 'text',
+            'optional' => true,
+            'text' => ['default_value' => mb_substr($snapshot->uuid, 0, 50)],
+        ];
+
+        $paymentLinkData = [
+            'line_items' => [
+                [
+                    'price_data' => [
+                        'currency' => $currency,
+                        'product_data' => [
+                            'name' => $options['product_name'] ?? "Order #{$snapshot->merchant_reference}",
+                        ],
+                        'unit_amount' => $this->convertToStripeAmount($gatewayDue, $currency),
+                    ],
+                    'quantity' => 1,
+                ],
+            ],
+            'custom_fields' => $this->normalizeCustomFields([$taxRevisionField]),
+            'metadata' => [
+                'snapshot_uuid' => $snapshot->uuid,
+                'apps_id' => $snapshot->apps_id,
+            ],
+        ];
+
+        if ($afterCompletion = $this->buildAfterCompletion($options)) {
+            $paymentLinkData['after_completion'] = $afterCompletion;
+        }
+
+        $paymentLink = $this->stripe()->paymentLinks->create($paymentLinkData);
+
+        $snapshot->stripe_payment_link_id = $paymentLink->id;
+        $snapshot->save();
+
+        return $paymentLink;
+    }
+
+    public function deactivateLinkFromSnapshot(OrderTaxSnapshot $snapshot): void
+    {
+        if (! $snapshot->stripe_payment_link_id) {
+            return;
+        }
+
+        try {
+            $this->stripe()->paymentLinks->update($snapshot->stripe_payment_link_id, ['active' => false]);
+        } catch (Exception) {
+        }
     }
 }

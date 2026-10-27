@@ -107,8 +107,8 @@ class ManualRateTaxProvider implements TaxProviderInterface
 
         return new TaxResult(
             treatment: TaxTreatmentEnum::TAXED,
-            totalTax: (string) $totalTaxRounded,
-            totalTaxable: (string) $totalTaxableRounded,
+            totalTax: $totalTaxRounded->isZero() ? '0' : (string) $totalTaxRounded,
+            totalTaxable: $totalTaxableRounded->isZero() ? '0' : (string) $totalTaxableRounded,
             components: $components,
         );
     }

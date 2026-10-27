@@ -18,13 +18,13 @@ final class CommitTaxTransactionJobTest extends TestCase
 
     protected array $connectionsToTransact = ['mysql', 'commerce'];
 
-    private Apps $app;
+    protected Apps $kanvasApp;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->app = app(Apps::class);
+        $this->kanvasApp = app(Apps::class);
     }
 
     private function createOrder(): Order
@@ -32,7 +32,7 @@ final class CommitTaxTransactionJobTest extends TestCase
         $user = auth()->user();
 
         return Order::factory()
-            ->withAppId($this->app->getId())
+            ->withAppId($this->kanvasApp->getId())
             ->withCompanyId($user->getCurrentCompany()->getId())
             ->withUserId($user->getId())
             ->create();
@@ -41,7 +41,7 @@ final class CommitTaxTransactionJobTest extends TestCase
     private function createSnapshot(Order $order, string $status, string $provider = 'manual'): OrderTaxSnapshot
     {
         $snapshot = new OrderTaxSnapshot();
-        $snapshot->apps_id = $this->app->getId();
+        $snapshot->apps_id = $this->kanvasApp->getId();
         $snapshot->order_id = $order->id;
         $snapshot->kind = 'calculation';
         $snapshot->treatment = 'taxed';
@@ -63,7 +63,7 @@ final class CommitTaxTransactionJobTest extends TestCase
         $order = $this->createOrder();
         $snapshot = $this->createSnapshot($order, TaxStatusEnum::COMMITTING->value);
 
-        $job = new CommitTaxTransactionJob($snapshot, $this->app);
+        $job = new CommitTaxTransactionJob($snapshot, $this->kanvasApp);
 
         $this->assertTrue(method_exists($job, 'overwriteAppService'));
     }
@@ -73,7 +73,7 @@ final class CommitTaxTransactionJobTest extends TestCase
         $order = $this->createOrder();
         $snapshot = $this->createSnapshot($order, TaxStatusEnum::COMMITTING->value);
 
-        new CommitTaxTransactionJob($snapshot, $this->app)->handle();
+        new CommitTaxTransactionJob($snapshot, $this->kanvasApp)->handle();
 
         $snapshot->refresh();
         $this->assertSame(TaxStatusEnum::COMMITTED->value, $snapshot->status);
@@ -84,7 +84,7 @@ final class CommitTaxTransactionJobTest extends TestCase
         $order = $this->createOrder();
         $snapshot = $this->createSnapshot($order, TaxStatusEnum::COMMITTED->value);
 
-        new CommitTaxTransactionJob($snapshot, $this->app)->handle();
+        new CommitTaxTransactionJob($snapshot, $this->kanvasApp)->handle();
 
         $snapshot->refresh();
         $this->assertSame(TaxStatusEnum::COMMITTED->value, $snapshot->status);
@@ -95,7 +95,7 @@ final class CommitTaxTransactionJobTest extends TestCase
         $order = $this->createOrder();
         $snapshot = $this->createSnapshot($order, TaxStatusEnum::VOIDED->value);
 
-        new CommitTaxTransactionJob($snapshot, $this->app)->handle();
+        new CommitTaxTransactionJob($snapshot, $this->kanvasApp)->handle();
 
         $snapshot->refresh();
         $this->assertSame(TaxStatusEnum::VOIDED->value, $snapshot->status);
@@ -106,11 +106,11 @@ final class CommitTaxTransactionJobTest extends TestCase
         $order = $this->createOrder();
         $snapshot = $this->createSnapshot($order, TaxStatusEnum::COMMITTING->value);
 
-        new CommitTaxTransactionJob($snapshot, $this->app)->handle();
+        new CommitTaxTransactionJob($snapshot, $this->kanvasApp)->handle();
         $snapshot->refresh();
         $this->assertSame(TaxStatusEnum::COMMITTED->value, $snapshot->status);
 
-        new CommitTaxTransactionJob($snapshot, $this->app)->handle();
+        new CommitTaxTransactionJob($snapshot, $this->kanvasApp)->handle();
         $snapshot->refresh();
         $this->assertSame(TaxStatusEnum::COMMITTED->value, $snapshot->status);
     }
@@ -120,7 +120,7 @@ final class CommitTaxTransactionJobTest extends TestCase
         $order = $this->createOrder();
         $snapshot = $this->createSnapshot($order, TaxStatusEnum::COMMITTING->value);
 
-        $job = new CommitTaxTransactionJob($snapshot, $this->app);
+        $job = new CommitTaxTransactionJob($snapshot, $this->kanvasApp);
 
         $this->assertSame('souk-tax', $job->queue());
     }

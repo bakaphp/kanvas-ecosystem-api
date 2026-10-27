@@ -15,6 +15,10 @@ class TaxRegistration extends BaseModel
     protected $table = 'tax_registrations';
     protected $guarded = [];
 
+    public static function bootCompaniesIdTrait(): void
+    {
+    }
+
     protected function casts(): array
     {
         return [

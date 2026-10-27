@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Cart\Services;
 
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Taxes\Enums\TaxConditionEnum;
 use Wearepixel\Cart\Cart;
 
 class CartService
@@ -28,8 +29,8 @@ class CartService
         }, $this->cart->getContent()->toArray());
 
         $totalDiscount = 0;
-        $discounts = array_map(function ($discount) use (&$totalDiscount) {
-            if ($discount['type'] === 'shipping') {
+        $discounts = array_values(array_filter(array_map(function ($discount) use (&$totalDiscount) {
+            if ($discount['type'] === 'shipping' || $discount['type'] === TaxConditionEnum::TYPE->value) {
                 return null;
             }
             $totalDiscount += $this->cart->getCalculatedValueForCondition($discount['name']);
@@ -39,26 +40,51 @@ class CartService
                 'amount' => $discount['value'],
                 'total' => $this->cart->getCalculatedValueForCondition($discount['name']),
             ];
-        }, $this->cart->getConditions(true));
+        }, $this->cart->getConditions(true))));
 
-        /**
-         * @todo move to DTO
-         */
         $shipping = $this->cart->getCondition('Shipping');
+        $taxCondition = $this->cart->getCondition(TaxConditionEnum::NAME->value);
+        $taxAttributes = $taxCondition?->getAttributes() ?? [];
+
+        $totalTax = 0.0;
+        if (isset($taxAttributes['components']) && is_array($taxAttributes['components'])) {
+            foreach ($taxAttributes['components'] as $component) {
+                $totalTax += (float) ($component['amount'] ?? 0);
+            }
+        }
+
+        $tax = null;
+        if ($taxCondition !== null) {
+            $tax = [
+                'status' => $taxAttributes['status'] ?? 'unknown',
+                'provider' => $taxAttributes['provider'] ?? null,
+                'amount' => $taxAttributes['amount'] ?? $totalTax,
+                'rate' => null,
+                'mode' => $taxAttributes['mode'] ?? 'exclusive',
+                'components' => $taxAttributes['components'] ?? [],
+            ];
+        }
+
         $response = [
             'id' => 'default',
-            'items' => $cartItems, //$this->cart->getContent()->toArray(),
+            'items' => $cartItems,
             'discounts' => $discounts,
             'total_discount' => $totalDiscount,
             'subtotal' => $this->cart->getSubTotalWithoutConditions(false),
             'total' => $this->cart->getTotal(),
+            'total_tax' => $totalTax,
         ];
+
         if ($shipping) {
             $response['shipping'] = [
                 'name' => $shipping->getName(),
                 'value' => $shipping->getValue(),
                 'attributes' => $shipping->getAttributes(),
             ];
+        }
+
+        if ($tax !== null) {
+            $response['tax'] = $tax;
         }
 
         return $response;

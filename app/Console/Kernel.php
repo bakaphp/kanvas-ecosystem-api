@@ -30,6 +30,7 @@ use App\Console\Commands\Scribe\Schedules\ScribeSchedule;
 use App\Console\Commands\Search\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
 use App\Console\Commands\Souk\CancelStalePaymentsCommand;
+use App\Console\Commands\Souk\CheckoutReconcileCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
@@ -92,6 +93,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();
         $schedule->command(ChargeLateOrdersCommand::class)->hourly()->withoutOverlapping(120);
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
+        $schedule->command(CheckoutReconcileCommand::class)->everyFiveMinutes()->withoutOverlapping(10)->onOneServer();
 
         // Event — roll the booking window forward daily so active schedule rules always
         // have slots up to their app's horizon, and refresh price snapshots on unsold ones.

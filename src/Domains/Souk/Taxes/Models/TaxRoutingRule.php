@@ -15,6 +15,10 @@ class TaxRoutingRule extends BaseModel
     protected $table = 'tax_routing_rules';
     protected $guarded = [];
 
+    public static function bootCompaniesIdTrait(): void
+    {
+    }
+
     protected function casts(): array
     {
         return [

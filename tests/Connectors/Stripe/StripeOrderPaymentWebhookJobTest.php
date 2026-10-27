@@ -15,6 +15,8 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
 use Kanvas\Souk\Payments\Models\PaymentRefund;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Souk\Taxes\Enums\GatewayAttemptStatusEnum;
+use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -157,6 +159,132 @@ class StripeOrderPaymentWebhookJobTest extends TestCase
         ]);
 
         $this->assertSame('payment not found', $result['message']);
+    }
+
+    public function testSucceededWithUnattachedSnapshotCompletesCheckout(): void
+    {
+        $user = auth()->user();
+        $intentId = 'pi_wh_snapshot_' . uniqid();
+
+        $snapshot = new OrderTaxSnapshot();
+        $snapshot->apps_id = $this->kanvasApp->getId();
+        $snapshot->order_id = null;
+        $snapshot->payment_intent_id = $intentId;
+        $snapshot->cart_session_id = 'cart-wh-' . uniqid();
+        $snapshot->kind = 'calculation';
+        $snapshot->treatment = 'taxed';
+        $snapshot->status = 'calculated';
+        $snapshot->provider = 'manual_rate';
+        $snapshot->input_hash = hash('sha256', json_encode([['variant_id' => 1, 'quantity' => 1, 'unit_price_net_amount' => 100.0]]));
+        $snapshot->tax_amount = 18.00;
+        $snapshot->taxable_amount = 100.00;
+        $snapshot->remaining_reversible_amount = 100.00;
+        $snapshot->remaining_reversible_tax = 18.00;
+        $snapshot->gateway_attempt_key = hash('sha256', uniqid());
+        $snapshot->gateway_attempt_status = GatewayAttemptStatusEnum::PENDING->value;
+        $snapshot->souk_tax_engine_enabled = true;
+        $snapshot->checkout_payload = [
+            'lines' => [
+                ['uuid' => 'l1', 'variant_id' => 1, 'product_name' => 'P', 'product_sku' => 'S', 'quantity' => 1, 'unit_price_net_amount' => 100.0, 'tax_amount' => 18.0],
+            ],
+            'shipping_address' => null,
+            'billing_address' => null,
+            'discount_allocation' => [],
+            'wallet_hold_transfer_id' => null,
+            'credit_reservation_id' => null,
+            'order_context' => [
+                'region_id' => 1,
+                'people_id' => 0,
+                'companies_id' => $user->getCurrentCompany()->getId(),
+                'users_id' => $user->getId(),
+            ],
+            'totals' => [
+                'subtotal' => 100.0,
+                'discount' => 0.0,
+                'tax' => 18.0,
+                'shipping' => 0.0,
+                'payable' => 118.0,
+                'wallet_tender' => 0.0,
+                'gateway_due' => 118.0,
+            ],
+        ];
+        $snapshot->saveOrFail();
+
+        $result = $this->dispatchEvent('payment_intent.succeeded', [
+            'id' => $intentId,
+            'status' => 'succeeded',
+            'latest_charge' => 'ch_wh_snap_' . uniqid(),
+            'metadata' => [],
+        ]);
+
+        $this->assertSame('snapshot checkout completed', $result['message']);
+        $this->assertArrayHasKey('order_id', $result);
+
+        $snapshot->refresh();
+        $this->assertNotNull($snapshot->order_id);
+    }
+
+    public function testHandleSucceededWithUnattachedSnapshotCompletesCheckout(): void
+    {
+        $user = auth()->user();
+        $intentId = 'pi_test_unattached';
+
+        $snapshot = new OrderTaxSnapshot();
+        $snapshot->apps_id = $this->kanvasApp->getId();
+        $snapshot->order_id = null;
+        $snapshot->payment_intent_id = $intentId;
+        $snapshot->cart_session_id = 'cart-unattached-' . uniqid();
+        $snapshot->kind = 'calculation';
+        $snapshot->treatment = 'taxed';
+        $snapshot->status = 'calculated';
+        $snapshot->provider = 'manual_rate';
+        $snapshot->input_hash = hash('sha256', json_encode([['variant_id' => 1, 'quantity' => 1, 'unit_price_net_amount' => 100.0]]));
+        $snapshot->tax_amount = 18.00;
+        $snapshot->taxable_amount = 100.00;
+        $snapshot->remaining_reversible_amount = 100.00;
+        $snapshot->remaining_reversible_tax = 18.00;
+        $snapshot->gateway_attempt_key = hash('sha256', uniqid());
+        $snapshot->gateway_attempt_status = GatewayAttemptStatusEnum::PENDING_GATEWAY->value;
+        $snapshot->souk_tax_engine_enabled = true;
+        $snapshot->checkout_payload = [
+            'lines' => [
+                ['uuid' => 'l1', 'variant_id' => 1, 'product_name' => 'P', 'product_sku' => 'S', 'quantity' => 1, 'unit_price_net_amount' => 100.0, 'tax_amount' => 18.0],
+            ],
+            'shipping_address' => null,
+            'billing_address' => null,
+            'discount_allocation' => [],
+            'wallet_hold_transfer_id' => null,
+            'credit_reservation_id' => null,
+            'order_context' => [
+                'region_id' => 1,
+                'people_id' => 0,
+                'companies_id' => $user->getCurrentCompany()->getId(),
+                'users_id' => $user->getId(),
+            ],
+            'totals' => [
+                'subtotal' => 100.0,
+                'discount' => 0.0,
+                'tax' => 18.0,
+                'shipping' => 0.0,
+                'payable' => 118.0,
+                'wallet_tender' => 0.0,
+                'gateway_due' => 118.0,
+            ],
+        ];
+        $snapshot->saveOrFail();
+
+        $result = $this->dispatchEvent('payment_intent.succeeded', [
+            'id' => $intentId,
+            'status' => 'succeeded',
+            'latest_charge' => 'ch_unattached_' . uniqid(),
+            'metadata' => [],
+        ]);
+
+        $this->assertSame('snapshot checkout completed', $result['message']);
+        $this->assertArrayHasKey('order_id', $result);
+
+        $snapshot->refresh();
+        $this->assertNotNull($snapshot->order_id);
     }
 
     public function testPaymentIntentFailedMarksFailed(): void

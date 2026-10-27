@@ -29,6 +29,7 @@ final class FakeStripeClient extends StripeClient
     private FakeCouponsService $couponsService;
     private FakeWebhookEndpointsService $webhookEndpointsService;
     private FakePaymentLinksService $paymentLinksService;
+    private FakeCheckoutService $checkoutService;
 
     public function __construct(?string $apiKey = 'sk_test_fake')
     {
@@ -41,6 +42,7 @@ final class FakeStripeClient extends StripeClient
         $this->couponsService = new FakeCouponsService();
         $this->webhookEndpointsService = new FakeWebhookEndpointsService();
         $this->paymentLinksService = new FakePaymentLinksService();
+        $this->checkoutService = new FakeCheckoutService();
     }
 
     public function __get($name): mixed
@@ -54,6 +56,7 @@ final class FakeStripeClient extends StripeClient
             'coupons' => $this->couponsService,
             'webhookEndpoints' => $this->webhookEndpointsService,
             'paymentLinks' => $this->paymentLinksService,
+            'checkout' => $this->checkoutService,
             default => parent::__get($name),
         };
     }
@@ -96,6 +99,11 @@ final class FakeStripeClient extends StripeClient
     public function getWebhooks(): FakeWebhooks
     {
         return $this->webhooksService;
+    }
+
+    public function getCheckout(): FakeCheckoutService
+    {
+        return $this->checkoutService;
     }
 }
 
@@ -213,6 +221,11 @@ final class FakePaymentLinksService
     {
         return $this->recordAndShift('retrieve', array_merge(['id' => $id], $params ?? []), $options);
     }
+
+    public function update(string $id, array $params, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('update', array_merge(['id' => $id], $params), $options);
+    }
 }
 
 final class FakeCustomersService
@@ -272,5 +285,44 @@ final class FakeWebhooks
             'constructEvent',
             ['payload' => $payload, 'sig_header' => $sigHeader, 'secret' => $secret, 'tolerance' => $tolerance],
         );
+    }
+}
+
+/**
+ * Fake for $client->checkout — a thin holder that exposes ->sessions.
+ * Mirrors the real Stripe\Service\Checkout\CheckoutServiceFactory shape.
+ */
+final class FakeCheckoutService
+{
+    public readonly FakeCheckoutSessionsService $sessions;
+
+    public function __construct()
+    {
+        $this->sessions = new FakeCheckoutSessionsService();
+    }
+}
+
+final class FakeCheckoutSessionsService
+{
+    use FakeServiceTrait;
+
+    public function create(array $params, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('create', $params, $options);
+    }
+
+    public function retrieve(string $id, ?array $params = null, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('retrieve', array_merge(['id' => $id], $params ?? []), $options);
+    }
+
+    public function expire(string $id, ?array $params = null, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('expire', array_merge(['id' => $id], $params ?? []), $options);
+    }
+
+    public function update(string $id, array $params, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('update', array_merge(['id' => $id], $params), $options);
     }
 }

@@ -7,12 +7,16 @@ namespace Kanvas\Souk\Orders\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
+use Throwable;
 
 class UpdateOrderAction
 {
@@ -27,7 +31,10 @@ class UpdateOrderAction
 
     public function execute(): ModelsOrder
     {
-        // Capture original values for activity logging
+        if ($this->order->payment_status === PaymentStatusEnum::PAID->value) {
+            throw ValidationException::withMessages(['order' => 'paid_order_cannot_be_updated']);
+        }
+
         $originalValues = [
             'metadata' => $this->order->metadata,
             'fulfillment_status' => $this->order->fulfillment_status,
@@ -66,6 +73,19 @@ class UpdateOrderAction
             $this->order->status = $this->orderData['status'] ?? $this->order->status;
             $this->order->payment_status = $this->orderData['payment_status'] ?? $this->order->payment_status;
             $this->order->saveOrFail();
+
+            $activeSnapshot = OrderTaxSnapshot::where('order_id', $this->order->id)
+                ->where('status', '!=', 'superseded')
+                ->first();
+
+            if ($activeSnapshot !== null) {
+                try {
+                    $activeSnapshot->transition($activeSnapshot->status, 'superseded');
+                } catch (Throwable) {
+                    $activeSnapshot->status = 'superseded';
+                    $activeSnapshot->save();
+                }
+            }
 
             if ($this->order->isFulfilled() && $hasItems) {
                 $this->order->addItems($lineItems);

@@ -13,6 +13,14 @@ class TaxOperation extends BaseModel
     protected $table = 'tax_operations';
     protected $guarded = [];
 
+    public static function bootAppsIdTrait(): void
+    {
+    }
+
+    public static function bootCompaniesIdTrait(): void
+    {
+    }
+
     protected function casts(): array
     {
         return [

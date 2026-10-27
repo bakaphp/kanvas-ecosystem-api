@@ -9,6 +9,8 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
@@ -19,22 +21,26 @@ use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
-use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Services\DiscountService;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
+use Kanvas\Souk\Orders\Models\OrderItem as OrderItemModel;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Shipping\Actions\RequoteCartShippingAction;
 use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
+use Kanvas\Souk\Taxes\Enums\TaxStatusEnum;
+use Kanvas\Souk\Taxes\Models\OrderTaxComponent;
+use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Kanvas\Users\Actions\SendUserNotificationAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 use Wearepixel\Cart\Cart;
+use function Sentry\captureMessage;
 
 class CreateBaseOrderAction
 {
@@ -87,12 +93,11 @@ class CreateBaseOrderAction
             ));
         }
 
-        $hasItemsInCart = ! $this->cart->isEmpty(); //&& $this->cart->getTotal() > 0;
+        $hasItemsInCart = ! $this->cart->isEmpty();
         $totalShipping = 0.0;
         if ($hasItemsInCart) {
             $total = $this->cart->getSubTotalWithoutConditions();
 
-            // Calculate totals from cart conditions
             $totalTax = $this->calculateTotalFromConditions('tax');
             $totalShipping = $this->calculateTotalFromConditions('shipping');
             $totalDiscount = 0.0;
@@ -163,12 +168,10 @@ class CreateBaseOrderAction
 
         $order = new CreateOrderAction($order)->disableWorkflow()->execute();
 
-        // Save the order discounts from cart conditions
         $this->saveOrderDiscountsFromCart($order);
 
         $this->applyCompanyCredit($order);
 
-        // Process wallet credit if applied
         $this->processWalletCreditFromCart($order);
 
         $order->fireWorkflow(
@@ -198,9 +201,115 @@ class CreateBaseOrderAction
 
         $order->refresh();
 
+        $this->attachTaxSnapshot($order);
+
         $this->cart->clear();
 
         return $order;
+    }
+
+    protected function attachTaxSnapshot(ModelsOrder $order): void
+    {
+        $snapshot = $this->resolveSnapshotForOrder($order);
+
+        if ($snapshot === null) {
+            return;
+        }
+
+        $storedHash = $snapshot->input_hash;
+        $payloadHash = $snapshot->checkout_payload['input_hash'] ?? null;
+
+        if ($payloadHash !== null && $payloadHash !== $storedHash) {
+            $order->tax_status = TaxStatusEnum::MISMATCH->value;
+            $order->status = OrderStatusEnum::ON_HOLD->value;
+            $order->saveOrFail();
+
+            captureMessage("Tax hash mismatch on order {$order->id}");
+
+            return;
+        }
+
+        $snapshot->load('components');
+
+        DB::connection('commerce')->transaction(function () use ($snapshot, $order): void {
+            $this->rekeyComponentLineIds($snapshot, $order);
+            $snapshot->order_id = $order->id;
+            $snapshot->save();
+        });
+
+        $order->recomputeTotals(true);
+
+        $payable = (float) $order->total_payable_amount;
+        $snapshotPayable = (float) ($snapshot->checkout_payload['totals']['payable'] ?? 0.0);
+
+        if (abs($payable - $snapshotPayable) > 0.01) {
+            Log::warning('Tax snapshot amount mismatch', [
+                'order_id' => $order->id,
+                'order_total_payable' => $payable,
+                'snapshot_total_payable' => $snapshotPayable,
+                'snapshot_uuid' => $snapshot->uuid,
+            ]);
+        }
+    }
+
+    protected function resolveSnapshotForOrder(ModelsOrder $order): ?OrderTaxSnapshot
+    {
+        $paymentIntentId = $order->payment_intent_id;
+
+        if ($paymentIntentId !== null) {
+            $snapshot = OrderTaxSnapshot::query()
+                ->where('apps_id', $this->app->getId())
+                ->where('payment_intent_id', $paymentIntentId)
+                ->where('status', TaxStatusEnum::CALCULATED->value)
+                ->latest()
+                ->first();
+
+            if ($snapshot !== null) {
+                return $snapshot;
+            }
+        }
+
+        $cartSessionId = $order->checkout_token;
+
+        if ($cartSessionId === null || $cartSessionId === '') {
+            return null;
+        }
+
+        return OrderTaxSnapshot::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('cart_session_id', $cartSessionId)
+            ->where('status', TaxStatusEnum::CALCULATED->value)
+            ->whereNull('order_id')
+            ->latest()
+            ->first();
+    }
+
+    private function rekeyComponentLineIds(OrderTaxSnapshot $snapshot, ModelsOrder $order): void
+    {
+        $payloadLines = $snapshot->checkout_payload['lines'] ?? [];
+
+        if (empty($payloadLines)) {
+            return;
+        }
+
+        $orderItems = OrderItemModel::query()
+            ->where('order_id', $order->id)
+            ->orderBy('id')
+            ->get();
+
+        $components = $snapshot->components;
+
+        $updates = $components->map(fn (OrderTaxComponent $component, int $index) => [
+            'id' => $component->id,
+            'snapshot_id' => $component->snapshot_id,
+            'line_id' => $orderItems->get($index)?->uuid ?? $component->line_id,
+        ])->all();
+
+        if (empty($updates)) {
+            return;
+        }
+
+        OrderTaxComponent::upsert($updates, ['id'], ['line_id']);
     }
 
     protected function getOrderItems(array $cartContent, AppInterface $app, Currencies $currency): DataCollection
@@ -210,16 +319,13 @@ class CreateBaseOrderAction
         foreach ($cartContent as $lineItem) {
             $variant = Variants::getById($lineItem['id']);
 
-            // Get the product's default attributes to exclude them from metadata
             $productAttributes = $variant->product->attributes
                 ? $variant->product->attributes->pluck('name')->toArray()
                 : [];
 
-            // Filter out product attributes from cart attributes, keeping only custom attributes
             $customAttributes = [];
             if (isset($lineItem['attributes']) && is_array($lineItem['attributes'])) {
                 foreach ($lineItem['attributes'] as $attributeName => $attributeValue) {
-                    // Only include attributes that are NOT part of the product's default attributes
                     if (! in_array($attributeName, $productAttributes)) {
                         $customAttributes[$attributeName] = $attributeValue;
                     }
@@ -237,7 +343,7 @@ class CreateBaseOrderAction
                 discount: (float) ($lineItem['total_discount'] ?? 0),
                 currency: $currency,
                 quantityShipped: 0,
-                metadata: ! empty($customAttributes) ? $customAttributes : null, // Only custom attributes, not product attributes
+                metadata: ! empty($customAttributes) ? $customAttributes : null,
                 channelId: ! empty($lineItem['attributes']['channel_id']) ? (int) $lineItem['attributes']['channel_id'] : null
             );
         }
@@ -274,7 +380,6 @@ class CreateBaseOrderAction
 
         foreach ($conditions as $condition) {
             if ($condition->getType() === $type) {
-                // Get the calculated value of the condition
                 $value = (float) $condition->getCalculatedValue($subtotal);
 
                 $total += $value;
@@ -297,7 +402,6 @@ class CreateBaseOrderAction
         return $this->region->currency;
     }
 
-    // Prepaid checkouts already charged the cart total; a credit there would be burned for nothing.
     protected function applyCompanyCredit(ModelsOrder $order): void
     {
         if ($this->isPrepaidAtCheckout($order)) {
@@ -319,12 +423,8 @@ class CreateBaseOrderAction
             || $this->cart->getConditions()->contains(fn ($condition) => $condition->getType() === 'wallet');
     }
 
-    /**
-     * Save order discounts from cart conditions.
-     */
     protected function saveOrderDiscountsFromCart(ModelsOrder $order): void
     {
-        // Get all discount conditions from the cart
         $conditions = $this->cart->getConditions();
 
         $discountService = new DiscountService(
@@ -333,7 +433,6 @@ class CreateBaseOrderAction
         );
 
         foreach ($conditions as $condition) {
-            // Only process discount type conditions
             if ($condition->getType() !== 'discount') {
                 continue;
             }
@@ -354,16 +453,11 @@ class CreateBaseOrderAction
         }
     }
 
-    /**
-     * Process wallet credit from cart conditions and deduct from wallet.
-     */
     protected function processWalletCreditFromCart(ModelsOrder $order): void
     {
-        // Get all conditions from the cart
         $conditions = $this->cart->getConditions();
 
         foreach ($conditions as $condition) {
-            // Only process wallet type conditions
             if ($condition->getType() !== 'wallet') {
                 continue;
             }
@@ -376,10 +470,8 @@ class CreateBaseOrderAction
                 continue;
             }
 
-            // Get the company wallet
             $wallet = $order->user->createAppWallet($this->app, ['name' => $walletTag]);
 
-            // Verify sufficient balance
             if ($wallet->balanceFloat < $appliedAmount) {
                 throw new Exception(
                     'Insufficient wallet balance. Required: ' . $appliedAmount .
@@ -387,7 +479,6 @@ class CreateBaseOrderAction
                 );
             }
 
-            // Withdraw the amount from the wallet
             $wallet->withdrawFloat($appliedAmount, [
                 'order_id' => $order->getId(),
                 'order_number' => $order->number,
@@ -395,7 +486,6 @@ class CreateBaseOrderAction
                 'description' => 'Wallet credit applied to order #' . $order->number,
             ]);
 
-            // Store wallet transaction info in order metadata
             $order->addMetadata(WalletConfigurationEnum::WALLET_CREDIT->value, [
                 'tag' => $walletTag,
                 'amount' => $appliedAmount,
@@ -411,8 +501,6 @@ class CreateBaseOrderAction
             ]);
 
             $order->addTag(WalletConfigurationEnum::WALLET_CREDIT_TAG->value);
-
-            //@todo , need to add it to the order logs
         }
     }
 }

@@ -14,6 +14,9 @@ use Kanvas\Souk\Cart\Enums\CartConditionEnum;
 use Kanvas\Souk\Cart\Services\CartService;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Discounts\Services\DiscountService;
+use Kanvas\Souk\Taxes\Actions\EstimateCartTaxAction;
+use Throwable;
+use Wearepixel\Cart\Cart;
 use Wearepixel\Cart\CartCondition;
 
 class CartManagementMutation
@@ -85,6 +88,7 @@ class CartManagementMutation
         $cart->removeConditionsByType('discount');
 
         if (empty($discountCodes)) {
+            $this->recalculateTax($cart);
             $cartService = new CartService($cart);
 
             return $cartService->getCart();
@@ -184,6 +188,7 @@ class CartManagementMutation
             }
         }
 
+        $this->recalculateTax($cart);
         $cartService = new CartService($cart);
 
         return $cartService->getCart();
@@ -194,8 +199,6 @@ class CartManagementMutation
         $user = auth()->user();
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
-        //$company = $user->getCurrentCompany();
-
         $tag = $request['tag'] ?? 'default';
         $requestedAmount = isset($request['amount']) ? (float) $request['amount'] : null;
 
@@ -241,6 +244,7 @@ class CartManagementMutation
 
         $cart->condition($walletCondition);
 
+        $this->recalculateTax($cart);
         $cartService = new CartService($cart);
 
         return $cartService->getCart();
@@ -251,6 +255,7 @@ class CartManagementMutation
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $cart->removeCartCondition(CartConditionEnum::WALLET_CREDIT->value);
 
+        $this->recalculateTax($cart);
         $cartService = new CartService($cart);
 
         return $cartService->getCart();
@@ -263,5 +268,13 @@ class CartManagementMutation
         $cart->clearAllConditions();
 
         return $cart->clear();
+    }
+
+    private function recalculateTax(Cart $cart): void
+    {
+        try {
+            new EstimateCartTaxAction($cart, app(Apps::class))->execute();
+        } catch (Throwable) {
+        }
     }
 }

@@ -13,4 +13,6 @@ enum GatewayAttemptStatusEnum: string
     case VOIDED = 'voided';
     case FAILED = 'failed';
     case CLEANUP_PENDING = 'cleanup_pending';
+    case NEEDS_RECONCILE = 'needs_reconcile';
+    case SUPERSEDED = 'superseded';
 }

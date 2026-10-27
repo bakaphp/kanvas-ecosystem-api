@@ -18,19 +18,19 @@ final class TaxRegistrationTest extends TestCase
 
     protected array $connectionsToTransact = ['mysql', 'commerce'];
 
-    private Apps $app;
+    protected Apps $kanvasApp;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->app = app(Apps::class);
+        $this->kanvasApp = app(Apps::class);
     }
 
     public function testCreateRegistrationSucceeds(): void
     {
         $registration = new CreateTaxRegistrationAction(
-            $this->app,
+            $this->kanvasApp,
             [
                 'jurisdiction_country' => 'US',
                 'jurisdiction_state' => 'NY',
@@ -43,13 +43,13 @@ final class TaxRegistrationTest extends TestCase
         $this->assertInstanceOf(TaxRegistration::class, $registration);
         $this->assertSame('US', $registration->jurisdiction_country);
         $this->assertSame('NY', $registration->jurisdiction_state);
-        $this->assertSame($this->app->getId(), (int) $registration->apps_id);
+        $this->assertSame($this->kanvasApp->getId(), (int) $registration->apps_id);
     }
 
     public function testOverlappingDateRangeThrowsValidationException(): void
     {
         new CreateTaxRegistrationAction(
-            $this->app,
+            $this->kanvasApp,
             [
                 'jurisdiction_country' => 'US',
                 'jurisdiction_state' => 'CA',
@@ -62,7 +62,7 @@ final class TaxRegistrationTest extends TestCase
         $this->expectException(ValidationException::class);
 
         new CreateTaxRegistrationAction(
-            $this->app,
+            $this->kanvasApp,
             [
                 'jurisdiction_country' => 'US',
                 'jurisdiction_state' => 'CA',
@@ -76,7 +76,7 @@ final class TaxRegistrationTest extends TestCase
     public function testNonOverlappingDateRangesInSameJurisdictionBothSucceed(): void
     {
         new CreateTaxRegistrationAction(
-            $this->app,
+            $this->kanvasApp,
             [
                 'jurisdiction_country' => 'US',
                 'jurisdiction_state' => 'FL',
@@ -86,7 +86,7 @@ final class TaxRegistrationTest extends TestCase
         )->execute();
 
         $second = new CreateTaxRegistrationAction(
-            $this->app,
+            $this->kanvasApp,
             [
                 'jurisdiction_country' => 'US',
                 'jurisdiction_state' => 'FL',
@@ -101,7 +101,7 @@ final class TaxRegistrationTest extends TestCase
     public function testDifferentJurisdictionsDoNotConflict(): void
     {
         new CreateTaxRegistrationAction(
-            $this->app,
+            $this->kanvasApp,
             [
                 'jurisdiction_country' => 'US',
                 'jurisdiction_state' => 'TX',
@@ -111,7 +111,7 @@ final class TaxRegistrationTest extends TestCase
         )->execute();
 
         $second = new CreateTaxRegistrationAction(
-            $this->app,
+            $this->kanvasApp,
             [
                 'jurisdiction_country' => 'US',
                 'jurisdiction_state' => 'WA',
@@ -126,7 +126,7 @@ final class TaxRegistrationTest extends TestCase
     public function testOpenEndedRegistrationBlocksNewRegistrationInSameJurisdiction(): void
     {
         new CreateTaxRegistrationAction(
-            $this->app,
+            $this->kanvasApp,
             [
                 'jurisdiction_country' => 'MX',
                 'jurisdiction_state' => null,
@@ -138,7 +138,7 @@ final class TaxRegistrationTest extends TestCase
         $this->expectException(ValidationException::class);
 
         new CreateTaxRegistrationAction(
-            $this->app,
+            $this->kanvasApp,
             [
                 'jurisdiction_country' => 'MX',
                 'jurisdiction_state' => null,
@@ -151,7 +151,7 @@ final class TaxRegistrationTest extends TestCase
     public function testUpdateDoesNotConflictWithItself(): void
     {
         $registration = new CreateTaxRegistrationAction(
-            $this->app,
+            $this->kanvasApp,
             [
                 'jurisdiction_country' => 'DO',
                 'jurisdiction_state' => null,
@@ -171,7 +171,7 @@ final class TaxRegistrationTest extends TestCase
     public function testUpdateConflictsWithSiblingRegistration(): void
     {
         new CreateTaxRegistrationAction(
-            $this->app,
+            $this->kanvasApp,
             [
                 'jurisdiction_country' => 'US',
                 'jurisdiction_state' => 'OH',
@@ -181,7 +181,7 @@ final class TaxRegistrationTest extends TestCase
         )->execute();
 
         $second = new CreateTaxRegistrationAction(
-            $this->app,
+            $this->kanvasApp,
             [
                 'jurisdiction_country' => 'US',
                 'jurisdiction_state' => 'OH',

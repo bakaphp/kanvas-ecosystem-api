@@ -13,6 +13,10 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
 use Kanvas\Souk\Payments\Models\PaymentRefund;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Souk\Taxes\Actions\CompleteCheckoutFromSnapshotAction;
+use Kanvas\Souk\Taxes\Actions\ReleaseCheckoutHoldsAction;
+use Kanvas\Souk\Taxes\Enums\GatewayAttemptStatusEnum;
+use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
@@ -20,6 +24,9 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
 use Stripe\StripeObject;
 use Stripe\Webhook;
+use Throwable;
+
+use function Sentry\captureMessage;
 
 /**
  * Souk Order/Payment-oriented Stripe webhook (distinct from the Cashier/subscription
@@ -67,6 +74,8 @@ class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
             'payment_intent.succeeded' => $this->handleSucceeded($object),
             'payment_intent.payment_failed' => $this->handleFailed($object),
             'payment_intent.requires_action' => $this->handleRequiresAction($object),
+            'payment_intent.canceled' => $this->handleCanceled($object),
+            'checkout.session.expired' => $this->handleSessionExpired($object),
             'charge.refunded' => $this->handleChargeRefunded($object),
             'refund.created', 'refund.updated' => $this->handleRefundEvent($object),
             default => ['message' => "Ignored event {$event->type}"],
@@ -87,6 +96,12 @@ class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
         $payment = $this->findPaymentByIntent((string) $intent->id);
 
         if (! $payment) {
+            $snapshot = $this->findUnattachedSnapshot((string) $intent->id);
+
+            if ($snapshot !== null) {
+                return $this->completeSnapshotCheckout($snapshot, (string) $intent->id);
+            }
+
             return ['message' => 'payment not found', 'payment_intent_id' => $intent->id];
         }
 
@@ -247,6 +262,91 @@ class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
         ]);
 
         return ['message' => 'refund recorded', 'refund_id' => $refundId, 'payment_id' => $payment->getId()];
+    }
+
+    private function handleCanceled(StripeObject $intent): array
+    {
+        $snapshot = $this->findUnattachedSnapshot((string) $intent->id);
+
+        if ($snapshot === null) {
+            return ['message' => 'no unattached snapshot found', 'payment_intent_id' => $intent->id];
+        }
+
+        return $this->voidSnapshotAndReleaseHolds($snapshot);
+    }
+
+    private function handleSessionExpired(StripeObject $session): array
+    {
+        $sessionId = (string) $session->id;
+        $intentId = is_string($session->payment_intent ?? null)
+            ? $session->payment_intent
+            : null;
+
+        $snapshot = $intentId !== null
+            ? $this->findUnattachedSnapshot($intentId)
+            : $this->findUnattachedSnapshotBySession($sessionId);
+
+        if ($snapshot === null) {
+            return ['message' => 'no unattached snapshot found', 'stripe_session_id' => $sessionId];
+        }
+
+        return $this->voidSnapshotAndReleaseHolds($snapshot);
+    }
+
+    protected function buildReleaseAction(OrderTaxSnapshot $snapshot): ReleaseCheckoutHoldsAction
+    {
+        return new ReleaseCheckoutHoldsAction($snapshot);
+    }
+
+    private function voidSnapshotAndReleaseHolds(OrderTaxSnapshot $snapshot): array
+    {
+        try {
+            $this->buildReleaseAction($snapshot)->execute();
+        } catch (Throwable $e) {
+            OrderTaxSnapshot::query()
+                ->where('id', $snapshot->id)
+                ->update(['gateway_attempt_status' => GatewayAttemptStatusEnum::CLEANUP_PENDING->value]);
+
+            captureMessage(
+                "StripeWebhook: void transaction failed for snapshot {$snapshot->uuid}: {$e->getMessage()}"
+            );
+
+            return [
+                'message' => 'void failed, marked cleanup_pending',
+                'snapshot_uuid' => $snapshot->uuid,
+            ];
+        }
+
+        return ['message' => 'snapshot voided and holds released', 'snapshot_uuid' => $snapshot->uuid];
+    }
+
+    private function findUnattachedSnapshot(string $intentId): ?OrderTaxSnapshot
+    {
+        return OrderTaxSnapshot::query()
+            ->where('apps_id', $this->receiver->app->getId())
+            ->where('payment_intent_id', $intentId)
+            ->whereNull('order_id')
+            ->first();
+    }
+
+    private function findUnattachedSnapshotBySession(string $sessionId): ?OrderTaxSnapshot
+    {
+        return OrderTaxSnapshot::query()
+            ->where('apps_id', $this->receiver->app->getId())
+            ->where('stripe_session_id', $sessionId)
+            ->whereNull('order_id')
+            ->first();
+    }
+
+    private function completeSnapshotCheckout(OrderTaxSnapshot $snapshot, string $intentId): array
+    {
+        $order = new CompleteCheckoutFromSnapshotAction(
+            $snapshot,
+            $intentId,
+            $this->receiver->app,
+        )->execute();
+
+        return ['message' => 'snapshot checkout completed', 'order_id' => $order->getId()];
     }
 
     private function findPaymentByIntent(string $intentId): ?Payments

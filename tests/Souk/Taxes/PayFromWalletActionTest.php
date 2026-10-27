@@ -20,13 +20,13 @@ final class PayFromWalletActionTest extends TestCase
 
     protected array $connectionsToTransact = ['mysql', 'commerce'];
 
-    private Apps $app;
+    protected Apps $kanvasApp;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->app = app(Apps::class);
+        $this->kanvasApp = app(Apps::class);
     }
 
     private function createOrder(array $attributes = []): Order
@@ -34,7 +34,7 @@ final class PayFromWalletActionTest extends TestCase
         $user = auth()->user();
 
         return Order::factory()
-            ->withAppId($this->app->getId())
+            ->withAppId($this->kanvasApp->getId())
             ->withCompanyId($user->getCurrentCompany()->getId())
             ->withUserId($user->getId())
             ->create($attributes);
@@ -43,7 +43,7 @@ final class PayFromWalletActionTest extends TestCase
     private function createCalculatedSnapshot(Order $order): OrderTaxSnapshot
     {
         $snapshot = new OrderTaxSnapshot();
-        $snapshot->apps_id = $this->app->getId();
+        $snapshot->apps_id = $this->kanvasApp->getId();
         $snapshot->order_id = $order->id;
         $snapshot->kind = 'calculation';
         $snapshot->treatment = 'taxed';
@@ -138,7 +138,7 @@ final class PayFromWalletActionTest extends TestCase
         $order = $this->createOrder();
 
         $snapshot = new OrderTaxSnapshot();
-        $snapshot->apps_id = $this->app->getId();
+        $snapshot->apps_id = $this->kanvasApp->getId();
         $snapshot->order_id = $order->id;
         $snapshot->kind = 'calculation';
         $snapshot->treatment = 'taxed';

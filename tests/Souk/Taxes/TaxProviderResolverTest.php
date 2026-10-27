@@ -25,21 +25,21 @@ final class TaxProviderResolverTest extends TestCase
 
     protected array $connectionsToTransact = ['mysql', 'commerce', 'ecosystem'];
 
-    private Apps $app;
+    protected Apps $kanvasApp;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->app = app(Apps::class);
-        $this->app->set(ConfigurationEnum::TAX_ENGINE_ENABLED->value, 1);
-        $this->app->set(ConfigurationEnum::TAX_FAIL_OPEN->value, 0);
+        $this->kanvasApp = app(Apps::class);
+        $this->kanvasApp->set(ConfigurationEnum::TAX_ENGINE_ENABLED->value, 1);
+        $this->kanvasApp->set(ConfigurationEnum::TAX_FAIL_OPEN->value, 0);
     }
 
     protected function tearDown(): void
     {
-        $this->app->set(ConfigurationEnum::TAX_ENGINE_ENABLED->value, 0);
-        $this->app->set(ConfigurationEnum::TAX_FAIL_OPEN->value, 0);
+        $this->kanvasApp->set(ConfigurationEnum::TAX_ENGINE_ENABLED->value, 0);
+        $this->kanvasApp->set(ConfigurationEnum::TAX_FAIL_OPEN->value, 0);
 
         parent::tearDown();
     }
@@ -47,7 +47,7 @@ final class TaxProviderResolverTest extends TestCase
     private function makeContext(string $country = 'DO'): TaxContext
     {
         return new TaxContext(
-            appId: (string) $this->app->getId(),
+            appId: (string) $this->kanvasApp->getId(),
             shipTo: new TaxAddress(country: $country, state: null, city: 'Santo Domingo', postalCode: null),
             shipFrom: null,
             lines: [],
@@ -59,7 +59,7 @@ final class TaxProviderResolverTest extends TestCase
     private function createRegistration(string $country = 'DO'): TaxRegistration
     {
         $registration = new TaxRegistration();
-        $registration->apps_id = $this->app->getId();
+        $registration->apps_id = $this->kanvasApp->getId();
         $registration->jurisdiction_country = $country;
         $registration->jurisdiction_state = null;
         $registration->provider = 'manual';
@@ -74,7 +74,7 @@ final class TaxProviderResolverTest extends TestCase
     private function createRoutingRule(string $country = 'DO', string $provider = 'manual', float $rate = 0.18): TaxRoutingRule
     {
         $rule = new TaxRoutingRule();
-        $rule->apps_id = $this->app->getId();
+        $rule->apps_id = $this->kanvasApp->getId();
         $rule->destination_country = $country;
         $rule->provider = $provider;
         $rule->rate = $rate;
@@ -91,7 +91,7 @@ final class TaxProviderResolverTest extends TestCase
         $this->createRegistration('DO');
         $this->createRoutingRule('DO', 'manual', 0.18);
 
-        $provider = new TaxProviderResolver($this->app)->resolve($this->makeContext('DO'));
+        $provider = new TaxProviderResolver($this->kanvasApp)->resolve($this->makeContext('DO'));
 
         $this->assertInstanceOf(ManualRateTaxProvider::class, $provider);
     }
@@ -101,26 +101,26 @@ final class TaxProviderResolverTest extends TestCase
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('tax_not_configured_for_destination');
 
-        new TaxProviderResolver($this->app)->resolve($this->makeContext('US'));
+        new TaxProviderResolver($this->kanvasApp)->resolve($this->makeContext('US'));
     }
 
     public function testFailOpenWithNoRegistrationReturnsNullProvider(): void
     {
-        $this->app->set(ConfigurationEnum::TAX_FAIL_OPEN->value, 1);
+        $this->kanvasApp->set(ConfigurationEnum::TAX_FAIL_OPEN->value, 1);
 
-        $provider = new TaxProviderResolver($this->app)->resolve($this->makeContext('US'));
+        $provider = new TaxProviderResolver($this->kanvasApp)->resolve($this->makeContext('US'));
 
         $this->assertInstanceOf(NullTaxProvider::class, $provider);
     }
 
     public function testTaxEngineDisabledReturnsNullProviderRegardlessOfRegistration(): void
     {
-        $this->app->set(ConfigurationEnum::TAX_ENGINE_ENABLED->value, 0);
+        $this->kanvasApp->set(ConfigurationEnum::TAX_ENGINE_ENABLED->value, 0);
 
         $this->createRegistration('DO');
         $this->createRoutingRule('DO', 'manual', 0.18);
 
-        $provider = new TaxProviderResolver($this->app)->resolve($this->makeContext('DO'));
+        $provider = new TaxProviderResolver($this->kanvasApp)->resolve($this->makeContext('DO'));
 
         $this->assertInstanceOf(NullTaxProvider::class, $provider);
     }

@@ -15,4 +15,5 @@ enum TaxStatusEnum: string
     case SUPERSEDED = 'superseded';
     case PARTIALLY_REVERSED = 'partially_reversed';
     case REVERSED = 'reversed';
+    case MISMATCH = 'mismatch';
 }

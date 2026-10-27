@@ -21,6 +21,10 @@ class OrderTaxSnapshot extends BaseModel
     protected $keyType = 'int';
     public $incrementing = true;
 
+    public static function bootCompaniesIdTrait(): void
+    {
+    }
+
     protected array $cascadeDeletes = ['components'];
 
     protected function casts(): array
