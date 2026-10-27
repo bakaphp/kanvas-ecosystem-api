@@ -233,7 +233,8 @@ class LeadObserver
      */
     private function syncActiveLeadsCount(Lead $lead): void
     {
-        // Counted state depends only on these columns; checking them first skips two status lookups on every other save.
+        // Counted state depends only on these columns; checking them first skips two status
+        // lookups on every other save.
         if (! $lead->wasChanged(['leads_status_id', 'people_id', 'is_deleted'])) {
             return;
         }
