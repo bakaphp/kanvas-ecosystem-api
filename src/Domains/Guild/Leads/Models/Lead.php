@@ -14,16 +14,22 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\CompanyScope;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Event\Events\Contracts\EventResourceInterface;
 use Kanvas\Guild\Agents\Models\Agent;
+use Kanvas\Guild\Concerns\TracksClosedAt;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
@@ -82,6 +88,7 @@ use Throwable;
  * @property string $third_party_sync_status
  * @property int|null $merged_into_leads_id
  * @property bool $is_deleted
+ * @property Carbon|null $closed_at
  */
 class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentContext
 {
@@ -97,6 +104,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     use HasEventResources;
     use HasFollowUpState;
     use EmitsLedgerEventsForEntity;
+    use TracksClosedAt;
 
     protected $observables = [
         'softDeleting',
@@ -104,6 +112,14 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     ];
     protected $table = 'leads';
     protected $guarded = [];
+
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'closed_at' => 'datetime',
+        ];
+    }
 
     public function people(): BelongsTo
     {
@@ -298,6 +314,11 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         return $this->belongsTo(Organization::class, 'organization_id', 'id');
     }
 
+    public function deals(): HasMany
+    {
+        return $this->hasMany(Deal::class, 'leads_id', 'id')->notDeleted();
+    }
+
     public function pipeline(): BelongsTo
     {
         return $this->belongsTo(Pipeline::class, 'pipeline_id', 'id');
@@ -377,21 +398,71 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         return $this->isOpenLeadStatusId((int) $this->getAttributeValue('leads_status_id'));
     }
 
-    public function scopeHasOpenLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
+    public function scopeHasOpenLeadStatus(Builder $query, CompanyInterface|CompanyScope|null $company = null): Builder
     {
-        return $query->whereIn('leads_status_id', self::openLeadsStatusIds($company));
+        return self::constrainOpenStatus(
+            $query,
+            'leads_status_id',
+            $company,
+            open: true
+        );
     }
 
-    public function scopeHasClosedLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
+    public function scopeHasClosedLeadStatus(Builder $query, CompanyInterface|CompanyScope|null $company = null): Builder
     {
-        return $query->whereNotIn('leads_status_id', self::openLeadsStatusIds($company));
+        return self::constrainOpenStatus(
+            $query,
+            'leads_status_id',
+            $company,
+            open: false
+        );
+    }
+
+    /**
+     * "Open" is partly per-company config, so across a scope the predicate is one group per company,
+     * never a union of ids: a status open at one company may be closed at another.
+     */
+    public static function constrainOpenStatus(
+        Builder $query,
+        string $column,
+        CompanyInterface|CompanyScope|null $company,
+        bool $open
+    ): Builder {
+        if (! $company instanceof CompanyScope) {
+            $ids = self::openLeadsStatusIds($company);
+
+            return $open ? $query->whereIn($column, $ids) : $query->whereNotIn($column, $ids);
+        }
+
+        $tenantColumn = $query->getModel()->getTable() . '.companies_id';
+        $companies = $company->companyIds === [(int) $company->ownCompany->getId()]
+            ? collect([$company->ownCompany])
+            : Companies::query()->whereIn('id', $company->companyIds)->get();
+
+        return $query->where(function (Builder $outer) use ($companies, $tenantColumn, $column, $open): void {
+            foreach ($companies as $member) {
+                $outer->orWhere(function (Builder $one) use ($member, $tenantColumn, $column, $open): void {
+                    $ids = self::openLeadsStatusIds($member);
+                    $one->where($tenantColumn, $member->getId());
+
+                    if ($open) {
+                        $one->whereIn($column, $ids);
+                    } else {
+                        $one->whereNotIn($column, $ids);
+                    }
+                });
+            }
+        });
     }
 
     /**
      * The "open" (default), "closed" or "all" switch every lead-listing tool exposes, in one place.
      */
-    public function scopeHavingLeadState(Builder $query, string $state, ?CompanyInterface $company = null): Builder
-    {
+    public function scopeHavingLeadState(
+        Builder $query,
+        string $state,
+        CompanyInterface|CompanyScope|null $company = null
+    ): Builder {
         return match ($state) {
             'closed' => $query->hasClosedLeadStatus($company),
             'all' => $query,
@@ -450,9 +521,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
 
     public function closeSold(): bool
     {
-        $statusName = strtolower($this->status()->firstOrFail()->name);
-
-        return ! Str::contains($statusName, 'not') && Str::contains($statusName, 'sold');
+        return LeadStatus::isSoldName($this->status()->firstOrFail()->name);
     }
 
     public function closeNotSold(): bool
@@ -855,8 +924,10 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
              $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
          } */
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Tests\Guild\Integration;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Concerns\ManagesPeopleContacts;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as ContactData;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Traits\ManagesPeopleContactsTrait;
 use Spatie\LaravelData\DataCollection;
 use Tests\TestCase;
 
@@ -159,7 +159,7 @@ final class PeopleContactSyncTest extends TestCase
     private function syncWith(People $people, array $contacts, bool $merge = false): void
     {
         $runner = new class () {
-            use ManagesPeopleContactsTrait;
+            use ManagesPeopleContacts;
 
             public function run(People $people, DataCollection $contacts, bool $merge): void
             {

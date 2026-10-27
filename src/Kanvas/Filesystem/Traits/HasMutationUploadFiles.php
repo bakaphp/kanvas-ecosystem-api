@@ -6,6 +6,7 @@ namespace Kanvas\Filesystem\Traits;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Arr;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
@@ -23,8 +24,9 @@ trait HasMutationUploadFiles
         UserInterface $user,
         array $request
     ): Model {
-        // Check if we're dealing with a single file or multiple files
-        $files = isset($request['file']) ? [$request['file']] : $request['files'];
+        // attachFileToX(file: Upload!) and attachFilesToX(file: [Upload!]!) share a resolver, so `file`
+        // is one upload or already a list.
+        $files = Arr::wrap($request['file'] ?? $request['files'] ?? []);
 
         $this->handleFileUpload($model, $app, $user, $files);
 

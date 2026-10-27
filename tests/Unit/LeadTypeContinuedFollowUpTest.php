@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpOutcomeKindEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
@@ -97,6 +98,9 @@ final class LeadTypeContinuedFollowUpTest extends TestCase
                 ]);
                 $lead->shouldReceive('getAttribute')->with('stage')->andReturn($stage);
                 $lead->shouldReceive('getAttribute')->with('pipeline_stage_id')->andReturn(123);
+                $company = Mockery::mock(Companies::class);
+                $company->shouldReceive('get')->with(ConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value)->andReturn(null);
+                $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
                 $lead->shouldReceive('emitLedgerEvent')->once()->with('lead.follow_up.skipped', EventStatusEnum::INFO, [
                     'stage_id' => 123,
                     'reason' => $reason,

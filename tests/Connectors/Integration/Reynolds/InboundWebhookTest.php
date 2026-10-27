@@ -14,8 +14,14 @@ use Kanvas\Connectors\Reynolds\Webhooks\ProcessReynoldsWebhookJob;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use Kanvas\Workflow\Models\StoredWorkflow;
 use Kanvas\Workflow\Models\WorkflowAction;
+use Kanvas\Workflow\Rules\Models\Rule;
+use Kanvas\Workflow\Rules\Models\RuleAction;
+use Kanvas\Workflow\Rules\Models\RuleCondition;
+use Kanvas\Workflow\Rules\Models\RuleType;
 use Tests\Connectors\Traits\HasReynoldsConfiguration;
 use Tests\TestCase;
 
@@ -82,6 +88,64 @@ final class InboundWebhookTest extends TestCase
         $this->assertNotNull($people, 'A People row must have been synced from IndividualCustomer.');
         $this->assertSame('Will', $people->firstname);
         $this->assertSame('Graham', $people->lastname);
+    }
+
+    public function testInsertSalesLeadFiresFakeContextWorkflow(): void
+    {
+        $this->assertSame(
+            1,
+            $this->countFakeContextWorkflowsAfterEnvelope('ISL'),
+            'ISL must fire fake-context with trigger_type = 1.'
+        );
+    }
+
+    public function testOutboundSalesLeadFiresFakeContextWorkflow(): void
+    {
+        $this->assertSame(
+            1,
+            $this->countFakeContextWorkflowsAfterEnvelope('OSL'),
+            'OSL must fire fake-context with trigger_type = 1.'
+        );
+    }
+
+    public function testUpdateSalesLeadDoesNotFireFakeContextWorkflow(): void
+    {
+        $this->assertSame(0, $this->countFakeContextWorkflowsAfterEnvelope('USL'));
+    }
+
+    private function countFakeContextWorkflowsAfterEnvelope(string $task): int
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $this->setupReynoldsConfiguration($app, $company);
+        $this->bindDealerLocationKey($company, self::FIXTURE_DEALER, self::FIXTURE_STORE, self::FIXTURE_AREA);
+
+        $ruleType = RuleType::firstOrCreate(['name' => WorkflowEnum::FAKE_CONTEXT->value]);
+        $ruleAction = RuleAction::factory()->create();
+        Rule::query()->whereKey($ruleAction->rules_id)->update(['rules_types_id' => $ruleType->getId()]);
+        RuleCondition::factory()->create([
+            'rules_id' => $ruleAction->rules_id,
+            'attribute_name' => 'trigger_type',
+            'operator' => '==',
+            'value' => 1,
+        ]);
+
+        $envelope = file_get_contents(__DIR__ . '/Fixtures/inbound_osl_envelope.xml');
+        $envelope = str_replace('<Task>OSL</Task>', '<Task>' . $task . '</Task>', $envelope);
+
+        $lastWorkflowId = (int) StoredWorkflow::max('id');
+        $result = $this->dispatchWebhookJob($envelope);
+
+        $this->assertSame('success', $result['status'] ?? null);
+
+        return StoredWorkflow::query()
+            ->where('id', '>', $lastWorkflowId)
+            ->get()
+            ->filter(fn (StoredWorkflow $workflow) => collect($workflow->workflowArguments())->contains(
+                fn ($argument) => $argument instanceof Rule && $argument->getId() === $ruleAction->rules_id
+            ))
+            ->count();
     }
 
     public function testWebhookJobIgnoresEnvelopeWhenNoCompanyMatchesSender(): void

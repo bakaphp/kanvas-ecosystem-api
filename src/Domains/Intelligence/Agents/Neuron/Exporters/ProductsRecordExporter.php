@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Exporters;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\Traits\ReadsExportFilters;
 use Kanvas\Inventory\Products\Models\Products;
 use Override;
@@ -33,7 +34,7 @@ class ProductsRecordExporter implements RecordExporterInterface
     }
 
     #[Override]
-    public function rows(Apps $app, Companies $company, array $filters): array
+    public function rows(Apps $app, Companies|CompanyScope $company, array $filters): array
     {
         $search = $this->filterString($filters, 'search');
         $onlyInStock = $this->filterBool($filters, 'only_in_stock', false);

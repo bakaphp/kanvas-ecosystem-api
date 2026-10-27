@@ -30,9 +30,9 @@ final class AttachTradeInPhotosActionTest extends TestCase
         $this->assertSame($back->getId(), $message->getFileByName('upload_vehicle_photo_2')->filesystem_id);
     }
 
-    public function testIgnoresPhotosFromAnotherCompany(): void
+    public function testIgnoresPhotosFromAnotherApp(): void
     {
-        $foreign = $this->makeFilesystem('foreign.jpg', companyId: 999999);
+        $foreign = $this->makeFilesystem('foreign.jpg', appId: 999999);
         $message = $this->makeMessage([
             ['label' => 'Upload vehicle photo', 'value' => (string) $foreign->getId()],
         ]);
@@ -41,6 +41,16 @@ final class AttachTradeInPhotosActionTest extends TestCase
 
         $this->assertTrue($action->photos()->isEmpty());
         $this->assertSame(0, $action->execute());
+    }
+
+    public function testAcceptsAnUploadFiledUnderAnotherCompanyOfTheSameApp(): void
+    {
+        $photo = $this->makeFilesystem('vehicle.jpg', companyId: 999999);
+        $message = $this->makeMessage([
+            ['label' => 'Upload vehicle photo', 'value' => (string) $photo->getId()],
+        ]);
+
+        $this->assertSame(1, new AttachTradeInPhotosAction($message)->execute());
     }
 
     public function testRunningTwiceDoesNotDuplicateFiles(): void
@@ -70,12 +80,12 @@ final class AttachTradeInPhotosActionTest extends TestCase
             ]);
     }
 
-    private function makeFilesystem(string $name, ?int $companyId = null): Filesystem
+    private function makeFilesystem(string $name, ?int $companyId = null, ?int $appId = null): Filesystem
     {
         $user = auth()->user();
 
         $filesystem = new Filesystem();
-        $filesystem->apps_id = app(Apps::class)->getId();
+        $filesystem->apps_id = $appId ?? app(Apps::class)->getId();
         $filesystem->companies_id = $companyId ?? $user->getCurrentCompany()->getId();
         $filesystem->users_id = $user->getId();
         $filesystem->name = $name;

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Actions;
 
+use Kanvas\Guild\Customers\Concerns\ManagesPeopleContacts;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Traits\ManagesPeopleContactsTrait;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
@@ -17,7 +17,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class UpdatePeopleAction
 {
-    use ManagesPeopleContactsTrait;
+    use ManagesPeopleContacts;
 
     public bool $runWorkflow = true;
 

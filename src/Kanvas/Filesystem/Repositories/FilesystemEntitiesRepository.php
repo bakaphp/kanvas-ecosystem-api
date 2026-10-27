@@ -7,6 +7,7 @@ namespace Kanvas\Filesystem\Repositories;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection as SupportCollection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
@@ -44,6 +45,36 @@ class FilesystemEntitiesRepository
 
     public static function getFilesByEntity(Model $entity): Collection
     {
+        return self::filesQuery(self::systemModuleIdsFor($entity))
+            ->where('filesystem_entities.entity_id', '=', $entity->getKey())
+            ->get();
+    }
+
+    /**
+     * Files of many entities of one class in one query, grouped by entity id — for a list that
+     * would otherwise run getFilesByEntity() (three queries) once per row.
+     *
+     * @param Collection<int, Model> $entities all of the same class
+     *
+     * @return SupportCollection<int|string, Collection<int, FilesystemEntities>>
+     */
+    public static function getFilesByEntities(Collection $entities): SupportCollection
+    {
+        if ($entities->isEmpty()) {
+            return collect();
+        }
+
+        return self::filesQuery(self::systemModuleIdsFor($entities->first()))
+            ->whereIn('filesystem_entities.entity_id', $entities->modelKeys())
+            ->get()
+            ->groupBy('entity_id');
+    }
+
+    /**
+     * @return list<int|string>
+     */
+    private static function systemModuleIdsFor(Model $entity): array
+    {
         $app = $entity->app ?? app(Apps::class);
         $systemModule = SystemModulesRepository::getByModelName($entity::class, $app);
         $legacySystemModule = SystemModulesRepository::getByModelName(
@@ -61,8 +92,15 @@ class FilesystemEntitiesRepository
             $systemModuleIds[] = $messageSystemModule->getKey();
         }
 
+        return $systemModuleIds;
+    }
+
+    /**
+     * @param list<int|string> $systemModuleIds
+     */
+    private static function filesQuery(array $systemModuleIds): Builder
+    {
         return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
-            ->where('filesystem_entities.entity_id', '=', $entity->getKey())
             ->whereIn('filesystem_entities.system_modules_id', $systemModuleIds)
             ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
             ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
@@ -75,8 +113,7 @@ class FilesystemEntitiesRepository
                 'filesystem.users_id',
                 'filesystem.size',
                 'filesystem.file_type'
-            )
-            ->get();
+            );
     }
 
     /**

@@ -35,6 +35,7 @@ type Deal {
         )
     created_at: DateTime!
     updated_at: DateTime
+    closed_at: DateTime
 }
 
 input DealInput {
@@ -49,6 +50,8 @@ input DealInput {
     status_id: Int
     status: Int
     companies_branches_id: ID
+    custom_fields: [CustomFieldEntityInput!]
+    files: [FilesystemInputUrl!]
 }
 
 input UpdateDealInput {
@@ -63,6 +66,8 @@ input UpdateDealInput {
     status_id: Int
     status: Int
     companies_branches_id: ID
+    custom_fields: [CustomFieldEntityInput!]
+    files: [FilesystemInputUrl!]
 }
 
 extend type Mutation @guard {
@@ -104,10 +109,33 @@ extend type Query @guard {
                     "pipeline_stage_id"
                     "status_id"
                     "created_at"
+                    "closed_at"
                 ]
             )
+        hasCustomFields: _
+            @whereHasConditions(
+                relation: "customFields"
+                handler: "App\\GraphQL\\Ecosystem\\Handlers\\CompanyScopedCustomFieldsHandler"
+                columns: ["name", "value"]
+            )
+        hasStatus: _
+            @whereHasConditions(relation: "leadStatus", columns: ["name"])
+        hasPipeline: _
+            @whereHasConditions(relation: "pipeline", columns: ["name"])
+        hasStage: _
+            @whereHasConditions(relation: "pipelineStage", columns: ["name"])
+        hasOwner: _
+            @whereHasConditions(relation: "owner", columns: ["id", "uuid"])
         orderBy: _
-            @orderBy(columns: ["id", "created_at", "updated_at", "title"])
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "closed_at"
+                    "title"
+                ]
+            )
     ): [Deal!]!
         @paginate(
             model: "Kanvas\\Guild\\Deals\\Models\\Deal"
@@ -127,9 +155,7 @@ extend type Query @guard {
         timezone: String
         pipeline_id: ID
     ): DealAnalytics!
-        @field(
-            resolver: "App\\GraphQL\\Analytics\\Queries\\DealAnalyticsQuery"
-        )
+        @field(resolver: "App\\GraphQL\\Analytics\\Queries\\DealAnalyticsQuery")
 }
 
 type DealAnalytics {

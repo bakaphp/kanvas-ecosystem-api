@@ -32,6 +32,7 @@ enum WorkflowEnum: string
     case AFTER_RUNNING_RECEIVER = 'after-running-receiver';
     case AFTER_MESSAGE_INTERACTION = 'after-message-interaction';
     case AFTER_PAYMENT_INTENT = 'after-payment-intent';
+    case AFTER_PAYMENT_AUTHORIZED = 'after-payment-authorized';
     /**
      * @deprecated Carries no target engagement, so its report lands in a second folder. Use
      *             GENERATE_ID_VERIFICATION; drop this case and its `rules_types` row once the Phalcon

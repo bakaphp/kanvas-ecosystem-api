@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Blade;
 use InvalidArgumentException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -52,7 +51,7 @@ class ContactCheckerTool extends Tool
 
         /** @var StructuredAgentResponse $response */
         $response = agent(
-            instructions: Blade::render($this->agent->roleSection('background'), $data),
+            instructions: $this->agent->renderRoleSection('background', $data),
             schema: fn ($schema) => [
                 'already_contacted' => $schema->boolean()->description('Whether the lead has been contacted by a representative')->required(),
                 'should_send_first_message' => $schema->boolean()->description('Whether a first message should be sent to the lead')->required(),
@@ -62,7 +61,7 @@ class ContactCheckerTool extends Tool
                 '_thought_process' => $schema->string()->description('Internal reasoning and analysis process')->required(),
             ],
         )->prompt(
-            Blade::render($this->agent->roleSection('steps', "\n"), $data),
+            $this->agent->renderRoleSection('steps', $data, "\n"),
             provider: Lab::Gemini,
             model: 'gemini-3.1-flash-lite',
         );

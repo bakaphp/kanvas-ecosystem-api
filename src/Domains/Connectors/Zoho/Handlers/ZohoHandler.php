@@ -6,10 +6,12 @@ namespace Kanvas\Connectors\Zoho\Handlers;
 
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Contracts\DefaultRule;
+use Kanvas\Connectors\Zoho\Activities\ZohoPullDealActivity;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\Workflows\ZohoPullLeadActivity;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Override;
@@ -55,6 +57,12 @@ class ZohoHandler extends BaseIntegration
                 model: Lead::class,
                 activity: ZohoPullLeadActivity::class,
                 name: 'Zoho pull lead',
+            ),
+            new DefaultRule(
+                trigger: WorkflowEnum::PULL,
+                model: Deal::class,
+                activity: ZohoPullDealActivity::class,
+                name: 'Zoho pull deal',
             ),
         ];
     }

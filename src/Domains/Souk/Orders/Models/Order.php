@@ -20,9 +20,10 @@ use Illuminate\Support\Carbon;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
@@ -46,6 +47,7 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Services\B2BConfigurationService;
 use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
 use Kanvas\Souk\Traits\PayableTrait;
+use Kanvas\Templates\Contracts\ExposesTemplateData;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
@@ -108,7 +110,7 @@ use Spatie\LaravelData\DataCollection;
  * @property Carbon|null $updated_at
  */
 #[ObservedBy(OrderObserver::class)]
-class Order extends BaseModel implements PayableInterface
+class Order extends BaseModel implements PayableInterface, ExposesTemplateData, ReadableAtLocation
 {
     use HasAdminLink;
     use UuidTrait;
@@ -224,11 +226,20 @@ class Order extends BaseModel implements PayableInterface
     {
         $user = $user instanceof UserInterface ? $user : auth()->user();
 
-        if (! $user->isAppOwner() && ! $user->can('view-all-orders')) {
-            return $query->where('users_id', $user->getId());
+        return self::canViewAllOrders($user) ? $query : $query->where('users_id', $user->getId());
+    }
+
+    /**
+     * view-all-orders is an app-wide ability, so a shopper at another company's store only sees
+     * their own orders there.
+     */
+    public static function canViewAllOrders(UserInterface $user): bool
+    {
+        if ($user->isAppOwner()) {
+            return true;
         }
 
-        return $query;
+        return ! LocationContext::isShopperOnly($user) && $user->can('view-all-orders');
     }
 
     public function getTotalAmount(): float
@@ -513,15 +524,15 @@ class Order extends BaseModel implements PayableInterface
         return true;
     }
 
-    public function getOrderNumber(): int
+    public function getOrderNumber(): string
     {
         $key = $this->app->get('use_integration_order_number');
 
         if (! empty($key) && $value = $this->get($key)) {
-            return (int) $value;
+            return (string) $value;
         }
 
-        return $this->order_number;
+        return (string) $this->order_number;
     }
 
     public function toSearchableArray(): array
@@ -853,10 +864,16 @@ class Order extends BaseModel implements PayableInterface
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        if ($user instanceof UserInterface && ! self::canViewAllOrders($user)) {
+            $query->where('users_id', $user->getId());
         }
 
         if ($query->model->isTypesense()) {
@@ -1038,5 +1055,28 @@ class Order extends BaseModel implements PayableInterface
         );
 
         return $discountService->applyDiscountCode($code, $this);
+    }
+
+    /**
+     * The order emails print totals and contact details the model computes, so they ship as fields.
+     */
+    #[Override]
+    public function toTemplateData(): array
+    {
+        $address = $this->people?->address()->first();
+
+        return array_merge($this->attributesToArray(), [
+            'user' => $this->user,
+            'app' => $this->app,
+            'items' => $this->items,
+            'sub_total_amount' => $this->getSubTotalAmount(),
+            'total_tax_amount' => $this->getTotalTaxAmount(),
+            'total_amount' => $this->getTotalAmount(),
+            'email' => $this->getEmail(),
+            'phone' => $this->getPhone(),
+            'shipping_address' => $address === null
+                ? null
+                : array_merge($address->attributesToArray(), ['country' => $address->country]),
+        ]);
     }
 }

@@ -119,6 +119,7 @@ class SearchLeadsTool extends Tool
                     . 'count is right even when the list is truncated.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -134,7 +135,12 @@ class SearchLeadsTool extends Tool
         ?string $updated_until = null,
         ?string $sort = null,
         ?int $limit = null,
+        ?int $tenant_company_id = null,
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $query = trim((string) $query);
         $missing = strtolower(trim((string) $missing_contact));
         $owner = trim((string) $owner);
@@ -210,11 +216,13 @@ class SearchLeadsTool extends Tool
         string $owner,
         array $window,
     ): Builder {
+        $scope = $this->auditedReadScope();
+
         return Lead::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($scope)
             ->notDeleted()
-            ->havingLeadState($status, $this->company)
+            ->havingLeadState($status, $scope)
             ->when($query !== '', fn (Builder $q): Builder => $q->where(
                 fn (Builder $inner): Builder => $inner
                     ->where('title', 'like', '%' . $query . '%')
@@ -334,6 +342,7 @@ class SearchLeadsTool extends Tool
             'is_open' => $lead->hasOpenLeadStatus(),
             'last_updated' => $lead->updated_at?->copy()->setTimezone($this->companyTimezone())->toDateString(),
             'last_updated_at' => $lead->updated_at?->copy()->setTimezone($this->companyTimezone())->toIso8601String(),
+            ...$this->tenantLabel($lead),
         ];
     }
 

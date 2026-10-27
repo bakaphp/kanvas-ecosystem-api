@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use Baka\Support\AllowedClass;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -60,23 +61,21 @@ class ReceiverController extends BaseController
             App::scoped(Apps::class, fn () => $receiver->app);
         }
 
-        $jobClass = $receiver->action?->model_name;
-        if (! is_string($jobClass)) {
-            return response()->json(['message' => 'Receiver has no action configured'], 500);
+        $jobClass = AllowedClass::resolve($receiver->action?->model_name, ProcessWebhookJob::class);
+        if ($jobClass === null) {
+            return response()->json(['message' => 'Receiver has no webhook job configured'], 500);
         }
 
-        if (is_a($jobClass, ProcessWebhookJob::class, true)) {
-            if (! $jobClass::authenticateRequest($request, $receiver)) {
-                return response()->json(['message' => 'Unauthorized'], 401);
-            }
+        if (! $jobClass::authenticateRequest($request, $receiver)) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
 
-            // Answered even on an inactive receiver: a provider re-verifying its endpoint must
-            // succeed, or the customer can't set the integration back up. It's an echo, not work.
-            $handshake = $jobClass::handshakeResponse($request, $receiver);
+        // Answered even on an inactive receiver: a provider re-verifying its endpoint must
+        // succeed, or the customer can't set the integration back up. It's an echo, not work.
+        $handshake = $jobClass::handshakeResponse($request, $receiver);
 
-            if ($handshake !== null) {
-                return response()->json($handshake);
-            }
+        if ($handshake !== null) {
+            return response()->json($handshake);
         }
 
         // 200, not 4xx: the receiver was switched off deliberately, and a provider that keeps

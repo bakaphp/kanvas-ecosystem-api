@@ -1,0 +1,6 @@
+<h2>Reminder: upcoming appointment</h2>
+<p>Hi {{ participant_name }},</p>
+<p>This is a reminder that <strong>{{ event_name }}</strong> is on <strong>{{ start_date }}</strong> from <strong>{{ start_time }}</strong> to <strong>{{ end_time }}</strong>{% if timezone is not empty %} ({{ timezone }}){% endif %}.</p>
+{% if event.meeting_link is not empty %}
+<p>Join here: <a href="{{ event.meeting_link }}">{{ event.meeting_link }}</a></p>
+{% endif %}

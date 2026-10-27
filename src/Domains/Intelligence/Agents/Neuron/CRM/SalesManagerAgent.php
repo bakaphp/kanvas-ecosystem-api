@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateLeadCampaignTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindLeadsByTraitsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPeopleBulkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetAssistedSalesAttributionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetBatchHistoryTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetLeadAnalyticsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetMessageUsageReportTool;
@@ -82,6 +83,7 @@ class SalesManagerAgent extends SystemUserAgent
         $core[] = new GetMessageUsageReportTool()->withContext($app, $company, $user);
         $core[] = new GetLeadAnalyticsTool()->withContext($app, $company, $user);
         $core[] = new GetSalesSummaryTool()->withContext($app, $company, $user);
+        $core[] = new GetAssistedSalesAttributionTool()->withContext($app, $company, $user);
         $core[] = new SearchLeadsTool()->withContext($app, $company, $user);
         $core[] = new LeadRefTool()->withContext($app, $company, $user);
         $core[] = new FindLeadsByTraitsTool()->withContext($app, $company, $user);

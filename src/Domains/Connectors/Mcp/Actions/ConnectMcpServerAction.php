@@ -92,6 +92,7 @@ class ConnectMcpServerAction
             refreshToken: Str::trimToNull($this->grant['refresh_token'] ?? null),
             expiresIn: is_numeric($this->grant['expires_in'] ?? null) ? (int) $this->grant['expires_in'] : null,
             serverUrl: $serverUrl,
+            method: $this->method,
         );
 
         $connection = new McpConnectionService($this->agent, $integration, $this->transport);

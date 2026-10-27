@@ -501,6 +501,22 @@ A tool constructed outside that path (a test, a one-off script) must call `withC
   tool-layer mirror of `@guardByAdmin`) — not on the agent's own user.
 - Honor the audience/memory-scope rule from the top of this file: a customer-facing tool must be
   entity-scoped, never company-wide `read_my_ledger`.
+- **A READ tool scopes with `fromCompany($this->auditedReadScope())`, a WRITE tool with `$this->company`.**
+  An agent may be granted other companies to read (`agent-read-access-companies`, set through
+  `setAgentSetting`); the scope reaching the tool is that grant ∩ the requesting human's membership,
+  and it collapses to the agent's own company on a customer surface or when no human is at the keyboard. `CompanyScope`
+  is always a scope, even with one id, and `scopeFromCompany()` checks it **before** the AppKey
+  branch, so a bound app key can never widen it. Every cross-company row carries `tenant_company_id`
+  + `tenant_company` (`tenantLabel()`), never `company`, which already means the employer in Apollo
+  rows; an explicit `get([...])` projection must include `companies_id` for that. Combined aggregates
+  carry `tenantScopeSummary()`; an entity ranking prepends `tenantGroupBy()` to its group-by. The scope is
+  the **fifth** `withContext()` argument (the fourth is the agent) and arrives through both
+  `fillKanvasContext()` and `addToolContext()`; hand-wired tools stay own-company-only. One
+  `agent.cross_company_read` ledger event per turn and reach, however many tools read. A read tool also declares
+  `...$this->tenantCompanyProperty()` and opens `__invoke` with `narrowReadScope($tenant_company_id)`,
+  so the model can ask for one company; a by-id READ resolves with `resolve*InReadScopeOrError()`,
+  a write keeps `resolve*OrError()`. Plan and decisions: `docs/agents/agent-cross-company-read-scope.md`;
+  coverage `CrossCompanyReadScopeTest`, `CrossCompanyNarrowingAndLeadsTest`.
 
 ### A lead's open state is its named status, never `Lead::isOpen()`
 
@@ -738,6 +754,7 @@ Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
 
 ## Don't break
 
+- **Agent types are the platform catalog.** There is no GraphQL write for them; `kanvas:intelligence:sync-agent-types` or the database writes `agent_types`. A handler is built through `AgentType::handlerClass()`, which only returns a class implementing `AgentTypeHandler` — a new runtime implements it, a raw `new $type->handler()` is never added.
 - **`AgentChatKernel` is load-bearing for 4 call sites** — `userChat` (GraphQL), channel responders (×6), `WakeAgentForPlanJob`, `AgentReceiverJob`. Any change to its constructor or `execute()` contract ripples through all of them. Test both `userChat` and at least one channel responder end-to-end after touching it.
 - **The connector path threads by entity, not by session.** `AgentChatKernel::threadId()` returns the session entity's uuid whenever `sourceChannel` is set, and that is what keeps cross-channel rollup working — a prospect emails Monday, WhatsApps Tuesday, and both land on one thread. Neuron 4 needs a thread on every run, so a new caller cannot skip it: pass `sourceChannel` when there is one and let the kernel pick the id. Never hand a session uuid to a channel agent.
 - **Don't pass `app` / `company` to the kernel.** They were removed deliberately. The agent IS the tenant.
@@ -759,7 +776,7 @@ Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
 - [`Actions/Chat/AgentChatKernel.php`](Actions/Chat/AgentChatKernel.php) — the kernel's own class docblock explains the routing logic in 7 lines
 - [`Actions/BaseAgentChannelReplyAction.php`](Actions/BaseAgentChannelReplyAction.php) — base class docblock explains the connector-side contract
 - [`Neuron/Tools/CRM/SendEmailTool.php`](Neuron/Tools/CRM/SendEmailTool.php) — reference for tool authoring: resolve-or-error, entity-derived recipient, and the allowlist-filtered `cc` (destination-safety) pattern. Traits it leans on live in [`Neuron/Tools/Traits/`](Neuron/Tools/Traits/).
-- Product recommendation tool (`Laravel/Tools/Inventory/ProductRecommendationLookupTool.php`) — a thin pass-through to `RecommendProductsAction`; the search backend is resolved per tenant behind it. Pass the shopper's sentence verbatim. Pipeline and configuration: [`src/Domains/Inventory/CLAUDE.md`](../../Inventory/CLAUDE.md).
+- Product recommendation tool (`Laravel/Tools/Inventory/ProductRecommendationLookupTool.php`, Neuron twin in `Neuron/Tools/Inventory/`) — both parse through `DiscoveryInputParser` into `RecommendProductsAction`; the search backend is resolved per tenant behind it. The agent passes the verbatim `request` AND what it understood (catalog-terms `search_query`, preferences, price, numeric limits) in ONE call; an invalid filter comes back as a correctable error. Usage, output shape and configuration: [`src/Domains/Inventory/Recommendations/CLAUDE.md`](../../Inventory/Recommendations/CLAUDE.md).
 - Existing end-to-end tests in [`tests/Connectors/Integration/{WaSender,Mailgun,RespondIO,Twilio}/AgentChannelResponderEndToEndTest.php`](../../../../tests/Connectors/Integration/) — copy-paste shape when adding a new connector
 
 ## Laravel agents: a tool result must never be empty, and a sub-agent needs steps to answer in

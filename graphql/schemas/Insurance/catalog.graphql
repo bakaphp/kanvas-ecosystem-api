@@ -1,0 +1,163 @@
+enum InsuranceCoverageCategory {
+    LAW @enum(value: "law")
+    FULL @enum(value: "full")
+}
+
+enum InsuranceCatalogStatus {
+    ACTIVE @enum(value: "active")
+    INACTIVE @enum(value: "inactive")
+}
+
+type Insurer {
+    id: ID!
+    name: String!
+    slug: String!
+    provider: String
+    logo: String
+    status: InsuranceCatalogStatus!
+    company: Company! @belongsTo(relation: "company")
+    plans: [InsurancePlan!]! @hasMany(relation: "plans")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type InsurancePlan {
+    id: ID!
+    name: String!
+    slug: String!
+    type: InsuranceCoverageCategory!
+    external_code: String
+    base_price: Float
+    validity_days: Int
+    deductible: Float
+    status: InsuranceCatalogStatus!
+    sponsored: Boolean!
+    commission_rate: Float!
+    recommended_score: Int!
+    insurer: Insurer! @belongsTo(relation: "insurer")
+    coverages: [InsuranceCoverage!]! @hasMany(relation: "coverages")
+    exclusions: [InsurancePlanExclusion!]! @hasMany(relation: "exclusions")
+    requirements: [InsurancePlanRequirement!]! @hasMany(relation: "requirements")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type InsuranceCoverage {
+    id: ID!
+    name: String!
+    description: String
+    limit_amount: Float
+    sort_order: Int!
+}
+
+type InsurancePlanExclusion {
+    id: ID!
+    description: String!
+}
+
+type InsurancePlanRequirement {
+    id: ID!
+    name: String!
+    condition: String
+}
+
+input InsurerInput {
+    name: String!
+    slug: String
+    provider: String
+    logo: String
+    status: InsuranceCatalogStatus
+}
+
+input UpdateInsurerInput {
+    name: String
+    provider: String
+    logo: String
+    status: InsuranceCatalogStatus
+}
+
+input InsuranceCoverageInput {
+    name: String!
+    description: String
+    limit_amount: Float
+    sort_order: Int
+}
+
+input InsurancePlanExclusionInput {
+    description: String!
+}
+
+input InsurancePlanRequirementInput {
+    name: String!
+    condition: String
+}
+
+input InsurancePlanInput {
+    insurer_id: ID!
+    name: String!
+    slug: String
+    type: InsuranceCoverageCategory!
+    external_code: String
+    base_price: Float
+    validity_days: Int
+    deductible: Float
+    status: InsuranceCatalogStatus
+    sponsored: Boolean
+    commission_rate: Float
+    recommended_score: Int
+    coverages: [InsuranceCoverageInput!]
+    exclusions: [InsurancePlanExclusionInput!]
+    requirements: [InsurancePlanRequirementInput!]
+}
+
+input UpdateInsurancePlanInput {
+    name: String
+    type: InsuranceCoverageCategory
+    external_code: String
+    base_price: Float
+    validity_days: Int
+    deductible: Float
+    status: InsuranceCatalogStatus
+    sponsored: Boolean
+    commission_rate: Float
+    recommended_score: Int
+    coverages: [InsuranceCoverageInput!]
+    exclusions: [InsurancePlanExclusionInput!]
+    requirements: [InsurancePlanRequirementInput!]
+}
+
+extend type Mutation @guardByAdmin {
+    createInsurer(input: InsurerInput!): Insurer!
+        @field(resolver: "App\\GraphQL\\Insurance\\Mutations\\InsurerMutation@create")
+    updateInsurer(id: ID!, input: UpdateInsurerInput!): Insurer!
+        @field(resolver: "App\\GraphQL\\Insurance\\Mutations\\InsurerMutation@update")
+    deleteInsurer(id: ID!): Boolean!
+        @field(resolver: "App\\GraphQL\\Insurance\\Mutations\\InsurerMutation@delete")
+    createInsurancePlan(input: InsurancePlanInput!): InsurancePlan!
+        @field(resolver: "App\\GraphQL\\Insurance\\Mutations\\InsurancePlanMutation@create")
+    updateInsurancePlan(id: ID!, input: UpdateInsurancePlanInput!): InsurancePlan!
+        @field(resolver: "App\\GraphQL\\Insurance\\Mutations\\InsurancePlanMutation@update")
+    deleteInsurancePlan(id: ID!): Boolean!
+        @field(resolver: "App\\GraphQL\\Insurance\\Mutations\\InsurancePlanMutation@delete")
+}
+
+extend type Query @guardByAdmin {
+    insurers(
+        where: _ @whereConditions(columns: ["id", "name", "slug", "provider", "status"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [Insurer!]!
+        @paginate(
+            model: "Kanvas\\Insurance\\Models\\Insurer"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+    insurancePlans(
+        where: _ @whereConditions(columns: ["id", "name", "slug", "type", "status", "sponsored"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "base_price", "recommended_score"])
+    ): [InsurancePlan!]!
+        @paginate(
+            model: "Kanvas\\Insurance\\Models\\InsurancePlan"
+            scopes: ["fromInsurerTenant", "notDeleted"]
+            defaultCount: 25
+        )
+}

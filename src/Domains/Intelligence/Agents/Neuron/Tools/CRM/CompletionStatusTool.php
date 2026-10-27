@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
-use Illuminate\Support\Facades\Blade;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
@@ -44,7 +43,7 @@ class CompletionStatusTool extends Tool
 
     public function __invoke(int $lead_id): array
     {
-        $result = $this->resolveLeadOrError($lead_id);
+        $result = $this->resolveLeadInReadScopeOrError($lead_id);
         if (is_array($result)) {
             return $result;
         }
@@ -64,7 +63,7 @@ class CompletionStatusTool extends Tool
 
         /** @var StructuredAgentResponse $response */
         $response = agent(
-            instructions: Blade::render($neuronAgent->roleSection('background'), $data),
+            instructions: $neuronAgent->renderRoleSection('background', $data),
             schema: fn ($schema): array => [
                 'lead_intent' => $schema->string()->description('Echo of the intent passed as input')->required(),
                 'intent_completion_status' => $schema->string()->enum(['COMPLETE', 'INCOMPLETE'])->description('Whether the intent is completed')->required(),
@@ -76,7 +75,7 @@ class CompletionStatusTool extends Tool
                 'internal_notes' => $schema->string()->description('One concise CRM note; no PII beyond artifacts')->required(),
             ],
         )->prompt(
-            Blade::render($neuronAgent->roleSection('steps', "\n"), $data),
+            $neuronAgent->renderRoleSection('steps', $data, "\n"),
             provider: Lab::Gemini,
             model: 'gemini-3.1-flash-lite',
         );
