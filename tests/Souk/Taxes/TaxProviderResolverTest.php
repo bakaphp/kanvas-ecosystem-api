@@ -6,6 +6,9 @@ namespace Tests\Souk\Taxes;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as StripeConfigurationEnum;
+use Kanvas\Connectors\Stripe\Providers\StripeTaxProvider;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxAddress;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxContext;
@@ -26,12 +29,14 @@ final class TaxProviderResolverTest extends TestCase
     protected array $connectionsToTransact = ['mysql', 'commerce', 'ecosystem'];
 
     protected Apps $kanvasApp;
+    protected Companies $company;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->kanvasApp = app(Apps::class);
+        $this->company = static::$cachedUser->getCurrentCompany();
         $this->kanvasApp->set(ConfigurationEnum::TAX_ENGINE_ENABLED->value, 1);
         $this->kanvasApp->set(ConfigurationEnum::TAX_FAIL_OPEN->value, 0);
     }
@@ -40,6 +45,8 @@ final class TaxProviderResolverTest extends TestCase
     {
         $this->kanvasApp->set(ConfigurationEnum::TAX_ENGINE_ENABLED->value, 0);
         $this->kanvasApp->set(ConfigurationEnum::TAX_FAIL_OPEN->value, 0);
+        $this->kanvasApp->set('stripe_tax_same_legal_entity_as_app_account', 0);
+        $this->company->del(StripeConfigurationEnum::STRIPE_SECRET_KEY->value);
 
         parent::tearDown();
     }
@@ -52,6 +59,18 @@ final class TaxProviderResolverTest extends TestCase
             shipFrom: null,
             lines: [],
             currency: 'DOP',
+            taxDate: '2026-10-24',
+        );
+    }
+
+    private function makeUsContext(): TaxContext
+    {
+        return new TaxContext(
+            appId: (string) $this->kanvasApp->getId(),
+            shipTo: new TaxAddress(country: 'US', state: 'CA', city: 'San Francisco', postalCode: '94105'),
+            shipFrom: new TaxAddress(country: 'US', state: 'NY', city: 'New York', postalCode: '10001'),
+            lines: [],
+            currency: 'USD',
             taxDate: '2026-10-24',
         );
     }
@@ -123,5 +142,32 @@ final class TaxProviderResolverTest extends TestCase
         $provider = new TaxProviderResolver($this->kanvasApp)->resolve($this->makeContext('DO'));
 
         $this->assertInstanceOf(NullTaxProvider::class, $provider);
+    }
+
+    public function testUsAddressWithCompanyKeyResolvesToStripe(): void
+    {
+        $this->company->set(StripeConfigurationEnum::STRIPE_SECRET_KEY->value, 'sk_test_company_own_key');
+
+        $this->createRegistration('US');
+        $this->createRoutingRule('US', 'stripe_tax');
+
+        $provider = new TaxProviderResolver($this->kanvasApp, $this->company)->resolve($this->makeUsContext());
+
+        $this->assertInstanceOf(StripeTaxProvider::class, $provider);
+    }
+
+    public function testUsAddressWithSharedKeyNoFlagResolvesToUnsupported(): void
+    {
+        $this->kanvasApp->set(StripeConfigurationEnum::STRIPE_SECRET_KEY->value, 'sk_test_app_key');
+        $this->company->set(StripeConfigurationEnum::STRIPE_SECRET_KEY->value, null);
+        $this->kanvasApp->set('stripe_tax_same_legal_entity_as_app_account', 0);
+
+        $this->createRegistration('US');
+        $this->createRoutingRule('US', 'stripe_tax');
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('unsupported_stripe_account_not_owned_by_seller');
+
+        new TaxProviderResolver($this->kanvasApp, $this->company)->resolve($this->makeUsContext());
     }
 }
