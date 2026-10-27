@@ -34,7 +34,7 @@ class ManualRateTaxProvider implements TaxProviderInterface
                 fn (TaxableLine $line) => new TaxComponent(
                     lineId: $line->lineId,
                     taxType: 'ITBIS',
-                    jurisdiction: $this->rule->destination_country,
+                    jurisdiction: $this->rule->condition_country,
                     rate: '0',
                     taxableAmount: '0',
                     taxAmount: '0',
@@ -61,7 +61,7 @@ class ManualRateTaxProvider implements TaxProviderInterface
                 $components[] = new TaxComponent(
                     lineId: $line->lineId,
                     taxType: 'ITBIS',
-                    jurisdiction: $this->rule->destination_country,
+                    jurisdiction: $this->rule->condition_country,
                     rate: '0',
                     taxableAmount: '0',
                     taxAmount: '0',
@@ -75,7 +75,7 @@ class ManualRateTaxProvider implements TaxProviderInterface
                 $components[] = new TaxComponent(
                     lineId: $line->lineId,
                     taxType: 'ITBIS',
-                    jurisdiction: $this->rule->destination_country,
+                    jurisdiction: $this->rule->condition_country,
                     rate: '0',
                     taxableAmount: '0',
                     taxAmount: '0',
@@ -94,7 +94,7 @@ class ManualRateTaxProvider implements TaxProviderInterface
             $components[] = new TaxComponent(
                 lineId: $line->lineId,
                 taxType: 'ITBIS',
-                jurisdiction: $this->rule->destination_country,
+                jurisdiction: $this->rule->condition_country,
                 rate: (string) $rate,
                 taxableAmount: (string) $taxable,
                 taxAmount: (string) $taxAmount,

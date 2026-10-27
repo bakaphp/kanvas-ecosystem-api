@@ -1,0 +1,49 @@
+type CustomerTaxExemption {
+    id: ID!
+    uuid: String!
+    people_id: ID!
+    exemption_type: String!
+    certificate_number: String
+    valid_from: String
+    valid_to: String
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input CustomerTaxExemptionInput {
+    people_id: ID!
+    exemption_type: String!
+    certificate_number: String
+    valid_from: String
+    valid_to: String
+}
+
+input UpdateCustomerTaxExemptionInput {
+    exemption_type: String
+    certificate_number: String
+    valid_from: String
+    valid_to: String
+}
+
+extend type Mutation @guardByAdmin {
+    createCustomerTaxExemption(input: CustomerTaxExemptionInput!): CustomerTaxExemption!
+        @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\CustomerTaxExemptionMutation@create")
+
+    updateCustomerTaxExemption(id: ID!, input: UpdateCustomerTaxExemptionInput!): CustomerTaxExemption!
+        @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\CustomerTaxExemptionMutation@update")
+
+    deleteCustomerTaxExemption(id: ID!): Boolean!
+        @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\CustomerTaxExemptionMutation@delete")
+}
+
+extend type Query @guardByAdmin {
+    customerTaxExemptions(
+        where: _ @whereConditions(columns: ["id", "uuid", "people_id", "exemption_type", "certificate_number"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "valid_from"])
+    ): [CustomerTaxExemption!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Taxes\\Models\\CustomerTaxExemption"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+}
