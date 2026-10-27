@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Connections\Actions;
 
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Communication\Workflows\AgentChannelResponderActivity;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
@@ -125,8 +126,8 @@ final class EnsureAutoReplyRuleAction
             ->fromCompany($this->agent->company)
             ->where('rules_types_id', $ruleTypeId)
             ->where('name', '!=', self::RULE_NAME)
-            ->where('is_deleted', 0)
-            ->whereHas('workflowActivities.activity', fn ($query) => $query->whereIn('actions_id', $actionIds))
+            ->notDeleted()
+            ->whereHas('workflowActivities.activity', fn (Builder $query) => $query->whereIn('actions_id', $actionIds))
             ->exists();
     }
 }

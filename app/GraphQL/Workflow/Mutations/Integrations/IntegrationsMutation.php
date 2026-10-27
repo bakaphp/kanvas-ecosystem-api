@@ -87,21 +87,8 @@ class IntegrationsMutation
 
         // Saving an integration that already exists is how a tenant corrects credentials or changes
         // the accounts it selected, so the row has to reflect this setup(), not the first one.
-        return new UpdateIntegrationCompanyAction(
-            $integrationCompany,
-            $integrationDto,
-            $status
-        )->execute();
+        return new UpdateIntegrationCompanyAction($integrationCompany, $integrationDto, $status)->execute();
     }
-
-    // The edit must only validate the config and re-setup the integration.
-    // public function updateIntegrationCompany(mixed $rootValue, array $request): ModelsIntegrationsCompany
-    // {
-    //     $integration = ModelsIntegrationsCompany::getById((int) $request['integration_company_id']);
-
-    //     (new ConfigValidation($integration->config, $request))->validate();
-
-    // }
 
     public function removeIntegrationCompany(mixed $root, array $request): bool
     {
@@ -124,11 +111,7 @@ class IntegrationsMutation
             auth()->user()
         );
 
-        return new SetIntegrationCompanyActiveAction(
-            $integrationCompany,
-            app(Apps::class),
-            (bool) $request['input']['is_active']
-        )->execute();
+        return new SetIntegrationCompanyActiveAction($integrationCompany, app(Apps::class), (bool) $request['input']['is_active'])->execute();
     }
 
     public function integrationWorkflowRetry(mixed $root, array $request): bool

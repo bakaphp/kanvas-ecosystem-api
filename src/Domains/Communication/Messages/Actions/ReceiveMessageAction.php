@@ -55,10 +55,6 @@ use Spatie\LaravelData\DataCollection;
 use Throwable;
 
 /**
- * Everything after a provider has parsed its payload, the same for every medium: which workspace and
- * connection the message arrived on, the person and lead behind it, consent, the conversation it is
- * filed in, and the announcement that lets a responder answer it.
- *
  * The workspace comes from the route, before anything is written: a number claimed by a workspace
  * the receiver does not serve, or unclaimed on an app-wide receiver, files nothing. Once filed, only
  * the automatic answer depends on the connection being on.
@@ -365,7 +361,13 @@ final class ReceiveMessageAction
             $this->user,
             $company
         );
-        $channel->set(IntelligenceConfigurationEnum::AGENT_CHANNEL_TYPE->value, strtoupper($this->inbound->channel->value));
+        // Guarded by a read: set() is a Redis write plus custom-field upserts, and this runs on every
+        // inbound message for the life of the channel.
+        $channelType = strtoupper($this->inbound->channel->value);
+
+        if ($channel->get(IntelligenceConfigurationEnum::AGENT_CHANNEL_TYPE->value) !== $channelType) {
+            $channel->set(IntelligenceConfigurationEnum::AGENT_CHANNEL_TYPE->value, $channelType);
+        }
 
         return $channel;
     }

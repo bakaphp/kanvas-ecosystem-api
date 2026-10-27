@@ -74,7 +74,7 @@ class CommunicationReceivers
         return ReceiverWebhook::query()
             ->fromApp($app)
             ->when(! $this->sharesAppReceiver($provider), fn (Builder $query) => $query->fromCompany($company))
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->where('configuration->communication->provider', $provider)
             ->whereHas('action', fn (Builder $query) => $query->where('model_name', ProcessCommunicationWebhookJob::class))
             ->orderByDesc('is_active')

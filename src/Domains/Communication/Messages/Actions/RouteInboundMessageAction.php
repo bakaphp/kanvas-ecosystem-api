@@ -29,11 +29,7 @@ final class RouteInboundMessageAction
 
     public function execute(): InboundRoute
     {
-        $claim = InboundClaim::forIdentity(
-            $this->inbound->provider,
-            $this->inbound->channel,
-            $this->inbound->inboundIdentity
-        );
+        $claim = InboundClaim::forIdentity($this->inbound->provider, $this->inbound->channel, $this->inbound->inboundIdentity);
 
         if ($claim !== null && $this->serves($claim)) {
             return new InboundRoute(

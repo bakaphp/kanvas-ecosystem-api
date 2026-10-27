@@ -10,7 +10,6 @@ use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Services\MetaWhatsAppI
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Actions\Outreach\BootstrapChannelForLeadAction;
@@ -50,9 +49,18 @@ class CreateSocialChannelForContactAction
         $lead = $this->leadOverride ?? LeadsRepository::getPeopleActiveLead($this->contact->people);
 
         if (! $lead) {
-            return $this->opensWhatsAppChannel()
-                ? $this->openWhatsAppConversation()
-                : ['error' => 'No lead associated with this contact'];
+            if (! $this->opensWhatsAppChannel()) {
+                return ['error' => 'No lead associated with this contact'];
+            }
+
+            $channel = $this->openWhatsAppConversation();
+
+            return [
+                'success' => true,
+                'channel_id' => $channel->getId(),
+                'is_new_channel' => $channel->wasRecentlyCreated,
+                'crm_note' => null,
+            ];
         }
 
         $communicationChannel = match ($this->contact->contacts_types_id) {
@@ -77,13 +85,6 @@ class CreateSocialChannelForContactAction
         $channel = $result['channel'];
         $isNewChannel = $channel->wasRecentlyCreated;
 
-        // if (! $lead->get(LeadsConfigurationEnum::PREFERRED_CHANNEL->value)) {
-        //     $lead->set(LeadsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
-        // }
-        // if (! $lead->get(LeadsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value)) {
-        //     $lead->set(LeadsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value, $channel->uuid);
-        // }
-
         // A caller asking for it keeps the lead session it always got. A number on the company's
         // WhatsApp integration opens the person's conversation instead.
         if (! empty($this->params['create_whatsapp'])) {
@@ -96,9 +97,8 @@ class CreateSocialChannelForContactAction
             $isNewChannel = $isNewChannel || $whatsappResult['channel']->wasRecentlyCreated;
             $channel = $whatsappResult['channel'];
         } elseif ($this->opensWhatsAppChannel()) {
-            $whatsappResult = $this->openWhatsAppConversation();
-            $isNewChannel = $isNewChannel || $whatsappResult['is_new_channel'];
-            $channel = Channel::getById($whatsappResult['channel_id'], $this->app);
+            $channel = $this->openWhatsAppConversation();
+            $isNewChannel = $isNewChannel || $channel->wasRecentlyCreated;
         }
 
         $crmNoteResult = null;
@@ -125,21 +125,14 @@ class CreateSocialChannelForContactAction
      * A WhatsApp conversation is the person's, lead or no lead, so its channel and session are filed
      * on the People.
      */
-    private function openWhatsAppConversation(): array
+    private function openWhatsAppConversation(): Channel
     {
-        $result = $this->createChannelAndSession(
+        return $this->createChannelAndSession(
             channelKey: 'whatsapp',
             communicationChannel: 'whatsapp',
             entity: $this->contact->people,
             agentId: (int) $this->params['agent_id']
-        );
-
-        return [
-            'success' => true,
-            'channel_id' => $result['channel']->getId(),
-            'is_new_channel' => $result['channel']->wasRecentlyCreated,
-            'crm_note' => null,
-        ];
+        )['channel'];
     }
 
     private function createChannelAndSession(

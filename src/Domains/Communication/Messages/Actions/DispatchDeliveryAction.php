@@ -33,10 +33,11 @@ final class DispatchDeliveryAction
 
         $this->delivery->refresh();
         $connection = $this->delivery->connection;
+        $unavailable = $connection?->unavailableReason();
 
         $staleReason = match (true) {
             $connection === null => 'no_connection',
-            $connection->unavailableReason() !== null => $connection->unavailableReason(),
+            $unavailable !== null => $unavailable,
             // Queued before the connection was switched off and on again: the switch-off cancelled
             // this work, and switching back on must not quietly release it.
             $connection->activation_version !== $this->delivery->activation_version => 'stale_activation',
@@ -52,11 +53,7 @@ final class DispatchDeliveryAction
         $request = $this->delivery->request;
         $recipient = Recipient::inConversation($request->people, (string) $this->delivery->to_address);
 
-        $refusal = new EligibilityResolver()->reasonNotToContact(
-            $recipient,
-            $this->delivery->channel,
-            (string) $this->delivery->to_address
-        );
+        $refusal = new EligibilityResolver()->reasonNotToContact($recipient, $this->delivery->channel, (string) $this->delivery->to_address);
 
         if ($refusal !== null) {
             $this->delivery->finishWithoutSending(DeliveryStatusEnum::SKIPPED, $refusal);
@@ -122,11 +119,7 @@ final class DispatchDeliveryAction
 
     private function fail(TransportResult $result, Recipient $recipient): void
     {
-        $this->delivery->finishWithoutSending(
-            DeliveryStatusEnum::FAILED,
-            (string) $result->errorCode,
-            $result->error
-        );
+        $this->delivery->finishWithoutSending(DeliveryStatusEnum::FAILED, (string) $result->errorCode, $result->error);
 
         if (! $result->recipientOptedOut) {
             return;

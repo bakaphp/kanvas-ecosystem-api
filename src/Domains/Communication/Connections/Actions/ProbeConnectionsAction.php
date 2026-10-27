@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Connections\Actions;
 
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Enums\SetupStatusEnum;
 use Kanvas\Communication\Connections\Models\Connection;
@@ -29,7 +30,7 @@ final class ProbeConnectionsAction
         $connections = Connection::query()
             ->fromApp($this->app)
             ->where('setup_status', SetupStatusEnum::READY->value)
-            ->where(fn ($query) => $query
+            ->where(fn (Builder $query) => $query
                 ->whereNull('last_probed_at')
                 ->orWhere('last_probed_at', '<=', now()->subHours(self::PROBE_EVERY_HOURS)))
             ->with('integrationCompany')

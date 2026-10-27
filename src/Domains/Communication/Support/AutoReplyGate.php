@@ -26,7 +26,7 @@ final class AutoReplyGate
             return null;
         }
 
-        $connection = Connection::query()->find((int) $communication['connection_id']);
+        $connection = Connection::forFiledMessage($inbound);
 
         if ($connection === null) {
             return 'connection_missing';

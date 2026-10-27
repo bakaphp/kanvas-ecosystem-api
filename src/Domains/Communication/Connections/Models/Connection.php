@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Kanvas\Communication\Connections\Enums\SetupStatusEnum;
 use Kanvas\Communication\Models\BaseModel;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
 /**
@@ -80,6 +81,25 @@ class Connection extends BaseModel
     }
 
     /**
+     * The connection a filed message arrived on or left through, or null for a message from before
+     * connections existed. Bounded to the message's own tenant: the id is ours, but the row it names
+     * must still belong to the workspace the message was filed in.
+     */
+    public static function forFiledMessage(Message $message): ?self
+    {
+        $connectionId = $message->message['communication']['connection_id'] ?? null;
+
+        if ($connectionId === null) {
+            return null;
+        }
+
+        return self::query()
+            ->fromApp((int) $message->apps_id)
+            ->where('companies_id', (int) $message->companies_id)
+            ->find((int) $connectionId);
+    }
+
+    /**
      * Every state but the two a disconnect leads to: the rows provisioning still answers for.
      */
     public function scopeLive(Builder $query): Builder
@@ -103,8 +123,7 @@ class Connection extends BaseModel
     public function unavailableReason(): ?string
     {
         return match (true) {
-            $this->setup_status === SetupStatusEnum::DISCONNECTING,
-            $this->setup_status === SetupStatusEnum::DISCONNECTED => 'connection_disconnected',
+            ! $this->isLive() => 'connection_disconnected',
             $this->setup_status !== SetupStatusEnum::READY => 'connection_not_ready',
             ! $this->enabled => 'connection_disabled',
             ! $this->integrationCompany?->is_active => 'integration_inactive',

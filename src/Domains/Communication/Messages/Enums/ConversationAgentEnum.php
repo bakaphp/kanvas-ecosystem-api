@@ -10,9 +10,6 @@ namespace Kanvas\Communication\Messages\Enums;
  */
 enum ConversationAgentEnum: string
 {
-    /**
-     * Company setting holding the agent's id.
-     */
     case SETTING = 'sales_agent_id';
 
     case DEFAULT_NAME = 'Sally';

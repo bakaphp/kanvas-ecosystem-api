@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Connections\Actions;
 
+use Kanvas\Communication\Connections\DataTransferObject\AccountSelection;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Contracts\CommunicationProvider;
 use Kanvas\Communication\Support\ProviderRegistry;
@@ -75,7 +76,7 @@ final class ResolveIntegrationAppAction
      */
     private function fromReceivers(string $provider): array
     {
-        $accounts = array_map(fn ($account) => $account->key, $provider::accounts($this->integrationCompany));
+        $accounts = array_map(fn (AccountSelection $account): string => $account->key, $provider::accounts($this->integrationCompany));
 
         if ($accounts === []) {
             return [];
@@ -87,7 +88,7 @@ final class ResolveIntegrationAppAction
         return ReceiverWebhook::query()
             ->where('companies_id', $this->integrationCompany->companies_id)
             ->whereIn('action_id', $actionIds)
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->get()
             ->filter(fn (ReceiverWebhook $receiver): bool => array_intersect(
                 $accounts,

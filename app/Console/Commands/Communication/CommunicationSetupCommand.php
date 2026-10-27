@@ -6,6 +6,7 @@ namespace App\Console\Commands\Communication;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Actions\EnsureCommunicationSetupAction;
@@ -37,6 +38,8 @@ class CommunicationSetupCommand extends Command
 
     protected $description = 'Provision, repair and clean up communication connections for an app.';
 
+    private ProviderRegistry $providers;
+
     public function handle(): int
     {
         $apps = $this->targetApps();
@@ -46,6 +49,15 @@ class CommunicationSetupCommand extends Command
 
             return self::FAILURE;
         }
+
+        // Legacy rows carry no app, so adopting them is one pass, not one per app swept.
+        $this->overwriteAppService($apps->first());
+
+        if ($this->option('assign-integration') !== null) {
+            $this->assign($apps->first(), (int) $this->option('assign-integration'));
+        }
+
+        $this->resolveLegacyOwnership();
 
         foreach ($apps as $app) {
             $this->overwriteAppService($app);
@@ -59,12 +71,6 @@ class CommunicationSetupCommand extends Command
 
     private function sweep(Apps $app): void
     {
-        if ($this->option('assign-integration') !== null) {
-            $this->assign($app, (int) $this->option('assign-integration'));
-        }
-
-        $this->resolveLegacyOwnership();
-
         foreach ($this->integrations($app) as $integrationCompany) {
             try {
                 $this->importLegacySelection($integrationCompany);
@@ -99,13 +105,11 @@ class CommunicationSetupCommand extends Command
      */
     private function resolveLegacyOwnership(): void
     {
-        $legacy = IntegrationsCompany::query()
-            ->whereNull('apps_id')
-            ->where('is_deleted', 0)
-            ->when($this->option('company'), fn ($query, $company) => $query->where('companies_id', (int) $company))
-            ->with('integration')
-            ->get()
-            ->filter(fn (IntegrationsCompany $row): bool => new ProviderRegistry()->forIntegration($row) !== null);
+        $legacy = $this->messagingIntegrations(
+            IntegrationsCompany::query()
+                ->whereNull('apps_id')
+                ->when($this->option('company'), fn (Builder $query, string $company) => $query->where('companies_id', (int) $company))
+        );
 
         foreach ($legacy as $row) {
             $result = new ResolveIntegrationAppAction($row)->execute();
@@ -142,7 +146,7 @@ class CommunicationSetupCommand extends Command
      */
     private function importLegacySelection(IntegrationsCompany $integrationCompany): void
     {
-        $provider = new ProviderRegistry()->forIntegration($integrationCompany);
+        $provider = $this->providers()->forIntegration($integrationCompany);
 
         if ($provider === null || $provider::accounts($integrationCompany) !== []) {
             return;
@@ -176,14 +180,29 @@ class CommunicationSetupCommand extends Command
      */
     private function integrations(Apps $app): Collection
     {
-        return IntegrationsCompany::query()
-            ->fromApp($app)
-            ->where('is_deleted', 0)
-            ->when($this->option('company'), fn ($query, $company) => $query->where('companies_id', (int) $company))
+        return $this->messagingIntegrations(
+            IntegrationsCompany::query()
+                ->fromApp($app)
+                ->when($this->option('company'), fn (Builder $query, string $company) => $query->where('companies_id', (int) $company))
+        );
+    }
+
+    /**
+     * @return Collection<int, IntegrationsCompany>
+     */
+    private function messagingIntegrations(Builder $query): Collection
+    {
+        return $query
+            ->notDeleted()
             ->with('integration')
             ->get()
-            ->filter(fn (IntegrationsCompany $row): bool => new ProviderRegistry()->forIntegration($row) !== null)
+            ->filter(fn (IntegrationsCompany $row): bool => $this->providers()->forIntegration($row) !== null)
             ->values();
+    }
+
+    private function providers(): ProviderRegistry
+    {
+        return $this->providers ??= new ProviderRegistry();
     }
 
     /**
@@ -199,12 +218,7 @@ class CommunicationSetupCommand extends Command
             return collect();
         }
 
-        $appIds = IntegrationsCompany::query()
-            ->whereNotNull('apps_id')
-            ->where('is_deleted', 0)
-            ->with('integration')
-            ->get()
-            ->filter(fn (IntegrationsCompany $row): bool => new ProviderRegistry()->forIntegration($row) !== null)
+        $appIds = $this->messagingIntegrations(IntegrationsCompany::query()->whereNotNull('apps_id'))
             ->pluck('apps_id')
             ->merge(Connection::query()->distinct()->pluck('apps_id'))
             ->unique()

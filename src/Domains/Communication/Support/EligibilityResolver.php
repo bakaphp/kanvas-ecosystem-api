@@ -26,11 +26,7 @@ final class EligibilityResolver
             return 'do_not_contact';
         }
 
-        $isOptedOut = ConsentGuard::isDestinationOptedOut(
-            $recipient->people,
-            $address,
-            $channel === ChannelTypeEnum::EMAIL
-        );
+        $isOptedOut = ConsentGuard::isDestinationOptedOut($recipient->people, $address, $channel === ChannelTypeEnum::EMAIL);
 
         return $isOptedOut ? 'destination_opted_out' : null;
     }

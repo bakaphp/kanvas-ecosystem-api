@@ -34,13 +34,24 @@ use Override;
  */
 class MetaInbound implements InboundSource, VerifiesEndpoint
 {
-    private const array MEDIA_TYPES = ['image', 'video', 'audio', 'document', 'sticker'];
+    private const array MEDIA_TYPES = [
+        'image',
+        'video',
+        'audio',
+        'document',
+        'sticker',
+    ];
 
     /**
      * Not a turn for the agent: a reaction to one of our messages, or Meta telling us something
      * about the account.
      */
-    private const array IGNORED_TYPES = ['reaction', 'system', 'unsupported', 'ephemeral'];
+    private const array IGNORED_TYPES = [
+        'reaction',
+        'system',
+        'unsupported',
+        'ephemeral',
+    ];
 
     /**
      * What Meta is told to echo back when it verifies a callback URL. Not a secret anyone hands us —
@@ -72,7 +83,10 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
             return false;
         }
 
-        return hash_equals('sha256=' . hash_hmac('sha256', $request->getContent(), $secret), $signature);
+        return hash_equals(
+            'sha256=' . hash_hmac('sha256', $request->getContent(), $secret),
+            $signature
+        );
     }
 
     /**
@@ -148,7 +162,11 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
                     continue;
                 }
 
-                $messages[] = $this->parse($message, $value['metadata'] ?? [], $ourNumber);
+                $messages[] = $this->parse(
+                    $message,
+                    $value['metadata'] ?? [],
+                    $ourNumber
+                );
             }
         }
 
@@ -178,7 +196,7 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
             $deliveryStatus = StatusMap::toDeliveryStatus((string) ($status['status'] ?? ''));
             $delivery = $deliveryStatus !== null && ! empty($status['id'])
                 ? Delivery::query()
-                    ->where('apps_id', $receiver->apps_id)
+                    ->fromApp($receiver->app)
                     ->where('provider', MetaWhatsAppHandler::slug())
                     ->where('external_id', (string) $status['id'])
                     ->first()

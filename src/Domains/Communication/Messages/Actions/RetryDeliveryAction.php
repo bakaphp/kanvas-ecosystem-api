@@ -31,8 +31,10 @@ final class RetryDeliveryAction
             return false;
         }
 
-        if ($connection->unavailableReason() !== null) {
-            $this->delivery->forceFill(['error_code' => $connection->unavailableReason()])->saveOrFail();
+        $unavailable = $connection->unavailableReason();
+
+        if ($unavailable !== null) {
+            $this->delivery->forceFill(['error_code' => $unavailable])->saveOrFail();
 
             return false;
         }

@@ -109,7 +109,7 @@ class IntegrationsCompany extends BaseModel
         Regions $region,
         ?AppInterface $app = null
     ): ?IntegrationsCompany {
-        $integration = Integrations::where('name', $name)->firstOrFail();
+        $integration = Integrations::getByName($name);
 
         return IntegrationsCompany::fromCompany($company)
             ->when($app, fn ($query) => $query->fromApp($app))

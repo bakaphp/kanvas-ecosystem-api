@@ -12,8 +12,6 @@ use Kanvas\Communication\Connections\Models\ChannelDefault;
 use Kanvas\Communication\Connections\Models\CleanupTask;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Services\SharedRegistry;
-use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
-use Kanvas\Communication\Messages\Models\Delivery;
 
 /**
  * Phase A of a disconnect: everything that can be decided without the vendor, in one transaction.
@@ -47,7 +45,7 @@ final class RetireConnectionAction
             ])->saveOrFail();
 
             $this->retireAccountOnIntegration();
-            $this->skipPendingDeliveries();
+            SetConnectionEnabledAction::skipPending([$this->connection->getId()], 'connection_disconnected');
             $this->persistCleanupTasks();
             new SharedRegistry()->detach($this->connection);
             $this->moveChannelDefaults();
@@ -80,18 +78,6 @@ final class RetireConnectionAction
 
         $integrationCompany->config = $config;
         $integrationCompany->saveOrFail();
-    }
-
-    private function skipPendingDeliveries(): void
-    {
-        Delivery::query()
-            ->where('connection_id', $this->connection->getId())
-            ->where('status', DeliveryStatusEnum::PENDING->value)
-            ->update([
-                'status' => DeliveryStatusEnum::SKIPPED->value,
-                'error_code' => 'connection_disconnected',
-                'events_closed_at' => now(),
-            ]);
     }
 
     private function persistCleanupTasks(): void

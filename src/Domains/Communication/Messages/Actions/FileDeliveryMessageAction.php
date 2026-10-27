@@ -42,25 +42,21 @@ final class FileDeliveryMessageAction
             ->conversation($connection, (string) $this->delivery->to_address);
 
         if ($request->filed_message_id !== null) {
-            return $this->stampFiledMessage((int) $request->filed_message_id, $connection->getId(), $conversation->thread);
+            return $this->stampFiledMessage((int) $request->filed_message_id, $conversation->thread);
         }
+
+        $fromAgent = ($request->sender['type'] ?? null) === 'agent';
 
         $payload = new AiChatMessagePayload(
             content: $this->content->text,
             from_me: true,
-            from_ia: ($request->sender['type'] ?? null) === 'agent',
-            agent_id: ($request->sender['type'] ?? null) === 'agent' ? $request->sender['id'] : null,
+            from_ia: $fromAgent,
+            agent_id: $fromAgent ? $request->sender['id'] : null,
             message_id: $this->delivery->external_id,
             chat_jid: $conversation->thread,
         )->toArray();
 
-        // What a later reply reads to leave through the same connection.
-        $payload['communication'] = [
-            'delivery_id' => $this->delivery->getId(),
-            'connection_id' => $connection->getId(),
-            'channel' => $this->delivery->channel->value,
-            'thread' => $conversation->thread,
-        ];
+        $payload['communication'] = $this->communicationPayload($conversation->thread);
 
         $message = new CreateMessageAction(
             new MessageInput(
@@ -89,24 +85,34 @@ final class FileDeliveryMessageAction
      * The caller filed this message in its conversation already; what the ledger adds is the link
      * a later reply follows back to the connection, and the provider's id for it.
      */
-    private function stampFiledMessage(int $messageId, int $connectionId, string $thread): Message
+    private function stampFiledMessage(int $messageId, string $thread): Message
     {
         $message = Message::getById($messageId, $this->delivery->app);
 
         $payload = $message->message;
         $payload['message_id'] = $this->delivery->external_id;
-        $payload['communication'] = [
-            'delivery_id' => $this->delivery->getId(),
-            'connection_id' => $connectionId,
-            'channel' => $this->delivery->channel->value,
-            'thread' => $thread,
-        ];
+        $payload['communication'] = $this->communicationPayload($thread);
         $message->message = $payload;
         $message->saveOrFail();
 
         $this->delivery->forceFill(['message_id' => $message->getId()])->saveOrFail();
 
         return $message;
+    }
+
+    /**
+     * What a later reply reads to leave through the same connection.
+     *
+     * @return array<string, mixed>
+     */
+    private function communicationPayload(string $thread): array
+    {
+        return [
+            'delivery_id' => $this->delivery->getId(),
+            'connection_id' => $this->delivery->connection->getId(),
+            'channel' => $this->delivery->channel->value,
+            'thread' => $thread,
+        ];
     }
 
     /**

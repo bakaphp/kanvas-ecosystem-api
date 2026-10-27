@@ -8,7 +8,6 @@ use App\GraphQL\Communication\Presenters\CommunicationPresenter;
 use App\GraphQL\Concerns\ResolvesActingContext;
 use Kanvas\Communication\Communication;
 use Kanvas\Communication\Connections\Models\Connection;
-use Kanvas\Communication\Support\ProviderRegistry;
 
 class CommunicationQuery
 {
@@ -21,7 +20,6 @@ class CommunicationQuery
     {
         $ctx = $this->actingContext();
         $channel = $request['channel'] ?? null;
-        $providers = new ProviderRegistry()->all();
 
         return Connection::query()
             ->fromApp($ctx->app)
@@ -30,9 +28,8 @@ class CommunicationQuery
             ->orderBy('provider')
             ->orderBy('account_key')
             ->get()
-            ->filter(fn (Connection $connection): bool => $channel === null
-                || array_key_exists($channel, isset($providers[$connection->provider]) ? $providers[$connection->provider]::transports() : []))
             ->map(fn (Connection $connection): array => CommunicationPresenter::connection($connection))
+            ->filter(fn (array $connection): bool => $channel === null || in_array($channel, $connection['channels'], true))
             ->values()
             ->all();
     }

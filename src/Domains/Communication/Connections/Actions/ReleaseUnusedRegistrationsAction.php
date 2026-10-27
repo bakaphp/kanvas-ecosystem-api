@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Connections\Actions;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Models\Connection;
@@ -45,7 +46,7 @@ final class ReleaseUnusedRegistrationsAction
 
         $candidates = SharedRegistration::query()
             ->where('status', SharedRegistration::ACTIVE)
-            ->whereHas('dependents', fn ($query) => $query->where('apps_id', $this->app->getId()))
+            ->whereHas('dependents', fn (Builder $query) => $query->where('apps_id', $this->app->getId()))
             ->whereDoesntHave('liveDependents')
             ->get();
 
@@ -96,7 +97,7 @@ final class ReleaseUnusedRegistrationsAction
         $receivers = ReceiverWebhook::query()
             ->fromApp($this->app)
             ->where('is_active', true)
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->where('configuration->communication->managed', true)
             ->get();
 
@@ -106,8 +107,8 @@ final class ReleaseUnusedRegistrationsAction
             $provider = (string) ($receiver->configuration['communication']['provider'] ?? '');
             // An app-wide receiver serves every workspace's numbers, so any of them keeps it on.
             $connections = Connection::query()
-                ->where('apps_id', $receiver->apps_id)
-                ->when(! $receiversService->sharesAppReceiver($provider), fn ($query) => $query->where('companies_id', $receiver->companies_id))
+                ->fromApp($this->app)
+                ->when(! $receiversService->sharesAppReceiver($provider), fn (Builder $query) => $query->where('companies_id', $receiver->companies_id))
                 ->where('provider', $provider);
 
             if ((clone $connections)->live()->exists()

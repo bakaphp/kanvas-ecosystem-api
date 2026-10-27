@@ -136,10 +136,12 @@ final class SendMessageAction
             'last_event_at' => now(),
         ]);
 
+        $unavailable = $connection?->unavailableReason();
+
         $failure = match (true) {
             $connection === null => 'no_connection',
             ! new TransportManager()->supports($connection->provider, $route->channel) => 'channel_not_supported',
-            $connection->unavailableReason() !== null => $connection->unavailableReason(),
+            $unavailable !== null => $unavailable,
             $route->address === null => 'no_address',
             default => null,
         };
@@ -150,11 +152,7 @@ final class SendMessageAction
             return $delivery;
         }
 
-        $refusal = new EligibilityResolver()->reasonNotToContact(
-            $this->recipient,
-            $route->channel,
-            $route->address
-        );
+        $refusal = new EligibilityResolver()->reasonNotToContact($this->recipient, $route->channel, $route->address);
 
         if ($refusal !== null) {
             $delivery->finishWithoutSending(DeliveryStatusEnum::SKIPPED, $refusal);

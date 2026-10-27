@@ -57,7 +57,7 @@ class AgentChannelResponderActivity extends KanvasActivity
             return ['message' => 'Message not found', 'entity' => null];
         }
 
-        $integrationCompany = $this->integrationCompanyFor($channel, $app, $message);
+        $integrationCompany = $this->integrationCompanyFor($message);
 
         if ($integrationCompany === null) {
             return ['message' => 'The message did not arrive on a connection', 'entity' => null];
@@ -80,13 +80,9 @@ class AgentChannelResponderActivity extends KanvasActivity
     /**
      * Where the run is recorded: the integration behind the conversation's connection.
      */
-    protected function integrationCompanyFor(Channel $channel, Apps $app, Message $message): ?IntegrationsCompany
+    protected function integrationCompanyFor(Message $message): ?IntegrationsCompany
     {
-        $connectionId = $message->message['communication']['connection_id'] ?? null;
-
-        return $connectionId !== null
-            ? Connection::query()->find((int) $connectionId)?->integrationCompany
-            : null;
+        return Connection::forFiledMessage($message)?->integrationCompany;
     }
 
     /**
@@ -140,7 +136,6 @@ class AgentChannelResponderActivity extends KanvasActivity
         $agent = $mappedAgentId !== null
             ? Agent::getById($mappedAgentId, $app)
             : new AutoReplyPolicy()->conversationAgent($app, $channel->company);
-        $defaultAgentId = $agent->getId();
         $session = $this->session(
             $channel,
             $app,
@@ -155,7 +150,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                 $channel,
                 $message,
                 $app,
-                $defaultAgentId,
+                $agent->getId(),
                 $channelAgentMapping,
                 $chatJid,
                 $params,

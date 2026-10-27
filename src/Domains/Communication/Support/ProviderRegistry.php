@@ -12,11 +12,18 @@ use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
 final class ProviderRegistry
 {
+    /** @var array<string, class-string<CommunicationProvider>>|null */
+    private ?array $providers = null;
+
     /**
      * @return array<string, class-string<CommunicationProvider>> keyed by vendor slug
      */
     public function all(): array
     {
+        if ($this->providers !== null) {
+            return $this->providers;
+        }
+
         $providers = [];
 
         foreach (config('communication.providers', []) as $provider) {
@@ -27,7 +34,7 @@ final class ProviderRegistry
             $providers[$provider::slug()] = $provider;
         }
 
-        return $providers;
+        return $this->providers = $providers;
     }
 
     /**

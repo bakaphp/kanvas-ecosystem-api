@@ -10,7 +10,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Messages\Actions\DispatchDeliveryAction;
 use Kanvas\Communication\Messages\Models\Delivery;
 
@@ -35,7 +34,7 @@ final class DispatchDeliveryJob implements ShouldQueue
 
     public function handle(): void
     {
-        $this->overwriteAppService(Apps::getById($this->delivery->apps_id));
+        $this->overwriteAppService($this->delivery->app);
 
         new DispatchDeliveryAction($this->delivery)->execute();
     }

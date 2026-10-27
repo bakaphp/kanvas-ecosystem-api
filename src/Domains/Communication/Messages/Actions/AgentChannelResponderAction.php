@@ -171,8 +171,6 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
     private function connection(): ?Connection
     {
-        $connectionId = $this->message->message['communication']['connection_id'] ?? null;
-
-        return $connectionId !== null ? Connection::query()->find((int) $connectionId) : null;
+        return Connection::forFiledMessage($this->message);
     }
 }

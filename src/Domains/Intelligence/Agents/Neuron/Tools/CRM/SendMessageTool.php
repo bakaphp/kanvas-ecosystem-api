@@ -89,12 +89,13 @@ class SendMessageTool extends Tool
         $content = Content::text($message);
         $content = $subject !== null && trim($subject) !== '' ? $content->withSubject(trim($subject)) : $content;
         $agent = $this->contextAgent();
+        $channel = strtolower(trim($channel));
 
         try {
             $operation = Communication::for($this->app, $this->company)->send(
                 $person,
                 $content,
-                channels: strtolower(trim($channel)) === 'all' ? 'all' : [strtolower(trim($channel))],
+                channels: $channel === 'all' ? 'all' : [$channel],
                 from: $agent !== null ? Sender::agent($agent) : Sender::system(),
                 sync: true
             );

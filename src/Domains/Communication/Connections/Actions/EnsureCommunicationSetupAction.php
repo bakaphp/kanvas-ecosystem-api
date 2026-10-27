@@ -47,6 +47,9 @@ final class EnsureCommunicationSetupAction
      */
     private const array BACKOFF_MINUTES = [1, 5, 30];
 
+    /** @var Collection<string, AccountSelection>|null */
+    private ?Collection $desiredAccounts = null;
+
     /**
      * @param bool $respectBackoff false when a person just acted (saved the integration, switched a
      *                             connection on) and is waiting on the result
@@ -163,11 +166,8 @@ final class EnsureCommunicationSetupAction
     /**
      * @param class-string<CommunicationProvider> $provider
      */
-    private function provision(
-        string $provider,
-        Provisioner $provisioner,
-        Connection $connection
-    ): void {
+    private function provision(string $provider, Provisioner $provisioner, Connection $connection): void
+    {
         // A ready connection being repaired stays ready, or every send during the repair would
         // fail as not ready.
         if ($connection->setup_status !== SetupStatusEnum::READY) {
@@ -285,18 +285,10 @@ final class EnsureCommunicationSetupAction
         }
 
         foreach (array_keys($provider::transports()) as $channel) {
-            $agent = new AutoReplyPolicy()->agentFor(
-                $this->app,
-                $this->integrationCompany->company,
-                ChannelTypeEnum::from($channel)
-            );
+            $agent = new AutoReplyPolicy()->agentFor($this->app, $this->integrationCompany->company, ChannelTypeEnum::from($channel));
 
             if ($agent !== null) {
-                new EnsureAutoReplyRuleAction(
-                    $agent,
-                    $autoReply['channel_slug_pattern'],
-                    $autoReply['legacy_responder']
-                )->execute();
+                new EnsureAutoReplyRuleAction($agent, $autoReply['channel_slug_pattern'], $autoReply['legacy_responder'])->execute();
 
                 return;
             }
@@ -349,11 +341,9 @@ final class EnsureCommunicationSetupAction
      */
     private function desiredAccounts(string $provider): Collection
     {
-        $retired = (array) ($this->integrationCompany->config['retired_accounts'] ?? []);
-
-        return collect($provider::accounts($this->integrationCompany))
+        return $this->desiredAccounts ??= collect($provider::accounts($this->integrationCompany))
             ->keyBy(fn (AccountSelection $account): string => $account->key)
-            ->except($retired);
+            ->except((array) ($this->integrationCompany->config['retired_accounts'] ?? []));
     }
 
     /**

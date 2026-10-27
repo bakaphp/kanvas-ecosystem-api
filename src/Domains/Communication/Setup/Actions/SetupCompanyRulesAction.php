@@ -15,6 +15,7 @@ use Kanvas\Workflow\Rules\Actions\CreateRuleAction;
 use Kanvas\Workflow\Rules\DataTransferObject\Rule as RuleData;
 use Kanvas\Workflow\Rules\DataTransferObject\RuleActionData;
 use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
+use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Kanvas\Workflow\Services\WorkflowActionCatalog;
@@ -41,6 +42,7 @@ final class SetupCompanyRulesAction
     {
         $created = [];
         $skipped = [];
+        $catalog = new WorkflowActionCatalog();
 
         foreach (DefaultRuleEnum::cases() as $default) {
             $params = $this->params($default);
@@ -53,15 +55,12 @@ final class SetupCompanyRulesAction
 
             $ruleType = RuleType::getByName($default->event()->value);
             $systemModule = SystemModulesRepository::getByModelName($default->module(), $this->app);
-            $actions = array_map(
-                fn (string $activity) => new WorkflowActionCatalog()->register($activity),
-                $default->activities()
-            );
+            $actions = array_map($catalog->register(...), $default->activities());
 
             $alreadyRuns = $this->alreadyRuns(
                 $ruleType,
                 $systemModule->getId(),
-                array_map(fn ($action) => $action->getId(), $actions),
+                array_map(fn (Action $action): int => $action->getId(), $actions),
                 $default
             );
 
@@ -88,7 +87,7 @@ final class SetupCompanyRulesAction
                     $conditions
                 ), DataCollection::class),
                 actions: RuleActionData::collect(array_map(
-                    fn ($action, int $weight): RuleActionData => new RuleActionData($action, $weight),
+                    fn (Action $action, int $weight): RuleActionData => new RuleActionData($action, $weight),
                     $actions,
                     array_keys($actions)
                 ), DataCollection::class),
@@ -134,7 +133,7 @@ final class SetupCompanyRulesAction
             ->whereIn('companies_id', [$this->company->getId(), 0])
             ->where('rules_types_id', $ruleType->getId())
             ->where('systems_modules_id', $systemModuleId)
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->with('workflowActivities.activity')
             ->get();
 

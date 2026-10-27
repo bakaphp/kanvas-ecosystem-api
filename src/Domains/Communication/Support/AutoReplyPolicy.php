@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\ConversationAgentEnum;
 use Kanvas\Communication\Messages\Exceptions\ConversationAgentNotFoundException;
+use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 
@@ -29,10 +30,9 @@ final class AutoReplyPolicy
     public function conversationAgent(Apps $app, Companies $company): Agent
     {
         $agentId = $company->get(ConversationAgentEnum::SETTING->value);
-        $agents = Agent::query()->fromApp($app)->fromCompany($company)->notDeleted();
 
         if (! empty($agentId)) {
-            return $agents->whereKey((int) $agentId)->first()
+            return $this->agentWithId($app, $company, (int) $agentId)
                 ?? throw new ConversationAgentNotFoundException(sprintf(
                     'Company %d sets %s to agent %s, which it does not have.',
                     $company->getId(),
@@ -41,7 +41,7 @@ final class AutoReplyPolicy
                 ));
         }
 
-        return $agents->where('name', ConversationAgentEnum::DEFAULT_NAME->value)->first()
+        return DefaultAgentEnum::SALLY->of($app, $company)
             ?? throw new ConversationAgentNotFoundException(sprintf(
                 'Company %d has no %s setting and no agent named %s.',
                 $company->getId(),
@@ -60,11 +60,16 @@ final class AutoReplyPolicy
             return null;
         }
 
+        return $this->agentWithId($app, $company, (int) $agentId);
+    }
+
+    private function agentWithId(Apps $app, Companies $company, int $agentId): ?Agent
+    {
         return Agent::query()
             ->fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
-            ->whereKey((int) $agentId)
+            ->whereKey($agentId)
             ->first();
     }
 }

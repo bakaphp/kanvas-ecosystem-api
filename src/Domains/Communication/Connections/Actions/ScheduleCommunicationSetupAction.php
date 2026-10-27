@@ -13,8 +13,8 @@ use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 
 /**
  * The trigger: completing a messaging integration is the only thing a tenant does. Called from the
- * handler's saved() hook, inside the transaction that saves the integration, so the connection rows it writes commit with the
- * selection they come from; the vendor work runs after commit, in a job.
+ * handler's saved() hook, inside the transaction that saves the integration, so the connection rows
+ * it writes commit with the selection they come from; the vendor work runs after commit, in a job.
  */
 final class ScheduleCommunicationSetupAction
 {

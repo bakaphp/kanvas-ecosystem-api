@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Connections\Actions;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -79,11 +80,11 @@ final class RunConnectionCleanupAction
     private function dueTasks(): Collection
     {
         return $this->connection->cleanupTasks()
-            ->where(fn ($query) => $query
-                ->where(fn ($pending) => $pending
+            ->where(fn (Builder $query) => $query
+                ->where(fn (Builder $pending) => $pending
                     ->where('status', CleanupTaskStatusEnum::PENDING->value)
-                    ->where(fn ($due) => $due->whereNull('next_attempt_at')->orWhere('next_attempt_at', '<=', now())))
-                ->orWhere(fn ($running) => $running
+                    ->where(fn (Builder $due) => $due->whereNull('next_attempt_at')->orWhere('next_attempt_at', '<=', now())))
+                ->orWhere(fn (Builder $running) => $running
                     ->where('status', CleanupTaskStatusEnum::RUNNING->value)
                     ->where('lease_until', '<', now())))
             ->get();

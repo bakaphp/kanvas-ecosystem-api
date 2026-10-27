@@ -25,15 +25,13 @@ class ReceiverController extends BaseController
     public function verify(string $uuid, Request $request): SymfonyResponse
     {
         $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
-        $jobClass = $receiver?->action?->model_name;
+        $jobClass = $receiver === null ? null : AllowedClass::resolve($receiver->action?->model_name, ProcessWebhookJob::class);
 
-        if (! is_string($jobClass) || ! is_a($jobClass, ProcessWebhookJob::class, true)) {
+        if ($jobClass === null) {
             return response()->json(['message' => 'Receiver not found'], 404);
         }
 
-        if (app(Apps::class)->getId() !== $receiver->apps_id) {
-            App::scoped(Apps::class, fn () => $receiver->app);
-        }
+        $this->scopeToReceiverApp($receiver);
 
         $challenge = $jobClass::verificationChallenge($request, $receiver);
 
@@ -55,11 +53,7 @@ class ReceiverController extends BaseController
             return response()->json(['message' => 'Receiver not found'], 404);
         }
 
-        $app = app(Apps::class);
-
-        if ($app->getId() !== $receiver->apps_id) {
-            App::scoped(Apps::class, fn () => $receiver->app);
-        }
+        $this->scopeToReceiverApp($receiver);
 
         $jobClass = AllowedClass::resolve($receiver->action?->model_name, ProcessWebhookJob::class);
         if ($jobClass === null) {
@@ -134,5 +128,12 @@ class ReceiverController extends BaseController
             array_merge(['message' => 'Receiver processed'], $response),
             $status
         );
+    }
+
+    private function scopeToReceiverApp(ReceiverWebhook $receiver): void
+    {
+        if (app(Apps::class)->getId() !== $receiver->apps_id) {
+            App::scoped(Apps::class, fn () => $receiver->app);
+        }
     }
 }

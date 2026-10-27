@@ -34,7 +34,7 @@ class ProcessCommunicationWebhookJob extends ProcessWebhookJob
     #[Override]
     public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
     {
-        $source = static::sourceFor($receiver);
+        $source = self::sourceFor($receiver);
 
         return $source !== null && $source->authenticate($request, $receiver);
     }
@@ -42,7 +42,7 @@ class ProcessCommunicationWebhookJob extends ProcessWebhookJob
     #[Override]
     public static function verificationChallenge(Request $request, ReceiverWebhook $receiver): ?string
     {
-        $source = static::sourceFor($receiver);
+        $source = self::sourceFor($receiver);
 
         return $source instanceof VerifiesEndpoint ? $source->challenge($request, $receiver) : null;
     }
@@ -50,7 +50,7 @@ class ProcessCommunicationWebhookJob extends ProcessWebhookJob
     #[Override]
     public function execute(): array
     {
-        $source = static::sourceFor($this->receiver)
+        $source = self::sourceFor($this->receiver)
             ?? throw new LogicException('Receiver ' . $this->receiver->getId() . ' names no communication provider.');
         $payload = $this->webhookRequest->payload ?? [];
 
@@ -72,9 +72,6 @@ class ProcessCommunicationWebhookJob extends ProcessWebhookJob
         return $received === [] ? $statuses : [...$received, 'statuses' => $statuses];
     }
 
-    /**
-     * The provider the receiver was created for.
-     */
     protected static function providerOf(ReceiverWebhook $receiver): ?string
     {
         return $receiver->configuration['communication']['provider'] ?? null;
