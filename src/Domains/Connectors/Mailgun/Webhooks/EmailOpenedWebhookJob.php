@@ -50,6 +50,10 @@ class EmailOpenedWebhookJob extends ProcessWebhookJob
             return ['message' => 'Not an opened event, ignored'];
         }
 
+        if ($payload->bot() !== '') {
+            return ['message' => 'Automated open (' . $payload->bot() . '), ignored'];
+        }
+
         $eventId = $payload->eventId();
         if ($eventId !== '' && ! Cache::add('mailgun:email-opened:' . $eventId, true, self::DEDUPE_TTL_SECONDS)) {
             return ['message' => 'Duplicate delivery'];

@@ -20,13 +20,16 @@ use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Event\Events\Contracts\EventResourceInterface;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Concerns\TracksClosedAt;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
@@ -311,6 +314,11 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         return $this->belongsTo(Organization::class, 'organization_id', 'id');
     }
 
+    public function deals(): HasMany
+    {
+        return $this->hasMany(Deal::class, 'leads_id', 'id')->notDeleted();
+    }
+
     public function pipeline(): BelongsTo
     {
         return $this->belongsTo(Pipeline::class, 'pipeline_id', 'id');
@@ -370,31 +378,74 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         );
     }
 
-    public function scopeHasOpenLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
+    public function scopeHasOpenLeadStatus(Builder $query, CompanyInterface|CompanyScope|null $company = null): Builder
     {
-        return LeadStatus::constrainToState(
+        return self::constrainOpenStatus(
             $query,
             'leads_status_id',
-            open: true,
-            company: $company
+            $company,
+            open: true
         );
     }
 
-    public function scopeHasClosedLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
+    public function scopeHasClosedLeadStatus(Builder $query, CompanyInterface|CompanyScope|null $company = null): Builder
     {
-        return LeadStatus::constrainToState(
+        return self::constrainOpenStatus(
             $query,
             'leads_status_id',
-            open: false,
-            company: $company
+            $company,
+            open: false
         );
+    }
+
+    /**
+     * "Open" is the status row's `is_open` plus, for now, a per-company setting, so across a scope the
+     * predicate is one group per company: a status open at one company may be closed at another.
+     */
+    public static function constrainOpenStatus(
+        Builder $query,
+        string $column,
+        CompanyInterface|CompanyScope|null $company,
+        bool $open
+    ): Builder {
+        if (! $company instanceof CompanyScope) {
+            return LeadStatus::constrainToState(
+                $query,
+                $column,
+                open: $open,
+                company: $company
+            );
+        }
+
+        $tenantColumn = $query->getModel()->getTable() . '.companies_id';
+        $companies = $company->companyIds === [(int) $company->ownCompany->getId()]
+            ? collect([$company->ownCompany])
+            : Companies::query()->whereIn('id', $company->companyIds)->get();
+
+        return $query->where(function (Builder $outer) use ($companies, $tenantColumn, $column, $open): void {
+            foreach ($companies as $member) {
+                $outer->orWhere(function (Builder $one) use ($member, $tenantColumn, $column, $open): void {
+                    $one->where($tenantColumn, $member->getId());
+
+                    LeadStatus::constrainToState(
+                        $one,
+                        $column,
+                        open: $open,
+                        company: $member
+                    );
+                });
+            }
+        });
     }
 
     /**
      * The "open" (default), "closed" or "all" switch every lead-listing tool exposes, in one place.
      */
-    public function scopeHavingLeadState(Builder $query, string $state, ?CompanyInterface $company = null): Builder
-    {
+    public function scopeHavingLeadState(
+        Builder $query,
+        string $state,
+        CompanyInterface|CompanyScope|null $company = null
+    ): Builder {
         return match ($state) {
             'closed' => $query->hasClosedLeadStatus($company),
             'all' => $query,

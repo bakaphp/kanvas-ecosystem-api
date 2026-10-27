@@ -86,6 +86,45 @@ final class EmailOpenedWebhookJobTest extends TestCase
         $this->assertSame($before, $people->notes->messages()->count());
     }
 
+    public function testAnOpenMailgunFlagsAsABotPrefetchRecordsNothing(): void
+    {
+        $people = $this->seedPeople();
+        $before = $people->notes->messages()->count();
+
+        foreach (['apple', 'gmail', 'generic'] as $bot) {
+            $result = $this->deliver([
+                'event-data' => [
+                    'id' => 'evt-' . uniqid(),
+                    'event' => 'opened',
+                    'recipient' => 'prospect@example.com',
+                    'client-info' => ['bot' => $bot],
+                    'user-variables' => ['people_id' => (string) $people->getId()],
+                ],
+            ]);
+
+            $this->assertSame('Automated open (' . $bot . '), ignored', $result['message']);
+        }
+
+        $this->assertSame($before, $people->notes->messages()->count());
+    }
+
+    public function testAnOpenWithAnEmptyBotFieldIsAHumanAndIsRecorded(): void
+    {
+        $people = $this->seedPeople();
+
+        $result = $this->deliver([
+            'event-data' => [
+                'id' => 'evt-' . uniqid(),
+                'event' => 'opened',
+                'recipient' => 'prospect@example.com',
+                'client-info' => ['bot' => '', 'client-type' => 'browser'],
+                'user-variables' => ['people_id' => (string) $people->getId()],
+            ],
+        ]);
+
+        $this->assertSame($people->getId(), $result['people_id']);
+    }
+
     public function testAnEventWithNoPeopleIdVariableIsIgnored(): void
     {
         $result = $this->deliver([

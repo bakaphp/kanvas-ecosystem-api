@@ -18,6 +18,7 @@ class OpenEventTrackingRow extends Data
         public int $goal_to_date,
         public float $goal_percentage,
         public string $color,
+        public int $companies_id = 0,
     ) {
     }
 }

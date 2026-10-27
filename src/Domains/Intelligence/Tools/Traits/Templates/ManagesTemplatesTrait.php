@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Services\PdfService;
@@ -197,7 +198,7 @@ trait ManagesTemplatesTrait
      */
     protected function listTemplates(
         Apps $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         Users $user,
         ?string $search = null,
     ): array {
@@ -220,6 +221,7 @@ trait ManagesTemplatesTrait
             'engine' => $template->engine->value,
             'owned' => $this->ownsTemplate($template, $user),
             'is_system' => (bool) $template->is_system,
+            ...$this->templateTenantFields($template, $company, $user),
         ])->all();
 
         return $this->ok(
@@ -239,7 +241,7 @@ trait ManagesTemplatesTrait
      */
     protected function getTemplate(
         Apps $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         Users $user,
         int $templateId,
     ): array {
@@ -267,9 +269,34 @@ trait ManagesTemplatesTrait
                 'engine' => $template->engine->value,
                 'owned' => $owned,
                 'is_system' => (bool) $template->is_system,
+                ...$this->templateTenantFields($template, $company, $user),
             ],
             guidance: $this->editabilityGuidance(! $owned, $template->isBlade())
         );
+    }
+
+    /**
+     * `owned` alone would promise an edit on another company's template that update/delete refuse;
+     * `editable_here` says what this turn can change.
+     *
+     * @return array<string, mixed>
+     */
+    private function templateTenantFields(Templates $template, Companies|CompanyScope $company, Users $user): array
+    {
+        if (! CompanyScope::needsTenantLabel($company)) {
+            return [];
+        }
+
+        $companiesId = (int) $template->companies_id;
+        $editableHere = $this->ownsTemplate($template, $user)
+            && in_array($companiesId, [(int) $company->ownCompany->getId(), AppEnums::GLOBAL_COMPANY_ID->getValue()], true);
+
+        return [
+            ...($companiesId === AppEnums::GLOBAL_COMPANY_ID->getValue()
+                ? ['tenant_company_id' => $companiesId, 'tenant_company' => 'global']
+                : $company->tenantLabelFor($companiesId)),
+            'editable_here' => $editableHere,
+        ];
     }
 
     /**
@@ -302,11 +329,14 @@ trait ManagesTemplatesTrait
      * Templates the agent can see/render: the company's own plus platform-global ones, across the
      * current app and the legacy app id — the same visibility generate_template_pdf resolves by name.
      */
-    private function visibleTemplatesQuery(Apps $app, Companies $company): Builder
+    private function visibleTemplatesQuery(Apps $app, Companies|CompanyScope $company): Builder
     {
-        return Templates::notDeleted()
-            ->whereIn('apps_id', [AppEnums::LEGACY_APP_ID->getValue(), $app->getId()])
-            ->whereIn('companies_id', [$company->getId(), AppEnums::GLOBAL_COMPANY_ID->getValue()]);
+        return CompanyScope::applyToQuery(
+            Templates::notDeleted()->whereIn('apps_id', [AppEnums::LEGACY_APP_ID->getValue(), $app->getId()]),
+            'companies_id',
+            $company,
+            [AppEnums::GLOBAL_COMPANY_ID->getValue()],
+        );
     }
 
     /**

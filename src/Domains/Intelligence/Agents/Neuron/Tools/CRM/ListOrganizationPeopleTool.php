@@ -68,7 +68,7 @@ class ListOrganizationPeopleTool extends Tool
     {
         $limit = max(1, min(100, $limit ?? 25));
 
-        $organization = $this->resolveOrganization($organization_id, $organization_name);
+        $organization = $this->resolveOrganizationInReadScope($organization_id, $organization_name);
         if (! $organization instanceof Organization) {
             return $organization;
         }
@@ -86,6 +86,7 @@ class ListOrganizationPeopleTool extends Tool
             'organization' => [
                 'organization_id' => $organization->getId(),
                 'name' => $organization->name,
+                ...$this->tenantLabel($organization),
             ],
             'count' => $total,
             'returned' => $people->count(),

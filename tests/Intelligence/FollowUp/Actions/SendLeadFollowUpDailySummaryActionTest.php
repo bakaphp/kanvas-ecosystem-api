@@ -13,7 +13,6 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\FollowUp\Actions\SendLeadFollowUpDailySummaryAction;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpEmailTemplateEnum;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
@@ -58,12 +57,9 @@ final class SendLeadFollowUpDailySummaryActionTest extends TestCase
         parent::tearDown();
     }
 
-    public function testEmailsTheCompanyFollowUpDevsWithTheFailedLeadsNamed(): void
+    public function testEmailsTheCompanyFollowUpDevsTheSummary(): void
     {
         $dev = $this->makeMember(RolesEnums::FOLLOW_UP_DEV);
-        $lead = Lead::factory()
-            ->withAppAndCompany($this->testApp->getId(), $this->company->getId())
-            ->create(['title' => 'Maria Follow Up']);
 
         $sentTo = new SendLeadFollowUpDailySummaryAction(
             $this->testApp,
@@ -73,7 +69,7 @@ final class SendLeadFollowUpDailySummaryActionTest extends TestCase
                 'failed' => [
                     'total' => 1,
                     'by_reason' => ['send_failed' => 1],
-                    'recent' => [['lead_id' => $lead->getId(), 'reason' => 'send_failed', 'error' => 'Twilio 21211', 'channel' => 'sms']],
+                    'recent' => [['lead_id' => 1, 'lead_title' => 'Maria Follow Up', 'reason' => 'send_failed', 'error' => 'Twilio 21211', 'channel' => 'sms']],
                 ],
             ]),
         )->execute();
@@ -82,13 +78,9 @@ final class SendLeadFollowUpDailySummaryActionTest extends TestCase
         Notification::assertSentTo(
             $dev,
             Blank::class,
-            static function (Blank $notification) use ($lead): bool {
-                $failure = $notification->getData()['failed']['recent'][0];
-
-                return $notification->getTemplateName() === FollowUpEmailTemplateEnum::DAILY_SUMMARY->value
-                    && $failure['lead_id'] === $lead->getId()
-                    && $failure['lead_title'] === 'Maria Follow Up';
-            }
+            static fn (Blank $notification): bool => $notification->getTemplateName() === FollowUpEmailTemplateEnum::DAILY_SUMMARY->value
+                && $notification->getData()['failed']['recent'][0]['lead_title'] === 'Maria Follow Up'
+                && $notification->getData()['company_name'] === auth()->user()->getCurrentCompany()->name
         );
     }
 

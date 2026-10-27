@@ -19,9 +19,11 @@ use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Guild\Concerns\TracksClosedAt;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Factories\DealFactory;
 use Kanvas\Guild\Deals\Observers\DealObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -164,27 +166,27 @@ class Deal extends BaseModel implements ProvidesAgentContext
         );
     }
 
-    public function scopeHasOpenDealStatus(EloquentBuilder $query, ?CompanyInterface $company = null): EloquentBuilder
+    public function scopeHasOpenDealStatus(EloquentBuilder $query, CompanyInterface|CompanyScope|null $company = null): EloquentBuilder
     {
-        return LeadStatus::constrainToState(
+        return Lead::constrainOpenStatus(
             $query,
             'status_id',
-            open: true,
-            company: $company
+            $company,
+            open: true
         );
     }
 
-    public function scopeHasClosedDealStatus(EloquentBuilder $query, ?CompanyInterface $company = null): EloquentBuilder
+    public function scopeHasClosedDealStatus(EloquentBuilder $query, CompanyInterface|CompanyScope|null $company = null): EloquentBuilder
     {
-        return LeadStatus::constrainToState(
+        return Lead::constrainOpenStatus(
             $query,
             'status_id',
-            open: false,
-            company: $company
+            $company,
+            open: false
         );
     }
 
-    public function scopeHavingDealState(EloquentBuilder $query, string $state, ?CompanyInterface $company = null): EloquentBuilder
+    public function scopeHavingDealState(EloquentBuilder $query, string $state, CompanyInterface|CompanyScope|null $company = null): EloquentBuilder
     {
         return match ($state) {
             'closed' => $query->hasClosedDealStatus($company),
@@ -436,5 +438,10 @@ class Deal extends BaseModel implements ProvidesAgentContext
         }
 
         return $query;
+    }
+
+    protected static function newFactory(): DealFactory
+    {
+        return new DealFactory();
     }
 }

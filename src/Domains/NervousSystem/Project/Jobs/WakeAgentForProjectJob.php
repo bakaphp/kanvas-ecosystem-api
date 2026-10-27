@@ -12,6 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
+use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -73,10 +74,16 @@ class WakeAgentForProjectJob implements ShouldQueue
     public int $tries = 6;
     public int $maxExceptions = 3;
 
+    private ?Message $mention = null;
+
     /**
      * `wakeAgent` overrides the project's current PM. A plan outcome goes to whoever ASKED for the
      * work (`Plan::createdByAgent`), which is a different agent once a project has changed hands —
      * re-deriving `pmAgent` here would wake someone who never delegated it.
+     *
+     * `mentionMessageId` is the message whose files ride along, resolved when the job RUNS: the
+     * comment UI uploads attachments in a second request, so at dispatch they may not exist yet. It is
+     * not `triggerMessageId`, which for a threaded mention is the thread root the reply goes under.
      */
     public function __construct(
         public readonly Project $project,
@@ -84,6 +91,7 @@ class WakeAgentForProjectJob implements ShouldQueue
         public readonly ?string $triggerMessage = null,
         public readonly ?int $triggerMessageId = null,
         public readonly ?Agent $wakeAgent = null,
+        public readonly ?int $mentionMessageId = null,
     ) {
         $this->onQueue('nervous-system-project');
 
@@ -143,6 +151,7 @@ class WakeAgentForProjectJob implements ShouldQueue
         // already said it there with comment_on_nervous_system_plan.
         $replyChannel = $this->resolveReplyChannel();
         $activityBefore = $this->latestMessageId($replyChannel);
+        ['images' => $images, 'documents' => $documents] = $this->mentionMedia();
 
         $wake = $this->runAgentWake(
             $agent,
@@ -152,6 +161,8 @@ class WakeAgentForProjectJob implements ShouldQueue
             $this->project,
             'project.agent',
             $failurePayload,
+            images: $images,
+            documents: $documents,
         );
 
         if ($wake === null) {
@@ -327,12 +338,36 @@ class WakeAgentForProjectJob implements ShouldQueue
             $trigger = "{$label}:\n\"\"\"\n{$preview}\n\"\"\"{$readFull}\n\n";
         }
 
+        // media carries the bytes; the markers carry the id the file tools key on. Both, as the
+        // generic mention job does — without them the PM answers "no attachments" to the notes.
+        $trigger = AttachmentPromptBuilder::withFilesystemMarkers(
+            $trigger,
+            $this->mentionMessage()?->files ?? [],
+        );
+
         return $header
             . 'You are the PM of this project. Read the context below, decide what needs to happen, '
             . "then use your tools to create/assign/move tasks and keep the project moving.\n\n"
             . $this->noUpdateGuidance()
             . $trigger
             . 'Context: ' . (string) json_encode($bundle->toArray());
+    }
+
+    private function mentionMessage(): ?Message
+    {
+        if ($this->mentionMessageId === null) {
+            return null;
+        }
+
+        return $this->mention ??= Message::query()->where('id', $this->mentionMessageId)->first();
+    }
+
+    /**
+     * @return array{images: list<string>, documents: list<string>}
+     */
+    private function mentionMedia(): array
+    {
+        return $this->mentionMessage()?->attachmentUrls() ?? ['images' => [], 'documents' => []];
     }
 
     /**

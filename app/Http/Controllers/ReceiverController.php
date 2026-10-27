@@ -19,6 +19,28 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 class ReceiverController extends BaseController
 {
     /**
+     * A provider checking the URL is ours before it sends to it. Answered on an inactive receiver
+     * too, for the same reason as the POST handshake: re-verifying must not fail.
+     */
+    public function verify(string $uuid, Request $request): SymfonyResponse
+    {
+        $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
+        $jobClass = $receiver === null ? null : AllowedClass::resolve($receiver->action?->model_name, ProcessWebhookJob::class);
+
+        if ($jobClass === null) {
+            return response()->json(['message' => 'Receiver not found'], 404);
+        }
+
+        $this->scopeToReceiverApp($receiver);
+
+        $challenge = $jobClass::verificationChallenge($request, $receiver);
+
+        return $challenge === null
+            ? response()->json(['message' => 'Unauthorized'], 403)
+            : response($challenge, 200, ['Content-Type' => 'text/plain']);
+    }
+
+    /**
      * Handle webhook receiver based on UUID.
      *
      * @throws BindingResolutionException
@@ -31,11 +53,7 @@ class ReceiverController extends BaseController
             return response()->json(['message' => 'Receiver not found'], 404);
         }
 
-        $app = app(Apps::class);
-
-        if ($app->getId() !== $receiver->apps_id) {
-            App::scoped(Apps::class, fn () => $receiver->app);
-        }
+        $this->scopeToReceiverApp($receiver);
 
         $jobClass = AllowedClass::resolve($receiver->action?->model_name, ProcessWebhookJob::class);
         if ($jobClass === null) {
@@ -110,5 +128,12 @@ class ReceiverController extends BaseController
             array_merge(['message' => 'Receiver processed'], $response),
             $status
         );
+    }
+
+    private function scopeToReceiverApp(ReceiverWebhook $receiver): void
+    {
+        if (app(Apps::class)->getId() !== $receiver->apps_id) {
+            App::scoped(Apps::class, fn () => $receiver->app);
+        }
     }
 }

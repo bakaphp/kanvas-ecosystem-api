@@ -214,7 +214,7 @@ a typo in the setting never silences every lead. Read through
 This was a real bug: the agent was using `should_respond: false` to mean "wait longer, customer is still digesting" and the action treated that as terminal exhaustion. Leads got stuck after a single agent timing-feedback decision. Fixed 2026-06-08.
 
 **Terminal exhaustion has only three sources:**
-- `max_retries` hit (count of actual sends, configured per stage)
+- `max_retries` hit (count of actual sends, configured per stage), unless `exhausted_action: advance` successfully moves to the next stage. Successful advancement returns a non-terminal skip (`max_retries_stage_advanced`); the stage observer resets the count and wait window.
 - `agent_hand_off` flag set on the lead (explicit human takeover)
 - Operator calls `resetLeadFollowUp` / clears state manually
 
@@ -235,8 +235,9 @@ skipped; every other skip reason (too_soon, ai_mode_off, agent declined...) is a
   as `sent` (the message was stored and the count bumped), so a refused send shows in both columns.
 - `lead.follow_up.failed` — `LeadFollowUpJob::failed()` writes it once the last try is spent, so a run
   that crashed is not left looking like one still `queued`.
-- `lead:follow-up-daily-summary` (00:30 UTC) builds `follow_up.daily.summary` with a `failed` bucket
-  (`total`, `by_reason`, the latest 20 in `recent`) and emails it through
+- `lead:follow-up-daily-summary` (00:30 UTC) builds `follow_up.daily.summary` from
+  `LeadFollowUpActivityService::summarize()` — totals, sent by channel, skips, failures and exhaustions
+  by reason, the latest 20 failures with the lead's title — and emails it through
   `SendLeadFollowUpDailySummaryAction` to the company's active members holding the app's `FollowUpDev`
   role (`UsersRepository::getActiveCompanyAppUsersByRole`, the same lookup as the Engage usage
   report). New apps get the role from `CreateAppsAction::acl()`; an existing one needs
@@ -244,12 +245,14 @@ skipped; every other skip reason (too_soon, ai_mode_off, agent declined...) is a
   failed or exhausted, sends nothing. Template `lead-follow-up-daily-summary`
   (`resources/views/emails/leadFollowUpDailySummary.twig`); an existing app gets it with
   `kanvas:email-template-sync`.
-- `lead:follow-up-status [--app_id] [--company_id] [--hours=24]` is the `kanvas:status` of follow-ups:
-  one row per company (queued, sent, skipped, failed, exhausted, last sent, failures by reason), plus
-  the latest failures when filtered by company. Counts are grouped in SQL by
-  `LeadFollowUpActivityService` — the dispatch writes a row per candidate per hour, too many to load.
-  The queue line (`lead_follow_ups` waiting and `failed_jobs`) is global: a failed job row cannot be
-  told apart by company.
+- `lead:follow-up-status [--app_id] [--company_id] [--from=08:00] [--to] [--hours] [--tz]` is the
+  `kanvas:status` of follow-ups over a window, by default today from 08:00 to now (in the company's
+  timezone with `--company_id`, else UTC; before 08:00 it starts at yesterday's). One row per company,
+  then each company's detail from the same `summarize()` the email renders, so the two never disagree.
+  The overview counts are grouped in SQL by `countsByCompany()` — the dispatch writes a row per
+  candidate per hour, too many to load across an app. The queue line (`lead_follow_ups` waiting,
+  `failed_jobs` total and in the window, the top errors in the window) is global: a failed job row
+  cannot be told apart by company.
 
 ## Agent resolution — current design + planned evolution
 
@@ -315,7 +318,7 @@ Required config per stage:
 - `prompt_template`: instruct the agent to always return `advance_stage: true` on its single send. This collapses send-and-advance into one tick instead of two, and avoids spamming `lead.follow_up.exhausted` events per day-transition.
 
 **Caveats unique to Pattern B:**
-- **One-hour lag without the "always advance" prompt nudge** — without it, send happens on tick N (`count=0→1`), advance happens on tick N+1 (`count=1≥1` fires the exhaust gate). The ledger then carries one `lead.follow_up.exhausted` per day-stage with `reason: max_retries`.
+- **One-hour lag without the "always advance" prompt nudge** — without it, send happens on tick N (`count=0→1`), advance happens on tick N+1 (`count=1≥1` fires the exhaust gate). A successful transition records `lead.follow_up.skipped` with `reason: max_retries_stage_advanced`; it does not exhaust the new stage.
 - **The interval restarts on stage entry, follow-up, or any message in either direction** — `LeadFollowUpEligibilityService::silenceMinutes()` feeds the person's last message to `followUpSilenceMinutesSince`, which uses the latest of these timestamps. Without any, it falls back to entity creation time. Missing or future references yield zero elapsed minutes. Resetting state on a stage change therefore starts the full next-stage interval.
 - **Last-stage exhaust is a no-op** — `moveToNextPipelineStage()` silently does nothing when there's no next stage. The lead just parks there exhausted.
 
@@ -412,7 +415,7 @@ All three can ship independently — enum case (or branch for #1 which case alre
 | Case | Value | Behavior |
 |---|---|---|
 | `STOP` | `'stop'` | Lead exhausts in current stage. `exhausted_at` set, no advance. Operator (or customer reply) is the only way out. Default. |
-| `ADVANCE` | `'advance'` | Lead exhausts in current stage AND `moveToNextPipelineStage()` is called. Used by drip pipelines + first-touch "auto-bump cold leads" shape. |
+| `ADVANCE` | `'advance'` | Calls `moveToNextPipelineStage()`. On success, leaves the new stage eligible after its wait interval; exhausts only if there is no next stage. Used by drip pipelines + first-touch "auto-bump cold leads" shape. |
 
 **Likely future cases — discuss before adding, but keep them in mind so we don't reinvent:**
 

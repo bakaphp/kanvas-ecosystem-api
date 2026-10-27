@@ -27,6 +27,7 @@ type Lead {
     events: [Event!]! @morphToMany(relation: "events")
     variantInterests: [LeadVariantInterest!]!
         @hasMany(relation: "variantInterests")
+    deals: [Deal!]! @hasMany(relation: "deals")
     ai_session: [AIAgentSession!]!
         @hasMany(relation: "aiSession", type: PAGINATOR)
     tags: [Tag!]
@@ -332,9 +333,7 @@ extend type Query @guard {
         timezone: String
         pipeline_id: ID
     ): LeadAnalytics!
-        @field(
-            resolver: "App\\GraphQL\\Analytics\\Queries\\LeadAnalyticsQuery"
-        )
+        @field(resolver: "App\\GraphQL\\Analytics\\Queries\\LeadAnalyticsQuery")
 }
 
 type LeadAnalytics {

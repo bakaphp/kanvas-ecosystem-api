@@ -19,6 +19,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
+use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetAssistedSalesAttributionTool;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
@@ -157,6 +158,52 @@ class AssistedSalesAttributionTest extends TestCase
         $this->assertSame($open->getId(), $result['lead_rows'][0]['lead_id']);
     }
 
+    /**
+     * A DMS sync files service appointments as leads; a dealer asking about "leads" means the sales
+     * types, so the report breaks the mix down and can be narrowed to the types they mean.
+     */
+    public function testBreaksDownByTypeAndNarrowsToTheRequestedTypes(): void
+    {
+        $service = $this->makeLeadType('SERVICE');
+        $internet = $this->makeLeadType('Internet');
+
+        $this->soldLead($service);
+        $this->soldLead($service);
+        $this->aiMessage($this->soldLead($internet));
+        $this->openLead($internet);
+
+        $this->assertArrayNotHasKey('by_type', $this->attribution(AttributionPopulationEnum::ALL), 'The breakdown is opt-in.');
+
+        $all = $this->attribution(AttributionPopulationEnum::ALL, withTypeBreakdown: true);
+        $this->assertSame(4, $all['leads']);
+        $this->assertSame(
+            [
+                ['type' => 'SERVICE', 'leads' => 2, 'sold' => 2, 'assisted_by_ai' => 0, 'assisted_by_action' => 0],
+                ['type' => 'Internet', 'leads' => 2, 'sold' => 1, 'assisted_by_ai' => 1, 'assisted_by_action' => 0],
+            ],
+            $all['by_type'],
+        );
+
+        $tool = new GetAssistedSalesAttributionTool()->withContext($this->kanvasApp, $this->company, $this->user);
+
+        $sales = $tool(population: 'all', lead_types: 'internet');
+        $this->assertSame(['Internet'], $sales['lead_types']);
+        $this->assertSame(2, $sales['leads']);
+        $this->assertSame(1, $sales['assisted_by_ai']['count']);
+        $this->assertArrayNotHasKey('by_type', $sales);
+
+        $withBreakdown = $tool(population: 'all', breakdown_by_type: true);
+        $this->assertCount(2, $withBreakdown['by_type']);
+        $this->assertContains('Internet', $withBreakdown['available_lead_types']);
+        $this->assertContains('SERVICE', $withBreakdown['available_lead_types']);
+        $this->assertArrayNotHasKey('available_lead_types', $sales, 'The catalog rides only with the breakdown.');
+
+        $unknown = $tool(population: 'all', lead_types: 'Internet, Showroom');
+        $this->assertSame('error', $unknown['status']);
+        $this->assertStringContainsString('showroom', $unknown['message']);
+        $this->assertStringContainsString('SERVICE', $unknown['message']);
+    }
+
     public function testTheToolRejectsAnUnknownPopulation(): void
     {
         $result = new GetAssistedSalesAttributionTool()
@@ -287,8 +334,10 @@ class AssistedSalesAttributionTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function attribution(AttributionPopulationEnum $population = AttributionPopulationEnum::SOLD): array
-    {
+    private function attribution(
+        AttributionPopulationEnum $population = AttributionPopulationEnum::SOLD,
+        bool $withTypeBreakdown = false
+    ): array {
         return new BuildAssistedSalesAttributionAction(
             app: $this->kanvasApp,
             company: $this->company,
@@ -299,25 +348,38 @@ class AssistedSalesAttributionTest extends TestCase
                 timezone: 'UTC',
             ),
             population: $population,
+            withTypeBreakdown: $withTypeBreakdown,
         )->execute();
     }
 
-    private function openLead(): Lead
+    private function openLead(?LeadType $type = null): Lead
     {
         return Lead::factory()
             ->withAppAndCompany($this->kanvasApp->getId(), $this->company->getId())
-            ->create();
+            ->create(array_filter(['leads_types_id' => $type?->getId()]));
     }
 
-    private function soldLead(): Lead
+    private function soldLead(?LeadType $type = null): Lead
     {
         $lead = Lead::factory()
             ->withAppAndCompany($this->kanvasApp->getId(), $this->company->getId())
-            ->create(['leads_status_id' => $this->sold->getId()]);
+            ->create(array_filter(['leads_status_id' => $this->sold->getId(), 'leads_types_id' => $type?->getId()]));
 
         $this->assertNotNull($lead->refresh()->closed_at);
 
         return $lead;
+    }
+
+    private function makeLeadType(string $name): LeadType
+    {
+        return LeadType::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'name' => $name,
+            'description' => $name,
+            'is_active' => 1,
+            'is_deleted' => 0,
+        ]);
     }
 
     private function aiMessage(Lead $lead, ?Carbon $at = null, bool $linkToLead = true): Message
