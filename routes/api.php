@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use Spatie\Health\Http\Controllers\SimpleHealthCheckController;
 
 Route::get('/', [\App\Http\Controllers\IndexController::class, 'index']);
+Route::post('/receiver/meta', [\App\Http\Controllers\MetaReceiverController::class, 'storeMeta']);
+Route::get('/receiver/meta', [\App\Http\Controllers\MetaReceiverController::class, 'verifyMeta']);
 Route::post('/receiver/{uuid}', [\App\Http\Controllers\ReceiverController::class, 'store']);
 Route::get('/receiver/{uuid}', [\App\Http\Controllers\ReceiverController::class, 'verify']);
 Route::get('/oauth/callback', [\App\Http\Controllers\OAuthIntegrationController::class, 'callbackByState']);

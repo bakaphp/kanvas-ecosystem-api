@@ -96,7 +96,7 @@ final class RecordDeliveryEventAction
             return false;
         }
 
-        $terminalEvents = app(ProviderRegistry::class)->get($delivery->provider)::eventRetention()->terminalEvents;
+        $terminalEvents = new ProviderRegistry()->get($delivery->provider)::eventRetention()->terminalEvents;
 
         return in_array($this->providerStatus, $terminalEvents, true);
     }

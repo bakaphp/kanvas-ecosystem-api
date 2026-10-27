@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Connections\Actions;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Workflows\AgentChannelResponderActivity;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -30,14 +28,13 @@ final class EnsureAutoReplyRuleAction
     public const string RULE_NAME = 'Communication auto-reply';
 
     /**
+     * @param Agent $agent the company's answering agent; the rule is the agent's own tenant's
      * @param string $channelSlugPattern keeps the rule to this provider's conversations; without it
      *                                   the responder would be asked about every channel the tenant has
      * @param class-string|null $legacyResponder the activity this provider answered with before the
      *                                           conversation responder
      */
     public function __construct(
-        private readonly Apps $app,
-        private readonly Companies $company,
         private readonly Agent $agent,
         private readonly string $channelSlugPattern,
         private readonly ?string $legacyResponder = null
@@ -46,10 +43,12 @@ final class EnsureAutoReplyRuleAction
 
     public function execute(): ?Rule
     {
-        $catalog = app(WorkflowActionCatalog::class);
+        $app = $this->agent->app;
+        $company = $this->agent->company;
+        $catalog = new WorkflowActionCatalog();
         $action = $catalog->register(AgentChannelResponderActivity::class);
-        $ruleType = RuleType::query()->where('name', WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value)->firstOrFail();
-        $systemModule = SystemModulesRepository::getByModelName(Channel::class, $this->app);
+        $ruleType = RuleType::getByName(WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value);
+        $systemModule = SystemModulesRepository::getByModelName(Channel::class, $app);
 
         // A rule a person already set up is how this tenant answers today. Ours as well would answer
         // every message twice.
@@ -64,8 +63,8 @@ final class EnsureAutoReplyRuleAction
                 'name' => self::RULE_NAME,
                 'rules_types_id' => $ruleType->getId(),
                 'systems_modules_id' => $systemModule->getId(),
-                'apps_id' => $this->app->getId(),
-                'companies_id' => $this->company->getId(),
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
             ],
             [
                 'params' => ['agent_id' => $this->agent->getId()],
@@ -122,8 +121,8 @@ final class EnsureAutoReplyRuleAction
             ->all();
 
         return Rule::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromApp($this->agent->app)
+            ->fromCompany($this->agent->company)
             ->where('rules_types_id', $ruleTypeId)
             ->where('name', '!=', self::RULE_NAME)
             ->where('is_deleted', 0)

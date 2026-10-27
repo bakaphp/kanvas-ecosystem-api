@@ -7,7 +7,7 @@ namespace Kanvas\Workflow\Integrations\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Communication\Connections\Actions\ScheduleCommunicationSetupAction;
+use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany as IntegrationsCompanyModel;
@@ -41,10 +41,10 @@ class CreateIntegrationCompanyAction
                 'config' => $this->dto->persistedConfig ?: null,
             ]);
 
-            // An existing row is brought up to date by UpdateIntegrationCompanyAction, which
-            // schedules setup itself.
+            // An existing row is brought up to date by UpdateIntegrationCompanyAction, which tells
+            // the handler itself.
             if ($integrationCompany->wasRecentlyCreated) {
-                new ScheduleCommunicationSetupAction($this->dto->app, $integrationCompany)->execute();
+                BaseIntegration::forIntegrationCompany($integrationCompany, $this->dto->app)?->saved($integrationCompany);
             }
 
             if ($this->status->slug === StatusEnum::ACTIVE->value && $this->dto->app instanceof Apps) {

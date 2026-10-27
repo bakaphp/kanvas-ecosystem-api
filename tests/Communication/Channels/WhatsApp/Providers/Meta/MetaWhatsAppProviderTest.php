@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\ConfigurationEnum;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Handlers\MetaWhatsAppHandler;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\MetaInbound;
@@ -23,6 +25,7 @@ use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\ConversationAgentEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
+use Kanvas\Communication\Setup\Jobs\SetupPeopleChannelsJob;
 use Kanvas\Communication\Webhooks\ProcessCommunicationWebhookJob;
 use Kanvas\Communication\Workflows\AgentChannelResponderActivity;
 use Kanvas\Guild\Leads\Models\LeadType;
@@ -151,6 +154,69 @@ final class MetaWhatsAppProviderTest extends TestCase
         $this->get($url . '?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=1158201444')->assertForbidden();
     }
 
+    public function testMetaVerifiesTheSharedCallbackWithThePlatformsToken(): void
+    {
+        $this->assertSame($this->currentApp()->getId(), CommunicationReceivers::platformApp()->getId());
+
+        $this->get('/v1/receiver/meta?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=1158201444')
+            ->assertOk()
+            ->assertSeeText('1158201444');
+
+        $this->get('/v1/receiver/meta?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=1158201444')->assertForbidden();
+    }
+
+    public function testTheSharedCallbackGoesToTheReceiverOfTheAppThatClaimsTheNumber(): void
+    {
+        $this->metaConnection();
+        $receiver = $this->receiver();
+        $before = $receiver->webhookCalls()->count();
+
+        $this->postToCallback(json_encode($this->inboundPayload('wamid.CB1', '18095550211', 'Hola')))->assertOk();
+        $this->postToCallback(json_encode($this->inboundPayload('wamid.CB2', '18095550212', 'Hola')), 'someone-else')
+            ->assertUnauthorized();
+
+        $this->assertSame($before + 1, $receiver->webhookCalls()->count());
+    }
+
+    public function testTheSharedCallbackAcknowledgesANumberNoCompanyClaims(): void
+    {
+        $receiver = $this->receiver();
+        $before = $receiver->webhookCalls()->count();
+
+        $this->postToCallback(json_encode($this->inboundPayload('wamid.CB3', '18095550213', 'Hola')))->assertOk();
+
+        $this->assertSame($before, $receiver->webhookCalls()->count());
+    }
+
+    /**
+     * The request runs as the app of the company that claims the number: that app's secret signs it
+     * and that app's receiver takes it.
+     */
+    public function testTheSharedCallbackRunsAsTheAppOfTheCompanyThatClaimsTheNumber(): void
+    {
+        $app = $this->currentApp();
+        $ownReceiver = $this->receiver();
+        $ownCalls = $ownReceiver->webhookCalls()->count();
+        $otherApp = $this->otherApp();
+        $otherApp->set(ConfigurationEnum::APP_SECRET->value, 'other-app-secret');
+        $this->metaConnection();
+        InboundClaim::query()->where('provider', 'meta')->where('inbound_identity', self::OUR_NUMBER)->update(['apps_id' => $otherApp->getId()]);
+        $otherReceiver = new CommunicationReceivers()->ensure($otherApp, $this->currentCompany(), 'meta');
+        $body = json_encode($this->inboundPayload('wamid.CB4', '18095550214', 'Hola'));
+
+        try {
+            $this->postToCallback($body)->assertUnauthorized();
+            $this->postToCallback($body, 'other-app-secret')->assertOk();
+
+            $this->assertSame($otherApp->getId(), app(Apps::class)->getId());
+            $this->assertSame(1, $otherReceiver->webhookCalls()->count());
+            $this->assertSame($ownCalls, $ownReceiver->webhookCalls()->count());
+        } finally {
+            $this->overwriteAppService($app);
+            $otherApp->del(ConfigurationEnum::APP_SECRET->value);
+        }
+    }
+
     public function testInboundIsFiledOnTheConnectionAndTheContactsWhatsAppChannel(): void
     {
         $connection = $this->metaConnection();
@@ -174,7 +240,7 @@ final class MetaWhatsAppProviderTest extends TestCase
      */
     public function testEveryWorkspaceOnTheAppSharesOneReceiver(): void
     {
-        $receivers = app(CommunicationReceivers::class);
+        $receivers = new CommunicationReceivers();
 
         $this->assertSame(
             $receivers->ensure($this->currentApp(), $this->currentCompany(), 'meta')->getId(),
@@ -229,7 +295,12 @@ final class MetaWhatsAppProviderTest extends TestCase
         $this->metaConnection(default: true);
 
         $delivery = $this->communication()
-            ->send($this->personWithCellphone('+18095550205'), 'Your quote is ready', channels: ['whatsapp'], sync: true)
+            ->send(
+                $this->personWithCellphone('+18095550205'),
+                'Your quote is ready',
+                channels: ['whatsapp'],
+                sync: true
+            )
             ->delivery(ChannelTypeEnum::WHATSAPP);
 
         Http::assertSent(fn (HttpRequest $request): bool => str_ends_with($request->url(), '/' . self::PHONE_NUMBER_ID . '/messages')
@@ -265,7 +336,12 @@ final class MetaWhatsAppProviderTest extends TestCase
         $this->metaConnection(default: true);
 
         $delivery = $this->communication()
-            ->send($this->personWithCellphone('+18095550206'), 'Following up', channels: ['whatsapp'], sync: true)
+            ->send(
+                $this->personWithCellphone('+18095550206'),
+                'Following up',
+                channels: ['whatsapp'],
+                sync: true
+            )
             ->delivery(ChannelTypeEnum::WHATSAPP);
 
         $this->assertSame(DeliveryStatusEnum::FAILED, $delivery->status);
@@ -281,7 +357,12 @@ final class MetaWhatsAppProviderTest extends TestCase
         $inbound = Message::query()->findOrFail($result[0]['message_id']);
         $this->agent();
 
-        $response = new AgentChannelResponderActivity(0, now()->toDateTimeString(), new StoredWorkflow(), [])->execute(
+        $response = new AgentChannelResponderActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        )->execute(
             Channel::query()->findOrFail($result[0]['channel_id']),
             $this->currentApp(),
             ['message' => $inbound]
@@ -297,9 +378,11 @@ final class MetaWhatsAppProviderTest extends TestCase
         Http::assertSent(fn (HttpRequest $request): bool => $request['to'] === '18095550207' && $request['text']['body'] === 'Hola Mundo');
     }
 
-    public function testSetupSubscribesTheWabaToTheTenantsReceiverAndReadsItBack(): void
+    public function testSetupSubscribesTheWabaToTheSharedCallbackAndReadsItBack(): void
     {
-        $receiverUrl = app(CommunicationReceivers::class)->ensure($this->currentApp(), $this->currentCompany(), 'meta')->getUrl();
+        $this->globalAgentTemplates();
+        Queue::fake([SetupPeopleChannelsJob::class]);
+        $receiverUrl = MetaInbound::callbackUrl();
         $subscribed = [];
         Http::fake(function (HttpRequest $request) use (&$subscribed, $receiverUrl) {
             if (str_ends_with($request->url(), '/subscribed_apps') && $request->method() === 'POST') {
@@ -324,6 +407,7 @@ final class MetaWhatsAppProviderTest extends TestCase
         $this->assertEquals(['phone_number_id' => self::PHONE_NUMBER_ID, 'waba_id' => self::WABA_ID], $connection->config);
         $this->assertSame([['override_callback_uri' => $receiverUrl, 'verify_token' => 'verify-me']], $subscribed);
         $this->assertSame($connection->getId(), InboundClaim::query()->where('provider', 'meta')->where('inbound_identity', self::OUR_NUMBER)->value('connection_id'));
+        Queue::assertPushed(SetupPeopleChannelsJob::class, 1);
     }
 
     public function testAWabaAlreadySendingToAnotherKanvasReceiverIsNotTakenOver(): void
@@ -399,7 +483,7 @@ final class MetaWhatsAppProviderTest extends TestCase
 
     private function receiver(): ReceiverWebhook
     {
-        return app(CommunicationReceivers::class)->ensure($this->currentApp(), $this->currentCompany(), 'meta');
+        return new CommunicationReceivers()->ensure($this->currentApp(), $this->currentCompany(), 'meta');
     }
 
     private function signedRequest(ReceiverWebhook $receiver, string $body, ?string $signature = null): Request
@@ -413,6 +497,19 @@ final class MetaWhatsAppProviderTest extends TestCase
         $request->headers->set('X-Hub-Signature-256', $signature ?? 'sha256=' . hash_hmac('sha256', $body, self::SECRET));
 
         return $request;
+    }
+
+    private function postToCallback(string $body, string $secret = self::SECRET): TestResponse
+    {
+        return $this->call(
+            'POST',
+            '/v1/receiver/meta',
+            server: [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_X_HUB_SIGNATURE_256' => 'sha256=' . hash_hmac('sha256', $body, $secret),
+            ],
+            content: $body
+        );
     }
 
     private function deliver(array $payload): array

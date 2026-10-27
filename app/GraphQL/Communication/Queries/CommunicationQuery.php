@@ -21,7 +21,7 @@ class CommunicationQuery
     {
         $ctx = $this->actingContext();
         $channel = $request['channel'] ?? null;
-        $providers = app(ProviderRegistry::class)->all();
+        $providers = new ProviderRegistry()->all();
 
         return Connection::query()
             ->fromApp($ctx->app)

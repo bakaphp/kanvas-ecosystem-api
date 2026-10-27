@@ -25,7 +25,7 @@ final class CommunicationSetupCommandTest extends TestCase
     use BuildsCommunicationFixtures;
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = [null, 'workflow', 'crm', 'social'];
+    protected $connectionsToTransact = [null, 'workflow', 'crm', 'social', 'intelligence'];
 
     private FakeProvisioner $vendor;
 
@@ -139,13 +139,18 @@ final class CommunicationSetupCommandTest extends TestCase
         );
 
         return $this->communication()
-            ->send($this->personWithCellphone(), 'Hello', channels: ['sms'], sync: true)
+            ->send(
+                $this->personWithCellphone(),
+                'Hello',
+                channels: ['sms'],
+                sync: true
+            )
             ->delivery(ChannelTypeEnum::SMS);
     }
 
     private function inboundReceiver(): ReceiverWebhook
     {
-        return app(CommunicationReceivers::class)->find($this->currentApp(), $this->currentCompany(), 'fake')
+        return new CommunicationReceivers()->find($this->currentApp(), $this->currentCompany(), 'fake')
             ?? $this->fail('Setup made no receiver.');
     }
 }

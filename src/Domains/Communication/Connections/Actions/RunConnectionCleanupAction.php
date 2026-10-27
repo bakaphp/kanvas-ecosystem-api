@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Communication\Connections\Actions;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Communication\Connections\Enums\CleanupTaskStatusEnum;
@@ -42,7 +43,7 @@ final class RunConnectionCleanupAction
             return $this->connection;
         }
 
-        $provisioner = app(ProviderRegistry::class)->provisioner($this->connection->provider);
+        $provisioner = new ProviderRegistry()->provisioner($this->connection->provider);
 
         foreach ($this->dueTasks() as $task) {
             $this->run($task, fn (CleanupTask $task) => $provisioner->cleanup($task));
@@ -72,8 +73,10 @@ final class RunConnectionCleanupAction
 
     /**
      * Pending tasks that are due, and running ones whose worker's lease ran out.
+     *
+     * @return Collection<int, CleanupTask>
      */
-    private function dueTasks()
+    private function dueTasks(): Collection
     {
         return $this->connection->cleanupTasks()
             ->where(fn ($query) => $query

@@ -7,6 +7,7 @@ namespace Kanvas\Communication\Connections\Services;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Builder;
 use InvalidArgumentException;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Support\ProviderRegistry;
 use Kanvas\Communication\Webhooks\ProcessCommunicationWebhookJob;
 use Kanvas\Companies\Models\Companies;
@@ -23,9 +24,17 @@ use Kanvas\Workflow\Services\WorkflowActionCatalog;
 class CommunicationReceivers
 {
     public function __construct(
-        protected WorkflowActionCatalog $catalog,
-        protected ProviderRegistry $registry
+        protected WorkflowActionCatalog $catalog = new WorkflowActionCatalog(),
+        protected ProviderRegistry $registry = new ProviderRegistry()
     ) {
+    }
+
+    /**
+     * Holds the settings of an endpoint every app shares, which no receiver of its own can name.
+     */
+    public static function platformApp(): Apps
+    {
+        return Apps::getByUuid((string) config('kanvas.app.id'));
     }
 
     /**

@@ -37,7 +37,7 @@ final readonly class SetupReport
         return match (true) {
             $failed !== [] => new self(self::FAILED, implode('; ', $failed), $connections),
             $blocked !== [] => new self(self::BLOCKED, implode('; ', $blocked), $connections),
-            default => new self(self::READY, null, $connections),
+            default => new self(self::READY, connections: $connections),
         };
     }
 }

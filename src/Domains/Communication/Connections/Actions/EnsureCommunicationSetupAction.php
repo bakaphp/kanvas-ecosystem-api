@@ -21,6 +21,8 @@ use Kanvas\Communication\Connections\Services\CommunicationReceivers;
 use Kanvas\Communication\Contracts\CommunicationProvider;
 use Kanvas\Communication\Contracts\Provisioner;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
+use Kanvas\Communication\Setup\Actions\SetupCompanyDefaultsAction;
+use Kanvas\Communication\Setup\Jobs\SetupPeopleChannelsJob;
 use Kanvas\Communication\Support\AutoReplyPolicy;
 use Kanvas\Communication\Support\ProviderRegistry;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
@@ -58,7 +60,7 @@ final class EnsureCommunicationSetupAction
 
     public function execute(): SetupReport
     {
-        $provider = app(ProviderRegistry::class)->forIntegration($this->integrationCompany);
+        $provider = new ProviderRegistry()->forIntegration($this->integrationCompany);
 
         if ($provider === null) {
             return SetupReport::skipped('not_a_communication_provider');
@@ -198,6 +200,7 @@ final class EnsureCommunicationSetupAction
                 throw new SetupBlockedException($prerequisite);
             }
 
+            new SetupCompanyDefaultsAction($this->app, $connection->company)->execute();
             $this->ensureAutoReply($provider, $provisioner);
             $this->ensureChannelDefaults($provider, $connection);
 
@@ -210,12 +213,19 @@ final class EnsureCommunicationSetupAction
 
             // Switched on once, by the first setup that succeeds. After that only the person's
             // own On/Off decides — repair must never turn back on what they turned off.
-            if ($connection->first_ready_at === null) {
+            $firstReady = $connection->first_ready_at === null;
+
+            if ($firstReady) {
                 $connection->first_ready_at = now();
                 $connection->enabled = true;
             }
 
             $connection->saveOrFail();
+
+            // The people a company already has get their channels once, when it first goes live.
+            if ($firstReady) {
+                SetupPeopleChannelsJob::dispatch($this->app, $connection->company);
+            }
         } catch (SetupBlockedException $blocked) {
             $connection->forceFill([
                 'setup_status' => SetupStatusEnum::BLOCKED,
@@ -240,7 +250,7 @@ final class EnsureCommunicationSetupAction
      */
     private function registerWithVendor(Provisioner $provisioner, Connection $connection): InboundRegistration
     {
-        $inbound = app(CommunicationReceivers::class)->ensure($this->app, $connection->company, $connection->provider);
+        $inbound = new CommunicationReceivers()->ensure($this->app, $connection->company, $connection->provider);
 
         return Cache::lock(self::resourceLock($connection->provider, $connection->account_key), self::LOCK_SECONDS)
             ->block(30, fn () => $provisioner->registerInbound($connection, $inbound->getUrl()));
@@ -275,7 +285,7 @@ final class EnsureCommunicationSetupAction
         }
 
         foreach (array_keys($provider::transports()) as $channel) {
-            $agent = app(AutoReplyPolicy::class)->agentFor(
+            $agent = new AutoReplyPolicy()->agentFor(
                 $this->app,
                 $this->integrationCompany->company,
                 ChannelTypeEnum::from($channel)
@@ -283,11 +293,9 @@ final class EnsureCommunicationSetupAction
 
             if ($agent !== null) {
                 new EnsureAutoReplyRuleAction(
-                    app: $this->app,
-                    company: $this->integrationCompany->company,
-                    agent: $agent,
-                    channelSlugPattern: $autoReply['channel_slug_pattern'],
-                    legacyResponder: $autoReply['legacy_responder']
+                    $agent,
+                    $autoReply['channel_slug_pattern'],
+                    $autoReply['legacy_responder']
                 )->execute();
 
                 return;

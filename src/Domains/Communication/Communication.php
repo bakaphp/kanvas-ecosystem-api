@@ -72,8 +72,7 @@ final class Communication
      * Answers in the conversation the message belongs to: same connection, same counterpart. It
      * never falls back to the company default — an answer from another number is a new conversation
      * to whoever receives it.
-     */
-    /**
+     *
      * @param Message|null $filedAs the reply as the caller already filed it — an agent's answer is
      *                              filed, and possibly held for approval, before it is sent — so the
      *                              delivery is recorded on that message instead of on a second copy
@@ -136,9 +135,7 @@ final class Communication
 
     public function operation(int $id): Operation
     {
-        return new Operation(
-            Request::query()->fromApp($this->app)->fromCompany($this->company)->findOrFail($id)
-        );
+        return new Operation(Request::getByIdFromCompanyApp($id, $this->company, $this->app));
     }
 
     private function content(Content|string $content): Content

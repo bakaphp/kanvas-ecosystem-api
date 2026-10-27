@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\BurstConfigEnum;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\ConfigurationEnum;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Handlers\MetaWhatsAppHandler;
+use Kanvas\Communication\Connections\Models\InboundClaim;
 use Kanvas\Communication\Contracts\InboundSource;
 use Kanvas\Communication\Contracts\VerifiesEndpoint;
 use Kanvas\Communication\Messages\Actions\FlushInboundBurstAction;
@@ -74,10 +75,25 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
         return hash_equals('sha256=' . hash_hmac('sha256', $request->getContent(), $secret), $signature);
     }
 
+    /**
+     * The one URL every app's WABAs post to: a WABA takes one callback override, and whose numbers
+     * a payload carries is only known from the payload. Under /v1/receiver/ so it reads as a Kanvas
+     * receiver.
+     */
+    public static function callbackUrl(): string
+    {
+        return rtrim((string) config('app.url'), '/') . '/v1/receiver/meta';
+    }
+
     #[Override]
     public function challenge(Request $request, ReceiverWebhook $receiver): ?string
     {
-        $token = $receiver->app->get(ConfigurationEnum::WEBHOOK_VERIFY_TOKEN->value);
+        return $this->answerChallenge($request, $receiver->app);
+    }
+
+    public function answerChallenge(Request $request, AppInterface $app): ?string
+    {
+        $token = $app->get(ConfigurationEnum::WEBHOOK_VERIFY_TOKEN->value);
 
         if ($this->hubParameter($request, 'mode') !== 'subscribe' || ! is_string($token) || $token === '') {
             return null;
@@ -97,6 +113,26 @@ class MetaInbound implements InboundSource, VerifiesEndpoint
     private function hubParameter(Request $request, string $name): string
     {
         return (string) ($request->query('hub_' . $name) ?? $request->query('hub.' . $name) ?? '');
+    }
+
+    /**
+     * The claim on the number the payload is for. A payload comes from one WABA, so its numbers
+     * belong to one company: the first claimed one names it.
+     */
+    public function claimFor(array $payload): ?InboundClaim
+    {
+        foreach ($this->changes($payload) as $value) {
+            $number = (string) ($value['metadata']['display_phone_number'] ?? '');
+            $claim = $number === ''
+                ? null
+                : InboundClaim::forIdentity(MetaWhatsAppHandler::slug(), ChannelTypeEnum::WHATSAPP, $number);
+
+            if ($claim !== null) {
+                return $claim;
+            }
+        }
+
+        return null;
     }
 
     #[Override]

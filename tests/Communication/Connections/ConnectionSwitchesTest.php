@@ -7,12 +7,12 @@ namespace Tests\Communication\Connections;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Communication\Connections\Actions\SetConnectionEnabledAction;
-use Kanvas\Communication\Connections\Actions\SetIntegrationActiveAction;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Messages\Actions\DispatchDeliveryAction;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
+use Kanvas\Workflow\Integrations\Actions\SetIntegrationCompanyActiveAction;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\TestCase;
 
@@ -71,7 +71,7 @@ final class ConnectionSwitchesTest extends TestCase
     {
         [$connection, $delivery] = $this->connectionWithQueuedDelivery();
 
-        new SetIntegrationActiveAction($this->currentApp(), $connection->integrationCompany, false)->execute();
+        new SetIntegrationCompanyActiveAction($connection->integrationCompany, $this->currentApp(), false)->execute();
 
         $this->assertSame(DeliveryStatusEnum::SKIPPED, $delivery->fresh()->status);
         $this->assertSame('integration_inactive', $delivery->fresh()->error_code);
@@ -80,12 +80,13 @@ final class ConnectionSwitchesTest extends TestCase
 
     public function testIntegrationOnKeepsUserDisabledOffAndBumpsOnce(): void
     {
+        $this->useFakeProvider();
         $connection = $this->defaultSmsConnection(attributes: ['enabled' => false]);
         $integration = $connection->integrationCompany;
 
-        new SetIntegrationActiveAction($this->currentApp(), $integration, false)->execute();
-        new SetIntegrationActiveAction($this->currentApp(), $integration, true)->execute();
-        new SetIntegrationActiveAction($this->currentApp(), $integration, true)->execute();
+        new SetIntegrationCompanyActiveAction($integration, $this->currentApp(), false)->execute();
+        new SetIntegrationCompanyActiveAction($integration, $this->currentApp(), true)->execute();
+        new SetIntegrationCompanyActiveAction($integration, $this->currentApp(), true)->execute();
 
         $this->assertFalse($connection->fresh()->enabled);
         $this->assertSame(2, $connection->fresh()->activation_version);

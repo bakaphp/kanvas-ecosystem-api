@@ -83,7 +83,12 @@ final class AgentChannelResponderActivityTest extends TestCase
     {
         $lead = $this->leadOf($this->personWithCellphone('+18095550602'));
         $channel = $this->conversationChannel($lead);
-        $inbound = $this->fileInConversation($channel, $lead, 'fake-sms', ['content' => 'Hi', 'from_me' => false]);
+        $inbound = $this->fileInConversation(
+            $channel,
+            $lead,
+            'fake-sms',
+            ['content' => 'Hi', 'from_me' => false]
+        );
 
         $result = $this->respond($channel, $inbound);
 
@@ -151,7 +156,12 @@ final class AgentChannelResponderActivityTest extends TestCase
     {
         $this->agent();
 
-        return new AgentChannelResponderActivity(0, now()->toDateTimeString(), new StoredWorkflow(), [])->execute(
+        return new AgentChannelResponderActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        )->execute(
             $channel,
             $this->currentApp(),
             ['message' => $inbound]

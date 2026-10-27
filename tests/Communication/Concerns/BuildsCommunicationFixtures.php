@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Communication\Concerns;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Support\Facades\Queue;
+use Kanvas\Apps\Actions\CreateAppsAction;
+use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Communication;
 use Kanvas\Communication\Connections\Actions\EnsureCommunicationSetupAction;
@@ -13,11 +16,15 @@ use Kanvas\Communication\Connections\Enums\SetupStatusEnum;
 use Kanvas\Communication\Connections\Models\ChannelDefault;
 use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Connections\Models\InboundClaim;
+use Kanvas\Communication\Connections\Services\SharedRegistry;
+use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
+use Kanvas\Communication\Setup\Jobs\SetupPeopleChannelsJob;
 use Kanvas\Communication\Support\ProviderRegistry;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
@@ -41,6 +48,8 @@ use Tests\Communication\Fixtures\FakeTransport;
 
 trait BuildsCommunicationFixtures
 {
+    use KanvasJobsTrait;
+
     protected function currentApp(): Apps
     {
         return app(Apps::class);
@@ -54,6 +63,34 @@ trait BuildsCommunicationFixtures
     protected function otherCompany(): Companies
     {
         return Companies::factory()->create();
+    }
+
+    /**
+     * Creating an app leaves it, and its permission scope, as the current one; the test, and its
+     * tearDown, still run as the app they started on.
+     */
+    protected function otherApp(): Apps
+    {
+        $app = $this->currentApp();
+
+        try {
+            return new CreateAppsAction(
+                AppInput::from([
+                    'url' => 'communication.test',
+                    'is_actived' => '1',
+                    'ecosystem_auth' => '1',
+                    'payments_active' => '1',
+                    'is_public' => '1',
+                    'domain_based' => '1',
+                    'name' => 'Communication app ' . uniqid(),
+                    'description' => 'Second app for another tenant',
+                    'domain' => 'communication.test',
+                ]),
+                auth()->user()
+            )->execute();
+        } finally {
+            $this->overwriteAppService($app);
+        }
     }
 
     protected function communication(): Communication
@@ -114,14 +151,14 @@ trait BuildsCommunicationFixtures
         $integration = Integrations::create([
             'apps_id' => 0,
             'name' => uniqid('communication_'),
-            'handler' => app(ProviderRegistry::class)->all()[$provider] ?? 'none',
+            'handler' => new ProviderRegistry()->all()[$provider] ?? 'none',
         ]);
 
         $integrationCompany = IntegrationsCompany::create([
             'apps_id' => $this->currentApp()->getId(),
             'companies_id' => $this->currentCompany()->getId(),
             'integrations_id' => $integration->getId(),
-            'region_id' => 0,
+            'region_id' => $this->region($this->currentCompany())->getId(),
             'status_id' => Status::where('slug', StatusEnum::ACTIVE->value)->where('apps_id', 0)->firstOrFail()->getId(),
         ]);
 
@@ -144,10 +181,32 @@ trait BuildsCommunicationFixtures
     {
         $this->useFakeProvider();
 
-        $provisioner = app(FakeProvisioner::class);
+        $provisioner = new FakeProvisioner(new SharedRegistry());
         app()->instance(FakeProvisioner::class, $provisioner);
+        $this->globalAgentTemplates();
+        Queue::fake([SetupPeopleChannelsJob::class]);
 
         return $provisioner;
+    }
+
+    /**
+     * The app's global agents a company's setup copies; without them setup is blocked.
+     */
+    /**
+     * @return array<string, Agent> by name
+     */
+    protected function globalAgentTemplates(): array
+    {
+        $templates = [];
+
+        foreach (DefaultAgentEnum::cases() as $default) {
+            $templates[$default->value] = Agent::factory()
+                ->withAppId($this->currentApp()->getId())
+                ->withCompanyId(0)
+                ->create(['name' => $default->value]);
+        }
+
+        return $templates;
     }
 
     /**
@@ -208,10 +267,25 @@ trait BuildsCommunicationFixtures
             app: $this->currentApp(),
             integration: $integration,
             company: $company ?? $this->currentCompany(),
-            region: new Regions()->forceFill(['id' => 0]),
+            region: $this->region($company ?? $this->currentCompany()),
             config: [],
             persistedConfig: $selection === [] ? [] : ['phone_numbers' => $selection]
         );
+    }
+
+    /**
+     * A real one: the handler hooks are skipped for a row whose region does not exist.
+     */
+    private function region(Companies $company): Regions
+    {
+        return Regions::getDefault($company, $this->currentApp()) ?? Regions::create([
+            'apps_id' => $this->currentApp()->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => 0,
+            'name' => 'Region ' . uniqid(),
+            'is_default' => 1,
+            'is_deleted' => 0,
+        ]);
     }
 
     private function activeStatus(): Status

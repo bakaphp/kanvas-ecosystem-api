@@ -13,6 +13,7 @@ use Kanvas\Communication\Messages\Actions\RetryDeliveryAction;
 use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Communication\Messages\Models\Delivery;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Customers\Models\People;
 
 class CommunicationMutation
@@ -55,10 +56,7 @@ class CommunicationMutation
     {
         $ctx = $this->actingContext();
 
-        $delivery = Delivery::query()
-            ->fromApp($ctx->app)
-            ->fromCompany($ctx->company)
-            ->findOrFail((int) $request['id']);
+        $delivery = Delivery::getByIdFromCompanyApp((int) $request['id'], $ctx->company, $ctx->app);
 
         new RetryDeliveryAction($delivery)->execute();
 
@@ -69,11 +67,12 @@ class CommunicationMutation
     {
         $ctx = $this->actingContext();
 
-        $connection = Connection::query()
-            ->fromApp($ctx->app)
-            ->fromCompany($ctx->company)
-            ->live()
-            ->findOrFail((int) $request['id']);
+        $connection = Connection::getByIdFromCompanyApp((int) $request['id'], $ctx->company, $ctx->app);
+
+        // Disconnected rows are history, not something to switch on or off.
+        if (! $connection->isLive()) {
+            throw new ModelNotFoundException('Connection not found for this company.');
+        }
 
         return CommunicationPresenter::connection(
             new SetConnectionEnabledAction($connection, (bool) $request['enabled'])->execute()

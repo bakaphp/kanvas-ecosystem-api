@@ -37,7 +37,7 @@ final class FileDeliveryMessageAction
         $company = $this->delivery->company;
         $user = Users::query()->find($request->users_id) ?? $company->user;
 
-        $conversation = app(TransportManager::class)
+        $conversation = new TransportManager()
             ->for($connection->provider, $this->delivery->channel)
             ->conversation($connection, (string) $this->delivery->to_address);
 
@@ -91,7 +91,7 @@ final class FileDeliveryMessageAction
      */
     private function stampFiledMessage(int $messageId, int $connectionId, string $thread): Message
     {
-        $message = Message::query()->findOrFail($messageId);
+        $message = Message::getById($messageId, $this->delivery->app);
 
         $payload = $message->message;
         $payload['message_id'] = $this->delivery->external_id;

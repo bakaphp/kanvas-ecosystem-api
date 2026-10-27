@@ -78,7 +78,9 @@ final readonly class Operation
      */
     public function retryFailed(): self
     {
-        $this->deliveries()->each(fn (Delivery $delivery): bool => new RetryDeliveryAction($delivery)->execute());
+        foreach ($this->deliveries() as $delivery) {
+            new RetryDeliveryAction($delivery)->execute();
+        }
 
         return $this;
     }

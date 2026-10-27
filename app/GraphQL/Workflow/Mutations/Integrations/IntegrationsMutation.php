@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\GraphQL\Workflow\Mutations\Integrations;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Communication\Connections\Actions\SetIntegrationActiveAction;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -13,6 +12,7 @@ use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
 use Kanvas\Workflow\Integrations\Actions\RemoveIntegrationCompanyAction;
+use Kanvas\Workflow\Integrations\Actions\SetIntegrationCompanyActiveAction;
 use Kanvas\Workflow\Integrations\Actions\UpdateIntegrationCompanyAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
@@ -124,9 +124,9 @@ class IntegrationsMutation
             auth()->user()
         );
 
-        return new SetIntegrationActiveAction(
-            app(Apps::class),
+        return new SetIntegrationCompanyActiveAction(
             $integrationCompany,
+            app(Apps::class),
             (bool) $request['input']['is_active']
         )->execute();
     }

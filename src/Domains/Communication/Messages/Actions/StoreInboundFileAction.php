@@ -60,7 +60,7 @@ final class StoreInboundFileAction
 
         try {
             return new FilesystemServices($this->message->app, $this->message->company)->upload(
-                new UploadedFile($tempPath, $filename, $type, null, true),
+                new UploadedFile($tempPath, $filename, $type, test: true),
                 $user
             );
         } finally {

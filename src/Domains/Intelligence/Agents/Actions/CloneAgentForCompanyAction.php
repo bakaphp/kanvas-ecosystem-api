@@ -18,6 +18,8 @@ class CloneAgentForCompanyAction
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Users $owner,
+        // The copy's own user; without one it runs as the owner.
+        private readonly ?Users $user = null,
     ) {
     }
 
@@ -29,7 +31,7 @@ class CloneAgentForCompanyAction
         $data = new AgentData(
             app: $this->app,
             company: $this->company,
-            user: $this->owner,
+            user: $this->user ?? $this->owner,
             agentType: $this->source->type,
             name: $this->source->name,
             role: $this->source->role ?? [],
@@ -44,6 +46,7 @@ class CloneAgentForCompanyAction
             toolsConfig: $this->source->tools_config,
             tools: $tools !== [] ? $tools : null,
             createdBy: $this->owner,
+            isSubAgent: (bool) $this->source->is_sub_agent,
         );
 
         return new CreateAgentAction($data)->execute();

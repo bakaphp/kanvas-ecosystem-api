@@ -64,7 +64,7 @@ final class ReconcileDeliveriesJob implements ShouldQueue
     private function settle(Delivery $delivery): void
     {
         $observed = $delivery->external_id !== null && $delivery->provider !== null
-            ? app(TransportManager::class)->for($delivery->provider, $delivery->channel)->lookup($delivery)
+            ? new TransportManager()->for($delivery->provider, $delivery->channel)->lookup($delivery)
             : null;
 
         if ($observed !== null) {
@@ -96,7 +96,7 @@ final class ReconcileDeliveriesJob implements ShouldQueue
      */
     private function closeBeyondRetention(): void
     {
-        foreach (app(ProviderRegistry::class)->all() as $slug => $provider) {
+        foreach (new ProviderRegistry()->all() as $slug => $provider) {
             Delivery::query()
                 ->fromApp($this->app)
                 ->where('provider', $slug)

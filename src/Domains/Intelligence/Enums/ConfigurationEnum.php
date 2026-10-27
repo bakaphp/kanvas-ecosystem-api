@@ -27,6 +27,7 @@ enum ConfigurationEnum: string
     case ADK_AI_ASSIST_APP_NAME = 'google_orchestrator_ai_assist_app_name';
     case ADK_AI_ASSIST_BASE_URL = 'google_orchestrator_ai_assist_base_url';
     case AI_ASSIST_ENABLED = 'sales_assist_ai_assist_enabled';
+    case AI_NOTES_CHANNEL_ENABLED = 'enable_ai_notes_channel';
     case AI_ASSIST_GREETING_MSG = 'ai_assist_greeting_msg';
     case AI_ASSIST_AGENT_ID = 'ai_assist_agent';
     case AGENT_HAND_OFF = 'agent_hand_off';
@@ -51,6 +52,8 @@ enum ConfigurationEnum: string
     // apps (voiceAgentSpec by uuid, ignoring apps_id). Enable ONLY on the
     // trusted voice-runtime app; every other app-key stays app-scoped.
     case VOICE_RUNTIME_CROSS_APP = 'kanvas-intelligence-voice-runtime-cross-app';
+    // App setting: the follow-up v2 engine runs for this app's companies.
+    case USE_LEAD_FOLLOW_UP_V2 = 'use_lead_follow_up_v2';
     case LEAD_FOLLOW_UP_DISABLED = 'lead_follow_up_disabled';
     // Company setting: minutes a CRM pull stays fresh before the follow-up engine pulls again.
     case LEAD_FOLLOW_UP_SYNC_INTERVAL_MINUTES = 'lead_follow_up_sync_interval_minutes';

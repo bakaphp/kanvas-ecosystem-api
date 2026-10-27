@@ -91,7 +91,12 @@ final class FakeProvisioner implements Provisioner
         $this->vendor[$connection->account_key] = $inboundUrl;
 
         return new InboundRegistration(owned: [
-            new OwnedResource('fake_number', $connection->account_key, 'PN-' . $connection->account_key, $inboundUrl),
+            new OwnedResource(
+                'fake_number',
+                $connection->account_key,
+                'PN-' . $connection->account_key,
+                $inboundUrl
+            ),
         ]);
     }
 

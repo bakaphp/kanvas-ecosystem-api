@@ -138,7 +138,7 @@ final class SendMessageAction
 
         $failure = match (true) {
             $connection === null => 'no_connection',
-            ! app(TransportManager::class)->supports($connection->provider, $route->channel) => 'channel_not_supported',
+            ! new TransportManager()->supports($connection->provider, $route->channel) => 'channel_not_supported',
             $connection->unavailableReason() !== null => $connection->unavailableReason(),
             $route->address === null => 'no_address',
             default => null,
@@ -150,7 +150,7 @@ final class SendMessageAction
             return $delivery;
         }
 
-        $refusal = app(EligibilityResolver::class)->reasonNotToContact(
+        $refusal = new EligibilityResolver()->reasonNotToContact(
             $this->recipient,
             $route->channel,
             $route->address

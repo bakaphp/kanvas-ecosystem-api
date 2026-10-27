@@ -70,7 +70,12 @@ final class CommunicationGraphQLTest extends TestCase
         $this->defaultSmsConnection();
         $this->transport->sendResult = TransportResult::failed('30003', 'Unreachable destination handset');
 
-        $operation = $this->communication()->send($this->personWithCellphone(), 'Hello', channels: ['sms'], sync: true);
+        $operation = $this->communication()->send(
+            $this->personWithCellphone(),
+            'Hello',
+            channels: ['sms'],
+            sync: true
+        );
         $this->transport->sendResult = null;
 
         $this->graphQL('mutation ($id: ID!) { communicationRetryDelivery(id: $id) { attempts } }', [

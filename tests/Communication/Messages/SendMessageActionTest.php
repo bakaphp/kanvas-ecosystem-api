@@ -30,7 +30,12 @@ final class SendMessageActionTest extends TestCase
         $connection = $this->defaultSmsConnection();
         $person = $this->personWithCellphone('+18095550199');
 
-        $operation = $this->communication()->send($person, 'Hello', channels: ['sms'], tag: 'quote');
+        $operation = $this->communication()->send(
+            $person,
+            'Hello',
+            channels: ['sms'],
+            tag: 'quote'
+        );
 
         $delivery = $operation->delivery(ChannelTypeEnum::SMS);
 
@@ -65,8 +70,18 @@ final class SendMessageActionTest extends TestCase
         $this->defaultSmsConnection();
         $person = $this->personWithCellphone();
 
-        $first = $this->communication()->send($person, 'Quote ready', channels: ['sms'], idempotencyKey: 'quote:1');
-        $second = $this->communication()->send($person, 'Quote ready', channels: ['sms'], idempotencyKey: 'quote:1');
+        $first = $this->communication()->send(
+            $person,
+            'Quote ready',
+            channels: ['sms'],
+            idempotencyKey: 'quote:1'
+        );
+        $second = $this->communication()->send(
+            $person,
+            'Quote ready',
+            channels: ['sms'],
+            idempotencyKey: 'quote:1'
+        );
 
         $this->assertSame($first->id(), $second->id());
         $this->assertCount(1, $transport->sent);
@@ -187,5 +202,34 @@ final class SendMessageActionTest extends TestCase
         $this->assertSame(1, $accepted->delivery(ChannelTypeEnum::SMS)->attempts);
         $this->assertCount(3, $transport->sent);
         $this->assertSame(2, Request::query()->whereIn('id', [$accepted->id(), $failed->id()])->count());
+    }
+
+    /**
+     * A delivery that cannot be retried — here one that never had a connection — must not stop the
+     * failed ones after it from going out again.
+     */
+    public function testRetryFailedRetriesEveryFailedDelivery(): void
+    {
+        $transport = $this->useFakeProvider();
+        $this->defaultSmsConnection();
+        $person = $this->personWithCellphone();
+
+        $transport->sendResult = TransportResult::failed('30003', 'Unreachable destination handset');
+        $operation = $this->communication()->send(
+            $person,
+            'Hello',
+            channels: ['email', 'sms'],
+            sync: true
+        );
+
+        $this->assertSame('failed', $operation->status());
+        $this->assertSame('no_connection', $operation->delivery(ChannelTypeEnum::EMAIL)->error_code);
+
+        $transport->sendResult = null;
+        $operation->retryFailed();
+
+        $this->assertSame(DeliveryStatusEnum::FAILED, $operation->delivery(ChannelTypeEnum::EMAIL)->status);
+        $this->assertSame(DeliveryStatusEnum::ACCEPTED, $operation->delivery(ChannelTypeEnum::SMS)->status);
+        $this->assertCount(2, $transport->sent);
     }
 }

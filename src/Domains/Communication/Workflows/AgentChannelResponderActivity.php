@@ -97,8 +97,12 @@ class AgentChannelResponderActivity extends KanvasActivity
         return AgentChannelResponderAction::class;
     }
 
-    private function respond(Channel $channel, Apps $app, Message $message, array $params): array
-    {
+    private function respond(
+        Channel $channel,
+        Apps $app,
+        Message $message,
+        array $params
+    ): array {
         if ($message->message['from_me'] ?? false) {
             return ['message' => 'Message is from our side of the conversation', 'entity' => null];
         }
@@ -135,9 +139,15 @@ class AgentChannelResponderActivity extends KanvasActivity
         $mappedAgentId = $channelAgentMapping[$chatJid]['agent_id'] ?? null;
         $agent = $mappedAgentId !== null
             ? Agent::getById($mappedAgentId, $app)
-            : app(AutoReplyPolicy::class)->conversationAgent($app, $channel->company);
+            : new AutoReplyPolicy()->conversationAgent($app, $channel->company);
         $defaultAgentId = $agent->getId();
-        $session = $this->session($channel, $app, $message, $person, $agent);
+        $session = $this->session(
+            $channel,
+            $app,
+            $message,
+            $person,
+            $agent
+        );
 
         if ($lead instanceof Lead) {
             $delayedResponse = $this->handleSupportModeDelayedResponse(
@@ -161,7 +171,12 @@ class AgentChannelResponderActivity extends KanvasActivity
         $action = $this->responderAction();
 
         try {
-            return new $action($channel, $message, $agent, $session)->execute($params);
+            return new $action(
+                $channel,
+                $message,
+                $agent,
+                $session
+            )->execute($params);
         } catch (AgentReplySkippedException | ValidationException $skipped) {
             return $this->failWorkflow(['message' => $skipped->getMessage(), 'entity' => null]);
         }

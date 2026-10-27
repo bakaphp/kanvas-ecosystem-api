@@ -36,7 +36,7 @@ final class ResolveIntegrationAppAction
             return ['outcome' => self::RESOLVED, 'apps' => [(int) $this->integrationCompany->apps_id]];
         }
 
-        $provider = app(ProviderRegistry::class)->forIntegration($this->integrationCompany);
+        $provider = new ProviderRegistry()->forIntegration($this->integrationCompany);
         $apps = array_values(array_unique([
             ...$this->fromConnections(),
             ...($provider !== null ? $this->fromReceivers($provider) : []),

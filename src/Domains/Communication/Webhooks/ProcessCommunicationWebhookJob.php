@@ -89,7 +89,7 @@ class ProcessCommunicationWebhookJob extends ProcessWebhookJob
         }
 
         try {
-            return app(ProviderRegistry::class)->inbound($provider);
+            return new ProviderRegistry()->inbound($provider);
         } catch (InvalidArgumentException) {
             return null;
         }

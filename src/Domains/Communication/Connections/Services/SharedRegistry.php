@@ -103,8 +103,17 @@ class SharedRegistry
     {
         $current = trim((string) $current);
 
-        return $current === ''
-            || $current === $ours
-            || str_starts_with($current, rtrim((string) config('app.url'), '/') . '/v1/receiver/');
+        return $current === '' || $current === $ours || self::isKanvasReceiverUrl($current);
+    }
+
+    /**
+     * A callback pointing at any Kanvas receiver, whichever workspace registered it. Other apps on
+     * the same vendor account (a CRM, another vendor) are none of our business.
+     */
+    public static function isKanvasReceiverUrl(?string $url): bool
+    {
+        $url = trim((string) $url);
+
+        return $url !== '' && str_starts_with($url, rtrim((string) config('app.url'), '/') . '/v1/receiver/');
     }
 }

@@ -13,6 +13,7 @@ use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\ConfigurationEnu
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\MetaInbound;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\MetaProvisioner;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\WhatsAppTransport;
+use Kanvas\Communication\Connections\Concerns\ProvisionsConnections;
 use Kanvas\Communication\Connections\DataTransferObject\AccountSelection;
 use Kanvas\Communication\Connections\DataTransferObject\Retention;
 use Kanvas\Communication\Contracts\CommunicationProvider;
@@ -29,6 +30,8 @@ use Override;
  */
 class MetaWhatsAppHandler extends BaseIntegration implements CommunicationProvider
 {
+    use ProvisionsConnections;
+
     #[Override]
     public function setup(): bool
     {
