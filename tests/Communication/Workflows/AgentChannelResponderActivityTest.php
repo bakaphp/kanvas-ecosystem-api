@@ -21,6 +21,7 @@ use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\Communication\Fixtures\FakeTransport;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
+use Tests\Stubs\Intelligence\StructuredNeuronAgentStub;
 use Tests\TestCase;
 
 /**
@@ -73,6 +74,45 @@ final class AgentChannelResponderActivityTest extends TestCase
         $this->assertTrue((bool) $reply->message['from_ia']);
         $this->assertSame($inbound->messageType->verb, $reply->messageType->verb, 'filed as the kind of message it answers');
         $this->assertCount(1, $this->transport->sent);
+    }
+
+    public function testStructuredRepliesKeepTheirEnvelopeOnTheFiledMessage(): void
+    {
+        $connection = $this->defaultSmsConnection(number: '+18095550607');
+        [$channel, $inbound] = $this->inboundOn($connection, '+18095550608');
+
+        $result = $this->respond($channel, $inbound, StructuredNeuronAgentStub::class);
+        $this->assertArrayNotHasKey('error', $result, json_encode($result));
+
+        $delivery = Delivery::query()->where('connection_id', $connection->getId())->sole();
+        $reply = Message::getById($delivery->message_id, $this->currentApp());
+
+        $this->assertSame("Hola Mundo\n\nReply STOP to opt out.", $this->transport->sent[0]['text']);
+        $this->assertSame('Education accelerates classroom construction in El Seibo', $reply->message['response_json']['title'] ?? null);
+        $this->assertSame(['National', 'Education'], $reply->message['response_json']['categories'] ?? null);
+        $this->assertSame('draft', $reply->message['response_json']['status'] ?? null);
+    }
+
+    public function testAnAgentMappedFromAnotherCompanyCannotAnswer(): void
+    {
+        $connection = $this->defaultSmsConnection(number: '+18095550609');
+        [$channel, $inbound] = $this->inboundOn($connection, '+18095550610');
+        $agent = $this->agent(SalesNeuronAgentStub::class);
+        $agent->forceFill(['companies_id' => $this->otherCompany()->getId()])->saveOrFail();
+
+        $result = new AgentChannelResponderActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        )->execute($channel, $this->currentApp(), [
+            'message' => $inbound,
+            'channelAgentMapping' => ['+18095550610' => ['agent_id' => $agent->getId()]],
+        ]);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertSame([], $this->transport->sent);
+        $this->assertFalse(Delivery::query()->where('connection_id', $connection->getId())->exists());
     }
 
     /**
@@ -152,9 +192,9 @@ final class AgentChannelResponderActivityTest extends TestCase
         return [$channel, $inbound];
     }
 
-    private function respond(Channel $channel, Message $inbound): array
+    private function respond(Channel $channel, Message $inbound, string $handler = SalesNeuronAgentStub::class): array
     {
-        $this->agent();
+        $this->agent($handler);
 
         return new AgentChannelResponderActivity(
             0,
@@ -168,11 +208,11 @@ final class AgentChannelResponderActivityTest extends TestCase
         );
     }
 
-    private function agent(): Agent
+    private function agent(string $handler): Agent
     {
         $agentType = AgentType::factory()
             ->withAppId($this->currentApp()->getId())
-            ->create(['name' => 'Sales (Neuron Test)', 'provider' => 'neuron', 'handler' => SalesNeuronAgentStub::class]);
+            ->create(['name' => 'Sales (Neuron Test)', 'provider' => 'neuron', 'handler' => $handler]);
 
         return Agent::factory()
             ->withAppId($this->currentApp()->getId())
