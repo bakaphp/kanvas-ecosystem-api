@@ -61,7 +61,7 @@ type CompanyOnboarding {
     requirements: [OnboardingRequirement!]!
     setup_plan: NervousSystemPlan
     setup_session_id: String
-    "The company knowledge documents uploaded so far; remove one with deleteFile(uuid), which also prunes its chunks."
+    "The company's knowledge documents (same list as companyKnowledgeDocuments)."
     knowledge_documents: [Filesystem!]!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Onboarding\\OnboardingQuery@knowledgeDocuments"
@@ -220,11 +220,6 @@ extend type Mutation @guard {
     ): CompanyResearch!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingResearchMutation@research"
-        )
-    "Company knowledge for the internal agents, during onboarding or any time after: the documents attach to the onboarding row and are indexed company-wide."
-    uploadCompanyKnowledge(files: [Upload!]!): CompanyOnboarding!
-        @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingResearchMutation@upload"
         )
 }
 

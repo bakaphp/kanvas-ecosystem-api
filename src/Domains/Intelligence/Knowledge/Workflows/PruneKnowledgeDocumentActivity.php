@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
-use Kanvas\Intelligence\Knowledge\Research\Workflows\IndexCompanyDocumentActivity;
+use Kanvas\Intelligence\Knowledge\Services\CompanyKnowledgeService;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -35,7 +35,7 @@ class PruneKnowledgeDocumentActivity extends KanvasActivity
             additionalParams: $params,
             integrationOperation: function (Filesystem $file) use ($app): array {
                 // A file uuid is unique, so pruning both document kinds never touches another file.
-                foreach ([IndexKnowledgeDocumentActivity::SOURCE_TYPE, IndexCompanyDocumentActivity::SOURCE_TYPE] as $sourceType) {
+                foreach ([IndexKnowledgeDocumentActivity::SOURCE_TYPE, CompanyKnowledgeService::SOURCE_TYPE_DOCUMENT] as $sourceType) {
                     KnowledgeComponents::store($app)->deleteBySourceAcrossEntities(
                         $app->getId(),
                         $file->companies_id,

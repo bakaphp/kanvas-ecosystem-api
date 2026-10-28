@@ -12,10 +12,8 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Onboarding\Enums\OnboardingStatusEnum;
-use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
-use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * One row per company: where the person is in onboarding and everything the flow recorded
@@ -38,8 +36,6 @@ class CompanyOnboarding extends BaseModel
 {
     use UuidTrait;
     use EmitsLedgerEventsForEntity;
-    use HasFilesystemTrait;
-    use CanUseWorkflow;
 
     private const int LOCK_SECONDS = 10;
 

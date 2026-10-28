@@ -28,7 +28,12 @@ trait HasMutationUploadFiles
         // is one upload or already a list.
         $files = Arr::wrap($request['file'] ?? $request['files'] ?? []);
 
-        $this->handleFileUpload($model, $app, $user, $files);
+        $this->handleFileUpload(
+            $model,
+            $app,
+            $user,
+            $files,
+        );
 
         return $model;
     }
@@ -51,7 +56,41 @@ trait HasMutationUploadFiles
         array $files,
         AllowedFileExtensionEnum $allowed = AllowedFileExtensionEnum::WORK_FILES,
     ): array {
-        return $this->handleFileUpload($model, $app, $user, $files, $allowed);
+        return $this->handleFileUpload(
+            $model,
+            $app,
+            $user,
+            $files,
+            $allowed,
+        );
+    }
+
+    /**
+     * Like {@see uploadFilesAndCollect}, but the attachment's field name comes from the callback
+     * instead of the client file name — for entities that tell attachments apart by that name.
+     *
+     * @param array<int, UploadedFile> $files
+     * @param callable(Filesystem): string $fieldName
+     * @return list<Filesystem>
+     *
+     * @throws Exception
+     */
+    public function uploadFilesAndCollectAs(
+        Model $model,
+        AppInterface $app,
+        UserInterface $user,
+        array $files,
+        callable $fieldName,
+        AllowedFileExtensionEnum $allowed = AllowedFileExtensionEnum::WORK_FILES,
+    ): array {
+        return $this->handleFileUpload(
+            $model,
+            $app,
+            $user,
+            $files,
+            $allowed,
+            $fieldName,
+        );
     }
 
     /**
@@ -69,6 +108,7 @@ trait HasMutationUploadFiles
         UserInterface $user,
         array $files,
         AllowedFileExtensionEnum $allowed = AllowedFileExtensionEnum::WORK_FILES,
+        ?callable $fieldName = null,
     ): array {
         $filesystem = new FilesystemServices(
             $app,
@@ -83,7 +123,9 @@ trait HasMutationUploadFiles
             }
 
             $filesystemEntity = $filesystem->upload($file, $user);
-            new AttachFilesystemAction($filesystemEntity, $model)->execute($file->getClientOriginalName());
+            new AttachFilesystemAction($filesystemEntity, $model)->execute(
+                $fieldName === null ? $file->getClientOriginalName() : $fieldName($filesystemEntity),
+            );
 
             $entities[] = $filesystemEntity;
         }

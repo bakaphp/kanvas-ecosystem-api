@@ -28,7 +28,16 @@ final class EntityFilesIndexer
      */
     public function indexableFiles(Model $entity, ?callable $filter = null): Collection
     {
-        return $entity->files
+        return $this->indexableAmong($entity->files, $filter);
+    }
+
+    /**
+     * @param Collection<int, Filesystem> $files
+     * @return Collection<int, Filesystem>
+     */
+    public function indexableAmong(Collection $files, ?callable $filter = null): Collection
+    {
+        return $files
             ->filter(fn (Filesystem $file): bool => $this->extractor->supports($file) && ($filter === null || $filter($file)))
             ->values();
     }

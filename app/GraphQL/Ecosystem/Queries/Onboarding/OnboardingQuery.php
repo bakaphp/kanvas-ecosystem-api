@@ -11,6 +11,7 @@ use Kanvas\Companies\Onboarding\Concerns\FlipsWelcomeFlag;
 use Kanvas\Companies\Onboarding\DataTransferObject\OnboardingState;
 use Kanvas\Companies\Onboarding\Services\OnboardingStateService;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Intelligence\Knowledge\Services\CompanyKnowledgeService;
 
 final class OnboardingQuery
 {
@@ -46,6 +47,6 @@ final class OnboardingQuery
      */
     public function knowledgeDocuments(OnboardingState $root): Collection
     {
-        return $root->row->files()->get();
+        return new CompanyKnowledgeService()->documents($root->company);
     }
 }

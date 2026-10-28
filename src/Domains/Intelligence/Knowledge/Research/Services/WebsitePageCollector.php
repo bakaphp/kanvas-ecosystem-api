@@ -44,20 +44,57 @@ class WebsitePageCollector
 
     public function collect(string $website): CollectedPages
     {
-        $url = WebsiteUrl::withScheme($website);
-        SafeUrl::assertSafe($url);
-        $home = rtrim($url, '/');
-
-        try {
-            $tavily = new TavilyClient($this->app);
-        } catch (ValidationException) {
-            $tavily = null;
-        }
-
+        $home = $this->safeUrl($website);
+        $tavily = $this->tavily();
         if ($tavily !== null) {
             return new CollectedPages($home, 'tavily', $this->viaTavily($tavily, $home));
         }
 
+        return $this->singlePage($home);
+    }
+
+    /**
+     * One page, no site map: Tavily extracts just that URL, the other paths already read one page.
+     */
+    public function collectOne(string $url): CollectedPages
+    {
+        $url = $this->safeUrl($url);
+        $tavily = $this->tavily();
+        if ($tavily !== null) {
+            $extracted = (array) ($tavily->extract([$url])['results'] ?? []);
+            $pages = [];
+            foreach ($extracted as $result) {
+                $page = $this->page($url, $result['title'] ?? null, (string) ($result['raw_content'] ?? ''));
+                if ($page !== null) {
+                    $pages[] = $page;
+                }
+            }
+
+            return new CollectedPages($url, 'tavily', array_slice($pages, 0, 1));
+        }
+
+        return $this->singlePage($url);
+    }
+
+    private function safeUrl(string $website): string
+    {
+        $url = WebsiteUrl::withScheme($website);
+        SafeUrl::assertSafe($url);
+
+        return rtrim($url, '/');
+    }
+
+    private function tavily(): ?TavilyClient
+    {
+        try {
+            return new TavilyClient($this->app);
+        } catch (ValidationException) {
+            return null;
+        }
+    }
+
+    private function singlePage(string $url): CollectedPages
+    {
         try {
             $jina = new JinaClient($this->app);
         } catch (ValidationException) {
@@ -65,10 +102,10 @@ class WebsitePageCollector
         }
 
         if ($jina !== null) {
-            return new CollectedPages($home, 'jina', $this->viaJina($jina, $home));
+            return new CollectedPages($url, 'jina', $this->viaJina($jina, $url));
         }
 
-        return new CollectedPages($home, 'direct', $this->viaDirectFetch($home));
+        return new CollectedPages($url, 'direct', $this->viaDirectFetch($url));
     }
 
     /**
