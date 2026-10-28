@@ -266,6 +266,7 @@ class LeadChannelFilesService
         return $files->map(function ($file) {
             return [
                 'id' => $file->id,
+                'uuid' => $file->uuid,
                 'name' => $file->name,
                 'url' => $file->url,
                 'file_type' => $file->file_type ?? '',
@@ -287,6 +288,7 @@ class LeadChannelFilesService
     {
         return [
             'id' => (string) ($file['id'] ?? ''),
+            'attachment_uuid' => $file['uuid'] ?? null,
             'name' => $file['name'] ?? '',
             'url' => $file['url'] ?? '',
             'file_type' => $file['file_type'] ?? '',
