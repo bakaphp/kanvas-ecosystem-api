@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleProfileAction;
 use Kanvas\Guild\Customers\Models\PeopleType;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\AnnouncesAgentEdits;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
@@ -25,6 +26,7 @@ use Throwable;
 #[AgentTool(name: 'Update Person', category: 'crm')]
 class UpdatePersonTool extends Tool
 {
+    use AnnouncesAgentEdits;
     use HasKanvasContext;
     use ReportsToolOutcome;
     use ResolvesPersonForTool;
@@ -108,6 +110,15 @@ class UpdatePersonTool extends Tool
             }
         } catch (Throwable $e) {
             return ['error' => $e->getMessage()];
+        }
+
+        // A call that sets nothing still saves the row; it must not open an approval for an unchanged person.
+        $changed = array_filter(
+            [$firstname, $lastname, $middlename, $dob, Str::trimToNull($title), $peopleType],
+            static fn (mixed $value): bool => $value !== null
+        );
+        if ($changed !== []) {
+            $this->announceAgentEdit($person);
         }
 
         return [

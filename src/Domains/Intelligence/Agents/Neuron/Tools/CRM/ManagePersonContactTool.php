@@ -8,6 +8,7 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\ContactType;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\AnnouncesAgentEdits;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\PropertyType;
@@ -23,6 +24,7 @@ use Override;
 #[AgentTool(name: 'Manage Person Contact', category: 'crm')]
 class ManagePersonContactTool extends Tool
 {
+    use AnnouncesAgentEdits;
     use ReportsToolOutcome;
     use ResolvesPersonForTool;
     use TrackByInputs;
@@ -108,6 +110,7 @@ class ManagePersonContactTool extends Tool
                 $is_opt_out === true ? 1 : 0,
                 0
             );
+            $this->announceAgentEdit($person);
 
             return $this->ok($this->describe($person->getId(), $contact) + ['message' => 'Contact point saved.']);
         }
@@ -129,6 +132,11 @@ class ManagePersonContactTool extends Tool
             'mark_valid' => $contact->markValid(),
             'mark_invalid' => $contact->markInvalid(),
         };
+
+        // Validity flags are delivery bookkeeping, not data Salesforce holds.
+        if ($action === 'remove') {
+            $this->announceAgentEdit($person);
+        }
 
         return $this->ok($this->describe($person->getId(), $contact) + [
             'message' => match ($action) {
