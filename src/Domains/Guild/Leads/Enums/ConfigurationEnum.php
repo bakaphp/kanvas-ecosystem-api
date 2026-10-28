@@ -29,4 +29,5 @@ enum ConfigurationEnum: string
     case DAILY_LEADS_DIGEST_EXCLUDED_COMPANIES = 'guild_daily_leads_digest_excluded_companies';
     case DAILY_LEADS_DIGEST_EXCLUDED_EMAILS = 'guild_daily_leads_digest_excluded_emails';
     case DAILY_LEADS_DIGEST_RECIPIENTS = 'guild_daily_leads_digest_recipients';
+    case AGENT_EMAIL_CC_ALLOWED_DOMAINS = 'guild_agent_email_cc_allowed_domains';
 }
