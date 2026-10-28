@@ -27,7 +27,10 @@ final class CompanyKnowledgeQuery
      */
     public function urls(mixed $root, array $request): array
     {
-        return array_map(CompanyKnowledgeService::presentUrl(...), new CompanyKnowledgeService()->urls($this->company()));
+        return array_map(
+            CompanyKnowledgeService::presentUrl(...),
+            new CompanyKnowledgeService()->urls($this->company())
+        );
     }
 
     private function company(): Companies
