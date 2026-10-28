@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
+use Baka\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
@@ -106,20 +107,7 @@ class GenerateDailyLeadsDigestAction
     /** @return list<string> */
     private function settingList(ConfigurationEnum $key): array
     {
-        $value = $this->setting($key);
-        if (is_string($value)) {
-            $decoded = json_decode($value, true);
-            $value = is_array($decoded) ? $decoded : explode(',', $value);
-        }
-
-        if (! is_array($value)) {
-            return [];
-        }
-
-        return array_values(array_filter(array_map(
-            static fn (mixed $item): string => trim((string) $item),
-            $value
-        ), static fn (string $item): bool => $item !== ''));
+        return Arr::fromSettingList($this->setting($key));
     }
 
     /** @param list<string> $excludedCompanies */
