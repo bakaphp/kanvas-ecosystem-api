@@ -21,7 +21,7 @@ final class ManualRateTaxProviderTest extends TestCaseUnit
     private function makeRule(float $rate = 0.18, bool $taxShipping = false): TaxRoutingRule
     {
         $rule = new TaxRoutingRule();
-        $rule->destination_country = 'DO';
+        $rule->condition_country = 'DO';
         $rule->provider = 'manual';
         $rule->rate = $rate;
         $rule->tax_shipping = $taxShipping;
