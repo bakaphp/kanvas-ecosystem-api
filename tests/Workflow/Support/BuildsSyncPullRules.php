@@ -28,15 +28,36 @@ trait BuildsSyncPullRules
         string $actionName,
         array $params = []
     ): Rule {
+        return $this->createSyncRule(
+            $app,
+            Lead::class,
+            WorkflowEnum::PULL,
+            $activityClass,
+            $actionName,
+            $params
+        );
+    }
+
+    /**
+     * A sync rule on any model and event, wired to one activity.
+     */
+    protected function createSyncRule(
+        Apps $app,
+        string $modelClass,
+        WorkflowEnum $event,
+        string $activityClass,
+        string $actionName,
+        array $params = []
+    ): Rule {
         $action = Action::factory()->create([
             'name' => $actionName,
             'model_name' => $activityClass,
         ]);
-        $systemModuleId = SystemModulesRepository::getByModelName(Lead::class, $app)->getId();
+        $systemModuleId = SystemModulesRepository::getByModelName($modelClass, $app)->getId();
 
         $rule = Rule::factory()->withAsync(false)->create([
-            'name' => 'Pull lead through ' . class_basename($activityClass) . ' ' . uniqid(),
-            'rules_types_id' => RuleType::getByName(WorkflowEnum::PULL->value)->getId(),
+            'name' => $event->value . ' ' . class_basename($modelClass) . ' through ' . class_basename($activityClass) . ' ' . uniqid(),
+            'rules_types_id' => RuleType::getByName($event->value)->getId(),
             'systems_modules_id' => $systemModuleId,
             'params' => $params,
         ]);
