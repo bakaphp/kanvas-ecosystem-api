@@ -147,9 +147,10 @@ final class CompanyDefaultSetupTest extends TestCase
             ->get();
         $slugs = $companyActions->map(fn (CompanyAction $ca) => $ca->action->slug)->all();
 
-        $this->assertCount(2, $companyActions, 'Action engine onboarding should create the 2 defaults.');
+        $this->assertCount(3, $companyActions, 'Action engine onboarding should create the 3 defaults.');
         $this->assertContains(ActionEnum::VIEW_PRODUCT->value, $slugs);
         $this->assertContains(ActionEnum::GET_DOCS->value, $slugs);
+        $this->assertContains(ActionEnum::SYNC->value, $slugs);
     }
 
     /**

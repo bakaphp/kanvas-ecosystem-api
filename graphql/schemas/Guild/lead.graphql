@@ -27,6 +27,7 @@ type Lead {
     events: [Event!]! @morphToMany(relation: "events")
     variantInterests: [LeadVariantInterest!]!
         @hasMany(relation: "variantInterests")
+    deals: [Deal!]! @hasMany(relation: "deals")
     ai_session: [AIAgentSession!]!
         @hasMany(relation: "aiSession", type: PAGINATOR)
     tags: [Tag!]
@@ -60,6 +61,7 @@ type Lead {
     is_published: Boolean!
     created_at: DateTime!
     updated_at: DateTime!
+    closed_at: DateTime
 }
 
 type LeadVariantInterest {
@@ -92,6 +94,7 @@ type LeadChannelFileGroup {
 
 type LeadChannelFile {
     id: ID!
+    attachment_uuid: String
     name: String!
     url: String!
     file_type: String
@@ -117,6 +120,7 @@ type LeadStatus {
     id: ID!
     name: String!
     is_default: Boolean!
+    is_open: Boolean!
 }
 
 type LeadSource {
@@ -270,6 +274,7 @@ extend type Query @guard {
                     "status"
                     "is_published"
                     "created_at"
+                    "closed_at"
                 ]
             )
         hasCustomFields: _
@@ -295,6 +300,7 @@ extend type Query @guard {
                     "id"
                     "created_at"
                     "updated_at"
+                    "closed_at"
                     "title"
                     "status"
                     "pipeline_stage_id"
@@ -328,9 +334,7 @@ extend type Query @guard {
         timezone: String
         pipeline_id: ID
     ): LeadAnalytics!
-        @field(
-            resolver: "App\\GraphQL\\Analytics\\Queries\\LeadAnalyticsQuery"
-        )
+        @field(resolver: "App\\GraphQL\\Analytics\\Queries\\LeadAnalyticsQuery")
 }
 
 type LeadAnalytics {

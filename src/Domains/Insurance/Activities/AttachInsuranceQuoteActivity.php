@@ -19,6 +19,7 @@ use Kanvas\Insurance\DataTransferObject\InsuranceOrderData;
 use Kanvas\Insurance\DataTransferObject\QuoteResult;
 use Kanvas\Insurance\DataTransferObject\VerifiedInsuranceOrder;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderOriginEnum;
 use Kanvas\Insurance\Enums\InsuranceOrderTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
 use Kanvas\Insurance\Exceptions\InsuranceValidationException;
@@ -26,13 +27,21 @@ use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Insurance\Services\InsuranceCommissionCalculator;
 use Kanvas\Insurance\Services\InsuranceOrderMetadata;
 use Kanvas\Insurance\Services\InsuranceRequestId;
+use Kanvas\Insurance\Services\InsuranceStatus;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Insurance Attach Quote',
+    description: 'Validates a freshly created insurance order and binds its quote with the insurer. Checks the plan, the vehicle, the customer data and that the insurer\'s price still matches, then stamps the quote number, premium, tax and total on the order. '
+        . 'Use it on \'Order created\' for the insurance order type, and configure that rule as NOT async so a rejection is known before the buyer pays. '
+        . 'It never throws on a bad quote: it marks the order failed (final status), stores a customer-safe reason in insurance_failure_reason and releases any held payment. '
+        . 'It skips orders that already carry a quote, orders that are not insurance orders and policies the user registered themselves. '
+        . 'It calls the insurer\'s API but does not charge the customer and does not email anyone.',
+)]
 class AttachInsuranceQuoteActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     use FailsReleasingHeldPayment;
@@ -46,13 +55,17 @@ class AttachInsuranceQuoteActivity extends KanvasActivity implements WorkflowAct
     {
         $this->overwriteAppService($app);
 
+        if (InsuranceOrderOriginEnum::isRegistered($order)) {
+            return InsuranceOrderOriginEnum::purchaseFlowSkipped($order);
+        }
+
         $isInsuranceOrder = InsuranceOrderTypeEnum::INSURANCE->isTypeOf($order);
 
         if (! $isInsuranceOrder && ! $this->hasLegacyBlock($order)) {
             return $this->skipped($order, 'Order carries no insurance quote');
         }
 
-        if ((string) $order->get(InsuranceCustomFieldEnum::STATUS->value) !== '') {
+        if (InsuranceStatus::hasQuote($order) || InsuranceStatus::of($order) === InsuranceStatusEnum::FAILED) {
             return $this->skipped($order, 'Quote already attached to this order');
         }
 

@@ -89,7 +89,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@delete"
         )
-    uploadFileToCategory(id: ID!, file: Upload!): Product!
+    uploadFileToCategory(id: ID!, file: Upload!): Category!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\CategoryMediaMutation@attachFileToCategory"
         )

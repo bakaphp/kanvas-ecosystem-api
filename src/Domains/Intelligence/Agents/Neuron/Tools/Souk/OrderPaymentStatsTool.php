@@ -7,7 +7,8 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Souk;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsOrderReports;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Souk\Orders\Services\OrderReportService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -20,7 +21,8 @@ class OrderPaymentStatsTool extends Tool
 {
     use GuardsRepeatCalls;
     use HasKanvasContext;
-    use ParsesOrderTypesFilter;
+    use ReportsToolOutcome;
+    use RunsOrderReports;
     use TrackByInputs;
 
     protected string $name = 'order_payment_stats';
@@ -45,6 +47,7 @@ class OrderPaymentStatsTool extends Tool
     {
         return [
             new ToolProperty(name: 'order_types', type: PropertyType::STRING, description: 'Optional comma-separated order-type names to restrict to (see list_order_types). Omit for all types.', required: false),
+            new ToolProperty(name: 'tags', type: PropertyType::STRING, description: 'Optional comma-separated order tag names to restrict to, e.g. "corporativo" (see list_order_types for the tags in use). An order matching any of them counts. Omit for all orders.', required: false),
             new ToolProperty(name: 'since', type: PropertyType::STRING, description: 'First payment date to include, ISO YYYY-MM-DD. Omit to start at the first order on record.', required: false),
             new ToolProperty(name: 'until', type: PropertyType::STRING, description: 'Last payment date to include, ISO YYYY-MM-DD. Omit for today.', required: false),
             new ToolProperty(name: 'timezone', type: PropertyType::STRING, description: 'IANA timezone the days are cut in, e.g. "America/Santo_Domingo". Defaults to UTC.', required: false),
@@ -57,6 +60,7 @@ class OrderPaymentStatsTool extends Tool
      */
     public function __invoke(
         ?string $order_types = null,
+        ?string $tags = null,
         ?string $since = null,
         ?string $until = null,
         ?string $timezone = null,
@@ -65,17 +69,21 @@ class OrderPaymentStatsTool extends Tool
         return $this->oncePerTurn(
             [
                 'order_types' => $order_types,
+                'tags' => $tags,
                 'since' => $since,
                 'until' => $until,
                 'timezone' => $timezone,
                 'period_breakdown' => $period_breakdown,
             ],
-            fn (): array => new OrderReportService($this->app, $this->company)->paymentStats(
-                orderTypeNames: $this->parseOrderTypes($order_types),
-                since: $since,
-                until: $until,
-                timezone: $timezone,
-                periodBreakdown: $period_breakdown,
+            fn (): array => $this->runReport(
+                fn (): array => new OrderReportService($this->app, $this->company)->paymentStats(
+                    orderTypeNames: $this->parseNames($order_types),
+                    since: $since,
+                    until: $until,
+                    timezone: $timezone,
+                    periodBreakdown: $period_breakdown,
+                    tagNames: $this->parseNames($tags),
+                )
             ),
         );
     }

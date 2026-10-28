@@ -7,6 +7,7 @@ namespace Kanvas\Insurance\DataTransferObject;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Insurance\Contracts\CustomerDataProviderInterface;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
+use Kanvas\Insurance\Enums\InsurancePaymentTermEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class InsuranceOrderData
@@ -22,6 +23,7 @@ class InsuranceOrderData
         public readonly array $legacyCliente = [],
         public readonly bool $legacy = false,
         public readonly bool $legacyComplete = false,
+        public readonly ?InsurancePaymentTermEnum $paymentTerm = null,
     ) {
     }
 
@@ -53,6 +55,7 @@ class InsuranceOrderData
             payload: $payload,
             vehicle: $this->vehicle,
             rebuildVehicle: ! $this->legacy,
+            paymentTerm: $this->paymentTerm,
         );
     }
 

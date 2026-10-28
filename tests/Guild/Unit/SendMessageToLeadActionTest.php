@@ -12,6 +12,7 @@ use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
 use Kanvas\Guild\Leads\Exceptions\LeadOptedOutException;
@@ -19,9 +20,11 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesManagerAgent;
+use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Mockery;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use Tests\TestCaseUnit;
@@ -37,20 +40,43 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
     public function testInternalEmailAppendsOwnerSignatureWithoutEnablingSallyTemplateSignature(): void
     {
         $owner = Mockery::mock(Users::class);
+        $owner->shouldReceive('get')->with('email_signature_company_77')->once()->andReturn(null);
         $owner->shouldReceive('get')->with('email_signature')->once()->andReturn([
             'append' => true,
             'text' => "Owner Name\nSales Manager",
         ]);
         $owner->shouldReceive('getFileByName')->with('photo')->once()->andReturn(null);
-        $this->sendSignatureTestEmail(true, $owner, function (array $data): bool {
-            $this->assertFalse($data['signature']);
-            $this->assertStringContainsString('<strong>quote</strong>', $data['content']);
-            $this->assertStringContainsString('Owner Name', $data['content']);
-            $this->assertStringContainsString('Sales Manager', $data['content']);
-            $this->assertStringNotContainsString('Sally', $data['content']);
+        $this->sendSignatureTestEmail(
+            true,
+            $owner,
+            function (array $data): bool {
+                $this->assertFalse($data['signature']);
+                $this->assertStringContainsString('<strong>quote</strong>', $data['content']);
+                $this->assertStringNotContainsString('Sally', $data['content']);
 
-            return true;
-        });
+                return true;
+            },
+            fn (?UserEmailSignature $signature): bool => $signature?->text === "Owner Name\nSales Manager"
+        );
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testTheCompanySpecificSignatureWinsOverTheGlobalOne(): void
+    {
+        $owner = Mockery::mock(Users::class);
+        $owner->shouldReceive('get')->with('email_signature_company_77')->once()->andReturn([
+            'append' => true,
+            'text' => "Owner Name\nRegional Director",
+        ]);
+        $owner->shouldNotReceive('get')->with('email_signature');
+        $owner->shouldReceive('getFileByName')->with('photo')->once()->andReturn(null);
+        $this->sendSignatureTestEmail(
+            true,
+            $owner,
+            fn (array $data): bool => true,
+            fn (?UserEmailSignature $signature): bool => $signature?->text === "Owner Name\nRegional Director"
+        );
     }
 
     #[RunInSeparateProcess]
@@ -59,16 +85,46 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
     {
         $owner = Mockery::mock(Users::class);
         $owner->shouldNotReceive('get');
-        $this->sendSignatureTestEmail(false, $owner, function (array $data): bool {
-            $this->assertTrue($data['signature']);
-            $this->assertStringNotContainsString('<table', $data['content']);
+        $this->sendSignatureTestEmail(
+            false,
+            $owner,
+            function (array $data): bool {
+                $this->assertTrue($data['signature']);
+                $this->assertStringNotContainsString('<table', $data['content']);
 
-            return true;
-        });
+                return true;
+            },
+            fn (?UserEmailSignature $signature): bool => $signature === null
+        );
     }
 
-    private function sendSignatureTestEmail(bool $internal, Users $owner, callable $assertContent): void
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testInternalAssistantWithoutTheSigningGrantSendsNoSignatureAtAll(): void
     {
+        $owner = Mockery::mock(Users::class);
+        $owner->shouldNotReceive('get');
+        $this->sendSignatureTestEmail(
+            true,
+            $owner,
+            function (array $data): bool {
+                $this->assertFalse($data['signature']);
+                $this->assertStringNotContainsString('<table', $data['content']);
+
+                return true;
+            },
+            fn (?UserEmailSignature $signature): bool => $signature === null,
+            signs: false
+        );
+    }
+
+    private function sendSignatureTestEmail(
+        bool $internal,
+        Users $owner,
+        callable $assertContent,
+        callable $assertSignature,
+        ?bool $signs = null
+    ): void {
         // Intercept the delivery boundary: Blank's real constructor writes notification types.
         $notification = Mockery::mock('overload:' . Blank::class);
         $notification->shouldReceive('__construct')->once()->withArgs(
@@ -76,6 +132,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         );
         $notification->shouldReceive('setFromUser')->once();
         $notification->shouldReceive('setSubject')->once()->with('Your quote');
+        $notification->shouldReceive('setUserSignature')->once()->withArgs($assertSignature);
         Notification::shouldReceive('send')->once()->withArgs(
             fn ($notifiable): bool => $notifiable->routes['mail'] === 'prospect@example.com'
         );
@@ -84,6 +141,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
         $company = new Companies();
         $company->name = 'Test Company';
+        $company->id = 77;
         $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
         $lead->shouldReceive('getAttribute')->with('app')->andReturn(new Apps());
         $lead->shouldReceive('getAttribute')->with('user')->andReturn(new Users());
@@ -91,6 +149,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $lead->shouldReceive('getId')->andReturn(1);
         $agent = Mockery::mock(Agent::class);
         $agent->shouldReceive('conversesWithUser')->andReturn($internal);
+        $agent->shouldReceive('signsEmailsAsOwner')->andReturn($signs ?? $internal);
         $agent->shouldReceive('get')->andReturn(null);
 
         $result = new SendMessageToLeadAction($lead)->withSignatureOwner($owner)->execute(
@@ -521,30 +580,18 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $this->assertCount(2, $result['messages']);
     }
 
-    public function testLookupPhoneNumberReturnsCanonicalValidNumber(): void
+    public function testLookupPhoneNumberAllowsMobileAndReturnsCanonicalNumber(): void
     {
-        $httpClient = Mockery::mock(TwilioHttpClient::class);
-        $httpClient->shouldReceive('request')
-            ->once()
-            ->andReturn(new Response(200, json_encode([
-                'phone_number' => '+18095551234',
-                'valid' => true,
-                'validation_errors' => [],
-                'line_type_intelligence' => [
-                    'type' => 'mobile',
-                ],
-                'line_status' => [
-                    'status' => 'reachable',
-                ],
-            ], JSON_THROW_ON_ERROR)));
+        $client = $this->makeLookupClient([
+            'phone_number' => '+18095551234',
+            'valid' => true,
+            'line_type_intelligence' => ['type' => ' Mobile ', 'error_code' => null],
+            'line_status' => ['status' => 'reachable'],
+        ]);
 
-        $client = new TwilioClient(
-            username: 'ACtest',
-            password: 'token',
-            httpClient: $httpClient,
-        );
-
-        $action = $this->makeAction($this->makeLead());
+        $people = Mockery::mock(People::class);
+        $people->shouldReceive('setPhoneLandline')->once()->with('8095551234', false)->andReturn(1);
+        $action = $this->makeAction($this->makeLead($people));
 
         $this->assertSame(
             '+18095551234',
@@ -554,20 +601,11 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
 
     public function testLookupPhoneNumberRejectsInvalidNumber(): void
     {
-        $httpClient = Mockery::mock(TwilioHttpClient::class);
-        $httpClient->shouldReceive('request')
-            ->once()
-            ->andReturn(new Response(200, json_encode([
-                'phone_number' => '+18095551234',
-                'valid' => false,
-                'validation_errors' => ['INVALID_LENGTH'],
-            ], JSON_THROW_ON_ERROR)));
-
-        $client = new TwilioClient(
-            username: 'ACtest',
-            password: 'token',
-            httpClient: $httpClient,
-        );
+        $client = $this->makeLookupClient([
+            'phone_number' => '+18095551234',
+            'valid' => false,
+            'validation_errors' => ['INVALID_LENGTH'],
+        ]);
 
         $action = $this->makeAction($this->makeLead());
 
@@ -577,95 +615,172 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $action->lookupPhoneNumberForTest($client, '8095551234');
     }
 
-    public function testLookupPhoneNumberRejectsUnreachableNumberToPreventError30003(): void
+    #[DataProvider('unreachableLineStatuses')]
+    public function testLookupPhoneNumberRejectsMobileWithUnreachableLineStatus(string $lineStatus): void
     {
-        $httpClient = Mockery::mock(TwilioHttpClient::class);
-        $httpClient->shouldReceive('request')
-            ->once()
-            ->andReturn(new Response(200, json_encode([
-                'phone_number' => '+18095551234',
-                'valid' => true,
-                'validation_errors' => [],
-                'line_type_intelligence' => [
-                    'type' => 'mobile',
-                ],
-                'line_status' => [
-                    'status' => 'unreachable',
-                ],
-            ], JSON_THROW_ON_ERROR)));
-
-        $client = new TwilioClient(
-            username: 'ACtest',
-            password: 'token',
-            httpClient: $httpClient,
-        );
+        $client = $this->makeLookupClient([
+            'phone_number' => '+18095551234',
+            'valid' => true,
+            'line_type_intelligence' => ['type' => 'mobile'],
+            'line_status' => ['status' => $lineStatus],
+        ]);
 
         $action = $this->makeAction($this->makeLead());
 
         $this->expectException(LeadMissingContactException::class);
         $this->expectExceptionMessage(
-            'Lead cellphone number 8095551234 is unreachable and cannot receive SMS messages'
+            "Lead cellphone number 8095551234 is {$lineStatus} and cannot receive SMS messages"
         );
 
         $action->lookupPhoneNumberForTest($client, '8095551234');
     }
 
-    public function testLookupPhoneNumberRejectsLandlineToPreventError30006(): void
+    public static function unreachableLineStatuses(): array
     {
-        $httpClient = Mockery::mock(TwilioHttpClient::class);
-        $httpClient->shouldReceive('request')
+        return [
+            'inactive' => ['inactive'],
+            'unreachable' => ['unreachable'],
+        ];
+    }
+
+    #[DataProvider('nonMobileLineTypes')]
+    public function testLookupPhoneNumberRejectsEveryLineTypeOtherThanMobile(string $lineType): void
+    {
+        $client = $this->makeLookupClient([
+            'phone_number' => '+18095551234',
+            'valid' => true,
+            'line_type_intelligence' => ['type' => $lineType],
+            'line_status' => ['status' => 'active'],
+        ]);
+
+        $people = Mockery::mock(People::class);
+        $people->shouldReceive('setPhoneLandline')
             ->once()
-            ->andReturn(new Response(200, json_encode([
-                'phone_number' => '+18095551234',
-                'valid' => true,
-                'validation_errors' => [],
-                'line_type_intelligence' => [
-                    'type' => 'landline',
-                ],
-            ], JSON_THROW_ON_ERROR)));
-
-        $client = new TwilioClient(
-            username: 'ACtest',
-            password: 'token',
-            httpClient: $httpClient,
-        );
-
-        $action = $this->makeAction($this->makeLead());
+            ->with('8095551234', $lineType === 'landline')
+            ->andReturn(1);
+        $action = $this->makeAction($this->makeLead($people));
 
         $this->expectException(LeadMissingContactException::class);
         $this->expectExceptionMessage(
-            'Lead cellphone number 8095551234 is a landline and cannot receive SMS messages'
+            "Lead cellphone number 8095551234 has line type {$lineType}; our policy only allows SMS to mobile numbers"
         );
 
         $action->lookupPhoneNumberForTest($client, '8095551234');
     }
 
-    public function testLookupPhoneNumberRejectsPremiumLineType(): void
+    public static function nonMobileLineTypes(): array
     {
-        $httpClient = Mockery::mock(TwilioHttpClient::class);
-        $httpClient->shouldReceive('request')
-            ->once()
-            ->andReturn(new Response(200, json_encode([
-                'phone_number' => '+18095551234',
-                'valid' => true,
-                'validation_errors' => [],
-                'line_type_intelligence' => [
-                    'type' => 'premium',
-                ],
-            ], JSON_THROW_ON_ERROR)));
+        $types = [
+            'landline',
+            'fixedVoip',
+            'nonFixedVoip',
+            'personal',
+            'tollFree',
+            'premium',
+            'sharedCost',
+            'uan',
+            'voicemail',
+            'pager',
+            'unknown',
+        ];
 
-        $client = new TwilioClient(
-            username: 'ACtest',
-            password: 'token',
-            httpClient: $httpClient,
+        return array_combine($types, array_map(static fn (string $type): array => [$type], $types));
+    }
+
+    public function testLookupPhoneNumberRejectsActiveComcastFixedVoip(): void
+    {
+        $client = $this->makeLookupClient([
+            'phone_number' => '+12296059887',
+            'valid' => true,
+            'line_type_intelligence' => [
+                'type' => 'fixedVoip',
+                'carrier_name' => 'Comcast',
+                'error_code' => null,
+            ],
+            'line_status' => ['status' => 'active'],
+        ]);
+
+        $people = Mockery::mock(People::class);
+        $people->shouldReceive('setPhoneLandline')->once()->with('+12296059887', false)->andReturn(1);
+        $action = $this->makeAction($this->makeLead($people));
+
+        $this->expectException(LeadMissingContactException::class);
+        $this->expectExceptionMessage(
+            'Lead cellphone number +12296059887 has line type fixedVoip; our policy only allows SMS to mobile numbers'
+        );
+
+        $action->lookupPhoneNumberForTest($client, '+12296059887');
+    }
+
+    #[DataProvider('missingLineTypes')]
+    public function testLookupPhoneNumberRejectsMissingLineType(array $lineTypeIntelligence): void
+    {
+        $response = [
+            'phone_number' => '+18095551234',
+            'valid' => true,
+            'line_status' => ['status' => 'active'],
+        ];
+        if ($lineTypeIntelligence !== ['absent']) {
+            $response['line_type_intelligence'] = $lineTypeIntelligence;
+        }
+        $client = $this->makeLookupClient($response);
+
+        $people = Mockery::mock(People::class);
+        $people->shouldNotReceive('setPhoneLandline');
+        $action = $this->makeAction($this->makeLead($people));
+
+        $this->expectException(LeadMissingContactException::class);
+        $this->expectExceptionMessage(
+            'Lead cellphone number 8095551234 has line type unknown (Twilio returned no line type); '
+            . 'our policy only allows SMS to mobile numbers'
+        );
+
+        $action->lookupPhoneNumberForTest($client, '8095551234');
+    }
+
+    public static function missingLineTypes(): array
+    {
+        return [
+            'line_type_intelligence absent' => [['absent']],
+            'type key absent' => [['carrier_name' => 'Comcast']],
+            'type null' => [['type' => null]],
+            'type empty' => [['type' => '']],
+            'type blank' => [['type' => '   ']],
+        ];
+    }
+
+    public function testLookupPhoneNumberRejectsLineTypeIntelligenceError(): void
+    {
+        $client = $this->makeLookupClient([
+            'phone_number' => '+18095551234',
+            'valid' => true,
+            'line_type_intelligence' => ['type' => null, 'error_code' => 60601],
+            'line_status' => ['status' => 'active'],
+        ]);
+
+        $people = Mockery::mock(People::class);
+        $people->shouldNotReceive('setPhoneLandline');
+        $action = $this->makeAction($this->makeLead($people));
+
+        $this->expectException(LeadMissingContactException::class);
+        $this->expectExceptionMessage(
+            'Lead cellphone number 8095551234 has line type unknown (Twilio lookup error 60601); '
+            . 'our policy only allows SMS to mobile numbers'
+        );
+
+        $action->lookupPhoneNumberForTest($client, '8095551234');
+    }
+
+    public function testLookupPhoneNumberPropagatesLookupRequestFailure(): void
+    {
+        $client = $this->makeLookupClient(
+            ['code' => 20500, 'message' => 'Internal Server Error', 'status' => 500],
+            statusCode: 500,
         );
 
         $action = $this->makeAction($this->makeLead());
 
-        $this->expectException(LeadMissingContactException::class);
-        $this->expectExceptionMessage(
-            'Lead cellphone number 8095551234 is a premium line and cannot receive SMS messages'
-        );
+        $this->expectException(RestException::class);
 
         $action->lookupPhoneNumberForTest($client, '8095551234');
     }
@@ -850,7 +965,22 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         );
     }
 
-    private function makeLead(): Lead
+    private function makeLookupClient(array $response, int $statusCode = 200): TwilioClient
+    {
+        // once(): the Lookup is the only request; a Messages API call would be a second one.
+        $httpClient = Mockery::mock(TwilioHttpClient::class);
+        $httpClient->shouldReceive('request')
+            ->once()
+            ->andReturn(new Response($statusCode, json_encode($response, JSON_THROW_ON_ERROR)));
+
+        return new TwilioClient(
+            username: 'ACtest',
+            password: 'token',
+            httpClient: $httpClient,
+        );
+    }
+
+    private function makeLead(?People $people = null): Lead
     {
         $company = Mockery::mock();
         $company->shouldReceive('get')->with('allow_session_hijack', false)->andReturn(false);
@@ -860,7 +990,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
 
         $lead = Mockery::mock(Lead::class);
         $lead->shouldReceive('get')->andReturn(null)->byDefault();
-        $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn($people);
         $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
         $lead->shouldReceive('getAttribute')->with('uuid')->andReturn('lead-uuid');
         $lead->shouldReceive('getId')->andReturn(42);

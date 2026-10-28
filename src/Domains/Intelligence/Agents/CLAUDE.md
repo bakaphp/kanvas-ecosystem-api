@@ -501,18 +501,37 @@ A tool constructed outside that path (a test, a one-off script) must call `withC
   tool-layer mirror of `@guardByAdmin`) — not on the agent's own user.
 - Honor the audience/memory-scope rule from the top of this file: a customer-facing tool must be
   entity-scoped, never company-wide `read_my_ledger`.
+- **A READ tool scopes with `fromCompany($this->auditedReadScope())`, a WRITE tool with `$this->company`.**
+  An agent may be granted other companies to read (`agent-read-access-companies`, set through
+  `setAgentSetting`); the scope reaching the tool is that grant ∩ the requesting human's membership,
+  and it collapses to the agent's own company on a customer surface or when no human is at the keyboard. `CompanyScope`
+  is always a scope, even with one id, and `scopeFromCompany()` checks it **before** the AppKey
+  branch, so a bound app key can never widen it. Every cross-company row carries `tenant_company_id`
+  + `tenant_company` (`tenantLabel()`), never `company`, which already means the employer in Apollo
+  rows; an explicit `get([...])` projection must include `companies_id` for that. Combined aggregates
+  carry `tenantScopeSummary()`; an entity ranking prepends `tenantGroupBy()` to its group-by. The scope is
+  the **fifth** `withContext()` argument (the fourth is the agent) and arrives through both
+  `fillKanvasContext()` and `addToolContext()`; hand-wired tools stay own-company-only. One
+  `agent.cross_company_read` ledger event per turn and reach, however many tools read. A read tool also declares
+  `...$this->tenantCompanyProperty()` and opens `__invoke` with `narrowReadScope($tenant_company_id)`,
+  so the model can ask for one company; a by-id READ resolves with `resolve*InReadScopeOrError()`,
+  a write keeps `resolve*OrError()`. Plan and decisions: `docs/agents/agent-cross-company-read-scope.md`;
+  coverage `CrossCompanyReadScopeTest`, `CrossCompanyNarrowingAndLeadsTest`.
 
-### A lead's open state is its named status, never `Lead::isOpen()`
+### A lead's open state is its named status
 
-`Lead::isOpen()` reads the integer `status` column, which nothing in the app writes, so it is `true`
-for every lead; marking a lead Lost writes `leads_status_id` only. A tool that reported `is_open` from
-it told an agent a lost deal was an active negotiation. In a tool, report `status` as
-`$lead->statusName()` and `is_open` as `$lead->hasOpenLeadStatus()`, and filter with the
-`hasOpenLeadStatus()` / `hasClosedLeadStatus()` scopes, which honour the company's
-`guild_open_leads_status_ids`. `search_leads`, `find_leads_bulk`, `LeadBaseFilter`, `list_stale_leads`
-and `get_person` are the references; the follow-up and outreach gates still use `isOpen()` and are a
-known, separate decision. Deals carry the same pair (`status_id` named, integer `status` mirrored from
-the API): use `Deal::statusName()`, `hasOpenStatus()` and the `havingDealState()` scope the same way.
+A lead is open when its status row has `is_open` (plus, for now, the company's legacy
+`guild_open_leads_status_ids`); the integer `status` column is written by nothing and sits at its
+default on every row. `Lead::isOpen()` and the `isOpen` scope delegate to `hasOpenLeadStatus()` /
+`scopeHasOpenLeadStatus()`. Never gate on the `status` column: a `status < 2` gate passes every lead,
+which is how the reach-out lane texted a closed lead (lead 521104, app 2, 2026-10-27). A status row
+created without an explicit `is_open` is flagged open when its name is one of
+`LeadStatus::OPEN_STATUS_NAMES` or it is the company default, so a connector-seeded "Active" is open
+without a manual step. In a tool, report `status` as `$lead->statusName()` and `is_open` as
+`$lead->hasOpenLeadStatus()`, and filter with the `hasOpenLeadStatus()` / `hasClosedLeadStatus()`
+scopes. `search_leads`, `find_leads_bulk`, `LeadBaseFilter`, `list_stale_leads` and `get_person` are the
+references. Deals carry the same pair (`status_id` named, integer `status` mirrored from the API): use
+`Deal::statusName()`, `hasOpenStatus()` and the `havingDealState()` scope the same way.
 
 ### Destination safety — the recipient is never a free LLM param
 
@@ -565,6 +584,21 @@ The lead send tools were `send_email` / `send_sms` until 2026-10-09 (`gmail_repl
 `reply_to_email`); `2026_10_09_000001_rename_lead_send_and_gmail_reply_tools` rewrote the catalog labels and
 the old ids in agent prose. Tool names are also matched literally by `WorkerToolPolicy` (and by prefix in
 `ApprovalPolicy`) — renaming a send tool without updating them lets an unsupervised worker send.
+
+### A tool that edits a record announces it (`AnnouncesAgentEdits`)
+
+Who made an edit cannot be read back afterwards: an agent's user is shared across agents and is often a
+person's own login, and the record keeps no "edited by". So a tool that writes a record calls
+`announceAgentEdit($model)` from [`Intelligence/Tools/Traits/AnnouncesAgentEdits`](../Tools/Traits/AnnouncesAgentEdits.php) (shared namespace, like `ReportsToolOutcome`, so Neuron and Laravel tools both use it)
+after the write succeeds. It fires `WorkflowEnum::AGENT_UPDATED` on that model, never `UPDATED`, so a
+tenant can hang a rule on "edited by an agent" without touching the rules a person's mutation already
+triggers. Works for any model with `CanUseWorkflow`; on one without it is a no-op.
+
+- Announce only when something changed — a call that sets nothing must not trigger the rule.
+- Today's adopters: the four People editing tools (`update_person`, `manage_person_contact`,
+  `set_person_address`, `set_person_custom_fields`), whose rule opens the Salesforce sync approval
+  (`SalesforceRequestPeopleApprovalActivity`). A new editing tool that skips the call is invisible to it.
+- A tenant enables a reaction by creating a rule on the model's system module with rule type `agent-updated`.
 
 ### Param typing
 
@@ -760,7 +794,7 @@ Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
 - [`Actions/Chat/AgentChatKernel.php`](Actions/Chat/AgentChatKernel.php) — the kernel's own class docblock explains the routing logic in 7 lines
 - [`Actions/BaseAgentChannelReplyAction.php`](Actions/BaseAgentChannelReplyAction.php) — base class docblock explains the connector-side contract
 - [`Neuron/Tools/CRM/SendEmailTool.php`](Neuron/Tools/CRM/SendEmailTool.php) — reference for tool authoring: resolve-or-error, entity-derived recipient, and the allowlist-filtered `cc` (destination-safety) pattern. Traits it leans on live in [`Neuron/Tools/Traits/`](Neuron/Tools/Traits/).
-- Product recommendation tool (`Laravel/Tools/Inventory/ProductRecommendationLookupTool.php`) — a thin pass-through to `RecommendProductsAction`; the search backend is resolved per tenant behind it. Pass the shopper's sentence verbatim. Pipeline and configuration: [`src/Domains/Inventory/CLAUDE.md`](../../Inventory/CLAUDE.md).
+- Product recommendation tool (`Laravel/Tools/Inventory/ProductRecommendationLookupTool.php`, Neuron twin in `Neuron/Tools/Inventory/`) — both parse through `DiscoveryInputParser` into `RecommendProductsAction`; the search backend is resolved per tenant behind it. The agent passes the verbatim `request` AND what it understood (catalog-terms `search_query`, preferences, price, numeric limits) in ONE call; an invalid filter comes back as a correctable error. Usage, output shape and configuration: [`src/Domains/Inventory/Recommendations/CLAUDE.md`](../../Inventory/Recommendations/CLAUDE.md).
 - Existing end-to-end tests in [`tests/Connectors/Integration/{WaSender,Mailgun,RespondIO,Twilio}/AgentChannelResponderEndToEndTest.php`](../../../../tests/Connectors/Integration/) — copy-paste shape when adding a new connector
 
 ## Laravel agents: a tool result must never be empty, and a sub-agent needs steps to answer in

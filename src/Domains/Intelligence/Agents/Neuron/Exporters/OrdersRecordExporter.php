@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Exporters;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\Traits\ReadsExportFilters;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
@@ -48,7 +49,7 @@ class OrdersRecordExporter implements RecordExporterInterface
     }
 
     #[Override]
-    public function rows(Apps $app, Companies $company, array $filters): array
+    public function rows(Apps $app, Companies|CompanyScope $company, array $filters): array
     {
         $status = $this->filterString($filters, 'status');
         $orderType = $this->filterString($filters, 'order_type');
@@ -56,14 +57,14 @@ class OrdersRecordExporter implements RecordExporterInterface
         $to = $this->filterString($filters, 'to_date');
 
         $orders = Order::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', false)
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
             ->when($status === 'open', fn ($q) => $q->whereNotIn('status', self::CLOSED_STATUSES))
             ->when($status !== null && $status !== 'open', fn ($q) => $q->where('status', $status))
             ->when(
                 $orderType !== null,
-                fn ($q) => $q->whereIn('order_types_id', $this->orderTypeIds($app, $company, (string) $orderType))
+                fn ($q) => $q->whereIn('order_types_id', OrderTypes::idsForNames($app, $company, [(string) $orderType]))
             )
             ->when($from !== null, fn ($q) => $q->where('created_at', '>=', Carbon::parse((string) $from)->startOfDay()))
             ->when($to !== null, fn ($q) => $q->where('created_at', '<=', Carbon::parse((string) $to)->endOfDay()))
@@ -88,20 +89,5 @@ class OrdersRecordExporter implements RecordExporterInterface
                 $order->created_at?->toDateString() ?? '',
             ];
         })->all();
-    }
-
-    /**
-     * @return int[]
-     */
-    private function orderTypeIds(Apps $app, Companies $company, string $name): array
-    {
-        return OrderTypes::query()
-            ->where('apps_id', $app->getId())
-            ->whereIn('companies_id', [$company->getId(), 0])
-            ->where('is_deleted', false)
-            ->where('name', $name)
-            ->pluck('id')
-            ->map(fn ($id): int => (int) $id)
-            ->all();
     }
 }

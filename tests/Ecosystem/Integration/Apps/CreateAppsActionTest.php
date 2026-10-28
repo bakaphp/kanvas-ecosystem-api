@@ -69,6 +69,7 @@ final class CreateAppsActionTest extends TestCase
             RolesEnums::DEVELOPER,
             RolesEnums::INVENTORY_MANAGER,
             RolesEnums::ENGAGEMENT_USAGE_REPORT,
+            RolesEnums::FOLLOW_UP_DEV,
         ] as $role) {
             $this->assertTrue(
                 Role::where('name', $role->value)->where('scope', $scope)->exists(),

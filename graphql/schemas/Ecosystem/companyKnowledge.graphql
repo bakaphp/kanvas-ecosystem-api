@@ -1,0 +1,48 @@
+"A page added as company knowledge; indexing runs in the background and the status says where it is."
+type CompanyKnowledgeUrl {
+    url: String!
+    "PENDING | INDEXED | FAILED"
+    status: String!
+    chunks: Int!
+    added_at: String
+    indexed_at: String
+    "A code, never an internal message: knowledge_disabled | page_empty | page_not_reachable"
+    error: String
+}
+
+extend type Query @guard {
+    "Documents uploaded as company knowledge for the internal agents."
+    companyKnowledgeDocuments: [Filesystem!]!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanyKnowledgeQuery@documents"
+        )
+    "Pages added as company knowledge, with their indexing status."
+    companyKnowledgeUrls: [CompanyKnowledgeUrl!]!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanyKnowledgeQuery@urls"
+        )
+}
+
+extend type Mutation @guard {
+    "Company knowledge for the internal agents: the regular upload flow, attached to the company under a knowledge marker, indexed company-wide by a queued job. Works during onboarding or any time after."
+    uploadCompanyKnowledge(files: [Upload!]!): [Filesystem!]!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyKnowledgeMutation@upload"
+        )
+    "Removes one knowledge document and its chunks. Refuses a file that is not company knowledge."
+    deleteCompanyKnowledgeDocument(uuid: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyKnowledgeMutation@deleteDocument"
+        )
+    "Adds one public page as company knowledge; it is fetched and indexed in the background."
+    addCompanyKnowledgeUrl(
+        url: String! @rules(apply: ["max:2048"])
+    ): CompanyKnowledgeUrl!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyKnowledgeMutation@addUrl"
+        )
+    removeCompanyKnowledgeUrl(url: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyKnowledgeMutation@removeUrl"
+        )
+}

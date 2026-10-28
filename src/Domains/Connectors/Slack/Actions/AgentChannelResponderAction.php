@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Slack\Actions;
 
 use Kanvas\Connectors\Slack\Client;
+use Kanvas\Connectors\Slack\Services\SlackRoomsContextService;
 use Kanvas\Connectors\Slack\Services\SlackThreadContextService;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
@@ -44,7 +45,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             AttachmentPromptBuilder::withAttachments($inboundText, $documentUrls),
             $this->message->files,
         );
-        $inboundText = $this->withThreadContext($inboundText);
+        $inboundText = $this->withRoomsContext($this->withThreadContext($inboundText));
 
         // Slack was ack'd the moment the event arrived; a turn with tool calls runs 10-30s after
         // that. Post a placeholder so the thread shows the agent working, not silence. The answer
@@ -152,5 +153,19 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         }
 
         return $thread . "\n\nLatest message, addressed to you:\n" . $inboundText;
+    }
+
+    /**
+     * Nothing in the agent's history says which rooms it is in — see SlackRoomsContextService.
+     */
+    private function withRoomsContext(string $inboundText): string
+    {
+        $rooms = new SlackRoomsContextService()->render($this->agent, $this->channel);
+
+        if ($rooms === null) {
+            return $inboundText;
+        }
+
+        return $rooms . "\n\n" . $inboundText;
     }
 }

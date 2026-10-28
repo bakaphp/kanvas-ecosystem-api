@@ -72,6 +72,8 @@ class LeadObserver
 
             $lead->leads_receivers_id = $receiver ? $receiver->id : 0;
         }
+
+        $lead->stampClosedAtOnCreate('leads_status_id');
     }
 
     // Stage changes can originate from many call sites (UI, deal-won actions,
@@ -96,6 +98,11 @@ class LeadObserver
                 fromStageId: $fromStageId !== null ? (int) $fromStageId : null,
                 toStageId: (int) $toStageId,
             )->execute();
+        }
+
+        $transition = $lead->syncClosedAtFromStatusChange('leads_status_id');
+        if ($transition !== null) {
+            $lead->emitLedgerEvent('lead.status.changed', payload: $transition);
         }
     }
 
@@ -218,13 +225,20 @@ class LeadObserver
 
     /**
      * Maintains the active_leads_count counter cache on People. "Counted"
-     * mirrors Lead::hasOpenLeadStatus() (the global open ids plus the
-     * company's `guild_open_leads_status_ids` setting) — NOT Lead::isOpen()'s
-     * `status` int column, which no app code writes and is stuck at its DB
-     * default.
+     * mirrors Lead::hasOpenLeadStatus() (the status row's `is_open`, plus the
+     * company's legacy `guild_open_leads_status_ids` setting), never the `status`
+     * int column, which no app code writes and is stuck at its DB default.
+     * Flipping `is_open` on a status does not touch the counters; run
+     * RecalculateActiveLeadsCountCommand afterwards.
      */
     private function syncActiveLeadsCount(Lead $lead): void
     {
+        // Counted state depends only on these columns; checking them first skips two status
+        // lookups on every other save.
+        if (! $lead->wasChanged(['leads_status_id', 'people_id', 'is_deleted'])) {
+            return;
+        }
+
         $originalPeopleId = $lead->getOriginal('people_id') ? (int) $lead->getOriginal('people_id') : null;
         $currentPeopleId = $lead->people_id ? (int) $lead->people_id : null;
         $wasCounted = $this->wasCounted($lead);

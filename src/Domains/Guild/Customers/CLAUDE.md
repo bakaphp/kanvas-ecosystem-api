@@ -28,6 +28,7 @@ opting out at one dealer does not opt out at another.
 | Apply a stop request | `Actions/ApplyDoNotContactAction` |
 | Apply a START / re-subscribe | `Actions/RevokeDoNotContactAction` |
 | Detect + dispatch, for an inbound webhook | `Actions/ProcessInboundConsentAction` |
+| May this person / this address be contacted? (`SendMessageToLeadAction` and the Communication domain both read it) | `Services/ConsentGuard` |
 | The one permitted acknowledgement | `Guild\Leads\Actions\SendOptOutConfirmationAction` |
 | Natural-language stop requests | `Intelligence\...\Tools\CRM\StopContactTool` |
 | Inbound mail (both receivers) | `Connectors\Mailgun\Services\MailgunConsentService` |

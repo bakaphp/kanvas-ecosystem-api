@@ -43,7 +43,30 @@ trait ResolvesPersonForTool
 
             return $person;
         } catch (Throwable) {
-            return ['error' => sprintf('No person #%d found in this company.', $personId)];
+            return $this->belongsToAnotherCompanyError(People::class, $personId, 'person')
+                ?? ['error' => sprintf('No person #%d found in this company.', $personId)];
         }
+    }
+
+    /**
+     * Read-only variant inside the agent's read scope; write tools keep resolvePersonOrError().
+     *
+     * @return People|array<string, mixed>
+     */
+    protected function resolvePersonInReadScopeOrError(int $personId): People|array
+    {
+        if (! $this->hasTenantContext()) {
+            return $this->tenantContextMissingError('contact');
+        }
+
+        /** @var People|null $person */
+        $person = People::query()
+            ->where('id', $personId)
+            ->fromApp($this->app)
+            ->fromCompany($this->auditedReadScope())
+            ->notDeleted()
+            ->first();
+
+        return $person ?? ['error' => sprintf('No person #%d found in your companies.', $personId)];
     }
 }

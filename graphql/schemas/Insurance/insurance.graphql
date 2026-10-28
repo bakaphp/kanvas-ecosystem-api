@@ -100,6 +100,21 @@ type InsuranceSearchPlan {
     variant_id: ID
 }
 
+enum InsurancePaymentTerm {
+    ANNUAL @enum(value: "annual")
+    SEMIANNUAL @enum(value: "semiannual")
+    QUARTERLY @enum(value: "quarterly")
+    MONTHLY @enum(value: "monthly")
+}
+
+type InsurancePaymentOption {
+    term: InsurancePaymentTerm!
+    installments: Int!
+    amount: Float!
+    premium: Float
+    tax: Float
+}
+
 type InsuranceSearchEntry {
     rank: Int!
     insurer: InsuranceSearchInsurer!
@@ -112,8 +127,10 @@ type InsuranceSearchEntry {
     currency: String
     can_emit: Boolean
     inspection_status: String
+    payment_options: [InsurancePaymentOption!]!
     is_sponsored: Boolean!
     is_recommended: Boolean!
+    is_contractable: Boolean!
 }
 
 type InsuranceSearchFailure {
@@ -130,6 +147,7 @@ type InsuranceSearchResult {
 input SelectInsurancePlanInput {
     plan_id: ID!
     quote_number: String!
+    payment_term: InsurancePaymentTerm
 }
 
 input InsuranceCustomerInput {
@@ -163,6 +181,15 @@ input ContractInsurancePlanInput {
     customer: InsuranceCustomerInput
 }
 
+input RegisterInsurancePolicyInput {
+    vehicle_variant_id: ID!
+    insurer_name: String!
+    plan_name: String!
+    policy_number: String!
+    starts_at: String
+    ends_at: String!
+}
+
 extend type Query @guard {
     insuranceSearch(input: CanonicalQuoteInput!): InsuranceSearchResult!
         @field(
@@ -178,5 +205,13 @@ extend type Mutation @guard {
     contractInsurancePlan(input: ContractInsurancePlanInput!): Order!
         @field(
             resolver: "App\\GraphQL\\Insurance\\Mutations\\InsuranceSelectionMutation@contract"
+        )
+    registerInsurancePolicy(input: RegisterInsurancePolicyInput!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Insurance\\Mutations\\InsuranceRegisteredPolicyMutation@register"
+        )
+    sendInsurancePolicyEmail(order_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Insurance\\Mutations\\InsurancePolicyEmailMutation@send"
         )
 }

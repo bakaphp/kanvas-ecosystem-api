@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\DataTransferObject\OrderReceipt;
@@ -35,6 +36,10 @@ class OrderTypes extends BaseModel implements ReadableAtLocation
     }
     use SlugTrait;
 
+    public const string ALLOWED_PAYMENT_PROCESSORS = 'allowed_payment_processors';
+
+    public const string EXPIRATION = 'expiration';
+
     protected $table = 'order_types';
     protected $guarded = [];
 
@@ -48,6 +53,24 @@ class OrderTypes extends BaseModel implements ReadableAtLocation
         return (bool) ($this->config['expirable'] ?? false);
     }
 
+    public function allowedPaymentProcessors(): ?array
+    {
+        $allowed = $this->config[self::ALLOWED_PAYMENT_PROCESSORS] ?? null;
+
+        return is_array($allowed) && $allowed !== [] ? array_values(array_map('strval', $allowed)) : null;
+    }
+
+    public function expirationRule(): ?array
+    {
+        $rule = $this->config[self::EXPIRATION] ?? null;
+
+        if (! is_array($rule) || empty($rule['date_path']) || empty($rule['from_status']) || empty($rule['to_status'])) {
+            return null;
+        }
+
+        return $rule;
+    }
+
     public function cardVelocityLimit(string $key): int
     {
         return (int) ($this->config['card_velocity'][$key] ?? 0);
@@ -58,18 +81,24 @@ class OrderTypes extends BaseModel implements ReadableAtLocation
         return OrderReceipt::fromConfig((array) ($this->config[OrderReceipt::CONFIG_KEY] ?? []));
     }
 
-    public static function idsForNames(Apps $app, Companies $company, array $names): array
+    public static function idsForNames(Apps $app, Companies|CompanyScope $company, array $names): array
     {
         $names = array_values(array_filter($names));
         if ($names === []) {
             return [];
         }
 
-        return self::query()
+        $query = self::query()
             ->fromApp($app)
-            ->whereIn('companies_id', [$company->getId(), 0])
             ->notDeleted()
-            ->whereIn('name', $names)
+            ->whereIn('name', $names);
+
+        return CompanyScope::applyToQuery(
+            $query,
+            'companies_id',
+            $company,
+            extraCompanyIds: [0]
+        )
             ->pluck('id')
             ->map(fn ($id): int => (int) $id)
             ->all();

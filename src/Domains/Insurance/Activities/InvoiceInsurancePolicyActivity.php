@@ -11,13 +11,19 @@ use Kanvas\Insurance\Actions\BuildInsurancePaymentReportAction;
 use Kanvas\Insurance\Concerns\ResolvesReportablePayment;
 use Kanvas\Insurance\Contracts\PaymentReportProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Enums\InsuranceOrderOriginEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Insurance Invoice Policy',
+    description: 'Sends the insurer the invoicing data for an issued policy, built from the order\'s payment, and stamps the invoiced date on the order. '
+        . 'Use it after the policy is emitted. It runs once per order: it skips when the policy was already invoiced and fails when there is no policy number or no payment to invoice. '
+        . 'It only talks to the insurer: it does not charge anyone and does not contact the customer.',
+)]
 class InvoiceInsurancePolicyActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     use ResolvesReportablePayment;
@@ -26,6 +32,10 @@ class InvoiceInsurancePolicyActivity extends KanvasActivity implements WorkflowA
     public function execute(Model $order, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
+
+        if (InsuranceOrderOriginEnum::isRegistered($order)) {
+            return InsuranceOrderOriginEnum::purchaseFlowSkipped($order);
+        }
 
         if (! empty($order->get(InsuranceCustomFieldEnum::INVOICED_AT->value))) {
             return [

@@ -49,8 +49,31 @@ trait ResolvesLeadForTool
                 ? Lead::getByIdFromCompanyApp($leadId, $this->company, $this->app)
                 : Lead::getByIdFromCompany($leadId, $this->company);
         } catch (ModelNotFoundException) {
-            return $this->leadNotResolvedError($leadId);
+            return $this->belongsToAnotherCompanyError(Lead::class, $leadId, 'lead')
+                ?? $this->leadNotResolvedError($leadId);
         }
+    }
+
+    /**
+     * Read-only variant inside the agent's read scope; write tools keep resolveLeadOrError().
+     *
+     * @return Lead|array{status: string, message: string}
+     */
+    protected function resolveLeadInReadScopeOrError(int $leadId): Lead|array
+    {
+        if (! $this->hasTenantContext()) {
+            return $this->resolveLeadOrError($leadId);
+        }
+
+        /** @var Lead|null $lead */
+        $lead = Lead::query()
+            ->where('id', $leadId)
+            ->fromApp($this->app)
+            ->fromCompany($this->auditedReadScope())
+            ->notDeleted()
+            ->first();
+
+        return $lead ?? $this->leadNotResolvedError($leadId);
     }
 
     /**

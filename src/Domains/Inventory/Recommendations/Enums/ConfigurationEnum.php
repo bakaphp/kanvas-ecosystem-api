@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Recommendations\Enums;
 
-use Baka\Contracts\AppInterface;
+use Baka\Contracts\HashTableInterface;
 
 enum ConfigurationEnum: string
 {
     case PRODUCT_DISCOVERY_ENABLED = 'product_discovery_enabled';
+    case PRODUCT_ENRICHMENT_ENABLED = 'product_enrichment_enabled';
     case SEMANTIC_PROFILE_STRATEGY = 'product_semantic_profile_strategy';
     case SEMANTIC_PROFILE_PROMPT = 'product_semantic_profile_prompt';
     case INTENT_LEXICON = 'product_intent_lexicon';
@@ -23,6 +24,15 @@ enum ConfigurationEnum: string
     case EXCLUDED_CATEGORIES = 'product_discovery_excluded_categories';
     case GROUP_BY_TOKENS = 'product_discovery_group_by_tokens';
     case UNAVAILABLE_PENALTY = 'product_discovery_unavailable_penalty';
+    case NUMERIC_ATTRIBUTES = 'product_discovery_numeric_attributes';
+    case RANGE_FILTERS = 'product_discovery_range_filters';
+    case QUERY_LANGUAGES = 'product_discovery_query_languages';
+
+    /** The Gemini model enrichment uses when nothing else is configured, on the app's own key. */
+    case ENRICHMENT_MODEL = 'product_enrichment_model';
+
+    /** Company (then app) setting naming one of the tenant's LLM configs — any provider — for enrichment. */
+    case ENRICHMENT_LLM_CONFIG = 'product_enrichment_llm_config_id';
 
     /**
      * A list setting comes back as an array from Redis but as a JSON string when a
@@ -30,9 +40,9 @@ enum ConfigurationEnum: string
      *
      * @return array<mixed>
      */
-    public function listFrom(AppInterface $app): array
+    public function listFrom(HashTableInterface $holder): array
     {
-        $value = $app->get($this->value);
+        $value = $holder->get($this->value);
 
         if (is_string($value)) {
             $value = json_decode($value, true);

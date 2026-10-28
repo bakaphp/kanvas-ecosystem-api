@@ -9,7 +9,6 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Recommendations\Services\ProductRecommendationPresenterService;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 
 /**
  * Expands the agent's id-only output into the full payload. The agent used to
@@ -43,8 +42,8 @@ class HydrateRecommendationsAction
             return [];
         }
 
-        $products = $this->fetchProducts($productIds);
         $presenter = new ProductRecommendationPresenterService($this->app, $this->company);
+        $products = $presenter->loadProducts($productIds)->keyBy(fn (Products $product): int => $product->getId())->all();
 
         $hydrated = [];
 
@@ -69,27 +68,6 @@ class HydrateRecommendationsAction
         }
 
         return $hydrated;
-    }
-
-    /**
-     * @param array<int, int> $productIds
-     *
-     * @return array<int, Products> keyed by product id
-     */
-    private function fetchProducts(array $productIds): array
-    {
-        $query = Products::fromApp($this->app)
-            ->notDeleted()
-            ->where('is_published', 1)
-            ->whereIn('id', array_unique($productIds))
-            ->with(['categories', 'variants.variantChannels.productVariantWarehouse']);
-
-        if (! (bool) $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value)) {
-            // Not fromCompany(): it degrades to `companies_id > 0` under an AppKey binding.
-            $query->where('companies_id', $this->company->getId());
-        }
-
-        return $query->get()->keyBy(fn (Products $product): int => $product->getId())->all();
     }
 
     /** A wrong variant id is still a valid recommendation — fall back, don't drop. */

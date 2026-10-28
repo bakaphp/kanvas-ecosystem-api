@@ -4,6 +4,7 @@ namespace App\Console;
 
 use App\Console\Commands\Analytics\Schedules\AnalyticsSchedule;
 use App\Console\Commands\Approvals\ExpireApprovalRequestsCommand;
+use App\Console\Commands\Communication\Schedules\CommunicationSchedule;
 use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
 use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
@@ -19,6 +20,7 @@ use App\Console\Commands\Ecosystem\Users\DetectSignupAnomalyCommand;
 use App\Console\Commands\Event\GenerateUpcomingTimeSlotsCommand;
 use App\Console\Commands\Guild\GuildDailyLeadsDigestCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
+use App\Console\Commands\Insurance\SendInsurancePolicyRemindersCommand;
 use App\Console\Commands\Intelligence\Agents\PruneAgentMemoryCommand;
 use App\Console\Commands\Lead\Schedules\LeadFollowUpSchedule;
 use App\Console\Commands\NervousSystem\Agents\Coding\ReapCodingAgentRuntimeCommand;
@@ -100,6 +102,8 @@ class Kernel extends ConsoleKernel
         $schedule->command(GuildDailyLeadsDigestCommand::class)->dailyAt('08:00')->withoutOverlapping(720)->onOneServer();
         $schedule->command(PruneAgentMemoryCommand::class)->dailyAt('03:30')->withoutOverlapping(720)->onOneServer();
 
+        $schedule->command(SendInsurancePolicyRemindersCommand::class)->dailyAt('09:00')->withoutOverlapping(720)->onOneServer();
+
         // Scheduled imports (FTP/SFTP → mapper → importer). Each source has its own cron + timezone;
         // this tick only queues the ones that are due.
         $schedule->command(RunImportSourcesCommand::class)->everyFifteenMinutes()->withoutOverlapping(30)->onOneServer();
@@ -129,6 +133,9 @@ class Kernel extends ConsoleKernel
 
         // Analytics — weekly Engage usage leaderboard to each company's managers.
         AnalyticsSchedule::register($schedule);
+
+        // Communication — the setup/cleanup sweep for messaging connections.
+        CommunicationSchedule::register($schedule);
 
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()

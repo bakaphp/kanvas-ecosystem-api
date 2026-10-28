@@ -14,12 +14,16 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Event\Events\Concerns\HasEventResources;
+use Kanvas\Guild\Concerns\TracksClosedAt;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Factories\DealFactory;
 use Kanvas\Guild\Deals\Observers\DealObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -29,6 +33,7 @@ use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
@@ -56,6 +61,7 @@ use Override;
  * @property string|null $title
  * @property string|null $description
  * @property int $is_deleted
+ * @property Carbon|null $closed_at
  */
 #[ObservedBy([DealObserver::class])]
 class Deal extends BaseModel implements ProvidesAgentContext
@@ -70,6 +76,8 @@ class Deal extends BaseModel implements ProvidesAgentContext
     use FollowersTrait;
     use HasLightHouseCache;
     use HasEventResources;
+    use EmitsLedgerEventsForEntity;
+    use TracksClosedAt;
 
     protected $observables = [
         'softDeleting',
@@ -78,6 +86,14 @@ class Deal extends BaseModel implements ProvidesAgentContext
 
     protected $table = 'deals';
     protected $guarded = [];
+
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'closed_at' => 'datetime',
+        ];
+    }
 
     #[Override]
     public function getGraphTypeName(): string
@@ -142,20 +158,35 @@ class Deal extends BaseModel implements ProvidesAgentContext
      */
     public function hasOpenStatus(): bool
     {
-        return in_array((int) $this->status_id, Lead::openLeadsStatusIds($this->company), true);
+        return LeadStatus::isOpenFor(
+            $this,
+            'leadStatus',
+            'status_id',
+            $this->company
+        );
     }
 
-    public function scopeHasOpenDealStatus(EloquentBuilder $query, ?CompanyInterface $company = null): EloquentBuilder
+    public function scopeHasOpenDealStatus(EloquentBuilder $query, CompanyInterface|CompanyScope|null $company = null): EloquentBuilder
     {
-        return $query->whereIn('status_id', Lead::openLeadsStatusIds($company));
+        return Lead::constrainOpenStatus(
+            $query,
+            'status_id',
+            $company,
+            open: true
+        );
     }
 
-    public function scopeHasClosedDealStatus(EloquentBuilder $query, ?CompanyInterface $company = null): EloquentBuilder
+    public function scopeHasClosedDealStatus(EloquentBuilder $query, CompanyInterface|CompanyScope|null $company = null): EloquentBuilder
     {
-        return $query->whereNotIn('status_id', Lead::openLeadsStatusIds($company));
+        return Lead::constrainOpenStatus(
+            $query,
+            'status_id',
+            $company,
+            open: false
+        );
     }
 
-    public function scopeHavingDealState(EloquentBuilder $query, string $state, ?CompanyInterface $company = null): EloquentBuilder
+    public function scopeHavingDealState(EloquentBuilder $query, string $state, CompanyInterface|CompanyScope|null $company = null): EloquentBuilder
     {
         return match ($state) {
             'closed' => $query->hasClosedDealStatus($company),
@@ -407,5 +438,10 @@ class Deal extends BaseModel implements ProvidesAgentContext
         }
 
         return $query;
+    }
+
+    protected static function newFactory(): DealFactory
+    {
+        return new DealFactory();
     }
 }

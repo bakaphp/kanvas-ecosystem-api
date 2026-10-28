@@ -491,6 +491,19 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
         $this->saveOrFail();
     }
 
+    public function keepFirstMetadataData(string $key, mixed $value): void
+    {
+        $metadata = is_array($this->metadata) ? $this->metadata : [];
+
+        $this->metadata = [
+            ...$metadata,
+            'data' => [
+                ...($metadata['data'] ?? []),
+                $key => $metadata['data'][$key] ?? $value,
+            ],
+        ];
+    }
+
     public function addPrivateMetadata(string $key, mixed $value): void
     {
         $metadata = $this->private_metadata ?? [];
@@ -524,15 +537,15 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
         return true;
     }
 
-    public function getOrderNumber(): int
+    public function getOrderNumber(): string
     {
         $key = $this->app->get('use_integration_order_number');
 
         if (! empty($key) && $value = $this->get($key)) {
-            return (int) $value;
+            return (string) $value;
         }
 
-        return $this->order_number;
+        return (string) $this->order_number;
     }
 
     public function toSearchableArray(): array

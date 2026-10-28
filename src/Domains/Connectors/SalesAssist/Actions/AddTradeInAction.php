@@ -15,7 +15,7 @@ use Kanvas\Guild\Leads\Models\Lead;
  *
  * CRMs whose API has no trade-in write path (e.g. Reynolds SalesAssist USL)
  * use this instead of pushing the trade upstream. `tradein_data` holds the
- * raw form; `tradein_imported` holds the {active, message, date} banner the
+ * importer-compatible form; `tradein_imported` holds the {active, message, date} banner the
  * extension renders. The banner message is per-CRM, so callers pass it in.
  */
 class AddTradeInAction
@@ -28,7 +28,10 @@ class AddTradeInAction
 
     public function execute(array $message): array
     {
-        $formData = $message['data']['form'] ?? Arr::fromLabelValuePairs($message['data'] ?? []);
+        $data = $message['data'] ?? [];
+        $formData = $this->normalizeForm(
+            $data['form'] ?? (array_is_list($data) ? Arr::fromLabelValuePairs($data) : $data),
+        );
 
         $importer = [
             'active' => 1,
@@ -43,5 +46,33 @@ class AddTradeInAction
             'tradein_data' => $formData,
             'tradein_imported' => $importer,
         ];
+    }
+
+    /**
+     * Keep the original importer keys and photo arrays for both web and extension forms.
+     */
+    private function normalizeForm(array $form): array
+    {
+        $aliases = [
+            'vehicle_identification_number_(vin)' => 'vin',
+            'transmission' => 'trans',
+            'exterior_color' => 'ext_color',
+            'interior_color' => 'int_color',
+            'odometer' => 'mileage',
+            'upload_odometer_photo' => 'odometer_photo',
+            'upload_vehicle_photo' => 'vehicle_photos',
+        ];
+        $normalized = [];
+
+        foreach ($form as $key => $value) {
+            $field = $aliases[$key] ?? $key;
+            // An explicit importer key wins if both it and a display-label alias are supplied.
+            $value = array_key_exists($field, $form) ? $form[$field] : $value;
+            $normalized[$field] = in_array($field, ['odometer_photo', 'vehicle_photos'], true)
+                ? Arr::wrap($value)
+                : $value;
+        }
+
+        return $normalized;
     }
 }

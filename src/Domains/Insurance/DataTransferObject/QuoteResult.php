@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Insurance\DataTransferObject;
 
+use Kanvas\Insurance\Enums\InsurancePaymentTermEnum;
+
 class QuoteResult
 {
     public function __construct(
@@ -21,46 +23,33 @@ class QuoteResult
         public readonly array $raw = [],
         public readonly ?string $productCode = null,
         public readonly array $assumptions = [],
+        public readonly array $paymentOptions = [],
     ) {
+    }
+
+    public function paymentOption(InsurancePaymentTermEnum $term): ?InsurancePaymentOption
+    {
+        foreach ($this->paymentOptions as $option) {
+            if ($option->term === $term) {
+                return $option;
+            }
+        }
+
+        return null;
+    }
+
+    public function with(array $changes): self
+    {
+        return new self(...[...get_object_vars($this), ...$changes]);
     }
 
     public function withAssumptions(array $assumptions): self
     {
-        return new self(
-            success: $this->success,
-            message: $this->message,
-            quoteNumber: $this->quoteNumber,
-            premium: $this->premium,
-            ratePerKm: $this->ratePerKm,
-            tax: $this->tax,
-            total: $this->total,
-            currency: $this->currency,
-            commission: $this->commission,
-            canEmit: $this->canEmit,
-            inspectionStatus: $this->inspectionStatus,
-            raw: $this->raw,
-            productCode: $this->productCode,
-            assumptions: $assumptions,
-        );
+        return $this->with(['assumptions' => $assumptions]);
     }
 
     public function withoutRaw(): self
     {
-        return new self(
-            success: $this->success,
-            message: $this->message,
-            quoteNumber: $this->quoteNumber,
-            premium: $this->premium,
-            ratePerKm: $this->ratePerKm,
-            tax: $this->tax,
-            total: $this->total,
-            currency: $this->currency,
-            commission: $this->commission,
-            canEmit: $this->canEmit,
-            inspectionStatus: $this->inspectionStatus,
-            raw: [],
-            productCode: $this->productCode,
-            assumptions: $this->assumptions,
-        );
+        return $this->with(['raw' => []]);
     }
 }

@@ -12,6 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Campaigns\Enums\CampaignRecipientStatusEnum;
 use Kanvas\Guild\Campaigns\Enums\CampaignStatusEnum;
 use Kanvas\Guild\Campaigns\Models\Campaign;
@@ -24,6 +25,7 @@ use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\BatchRecipientResolverService;
 use Kanvas\Intelligence\Agents\Actions\Outreach\PersistOutboundMessageAction;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -50,6 +52,7 @@ class ProcessLeadCampaignJob implements ShouldQueue
         $resolver = new BatchRecipientResolverService();
         $channel = $this->campaign->channel;
         $manager = Users::getById($this->campaign->users_id, $this->app);
+        $agent = $this->resolveSendingAgent();
 
         $this->campaign->status = CampaignStatusEnum::SENDING->value;
         $this->campaign->saveOrFail();
@@ -67,8 +70,8 @@ class ProcessLeadCampaignJob implements ShouldQueue
         foreach ($recipients as $recipient) {
             /** @var CampaignRecipient $recipient */
             $result = $recipient->leads_id !== null
-                ? $this->sendToLead($recipient, $resolver, $channel, $manager)
-                : $this->sendToPeople($recipient, $resolver, $channel, $manager);
+                ? $this->sendToLead($recipient, $resolver, $channel, $manager, $agent)
+                : $this->sendToPeople($recipient, $resolver, $channel, $manager, $agent);
 
             match ($result) {
                 'sent' => $sent++,
@@ -91,6 +94,7 @@ class ProcessLeadCampaignJob implements ShouldQueue
         BatchRecipientResolverService $resolver,
         string $channel,
         Users $manager,
+        ?Agent $agent,
     ): string {
         $lead = $recipient->lead;
 
@@ -108,11 +112,12 @@ class ProcessLeadCampaignJob implements ShouldQueue
         }
 
         try {
-            $sent = new SendMessageToLeadAction($lead)->execute(
+            $sent = new SendMessageToLeadAction($lead)->withSignatureOwner($manager)->execute(
                 channel: $channel,
                 message: $this->campaign->message,
                 title: $this->campaign->subject,
                 to: $to,
+                fromAgent: $agent,
             );
             $recipient->destination = $to;
             $recipient->sent_at = Carbon::now();
@@ -159,6 +164,7 @@ class ProcessLeadCampaignJob implements ShouldQueue
         BatchRecipientResolverService $resolver,
         string $channel,
         Users $manager,
+        ?Agent $agent,
     ): string {
         $people = $recipient->people;
 
@@ -183,6 +189,8 @@ class ProcessLeadCampaignJob implements ShouldQueue
                 attachmentUrls: $this->campaign->attachment_urls ?? [],
                 templateName: $this->campaign->template_name,
                 important: (bool) $this->campaign->is_important,
+                fromAgent: $agent,
+                signatureOwner: $manager,
             );
             $recipient->destination = $to;
             $recipient->sent_at = Carbon::now();
@@ -256,5 +264,28 @@ class ProcessLeadCampaignJob implements ShouldQueue
             $recipient->reason = $reason;
         }
         $recipient->saveOrFail();
+    }
+
+    /**
+     * The agent that was running when create_lead_campaign/send_batch_message built this campaign,
+     * stashed in `criteria` rather than a dedicated column — a campaign has no agent concept of its
+     * own otherwise, and threading it through here is what lets sendToLead()/sendToPeople() go out
+     * through SendAsAgentMailboxAction (and so with open tracking on) instead of always falling back
+     * to the company's SMTP identity. Null when the campaign was built by a human with no acting
+     * agent, or by anything that predates this field — both fall back exactly as before.
+     */
+    private function resolveSendingAgent(): ?Agent
+    {
+        $agentId = $this->campaign->criteria['agents_id'] ?? null;
+
+        if ($agentId === null) {
+            return null;
+        }
+
+        try {
+            return Agent::getById((int) $agentId, $this->app);
+        } catch (ModelNotFoundException) {
+            return null;
+        }
     }
 }

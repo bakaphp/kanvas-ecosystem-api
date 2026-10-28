@@ -257,4 +257,25 @@ class UsersRepository
             ->where('assigned_roles.scope', $roleScope)
             ->where('assigned_roles.role_id', $role->id);
     }
+
+    /**
+     * Role holders a company report can actually be emailed to. Roles are app-wide, so only the
+     * company membership row says whether the user still belongs here; a removed, deactivated or
+     * banned member must not keep receiving the company's numbers.
+     *
+     * @throws ModelNotFoundException when the role was never created for the app
+     */
+    public static function getActiveCompanyAppUsersByRole(CompanyInterface $company, AppInterface $app, string $roleName): Builder
+    {
+        return self::getCompanyAppUserByRole($company, $app, $roleName)
+            ->where('users_associated_apps.is_deleted', 0)
+            ->where('users_associated_apps.is_active', 1)
+            ->where(
+                fn (Builder $query) => $query->whereNull('users_associated_apps.banned')
+                    ->orWhere('users_associated_apps.banned', 0)
+            )
+            ->notDeleted()
+            ->whereNotNull('users.email')
+            ->where('users.email', '!=', '');
+    }
 }

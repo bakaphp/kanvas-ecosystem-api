@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Mcp;
 
 use Kanvas\Connectors\Mcp\DataTransferObject\McpServerConfig;
+use Kanvas\Connectors\Mcp\Enums\McpAuthEnum;
 use Kanvas\Connectors\Mcp\Transports\GuardedHttpMcpTransport;
 use ReflectionMethod;
 
@@ -58,15 +59,53 @@ final class McpHeaderKeyTest extends McpTestCase
         $this->assertNull(McpServerConfig::fromIntegration($this->makeIntegration())->authHeader);
     }
 
-    private function transportFor(?string $authHeader = null, ?string $authQueryParam = null): GuardedHttpMcpTransport
+    public function testAnOAuthTokenIsABearerTokenEvenWhereAKeyGoesInTheVendorHeader(): void
     {
+        $this->assertSame(
+            ['Authorization' => 'Bearer ' . self::KEY],
+            $this->authHeaders($this->transportFor(authHeader: 'X-Api-Key', method: McpAuthEnum::OAUTH))
+        );
+    }
+
+    public function testAnOAuthTokenNeverTravelsInTheQueryString(): void
+    {
+        $transport = $this->transportFor(authQueryParam: 'browserbaseApiKey', method: McpAuthEnum::OAUTH);
+
+        $this->assertSame(['Authorization' => 'Bearer ' . self::KEY], $this->authHeaders($transport));
+        $this->assertSame(self::SERVER, new ReflectionMethod($transport, 'resolveUrl')->invoke($transport));
+    }
+
+    public function testAGrantStoredBeforeTheMethodWasRecordedIsToldApartByItsExpiry(): void
+    {
+        $transport = $this->transportFor(authHeader: 'X-Api-Key', expiresIn: 3600);
+
+        $this->assertSame(['Authorization' => 'Bearer ' . self::KEY], $this->authHeaders($transport));
+    }
+
+    public function testARefreshKeepsTheMethodTheGrantWasObtainedWith(): void
+    {
+        $integration = $this->makeIntegration(['url' => self::SERVER]);
+        $credentials = $this->credentials($this->makeAgent(), $integration);
+
+        $credentials->store(self::KEY, method: McpAuthEnum::OAUTH);
+        $credentials->store('rotated-token', 'rotated-refresh', 3600);
+
+        $this->assertTrue($credentials->isOAuthGrant());
+    }
+
+    private function transportFor(
+        ?string $authHeader = null,
+        ?string $authQueryParam = null,
+        ?McpAuthEnum $method = null,
+        ?int $expiresIn = null
+    ): GuardedHttpMcpTransport {
         $integration = $this->makeIntegration([
             'url' => self::SERVER,
             'auth_header' => $authHeader,
             'auth_query_param' => $authQueryParam,
         ]);
         $agent = $this->makeAgent();
-        $this->credentials($agent, $integration)->store(self::KEY);
+        $this->credentials($agent, $integration)->store(self::KEY, expiresIn: $expiresIn, method: $method);
 
         return new GuardedHttpMcpTransport(
             url: self::SERVER,
