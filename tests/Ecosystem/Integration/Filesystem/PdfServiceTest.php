@@ -62,11 +62,12 @@ final class PdfServiceTest extends TestCase
     }
 
     /**
-     * An app with no storage credentials makes the upload step throw after the PDF is rendered —
-     * the exact window where the old code leaked the file.
+     * With neither app nor platform storage credentials the upload step throws after the PDF is
+     * rendered — the exact window where the old code leaked the file.
      */
     public function testHtmlToPdfDeletesTempFileWhenUploadFails(): void
     {
+        config(['filesystems.disks.s3.key' => null]);
         $before = $this->tempPdfs();
 
         try {
