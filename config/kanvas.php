@@ -47,6 +47,11 @@ return [
         'alert_emails' => env('SIGNUP_ANOMALY_ALERT_EMAILS'),
         'sentry_enabled' => env('SIGNUP_ABUSE_SENTRY_ENABLED', true),
     ],
+    // Who hears that an agent was asked for something the platform cannot do yet. Platform-wide,
+    // because the roadmap is ours; the `capability_gap_alert_emails` app setting replaces it per app.
+    'capability_gap' => [
+        'alert_emails' => env('CAPABILITY_GAP_ALERT_EMAILS'),
+    ],
     // External voice runtime (Pipecat / Cloud Run). A single deployment serves
     // every app, so these are the global default; a per-app setting
     // (kanvas-intelligence-voice-runtime-*) still overrides when present.

@@ -82,6 +82,7 @@ class AddLeadNoteTool extends Tool
             $note,
             'agent-note',
             $this->contextUser(),
+            isPublic: true,
         );
 
         return $this->finalizeNote(

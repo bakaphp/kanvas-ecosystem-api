@@ -67,6 +67,7 @@ final class EmailOpenedWebhookJobTest extends TestCase
         $note = $people->notes->messages()->latest('id')->first();
         $this->assertNotNull($note, 'The open must land a note in the people notes channel');
         $this->assertStringContainsString('prospect@example.com', (string) ($note->message['content'] ?? ''));
+        $this->assertSame(1, $note->is_public);
     }
 
     public function testNonOpenedEventsAreIgnored(): void
@@ -158,6 +159,7 @@ final class EmailOpenedWebhookJobTest extends TestCase
         $leadNote = ($lead->systemNotes ?? $lead->notes)->messages()->latest('id')->first();
         $this->assertNotNull($leadNote, 'The open must land a note on the lead\'s own activity feed');
         $this->assertStringContainsString('prospect@example.com', (string) ($leadNote->message['content'] ?? ''));
+        $this->assertSame(1, $leadNote->is_public);
 
         // Went to the Lead's feed, not the underlying People's notes channel — the two must not merge.
         $this->assertSame($peopleNotesBefore, $lead->people->notes->messages()->count());

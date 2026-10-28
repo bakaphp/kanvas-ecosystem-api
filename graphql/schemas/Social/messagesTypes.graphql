@@ -4,6 +4,8 @@ input CreateMessageTypeInput {
     verb: String!
     template: Mixed
     templates_plura: Mixed
+    "Default visibility for messages of this type when the writer does not set one. Omit to let the verb decide."
+    is_public: Boolean
 }
 
 type MessageType {
@@ -14,6 +16,7 @@ type MessageType {
     verb: String!
     template: Mixed
     templates_plura: Mixed
+    is_public: Boolean!
     created_at: DateTime!
     updated_at: DateTime
 }
@@ -31,6 +34,7 @@ extend type Query @guard {
                     "verb"
                     "template"
                     "templates_plura"
+                    "is_public"
                 ]
             )
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
