@@ -491,6 +491,19 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
         $this->saveOrFail();
     }
 
+    public function keepFirstMetadataData(string $key, mixed $value): void
+    {
+        $metadata = is_array($this->metadata) ? $this->metadata : [];
+
+        $this->metadata = [
+            ...$metadata,
+            'data' => [
+                ...($metadata['data'] ?? []),
+                $key => $metadata['data'][$key] ?? $value,
+            ],
+        ];
+    }
+
     public function addPrivateMetadata(string $key, mixed $value): void
     {
         $metadata = $this->private_metadata ?? [];
