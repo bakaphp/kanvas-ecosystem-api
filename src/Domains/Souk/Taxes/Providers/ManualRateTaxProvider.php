@@ -21,20 +21,28 @@ use Kanvas\Souk\Taxes\Models\TaxRoutingRule;
 
 class ManualRateTaxProvider implements TaxProviderInterface
 {
+    /**
+     * @param TaxRoutingRule[] $rules  One per applicable tax (e.g. ITBIS + ISC).
+     *                                  General rules (null category_codes) apply to every taxable line.
+     *                                  Category-specific rules apply only to lines whose taxCategory
+     *                                  appears in the rule's category_codes array.
+     */
     public function __construct(
-        private readonly TaxRoutingRule $rule,
+        private readonly array $rules,
         private readonly ?CustomerTaxExemption $exemption = null,
     ) {
     }
 
     public function calculate(TaxContext $context): TaxResult
     {
+        $firstRule = $this->rules[0] ?? new TaxRoutingRule();
+
         if ($this->exemption !== null) {
             $components = array_map(
                 fn (TaxableLine $line) => new TaxComponent(
                     lineId: $line->lineId,
-                    taxType: 'ITBIS',
-                    jurisdiction: $this->rule->condition_country,
+                    taxType: $firstRule->name ?? 'VAT',
+                    jurisdiction: $firstRule->condition_country,
                     rate: '0',
                     taxableAmount: '0',
                     taxAmount: '0',
@@ -51,17 +59,16 @@ class ManualRateTaxProvider implements TaxProviderInterface
             );
         }
 
-        $rate = Money::of((string) $this->rule->rate);
-        $components = [];
+        $allComponents = [];
         $totalTax = BigDecimal::zero();
-        $totalTaxable = BigDecimal::zero();
+        $taxableByLine = []; // lineId => BigDecimal, deduplicated so the same line isn't double-counted
 
         foreach ($context->lines as $line) {
             if (! $line->isTaxable) {
-                $components[] = new TaxComponent(
+                $allComponents[] = new TaxComponent(
                     lineId: $line->lineId,
-                    taxType: 'ITBIS',
-                    jurisdiction: $this->rule->condition_country,
+                    taxType: $firstRule->name ?? 'VAT',
+                    jurisdiction: $firstRule->condition_country,
                     rate: '0',
                     taxableAmount: '0',
                     taxAmount: '0',
@@ -71,36 +78,50 @@ class ManualRateTaxProvider implements TaxProviderInterface
                 continue;
             }
 
-            if ($line->isShipping && ! $this->rule->tax_shipping) {
-                $components[] = new TaxComponent(
+            $lineMatchedAnyRule = false;
+
+            foreach ($this->rules as $rule) {
+                if (! $this->ruleAppliesToLine($rule, $line)) {
+                    continue;
+                }
+
+                $lineMatchedAnyRule = true;
+                $rate = Money::of((string) $rule->rate);
+                $taxable = Money::roundCollect(Money::of($line->subtotal()));
+                $taxAmount = Money::roundCollect($taxable->multipliedBy($rate));
+
+                $taxableByLine[$line->lineId] = $taxable;
+                $totalTax = $totalTax->plus($taxAmount);
+
+                $allComponents[] = new TaxComponent(
                     lineId: $line->lineId,
-                    taxType: 'ITBIS',
-                    jurisdiction: $this->rule->condition_country,
+                    taxType: $rule->name ?? 'VAT',
+                    jurisdiction: $rule->condition_country,
+                    rate: (string) $rate,
+                    taxableAmount: (string) $taxable,
+                    taxAmount: $taxAmount->isZero() ? '0' : (string) $taxAmount,
+                    taxabilityReason: 'taxable',
+                );
+            }
+
+            if (! $lineMatchedAnyRule) {
+                $allComponents[] = new TaxComponent(
+                    lineId: $line->lineId,
+                    taxType: $firstRule->name ?? 'VAT',
+                    jurisdiction: $firstRule->condition_country,
                     rate: '0',
                     taxableAmount: '0',
                     taxAmount: '0',
-                    taxabilityReason: 'shipping_not_taxable',
+                    taxabilityReason: $line->isShipping ? 'shipping_not_taxable' : 'no_rule_match',
                 );
-
-                continue;
             }
-
-            $taxable = Money::roundCollect(Money::of($line->subtotal()));
-            $taxAmount = Money::roundCollect($taxable->multipliedBy($rate));
-
-            $totalTaxable = $totalTaxable->plus($taxable);
-            $totalTax = $totalTax->plus($taxAmount);
-
-            $components[] = new TaxComponent(
-                lineId: $line->lineId,
-                taxType: 'ITBIS',
-                jurisdiction: $this->rule->condition_country,
-                rate: (string) $rate,
-                taxableAmount: (string) $taxable,
-                taxAmount: (string) $taxAmount,
-                taxabilityReason: 'taxable',
-            );
         }
+
+        $totalTaxable = array_reduce(
+            $taxableByLine,
+            fn (BigDecimal $carry, BigDecimal $amount) => $carry->plus($amount),
+            BigDecimal::zero(),
+        );
 
         $totalTaxRounded = Money::roundCollect($totalTax);
         $totalTaxableRounded = Money::roundCollect($totalTaxable);
@@ -109,8 +130,28 @@ class ManualRateTaxProvider implements TaxProviderInterface
             treatment: TaxTreatmentEnum::TAXED,
             totalTax: $totalTaxRounded->isZero() ? '0' : (string) $totalTaxRounded,
             totalTaxable: $totalTaxableRounded->isZero() ? '0' : (string) $totalTaxableRounded,
-            components: $components,
+            components: $allComponents,
         );
+    }
+
+    /**
+     * General rules (empty category_codes) apply to every taxable line.
+     * Category-specific rules apply only when the line's taxCategory is listed.
+     * Shipping lines are skipped when the rule's tax_shipping flag is false.
+     */
+    private function ruleAppliesToLine(TaxRoutingRule $rule, TaxableLine $line): bool
+    {
+        if ($line->isShipping && ! $rule->tax_shipping) {
+            return false;
+        }
+
+        $categoryCodes = $rule->category_codes;
+
+        if (empty($categoryCodes)) {
+            return true;
+        }
+
+        return $line->taxCategory !== null && in_array($line->taxCategory, $categoryCodes, strict: true);
     }
 
     public function commit(OrderTaxSnapshot $snapshot): void

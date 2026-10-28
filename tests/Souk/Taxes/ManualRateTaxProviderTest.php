@@ -56,7 +56,7 @@ final class ManualRateTaxProviderTest extends TestCaseUnit
 
     public function testTaxableLineProducesCorrectTaxAmount(): void
     {
-        $provider = new ManualRateTaxProvider(rule: $this->makeRule(0.18));
+        $provider = new ManualRateTaxProvider(rules: [$this->makeRule(0.18)]);
 
         $result = $provider->calculate($this->makeContext(['unitPrice' => '100.00', 'quantity' => 1]));
 
@@ -73,7 +73,7 @@ final class ManualRateTaxProviderTest extends TestCaseUnit
         $exemption = new CustomerTaxExemption();
         $exemption->exemption_type = 'resale';
 
-        $provider = new ManualRateTaxProvider(rule: $this->makeRule(0.18), exemption: $exemption);
+        $provider = new ManualRateTaxProvider(rules: [$this->makeRule(0.18)], exemption: $exemption);
 
         $result = $provider->calculate($this->makeContext());
 
@@ -87,7 +87,7 @@ final class ManualRateTaxProviderTest extends TestCaseUnit
 
     public function testNonTaxableProductProducesZeroComponent(): void
     {
-        $provider = new ManualRateTaxProvider(rule: $this->makeRule(0.18));
+        $provider = new ManualRateTaxProvider(rules: [$this->makeRule(0.18)]);
 
         $result = $provider->calculate($this->makeContext(['isTaxable' => false]));
 
@@ -99,7 +99,7 @@ final class ManualRateTaxProviderTest extends TestCaseUnit
 
     public function testShippingNotTaxableWhenRuleFlagIsFalse(): void
     {
-        $provider = new ManualRateTaxProvider(rule: $this->makeRule(0.18, taxShipping: false));
+        $provider = new ManualRateTaxProvider(rules: [$this->makeRule(0.18, taxShipping: false)]);
 
         $result = $provider->calculate($this->makeContext(['isShipping' => true, 'isTaxable' => true]));
 
@@ -110,7 +110,7 @@ final class ManualRateTaxProviderTest extends TestCaseUnit
 
     public function testShippingTaxableWhenRuleFlagIsTrue(): void
     {
-        $provider = new ManualRateTaxProvider(rule: $this->makeRule(0.18, taxShipping: true));
+        $provider = new ManualRateTaxProvider(rules: [$this->makeRule(0.18, taxShipping: true)]);
 
         $result = $provider->calculate($this->makeContext([
             'isShipping' => true,
@@ -124,9 +124,53 @@ final class ManualRateTaxProviderTest extends TestCaseUnit
         $this->assertSame('taxable', $result->components[0]->taxabilityReason);
     }
 
+    public function testCompoundTaxAppliesBothGeneralAndCategorySpecificRule(): void
+    {
+        $itbis = $this->makeRule(0.18); // general — applies to all taxable lines
+        $isc = $this->makeRule(1.30);   // ISC tabaco — applies only to 'tobacco' lines
+        $isc->category_codes = ['tobacco'];
+
+        $context = new TaxContext(
+            appId: '1',
+            shipTo: new TaxAddress(country: 'DO', state: null, city: 'Santo Domingo', postalCode: null),
+            shipFrom: null,
+            lines: [
+                new TaxableLine(lineId: 'shirt', reference: 'shirt', unitPrice: '500.00', quantity: 1, isTaxable: true, taxCategory: null, taxCodeOverride: null, isShipping: false),
+                new TaxableLine(lineId: 'cigs', reference: 'cigs', unitPrice: '100.00', quantity: 1, isTaxable: true, taxCategory: 'tobacco', taxCodeOverride: null, isShipping: false),
+            ],
+            currency: 'DOP',
+            taxDate: '2026-10-28',
+        );
+
+        $result = (new ManualRateTaxProvider(rules: [$itbis, $isc]))->calculate($context);
+
+        // shirt: ITBIS only → 500 * 0.18 = 90
+        // cigs: ITBIS (100 * 0.18 = 18) + ISC (100 * 1.30 = 130) = 148
+        // total tax: 90 + 148 = 238
+        // total taxable: 500 + 100 = 600 (each line counted once, not doubled)
+        $this->assertSame(TaxTreatmentEnum::TAXED, $result->treatment);
+        $this->assertSame('238.00', $result->totalTax);
+        $this->assertSame('600.00', $result->totalTaxable);
+        $this->assertCount(3, $result->components); // shirt×ITBIS, cigs×ITBIS, cigs×ISC
+    }
+
+    public function testCategoryRuleDoesNotApplyToLineWithoutMatchingCategory(): void
+    {
+        $isc = $this->makeRule(1.30);
+        $isc->category_codes = ['tobacco'];
+
+        $result = (new ManualRateTaxProvider(rules: [$isc]))->calculate(
+            $this->makeContext(['taxCategory' => null])
+        );
+
+        $this->assertSame('0', $result->totalTax);
+        $this->assertCount(1, $result->components);
+        $this->assertSame('no_rule_match', $result->components[0]->taxabilityReason);
+    }
+
     public function testCommitIsANoOp(): void
     {
-        $provider = new ManualRateTaxProvider(rule: $this->makeRule());
+        $provider = new ManualRateTaxProvider(rules: [$this->makeRule()]);
         $snapshot = new OrderTaxSnapshot();
         $snapshot->exists = true;
 
@@ -137,7 +181,7 @@ final class ManualRateTaxProviderTest extends TestCaseUnit
 
     public function testVoidIsANoOp(): void
     {
-        $provider = new ManualRateTaxProvider(rule: $this->makeRule());
+        $provider = new ManualRateTaxProvider(rules: [$this->makeRule()]);
         $snapshot = new OrderTaxSnapshot();
         $snapshot->exists = true;
 
@@ -148,7 +192,7 @@ final class ManualRateTaxProviderTest extends TestCaseUnit
 
     public function testReverseIsANoOp(): void
     {
-        $provider = new ManualRateTaxProvider(rule: $this->makeRule());
+        $provider = new ManualRateTaxProvider(rules: [$this->makeRule()]);
         $snapshot = new OrderTaxSnapshot();
         $snapshot->exists = true;
         $reversal = new TaxReversal(

@@ -46,26 +46,28 @@ class TaxProviderResolver
             return $this->handleNotCollecting();
         }
 
-        $rule = TaxRoutingRule::query()
+        $rules = TaxRoutingRule::query()
             ->fromApp($this->app)
             ->notDeleted()
             ->where('condition_country', $country)
             ->where('is_active', true)
             ->orderBy('priority', 'asc')
-            ->first();
+            ->get();
 
-        if ($rule === null) {
+        if ($rules->isEmpty()) {
             return $this->handleNotCollecting();
         }
 
-        return match ($rule->provider) {
+        $primaryProvider = $rules->first()->provider;
+
+        return match ($primaryProvider) {
             TaxProviderEnum::MANUAL->value => new ManualRateTaxProvider(
-                rule: $rule,
+                rules: $rules->all(),
                 exemption: $this->findExemption($context, $country),
             ),
             TaxProviderEnum::STRIPE_TAX->value => $this->resolveStripeTaxProvider(),
             TaxProviderEnum::NONE->value => new NullTaxProvider(),
-            default => throw new InvalidArgumentException("Unknown provider: {$rule->provider}"),
+            default => throw new InvalidArgumentException("Unknown provider: {$primaryProvider}"),
         };
     }
 
@@ -73,7 +75,7 @@ class TaxProviderResolver
     {
         return match ($snapshot->provider) {
             TaxProviderEnum::MANUAL->value => new ManualRateTaxProvider(
-                rule: new TaxRoutingRule(),
+                rules: [new TaxRoutingRule()],
             ),
             TaxProviderEnum::STRIPE_TAX->value => $this->resolveStripeTaxProvider(),
             default => new NullTaxProvider(),
