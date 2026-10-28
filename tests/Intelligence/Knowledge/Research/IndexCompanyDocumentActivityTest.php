@@ -12,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Onboarding\Models\CompanyOnboarding;
 use Kanvas\Companies\Onboarding\Services\OnboardingStateService;
+use Kanvas\Connectors\Internal\Handlers\InternalHandler;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
@@ -178,7 +179,7 @@ final class IndexCompanyDocumentActivityTest extends TestCase
         $this->setIntegration(
             $this->kanvasApp,
             IntegrationsEnum::INTERNAL,
-            'Kanvas\\Connectors\\Internal\\Handlers\\InternalHandler',
+            InternalHandler::class,
             $this->company,
             auth()->user(),
         );

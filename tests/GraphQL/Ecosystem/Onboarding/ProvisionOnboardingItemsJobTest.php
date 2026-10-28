@@ -308,8 +308,16 @@ final class ProvisionOnboardingItemsJobTest extends TestCase
     {
         $row = $this->select(['sales']);
         $row->transitionTo(OnboardingStatusEnum::PROVISIONING);
-        $row->dataSet('provisioning.sally', ['status' => 'creating', 'agent_id' => null, 'error' => null]);
-        $row->dataSet('provisioning.ginny', ['status' => 'ready', 'agent_id' => 1, 'error' => null]);
+        $row->dataSet('provisioning.sally', [
+            'status' => 'creating',
+            'agent_id' => null,
+            'error' => null,
+        ]);
+        $row->dataSet('provisioning.ginny', [
+            'status' => 'ready',
+            'agent_id' => 1,
+            'error' => null,
+        ]);
 
         new ProvisionOnboardingItemsJob($this->kanvasApp, $this->company, $this->user)->failed(new RuntimeException('worker died'));
 
@@ -342,7 +350,11 @@ final class ProvisionOnboardingItemsJobTest extends TestCase
     {
         Queue::fake();
         $row = $this->select(['sales']);
-        $row->dataSet('provisioning.sally', ['status' => 'creating', 'agent_id' => null, 'error' => null]);
+        $row->dataSet('provisioning.sally', [
+            'status' => 'creating',
+            'agent_id' => null,
+            'error' => null,
+        ]);
 
         $this->graphQL('mutation { provisionOnboardingItems { status } }')->assertSuccessful();
 

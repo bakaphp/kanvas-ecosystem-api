@@ -61,6 +61,11 @@ type CompanyOnboarding {
     requirements: [OnboardingRequirement!]!
     setup_plan: NervousSystemPlan
     setup_session_id: String
+    "The company knowledge documents uploaded so far; remove one with deleteFile(uuid), which also prunes its chunks."
+    knowledge_documents: [Filesystem!]!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Onboarding\\OnboardingQuery@knowledgeDocuments"
+        )
     knowledge_count: Int!
     observations_count: Int!
     started_at: DateTime!
@@ -169,32 +174,58 @@ input OnboardingProfileInput {
 extend type Query @guard {
     "Creates the company's onboarding row on first read."
     companyOnboarding: CompanyOnboarding!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Queries\\Onboarding\\OnboardingQuery@companyOnboarding")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Onboarding\\OnboardingQuery@companyOnboarding"
+        )
     onboardingAreas: [OnboardingArea!]!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Queries\\Onboarding\\OnboardingQuery@areas")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Onboarding\\OnboardingQuery@areas"
+        )
 }
 
 extend type Mutation @guard {
     "Platform app only: creates the app with its owner company and the onboarding row inside it."
     startOnboarding(input: StartOnboardingInput!): OnboardingWorkspace!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@start")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@start"
+        )
     updateOnboardingProfile(input: OnboardingProfileInput!): CompanyOnboarding!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@updateProfile")
-    selectOnboardingAreas(areas: [String!]!, first_area: String): CompanyOnboarding!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@selectAreas")
-    setOnboardingStep(step: String! @rules(apply: ["max:32"])): CompanyOnboarding!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@setStep")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@updateProfile"
+        )
+    selectOnboardingAreas(
+        areas: [String!]!
+        first_area: String
+    ): CompanyOnboarding!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@selectAreas"
+        )
+    setOnboardingStep(
+        step: String! @rules(apply: ["max:32"])
+    ): CompanyOnboarding!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@setStep"
+        )
     skipOnboarding: CompanyOnboarding!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@skip")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingMutation@skip"
+        )
 }
 
 extend type Mutation @guard {
     "Queues the website background check; a run less than 24 h after a successful one needs force."
-    researchCompanyWebsite(website: String!, force: Boolean = false): CompanyResearch!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingResearchMutation@research")
-    "Attaches documents to the onboarding row; they are indexed as company-wide knowledge for the internal agents."
-    uploadOnboardingKnowledge(files: [Upload!]!): CompanyOnboarding!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingResearchMutation@upload")
+    researchCompanyWebsite(
+        website: String!
+        force: Boolean = false
+    ): CompanyResearch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingResearchMutation@research"
+        )
+    "Company knowledge for the internal agents, during onboarding or any time after: the documents attach to the onboarding row and are indexed company-wide."
+    uploadCompanyKnowledge(files: [Upload!]!): CompanyOnboarding!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingResearchMutation@upload"
+        )
 }
 
 input ResolveOnboardingRequirementInput {
@@ -210,13 +241,21 @@ input ResolveOnboardingRequirementInput {
 
 extend type Mutation @guard {
     provisionOnboardingItems: CompanyOnboarding!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingProvisioningMutation@provision")
-    resolveOnboardingRequirement(input: ResolveOnboardingRequirementInput!): OnboardingRequirement!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingProvisioningMutation@resolveRequirement")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingProvisioningMutation@provision"
+        )
+    resolveOnboardingRequirement(
+        input: ResolveOnboardingRequirementInput!
+    ): OnboardingRequirement!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingProvisioningMutation@resolveRequirement"
+        )
 }
 
 extend type Mutation @guard {
     "Creates the setup plan for the first area on Ginny, opens her session and queues her opening turn."
     completeOnboarding: CompanyOnboarding!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingCompletionMutation@complete")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Onboarding\\OnboardingCompletionMutation@complete"
+        )
 }

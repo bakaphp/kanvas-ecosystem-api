@@ -23,7 +23,12 @@ final class OnboardingSectionsServiceTest extends TestCase
         $app = app(Apps::class);
         $slug = 'ovr_' . uniqid();
 
-        $this->section($slug, 'Global title', appsId: 0, order: 5);
+        $this->section(
+            $slug,
+            'Global title',
+            appsId: 0,
+            order: 5,
+        );
         $this->section($slug, 'App title', order: 5);
 
         $sections = new OnboardingSectionsService()->forApp($app)->filter(

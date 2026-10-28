@@ -84,12 +84,26 @@ return new class () extends Migration {
     }
 
     /**
+     * The workflow database may not exist yet when the ecosystem migrations run (a fresh CI
+     * database creates it later), and asking for a table on a missing database throws from the
+     * connector, not from hasTable().
+     */
+    private function integrationsTableExists(): bool
+    {
+        try {
+            return Schema::connection('workflow')->hasTable('integrations');
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
      * @param array<string, mixed> $config
      * @return array<string, mixed>
      */
     private function resolveIntegrationIds(array $config): array
     {
-        $hasIntegrations = Schema::connection('workflow')->hasTable('integrations');
+        $hasIntegrations = $this->integrationsTableExists();
 
         if (! isset($config['requirements']) || ! is_array($config['requirements'])) {
             return $config;

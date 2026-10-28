@@ -30,9 +30,24 @@ final class OnboardingMutationsTest extends TestCase
         parent::setUp();
 
         $this->prefix = 'm' . substr(uniqid(), -6) . '_';
-        $this->section('sales', 'Respond to my leads instantly', available: true, order: 1);
-        $this->section('crm', 'Keep my CRM up to date', available: false, order: 2);
-        $this->section('accounts_payable', 'Pay my suppliers\' bills on time', available: true, order: 3);
+        $this->section(
+            'sales',
+            'Respond to my leads instantly',
+            available: true,
+            order: 1,
+        );
+        $this->section(
+            'crm',
+            'Keep my CRM up to date',
+            available: false,
+            order: 2,
+        );
+        $this->section(
+            'accounts_payable',
+            'Pay my suppliers\' bills on time',
+            available: true,
+            order: 3,
+        );
     }
 
     public function testCompanyOnboardingCreatesRowOnFirstRead(): void
