@@ -47,10 +47,14 @@ parent keeps waiting. Same model unless the tenant set `coding_fallback_model`.
   own hosted model, reports `cost: 0`, and logs nothing the API can see. `PollHarnessSessionJob`
   compares `message.model.id` against the pinned model every tick and kills the session on a mismatch.
   That check is a tenant-data-egress control, not a nicety.
-- **Failures are only sometimes visible.** A streaming fault shows up in `history` as
-  `session.next.step.failed`; a provider that cannot be resolved shows up **only** in the container log.
-  So: run the server with `--print-logs`, and never treat "no error" as "healthy" — the wall clock and
-  the heartbeat are what actually catch a wedged run.
+- **Failures are only sometimes visible, and not where you expect.** On 2.0.16 a provider fault (402
+  out of credits, 401, 429) closes the turn with a **bare** `{outcome: "failed"}` idle; the structured
+  error — `{type: "provider.quota", message, status: 402}` — is on the assistant message it ended
+  (`finish: "error"`). `OpenCodeHarness::lastError()` reads the idle first and falls back to that
+  message; before it did, every provider fault surfaced as `the run ended as "failed"`. A provider that
+  cannot be resolved at all shows up **only** in the container log. So: run the server with
+  `--print-logs`, and never treat "no error" as "healthy" — the wall clock and the heartbeat are what
+  actually catch a wedged run.
 - **Cost must be computed here.** A custom (openai-compatible) provider reports `cost: 0` and leaves
   the session's own totals at zero. `SessionCostService` sums the per-message tokens and prices them
   through `ModelPricingCalculator`. Trusting the runtime's numbers means every coding job looks free.
