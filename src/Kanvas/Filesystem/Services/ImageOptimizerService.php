@@ -61,8 +61,7 @@ class ImageOptimizerService
             $filesystemService = new FilesystemServices($app, $company);
             $storage = $filesystemService->getStorageByDisk();
 
-            // Get upload path from app config
-            $uploadPath = $app->get('cloud-bucket-path') ?? '/';
+            $uploadPath = $filesystemService->uploadPath();
 
             // Generate new filename with optimized suffix
             $originalName = Str::before(Str::before($filesystem->name, '?'), '#');
