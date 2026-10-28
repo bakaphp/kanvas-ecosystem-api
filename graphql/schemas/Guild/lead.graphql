@@ -94,6 +94,7 @@ type LeadChannelFileGroup {
 
 type LeadChannelFile {
     id: ID!
+    attachment_uuid: String
     name: String!
     url: String!
     file_type: String
