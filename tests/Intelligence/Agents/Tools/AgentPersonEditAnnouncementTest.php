@@ -35,11 +35,11 @@ final class AgentPersonEditAnnouncementTest extends TestCase
 
         RecordingWorkflowActivity::$entityIds = [];
         $this->createSyncRule(
-            app(Apps::class),
-            People::class,
-            WorkflowEnum::AGENT_UPDATED,
-            RecordingWorkflowActivity::class,
-            'Record agent person edit ' . uniqid()
+            app: app(Apps::class),
+            event: WorkflowEnum::AGENT_UPDATED->value,
+            modelClass: People::class,
+            activityClass: RecordingWorkflowActivity::class,
+            actionName: 'Record agent person edit ' . uniqid(),
         );
 
         $user = auth()->user();

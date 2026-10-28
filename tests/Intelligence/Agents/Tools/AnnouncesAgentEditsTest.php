@@ -29,11 +29,11 @@ final class AnnouncesAgentEditsTest extends TestCase
     {
         RecordingWorkflowActivity::$entityIds = [];
         $this->createSyncRule(
-            app(Apps::class),
-            Lead::class,
-            WorkflowEnum::AGENT_UPDATED,
-            RecordingWorkflowActivity::class,
-            'Record agent lead edit ' . uniqid()
+            app: app(Apps::class),
+            event: WorkflowEnum::AGENT_UPDATED->value,
+            modelClass: Lead::class,
+            activityClass: RecordingWorkflowActivity::class,
+            actionName: 'Record agent lead edit ' . uniqid(),
         );
         $lead = $this->createLead();
 
