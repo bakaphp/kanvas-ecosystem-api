@@ -585,6 +585,21 @@ The lead send tools were `send_email` / `send_sms` until 2026-10-09 (`gmail_repl
 the old ids in agent prose. Tool names are also matched literally by `WorkerToolPolicy` (and by prefix in
 `ApprovalPolicy`) — renaming a send tool without updating them lets an unsupervised worker send.
 
+### A tool that edits a record announces it (`AnnouncesAgentEdits`)
+
+Who made an edit cannot be read back afterwards: an agent's user is shared across agents and is often a
+person's own login, and the record keeps no "edited by". So a tool that writes a record calls
+`announceAgentEdit($model)` from [`Intelligence/Tools/Traits/AnnouncesAgentEdits`](../Tools/Traits/AnnouncesAgentEdits.php) (shared namespace, like `ReportsToolOutcome`, so Neuron and Laravel tools both use it)
+after the write succeeds. It fires `WorkflowEnum::AGENT_UPDATED` on that model, never `UPDATED`, so a
+tenant can hang a rule on "edited by an agent" without touching the rules a person's mutation already
+triggers. Works for any model with `CanUseWorkflow`; on one without it is a no-op.
+
+- Announce only when something changed — a call that sets nothing must not trigger the rule.
+- Today's adopters: the four People editing tools (`update_person`, `manage_person_contact`,
+  `set_person_address`, `set_person_custom_fields`), whose rule opens the Salesforce sync approval
+  (`SalesforceRequestPeopleApprovalActivity`). A new editing tool that skips the call is invisible to it.
+- A tenant enables a reaction by creating a rule on the model's system module with rule type `agent-updated`.
+
 ### Param typing
 
 - Optional params use **nullable typed defaults** (`?string $cc = null`) — the Neuron base normalizes a
