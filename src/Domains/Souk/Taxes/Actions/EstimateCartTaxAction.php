@@ -8,23 +8,31 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
+use Kanvas\Souk\Taxes\Contracts\TaxProviderInterface;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxableLine;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxAddress;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxContext;
+use Kanvas\Souk\Taxes\DataTransferObject\TaxResult;
 use Kanvas\Souk\Taxes\Enums\ConfigurationEnum;
 use Kanvas\Souk\Taxes\Enums\TaxConditionEnum;
 use Kanvas\Souk\Taxes\Enums\TaxTreatmentEnum;
+use Kanvas\Souk\Taxes\Models\CustomerTaxExemption;
 use Kanvas\Souk\Taxes\Providers\TaxProviderResolver;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
+use Kanvas\Users\Models\Users;
 use Throwable;
 use Wearepixel\Cart\Cart;
 use Wearepixel\Cart\CartCondition;
 
 class EstimateCartTaxAction
 {
+    private ?TaxContext $context = null;
+    private ?TaxProviderInterface $provider = null;
+
     public function __construct(
         private readonly Cart $cart,
         private readonly Apps $app,
+        private readonly ?Users $user = null,
     ) {
     }
 
@@ -36,19 +44,29 @@ class EstimateCartTaxAction
         }
     }
 
-    public function execute(): void
+    public function context(): ?TaxContext
+    {
+        return $this->context;
+    }
+
+    public function provider(): ?TaxProviderInterface
+    {
+        return $this->provider;
+    }
+
+    public function execute(): ?TaxResult
     {
         if (! $this->app->get(ConfigurationEnum::TAX_ENGINE_ENABLED->value)) {
-            return;
+            return null;
         }
 
         if ($this->cart->isEmpty()) {
             $this->cart->removeCartCondition(TaxConditionEnum::NAME->value);
 
-            return;
+            return null;
         }
 
-        $context = $this->buildContext();
+        $context = $this->context = $this->buildContext();
 
         if (! $context->shipTo->country) {
             $this->writeCondition(
@@ -62,11 +80,11 @@ class EstimateCartTaxAction
                 ],
             );
 
-            return;
+            return null;
         }
 
         try {
-            $provider = new TaxProviderResolver($this->app)->resolve($context);
+            $provider = $this->provider = new TaxProviderResolver($this->app)->resolve($context);
             $result = $provider->calculate($context);
         } catch (Throwable) {
             $this->writeCondition(
@@ -80,7 +98,7 @@ class EstimateCartTaxAction
                 ],
             );
 
-            return;
+            return null;
         }
 
         if ($result->treatment === TaxTreatmentEnum::NOT_COLLECTING || $result->treatment === TaxTreatmentEnum::NO_BASE) {
@@ -95,7 +113,7 @@ class EstimateCartTaxAction
                 ],
             );
 
-            return;
+            return null;
         }
 
         $isInclusive = $result->treatment === TaxTreatmentEnum::ZERO_RATED
@@ -124,6 +142,8 @@ class EstimateCartTaxAction
                 'calculated_at' => Carbon::now()->toIso8601String(),
             ],
         );
+
+        return $result;
     }
 
     private function writeCondition(string $conditionValue, array $attributes): void
@@ -145,6 +165,7 @@ class EstimateCartTaxAction
         $shipTo = $this->resolveShipTo();
         $shipFrom = TaxAddress::shipFromConfig($this->app);
         $lines = $this->buildLines();
+        $exemption = CustomerTaxExemption::activeForPeople($this->app, $this->resolvePeopleId());
 
         return new TaxContext(
             appId: (string) $this->app->getId(),
@@ -154,8 +175,21 @@ class EstimateCartTaxAction
             currency: $this->resolveCurrency(),
             cartSessionId: $this->cart->getSessionKey(),
             reference: $this->cart->getSessionKey(),
+            exemptionType: $exemption?->exemption_type,
+            customerId: $exemption !== null ? (string) $exemption->people_id : null,
             taxDate: Carbon::today()->format('Y-m-d'),
         );
+    }
+
+    private function resolvePeopleId(): ?int
+    {
+        if ($this->user === null) {
+            return null;
+        }
+
+        $peopleId = $this->user->getAppProfile($this->app)->people_id;
+
+        return $peopleId !== null ? (int) $peopleId : null;
     }
 
     private function resolveShipTo(): TaxAddress

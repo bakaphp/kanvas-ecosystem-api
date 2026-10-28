@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Taxes\Models\CreditReservation;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use RuntimeException;
@@ -53,9 +54,9 @@ class CompleteCheckoutFromSnapshotAction
             $order = DB::connection('commerce')->transaction(function () use ($snapshot, $payload): Order {
                 $order = $this->buildOrder($snapshot, $payload);
 
-                $actualHash = $this->buildPayloadHash($payload);
+                $actualHash = self::linesHash($payload['lines'] ?? []);
 
-                if ($actualHash !== $snapshot->input_hash) {
+                if ($actualHash !== ($payload['lines_hash'] ?? $snapshot->input_hash)) {
                     $order->tax_status = 'mismatch';
                     $order->status = 'on_hold';
                     $order->saveOrFail();
@@ -85,23 +86,37 @@ class CompleteCheckoutFromSnapshotAction
         $totals = $payload['totals'] ?? [];
         $context = $payload['order_context'] ?? [];
 
+        $chargedOrder = Order::query()
+            ->where('apps_id', $snapshot->apps_id)
+            ->where('payment_intent_id', $this->paymentIntentId)
+            ->first();
+
+        if ($chargedOrder !== null) {
+            return $chargedOrder;
+        }
+
         $order = Order::query()
             ->where('apps_id', $snapshot->apps_id)
             ->where('checkout_token', $snapshot->cart_session_id ?? '')
             ->first();
 
-        if ($order === null) {
+        $isNew = $order === null;
+
+        if ($isNew) {
             $order = new Order();
             $order->apps_id = $snapshot->apps_id;
             $order->companies_id = (int) ($context['companies_id'] ?? $this->resolveCompaniesId($snapshot));
-            if (array_key_exists('region_id', $context)) {
+            if (isset($context['region_id'])) {
                 $order->region_id = (int) $context['region_id'];
             }
-            if (array_key_exists('people_id', $context)) {
+            if (isset($context['people_id'])) {
                 $order->people_id = (int) $context['people_id'];
             }
-            if (array_key_exists('users_id', $context)) {
+            if (isset($context['users_id'])) {
                 $order->users_id = (int) $context['users_id'];
+            }
+            if (isset($payload['currency'])) {
+                $order->currency = (string) $payload['currency'];
             }
             $order->checkout_token = $snapshot->cart_session_id ?? '';
         }
@@ -125,13 +140,37 @@ class CompleteCheckoutFromSnapshotAction
             throw $e;
         }
 
+        if ($isNew) {
+            $this->createItemsFromPayload($order, $payload['lines'] ?? []);
+        }
+
         return $order;
     }
 
-    private function buildPayloadHash(array $payload): string
+    private function createItemsFromPayload(Order $order, array $lines): void
     {
-        $lines = $payload['lines'] ?? [];
+        foreach ($lines as $line) {
+            if (! isset($line['variant_id'])) {
+                continue;
+            }
 
+            $item = new OrderItem();
+            $item->apps_id = $order->apps_id;
+            $item->order_id = $order->getId();
+            $item->variant_id = (int) $line['variant_id'];
+            $item->product_name = (string) ($line['product_name'] ?? '');
+            $item->product_sku = (string) ($line['product_sku'] ?? '');
+            $item->variant_name = (string) ($line['variant_name'] ?? $line['product_name'] ?? '');
+            $item->quantity = (int) ($line['quantity'] ?? 1);
+            $item->unit_price_net_amount = (float) ($line['unit_price_net_amount'] ?? 0.0);
+            $item->unit_price_gross_amount = (float) ($line['unit_price_net_amount'] ?? 0.0);
+            $item->currency = $order->currency;
+            $item->saveOrFail();
+        }
+    }
+
+    public static function linesHash(array $lines): string
+    {
         $normalized = array_map(fn (array $line): array => [
             'variant_id' => $line['variant_id'],
             'quantity' => $line['quantity'],

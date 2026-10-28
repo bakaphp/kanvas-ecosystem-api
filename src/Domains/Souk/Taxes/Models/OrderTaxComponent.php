@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Taxes\Models;
 
+use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Souk\Models\BaseModel;
 
 class OrderTaxComponent extends BaseModel
 {
+    use UuidTrait;
+
     protected $table = 'order_tax_components';
     protected $guarded = [];
 

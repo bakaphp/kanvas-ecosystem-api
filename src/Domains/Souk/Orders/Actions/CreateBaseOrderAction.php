@@ -31,6 +31,7 @@ use Kanvas\Souk\Orders\Models\OrderItem as OrderItemModel;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Shipping\Actions\RequoteCartShippingAction;
 use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
+use Kanvas\Souk\Taxes\Actions\FinalizeCheckoutTaxAction;
 use Kanvas\Souk\Taxes\Enums\TaxStatusEnum;
 use Kanvas\Souk\Taxes\Models\OrderTaxComponent;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
@@ -40,6 +41,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 use Wearepixel\Cart\Cart;
+
 use function Sentry\captureMessage;
 
 class CreateBaseOrderAction
@@ -172,6 +174,9 @@ class CreateBaseOrderAction
 
         $this->applyCompanyCredit($order);
 
+        $order->refresh();
+        $this->attachTaxSnapshot($order);
+
         $this->processWalletCreditFromCart($order);
 
         $order->fireWorkflow(
@@ -201,8 +206,6 @@ class CreateBaseOrderAction
 
         $order->refresh();
 
-        $this->attachTaxSnapshot($order);
-
         $this->cart->clear();
 
         return $order;
@@ -210,9 +213,26 @@ class CreateBaseOrderAction
 
     protected function attachTaxSnapshot(ModelsOrder $order): void
     {
+        $chargedIntentId = $this->chargedPaymentIntentId();
+
+        if ($chargedIntentId !== null && $order->payment_intent_id === null) {
+            $order->payment_intent_id = $chargedIntentId;
+            $order->saveOrFail();
+        }
+
         $snapshot = $this->resolveSnapshotForOrder($order);
 
         if ($snapshot === null) {
+            if ($chargedIntentId !== null) {
+                return;
+            }
+
+            new FinalizeCheckoutTaxAction(
+                order: $order,
+                app: $this->app,
+                reservesCredit: false,
+            )->execute();
+
             return;
         }
 
@@ -237,6 +257,8 @@ class CreateBaseOrderAction
             $snapshot->save();
         });
 
+        $order->tax_amount = (float) $snapshot->tax_amount;
+        $order->tax_source = 'souk';
         $order->recomputeTotals(true);
 
         $payable = (float) $order->total_payable_amount;
@@ -292,24 +314,20 @@ class CreateBaseOrderAction
             return;
         }
 
-        $orderItems = OrderItemModel::query()
+        $itemUuidByVariantUuid = OrderItemModel::query()
+            ->with('variant')
             ->where('order_id', $order->id)
-            ->orderBy('id')
-            ->get();
+            ->get()
+            ->filter(fn (OrderItemModel $item) => $item->variant !== null)
+            ->mapWithKeys(fn (OrderItemModel $item) => [$item->variant->uuid => $item->uuid]);
 
-        $components = $snapshot->components;
+        foreach ($snapshot->components as $component) {
+            $itemUuid = $itemUuidByVariantUuid->get($component->line_id);
 
-        $updates = $components->map(fn (OrderTaxComponent $component, int $index) => [
-            'id' => $component->id,
-            'snapshot_id' => $component->snapshot_id,
-            'line_id' => $orderItems->get($index)?->uuid ?? $component->line_id,
-        ])->all();
-
-        if (empty($updates)) {
-            return;
+            if ($itemUuid !== null) {
+                OrderTaxComponent::query()->where('id', $component->id)->update(['line_id' => $itemUuid]);
+            }
         }
-
-        OrderTaxComponent::upsert($updates, ['id'], ['line_id']);
     }
 
     protected function getOrderItems(array $cartContent, AppInterface $app, Currencies $currency): DataCollection
@@ -415,6 +433,11 @@ class CreateBaseOrderAction
         } catch (Throwable $e) {
             report($e);
         }
+    }
+
+    protected function chargedPaymentIntentId(): ?string
+    {
+        return null;
     }
 
     protected function isPrepaidAtCheckout(ModelsOrder $order): bool

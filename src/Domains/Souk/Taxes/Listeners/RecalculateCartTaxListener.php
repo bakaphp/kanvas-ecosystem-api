@@ -12,6 +12,6 @@ class RecalculateCartTaxListener
 {
     public function handle(array $eventData, Cart $cart): void
     {
-        new EstimateCartTaxAction($cart, app(Apps::class))->executeFailOpen();
+        new EstimateCartTaxAction($cart, app(Apps::class), auth()->user())->executeFailOpen();
     }
 }

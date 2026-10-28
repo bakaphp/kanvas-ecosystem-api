@@ -98,6 +98,10 @@ class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
         if (! $payment) {
             $snapshot = $this->findUnattachedSnapshot((string) $intent->id);
 
+            if ($snapshot !== null && $snapshot->stripe_session_id === null) {
+                return ['message' => 'cart checkout left to createOrderFromCart / souk:checkout-reconcile', 'payment_intent_id' => $intent->id];
+            }
+
             if ($snapshot !== null) {
                 return $this->completeSnapshotCheckout($snapshot, (string) $intent->id);
             }

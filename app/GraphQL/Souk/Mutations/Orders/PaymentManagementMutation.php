@@ -13,7 +13,9 @@ use Kanvas\Connectors\Stripe\Actions\PushUserToStripeCustomerAction;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Regions\Services\RegionResolutionService;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Taxes\Actions\FreezeCartTaxAction;
 use Stripe\EphemeralKey;
 use Stripe\PaymentIntent;
 use Stripe\Stripe;
@@ -48,10 +50,20 @@ class PaymentManagementMutation
 
         Stripe::setApiKey($stripeApiKey);
 
+        $company = LocationContext::shoppingCompany($user);
+
         $customer = new PushUserToStripeCustomerAction(
             $user,
             $app,
-            LocationContext::shoppingCompany($user)
+            $company
+        )->execute();
+
+        $snapshot = new FreezeCartTaxAction(
+            $cart,
+            $app,
+            $company,
+            new RegionResolutionService($app)->forCurrentRequestOrFail($company),
+            $user
         )->execute();
 
         //$totalAmount = $amount * 100;
@@ -88,6 +100,8 @@ class PaymentManagementMutation
             'currency' => $currencyCode,
             'customer' => $customer->id,
         ]);
+
+        $snapshot?->update(['payment_intent_id' => $intent->id]);
 
         return [
             'status' => 'success',

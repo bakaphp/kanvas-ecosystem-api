@@ -34,7 +34,7 @@ class ShippingMutation
             destination: ShippingDestination::forInput($request['destination']),
         )->execute();
 
-        new EstimateCartTaxAction($cart, $context->app)->executeFailOpen();
+        new EstimateCartTaxAction($cart, $context->app, auth()->user())->executeFailOpen();
 
         return new CartService($cart)->getCart();
     }

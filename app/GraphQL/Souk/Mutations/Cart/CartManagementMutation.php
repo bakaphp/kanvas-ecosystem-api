@@ -271,6 +271,6 @@ class CartManagementMutation
 
     private function recalculateTax(Cart $cart): void
     {
-        new EstimateCartTaxAction($cart, app(Apps::class))->executeFailOpen();
+        new EstimateCartTaxAction($cart, app(Apps::class), auth()->user())->executeFailOpen();
     }
 }

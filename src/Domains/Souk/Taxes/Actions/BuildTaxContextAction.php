@@ -98,16 +98,6 @@ class BuildTaxContextAction
 
     private function resolveExemption(): ?CustomerTaxExemption
     {
-        $peopleId = $this->order->people_id;
-
-        if ($peopleId === null) {
-            return null;
-        }
-
-        return CustomerTaxExemption::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('people_id', $peopleId)
-            ->notDeleted()
-            ->first();
+        return CustomerTaxExemption::activeForPeople($this->app, $this->order->people_id);
     }
 }

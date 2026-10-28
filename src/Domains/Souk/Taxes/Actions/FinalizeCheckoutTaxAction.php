@@ -15,6 +15,7 @@ use Kanvas\Souk\Discounts\Services\DiscountService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Taxes\Enums\ConfigurationEnum;
 use Kanvas\Souk\Taxes\Enums\GatewayAttemptStatusEnum;
+use Kanvas\Souk\Taxes\Enums\TaxProviderEnum;
 use Kanvas\Souk\Taxes\Enums\TaxTreatmentEnum;
 use Kanvas\Souk\Taxes\Models\CreditReservation;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
@@ -29,6 +30,7 @@ class FinalizeCheckoutTaxAction
     public function __construct(
         private readonly Order $order,
         private readonly Apps $app,
+        private readonly bool $reservesCredit = true,
     ) {
     }
 
@@ -66,14 +68,14 @@ class FinalizeCheckoutTaxAction
         $this->order->tax_source = 'souk';
         $this->order->recomputeTotals(autoSave: false);
 
-        $result2 = DB::connection('commerce')->transaction(function () use ($context, $result): array {
+        $result2 = DB::connection('commerce')->transaction(function () use ($context, $result, $provider): array {
             $this->order->saveOrFail();
 
             $snapshot = new PersistTaxSnapshotAction(
                 context: $context,
                 result: $result,
                 app: $this->app,
-                provider: $result->treatment->value,
+                provider: TaxProviderEnum::of($provider)->value,
                 orderId: $this->order->id,
                 cartSessionId: $this->order->checkout_token,
             )->execute();
@@ -82,7 +84,7 @@ class FinalizeCheckoutTaxAction
             $snapshot->gateway_attempt_status = GatewayAttemptStatusEnum::PENDING->value;
 
             $walletHoldTransferId = $this->holdWalletTender($snapshot);
-            $creditReservationId = $this->reserveCredit($snapshot);
+            $creditReservationId = $this->reservesCredit ? $this->reserveCredit($snapshot) : null;
 
             $snapshot->checkout_payload = $this->buildCheckoutPayload(
                 walletHoldTransferId: $walletHoldTransferId,
