@@ -91,6 +91,7 @@ class AddOrganizationNoteTool extends Tool
             $note,
             'agent-note',
             $this->contextUser(),
+            isPublic: true,
         );
 
         $response = $this->finalizeNote(

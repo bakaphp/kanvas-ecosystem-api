@@ -88,16 +88,19 @@ class SendEmailToolTest extends TestCase
             fn (Blank $notification, array $channels, AnonymousNotifiable $notifiable): bool => $notifiable->routes['mail'] === 'prospect@example.com'
         );
 
-        $this->assertTrue(
-            Message::query()
-                ->whereHas(
-                    'appModuleMessage',
-                    fn (Builder $query) => $query->where('entity_id', $lead->getId())
-                        ->where('system_modules', Lead::class)
-                )
-                ->get()
-                ->contains(fn (Message $message): bool => str_contains((string) ($message->message['content'] ?? ''), 'Your quote'))
-        );
+        $note = Message::query()
+            ->whereHas(
+                'appModuleMessage',
+                fn (Builder $query) => $query->where('entity_id', $lead->getId())
+                    ->where('system_modules', Lead::class)
+            )
+            ->get()
+            ->first(fn (Message $message): bool => str_contains((string) ($message->message['content'] ?? ''), 'Emailed the prospect'));
+
+        $this->assertNotNull($note);
+        $this->assertStringContainsString('Your quote', (string) ($note->message['content'] ?? ''));
+        $this->assertSame(0, $note->is_public, 'The audit note stays out of the message feed');
+        $this->assertSame(1, $outbound->is_public, 'The email itself stays visible in the feed');
     }
 
     public function testSendEmailErrorsWhenLeadHasNoEmail(): void

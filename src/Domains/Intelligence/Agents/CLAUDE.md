@@ -571,6 +571,12 @@ There is no approved path for a free-text external recipient.
 | `send_email_to_user` | A Kanvas user in the company (internal) | assistant turn in the recipient's own chat with the agent (Social channel **and** `agent_conversation_messages`) + `agent.email.sent_to_user` ledger event |
 | `gmail_reply_to_thread` | The bill/invoice approver, inside an existing Gmail thread | the Gmail thread itself |
 
+Every send leaves from the agent's own mailbox when it has one (`AgentMailboxService::addressFor()` →
+`SendAsAgentMailboxAction`, Reply-To included) and only otherwise from the company SMTP sender
+(`SmtpRuntimeConfiguration::getFromEmail()`). That sender is one identity for the whole company — a
+company whose `from_email_name` is its outreach agent put Sofia's teammate email in the inbox as "Sally
+Castro" (2026-10-28) — so a new send path takes the mailbox branch first, never the SMTP sender alone.
+
 Every send writes its history through `PersistOutboundMessageAction` (Lead or People) or, for a teammate,
 into their chat with the agent — an email that leaves no record is invisible to the activity timeline and to
 the agent's next turn. A new send path writes history in the same change.

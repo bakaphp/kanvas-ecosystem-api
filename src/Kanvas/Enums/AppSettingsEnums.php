@@ -73,6 +73,7 @@ enum AppSettingsEnums implements EnumsInterface
     case AGENT_CHAT_ASYNC;
     case ADMIN_URL;
     case APP_KEY_ENFORCE_USER_MATCH;
+    case CAPABILITY_GAP_ALERT_EMAILS;
 
     #[Override]
     public function getValue(): mixed
@@ -142,6 +143,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::AGENT_CHAT_ASYNC => 'agent_chat_async',
             self::ADMIN_URL => 'admin_url',
             self::APP_KEY_ENFORCE_USER_MATCH => 'app_key_enforce_user_match',
+            self::CAPABILITY_GAP_ALERT_EMAILS => 'capability_gap_alert_emails',
         };
     }
 }
