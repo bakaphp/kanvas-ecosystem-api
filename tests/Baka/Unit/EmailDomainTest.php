@@ -134,4 +134,21 @@ class EmailDomainTest extends TestCase
         $this->assertSame('impossible_provider_address', EmailDomain::spamReason('dggie_l9pbrxc3ex@gmail.com'));
         $this->assertSame('random_local_part', EmailDomain::spamReason('dggie_l9pbrxc3ex@example.com'));
     }
+
+    public function testIsInDomainsMatchesTheExactDomainOnly(): void
+    {
+        $this->assertTrue(EmailDomain::isInDomains('Ana@MCTEKK.com', ['mctekk.com']));
+        $this->assertTrue(EmailDomain::isInDomains('ana@mctekk.com', ['@mctekk.com']));
+        $this->assertFalse(EmailDomain::isInDomains('ana@mctekk.com.evil.io', ['mctekk.com']));
+        $this->assertFalse(EmailDomain::isInDomains('ana@evilmctekk.com', ['mctekk.com']));
+        $this->assertFalse(EmailDomain::isInDomains('ana@sub.mctekk.com', ['mctekk.com']));
+        $this->assertFalse(EmailDomain::isInDomains('not-an-email', ['mctekk.com']));
+    }
+
+    public function testBlockedDomainStillCoversBuiltInAndExtraDomains(): void
+    {
+        $this->assertTrue(EmailDomain::isBlockedDomain('x@getnada.com'));
+        $this->assertTrue(EmailDomain::isBlockedDomain('x@spam.test', ['spam.test']));
+        $this->assertFalse(EmailDomain::isBlockedDomain('x@mctekk.com'));
+    }
 }
