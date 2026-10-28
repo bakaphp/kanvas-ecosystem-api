@@ -139,6 +139,35 @@ final class PdfServiceTest extends TestCase
         }
     }
 
+    public function testGeneratePdfFromTemplateKeepsCallerFileName(): void
+    {
+        $app = app(Apps::class);
+
+        new CreateTemplateAction(
+            TemplateInput::from([
+                'app' => $app,
+                'name' => 'pdf-service-file-name-test',
+                'template' => '<p>Message {{ $entity->getId() }}</p>',
+            ])
+        )->execute();
+
+        $message = Message::factory()->create();
+
+        $filesystem = PdfService::generatePdfFromTemplate(
+            $app,
+            Auth::user(),
+            'pdf-service-file-name-test',
+            $message,
+            fileName: 'named-report-3.pdf'
+        );
+
+        try {
+            $this->assertSame('named-report-3.pdf', $filesystem->name);
+        } finally {
+            new FilesystemServices($app)->delete($filesystem);
+        }
+    }
+
     private function makeOtherCompany(Apps $app): Companies
     {
         $company = Companies::factory()->create([

@@ -78,7 +78,8 @@ class PdfService
         string $templateName,
         Model $entity,
         array $data = [],
-        array $options = []
+        array $options = [],
+        ?string $fileName = null
     ): ModelsFilesystem {
         $renderTemplate = new RenderTemplateAction($app, $entity->company ?? null);
 
@@ -99,6 +100,7 @@ class PdfService
             app: $app,
             user: $user,
             html: $renderTemplateHtml,
+            fileName: $fileName,
             options: $options,
             company: $entity->company ?? null
         );
