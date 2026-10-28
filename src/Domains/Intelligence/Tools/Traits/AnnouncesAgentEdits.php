@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Concerns;
+namespace Kanvas\Intelligence\Tools\Traits;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Workflow\Enums\WorkflowEnum;

@@ -9,7 +9,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\AnnouncesAgentEdits;
+use Kanvas\Intelligence\Tools\Traits\AnnouncesAgentEdits;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Tests\Intelligence\Agents\Tools\Support\RecordingWorkflowActivity;
 use Tests\TestCase;

@@ -586,7 +586,7 @@ the old ids in agent prose. Tool names are also matched literally by `WorkerTool
 
 Who made an edit cannot be read back afterwards: an agent's user is shared across agents and is often a
 person's own login, and the record keeps no "edited by". So a tool that writes a record calls
-`announceAgentEdit($model)` from [`Neuron/Tools/Concerns/AnnouncesAgentEdits`](Neuron/Tools/Concerns/AnnouncesAgentEdits.php)
+`announceAgentEdit($model)` from [`Intelligence/Tools/Traits/AnnouncesAgentEdits`](../Tools/Traits/AnnouncesAgentEdits.php) (shared namespace, like `ReportsToolOutcome`, so Neuron and Laravel tools both use it)
 after the write succeeds. It fires `WorkflowEnum::AGENT_UPDATED` on that model, never `UPDATED`, so a
 tenant can hang a rule on "edited by an agent" without touching the rules a person's mutation already
 triggers. Works for any model with `CanUseWorkflow`; on one without it is a no-op.
