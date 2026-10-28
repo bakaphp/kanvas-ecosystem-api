@@ -20,6 +20,7 @@ class AssignCorporateOrderOwnerAction
 {
     public const ACTOR_METADATA_KEY = 'corporate_actor_user_id';
     public const CREATOR_METADATA_KEY = ResolveCorporateOrderCreatorAction::CREATOR_METADATA_KEY;
+    public const CORPORATE_TAG = 'corporative';
 
     public function __construct(
         protected Order $order,
@@ -35,6 +36,10 @@ class AssignCorporateOrderOwnerAction
 
         if ($rawCompanyId === null && $this->creator === null) {
             return null;
+        }
+
+        if (($this->corporateCompany ?? $resolver->company()) !== null) {
+            $this->order->addTag(self::CORPORATE_TAG);
         }
 
         $creator = $this->creator ?? $resolver->execute();
@@ -58,16 +63,7 @@ class AssignCorporateOrderOwnerAction
         }
 
         if ($ownerChanges) {
-            $metadata = $this->order->metadata ?? [];
-
-            $this->order->metadata = [
-                ...$metadata,
-                'data' => [
-                    ...($metadata['data'] ?? []),
-                    // first writer wins: a retry must not overwrite the original owner captured on the first pass
-                    self::ACTOR_METADATA_KEY => $metadata['data'][self::ACTOR_METADATA_KEY] ?? (int) $this->order->users_id,
-                ],
-            ];
+            $this->order->keepFirstMetadataData(self::ACTOR_METADATA_KEY, (int) $this->order->users_id);
             $this->order->users_id = $creator->getId();
         }
 
