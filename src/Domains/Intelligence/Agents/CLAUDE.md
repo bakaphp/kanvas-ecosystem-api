@@ -556,6 +556,12 @@ that picks the destination can be prompt-injected into mailing a quote to `attac
     `addLeadParticipant` mutation write, so the allowlist asserts the tenant itself rather than inheriting
     it. No tenant context → no CC at all. This is the reference pattern for "let the agent widen delivery
     without opening an exfiltration hole" — copy it, don't invent a looser one.
+  - Admin-curated domain allowlist — `send_lead_email`'s `cc` also accepts an address on a domain listed
+    in the app setting `guild_agent_email_cc_allowed_domains` (`ConfigurationEnum::AGENT_EMAIL_CC_ALLOWED_DOMAINS`;
+    array, JSON array or comma string). Exact domain match only (`EmailDomain::isInDomains`), so a
+    subdomain must be listed itself. Listing a public domain is the admin's call; the tool does not
+    second-guess it. A stop request still wins: an allowlisted address belonging to a CRM person with
+    `do_not_contact`, or a contact that opted out or hard-bounced, is rejected.
 
 If you need a genuinely new "send to X" capability, the recipient must be entity-derived or closed-set-verified.
 There is no approved path for a free-text external recipient.
