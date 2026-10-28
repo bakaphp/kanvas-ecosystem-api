@@ -133,6 +133,7 @@ And `executeIntegration` needs an `integrations_companies` row for `INTELLICHECK
 Downstream consumers (CRM push, frontend, checklist) read these:
 
 - **Lead / People:** `id_verification`, `get_docs_drivers_license`, `dont-run-id-verification-manual`, `driver_license_images`
+- **Lead only:** `file-count` — jitsubai's (`FILE_COUNT_FIELD`), `[{name, count}]`, one entry per file-name base
 - **Company:** `company_manager`, `disable_id_verification_email`, `default_checklist_id`
 - **Filesystem:** `id_verify`, `id_expired`, `id_verification_status`, `id_verification_msg`
 - **Message:** `engagement_status`, `hashtagVisited`, `text`, `source`
@@ -145,6 +146,11 @@ Downstream consumers (CRM push, frontend, checklist) read these:
 The email goes to whoever `Kanvas\Companies\Services\CompanyManagerService` resolves — the company's `Managers` role holders plus anyone still listed in the legacy `company_manager` setting — plus the lead owner, each once, and is skipped entirely when the company sets `disable_id_verification_email` — the PDF and engagement are still filed. `id_verification` is always written on the verified person, and on the lead only for the main buyer.
 
 `VerifyPeopleIdAction::sendNotification()` guards on a 3-minute cache keyed by **lead id + verified person id**. Not a persisted flag: a queue retry must not send a second report, but a customer re-scanning after a failed check must get one — a permanent flag silently killed the report, the PDF and the engagement for every later verification of that person. And not keyed by display name: a participant whose document is unreadable resolves the name back to the main buyer's, so a name-keyed guard makes the two skip each other.
+
+The PDF is named `id-verification-report-N.pdf`, N from the **lead's** `file-count` entry for that base
+(`VerifyPeopleIdAction::reserveReportFileName()`), so a co-buyer's report counts on the lead too. It is
+reserved before rendering and unlocked — a concurrent jitsubai upload can collide on a number — and the other
+bases' entries are written back untouched. A failed render burns a number; gaps are fine.
 
 `sendEmail: false` skips the email **and leaves the window unclaimed** — the PDF and engagement are still
 filed. Claiming it would mean a real scan arriving within 3 minutes of a regeneration gets no report, no
