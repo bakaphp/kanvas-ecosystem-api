@@ -15,7 +15,6 @@ use Kanvas\Souk\Cart\Services\CartService;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Discounts\Services\DiscountService;
 use Kanvas\Souk\Taxes\Actions\EstimateCartTaxAction;
-use Throwable;
 use Wearepixel\Cart\Cart;
 use Wearepixel\Cart\CartCondition;
 
@@ -272,9 +271,6 @@ class CartManagementMutation
 
     private function recalculateTax(Cart $cart): void
     {
-        try {
-            new EstimateCartTaxAction($cart, app(Apps::class))->execute();
-        } catch (Throwable) {
-        }
+        new EstimateCartTaxAction($cart, app(Apps::class))->executeFailOpen();
     }
 }

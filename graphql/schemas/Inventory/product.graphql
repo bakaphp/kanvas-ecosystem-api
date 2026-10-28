@@ -51,6 +51,8 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     usersRatings: [UserRating!] @hasMany(relation: "usersRatings")
     rating: Float
     weight: Float
+    tax_category: String
+    tax_code_override: String
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25

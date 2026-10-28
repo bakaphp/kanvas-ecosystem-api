@@ -49,6 +49,11 @@ extend type Mutation @guardByAdmin {
         @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\TaxRoutingRuleMutation@delete")
 }
 
+extend type Query @guard {
+    taxCategories: [String!]!
+        @field(resolver: "App\\GraphQL\\Souk\\Queries\\Taxes\\TaxCategoriesQuery@resolve")
+}
+
 extend type Query @guardByAdmin {
     taxRoutingRules(
         where: _ @whereConditions(columns: ["id", "uuid", "name", "provider", "condition_country", "condition_state", "is_active"])

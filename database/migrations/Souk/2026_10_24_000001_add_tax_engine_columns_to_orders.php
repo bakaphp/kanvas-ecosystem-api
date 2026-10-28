@@ -41,39 +41,11 @@ return new class () extends Migration {
 
         Schema::connection('commerce')->table('order_items', function (Blueprint $table) {
             if (! Schema::connection('commerce')->hasColumn('order_items', 'tax_amount')) {
-                $table->decimal('tax_amount', 15, 4)->default(0)->after('discount');
+                $table->decimal('tax_amount', 15, 4)->default(0)->after('tax_rate');
             }
 
             if (! Schema::connection('commerce')->hasColumn('order_items', 'tax_category')) {
                 $table->string('tax_category', 32)->nullable()->after('tax_amount');
-            }
-        });
-
-        Schema::connection('commerce')->table('products', function (Blueprint $table) {
-            if (! Schema::connection('commerce')->hasColumn('products', 'tax_category')) {
-                $table->string('tax_category', 32)->nullable();
-            }
-
-            if (! Schema::connection('commerce')->hasColumn('products', 'tax_code_override')) {
-                $table->string('tax_code_override', 32)->nullable();
-            }
-        });
-
-        Schema::connection('commerce')->table('products_variants', function (Blueprint $table) {
-            if (! Schema::connection('commerce')->hasColumn('products_variants', 'is_taxable')) {
-                $table->boolean('is_taxable')->default(true);
-            }
-
-            if (! Schema::connection('commerce')->hasColumn('products_variants', 'tax_category')) {
-                $table->string('tax_category', 32)->nullable();
-            }
-
-            if (! Schema::connection('commerce')->hasColumn('products_variants', 'tax_code_override')) {
-                $table->string('tax_code_override', 32)->nullable();
-            }
-
-            if (! Schema::connection('commerce')->hasColumn('products_variants', 'tax_code_id')) {
-                $table->bigInteger('tax_code_id')->nullable();
             }
         });
     }
@@ -95,28 +67,6 @@ return new class () extends Migration {
             $columns = array_filter(
                 ['tax_amount', 'tax_category'],
                 fn ($col) => Schema::connection('commerce')->hasColumn('order_items', $col)
-            );
-
-            if (! empty($columns)) {
-                $table->dropColumn(array_values($columns));
-            }
-        });
-
-        Schema::connection('commerce')->table('products', function (Blueprint $table) {
-            $columns = array_filter(
-                ['tax_category', 'tax_code_override'],
-                fn ($col) => Schema::connection('commerce')->hasColumn('products', $col)
-            );
-
-            if (! empty($columns)) {
-                $table->dropColumn(array_values($columns));
-            }
-        });
-
-        Schema::connection('commerce')->table('products_variants', function (Blueprint $table) {
-            $columns = array_filter(
-                ['is_taxable', 'tax_category', 'tax_code_override', 'tax_code_id'],
-                fn ($col) => Schema::connection('commerce')->hasColumn('products_variants', $col)
             );
 
             if (! empty($columns)) {
