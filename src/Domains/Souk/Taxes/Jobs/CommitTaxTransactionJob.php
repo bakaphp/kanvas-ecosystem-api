@@ -6,7 +6,6 @@ namespace Kanvas\Souk\Taxes\Jobs;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -18,7 +17,7 @@ use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Souk\Taxes\Providers\TaxProviderResolver;
 use Throwable;
 
-class CommitTaxTransactionJob implements ShouldQueue, ShouldBeUnique
+class CommitTaxTransactionJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -33,11 +32,7 @@ class CommitTaxTransactionJob implements ShouldQueue, ShouldBeUnique
         public readonly OrderTaxSnapshot $snapshot,
         public readonly Apps $app,
     ) {
-    }
-
-    public function uniqueId(): string
-    {
-        return 'commit-tax-' . $this->snapshot->uuid;
+        $this->queue = 'souk-tax';
     }
 
     public function handle(): void
@@ -75,8 +70,4 @@ class CommitTaxTransactionJob implements ShouldQueue, ShouldBeUnique
         }
     }
 
-    public function queue(): string
-    {
-        return 'souk-tax';
-    }
 }

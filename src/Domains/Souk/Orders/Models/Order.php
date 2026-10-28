@@ -1055,15 +1055,21 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
 
     public function calculateTotal(bool $autoSave = true): self
     {
-        $totalsVersion = (int) ($this->totals_version ?? 1);
+        $totalsVersion = (int) ($this->totals_version ?? 0);
 
         if ($totalsVersion >= 2) {
             return $this->recomputeTotals($autoSave);
         }
 
-        $total = OrderItem::query()->where(['order_id' => $this->id])
+        $total = OrderItem::query()
+            ->where(['order_id' => $this->id])
             ->selectRaw('sum(unit_price_net_amount * quantity) as price, count(*) as count')
             ->first();
+
+        // No line items — totals were set externally; preserve them unchanged.
+        if ((int) ($total->count ?? 0) === 0) {
+            return $this;
+        }
 
         $orderTotal = (float) ($total->price ?? 0);
         $discountAmount = $this->appliedDiscountAmount();

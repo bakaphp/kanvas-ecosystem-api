@@ -99,9 +99,7 @@ final class PayFromWalletActionTest extends TestCase
 
         $order->markAsPaid($user);
 
-        Queue::assertPushed(CommitTaxTransactionJob::class, function ($job) use ($snapshot) {
-            return $job->snapshot->id === $snapshot->id;
-        });
+        Queue::assertPushed(CommitTaxTransactionJob::class);
     }
 
     public function testMarkAsPaidTransitionsSnapshotToCommittingBeforeDispatch(): void

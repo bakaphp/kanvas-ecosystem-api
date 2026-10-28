@@ -6,7 +6,6 @@ namespace Kanvas\Souk\Taxes\Jobs;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -24,7 +23,7 @@ use Kanvas\Souk\Taxes\Models\TaxOperation;
 use Kanvas\Souk\Taxes\Providers\TaxProviderResolver;
 use Throwable;
 
-class ReverseTaxTransactionJob implements ShouldQueue, ShouldBeUnique
+class ReverseTaxTransactionJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -42,11 +41,7 @@ class ReverseTaxTransactionJob implements ShouldQueue, ShouldBeUnique
         public readonly bool $isFullReversal,
         public readonly Apps $app,
     ) {
-    }
-
-    public function uniqueId(): string
-    {
-        return 'reverse-tax-' . $this->snapshot->uuid . '-' . $this->refund->uuid;
+        $this->queue = 'souk-tax';
     }
 
     public function handle(): void
@@ -166,11 +161,6 @@ class ReverseTaxTransactionJob implements ShouldQueue, ShouldBeUnique
         } finally {
             $lock->release();
         }
-    }
-
-    public function queue(): string
-    {
-        return 'souk-tax';
     }
 
     private function computeProportionalTax(OrderTaxSnapshot $snapshot, float $reversalAmount): float

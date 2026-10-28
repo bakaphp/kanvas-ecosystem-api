@@ -122,6 +122,6 @@ final class CommitTaxTransactionJobTest extends TestCase
 
         $job = new CommitTaxTransactionJob($snapshot, $this->kanvasApp);
 
-        $this->assertSame('souk-tax', $job->queue());
+        $this->assertSame('souk-tax', $job->queue);
     }
 }
