@@ -141,6 +141,22 @@ final class SendEmailToolAllowedCcDomainTest extends TestCase
         $this->assertSame(['manager@' . self::DOMAIN], $result['cc_rejected']);
     }
 
+    /**
+     * An agent told only "not copied" emailed the rejected address separately through
+     * send_email_to_user, so the refusal has to rule that out in so many words.
+     */
+    public function testARejectedCcTellsTheAgentNotToSendACopyAnotherWay(): void
+    {
+        Notification::fake();
+        $lead = $this->makeLead();
+
+        $result = $this->sendWithCc($lead, 'someone@gmail.com');
+
+        $this->assertSame(['someone@gmail.com'], $result['cc_rejected']);
+        $this->assertStringContainsString('Do NOT send them a copy any other way', $result['note']);
+        $this->assertStringContainsString('send_email_to_user', $result['note']);
+    }
+
     public function testAnAllowedDomainAddressOfAPersonMarkedDoNotContactIsRejected(): void
     {
         Notification::fake();
