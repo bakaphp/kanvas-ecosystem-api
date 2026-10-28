@@ -33,6 +33,12 @@ class UpdateTaxRoutingRuleAction
             if (array_key_exists('category_codes', $this->data)) {
                 $this->rule->category_codes = $this->data['category_codes'];
             }
+            if (array_key_exists('rate', $this->data)) {
+                $this->rule->rate = $this->data['rate'];
+            }
+            if (array_key_exists('tax_shipping', $this->data)) {
+                $this->rule->tax_shipping = $this->data['tax_shipping'];
+            }
             if (array_key_exists('priority', $this->data)) {
                 $this->rule->priority = $this->data['priority'];
             }

@@ -26,7 +26,9 @@ class CreateTaxRoutingRuleAction
             $rule->condition_country = $this->data['condition_country'] ?? null;
             $rule->condition_state = $this->data['condition_state'] ?? null;
             $rule->category_codes = $this->data['category_codes'] ?? null;
-            $rule->priority = $this->data['priority'] ?? 0;
+            $rule->rate = $this->data['rate'];
+            $rule->tax_shipping = $this->data['tax_shipping'] ?? false;
+            $rule->priority = $this->data['priority'] ?? 100;
             $rule->is_active = $this->data['is_active'] ?? true;
             $rule->saveOrFail();
 

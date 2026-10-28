@@ -6,6 +6,8 @@ type TaxRoutingRule {
     condition_country: String
     condition_state: String
     category_codes: Mixed
+    rate: Float!
+    tax_shipping: Boolean!
     priority: Int!
     is_active: Boolean!
     created_at: DateTime!
@@ -18,6 +20,8 @@ input TaxRoutingRuleInput {
     condition_country: String
     condition_state: String
     category_codes: Mixed
+    rate: Float!
+    tax_shipping: Boolean
     priority: Int
     is_active: Boolean
 }
@@ -28,6 +32,8 @@ input UpdateTaxRoutingRuleInput {
     condition_country: String
     condition_state: String
     category_codes: Mixed
+    rate: Float
+    tax_shipping: Boolean
     priority: Int
     is_active: Boolean
 }
