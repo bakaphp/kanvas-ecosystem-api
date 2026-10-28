@@ -191,7 +191,9 @@ class SendEmailTool extends Tool
             $note .= ' These CC addresses were NOT copied — they are not on file for this lead, its participants or its '
                 . 'organization, and are not on an allowed CC domain (or that person opted out of contact): '
                 . implode(', ', $ccResult['rejected'])
-                . '. To include them, add them as a contact on the lead, a participant or the organization first.';
+                . '. Do NOT send them a copy any other way (send_email_to_user, a second email, a forward) — '
+                . 'tell the person plainly they were not copied and why. '
+                . 'To include them, add them as a contact on the lead, a participant or the organization first.';
         }
 
         return [
