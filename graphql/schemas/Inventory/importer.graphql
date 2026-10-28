@@ -22,6 +22,12 @@ input ImporterProductInput {
     tags: [TagInput!]
 }
 
+input ProductFileImportInput {
+    filesystem_id: ID!
+    mapping: Mixed!
+    configuration: Mixed!
+}
+
 type ProductImportRun {
     id: ID!
     status: String!
@@ -35,6 +41,15 @@ type ProductImportRun {
     finished_at: DateTime
 }
 
+type ProductFileImport {
+    id: ID!
+    uuid: String!
+    status: String!
+    results: Mixed
+    exception: Mixed
+    filesystem: Filesystem! @belongsTo(relation: "filesystem")
+}
+
 extend type Mutation @guard {
     importProduct(
         input: [ImporterProductInput!]!
@@ -44,6 +59,12 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ImportMutation@product"
         )
+
+    importProductFromFile(input: ProductFileImportInput!): ProductFileImport!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductFileImportMutation@import"
+        )
+
     """
     Call once after the last importProduct batch. Unpublishes, in the channel, every variant that
     was published before the first batch and that no batch sent — without waiting for the queued
@@ -56,24 +77,4 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ImportMutation@finish"
         )
-}
-
-input ProductFileImportInput {
-    filesystem_id: ID!
-    mapping: Mixed!
-    configuration: Mixed!
-}
-
-type ProductFileImport {
-    id: ID!
-    uuid: String!
-    status: String!
-    results: Mixed
-    exception: Mixed
-    filesystem: Filesystem! @belongsTo(relation: "filesystem")
-}
-
-extend type Mutation @guard {
-    importProductFromFile(input: ProductFileImportInput!): ProductFileImport!
-        @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductFileImportMutation@import")
 }
