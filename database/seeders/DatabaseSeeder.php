@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             NotificationTypesSeeder::class,
             TemplateSeeder::class,
             AgentRuntimeEmailTemplateSeeder::class,
+            CapabilityGapEmailTemplateSeeder::class,
             CustomerUpdateEmailTemplateSeeder::class,
             EventBookingEmailTemplateSeeder::class,
             CustomFieldsTypesSeeder::class,

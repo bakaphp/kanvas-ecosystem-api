@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Capability\Notifications;
 
-use Illuminate\Support\Facades\View;
+use Kanvas\Intelligence\AgentRuntime\Notifications\AbstractTemplatedNotification;
 use Kanvas\NervousSystem\Plan\Models\Plan;
-use Kanvas\Notifications\Notification;
-use Override;
 
 /**
  * Mail-only alert to whoever owns the roadmap that an agent was asked for something it has no tool
@@ -15,14 +13,14 @@ use Override;
  *
  * The Plan is the entity anchor — the Kanvas Notification base resolves `$this->app` from it.
  */
-class CapabilityGapReportedNotification extends Notification
+class CapabilityGapReportedNotification extends AbstractTemplatedNotification
 {
-    private const string VIEW = 'emails.nervous-system.capability-gap-reported';
+    public const string TEMPLATE_NAME = 'capability_gap_reported';
 
     /**
-     * @param array<string, mixed> $details Flattened, already-rendered values for the view — built by
-     *        `CapabilityGapAlertService::details()` before the notification is queued, so the transcript
-     *        lookup runs once and nothing heavier than strings is serialized.
+     * @param array<string, mixed> $details Flattened, already-rendered values for the template — built
+     *        by `CapabilityGapAlertService::details()` before the notification is queued, so the
+     *        transcript lookup runs once and nothing heavier than strings is serialized.
      */
     public function __construct(Plan $plan, array $details)
     {
@@ -41,11 +39,5 @@ class CapabilityGapReportedNotification extends Notification
         ));
 
         $this->setData($details);
-    }
-
-    #[Override]
-    public function getEmailContent(): string
-    {
-        return View::make(self::VIEW, $this->getData())->render();
     }
 }
