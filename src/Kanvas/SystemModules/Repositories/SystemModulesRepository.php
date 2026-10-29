@@ -38,15 +38,19 @@ class SystemModulesRepository
 
         $modelName = self::normalizeModelName($modelName);
 
-        return SystemModules::firstOrCreate(
-            [
-                'model_name' => $modelName,
-                'apps_id' => $app->getKey(),
-            ],
-            [
-                'slug' => Str::simpleSlug($modelName),
-            ]
-        );
+        // Lowest id first: the table has no unique key on model_name + apps_id, and the duplicates that
+        // already exist must resolve to the same row every time, from here and from getByModelNames.
+        $module = SystemModules::query()
+            ->where('model_name', $modelName)
+            ->where('apps_id', $app->getKey())
+            ->orderBy('id')
+            ->first();
+
+        return $module ?? SystemModules::create([
+            'model_name' => $modelName,
+            'apps_id' => $app->getKey(),
+            'slug' => Str::simpleSlug($modelName),
+        ]);
     }
 
     /**
@@ -115,8 +119,11 @@ class SystemModulesRepository
 
     protected static function queryByModelNames(array $modelNames, AppInterface $app): Collection
     {
-        return SystemModules::whereIn('model_name', $modelNames)
+        // keyBy keeps the last row it sees, so descending leaves the lowest id, the same row getByModelName picks.
+        return SystemModules::query()
+            ->whereIn('model_name', $modelNames)
             ->where('apps_id', $app->getKey())
+            ->orderByDesc('id')
             ->get()
             ->keyBy('model_name');
     }
