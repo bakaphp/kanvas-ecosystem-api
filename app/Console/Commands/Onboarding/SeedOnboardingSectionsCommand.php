@@ -7,9 +7,8 @@ namespace App\Console\Commands\Onboarding;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Onboarding\Models\OnboardingSection;
 use Kanvas\Companies\Onboarding\Services\OnboardingAgentTemplateService;
-use Kanvas\Workflow\Models\Integrations;
+use Kanvas\Companies\Onboarding\Services\OnboardingSectionsSeedService;
 
 /**
  * Upserts the onboarding cards from a reviewed JSON file. App 0 is the platform default every new
@@ -31,45 +30,13 @@ final class SeedOnboardingSectionsCommand extends Command
             $this->overwriteAppService($app);
         }
 
-        $path = (string) ($this->option('from') ?: database_path('seeders/data/onboarding/global.json'));
-        $sections = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR)['sections'] ?? [];
-
-        $created = 0;
-        $updated = 0;
-        foreach ($sections as $definition) {
-            $config = $this->resolveIntegrationIds((array) ($definition['config'] ?? []), $appsId);
-            $attributes = [
-                'label' => (string) $definition['label'],
-                'title' => (string) $definition['title'],
-                'description' => $definition['description'] ?? null,
-                'icon' => $definition['icon'] ?? null,
-                'is_available' => (bool) ($definition['is_available'] ?? true),
-                'display_order' => (int) ($definition['display_order'] ?? 0),
-                'config' => $config,
-                'is_active' => true,
-                'is_deleted' => false,
-            ];
-
-            $row = OnboardingSection::query()
-                ->where('apps_id', $appsId)
-                ->where('slug', (string) $definition['slug'])
-                ->first();
-
-            if ($row === null) {
-                OnboardingSection::query()->create($attributes + ['apps_id' => $appsId, 'slug' => (string) $definition['slug']]);
-                $created++;
-            } else {
-                $row->fill($attributes)->saveOrFail();
-                $updated++;
-            }
-        }
-
-        $this->info(sprintf('Sections for app %d: %d created, %d updated.', $appsId, $created, $updated));
+        $counts = new OnboardingSectionsSeedService()->seed($appsId, $this->option('from') ?: null);
+        $this->info(sprintf('Sections for app %d: %d created, %d updated.', $appsId, $counts['created'], $counts['updated']));
 
         $missing = new OnboardingAgentTemplateService()->missingFor($app);
         if ($missing !== []) {
             $this->error(sprintf(
-                'Missing template agents (companies_id = 0) for app %d%s: %s',
+                'Agents with neither a template row (companies_id = 0) nor an agent type for app %d%s: %s',
                 $appsId,
                 $appsId > 0 ? ' and app 0' : '',
                 implode(', ', $missing),
@@ -78,48 +45,8 @@ final class SeedOnboardingSectionsCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info('Every template agent resolves.');
+        $this->info('Every catalog agent resolves to a template or an agent type.');
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Options name integrations by `integration_name` so the file is portable; the id is resolved
-     * here against the app's rows, then the globals. An unknown name keeps the option and leaves
-     * the id null — the card still renders, nothing can report it connected.
-     *
-     * @param array<string, mixed> $config
-     * @return array<string, mixed>
-     */
-    private function resolveIntegrationIds(array $config, int $appsId): array
-    {
-        if (! isset($config['requirements']) || ! is_array($config['requirements'])) {
-            return $config;
-        }
-
-        foreach ($config['requirements'] as &$requirement) {
-            if (! isset($requirement['options']) || ! is_array($requirement['options'])) {
-                continue;
-            }
-
-            foreach ($requirement['options'] as &$option) {
-                if (empty($option['integration_name']) || ! empty($option['integration_id'])) {
-                    continue;
-                }
-
-                $integration = Integrations::query()
-                    ->where('name', (string) $option['integration_name'])
-                    ->whereIn('apps_id', [0, $appsId])
-                    ->where('is_deleted', 0)
-                    ->orderByDesc('apps_id')
-                    ->first();
-
-                $option['integration_id'] = $integration?->getId();
-            }
-            unset($option);
-        }
-        unset($requirement);
-
-        return $config;
     }
 }

@@ -18,6 +18,9 @@ use Kanvas\Companies\Onboarding\Services\OnboardingStateService;
 use Kanvas\Connectors\Mailgun\Jobs\ProvisionAgentMailboxJob;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
+use Kanvas\Intelligence\Agents\Neuron\Company\CompanyBrainAgent;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Users\Models\Users;
 use Mockery;
@@ -59,6 +62,36 @@ final class ProvisionOnboardingItemsJobTest extends TestCase
         $this->section('accounts_payable', 2, [
             $this->agentItem('accounts_payable', 'Accounts Payable') + ['provision_mailbox' => true],
         ]);
+    }
+
+    public function testAgentWithoutTemplateIsCreatedFromItsAgentType(): void
+    {
+        $this->agentType(AccountsPayableAgent::class);
+        $this->section('ap_from_type', 3, [
+            $this->agentItem('ap_typed', 'Typed AP', AccountsPayableAgent::class),
+        ]);
+        $row = $this->select(['ap_from_type']);
+
+        $this->runJob();
+
+        $row->refresh();
+        $this->assertSame('ready', $row->dataGet('provisioning.ap_typed.status'));
+        $agent = $this->companyAgent('Typed AP');
+        $this->assertSame(AccountsPayableAgent::class, $agent->type->handler);
+        $this->assertSame($this->named('Typed AP'), $agent->name);
+    }
+
+    public function testGinnyIsCreatedFromTheCompanyBrainTypeWhenNoTemplateExists(): void
+    {
+        Agent::query()->where('apps_id', 0)->where('companies_id', 0)->where('name', 'Ginny')->delete();
+        $this->agentType(CompanyBrainAgent::class);
+        $row = $this->select(['sales']);
+
+        $this->runJob();
+
+        $row->refresh();
+        $this->assertSame('ready', $row->dataGet('provisioning.ginny.status'));
+        $this->assertSame(CompanyBrainAgent::class, $this->companyAgent('Ginny')->type->handler);
     }
 
     public function testProvisionsGinnyThenEveryItemInOrderAndMarksTeamReady(): void
@@ -273,16 +306,21 @@ final class ProvisionOnboardingItemsJobTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function agentItem(string $slug, string $base): array
+    private function agentItem(string $slug, string $base, string $agentType = 'Nope\\Unknown'): array
     {
         return [
             'slug' => $slug,
             'name' => $this->named($base),
             'description' => 'x',
             'source_agent' => $this->named($base),
-            'agent_type' => 'Any',
+            'agent_type' => $agentType,
             'requirements' => [],
         ];
+    }
+
+    private function agentType(string $handler): AgentType
+    {
+        return AgentType::factory()->withAppId(0)->create(['handler' => $handler, 'name' => $this->named('Type')]);
     }
 
     /**

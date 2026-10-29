@@ -12,15 +12,19 @@ use Kanvas\Companies\Onboarding\Services\OnboardingAgentTemplateService;
 use Kanvas\Connectors\Mailgun\Jobs\ProvisionAgentMailboxJob;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Intelligence\Agents\Actions\CloneAgentForCompanyAction;
+use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\ProvisionAgentUserAction;
+use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentData;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
 /**
  * One catalog item for one company. A module is ready by being listed; an agent is the company's
- * own copy of the template, reused when the company already has an agent of that name so a second
- * run creates nothing. A failure is the item's, never the caller's: it comes back as a result.
+ * own copy of the template or, without one, a fresh agent of the catalog's type, reused when the
+ * company already has an agent of that name so a second run creates nothing. A failure is the
+ * item's, never the caller's: it comes back as a result.
  */
 final class ProvisionOnboardingItemAction
 {
@@ -65,23 +69,62 @@ final class ProvisionOnboardingItemAction
             return $this->result(ProvisionStatusEnum::READY, $existing, $this->provisionMailbox($existing));
         }
 
-        $template = new OnboardingAgentTemplateService()->resolve($this->app, $sourceName);
-        if ($template === null) {
+        $templates = new OnboardingAgentTemplateService();
+        $template = $templates->resolve($this->app, $sourceName);
+        if ($template !== null) {
+            $agent = new CloneAgentForCompanyAction(
+                source: $template,
+                app: $this->app,
+                company: $this->company,
+                owner: $this->owner,
+                user: $this->agentUser($template->name),
+            )->execute();
+
+            return $this->result(ProvisionStatusEnum::READY, $agent, $this->provisionMailbox($agent));
+        }
+
+        $handler = (string) ($this->item['agent_type'] ?? '');
+        $type = $templates->resolveType($this->app, $handler);
+        if ($type === null) {
             return $this->result(
                 ProvisionStatusEnum::FAILED,
-                error: sprintf('Template agent "%s" not found for app %d or app 0', $sourceName, $this->app->getId()),
+                error: sprintf(
+                    'No template agent "%s" for app %d or app 0, and no agent type with handler "%s"',
+                    $sourceName,
+                    $this->app->getId(),
+                    $handler,
+                ),
             );
         }
 
-        $agent = new CloneAgentForCompanyAction(
-            source: $template,
-            app: $this->app,
-            company: $this->company,
-            owner: $this->owner,
-            user: new ProvisionAgentUserAction($this->app, $this->company, $template->name)->execute(),
-        )->execute();
+        $agent = $this->createFromType($type, $sourceName);
 
         return $this->result(ProvisionStatusEnum::READY, $agent, $this->provisionMailbox($agent));
+    }
+
+    private function createFromType(AgentType $type, string $name): Agent
+    {
+        return new CreateAgentAction(
+            new AgentData(
+                app: $this->app,
+                company: $this->company,
+                user: $this->agentUser($name),
+                agentType: $type,
+                name: $name,
+                role: $type->role ?? [],
+                is_active: true,
+                description: $type->description,
+                soul: $type->soul,
+                instructions: $type->instructions,
+                outputFormat: $type->output_format,
+                createdBy: $this->owner,
+            ),
+        )->execute();
+    }
+
+    private function agentUser(string $name): Users
+    {
+        return new ProvisionAgentUserAction($this->app, $this->company, $name)->execute();
     }
 
     /**

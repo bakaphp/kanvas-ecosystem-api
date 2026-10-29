@@ -15,7 +15,7 @@
             "name": "Accounts payable",
             "description": "Reads bills, matches them to purchase orders and routes approvals.",
             "source_agent": "Accounts Payable",
-            "agent_type": "Accounts Payable Agent",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\Accounting\\AccountsPayableAgent",
             "provision_mailbox": true,
             "requirements": ["bills_inbox", "accounting_software"]
           }
@@ -87,7 +87,7 @@
             "name": "Accounts receivable",
             "description": "Tracks unpaid invoices, follows up with customers and reconciles payments.",
             "source_agent": "Accounts Receivable",
-            "agent_type": "Accounts Receivable Agent",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\Accounting\\AccountsReceivableAgent",
             "provision_mailbox": true,
             "requirements": ["accounting_software", "company_email"]
           }
@@ -138,7 +138,7 @@
             "name": "Sally",
             "description": "Your main sales assistant. Answers every conversation.",
             "source_agent": "Sally",
-            "agent_type": "Sales Agent",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\SalesAgent",
             "requirements": ["sales_channel", "crm", "product_catalog"]
           },
           {
@@ -146,7 +146,7 @@
             "name": "First message",
             "description": "Opens the conversation with every new lead.",
             "source_agent": "firstMessageEngagerAgent",
-            "agent_type": "First Message Engager Agent",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\SalesAgent",
             "requirements": ["sales_channel"]
           },
           {
@@ -154,7 +154,7 @@
             "name": "Follow-up",
             "description": "Picks conversations back up on the days you set.",
             "source_agent": "FollowUpEngagerAgent",
-            "agent_type": "Follow Up Engager Agent",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\FollowUpAgent",
             "requirements": ["sales_channel"]
           },
           {
@@ -162,7 +162,7 @@
             "name": "Voice",
             "description": "Takes the calls when a conversation needs a voice.",
             "source_agent": "voiceOutreachAgent",
-            "agent_type": "Voice Outreach Agent",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\SalesAgent",
             "requirements": []
           },
           {
@@ -170,7 +170,7 @@
             "name": "Sales manager",
             "description": "Watches the pipeline and tells you what needs you.",
             "source_agent": "Polly",
-            "agent_type": "Sales Manager Agent",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\SalesManagerAgent",
             "requirements": ["crm", "workspace_channel"]
           }
         ],
@@ -303,7 +303,7 @@
             "name": "Commerce",
             "description": "Keeps products, prices and stock in order across your channels.",
             "source_agent": "Commerce",
-            "agent_type": "Commerce Agent",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\Commerce\\CommerceAgent",
             "requirements": ["product_catalog", "workspace_channel"]
           }
         ],

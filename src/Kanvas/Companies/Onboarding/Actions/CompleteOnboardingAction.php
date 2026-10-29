@@ -145,7 +145,7 @@ final class CompleteOnboardingAction
             $app,
             $company,
             $company->user ?? $this->user,
-            ['slug' => 'ginny', 'kind' => 'agent', 'name' => $name, 'source_agent' => $name, 'requirements' => []],
+            $templates->setupAgentItem($app),
         )->execute();
 
         $agent = ! empty($result['agent_id']) ? Agent::query()->whereKey((int) $result['agent_id'])->first() : null;

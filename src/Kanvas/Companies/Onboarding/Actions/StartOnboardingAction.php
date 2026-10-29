@@ -12,7 +12,6 @@ use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Onboarding\Enums\OnboardingSettingEnum;
 use Kanvas\Companies\Onboarding\Models\CompanyOnboarding;
 use Kanvas\Companies\Onboarding\Services\OnboardingStateService;
 use Kanvas\Exceptions\ValidationException;
@@ -20,9 +19,10 @@ use Kanvas\Users\Models\Users;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 
 /**
- * Self-serve app creation: the person's own app with its owner company, created from the platform
- * app with a user token. createApp stays app-key only; this wraps the same action and adds the
- * guards self-serve needs.
+ * Self-serve app creation: the person's own app with its owner company, created with a user token
+ * from whatever app they signed up in. createApp stays app-key only; this wraps the same action and
+ * adds the guards self-serve needs. The origin app is kept on the row (`platform_apps_id`) so a
+ * second call finds the same workspace and setup requests reach that app's owners.
  */
 final class StartOnboardingAction
 {
@@ -31,7 +31,7 @@ final class StartOnboardingAction
     private const int LOCK_SECONDS = 60;
 
     public function __construct(
-        private readonly Apps $platformApp,
+        private readonly Apps $originApp,
         private readonly Users $user,
         private readonly string $appName,
         private readonly ?string $companyName = null,
@@ -43,11 +43,7 @@ final class StartOnboardingAction
      */
     public function execute(): array
     {
-        if (! $this->platformApp->getBool(OnboardingSettingEnum::PLATFORM->value)) {
-            throw new ValidationException('Onboarding can only be started from the platform app');
-        }
-
-        if (! (bool) $this->user->getAppProfile($this->platformApp)->is_verified) {
+        if (! (bool) $this->user->getAppProfile($this->originApp)->is_verified) {
             throw new ValidationException('Verify your email before starting onboarding');
         }
 
@@ -82,7 +78,7 @@ final class StartOnboardingAction
             $this->user,
         )->execute();
 
-        // CreateAppsAction assigns Owner in the caller's Bouncer scope, which is the platform app's;
+        // CreateAppsAction assigns Owner in the caller's Bouncer scope, which is the origin app's;
         // the person must own the app they just created.
         Bouncer::scope()->onceTo(
             RolesEnums::getScope($app),
@@ -100,7 +96,7 @@ final class StartOnboardingAction
             $app,
             $company,
             $this->user,
-            ['platform_apps_id' => $this->platformApp->getId()],
+            ['platform_apps_id' => $this->originApp->getId()],
         ));
 
         return $this->workspace($app, $company, $onboarding);
@@ -127,7 +123,7 @@ final class StartOnboardingAction
     {
         $row = CompanyOnboarding::query()
             ->where('users_id', $this->user->getId())
-            ->where('data->platform_apps_id', $this->platformApp->getId())
+            ->where('data->platform_apps_id', $this->originApp->getId())
             ->notDeleted()
             ->orderBy('id')
             ->first();
@@ -157,7 +153,7 @@ final class StartOnboardingAction
     }
 
     /**
-     * The row and its ledger event belong to the new app; bind it for the write and put the platform
+     * The row and its ledger event belong to the new app; bind it for the write and put the origin
      * app back, whatever happens.
      */
     private function inApp(Apps $app, callable $work): mixed
@@ -167,7 +163,7 @@ final class StartOnboardingAction
         try {
             return $work();
         } finally {
-            $this->overwriteAppService($this->platformApp);
+            $this->overwriteAppService($this->originApp);
         }
     }
 }

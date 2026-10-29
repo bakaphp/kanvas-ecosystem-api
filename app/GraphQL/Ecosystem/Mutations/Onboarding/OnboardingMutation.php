@@ -27,7 +27,7 @@ final class OnboardingMutation
         $input = (array) $request['input'];
 
         $workspace = new StartOnboardingAction(
-            platformApp: $ctx->app,
+            originApp: $ctx->app,
             user: $ctx->user,
             appName: (string) $input['app_name'],
             companyName: $input['company_name'] ?? null,
