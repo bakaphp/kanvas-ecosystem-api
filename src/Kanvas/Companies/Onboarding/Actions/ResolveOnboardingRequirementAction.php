@@ -176,8 +176,8 @@ final class ResolveOnboardingRequirementAction
         $fileId = (int) ($this->input['filesystem_id'] ?? 0);
         $exists = $fileId > 0 && Filesystem::query()
             ->whereKey($fileId)
-            ->fromApp((int) $this->row->apps_id)
-            ->fromCompany((int) $this->row->companies_id)
+            ->fromApp($this->row->app)
+            ->fromCompany($this->row->company)
             ->notDeleted()
             ->exists();
 
