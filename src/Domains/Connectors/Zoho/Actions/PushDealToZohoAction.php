@@ -9,6 +9,7 @@ use Kanvas\Connectors\Zoho\Actions\Concerns\TracksZohoSyncedFiles;
 use Kanvas\Connectors\Zoho\Actions\Concerns\WritesZohoRecordWithCoercion;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoDeal;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Zoho\Services\ZohoFieldMapService;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Deals\Models\Deal;
 use Sentry\Laravel\Facade as Sentry;
@@ -42,6 +43,11 @@ class PushDealToZohoAction
 
             if (empty($zohoDealId)) {
                 $zohoDealId = $this->createDeal($dealModule, $deal, $zohoData);
+                $this->writeRecordLinks(
+                    $dealModule,
+                    $zohoDealId,
+                    ZohoFieldMapService::dealIdLinkFields($deal, $zohoDealId)
+                );
             } elseif (empty($dealModule->get((string) $zohoDealId)->getData())) {
                 return [
                     'zohoDealId' => (string) $zohoDealId,
@@ -50,6 +56,10 @@ class PushDealToZohoAction
                     'files' => null,
                 ];
             } else {
+                $zohoData = [
+                    ...$zohoData,
+                    ...ZohoFieldMapService::dealIdLinkFields($deal, (string) $zohoDealId),
+                ];
                 $this->updateRecord($dealModule, (string) $zohoDealId, $zohoData);
             }
 
