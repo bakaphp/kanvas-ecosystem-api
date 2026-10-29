@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Onboarding\Models\CompanyOnboarding;
+use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Users\Models\Users;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
@@ -65,6 +66,7 @@ final class StartOnboardingTest extends TestCase
         $this->assertSame('STARTED', $workspace['onboarding']['status']);
 
         $newApp = Apps::getById((int) $workspace['app']['id']);
+        $this->assertTrue($newApp->getBool(KnowledgeConfigurationEnum::ENABLED->value), 'a self-serve app indexes its company knowledge from day one');
         /** @var Users $user */
         $user = auth()->user();
         $this->assertTrue($user->isOwnerOf($newApp));

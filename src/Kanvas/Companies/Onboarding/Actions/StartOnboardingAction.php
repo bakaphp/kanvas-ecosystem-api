@@ -15,6 +15,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Onboarding\Models\CompanyOnboarding;
 use Kanvas\Companies\Onboarding\Services\OnboardingStateService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Users\Models\Users;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 
@@ -84,6 +85,10 @@ final class StartOnboardingAction
             RolesEnums::getScope($app),
             fn () => $this->user->assign(RolesEnums::OWNER->value),
         );
+
+        // Company knowledge (website research, uploads, URLs) only indexes when the app has it on,
+        // and a self-serve app has nobody to flip it later.
+        $app->set(KnowledgeConfigurationEnum::ENABLED->value, 1);
 
         $company = Companies::getById((int) $this->user->default_company);
         if ($this->companyName !== null && trim($this->companyName) !== '') {
