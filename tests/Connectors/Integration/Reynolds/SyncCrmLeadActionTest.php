@@ -22,6 +22,7 @@ use Kanvas\Connectors\Reynolds\Enums\CrmLeadSyncSettingEnum;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Exceptions\CrmLeadSyncException;
 use Kanvas\Connectors\Reynolds\Services\ReynoldsCrmDriver;
+use Kanvas\Guild\Customers\Actions\ApplyDoNotContactAction;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleRelationship;
@@ -281,16 +282,16 @@ final class SyncCrmLeadActionTest extends TestCase
         $this->assertContains(['code' => 'lead_required', 'field' => 'followers'], $result->warnings);
     }
 
-    public function testAnOptOutIsHonoredEvenWhenThereIsNoLead(): void
+    public function testNoOptOutKeyTheCrmSendsSilencesAnyoneWhenThereIsNoLead(): void
     {
         $input = $this->payload();
         $input['identity']['lead_id'] = null;
-        $input['customer']['consent'] = ['opt_out' => 'Y'];
+        $input['customer']['consent'] = ['opt_out' => 'Y', 'opt_out_share' => 'Y'];
 
         $result = $this->sync($input);
 
         $this->assertNull($result->lead);
-        $this->assertTrue((bool) $result->people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
+        $this->assertFalse((bool) $result->people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
     }
 
     public function testThePeopleOnlyAnswerIsReplayedToo(): void
@@ -640,9 +641,6 @@ final class SyncCrmLeadActionTest extends TestCase
     {
         $input = $this->payload();
         $input['customer']['consent'] = [
-            'text_opt_status' => 'Opted In',
-            'opt_out' => 'N',
-            'opt_out_use' => 'y',
             'follow_up' => ['phone' => 'Y', 'mail' => 'N', 'email' => 'Y', 'text' => null],
         ];
 
@@ -652,9 +650,6 @@ final class SyncCrmLeadActionTest extends TestCase
         $this->assertSame('N', $people->get(CustomFieldEnum::CONSENT_MAIL->value));
         $this->assertSame('Y', $people->get(CustomFieldEnum::CONSENT_EMAIL->value));
         $this->assertNull($people->get(CustomFieldEnum::CONSENT_TEXT->value), 'a value the CRM did not send is not written');
-        $this->assertSame('N', $people->get(CustomFieldEnum::CONSENT_OPT_OUT->value));
-        $this->assertSame('Y', $people->get(CustomFieldEnum::CONSENT_OPT_OUT_USE->value));
-        $this->assertSame('Opted In', $people->get(CustomFieldEnum::TEXT_OPT_STATUS->value));
         $this->assertFalse((bool) $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
     }
 
@@ -667,61 +662,49 @@ final class SyncCrmLeadActionTest extends TestCase
         $this->assertFalse((bool) $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
     }
 
-    public function testAnOptOutFromTheCrmSilencesThePersonAndTheNewLead(): void
+    /**
+     * The CRM's opt-out flags are its data-sharing choices. Extensions already installed still send
+     * them: they silence no one and are not stored.
+     */
+    public function testTheOptOutKeysAnOldExtensionSendsSilenceNoOneAndAreNotStored(): void
     {
         $input = $this->payload();
-        $input['customer']['consent'] = ['opt_out' => 'Y'];
+        $input['customer']['consent'] = [
+            'text_opt_status' => 'I',
+            'opt_out' => 'Y',
+            'opt_out_use' => 'Y',
+            'opt_out_share' => 'Y',
+            'follow_up' => ['phone' => 'N', 'mail' => null, 'email' => 'N', 'text' => 'N'],
+        ];
 
         $result = $this->sync($input);
+        $people = $result->people;
 
-        $this->assertTrue((bool) $result->people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
-        $this->assertSame(
-            'crm_sync:reynolds',
-            $result->people->get(ConsentConfigurationEnum::DO_NOT_CONTACT_SOURCE->value)
-        );
-        $this->assertTrue(
-            (bool) $result->lead->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value),
-            'the lead exists when the opt-out runs, so it is flagged too'
-        );
-        $this->assertSame(
-            0,
-            $result->people->contacts()->where('is_opt_out', 0)->count(),
-            'every contact is opted out'
-        );
+        $this->assertFalse((bool) $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
+        $this->assertFalse((bool) $result->lead->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
+        $this->assertSame(0, $people->contacts()->where('is_opt_out', 1)->count());
+        $this->assertNull($people->get(CustomFieldEnum::CONSENT_OPT_OUT->value));
+        $this->assertNull($people->get(CustomFieldEnum::CONSENT_OPT_OUT_USE->value));
+        $this->assertNull($people->get(CustomFieldEnum::TEXT_OPT_STATUS->value));
+        $this->assertSame('N', $people->get(CustomFieldEnum::CONSENT_PHONE->value), 'the dealer follow-up flags are still stored');
     }
 
-    public function testAnOptOutFromTheCrmSilencesAnExistingPeopleToo(): void
+    public function testASyncNeverLiftsAnOptOutKanvasAlreadyHolds(): void
     {
         $email = $this->uniqueEmail();
         $people = $this->createPeople('Ana', 'Perez', $email);
-        $lead = $this->createLead($people, 'Active');
+        $this->createLead($people, 'Active');
+        new ApplyDoNotContactAction(
+            people: $people,
+            sourceChannel: 'sms',
+            reason: 'STOP'
+        )->execute();
         $input = $this->payload(['customer' => ['emails' => [$email]]]);
-        $input['customer']['consent'] = ['opt_out' => 'Y'];
+        $input['customer']['consent'] = ['follow_up' => ['phone' => 'Y', 'mail' => 'Y', 'email' => 'Y', 'text' => 'Y']];
 
-        $result = $this->sync($input);
+        $this->sync($input);
 
-        $this->assertSame(CrmLeadSyncOutcomeEnum::ADOPTED, $result->outcome);
-        $this->assertTrue((bool) $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
-        $this->assertTrue((bool) $lead->refresh()->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
-    }
-
-    /**
-     * The CRM can only silence: it never lifts an opt-out Kanvas holds, whatever it says later.
-     */
-    public function testALaterNoOptOutNeverLiftsAnOptOut(): void
-    {
-        $first = $this->payload();
-        $first['customer']['consent'] = ['opt_out' => 'Y'];
-        $result = $this->sync($first);
-
-        $this->sync([
-            'request_id' => 'req-' . uniqid(),
-            'identity' => $this->identity($result),
-            'customer' => ['consent' => ['opt_out' => 'N']],
-        ]);
-
-        $this->assertTrue((bool) $result->people->refresh()->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
-        $this->assertSame('N', $result->people->get(CustomFieldEnum::CONSENT_OPT_OUT->value), 'the CRM value is still recorded');
+        $this->assertTrue((bool) $people->refresh()->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
     }
 
     public function testALeadTheWebhookAlreadyCreatedIsOpenedAndItsPeopleGetsTheClientId(): void

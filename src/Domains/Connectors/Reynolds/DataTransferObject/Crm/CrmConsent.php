@@ -12,9 +12,6 @@ use Spatie\LaravelData\Data;
 class CrmConsent extends Data
 {
     public function __construct(
-        public readonly ?string $text_opt_status = null,
-        public readonly ?string $opt_out = null,
-        public readonly ?string $opt_out_use = null,
         public readonly ?CrmFollowUp $follow_up = null
     ) {
     }
