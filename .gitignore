@@ -65,5 +65,3 @@ src/Baka/Search/KanvasDatabaseEngine.php
 /storage/framework/testing/
 /storage/framework/lsp-*.php
 .claude/settings.json
-# Local payment test pages (may contain keys)
-*_final.html
