@@ -29,6 +29,7 @@ use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Services\ConsentGuard;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -77,10 +78,18 @@ class SendMessageToLeadAction
     protected ?string $attemptedTo = null;
     protected bool $isOptOutConfirmation = false;
     protected ?Users $signatureOwner = null;
+    protected ?CampaignRecipient $campaignRecipient = null;
 
     public function withSignatureOwner(?Users $user): self
     {
         $this->signatureOwner = $user;
+
+        return $this;
+    }
+
+    public function forCampaignRecipient(?CampaignRecipient $recipient): self
+    {
+        $this->campaignRecipient = $recipient;
 
         return $this;
     }
@@ -982,6 +991,7 @@ class SendMessageToLeadAction
                 signature: $ownerSignature,
                 trackingPerson: $this->lead->people,
                 trackingLead: $this->lead,
+                trackingCampaignRecipient: $this->campaignRecipient,
             )->execute();
 
             return $this->emailResult(
