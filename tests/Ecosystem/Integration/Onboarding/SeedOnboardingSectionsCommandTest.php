@@ -25,8 +25,9 @@ final class SeedOnboardingSectionsCommandTest extends TestCase
 
         $rows = OnboardingSection::query()->where('apps_id', 0)->whereIn('slug', self::CARDS)->get();
         $this->assertCount(6, $rows);
-        $this->assertFalse($rows->firstWhere('slug', 'crm')->is_available);
+        $this->assertTrue($rows->firstWhere('slug', 'crm')->is_available);
         $this->assertFalse($rows->firstWhere('slug', 'marketing')->is_available);
+        $this->assertSame('Polly', $rows->firstWhere('slug', 'crm')->config()->agents[0]['source_agent']);
         $this->assertSame('Pay my suppliers\' bills on time', $rows->firstWhere('slug', 'accounts_payable')->title);
 
         $this->artisan('kanvas:onboarding:seed-sections', ['app' => 0])->run();

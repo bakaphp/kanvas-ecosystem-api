@@ -51,7 +51,7 @@ final class OnboardingFlowTest extends TestCase
             array_keys($cards),
         );
         $this->assertFalse($cards['marketing']);
-        $this->assertFalse($cards['crm']);
+        $this->assertTrue($cards['crm']);
 
         $areas = $this->graphQLData($this->graphQL('query { onboardingAreas { slug title selected } }'), 'onboardingAreas');
         $this->assertContains('Pay my suppliers\' bills on time', array_column($areas, 'title'));
@@ -70,7 +70,7 @@ final class OnboardingFlowTest extends TestCase
         '), 'selectOnboardingAreas');
         $this->assertSame('AREAS_SELECTED', $selected['status']);
         $this->assertSame(
-            ['accounts_payable', 'approvals', 'sally', 'first_message', 'follow_up', 'voice', 'sales_manager'],
+            ['accounts_payable', 'approvals', 'sally', 'first_message', 'follow_up', 'voice', 'sales_manager', 'pipeline'],
             array_column(array_column($selected['items'], 'template'), 'slug'),
         );
 
@@ -84,7 +84,7 @@ final class OnboardingFlowTest extends TestCase
 
         $team = $this->graphQLData($this->graphQL(/** @lang GraphQL */ '
             query { companyOnboarding { status
-                items { template { slug kind } status ready agent { name }
+                items { template { slug kind } status ready agent { id name }
                         requirements { slug required shared status options { label mode } } }
                 requirements { slug shared satisfied_by status } } }
         '), 'companyOnboarding');
@@ -97,11 +97,17 @@ final class OnboardingFlowTest extends TestCase
         $this->assertTrue($items['approvals']['ready'], 'a module with no slots is ready as soon as it is provisioned');
         $this->assertFalse($items['accounts_payable']['ready'], 'AP still needs its required slots');
         $this->assertSame('Sally', $items['sally']['agent']['name']);
+        $this->assertSame(
+            $items['sales_manager']['agent']['id'],
+            $items['pipeline']['agent']['id'],
+            'sales and crm both name Polly, so the company gets one of her',
+        );
 
         $companyAgents = Agent::query()->fromApp(app(Apps::class))->fromCompany($this->currentCompany())->notDeleted()->pluck('name')->all();
         foreach (['Ginny', 'Accounts Payable', 'Sally', 'Polly'] as $name) {
             $this->assertContains($name, $companyAgents);
         }
+        $this->assertCount(1, array_keys($companyAgents, 'Polly', true));
 
         $requirements = collect($team['requirements'])->keyBy('slug');
         $this->assertTrue($requirements['accounting_software']['shared']);
