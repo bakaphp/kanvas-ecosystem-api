@@ -55,7 +55,7 @@ it carries no flag. Every guard therefore checks both.
 | `SendMessageToLeadAction::guardDestinationOptOut()` | per-address opt-outs a stop request never produced (a DMS `doNotEmail` push, a hard bounce) |
 | `LeadOutboundChannelResolver::resolve()` | follow-up returns no channels for a flagged lead |
 | `AgentReachOutAction` | cold outreach skips a flagged lead |
-| `SendEmailTool` / `SendSmsTool` | agent-initiated sends |
+| `SendEmailTool` / `SendSmsTool` / `SendPersonEmailTool` | agent-initiated sends |
 
 The single `execute()`-level guard is deliberate: a per-channel `if` in each send method is how one
 channel ends up forgotten. `sendWhatsAppMessage` hands off to `sendRespondIoMessage` **before** its

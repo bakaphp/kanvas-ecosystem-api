@@ -52,6 +52,7 @@ class WorkerToolPolicy extends ScopedToolPolicy
 
         // Outbound. A worker that emails a customer has escaped every approval gate on the plan.
         'send_lead_email',
+        'send_person_email',
         'send_lead_sms',
         'send_batch_message',
         'create_lead_campaign',
