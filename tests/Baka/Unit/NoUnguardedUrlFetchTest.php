@@ -37,8 +37,8 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'src/Baka/Discovery/AttributeClassDiscovery.php',
         // CLI: reads a local JSON file argument.
         'app/Console/Commands/Ecosystem/ImportEmailTemplatesCommand.php',
-        // CLI: reads the reviewed onboarding catalog JSON from database/seeders or a local --from path.
-        'app/Console/Commands/Onboarding/SeedOnboardingSectionsCommand.php',
+        // CLI + migration: reads the reviewed onboarding catalog JSON from database/seeders or a local --from path.
+        'src/Kanvas/Companies/Onboarding/Services/OnboardingSectionsSeedService.php',
         // CLI: reads a local Item Balance XML file argument.
         'app/Console/Commands/Connectors/Yusen/YusenInventoryReportCommand.php',
         // CLI: reads the coding-agent Docker build context (Dockerfile, entrypoint.sh) out of
