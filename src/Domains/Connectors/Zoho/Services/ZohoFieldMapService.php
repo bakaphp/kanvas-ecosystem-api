@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\Address;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 
 final class ZohoFieldMapService
@@ -223,23 +224,43 @@ final class ZohoFieldMapService
     }
 
     /**
-     * The company's ZOHO_LEAD_ID_LINK_FIELDS resolved for one lead: Zoho field => URL. Templates may
-     * use {zoho_lead_id}, {lead_id} and {lead_uuid}; an entry whose template is not a string is dropped.
-     *
-     * @return array<string, string>
+     * @return array<string, string> Zoho field => URL
      */
     public static function leadIdLinkFields(Lead $lead, ?string $zohoLeadId): array
     {
-        $templates = $lead->company->get(CustomFieldEnum::ZOHO_LEAD_ID_LINK_FIELDS->value);
+        return self::recordLinkFields($lead, CustomFieldEnum::ZOHO_LEAD_ID_LINK_FIELDS, 'lead', $zohoLeadId);
+    }
 
-        if (! is_array($templates) || empty($zohoLeadId)) {
+    /**
+     * @return array<string, string> Zoho field => URL
+     */
+    public static function dealIdLinkFields(Deal $deal, ?string $zohoDealId): array
+    {
+        return self::recordLinkFields($deal, CustomFieldEnum::ZOHO_DEAL_ID_LINK_FIELDS, 'deal', $zohoDealId);
+    }
+
+    /**
+     * The company's link map resolved for one record. Templates may use {zoho_<kind>_id}, {<kind>_id}
+     * and {<kind>_uuid}; an entry whose template is not a string is dropped.
+     *
+     * @return array<string, string>
+     */
+    private static function recordLinkFields(
+        Lead|Deal $record,
+        CustomFieldEnum $setting,
+        string $kind,
+        ?string $zohoId
+    ): array {
+        $templates = $record->company->get($setting->value);
+
+        if (! is_array($templates) || empty($zohoId)) {
             return [];
         }
 
         $placeholders = [
-            '{zoho_lead_id}' => $zohoLeadId,
-            '{lead_id}' => (string) $lead->getId(),
-            '{lead_uuid}' => (string) $lead->uuid,
+            '{zoho_' . $kind . '_id}' => $zohoId,
+            '{' . $kind . '_id}' => (string) $record->getId(),
+            '{' . $kind . '_uuid}' => (string) $record->uuid,
         ];
 
         $links = [];

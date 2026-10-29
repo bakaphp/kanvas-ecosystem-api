@@ -31,8 +31,9 @@ enum CustomFieldEnum: string
     case ZOHO_DEAL_PULLED_ATTACHMENTS = 'ZOHO_DEAL_PULLED_ATTACHMENTS';
 
     /**
-     * Company map of Zoho lead field => URL template. Placeholders: {zoho_lead_id}, {lead_id},
-     * {lead_uuid}. Written in a second call after the create, since the Zoho id doesn't exist before.
+     * Company maps of Zoho field => URL template, one per module. Placeholders: {zoho_lead_id},
+     * {lead_id}, {lead_uuid} (deal: {zoho_deal_id}, {deal_id}, {deal_uuid}).
      */
     case ZOHO_LEAD_ID_LINK_FIELDS = 'ZOHO_LEAD_ID_LINK_FIELDS';
+    case ZOHO_DEAL_ID_LINK_FIELDS = 'ZOHO_DEAL_ID_LINK_FIELDS';
 }
