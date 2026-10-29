@@ -35,6 +35,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendSlackDirectMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\WhoIsUserTool;
 use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
+use Kanvas\Intelligence\Knowledge\Research\Services\CompanyProfileService;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
@@ -124,7 +125,9 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     #[Override]
     public function instructions(): string
     {
-        $instructions = $this->selfIdentityBlock() . parent::instructions();
+        $instructions = $this->selfIdentityBlock()
+            . CompanyProfileService::promptBlock($this->company)
+            . parent::instructions();
 
         $human = $this->conversationHumanBlock();
         if ($human !== '') {

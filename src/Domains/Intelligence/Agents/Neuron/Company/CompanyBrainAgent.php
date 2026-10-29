@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Company;
 
+use Kanvas\Companies\Onboarding\Services\OnboardingPromptBlockService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ExportTableTool;
@@ -43,7 +44,13 @@ class CompanyBrainAgent extends SystemUserAgent
     #[Override]
     public function instructions(): string
     {
-        return $this->operatingDoctrine() . "\n\n" . parent::instructions();
+        $instructions = $this->operatingDoctrine() . "\n\n" . parent::instructions();
+
+        $onboarding = $this->app !== null && $this->company !== null
+            ? OnboardingPromptBlockService::for($this->app, $this->company)
+            : '';
+
+        return $onboarding === '' ? $instructions : $instructions . "\n\n" . $onboarding;
     }
 
     /**

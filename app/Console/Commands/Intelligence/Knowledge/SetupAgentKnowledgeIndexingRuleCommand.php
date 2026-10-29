@@ -11,13 +11,8 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Knowledge\Workflows\IndexKnowledgeDocumentActivity;
 use Kanvas\Intelligence\Knowledge\Workflows\PruneKnowledgeDocumentActivity;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Workflow\Rules\Models\Action;
-use Kanvas\Workflow\Rules\Models\Rule;
-use Kanvas\Workflow\Rules\Models\RuleAction;
-use Kanvas\Workflow\Rules\Models\RuleType;
-use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
+use Kanvas\Workflow\Rules\Actions\WireRuleAction;
 
 class SetupAgentKnowledgeIndexingRuleCommand extends Command
 {
@@ -33,7 +28,7 @@ class SetupAgentKnowledgeIndexingRuleCommand extends Command
         $this->overwriteAppService($app);
         $companyId = (int) $this->option('company');
 
-        $indexRule = $this->wireRule(
+        $indexRule = new WireRuleAction(
             $app,
             $companyId,
             Agent::class,
@@ -41,9 +36,9 @@ class SetupAgentKnowledgeIndexingRuleCommand extends Command
             IndexKnowledgeDocumentActivity::class,
             'Intelligence: index agent knowledge documents',
             'Indexes text/PDF files attached to an Agent as the company-wide knowledge base.',
-        );
+        )->execute();
 
-        $pruneRule = $this->wireRule(
+        $pruneRule = new WireRuleAction(
             $app,
             $companyId,
             Filesystem::class,
@@ -51,8 +46,14 @@ class SetupAgentKnowledgeIndexingRuleCommand extends Command
             PruneKnowledgeDocumentActivity::class,
             'Intelligence: prune deleted file from knowledge',
             'Removes a deleted file\'s chunks from the company knowledge base.',
-        );
+        )->execute();
 
+        if ($indexRule === null) {
+            $this->error(sprintf(WireRuleAction::MISSING_ACTION, IndexKnowledgeDocumentActivity::class));
+        }
+        if ($pruneRule === null) {
+            $this->error(sprintf(WireRuleAction::MISSING_ACTION, PruneKnowledgeDocumentActivity::class));
+        }
         if ($indexRule === null || $pruneRule === null) {
             return self::FAILURE;
         }
@@ -66,59 +67,5 @@ class SetupAgentKnowledgeIndexingRuleCommand extends Command
         ));
 
         return self::SUCCESS;
-    }
-
-    private function wireRule(
-        Apps $app,
-        int $companyId,
-        string $entityClass,
-        string $ruleTypeName,
-        string $activityClass,
-        string $name,
-        string $description,
-    ): ?Rule {
-        $action = Action::where('model_name', $activityClass)->first();
-        if (! $action) {
-            $this->error("Action row not found for {$activityClass}. Run `php artisan kanvas:workflow-sync-actions` first.");
-
-            return null;
-        }
-
-        $systemModule = SystemModulesRepository::getByModelName($entityClass, $app);
-        $ruleType = RuleType::firstOrCreate(['name' => $ruleTypeName], ['is_deleted' => 0]);
-
-        $rule = Rule::firstOrCreate(
-            [
-                'name' => $name,
-                'rules_types_id' => $ruleType->getId(),
-                'systems_modules_id' => $systemModule->getId(),
-                'apps_id' => $app->getId(),
-                'companies_id' => $companyId,
-            ],
-            [
-                'description' => $description,
-                // pattern '1' with no conditions evaluates truthy — the activity self-guards on entity/type.
-                'pattern' => 1,
-                'is_deleted' => 0,
-            ]
-        );
-
-        $ruleWorkflowAction = RuleWorkflowAction::firstOrCreate(
-            [
-                'system_modules_id' => $systemModule->getId(),
-                'actions_id' => $action->getId(),
-            ],
-            ['is_deleted' => 0]
-        );
-
-        RuleAction::firstOrCreate(
-            [
-                'rules_id' => $rule->getId(),
-                'rules_workflow_actions_id' => $ruleWorkflowAction->getId(),
-            ],
-            ['weight' => 0, 'is_deleted' => 0]
-        );
-
-        return $rule;
     }
 }

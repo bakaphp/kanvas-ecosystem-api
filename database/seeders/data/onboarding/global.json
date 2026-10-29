@@ -1,0 +1,341 @@
+{
+  "sections": [
+    {
+      "slug": "accounts_payable",
+      "label": "Accounts payable · AP",
+      "title": "Pay my suppliers' bills on time",
+      "description": "Supplier bills read, approved and recorded in your accounting software.",
+      "icon": "receipt",
+      "is_available": true,
+      "display_order": 1,
+      "config": {
+        "agents": [
+          {
+            "slug": "accounts_payable",
+            "name": "Accounts payable",
+            "description": "Reads bills, matches them to purchase orders and routes approvals.",
+            "source_agent": "Accounts Payable",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\Accounting\\AccountsPayableAgent",
+            "provision_mailbox": true,
+            "requirements": ["bills_inbox", "accounting_software"]
+          }
+        ],
+        "modules": [
+          {
+            "slug": "approvals",
+            "name": "Approvals",
+            "description": "Lets you approve or reject what your assistants propose."
+          }
+        ],
+        "requirements": [
+          {
+            "slug": "bills_inbox",
+            "label": "Where your bills arrive",
+            "description": "Forward supplier invoices here. It starts receiving them once your workspace is live.",
+            "required": true,
+            "shared": false,
+            "options": [
+              { "label": "Kanvas email", "description": "Forward bills to an address we give you", "mode": "kanvas_provided", "address_from": "agent_mailbox" },
+              { "label": "Webhook", "description": "Your platform posts bills to us", "mode": "webhook" }
+            ],
+            "allow_not_used": false,
+            "allow_not_listed": true
+          },
+          {
+            "slug": "accounting_software",
+            "label": "Your accounting software",
+            "required": true,
+            "shared": true,
+            "options": [
+              { "label": "QuickBooks", "integration_name": "quickbooks", "mode": "connect" },
+              { "label": "NetSuite", "integration_name": "netsuite", "mode": "connect" },
+              { "label": "Acumatica", "integration_name": "acumatica", "mode": "connect" },
+              { "label": "Alegra", "integration_name": "alegra_mcp", "mode": "request_setup" }
+            ],
+            "allow_not_used": true,
+            "allow_not_listed": true
+          }
+        ],
+        "capabilities": [
+          "Bill intake from email or webhook",
+          "Purchase order matching",
+          "Approval routing with limits",
+          "Posting to your accounting software",
+          "Vendor and due-date tracking"
+        ],
+        "setup_steps": [
+          "Confirm where your bills arrive",
+          "Connect your accounting software",
+          "Review the first bill together",
+          "Set approval limits",
+          "Go live"
+        ]
+      }
+    },
+    {
+      "slug": "accounts_receivable",
+      "label": "Accounts receivable · AR",
+      "title": "Collect what customers owe me",
+      "description": "Customers reminded of unpaid invoices, payments matched as they come in.",
+      "icon": "coins",
+      "is_available": true,
+      "display_order": 2,
+      "config": {
+        "agents": [
+          {
+            "slug": "accounts_receivable",
+            "name": "Accounts receivable",
+            "description": "Tracks unpaid invoices, follows up with customers and reconciles payments.",
+            "source_agent": "Accounts Receivable",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\Accounting\\AccountsReceivableAgent",
+            "provision_mailbox": true,
+            "requirements": ["accounting_software", "company_email"]
+          }
+        ],
+        "modules": [],
+        "requirements": [
+          {
+            "slug": "company_email",
+            "label": "Your company email",
+            "required": false,
+            "shared": true,
+            "options": [
+              { "label": "Gmail", "integration_name": "google_gmail_mcp", "mode": "request_setup" },
+              { "label": "Outlook", "integration_name": "microsoft365_mcp", "mode": "connect" }
+            ],
+            "allow_not_used": true,
+            "allow_not_listed": true
+          }
+        ],
+        "capabilities": [
+          "Unpaid invoice tracking",
+          "Customer reminders and dunning",
+          "Payment matching",
+          "Cash collection follow-up",
+          "Aging reports"
+        ],
+        "setup_steps": [
+          "Connect your accounting software",
+          "Choose the email your reminders go out from",
+          "Review the open invoices together",
+          "Set the reminder cadence",
+          "Go live"
+        ]
+      }
+    },
+    {
+      "slug": "sales",
+      "label": "Sales",
+      "title": "Respond to my leads instantly",
+      "description": "Reply to every conversation and take the next step.",
+      "icon": "message-square",
+      "is_available": true,
+      "display_order": 3,
+      "config": {
+        "agents": [
+          {
+            "slug": "sally",
+            "name": "Sally",
+            "description": "Your main sales assistant. Answers every conversation.",
+            "source_agent": "Sally",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\SalesAgent",
+            "requirements": ["sales_channel", "crm", "product_catalog"]
+          },
+          {
+            "slug": "first_message",
+            "name": "First message",
+            "description": "Opens the conversation with every new lead.",
+            "source_agent": "firstMessageEngagerAgent",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\SalesAgent",
+            "requirements": ["sales_channel"]
+          },
+          {
+            "slug": "follow_up",
+            "name": "Follow-up",
+            "description": "Picks conversations back up on the days you set.",
+            "source_agent": "FollowUpEngagerAgent",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\FollowUpAgent",
+            "requirements": ["sales_channel"]
+          },
+          {
+            "slug": "voice",
+            "name": "Voice",
+            "description": "Takes the calls when a conversation needs a voice.",
+            "source_agent": "voiceOutreachAgent",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\SalesAgent",
+            "requirements": []
+          },
+          {
+            "slug": "sales_manager",
+            "name": "Sales manager",
+            "description": "Watches the pipeline and tells you what needs you.",
+            "source_agent": "Polly",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\SalesManagerAgent",
+            "requirements": ["crm", "workspace_channel"]
+          }
+        ],
+        "modules": [],
+        "requirements": [
+          {
+            "slug": "sales_channel",
+            "label": "A channel to talk",
+            "required": true,
+            "shared": true,
+            "options": [
+              { "label": "WhatsApp", "integration_name": "whatsapp_business_mcp", "mode": "connect" },
+              { "label": "SMS", "integration_name": "twilio", "mode": "connect" },
+              { "label": "Email", "integration_name": "mailgun_mcp", "mode": "connect" }
+            ],
+            "allow_not_used": false,
+            "allow_not_listed": true
+          },
+          {
+            "slug": "crm",
+            "label": "Your CRM",
+            "required": false,
+            "shared": true,
+            "options": [
+              { "label": "HubSpot", "integration_name": "hubspot_mcp", "mode": "request_setup" },
+              { "label": "Salesforce", "integration_name": "salesforce", "mode": "connect" }
+            ],
+            "allow_not_used": true,
+            "allow_not_listed": true
+          },
+          {
+            "slug": "product_catalog",
+            "label": "Your products and prices",
+            "required": false,
+            "shared": true,
+            "options": [
+              { "label": "Shopify", "integration_name": "shopify", "mode": "connect" },
+              { "label": "WooCommerce", "integration_name": "woocommerce", "mode": "request_setup" },
+              { "label": "Odoo", "integration_name": "odoo", "mode": "connect" },
+              { "label": "Alegra", "integration_name": "alegra_mcp", "mode": "request_setup" },
+              { "label": "ADM Cloud", "integration_name": "admcloud_mcp", "mode": "request_setup" },
+              { "label": "Excel / CSV", "description": "Upload a file", "mode": "upload" }
+            ],
+            "allow_not_used": true,
+            "allow_not_listed": true
+          },
+          {
+            "slug": "workspace_channel",
+            "label": "Where your internal assistants work",
+            "required": false,
+            "shared": true,
+            "options": [
+              { "label": "Slack", "connector": "slack_workspace", "mode": "connect" },
+              { "label": "Kanvas chat", "mode": "kanvas_provided" }
+            ],
+            "allow_not_used": false,
+            "allow_not_listed": false
+          }
+        ],
+        "capabilities": [
+          "Instant replies on WhatsApp, SMS and email",
+          "First message to every new lead",
+          "Follow-ups on the days you set",
+          "Voice calls when a conversation needs one",
+          "Pipeline watch and manager alerts"
+        ],
+        "setup_steps": [
+          "Connect the channel your leads write to",
+          "Tell Sally what you sell and how you talk",
+          "Review the first conversations together",
+          "Set the follow-up days",
+          "Go live"
+        ]
+      }
+    },
+    {
+      "slug": "marketing",
+      "label": "Marketing",
+      "title": "Run my campaigns",
+      "description": "Coordinate your campaigns and turn ideas into results.",
+      "icon": "megaphone",
+      "is_available": false,
+      "display_order": 4,
+      "config": {
+        "agents": [],
+        "modules": [],
+        "requirements": [],
+        "capabilities": [
+          "Campaign planning",
+          "Audience segments",
+          "Multi-channel sends",
+          "Results reporting"
+        ],
+        "setup_steps": []
+      }
+    },
+    {
+      "slug": "crm",
+      "label": "CRM",
+      "title": "Keep my pipeline moving",
+      "description": "Know where every lead stands and reach the ones that need a push.",
+      "icon": "contact",
+      "is_available": true,
+      "display_order": 5,
+      "config": {
+        "agents": [
+          {
+            "slug": "pipeline",
+            "name": "Pipeline watch",
+            "description": "Reports on your pipeline and messaging, finds the leads that share a trait, and runs the outreach you approve.",
+            "source_agent": "Polly",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\SalesManagerAgent",
+            "requirements": []
+          }
+        ],
+        "modules": [],
+        "requirements": [],
+        "capabilities": [
+          "Pipeline and messaging reports",
+          "Lead segments by trait",
+          "Batch SMS and email you approve first",
+          "Opt-outs honored on every send"
+        ],
+        "setup_steps": [
+          "Review your pipeline together",
+          "Pick the first segment to reach",
+          "Approve the first batch",
+          "Go live"
+        ]
+      }
+    },
+    {
+      "slug": "inventory",
+      "label": "Inventory",
+      "title": "Control my inventory",
+      "description": "Keep your products and stock in order.",
+      "icon": "package",
+      "is_available": true,
+      "display_order": 6,
+      "config": {
+        "agents": [
+          {
+            "slug": "commerce",
+            "name": "Commerce",
+            "description": "Keeps products, prices and stock in order across your channels.",
+            "source_agent": "Commerce",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\Commerce\\CommerceAgent",
+            "requirements": ["product_catalog", "workspace_channel"]
+          }
+        ],
+        "modules": [],
+        "requirements": [],
+        "capabilities": [
+          "Product and variant upkeep",
+          "Stock level monitoring",
+          "Price list processing",
+          "Channel sync"
+        ],
+        "setup_steps": [
+          "Connect or upload your product catalog",
+          "Review the catalog together",
+          "Set the stock alerts",
+          "Go live"
+        ]
+      }
+    }
+  ]
+}

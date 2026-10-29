@@ -11,7 +11,9 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
+use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Users\Models\Users;
 
 /**
  * The People-only counterpart of SendMessageToLeadAction's email path, for a recipient that has no
@@ -44,6 +46,7 @@ class SendEmailToPeopleAction
         ?string $templateName = null,
         bool $important = false,
         ?Agent $fromAgent = null,
+        ?Users $signatureOwner = null,
     ): array {
         if (trim($to) === '') {
             throw new ValidationException('People has no email address to send to');
@@ -51,6 +54,7 @@ class SendEmailToPeopleAction
 
         $subject ??= 'Message from ' . $this->people->company->name;
         $mailboxAddress = $fromAgent !== null ? new AgentMailboxService()->addressFor($fromAgent) : null;
+        $ownerSignature = UserEmailSignature::forSender($signatureOwner, $this->people->company, $fromAgent);
 
         if ($mailboxAddress !== null) {
             new SendAsAgentMailboxAction(
@@ -59,6 +63,7 @@ class SendEmailToPeopleAction
                 subject: $subject,
                 markdownBody: $message,
                 attachmentUrls: $attachmentUrls,
+                signature: $ownerSignature,
                 trackingPerson: $this->people,
             )->execute();
 
@@ -87,6 +92,7 @@ class SendEmailToPeopleAction
             $attachmentUrls !== [] ? $attachmentUrls : null,
         );
         $notification->setSubject($subject);
+        $notification->setUserSignature($ownerSignature);
         if ($important) {
             $notification->setImportant();
         }

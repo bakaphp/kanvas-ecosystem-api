@@ -556,6 +556,12 @@ that picks the destination can be prompt-injected into mailing a quote to `attac
     `addLeadParticipant` mutation write, so the allowlist asserts the tenant itself rather than inheriting
     it. No tenant context → no CC at all. This is the reference pattern for "let the agent widen delivery
     without opening an exfiltration hole" — copy it, don't invent a looser one.
+  - Admin-curated domain allowlist — `send_lead_email`'s `cc` also accepts an address on a domain listed
+    in the app setting `guild_agent_email_cc_allowed_domains` (`ConfigurationEnum::AGENT_EMAIL_CC_ALLOWED_DOMAINS`;
+    array, JSON array or comma string). Exact domain match only (`EmailDomain::isInDomains`), so a
+    subdomain must be listed itself. Listing a public domain is the admin's call; the tool does not
+    second-guess it. A stop request still wins: an allowlisted address belonging to a CRM person with
+    `do_not_contact`, or a contact that opted out or hard-bounced, is rejected.
 
 If you need a genuinely new "send to X" capability, the recipient must be entity-derived or closed-set-verified.
 There is no approved path for a free-text external recipient.
@@ -590,6 +596,21 @@ The lead send tools were `send_email` / `send_sms` until 2026-10-09 (`gmail_repl
 `reply_to_email`); `2026_10_09_000001_rename_lead_send_and_gmail_reply_tools` rewrote the catalog labels and
 the old ids in agent prose. Tool names are also matched literally by `WorkerToolPolicy` (and by prefix in
 `ApprovalPolicy`) — renaming a send tool without updating them lets an unsupervised worker send.
+
+### A tool that edits a record announces it (`AnnouncesAgentEdits`)
+
+Who made an edit cannot be read back afterwards: an agent's user is shared across agents and is often a
+person's own login, and the record keeps no "edited by". So a tool that writes a record calls
+`announceAgentEdit($model)` from [`Intelligence/Tools/Traits/AnnouncesAgentEdits`](../Tools/Traits/AnnouncesAgentEdits.php) (shared namespace, like `ReportsToolOutcome`, so Neuron and Laravel tools both use it)
+after the write succeeds. It fires `WorkflowEnum::AGENT_UPDATED` on that model, never `UPDATED`, so a
+tenant can hang a rule on "edited by an agent" without touching the rules a person's mutation already
+triggers. Works for any model with `CanUseWorkflow`; on one without it is a no-op.
+
+- Announce only when something changed — a call that sets nothing must not trigger the rule.
+- Today's adopters: the four People editing tools (`update_person`, `manage_person_contact`,
+  `set_person_address`, `set_person_custom_fields`), whose rule opens the Salesforce sync approval
+  (`SalesforceRequestPeopleApprovalActivity`). A new editing tool that skips the call is invisible to it.
+- A tenant enables a reaction by creating a rule on the model's system module with rule type `agent-updated`.
 
 ### Param typing
 

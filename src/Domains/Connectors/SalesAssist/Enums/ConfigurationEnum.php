@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Enums;
 
+use Kanvas\Communication\Messages\Enums\ConversationAgentEnum;
+
 enum ConfigurationEnum: string
 {
     /**
@@ -73,5 +75,5 @@ enum ConfigurationEnum: string
     case USER_DEALER_TAG = 'lead-dealer-tag';
     case AGENT_NAME = 'sales_assist_agent_name';
 
-    public const string DEFAULT_AGENT_NAME = 'Sally';
+    public const string DEFAULT_AGENT_NAME = ConversationAgentEnum::DEFAULT_NAME->value;
 }

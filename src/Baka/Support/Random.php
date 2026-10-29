@@ -7,6 +7,7 @@ namespace Baka\Support;
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Str as LaravelStr;
 use InvalidArgumentException;
+use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
 class Random
@@ -81,28 +82,59 @@ class Random
 
     private static function ensureUsernameUniqueness(string $username, AppInterface $app, int $randNum): string
     {
+        return self::uniqueAgainst(
+            $username,
+            fn (string $candidate): bool => UsersAssociatedApps::query()->fromApp($app)->where('displayname', $candidate)->exists(),
+            $randNum,
+            '',
+        );
+    }
+
+    /**
+     * A display name free in every app, not only the current one: an agent's user is addressed
+     * across the platform (email, mentions), so two tenants must not both mint "sally".
+     */
+    public static function platformUniqueDisplayName(string $displayName, int $randNum = 100): string
+    {
+        $slug = Str::limit(self::cleanUpDisplayNameForSlug($displayName), 40, '');
+
+        return self::uniqueAgainst(
+            $slug,
+            fn (string $candidate): bool => Users::query()->where('displayname', $candidate)->exists()
+                || UsersAssociatedApps::query()->where('displayname', $candidate)->exists(),
+            $randNum,
+            '-',
+        );
+    }
+
+    /**
+     * @param callable(string): bool $taken
+     */
+    private static function uniqueAgainst(
+        string $username,
+        callable $taken,
+        int $randNum,
+        string $separator
+    ): string {
         $originalName = $username;
         $counter = 0;
 
-        // Try a few times with random numbers
         while ($counter < self::MAX_UNIQUENESS_ATTEMPTS) {
-            if (! UsersAssociatedApps::query()->fromApp($app)->where('displayname', $username)->exists()) {
+            if (! $taken($username)) {
                 return $username;
             }
 
             if ($counter < self::MAX_UNIQUENESS_ATTEMPTS / 2) {
-                // Why this? To avoid usernames like displayname1. We want duplicates to start at 2, like displayname2, displayname3, etc.
-                $username = $originalName . ($counter + 2);
+                // Duplicates start at 2 (displayname2, displayname3, ...), never displayname1.
+                $username = $originalName . $separator . ($counter + 2);
             } else {
-                // Random suffix as fallback
-                $username = $originalName . rand(1, $randNum);
+                $username = $originalName . $separator . rand(1, $randNum);
             }
 
             $counter++;
         }
 
-        // Ultimate fallback - timestamp will guarantee uniqueness
-        return $originalName . time();
+        return $originalName . $separator . time();
     }
 
     /**

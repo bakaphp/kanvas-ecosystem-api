@@ -97,6 +97,17 @@ abstract class ProcessWebhookJob implements ShouldQueue
     }
 
     /**
+     * Answer to a provider that verifies the endpoint with a GET before subscribing it (Meta's
+     * `hub.challenge`). Null — the default for every connector — means the receiver takes no GETs.
+     *
+     * @return string|null the raw body to answer with
+     */
+    public static function verificationChallenge(Request $request, ReceiverWebhook $receiver): ?string
+    {
+        return null;
+    }
+
+    /**
      * Whether the request's uploaded files must be persisted before this job runs. A receiver can
      * also opt in with `capture_files`, but a job that cannot work without the files declares it
      * here rather than trusting whoever wired the receiver: the multipart request is gone by the

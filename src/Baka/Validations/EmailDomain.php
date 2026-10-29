@@ -81,6 +81,15 @@ class EmailDomain
      */
     public static function isBlockedDomain(string $email, array $extraBlocked = []): bool
     {
+        return self::isInDomains($email, array_merge(self::BLOCKED_DOMAINS, $extraBlocked));
+    }
+
+    /**
+     * Exact match on purpose: `acme.com` must not admit `acme.com.evil.io` or `evilacme.com`, and a
+     * subdomain counts only when it is listed itself. A listed `@acme.com` is read as `acme.com`.
+     */
+    public static function isInDomains(string $email, array $domains): bool
+    {
         if (! str_contains($email, '@')) {
             return false;
         }
@@ -91,12 +100,12 @@ class EmailDomain
             return false;
         }
 
-        $blocked = array_map(
-            static fn (string $d): string => Str::lower(trim($d)),
-            array_merge(self::BLOCKED_DOMAINS, $extraBlocked)
+        $listed = array_map(
+            static fn (string $d): string => ltrim(Str::lower(trim($d)), '@'),
+            $domains
         );
 
-        return in_array($domain, $blocked, true);
+        return in_array($domain, $listed, true);
     }
 
     /**

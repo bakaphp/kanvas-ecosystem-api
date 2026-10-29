@@ -36,6 +36,16 @@ class MailgunEngagementPayloadService
     }
 
     /**
+     * Mailgun's bot verdict for an open/click: `apple` (Mail Privacy Protection prefetch), `gmail`,
+     * `generic` (a firewall or antivirus scanning the mail on arrival), or empty for a human. Those
+     * prefetches fire `opened` seconds after delivery whether or not anyone read the message.
+     */
+    public function bot(): string
+    {
+        return strtolower(trim((string) ($this->eventData['client-info']['bot'] ?? '')));
+    }
+
+    /**
      * The event's own id — stable across Mailgun's retries of the same delivery, unlike messageId()
      * which repeats for every open of the same email. Dedupe on this, not the message.
      */

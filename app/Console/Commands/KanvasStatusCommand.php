@@ -43,6 +43,7 @@ class KanvasStatusCommand extends Command
         'product-enrichment',
         'product-discovery',
         'scribe-aging',
+        'onboarding',
         'scribe-pdf-ingest',
         'lead_follow_ups',
         'reporting',

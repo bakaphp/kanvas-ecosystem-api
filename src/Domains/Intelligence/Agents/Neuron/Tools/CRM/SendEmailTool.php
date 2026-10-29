@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Baka\Support\Arr;
+use Baka\Validations\EmailDomain;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Services\ConsentGuard;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Outreach\PersistOutboundMessageAction;
@@ -37,8 +42,9 @@ class SendEmailTool extends Tool
         . 'or when what they need is too long to send over chat/SMS. '
         . 'You cannot choose the primary recipient — the email always goes to the address on the lead. '
         . 'You may optionally cc other people who are ALREADY contacts on this lead, its participants '
-        . '(co-buyers, spouses, referrers) or its organization (e.g. a second decision-maker); '
-        . 'addresses that are not on file are ignored. '
+        . '(co-buyers, spouses, referrers) or its organization (e.g. a second decision-maker), '
+        . 'or addresses on an email domain the business allowed for CC (e.g. a teammate); '
+        . 'any other address is ignored. '
         . 'This is NOT for internal messages to staff (use take_message) and NOT a way to keep chatting: '
         . 'still answer the person in the conversation after sending.';
 
@@ -85,8 +91,8 @@ class SendEmailTool extends Tool
                 type: PropertyType::STRING,
                 description: 'Optional. Comma-separated email addresses to CC on this email. '
                     . 'Only addresses that already exist as contacts on this lead, on one of its participants '
-                    . '(co-buyer, spouse, referrer) or on its organization are allowed — '
-                    . 'any address not on file is silently ignored (you cannot CC arbitrary people). '
+                    . '(co-buyer, spouse, referrer), on its organization, or on an email domain the business '
+                    . 'allowed for CC are accepted — any other address is ignored (you cannot CC arbitrary people). '
                     . 'Leave empty to email only the primary contact.',
                 required: false,
             ),
@@ -182,9 +188,12 @@ class SendEmailTool extends Tool
 
         $note = 'Email sent and logged on the lead. Tell the person it is on the way, in one short line.';
         if ($ccResult['rejected'] !== []) {
-            $note .= ' These CC addresses are not on file for this lead, its participants or its organization and were NOT copied: '
+            $note .= ' These CC addresses were NOT copied — they are not on file for this lead, its participants or its '
+                . 'organization, and are not on an allowed CC domain (or that person opted out of contact): '
                 . implode(', ', $ccResult['rejected'])
-                . '. To include them, add them as a contact on the lead, a participant or the organization first.';
+                . '. Do NOT send them a copy any other way (send_email_to_user, a second email, a forward) — '
+                . 'tell the person plainly they were not copied and why. '
+                . 'To include them, add them as a contact on the lead, a participant or the organization first.';
         }
 
         return [
@@ -216,9 +225,10 @@ class SendEmailTool extends Tool
     /**
      * Split the requested CC addresses into the ones we will actually copy and the ones we drop.
      * An address is accepted only if it matches — case-insensitively — a deliverable email contact
-     * already on file for the lead's person or its organization; the primary recipient and duplicates
-     * are removed. This is the anti-exfiltration guarantee: CC can widen delivery to known contacts,
-     * never to an arbitrary address the model was told to add.
+     * already on file for the lead's person or its organization, or sits on a domain the app's admin
+     * allowlisted; the primary recipient and duplicates are removed. This is the anti-exfiltration
+     * guarantee: CC can widen delivery to known contacts or admin-approved domains, never to an
+     * arbitrary address the model was told to add.
      *
      * @return array{accepted: array<int, string>, rejected: array<int, string>}
      */
@@ -230,6 +240,7 @@ class SendEmailTool extends Tool
         }
 
         $allowed = $this->allowedCcContacts($lead);
+        $allowedDomains = $this->allowedCcDomains();
         $primaryNormalized = strtolower(trim($primaryEmail));
 
         $accepted = [];
@@ -245,12 +256,56 @@ class SendEmailTool extends Tool
 
             if (isset($allowed[$normalized])) {
                 $accepted[] = $allowed[$normalized];
+            } elseif ($this->isAllowedDomainCc($normalized, $allowedDomains)) {
+                $accepted[] = trim($email);
             } else {
                 $rejected[] = $email;
             }
         }
 
         return ['accepted' => $accepted, 'rejected' => $rejected];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function allowedCcDomains(): array
+    {
+        if (! $this->hasTenantContext()) {
+            return [];
+        }
+
+        return Arr::fromSettingList($this->app->get(ConfigurationEnum::AGENT_EMAIL_CC_ALLOWED_DOMAINS->value));
+    }
+
+    /**
+     * An allowlisted-domain address is not a contact of this lead, but it may still be someone in the
+     * CRM who asked not to be contacted or whose address bounced — a stop request is person-wide, so
+     * the allowlist does not override it.
+     *
+     * @param list<string> $allowedDomains
+     */
+    private function isAllowedDomainCc(string $email, array $allowedDomains): bool
+    {
+        if ($allowedDomains === []
+            || filter_var($email, FILTER_VALIDATE_EMAIL) === false
+            || ! EmailDomain::isInDomains($email, $allowedDomains)) {
+            return false;
+        }
+
+        return ! Contact::query()
+            ->whereIn('contacts_types_id', Contact::EMAIL_TYPES)
+            ->where('value', $email)
+            ->notDeleted()
+            ->whereHas(
+                'people',
+                fn (Builder $query): Builder => $query->fromCompany($this->company)->fromApp($this->app)->notDeleted()
+            )
+            ->with('people')
+            ->get()
+            ->contains(
+                fn (Contact $contact): bool => ! $contact->isDeliverable() || ConsentGuard::isPersonDoNotContact($contact->people)
+            );
     }
 
     /**

@@ -228,6 +228,14 @@ services:
       - "-c"
       - "php artisan config:cache && exec php artisan queue:work --queue=ledger
         --tries=3 --timeout=3750"
+  onboarding-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && exec php artisan queue:work --queue=onboarding
+        --tries=3 --timeout=3750"
   slack-ingest-queue:
     <<: *common-queue-settings
     # REMOVED container_name because replicas > 1

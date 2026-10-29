@@ -20,6 +20,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesManagerAgent;
+use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Mockery;
@@ -39,20 +40,43 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
     public function testInternalEmailAppendsOwnerSignatureWithoutEnablingSallyTemplateSignature(): void
     {
         $owner = Mockery::mock(Users::class);
+        $owner->shouldReceive('get')->with('email_signature_company_77')->once()->andReturn(null);
         $owner->shouldReceive('get')->with('email_signature')->once()->andReturn([
             'append' => true,
             'text' => "Owner Name\nSales Manager",
         ]);
         $owner->shouldReceive('getFileByName')->with('photo')->once()->andReturn(null);
-        $this->sendSignatureTestEmail(true, $owner, function (array $data): bool {
-            $this->assertFalse($data['signature']);
-            $this->assertStringContainsString('<strong>quote</strong>', $data['content']);
-            $this->assertStringContainsString('Owner Name', $data['content']);
-            $this->assertStringContainsString('Sales Manager', $data['content']);
-            $this->assertStringNotContainsString('Sally', $data['content']);
+        $this->sendSignatureTestEmail(
+            true,
+            $owner,
+            function (array $data): bool {
+                $this->assertFalse($data['signature']);
+                $this->assertStringContainsString('<strong>quote</strong>', $data['content']);
+                $this->assertStringNotContainsString('Sally', $data['content']);
 
-            return true;
-        });
+                return true;
+            },
+            fn (?UserEmailSignature $signature): bool => $signature?->text === "Owner Name\nSales Manager"
+        );
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testTheCompanySpecificSignatureWinsOverTheGlobalOne(): void
+    {
+        $owner = Mockery::mock(Users::class);
+        $owner->shouldReceive('get')->with('email_signature_company_77')->once()->andReturn([
+            'append' => true,
+            'text' => "Owner Name\nRegional Director",
+        ]);
+        $owner->shouldNotReceive('get')->with('email_signature');
+        $owner->shouldReceive('getFileByName')->with('photo')->once()->andReturn(null);
+        $this->sendSignatureTestEmail(
+            true,
+            $owner,
+            fn (array $data): bool => true,
+            fn (?UserEmailSignature $signature): bool => $signature?->text === "Owner Name\nRegional Director"
+        );
     }
 
     #[RunInSeparateProcess]
@@ -61,16 +85,46 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
     {
         $owner = Mockery::mock(Users::class);
         $owner->shouldNotReceive('get');
-        $this->sendSignatureTestEmail(false, $owner, function (array $data): bool {
-            $this->assertTrue($data['signature']);
-            $this->assertStringNotContainsString('<table', $data['content']);
+        $this->sendSignatureTestEmail(
+            false,
+            $owner,
+            function (array $data): bool {
+                $this->assertTrue($data['signature']);
+                $this->assertStringNotContainsString('<table', $data['content']);
 
-            return true;
-        });
+                return true;
+            },
+            fn (?UserEmailSignature $signature): bool => $signature === null
+        );
     }
 
-    private function sendSignatureTestEmail(bool $internal, Users $owner, callable $assertContent): void
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testInternalAssistantWithoutTheSigningGrantSendsNoSignatureAtAll(): void
     {
+        $owner = Mockery::mock(Users::class);
+        $owner->shouldNotReceive('get');
+        $this->sendSignatureTestEmail(
+            true,
+            $owner,
+            function (array $data): bool {
+                $this->assertFalse($data['signature']);
+                $this->assertStringNotContainsString('<table', $data['content']);
+
+                return true;
+            },
+            fn (?UserEmailSignature $signature): bool => $signature === null,
+            signs: false
+        );
+    }
+
+    private function sendSignatureTestEmail(
+        bool $internal,
+        Users $owner,
+        callable $assertContent,
+        callable $assertSignature,
+        ?bool $signs = null
+    ): void {
         // Intercept the delivery boundary: Blank's real constructor writes notification types.
         $notification = Mockery::mock('overload:' . Blank::class);
         $notification->shouldReceive('__construct')->once()->withArgs(
@@ -78,6 +132,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         );
         $notification->shouldReceive('setFromUser')->once();
         $notification->shouldReceive('setSubject')->once()->with('Your quote');
+        $notification->shouldReceive('setUserSignature')->once()->withArgs($assertSignature);
         Notification::shouldReceive('send')->once()->withArgs(
             fn ($notifiable): bool => $notifiable->routes['mail'] === 'prospect@example.com'
         );
@@ -86,6 +141,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
         $company = new Companies();
         $company->name = 'Test Company';
+        $company->id = 77;
         $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
         $lead->shouldReceive('getAttribute')->with('app')->andReturn(new Apps());
         $lead->shouldReceive('getAttribute')->with('user')->andReturn(new Users());
@@ -93,6 +149,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $lead->shouldReceive('getId')->andReturn(1);
         $agent = Mockery::mock(Agent::class);
         $agent->shouldReceive('conversesWithUser')->andReturn($internal);
+        $agent->shouldReceive('signsEmailsAsOwner')->andReturn($signs ?? $internal);
         $agent->shouldReceive('get')->andReturn(null);
 
         $result = new SendMessageToLeadAction($lead)->withSignatureOwner($owner)->execute(
