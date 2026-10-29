@@ -11,6 +11,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
+use Kanvas\Guild\Campaigns\Enums\CampaignStatusEnum;
+use Kanvas\Guild\Campaigns\Models\Campaign;
+use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -152,6 +155,36 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
         Http::assertSent(fn ($request): bool => str_contains((string) $request->body(), 'name="o:tracking-opens"')
             && str_contains((string) $request->body(), 'name="v:people_id"')
             && str_contains((string) $request->body(), $peopleId));
+    }
+
+    public function testACampaignSendStampsTheCampaignRecipientIdSoTheOpenFindsItsSlot(): void
+    {
+        $agent = $this->agentWithMailbox();
+        $lead = $this->leadWithEmail('prospect@example.com');
+
+        $campaign = new Campaign();
+        $campaign->apps_id = $this->kanvasApp->getId();
+        $campaign->companies_id = $lead->companies_id;
+        $campaign->users_id = $this->user->getId();
+        $campaign->channel = LeadCommunicationChannelEnum::EMAIL->value;
+        $campaign->message = 'Batch body';
+        $campaign->status = CampaignStatusEnum::SENDING->value;
+        $campaign->saveOrFail();
+        $recipient = CampaignRecipient::pending($campaign, $lead->getId(), (int) $lead->people_id);
+        $recipient->saveOrFail();
+
+        new SendMessageToLeadAction($lead)
+            ->forCampaignRecipient($recipient)
+            ->execute(
+                channel: LeadCommunicationChannelEnum::EMAIL->value,
+                message: 'Batch body',
+                title: 'Batch',
+                to: 'prospect@example.com',
+                fromAgent: $agent,
+            );
+
+        Http::assertSent(fn ($request): bool => str_contains((string) $request->body(), 'name="v:campaign_recipient_id"')
+            && str_contains((string) $request->body(), (string) $recipient->getId()));
     }
 
     public function testAnAgentWithoutAMailboxStillSendsOnTheCompanyIdentity(): void
