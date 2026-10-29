@@ -556,7 +556,8 @@ that picks the destination can be prompt-injected into mailing a quote to `attac
     `addLeadParticipant` mutation write, so the allowlist asserts the tenant itself rather than inheriting
     it. No tenant context → no CC at all. This is the reference pattern for "let the agent widen delivery
     without opening an exfiltration hole" — copy it, don't invent a looser one.
-  - Admin-curated domain allowlist — `send_lead_email`'s `cc` also accepts an address on a domain listed
+  - Admin-curated domain allowlist — the `cc` of `send_lead_email` and `send_person_email` (both through
+    `Neuron/Tools/Concerns/SendsEmailToPeople`) also accepts an address on a domain listed
     in the app setting `guild_agent_email_cc_allowed_domains` (`ConfigurationEnum::AGENT_EMAIL_CC_ALLOWED_DOMAINS`;
     array, JSON array or comma string). Exact domain match only (`EmailDomain::isInDomains`), so a
     subdomain must be listed itself. Listing a public domain is the admin's call; the tool does not
@@ -571,6 +572,7 @@ There is no approved path for a free-text external recipient.
 | Tool | Recipient | History it leaves |
 |---|---|---|
 | `send_lead_email` | **Leads only** — the lead's on-file address (`lead_id` required) | message on the lead's email channel (lead + person entities) + lead note |
+| `send_person_email` | A People with no lead, by `person_id`, at its on-file address. Internal agents only (`RequiresSystemAgent`): it reaches any person in the company. CC from the person's and their organizations' contacts or the domain allowlist | message on the person's email channel + person note |
 | `create_lead_campaign` / `add_people_to_campaign` | People by id, no lead needed, admin-only, via `ProcessLeadCampaignJob` | message on the person's (or lead's) email channel + note |
 | `send_batch_message` | Leads by id, admin-only, same job | message on the lead's channel + lead note |
 | `send_lead_sms` | **Leads only** — the lead's on-file phone | message on the lead's SMS channel + lead note |
