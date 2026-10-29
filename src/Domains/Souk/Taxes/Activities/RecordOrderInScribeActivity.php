@@ -16,6 +16,7 @@ use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Models\PaymentRefund;
 use Kanvas\Souk\Taxes\Enums\ConfigurationEnum;
+use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
@@ -169,17 +170,15 @@ class RecordOrderInScribeActivity extends KanvasActivity implements WorkflowActi
             return $lines;
         }
 
+        $taxByLine = $this->taxByLine($order);
+
         foreach ($order->allItems as $item) {
             $qty = (float) $item->quantity;
             $unitPriceNet = (float) $item->unit_price_net_amount;
-            $lineTax = (float) ($item->unit_tax_amount ?? 0.0) * $qty;
+            $lineTax = $taxByLine[$item->uuid] ?? 0.0;
             $taxRate = $unitPriceNet > 0 && $lineTax > 0
                 ? round($lineTax / ($unitPriceNet * $qty), 6)
                 : null;
-
-            if ($order->tax_calculation_mode === 'inclusive' && $lineTax > 0 && $qty > 0) {
-                $unitPriceNet = round($unitPriceNet - ($lineTax / $qty), 4);
-            }
 
             $lines[] = new SalesReceiptLineData(
                 description: (string) $item->product_name,
@@ -188,6 +187,18 @@ class RecordOrderInScribeActivity extends KanvasActivity implements WorkflowActi
                 sku: $item->product_sku,
                 tax_rate: $taxRate,
                 tax_amount_native: $lineTax,
+            );
+        }
+
+        $shippingPrice = (float) ($order->shipping_price_net_amount ?? 0.0);
+        $shippingTax = $taxByLine['shipping'] ?? 0.0;
+
+        if ($shippingPrice > 0 || $shippingTax > 0) {
+            $lines[] = new SalesReceiptLineData(
+                description: 'Shipping',
+                quantity: 1.0,
+                unit_price_native: $shippingPrice,
+                tax_amount_native: $shippingTax,
             );
         }
 
@@ -200,6 +211,24 @@ class RecordOrderInScribeActivity extends KanvasActivity implements WorkflowActi
         }
 
         return $lines;
+    }
+
+    private function taxByLine(Order $order): array
+    {
+        $snapshot = OrderTaxSnapshot::query()
+            ->where('order_id', $order->getId())
+            ->with('components')
+            ->latest('id')
+            ->first();
+
+        if ($snapshot === null) {
+            return [];
+        }
+
+        return $snapshot->components
+            ->groupBy('line_id')
+            ->map(fn ($components) => round((float) $components->sum('tax_amount'), 4))
+            ->all();
     }
 
     private function buildBillable(Order $order): BillableInterface

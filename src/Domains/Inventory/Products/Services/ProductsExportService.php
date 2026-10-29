@@ -55,8 +55,8 @@ class ProductsExportService
             (float) ($variant->tax_amount ?? 0),
             (float) ($variant->discount ?? 0),
             'USD',
-            $config['minimum_quantity'] ?? "N/A",
-            $config['map_price'] ?? "N/A",
+            $config['minimum_quantity'] ?? 'N/A',
+            $config['map_price'] ?? 'N/A',
         ];
     }
 

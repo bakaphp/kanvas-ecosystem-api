@@ -69,5 +69,4 @@ class CommitTaxTransactionJob implements ShouldQueue
             $lock->release();
         }
     }
-
 }

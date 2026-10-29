@@ -12,7 +12,6 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Tests\TestCase;
 
-
 final class UpdateOrderActionPaidGuardTest extends TestCase
 {
     use DatabaseTransactions;

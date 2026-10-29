@@ -161,7 +161,7 @@ class StripeOrderPaymentWebhookJobTest extends TestCase
         $this->assertSame('payment not found', $result['message']);
     }
 
-    public function testSucceededWithUnattachedSnapshotCompletesCheckout(): void
+    public function testSucceededWithUnattachedCartSnapshotLeavesTheOrderToTheCheckout(): void
     {
         $user = auth()->user();
         $intentId = 'pi_wh_snapshot_' . uniqid();
@@ -217,23 +217,21 @@ class StripeOrderPaymentWebhookJobTest extends TestCase
             'metadata' => [],
         ]);
 
-        $this->assertSame('snapshot checkout completed', $result['message']);
-        $this->assertArrayHasKey('order_id', $result);
-
-        $snapshot->refresh();
-        $this->assertNotNull($snapshot->order_id);
+        $this->assertArrayNotHasKey('order_id', $result);
+        $this->assertNull($snapshot->refresh()->order_id);
     }
 
-    public function testHandleSucceededWithUnattachedSnapshotCompletesCheckout(): void
+    public function testSucceededWithUnattachedCheckoutSessionSnapshotCompletesCheckout(): void
     {
         $user = auth()->user();
-        $intentId = 'pi_test_unattached';
+        $intentId = 'pi_test_unattached_' . uniqid();
 
         $snapshot = new OrderTaxSnapshot();
         $snapshot->apps_id = $this->kanvasApp->getId();
         $snapshot->order_id = null;
         $snapshot->payment_intent_id = $intentId;
         $snapshot->cart_session_id = 'cart-unattached-' . uniqid();
+        $snapshot->stripe_session_id = 'cs_test_' . uniqid();
         $snapshot->kind = 'calculation';
         $snapshot->treatment = 'taxed';
         $snapshot->status = 'calculated';

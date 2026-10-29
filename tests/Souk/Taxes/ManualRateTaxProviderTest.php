@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Souk\Taxes;
 
+use Kanvas\Souk\Taxes\DataTransferObject\TaxableLine;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxAddress;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxContext;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxReversal;
-use Kanvas\Souk\Taxes\DataTransferObject\TaxableLine;
 use Kanvas\Souk\Taxes\Enums\TaxTreatmentEnum;
 use Kanvas\Souk\Taxes\Models\CustomerTaxExemption;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;

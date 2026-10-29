@@ -9,8 +9,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Taxes\Enums\ConfigurationEnum;
 use Kanvas\Souk\Taxes\Models\TaxRegistration;
 use Kanvas\Souk\Taxes\Models\TaxRoutingRule;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+#[Group('serial')]
 class TaxCoverageQueryTest extends TestCase
 {
     use DatabaseTransactions;
@@ -23,6 +25,13 @@ class TaxCoverageQueryTest extends TestCase
     {
         parent::setUp();
         $this->kanvasApp = app(Apps::class);
+    }
+
+    public function tearDown(): void
+    {
+        $this->kanvasApp->set(ConfigurationEnum::TAX_ENGINE_ENABLED->value, 0);
+
+        parent::tearDown();
     }
 
     public function testDominicanRepublicCoverage(): void

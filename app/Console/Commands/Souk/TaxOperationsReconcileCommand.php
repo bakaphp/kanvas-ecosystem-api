@@ -8,6 +8,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
+use Kanvas\Souk\Payments\Models\PaymentRefund;
 use Kanvas\Souk\Taxes\Enums\ConfigurationEnum;
 use Kanvas\Souk\Taxes\Enums\TaxReversalStatusEnum;
 use Kanvas\Souk\Taxes\Enums\TaxStatusEnum;
@@ -15,7 +16,6 @@ use Kanvas\Souk\Taxes\Jobs\CommitTaxTransactionJob;
 use Kanvas\Souk\Taxes\Jobs\ReverseTaxTransactionJob;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Souk\Taxes\Models\TaxOperation;
-use Kanvas\Souk\Payments\Models\PaymentRefund;
 
 class TaxOperationsReconcileCommand extends Command
 {
@@ -158,5 +158,4 @@ class TaxOperationsReconcileCommand extends Command
             \Sentry\captureMessage($message);
         }
     }
-
 }

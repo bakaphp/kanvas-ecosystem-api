@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Souk;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Taxes\Models\TaxRegistration;
 use Tests\TestCase;

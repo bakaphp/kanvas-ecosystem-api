@@ -18,14 +18,14 @@ class TaxRateResolverServiceTest extends TestCase
 
     protected array $connectionsToTransact = ['mysql', 'accounting'];
 
-    protected $app;
+    private Apps $kanvasApp;
     private TaxRateResolverService $service;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->app = app(Apps::class);
+        $this->kanvasApp = app(Apps::class);
         $this->service = new TaxRateResolverService();
     }
 
@@ -34,7 +34,7 @@ class TaxRateResolverServiceTest extends TestCase
         $code = $this->createTaxCode('ITBIS_18');
         $this->createTaxRate($code, rate: 0.18, effectiveFrom: '2020-01-01');
 
-        $rate = $this->service->resolveRate('ITBIS_18', $this->app);
+        $rate = $this->service->resolveRate('ITBIS_18', $this->kanvasApp);
 
         $this->assertNotNull($rate);
         $this->assertEquals(0.18, $rate->rate);
@@ -42,7 +42,7 @@ class TaxRateResolverServiceTest extends TestCase
 
     public function test_resolve_rate_returns_null_when_code_not_found(): void
     {
-        $rate = $this->service->resolveRate('NONEXISTENT_CODE_' . uniqid(), $this->app);
+        $rate = $this->service->resolveRate('NONEXISTENT_CODE_' . uniqid(), $this->kanvasApp);
 
         $this->assertNull($rate);
     }
@@ -53,7 +53,7 @@ class TaxRateResolverServiceTest extends TestCase
         $this->createTaxRate($code, rate: 0.18, effectiveFrom: '2025-01-01');
 
         $beforeEffective = Carbon::parse('2024-12-31');
-        $rate = $this->service->resolveRate($code->code, $this->app, at: $beforeEffective);
+        $rate = $this->service->resolveRate($code->code, $this->kanvasApp, at: $beforeEffective);
 
         $this->assertNull($rate, 'A rate effective 2025-01-01 must not be returned for a date in 2024.');
     }
@@ -64,7 +64,7 @@ class TaxRateResolverServiceTest extends TestCase
         $this->createTaxRate($code, rate: 0.10, effectiveFrom: '2020-01-01', sortOrder: 5);
         $this->createTaxRate($code, rate: 0.18, effectiveFrom: '2020-01-01', sortOrder: 1);
 
-        $rate = $this->service->resolveRate($code->code, $this->app);
+        $rate = $this->service->resolveRate($code->code, $this->kanvasApp);
 
         $this->assertNotNull($rate);
         $this->assertEquals(0.18, $rate->rate, 'The rate with the lower sort_order (1) must win the tie.');
@@ -75,7 +75,7 @@ class TaxRateResolverServiceTest extends TestCase
         $code = $this->createTaxCode('ITBIS_INACTIVE_' . uniqid());
         $this->createTaxRate($code, rate: 0.18, effectiveFrom: '2020-01-01', isActive: false);
 
-        $rate = $this->service->resolveRate($code->code, $this->app);
+        $rate = $this->service->resolveRate($code->code, $this->kanvasApp);
 
         $this->assertNull($rate, 'An inactive rate must not be returned even if it is the most recent.');
     }
@@ -92,7 +92,7 @@ class TaxRateResolverServiceTest extends TestCase
     private function createTaxCode(string $code): TaxCode
     {
         $taxCode = new TaxCode();
-        $taxCode->apps_id = $this->app->getId();
+        $taxCode->apps_id = $this->kanvasApp->getId();
         $taxCode->companies_id = static::$cachedUser->getCurrentCompany()->getId();
         $taxCode->code = $code;
         $taxCode->name = 'Test Tax Code ' . $code;

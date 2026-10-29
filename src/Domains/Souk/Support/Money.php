@@ -25,7 +25,7 @@ final class Money
     {
         $scale = self::MINOR_UNIT_SCALE[strtoupper($currency)] ?? 2;
 
-        return (int) $amount->toScale($scale, RoundingMode::HALF_UP)->unscaledValue()->toInt();
+        return (int) $amount->toScale($scale, RoundingMode::HALF_UP)->getUnscaledValue()->toInt();
     }
 
     public static function roundCollect(BigDecimal $amount): BigDecimal
@@ -53,7 +53,7 @@ final class Money
             $base = $total->toScale($scale, RoundingMode::DOWN)->dividedBy($count, $scale, RoundingMode::DOWN);
             $remainder = $total->toScale($scale, RoundingMode::DOWN)->minus($base->multipliedBy($count));
 
-            $remainderCents = (int) $remainder->toScale($scale, RoundingMode::DOWN)->unscaledValue()->toInt();
+            $remainderCents = (int) $remainder->toScale($scale, RoundingMode::DOWN)->getUnscaledValue()->toInt();
             $unit = BigDecimal::ofUnscaledValue(1, $scale);
 
             $allocations = array_fill(0, $count, $base);
@@ -91,7 +91,7 @@ final class Money
         $remainderCents = (int) $total->toScale($scale, RoundingMode::DOWN)
             ->minus($distributed->toScale($scale, RoundingMode::DOWN))
             ->toScale($scale, RoundingMode::DOWN)
-            ->unscaledValue()
+            ->getUnscaledValue()
             ->toInt();
 
         arsort($remainders);

@@ -6,4 +6,6 @@ namespace Kanvas\Souk\Taxes\Exceptions;
 
 use RuntimeException;
 
-class IllegalTaxTransition extends RuntimeException {}
+class IllegalTaxTransition extends RuntimeException
+{
+}

@@ -9,9 +9,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxComponent;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxContext;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxResult;
+use Kanvas\Souk\Taxes\Enums\TaxStatusEnum;
 use Kanvas\Souk\Taxes\Models\OrderTaxComponent;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
-use Kanvas\Souk\Taxes\Enums\TaxStatusEnum;
 
 class PersistTaxSnapshotAction
 {

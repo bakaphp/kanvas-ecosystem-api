@@ -22,7 +22,6 @@ class CreateTaxRegistrationAction
         $this->assertNoOverlap();
 
         return DB::connection('commerce')->transaction(function () {
-
             $registration = new TaxRegistration();
             $registration->apps_id = $this->app->getId();
             $registration->jurisdiction_country = $this->data['jurisdiction_country'];

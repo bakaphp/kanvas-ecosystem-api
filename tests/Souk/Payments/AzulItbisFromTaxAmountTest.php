@@ -10,6 +10,7 @@ use Kanvas\Connectors\Azul\DataTransferObject\AzulPaymentRequest;
 use Kanvas\Connectors\Azul\DataTransferObject\AzulPaymentResponse;
 use Kanvas\Connectors\Azul\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Azul\Services\AzulService;
+use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Infrastructure\Processors\Azul\AzulProcessor;
@@ -116,6 +117,8 @@ final class AzulItbisFromTaxAmountTest extends TestCase
         $order->shouldReceive('getTotalTaxAmount')->andReturn($taxAmount);
         $order->shouldReceive('set')->andReturnUsing(function ($key, $value) use (&$store) {
             $store[$key] = $value;
+
+            return new AppsCustomFields();
         });
         $order->shouldReceive('get')->andReturnUsing(fn ($key) => $store[$key] ?? null);
 

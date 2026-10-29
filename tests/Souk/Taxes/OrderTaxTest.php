@@ -35,6 +35,14 @@ final class OrderTaxTest extends TestCase
         $this->kanvasApp = app(Apps::class);
     }
 
+    protected function tearDown(): void
+    {
+        $this->kanvasApp->set(ConfigurationEnum::TAX_ENGINE_ENABLED->value, 0);
+        $this->kanvasApp->set(ConfigurationEnum::TAX_FAIL_OPEN->value, 0);
+
+        parent::tearDown();
+    }
+
     private function createOrder(array $overrides = []): Order
     {
         $user = auth()->user();
@@ -169,8 +177,5 @@ final class OrderTaxTest extends TestCase
         $provider = $resolver->resolveFromSnapshot($snapshot);
 
         $this->assertInstanceOf(NullTaxProvider::class, $provider);
-
-        $this->kanvasApp->set(ConfigurationEnum::TAX_ENGINE_ENABLED->value, 0);
-        $this->kanvasApp->set(ConfigurationEnum::TAX_FAIL_OPEN->value, 0);
     }
 }

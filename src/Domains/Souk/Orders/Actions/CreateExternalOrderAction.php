@@ -56,7 +56,6 @@ class CreateExternalOrderAction
         $orderItemsCollection[] = $orderItem;
         $total = $orderItem->getTotal();
 
-
         $people = PeoplesRepository::getByEmail($order->user->email, $order->company, $order->app);
         if (! $people) {
             $contacts = [

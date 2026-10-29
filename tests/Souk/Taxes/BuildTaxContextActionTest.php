@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Souk\Taxes;
 
+use Kanvas\Souk\Taxes\DataTransferObject\TaxableLine;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxAddress;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxContext;
-use Kanvas\Souk\Taxes\DataTransferObject\TaxableLine;
 use Tests\TestCaseUnit;
 
 final class BuildTaxContextActionTest extends TestCaseUnit
