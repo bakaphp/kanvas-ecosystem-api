@@ -29,4 +29,10 @@ enum CustomFieldEnum: string
     case ZOHO_MESSAGE_SYNC_FILES = 'ZOHO_MESSAGE_SYNC_FILES';
     case ZOHO_DEAL_SYNC_FILES = 'ZOHO_DEAL_SYNC_FILES';
     case ZOHO_DEAL_PULLED_ATTACHMENTS = 'ZOHO_DEAL_PULLED_ATTACHMENTS';
+
+    /**
+     * Company map of Zoho lead field => URL template. Placeholders: {zoho_lead_id}, {lead_id},
+     * {lead_uuid}. Written in a second call after the create, since the Zoho id doesn't exist before.
+     */
+    case ZOHO_LEAD_ID_LINK_FIELDS = 'ZOHO_LEAD_ID_LINK_FIELDS';
 }
