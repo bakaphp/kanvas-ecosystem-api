@@ -13,6 +13,7 @@ use Kanvas\Souk\Taxes\Activities\RecordOrderInScribeActivity;
 use Kanvas\Souk\Taxes\Enums\ConfigurationEnum;
 use Kanvas\Souk\Taxes\Models\OrderTaxComponent;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
+use Kanvas\Workflow\Models\StoredWorkflow;
 use Mockery;
 use Mockery\MockInterface;
 use Tests\Scribe\ScribeTestCase;
@@ -25,6 +26,11 @@ final class RecordOrderInScribeActivityTest extends ScribeTestCase
     {
         Mockery::close();
         parent::tearDown();
+    }
+
+    private function activity(): RecordOrderInScribeActivity
+    {
+        return new RecordOrderInScribeActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), []);
     }
 
     public function testSkipsWhenSettingOff(): void
@@ -44,7 +50,7 @@ final class RecordOrderInScribeActivityTest extends ScribeTestCase
             ->with('company')
             ->andReturn($company);
 
-        $activity = new RecordOrderInScribeActivity();
+        $activity = $this->activity();
         $result = $activity->execute($order, $app, []);
 
         $this->assertSame('scribe sync disabled', $result['message']);
@@ -60,7 +66,7 @@ final class RecordOrderInScribeActivityTest extends ScribeTestCase
 
         $order = $this->buildOrderWithItem(subtotal: 100.0, lineTax: 18.0, quantity: 1);
 
-        $result = new RecordOrderInScribeActivity()->execute($order, $app, []);
+        $result = $this->activity()->execute($order, $app, []);
 
         $this->assertSame('receipt recorded', $result['message']);
         $this->assertSame($order->uuid, $result['external_id']);
@@ -89,7 +95,7 @@ final class RecordOrderInScribeActivityTest extends ScribeTestCase
             shippingTax: 1.8,
         );
 
-        new RecordOrderInScribeActivity()->execute($order, $app, []);
+        $this->activity()->execute($order, $app, []);
 
         $receipt = $this->receiptFor($order);
 
@@ -106,7 +112,7 @@ final class RecordOrderInScribeActivityTest extends ScribeTestCase
 
         $order = $this->buildOrderWithItem(subtotal: 50.0, lineTax: 5.0, quantity: 1);
 
-        $activity = new RecordOrderInScribeActivity();
+        $activity = $this->activity();
 
         $first = $activity->execute($order, $app, []);
         $this->assertSame('receipt recorded', $first['message']);
@@ -133,7 +139,7 @@ final class RecordOrderInScribeActivityTest extends ScribeTestCase
 
         $order = $this->buildImportedOrder(subtotal: 200.0, taxAmount: 36.0);
 
-        $activity = new RecordOrderInScribeActivity();
+        $activity = $this->activity();
         $result = $activity->execute($order, $app, []);
 
         $this->assertSame('receipt recorded', $result['message']);

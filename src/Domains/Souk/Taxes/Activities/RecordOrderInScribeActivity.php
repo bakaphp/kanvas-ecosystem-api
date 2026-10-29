@@ -89,7 +89,7 @@ class RecordOrderInScribeActivity extends KanvasActivity implements WorkflowActi
                 currency: $order->currency ?? 'USD',
                 fx_rate_to_base: 1.0,
                 external_id: $externalId,
-                source: 'souk',
+                source: 'kanvas',
             ),
         )->execute();
 
