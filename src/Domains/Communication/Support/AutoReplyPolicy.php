@@ -13,8 +13,8 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 
 /**
- * Which agent, if any, answers inbound on a channel. Never an onboarding input: communication works
- * without an agent, and the answer only changes when someone sets one of these on purpose.
+ * Which agent, if any, answers inbound on a channel. Communication works without an agent; company
+ * setup names the company's Sally unless the company already names one.
  */
 final class AutoReplyPolicy
 {

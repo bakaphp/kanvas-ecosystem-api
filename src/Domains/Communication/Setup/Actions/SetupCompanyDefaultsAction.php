@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Connections\Exceptions\SetupBlockedException;
 use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Communication\Setup\Enums\SetupSettingEnum;
+use Kanvas\Communication\Support\AutoReplyPolicy;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -20,8 +21,8 @@ use Kanvas\Intelligence\FollowUp\Actions\ClonePipelineWithFollowUpsAction;
 
 /**
  * What a company needs before a channel can be switched on for it: its own agents, copied from the
- * app's global ones, each with a user of its own; its lead types with their follow-up config; and a
- * copy of the app's follow-up pipeline. Only creates what is missing, so it runs on every setup
+ * app's global ones, each with a user of its own; its Sally as the agent that answers inbound; its
+ * lead types with their follow-up config; and a copy of the app's follow-up pipeline. Only creates what is missing, so it runs on every setup
  * pass; a company's own agent, lead type config or follow-up is never touched.
  */
 final class SetupCompanyDefaultsAction
@@ -53,6 +54,8 @@ final class SetupCompanyDefaultsAction
             $agents[] = $name;
         }
 
+        $this->setupAutoReplyAgent();
+
         new GuildSetup($this->app, $this->company->user, $this->company)->setupLeadTypes();
         $leadTypesConfigured = $this->setupLeadTypeConfigs();
 
@@ -65,6 +68,23 @@ final class SetupCompanyDefaultsAction
                 ? $this->cloneFollowUpPipeline($followUpPipeline)
                 : null,
         ];
+    }
+
+    /**
+     * Here and not with the other switches: the integration's auto-reply rule is made right after
+     * this, and only for a company that names the agent answering it.
+     */
+    private function setupAutoReplyAgent(): void
+    {
+        if ($this->company->get(AutoReplyPolicy::SETTING) !== null) {
+            return;
+        }
+
+        $sally = DefaultAgentEnum::SALLY->of($this->app, $this->company);
+
+        if ($sally !== null) {
+            $this->company->set(AutoReplyPolicy::SETTING, $sally->getId());
+        }
     }
 
     /**
