@@ -13,12 +13,10 @@ use Kanvas\Guild\Customers\Enums\ConsentSignalEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\ConsentKeywordService;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
-use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Actions\HandOffAction;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Enums\HandOffTypeEnum;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
 use Throwable;
 
 /**
@@ -118,8 +116,7 @@ final class ApplyDoNotContactAction
 
         // AI_MODE alone does not hold: resolveAiMode() lets the lead-type config outrank the stored
         // mode unless the manual flag is set, so a muted lead would quietly start replying again.
-        $lead->set(IntelligenceConfigurationEnum::AI_MODE->value, IntelligenceModeEnum::IDLE->value);
-        $lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
+        new ApplyLeadAiModeAction($lead, 7)->execute();
 
         return true;
     }
