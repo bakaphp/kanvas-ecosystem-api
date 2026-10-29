@@ -13,12 +13,12 @@ use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Baka\Validations\EmailDomain;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Analytics\Reporting\Observers\ReportSourceObserver;
@@ -37,7 +37,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Observers\OrganizationObserver;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
-use Kanvas\Intelligence\Knowledge\Research\Enums\PublicEmailDomainEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -231,7 +230,7 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
         $domains = $current;
 
         foreach ($values as $value) {
-            $domain = self::normalizeEmailDomain($value);
+            $domain = EmailDomain::companyDomain($value);
             if ($domain !== null && ! in_array($domain, $domains, true)) {
                 $domains[] = $domain;
             }
@@ -256,7 +255,7 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
      */
     public static function findByEmailDomain(AppInterface $app, CompanyInterface $company, string $email): Collection
     {
-        $domain = self::normalizeEmailDomain($email);
+        $domain = EmailDomain::companyDomain($email);
         if ($domain === null) {
             return collect();
         }
@@ -278,33 +277,6 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
             ->limit(10)
             ->get()
             ->collect();
-    }
-
-    /**
-     * Accepts an email, a URL or a bare domain, and returns the host a colleague's email would carry.
-     * Null for anything that can't identify one company: an empty value, a host with no dot, or a
-     * free-mail provider (thousands of unrelated people share gmail.com).
-     */
-    public static function normalizeEmailDomain(?string $value): ?string
-    {
-        $value = Str::lower(trim((string) $value));
-
-        if (str_contains($value, '@')) {
-            $value = Str::afterLast($value, '@');
-        } elseif (str_contains($value, '/') || str_contains($value, ':')) {
-            $value = (string) parse_url(preg_match('#^[a-z][a-z0-9+.-]*://#', $value) ? $value : 'https://' . $value, PHP_URL_HOST);
-        }
-
-        $domain = trim($value, " .\t\n\r\0\x0B<>\"'");
-        if (str_starts_with($domain, 'www.')) {
-            $domain = substr($domain, 4);
-        }
-
-        if ($domain === '' || ! str_contains($domain, '.') || preg_match('/[^a-z0-9.-]/', $domain)) {
-            return null;
-        }
-
-        return PublicEmailDomainEnum::isPublic($domain) ? null : $domain;
     }
 
     /**
