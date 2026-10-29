@@ -13,9 +13,9 @@ use Kanvas\Connectors\Salesforce\Actions\PullAllPeopleAction;
 use Kanvas\Connectors\Salesforce\Jobs\SalesforceBackfillImportJob;
 
 /**
- * Bulk-pulls Accounts/Contacts from a company's Salesforce org and dispatches
- * `SalesforceBackfillImportJob` to upsert them into Kanvas via the existing
- * `PullOrganizationAction`/`PullPeopleAction` pipeline.
+ * Bulk-pulls Accounts (with their email domains, see PullAllOrganizationsAction) and Contacts
+ * from a company's Salesforce org and dispatches `SalesforceBackfillImportJob` to upsert them into
+ * Kanvas via the existing `PullOrganizationAction`/`PullPeopleAction` pipeline.
  *
  * Recommended (not enforced): run Account before Contact — `PullPeopleAction` links a Contact to
  * its Organization only if that Organization is already synced; running Contact first just skips
@@ -27,6 +27,13 @@ use Kanvas\Connectors\Salesforce\Jobs\SalesforceBackfillImportJob;
 class SalesforceBackfillCommand extends Command
 {
     use KanvasJobsTrait;
+
+    /**
+     * One queue payload per batch instead of the whole org: 10,000 Accounts with their contact
+     * emails nested in is a multi-MB Redis entry and an OOM risk in the worker.
+     * OdooBackfillCommand still dispatches in one piece.
+     */
+    private const int DISPATCH_CHUNK_SIZE = 500;
 
     protected $signature = 'kanvas:salesforce-backfill {app_id} {company_id} {--objects=Account,Contact}';
 
@@ -54,17 +61,14 @@ class SalesforceBackfillCommand extends Command
         return self::SUCCESS;
     }
 
-    // TODO: chunk both dispatches below. The whole result set goes into a single queue payload,
-    // so a large Salesforce org means a multi-MB Redis entry and an OOM risk in the worker —
-    // array_chunk before dispatch. OdooBackfillCommand has the same problem.
     private function backfillOrganizations(Apps $app, Companies $company): void
     {
         $records = new PullAllOrganizationsAction($app, $company)->execute();
 
         $this->line('Pulled ' . count($records) . " Account(s) from Salesforce for company {$company->name}");
 
-        if (count($records) > 0) {
-            SalesforceBackfillImportJob::dispatch($app, $company, 'Account', $records);
+        foreach (array_chunk($records, self::DISPATCH_CHUNK_SIZE) as $chunk) {
+            SalesforceBackfillImportJob::dispatch($app, $company, 'Account', $chunk);
         }
     }
 
@@ -74,8 +78,8 @@ class SalesforceBackfillCommand extends Command
 
         $this->line('Pulled ' . count($records) . " Contact(s) from Salesforce for company {$company->name}");
 
-        if (count($records) > 0) {
-            SalesforceBackfillImportJob::dispatch($app, $company, 'Contact', $records);
+        foreach (array_chunk($records, self::DISPATCH_CHUNK_SIZE) as $chunk) {
+            SalesforceBackfillImportJob::dispatch($app, $company, 'Contact', $chunk);
         }
     }
 }
