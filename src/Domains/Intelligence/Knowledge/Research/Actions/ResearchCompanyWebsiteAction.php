@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Knowledge\Research\Actions;
 
+use Baka\Enums\PublicEmailDomainEnum;
 use Baka\Http\Exceptions\SsrfException;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
@@ -16,7 +17,6 @@ use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
 use Kanvas\Intelligence\Knowledge\Research\Agents\CompanyResearchAgent;
 use Kanvas\Intelligence\Knowledge\Research\DataTransferObject\CollectedPages;
 use Kanvas\Intelligence\Knowledge\Research\DataTransferObject\ResearchResult;
-use Kanvas\Intelligence\Knowledge\Research\Enums\PublicEmailDomainEnum;
 use Kanvas\Intelligence\Knowledge\Research\Services\CompanyProfileService;
 use Kanvas\Intelligence\Knowledge\Research\Services\WebsitePageCollector;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;

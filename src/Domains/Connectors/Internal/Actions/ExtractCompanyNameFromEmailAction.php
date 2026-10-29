@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Internal\Actions;
 
+use Baka\Enums\PublicEmailDomainEnum;
 use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use Kanvas\Intelligence\Knowledge\Research\Enums\PublicEmailDomainEnum;
 
 class ExtractCompanyNameFromEmailAction
 {
