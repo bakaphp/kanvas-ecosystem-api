@@ -181,6 +181,14 @@ services:
             - "-c"
             - "php artisan config:cache && exec php artisan queue:work --queue=ledger
               --tries=3 --timeout=3750"
+    onboarding-queue:
+        <<: *common-queue-settings
+        container_name: onboarding-queue
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && exec php artisan queue:work --queue=onboarding
+              --tries=3 --timeout=3750"
     slack-ingest-queue:
         <<: *common-queue-settings
         container_name: slack-ingest-queue

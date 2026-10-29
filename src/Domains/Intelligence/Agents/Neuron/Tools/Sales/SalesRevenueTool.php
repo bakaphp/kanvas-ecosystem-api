@@ -6,12 +6,14 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Sales;
 
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Souk\Orders\Models\Order;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -21,8 +23,10 @@ use Override;
 #[AgentTool(name: 'Sales Revenue', category: 'commerce')]
 class SalesRevenueTool extends Tool
 {
+    use GuardsRepeatCalls;
     use HasKanvasContext;
     use ReportsToolOutcome;
+    use TrackByInputs;
 
     protected string $name = 'sales_revenue';
 
@@ -45,10 +49,26 @@ class SalesRevenueTool extends Tool
         ];
     }
 
+    public function __construct()
+    {
+        $this->initRepeatGuard();
+    }
+
     /**
      * @return array<string, mixed>
      */
     public function __invoke(?string $since = null, ?string $until = null, ?bool $by_month = null): array
+    {
+        return $this->oncePerTurn(
+            ['since' => $since, 'until' => $until, 'by_month' => $by_month],
+            fn (): array => $this->report($since, $until, $by_month),
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function report(?string $since, ?string $until, ?bool $by_month): array
     {
         $base = fn (): Builder => Order::query()
             ->where('apps_id', $this->app->getId())

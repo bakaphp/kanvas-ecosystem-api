@@ -11,7 +11,9 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
+use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Users\Models\Users;
 
 /**
  * The People-only counterpart of SendMessageToLeadAction's email path, for a recipient that has no
@@ -35,6 +37,7 @@ class SendEmailToPeopleAction
 
     /**
      * @param  list<string>  $attachmentUrls
+     * @param  list<string>  $cc  already filtered by the caller; this action sends to whatever it is given
      */
     public function execute(
         string $to,
@@ -44,6 +47,8 @@ class SendEmailToPeopleAction
         ?string $templateName = null,
         bool $important = false,
         ?Agent $fromAgent = null,
+        ?Users $signatureOwner = null,
+        array $cc = [],
     ): array {
         if (trim($to) === '') {
             throw new ValidationException('People has no email address to send to');
@@ -51,6 +56,7 @@ class SendEmailToPeopleAction
 
         $subject ??= 'Message from ' . $this->people->company->name;
         $mailboxAddress = $fromAgent !== null ? new AgentMailboxService()->addressFor($fromAgent) : null;
+        $ownerSignature = UserEmailSignature::forSender($signatureOwner, $this->people->company, $fromAgent);
 
         if ($mailboxAddress !== null) {
             new SendAsAgentMailboxAction(
@@ -58,7 +64,9 @@ class SendEmailToPeopleAction
                 to: $to,
                 subject: $subject,
                 markdownBody: $message,
+                cc: $cc,
                 attachmentUrls: $attachmentUrls,
+                signature: $ownerSignature,
                 trackingPerson: $this->people,
             )->execute();
 
@@ -87,8 +95,12 @@ class SendEmailToPeopleAction
             $attachmentUrls !== [] ? $attachmentUrls : null,
         );
         $notification->setSubject($subject);
+        $notification->setUserSignature($ownerSignature);
         if ($important) {
             $notification->setImportant();
+        }
+        if ($cc !== []) {
+            $notification->setCc($cc);
         }
 
         Notification::route('mail', $to)->notify($notification);

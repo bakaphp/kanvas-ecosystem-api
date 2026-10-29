@@ -39,14 +39,19 @@ class GetBatchHistoryTool extends Tool
         return [
             new ToolProperty(name: 'campaign_id', type: PropertyType::INTEGER, description: 'A specific campaign id to inspect. Omit to list recent campaigns.', required: false),
             new ToolProperty(name: 'limit', type: PropertyType::INTEGER, description: 'How many recent campaigns to list. Default 10, max 50.', required: false),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(?int $campaign_id = null, ?int $limit = null): array
+    public function __invoke(?int $campaign_id = null, ?int $limit = null, ?int $tenant_company_id = null): array
     {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         if ($campaign_id !== null && $campaign_id > 0) {
             return $this->campaignDetail($campaign_id);
         }
@@ -55,7 +60,7 @@ class GetBatchHistoryTool extends Tool
 
         $campaigns = Campaign::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($this->auditedReadScope())
             ->notDeleted()
             ->orderByDesc('created_at')
             ->limit($limit)
@@ -65,16 +70,32 @@ class GetBatchHistoryTool extends Tool
             'status' => 'success',
             'count' => $campaigns->count(),
             'campaigns' => $campaigns->map(fn (Campaign $c): array => $this->summary($c))->all(),
+            ...$this->tenantScopeSummary(),
         ];
     }
 
     /**
+     * Resolved in the read scope: a read-only detail of a row the list may have returned from another
+     * company.
+     *
      * @return array<string, mixed>
      */
     private function campaignDetail(int $campaignId): array
     {
-        /** @var Campaign $campaign */
-        $campaign = Campaign::getByIdFromCompanyApp($campaignId, $this->company, $this->app);
+        /** @var Campaign|null $campaign */
+        $campaign = Campaign::query()
+            ->where('id', $campaignId)
+            ->fromApp($this->app)
+            ->fromCompany($this->auditedReadScope())
+            ->notDeleted()
+            ->first();
+
+        if ($campaign === null) {
+            return [
+                'status' => 'error',
+                'message' => sprintf('Campaign #%d was not found in your companies. Do not retry with the same id.', $campaignId),
+            ];
+        }
 
         $problems = $campaign->recipients()
             ->whereIn('status', ['failed', 'skipped'])
@@ -109,6 +130,7 @@ class GetBatchHistoryTool extends Tool
             'failed' => $campaign->failed_count,
             'skipped' => $campaign->skipped_count,
             'created_at' => $campaign->created_at?->toIso8601String(),
+            ...$this->tenantLabel($campaign),
         ];
     }
 }

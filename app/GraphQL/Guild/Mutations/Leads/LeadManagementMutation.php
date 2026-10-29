@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Leads;
 
+use App\GraphQL\Concerns\FiresAfterUploadWorkflow;
 use Baka\Contracts\AppInterface;
 use Baka\Support\IPInfo;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAttemptAction;
@@ -18,11 +18,10 @@ use Kanvas\Guild\Leads\DataTransferObject\Lead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadUpdateInput;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class LeadManagementMutation
 {
-    use HasMutationUploadFiles;
+    use FiresAfterUploadWorkflow;
 
     /**
      * Create new lead
@@ -139,7 +138,6 @@ class LeadManagementMutation
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        //$lead = ModelsLead::getByIdFromCompanyApp((int) $request['id'], $user->getCurrentCompany(), $app);
         $lead = $this->getLeadById(
             (int) $request['id'],
             $user,
@@ -147,43 +145,25 @@ class LeadManagementMutation
             $app
         );
 
-        if (! empty($request['params']['task_id'] ?? null)) {
-            $lead->set('checklist_upload', $request['params']['task_id']);
-            //$lead->tasks()->attach($request['params']['task_id']);
-            $lead->fireWorkflow(
-                WorkflowEnum::AFTER_UPLOAD->value,
-                true,
-                [
-                    'task_id' => $request['params']['task_id'],
-                    'app' => $app,
-                ]
-            );
-        }
-
         //@todo this is a hack , to remove , once frontend move the logic to upload directly to the people
+        $target = $lead;
         if (isset($request['params']['people_id']) && $request['params']['people_id'] != $lead->people_id) {
-            //override the lead with the people
-            $people = People::getByIdFromCompanyApp(
+            $target = People::getByIdFromCompanyApp(
                 id: (int) $request['params']['people_id'],
                 app: $app,
                 company: $user->getCurrentCompany()
             );
-            $this->uploadFileToEntity(
-                model: $people,
-                app: $app,
-                user: $user,
-                request: $request
-            );
-
-            return $lead;
         }
 
-        return $this->uploadFileToEntity(
-            model: $lead,
-            app: $app,
-            user: $user,
-            request: $request
+        $this->attachFilesThenFireAfterUpload(
+            $lead,
+            $target,
+            $app,
+            $user,
+            $request
         );
+
+        return $lead;
     }
 
     public function wonOrLost(mixed $root, array $req): ModelsLead

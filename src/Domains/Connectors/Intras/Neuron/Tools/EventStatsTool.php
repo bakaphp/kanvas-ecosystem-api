@@ -61,6 +61,7 @@ class EventStatsTool extends Tool
             new ToolProperty(name: 'hasta', type: PropertyType::STRING, description: 'Fecha final YYYY-MM-DD.', required: false),
             new ToolProperty(name: 'breakdown_by', type: PropertyType::STRING, description: 'Columna para desglosar, p. ej. "clase", "categoria", "estatus".', required: false),
             new ToolProperty(name: 'limit', type: PropertyType::INTEGER, description: 'Máximo de filas. Por defecto 25.', required: false),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -75,8 +76,13 @@ class EventStatsTool extends Tool
         ?string $desde = null,
         ?string $hasta = null,
         ?string $breakdown_by = null,
-        ?int $limit = null
+        ?int $limit = null,
+        ?int $tenant_company_id = null
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         if (! $this->hasTenantContext()) {
             return $this->tenantContextMissingError('event stats');
         }
@@ -110,7 +116,7 @@ class EventStatsTool extends Tool
             $totals = $service->aggregate(
                 $definition,
                 $this->app,
-                $this->company,
+                $this->auditedReadScope(),
                 AggregateRequest::fromInput(
                     aggregates: [['function' => 'COUNT', 'alias' => 'total']],
                     limit: 1
@@ -135,7 +141,7 @@ class EventStatsTool extends Tool
                 $result['breakdown'] = $service->aggregate(
                     $definition,
                     $this->app,
-                    $this->company,
+                    $this->auditedReadScope(),
                     AggregateRequest::fromInput(
                         aggregates: [['function' => 'COUNT', 'alias' => 'total']],
                         groupBy: [$breakdown_by],
@@ -172,10 +178,10 @@ class EventStatsTool extends Tool
         $grouped = $service->aggregate(
             $definition,
             $this->app,
-            $this->company,
+            $this->auditedReadScope(),
             AggregateRequest::fromInput(
                 aggregates: [['function' => 'COUNT', 'alias' => 'versiones']],
-                groupBy: ['evento'],
+                groupBy: [...$this->tenantGroupBy(), 'evento'],
                 orderBy: 'versiones',
                 limit: ReportQueryService::MAX_LIMIT
             ),

@@ -166,6 +166,65 @@ class OpenCodeHarnessTest extends TestCase
     }
 
     /**
+     * Captured from 2.0.16 against a provider answering 402: the idle is bare, the error sits on the
+     * assistant message it ended.
+     */
+    public function testAProviderErrorOnTheAssistantMessageIsSurfacedWhenTheIdleCarriesNone(): void
+    {
+        $tick = $this->harness([
+            'message' => $this->page(
+                [
+                    $this->assistantMessage(createdAt: 1000, text: 'editing StepOne.tsx'),
+                    $this->assistantMessage(
+                        createdAt: 1100,
+                        text: '',
+                        error: ['type' => 'provider.quota', 'message' => 'This request requires more credits', 'status' => 402]
+                    ),
+                ],
+                idle: ['type' => 'idle', 'time' => ['created' => 1200], 'outcome' => 'failed']
+            ),
+        ])->poll($this->taskSession());
+
+        $this->assertSame(HarnessStatusEnum::FAILED, $tick->status);
+        $this->assertSame('provider.quota (HTTP 402): This request requires more credits', $tick->error);
+    }
+
+    public function testAnErrorOnTheIdleMessageWinsOverTheAssistantMessage(): void
+    {
+        $tick = $this->harness([
+            'message' => $this->page(
+                [$this->assistantMessage(createdAt: 1000, text: '', error: ['type' => 'provider.quota', 'message' => 'older'])],
+                idle: [
+                    'type' => 'idle',
+                    'time' => ['created' => 1200],
+                    'outcome' => 'failed',
+                    'error' => ['type' => 'unknown', 'message' => 'Failed to drain Session'],
+                ]
+            ),
+        ])->poll($this->taskSession());
+
+        $this->assertSame('unknown: Failed to drain Session', $tick->error);
+    }
+
+    public function testAResumedTurnDoesNotReportTheErrorOfTheTurnItsPauseAborted(): void
+    {
+        $session = $this->taskSession();
+        $session->turn_offset = 1;
+
+        $tick = $this->harness([
+            'message' => $this->page([
+                $this->assistantMessage(createdAt: 1000, text: '', error: ['type' => 'provider.quota', 'message' => 'no credits']),
+                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'failed'],
+                $this->assistantMessage(createdAt: 2000, text: 'resumed'),
+                ['type' => 'idle', 'time' => ['created' => 2100], 'outcome' => 'interrupted'],
+            ], idle: null),
+        ])->poll($session);
+
+        $this->assertSame(HarnessStatusEnum::FAILED, $tick->status);
+        $this->assertSame('the run ended as "interrupted"', $tick->error);
+    }
+
+    /**
      * The endpoint caps a page at 100. One page misses a long run's closing `idle` — so it can only end
      * at the time limit — and every token after message 100.
      */
@@ -413,21 +472,30 @@ class OpenCodeHarnessTest extends TestCase
 
     /**
      * @param array<string, mixed>|null $tokens
+     * @param array<string, mixed>|null $error  `Session.StructuredError`; sets `finish: error` as the runtime does
      * @return array<string, mixed>
      */
     private function assistantMessage(
         int $createdAt,
         string $text,
         string $model = 'gpt-4.1',
-        ?array $tokens = null
+        ?array $tokens = null,
+        ?array $error = null
     ): array {
-        return [
+        $message = [
             'type' => 'assistant',
             'model' => ['id' => $model, 'providerID' => 'oai'],
             'tokens' => $tokens ?? ['input' => 10, 'output' => 5, 'reasoning' => 0, 'cache' => ['read' => 0, 'write' => 0]],
             'cost' => 0,
             'time' => ['created' => $createdAt, 'completed' => $createdAt + 100],
-            'content' => [['type' => 'text', 'text' => $text]],
+            'content' => $text === '' ? [] : [['type' => 'text', 'text' => $text]],
         ];
+
+        if ($error !== null) {
+            $message['finish'] = 'error';
+            $message['error'] = $error;
+        }
+
+        return $message;
     }
 }

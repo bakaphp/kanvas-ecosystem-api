@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Plan\Actions;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\NervousSystem\Capability\Services\CapabilityGapAlertService;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\Users\Models\Users;
 
 /**
  * Turns "nobody has built this" into a row somebody owns.
@@ -33,6 +38,10 @@ class RecordCapabilityGapAction
      * @param list<string> $consideredTools Related tools the caller was shown before filing.
      * @param string|null $whyNotFit Why none of them cover this — recorded so whoever reads the
      *        roadmap item sees the argument, not just the request.
+     * @param Users|null $requestedBy The person whose ask this was, when a human was at the keyboard —
+     *        not the agent's own user, which is who files it.
+     * @param Session|null $session The conversation the ask came from.
+     * @param Lead|null $lead The record the conversation was about, when there was one.
      */
     public function __construct(
         private readonly Agent $agent,
@@ -40,6 +49,9 @@ class RecordCapabilityGapAction
         private readonly ?string $context = null,
         private readonly array $consideredTools = [],
         private readonly ?string $whyNotFit = null,
+        private readonly ?Users $requestedBy = null,
+        private readonly ?Session $session = null,
+        private readonly ?Lead $lead = null,
     ) {
     }
 
@@ -57,10 +69,17 @@ class RecordCapabilityGapAction
             ->get()
             ->first(fn (Plan $plan): bool => ($plan->input['topic_slug'] ?? null) === $slug);
 
-        if ($existing instanceof Plan) {
-            return $this->bumpRequestCount($existing);
-        }
+        $plan = $existing instanceof Plan
+            ? $this->bumpRequestCount($existing)
+            : $this->file($topic, $slug);
 
+        new CapabilityGapAlertService($this->agent->app)->send($plan);
+
+        return $plan;
+    }
+
+    private function file(string $topic, string $slug): Plan
+    {
         $plan = Plan::create([
             'apps_id' => $this->agent->apps_id,
             'companies_id' => $this->agent->companies_id,
@@ -82,6 +101,7 @@ class RecordCapabilityGapAction
                 'first_requested_by_agent_id' => $this->agent->getId(),
                 'considered_tools' => $this->consideredTools,
                 'why_not_fit' => $this->whyNotFit,
+                'last_request' => $this->lastRequest(),
             ],
         ]);
 
@@ -99,7 +119,7 @@ class RecordCapabilityGapAction
         $input = is_array($plan->input) ? $plan->input : [];
         $count = (int) ($input['request_count'] ?? 1) + 1;
 
-        $plan->input = [...$input, 'request_count' => $count];
+        $plan->input = [...$input, 'request_count' => $count, 'last_request' => $this->lastRequest()];
         $plan->saveQuietly();
 
         $plan->emitLedgerEvent('plan.capability_gap.requested_again', payload: [
@@ -109,5 +129,25 @@ class RecordCapabilityGapAction
         ]);
 
         return $plan;
+    }
+
+    /**
+     * Who asked, from where, and what for — kept on the plan so a repeat overwrites it with the
+     * latest ask, and the alert email can say more than the topic.
+     *
+     * @return array<string, mixed>
+     */
+    private function lastRequest(): array
+    {
+        return [
+            'requested_at' => Carbon::now()->toIso8601String(),
+            'context' => $this->context,
+            'requested_by_users_id' => $this->requestedBy?->getId(),
+            'requested_by_name' => $this->requestedBy?->fullName(),
+            'requested_by_email' => $this->requestedBy?->email,
+            'session_id' => $this->session?->getId(),
+            'channel' => $this->session?->channel?->name ?? $this->session?->getChannel(),
+            'lead_id' => $this->lead?->getId(),
+        ];
     }
 }

@@ -15,6 +15,7 @@ use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Exceptions\MissingParticipantPeopleIdException;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -61,6 +62,29 @@ final class LeadChannelFilesTest extends TestCase
         $this->assertSame('Matthew Cook', $group['participant_name']);
         $this->assertSame('submitted', $group['status']);
         $this->assertSame('id-verification', $group['files'][0]['field_name']);
+    }
+
+    public function testFileCarriesTheUuidOfItsPivotRowForDeAttach(): void
+    {
+        $lead = $this->makeLead();
+        $message = $this->makeIdVerificationMessage($lead);
+
+        $file = $this->groupFor($lead, $message)['files'][0];
+        $pivot = $message->getFiles()->firstOrFail();
+
+        $this->assertSame($pivot->uuid, $file['attachment_uuid']);
+        $this->assertSame((string) $pivot->id, $file['id']);
+    }
+
+    public function testPivotRowWithoutUuidReportsNullNotAnEmptyString(): void
+    {
+        $lead = $this->makeLead();
+        $message = $this->makeIdVerificationMessage($lead);
+        FilesystemEntities::where('id', $message->getFiles()->firstOrFail()->id)->update(['uuid' => null]);
+
+        $file = $this->groupFor($lead, $message)['files'][0];
+
+        $this->assertNull($file['attachment_uuid']);
     }
 
     public function testMainBuyerEngagementHasNoParticipantSuffix(): void

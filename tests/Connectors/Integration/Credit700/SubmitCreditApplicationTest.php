@@ -40,7 +40,7 @@ final class SubmitCreditApplicationTest extends TestCase
                 'state' => ['code' => 'IL'],
                 'zip_code' => '60601',
                 'residence_type' => 'Rent',
-                'rent' => 1800,
+                'rent' => 1850.5,
                 'time_at_address' => '1.2',
                 'previous_address' => '4605 riverbend Ct.',
                 'previous_city' => 'Tifton',
@@ -88,16 +88,16 @@ final class SubmitCreditApplicationTest extends TestCase
         $this->assertSame(6500.0, $application->monthlyIncome);
         $this->assertSame('Rent', $application->housingType);
         $this->assertSame('IL', $application->driversLicenseState);
-        $this->assertSame(14, $application->currentAddressPeriod);
+        $this->assertSame(1, $application->currentAddressPeriod);
         $this->assertSame('4605 riverbend Ct.', $application->previousAddress);
         $this->assertSame('Tifton', $application->previousCity);
         $this->assertSame('GA', $application->previousState);
         $this->assertSame('31794', $application->previousZip);
-        $this->assertSame(88, $application->previousAddressPeriod);
+        $this->assertSame(7, $application->previousAddressPeriod);
         $this->assertSame('312-555-0000', $application->phone);
         $this->assertSame('312-555-1234', $application->mobileNumber);
         $this->assertSame('XYZ Corp', $application->previousEmployer);
-        $this->assertSame(2, $application->previousEmploymentYears);
+        $this->assertSame(3, $application->previousEmploymentYears);
         $this->assertSame('Assistant Manager', $application->previousEmploymentTitle);
         $this->assertSame('312-555-8888', $application->previousWorkPhone);
     }
@@ -123,8 +123,43 @@ final class SubmitCreditApplicationTest extends TestCase
     {
         return [
             'whole years, no month remainder' => ['3.0', 3],
-            'years and months, converts to total months' => ['1.4', 16],
+            'months under half a year round down' => ['5.4', 5],
+            'months over half a year round up' => ['5.7', 6],
+            'under a year rounds to zero' => ['0.3', 0],
             'empty duration' => ['', null],
+        ];
+    }
+
+    #[DataProvider('monthlyIncomeProvider')]
+    public function testFromFormConvertsIncomeToMonthly(mixed $grossIncome, ?string $interval, ?float $expected): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+
+        $formData = $this->formData();
+        $formData['financial']['gross_income'] = $grossIncome;
+        $formData['financial']['income_interval'] = $interval;
+
+        $this->assertSame(
+            $expected,
+            CreditApplication::from($formData, $people)->monthlyIncome
+        );
+    }
+
+    public static function monthlyIncomeProvider(): array
+    {
+        return [
+            'monthly passes through' => [6500, 'monthly', 6500.0],
+            'yearly divided by twelve' => [78000, 'yearly', 6500.0],
+            'annual alias' => ['78000', 'Annually', 6500.0],
+            'bi-weekly, 26 pay periods' => [3000, 'bi-weekly', 6500.0],
+            'weekly, 52 pay periods' => [1500, 'weekly', 6500.0],
+            'yearly rounds to whole dollars' => [50000, 'yearly', 4167.0],
+            'large yearly stays within the 7 character cap' => [155000, 'yearly', 12917.0],
+            'missing interval treated as monthly' => [6500, null, 6500.0],
+            'missing income stays null' => ['', 'yearly', null],
         ];
     }
 
@@ -215,16 +250,17 @@ final class SubmitCreditApplicationTest extends TestCase
         $this->assertSame('test_account', $capturedPayload['ACCOUNT']);
         $this->assertSame('123-45-6789', $capturedPayload['SSN']);
         $this->assertSame('6500', $capturedPayload['MINCOME']);
-        $this->assertSame('14', $capturedPayload['CURRENTADDRESSPERIOD']);
+        $this->assertSame('1851', $capturedPayload['HOUSINGPAY']);
+        $this->assertSame('1', $capturedPayload['CURRENTADDRESSPERIOD']);
         $this->assertSame('4605 riverbend Ct.', $capturedPayload['PREVADDRESS']);
         $this->assertSame('Tifton', $capturedPayload['PREVCITY']);
         $this->assertSame('GA', $capturedPayload['PREVSTATE']);
         $this->assertSame('31794', $capturedPayload['PREVZIP']);
-        $this->assertSame('88', $capturedPayload['PREVADDRESSPERIOD']);
+        $this->assertSame('7', $capturedPayload['PREVADDRESSPERIOD']);
         $this->assertSame('312-555-0000', $capturedPayload['PHONE']);
         $this->assertSame('312-555-1234', $capturedPayload['MOBILE']);
         $this->assertSame('XYZ Corp', $capturedPayload['PREVEMPLOYER']);
-        $this->assertSame('2', $capturedPayload['PREVEMPLOYMENTYEARS']);
+        $this->assertSame('3', $capturedPayload['PREVEMPLOYMENTYEARS']);
         $this->assertSame('Assistant Manager', $capturedPayload['PREVOCCUPATION']);
         $this->assertSame('312-555-8888', $capturedPayload['PREVWORKPHONE']);
         $this->assertArrayNotHasKey('PURCHASEPRICE', $capturedPayload);

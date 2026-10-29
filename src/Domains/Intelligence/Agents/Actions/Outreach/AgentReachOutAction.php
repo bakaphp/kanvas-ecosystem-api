@@ -54,7 +54,7 @@ class AgentReachOutAction
         }
 
         // === Active-lead guard ===
-        // Only reach out to open leads (status < 2). A lead already closed
+        // Only reach out to open leads (named status). A lead already closed
         // (won/lost/inactive) must not receive an outbound agent touch even if a
         // workflow rule re-fires CREATED on it.
         if (! $this->lead->isOpen()) {

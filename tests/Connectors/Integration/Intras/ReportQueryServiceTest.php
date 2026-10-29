@@ -10,6 +10,7 @@ use Kanvas\Analytics\Reporting\Services\ReportQueryService;
 use Kanvas\Analytics\Reporting\Services\ReportSchemaService;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Connectors\Intras\Reporting\InscripcionDefinition;
 use Kanvas\Exceptions\ValidationException;
 use Tests\TestCase;
@@ -219,6 +220,80 @@ class ReportQueryServiceTest extends TestCase
         $this->expectException(ValidationException::class);
 
         new ReportFilter('nivel', 'REGEXP', '.*');
+    }
+
+    /**
+     * An agent granted two companies reads both in one query, every row says which company it came
+     * from, and a one-company scope is still an equality — never the app-wide read.
+     */
+    public function test_a_company_scope_reads_every_company_in_it_and_labels_the_rows(): void
+    {
+        $this->seedRowForTheOtherCompany();
+        $scope = CompanyScope::withCompanies($this->kanvasApp, $this->company, [self::COMPANY + 1]);
+
+        $this->assertSame(4, $this->service->count($this->definition, $this->kanvasApp, $scope)['rows']);
+        $this->assertSame(3, $this->service->count($this->definition, $this->kanvasApp, CompanyScope::ownCompanyOnly($this->kanvasApp, $this->company))['rows']);
+
+        $rows = $this->service->search(
+            $this->definition,
+            $this->kanvasApp,
+            $scope,
+            select: ['inscripcion_id'],
+            orderBy: 'inscripcion_id',
+        );
+
+        $this->assertSame(
+            [self::COMPANY, self::COMPANY, self::COMPANY, self::COMPANY + 1],
+            array_map(fn (array $row) => (int) $row['tenant_company_id'], $rows),
+            'the tenant column is added to an explicit select and labelled'
+        );
+        $this->assertArrayHasKey('tenant_company', $rows[0]);
+
+        $byCompany = $this->service->aggregate(
+            $this->definition,
+            $this->kanvasApp,
+            $scope,
+            AggregateRequest::fromInput(
+                aggregates: [['function' => 'COUNT', 'alias' => 'total']],
+                groupBy: ['companies_id'],
+                orderBy: 'total',
+            ),
+        );
+
+        $this->assertSame(
+            [[self::COMPANY, 3], [self::COMPANY + 1, 1]],
+            array_map(fn (array $row) => [(int) $row['tenant_company_id'], (int) $row['total']], $byCompany),
+        );
+
+        $combined = $this->service->aggregate(
+            $this->definition,
+            $this->kanvasApp,
+            $scope,
+            AggregateRequest::fromInput(aggregates: [['function' => 'COUNT', 'alias' => 'total']], limit: 1),
+        );
+
+        $this->assertSame(4, (int) $combined[0]['total']);
+        $this->assertArrayNotHasKey('tenant_company_id', $combined[0], 'a combined total is not labelled as one company');
+    }
+
+    private function seedRowForTheOtherCompany(): void
+    {
+        new ReportSchemaService()->connection()
+            ->table(new ReportSchemaService()->tableFor($this->definition, $this->kanvasApp->getId()))
+            ->insert([
+                'inscripcion_id' => 4,
+                'companies_id' => self::COMPANY + 1,
+                'peoples_id' => 9901,
+                'pa_code' => '41000',
+                'nombre_completo' => 'Otra Agencia',
+                'nivel' => 'Ejecutivo',
+                'tipo' => 'Seminario',
+                'es_asistente' => 1,
+                'cupos' => 1,
+                'fecha_inicio' => '2026-03-01',
+                'fechas' => json_encode(['2026-03-01']),
+                'refreshed_at' => date('Y-m-d H:i:s'),
+            ]);
     }
 
     private function seedRows(): void

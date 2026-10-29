@@ -17,8 +17,6 @@ class SystemModulesServices
             }
         }
 
-        $requiredFields[] = 'handler';
-
         $missing = array_diff($requiredFields, array_keys($mapperFields));
 
         if (! empty($missing)) {

@@ -30,6 +30,7 @@ class GetOrderPaymentStatsAction
         protected ?string $orderNumber = null,
         protected ?array $metadataFilter = null,
         protected ?CompanyInterface $company = null,
+        protected ?array $orderIds = null,
     ) {
         $this->repository = new OrderPaymentRepository($app, $company);
 
@@ -93,6 +94,7 @@ class GetOrderPaymentStatsAction
             $this->reference,
             $this->orderNumber,
             $this->metadataFilter,
+            $this->orderIds,
         );
 
         $daysInRange = collect(DateHelper::generateDateList($start, $end, $timezone))
@@ -187,6 +189,7 @@ class GetOrderPaymentStatsAction
             $this->reference,
             $this->orderNumber,
             $this->metadataFilter,
+            $this->orderIds,
         );
 
         return $rows->map(fn ($row) => [
@@ -238,6 +241,7 @@ class GetOrderPaymentStatsAction
             $this->reference,
             $this->orderNumber,
             $this->metadataFilter,
+            $this->orderIds,
         );
 
         if ($orderIds->isEmpty()) {

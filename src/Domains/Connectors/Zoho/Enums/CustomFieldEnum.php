@@ -27,4 +27,13 @@ enum CustomFieldEnum: string
     case ZOHO_DEAL_FIELDS_MAP = 'ZOHO_DEAL_FIELDS_MAP';
     case ZOHO_DEAL_RAW = 'ZOHO_DEAL_RAW';
     case ZOHO_MESSAGE_SYNC_FILES = 'ZOHO_MESSAGE_SYNC_FILES';
+    case ZOHO_DEAL_SYNC_FILES = 'ZOHO_DEAL_SYNC_FILES';
+    case ZOHO_DEAL_PULLED_ATTACHMENTS = 'ZOHO_DEAL_PULLED_ATTACHMENTS';
+
+    /**
+     * Company maps of Zoho field => URL template, one per module. Placeholders: {zoho_lead_id},
+     * {lead_id}, {lead_uuid} (deal: {zoho_deal_id}, {deal_id}, {deal_uuid}).
+     */
+    case ZOHO_LEAD_ID_LINK_FIELDS = 'ZOHO_LEAD_ID_LINK_FIELDS';
+    case ZOHO_DEAL_ID_LINK_FIELDS = 'ZOHO_DEAL_ID_LINK_FIELDS';
 }

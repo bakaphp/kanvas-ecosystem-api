@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
 
+use Baka\Support\Str;
 use Baka\Validations\Date;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Str;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
@@ -47,9 +47,10 @@ class ImportProductFromFilesystemAction
         // AbstractImporterJob::iterateImporterRows() — neither this action
         // nor the worker materializes the full payload in memory.
         //
-        // Assumption: the CSV is sorted by handler so all variants of a
-        // product are contiguous. We detect violations and fail with a clear
-        // error rather than silently producing duplicate products.
+        // Assumption: the CSV is sorted by handler (product_name when no handler
+        // is mapped) so all variants of a product are contiguous. We detect
+        // violations and fail with a clear error rather than silently producing
+        // duplicate products.
         $jsonlPath = $this->streamCsvToJsonl();
 
         try {
@@ -149,7 +150,10 @@ class ImportProductFromFilesystemAction
                     ];
                 }
 
-                $handler = (string) ($variant['handler'] ?? '');
+                // handler is optional: rows without one group by product name, so a user-facing
+                // CSV doesn't need a technical column that just repeats the name.
+                $handler = Str::trimmedStringOrNull($variant['handler'] ?? null)
+                    ?? (string) ($variant['product_name'] ?? '');
 
                 if ($handler !== $currentHandler) {
                     if ($currentHandler !== null) {
@@ -159,9 +163,9 @@ class ImportProductFromFilesystemAction
 
                     if (isset($emittedHandlers[$handler])) {
                         throw new RuntimeException(sprintf(
-                            'CSV rows must be grouped by handler for streaming import. '
-                            . "Found out-of-order handler '%s' after it was already emitted. "
-                            . 'Please sort the CSV by the handler column before uploading.',
+                            'CSV rows must be grouped by handler (or product name when no handler is mapped) for streaming import. '
+                            . "Found out-of-order product '%s' after it was already emitted. "
+                            . 'Please sort the CSV so all rows of the same product are together before uploading.',
                             $handler,
                         ));
                     }

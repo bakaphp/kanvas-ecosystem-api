@@ -28,6 +28,7 @@ use Override;
  *  @property string $template
  *  @property mixed $templates_plura
  *  @property ?string $message_schema = null
+ *  @property bool $is_public
  */
 class MessageType extends BaseModel
 {
@@ -39,8 +40,24 @@ class MessageType extends BaseModel
 
     protected $table = 'message_types';
 
+    /**
+     * Verbs whose messages are the system's audit trail (what the agent did on a record) rather than
+     * something written for the feed. A type created for one of these starts private; a caller that
+     * wants a given message visible passes its own flag.
+     */
+    public const array PRIVATE_BY_DEFAULT_VERBS = ['system'];
+
     protected $guarded = [
         'uuid',
+    ];
+
+    /**
+     * A created row only carries the attributes it was given, so without the default the non-null
+     * GraphQL `is_public` resolves to null. Redeclared whole because it replaces BaseModel's `is_deleted`.
+     */
+    protected $attributes = [
+        'is_deleted' => 0,
+        'is_public' => true,
     ];
 
     #[Override]
@@ -49,7 +66,13 @@ class MessageType extends BaseModel
         return [
             'template' => Json::class,
             'templates_plura' => Json::class,
+            'is_public' => 'boolean',
         ];
+    }
+
+    public static function isPublicByDefaultForVerb(string $verb): bool
+    {
+        return ! in_array($verb, self::PRIVATE_BY_DEFAULT_VERBS, true);
     }
 
     public function messages(): HasMany

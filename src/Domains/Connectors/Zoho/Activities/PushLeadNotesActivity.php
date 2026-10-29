@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\Zoho\Activities;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Zoho\Activities\Concerns\PushesSubmittedMessageToZoho;
 use Kanvas\Connectors\Zoho\ZohoService;
-use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -72,13 +71,7 @@ class PushLeadNotesActivity extends KanvasActivity
     {
         $targets = $this->zohoLeadTarget($zohoService, $lead);
 
-        $deals = Deal::query()
-            ->where('leads_id', $lead->getId())
-            ->fromCompany($lead->company)
-            ->notDeleted()
-            ->get();
-
-        foreach ($deals as $deal) {
+        foreach ($lead->deals as $deal) {
             $targets += $this->zohoDealTarget($zohoService, $deal);
         }
 

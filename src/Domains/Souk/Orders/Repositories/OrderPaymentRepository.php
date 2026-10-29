@@ -35,8 +35,13 @@ class OrderPaymentRepository
         $query,
         ?string $reference,
         ?string $orderNumber,
-        ?array $metadataFilter
+        ?array $metadataFilter,
+        ?array $orderIds = null
     ): void {
+        if ($orderIds !== null) {
+            $query->whereIn('orders.id', $orderIds);
+        }
+
         if ($reference !== null && $reference !== '') {
             $query->where('orders.reference', 'LIKE', $reference);
         }
@@ -88,7 +93,8 @@ class OrderPaymentRepository
         ?string $userEmail = null,
         ?string $reference = null,
         ?string $orderNumber = null,
-        ?array $metadataFilter = null
+        ?array $metadataFilter = null,
+        ?array $orderIds = null
     ): Collection {
         $firstPaymentSub = DB::connection('commerce')
             ->table('payments')
@@ -133,7 +139,13 @@ class OrderPaymentRepository
             ->with(['items'])
             ->tap(fn ($query) => $this->scopeToTenant($query));
 
-        $this->applyOrderIdentifierFilters($query, $reference, $orderNumber, $metadataFilter);
+        $this->applyOrderIdentifierFilters(
+            $query,
+            $reference,
+            $orderNumber,
+            $metadataFilter,
+            $orderIds
+        );
 
         if (! empty($paidStates)) {
             $slugPlaceholders = implode(',', array_fill(0, count($paidStates), '?'));
@@ -199,7 +211,8 @@ class OrderPaymentRepository
         ?string $userEmail = null,
         ?string $reference = null,
         ?string $orderNumber = null,
-        ?array $metadataFilter = null
+        ?array $metadataFilter = null,
+        ?array $orderIds = null
     ): Collection {
         $firstPaymentSub = DB::connection('commerce')
             ->table('payments')
@@ -249,7 +262,13 @@ class OrderPaymentRepository
             })
             ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail));
 
-        $this->applyOrderIdentifierFilters($query, $reference, $orderNumber, $metadataFilter);
+        $this->applyOrderIdentifierFilters(
+            $query,
+            $reference,
+            $orderNumber,
+            $metadataFilter,
+            $orderIds
+        );
 
         // Build CASE WHEN for provider matching
         $caseStatements = [];
@@ -288,7 +307,8 @@ class OrderPaymentRepository
         ?string $userEmail = null,
         ?string $reference = null,
         ?string $orderNumber = null,
-        ?array $metadataFilter = null
+        ?array $metadataFilter = null,
+        ?array $orderIds = null
     ): Collection {
         $firstPaymentSub = DB::connection('commerce')
             ->table('payments')
@@ -326,7 +346,13 @@ class OrderPaymentRepository
             })
             ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail));
 
-        $this->applyOrderIdentifierFilters($query, $reference, $orderNumber, $metadataFilter);
+        $this->applyOrderIdentifierFilters(
+            $query,
+            $reference,
+            $orderNumber,
+            $metadataFilter,
+            $orderIds
+        );
 
         if (! empty($paidStates)) {
             $slugPlaceholders = implode(',', array_fill(0, count($paidStates), '?'));
@@ -398,7 +424,8 @@ class OrderPaymentRepository
         ?string $userEmail = null,
         ?string $reference = null,
         ?string $orderNumber = null,
-        ?array $metadataFilter = null
+        ?array $metadataFilter = null,
+        ?array $orderIds = null
     ): Collection {
         $format = match (strtoupper($periodType)) {
             'DAY' => '%Y-%m-%d',
@@ -459,7 +486,13 @@ class OrderPaymentRepository
                 [$start, $end]
             );
 
-        $this->applyOrderIdentifierFilters($query, $reference, $orderNumber, $metadataFilter);
+        $this->applyOrderIdentifierFilters(
+            $query,
+            $reference,
+            $orderNumber,
+            $metadataFilter,
+            $orderIds
+        );
 
         return $query
             ->selectRaw("

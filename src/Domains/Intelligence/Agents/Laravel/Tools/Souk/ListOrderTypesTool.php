@@ -21,9 +21,11 @@ class ListOrderTypesTool implements KanvasToolInterface
     #[Override]
     public function description(): Stringable|string
     {
-        return 'List the order-type names (and ids) configured for this company/app. Call this to discover '
-            . 'the valid values for the order_types filter used by order_breakdown, order_payment_stats and '
-            . 'order_commission_stats. Returns an empty list when the tenant has no order types.';
+        return 'List the order-type names (and ids) configured for this company/app, plus the tag names '
+            . 'currently carried by its orders. Call this to discover the valid values for the order_types and '
+            . 'tags filters used by order_trend, order_breakdown, order_payment_stats, order_fulfillment_stats, '
+            . 'order_provider_stats and order_commission_stats. A customer segment such as "corporativo" is a '
+            . 'tag, not an order type. Returns empty lists when the tenant has no order types or no tagged orders.';
     }
 
     #[Override]

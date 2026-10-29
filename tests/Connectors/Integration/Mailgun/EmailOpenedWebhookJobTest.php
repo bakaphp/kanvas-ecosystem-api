@@ -67,6 +67,7 @@ final class EmailOpenedWebhookJobTest extends TestCase
         $note = $people->notes->messages()->latest('id')->first();
         $this->assertNotNull($note, 'The open must land a note in the people notes channel');
         $this->assertStringContainsString('prospect@example.com', (string) ($note->message['content'] ?? ''));
+        $this->assertSame(1, $note->is_public);
     }
 
     public function testNonOpenedEventsAreIgnored(): void
@@ -84,6 +85,45 @@ final class EmailOpenedWebhookJobTest extends TestCase
 
         $this->assertSame('Not an opened event, ignored', $result['message']);
         $this->assertSame($before, $people->notes->messages()->count());
+    }
+
+    public function testAnOpenMailgunFlagsAsABotPrefetchRecordsNothing(): void
+    {
+        $people = $this->seedPeople();
+        $before = $people->notes->messages()->count();
+
+        foreach (['apple', 'gmail', 'generic'] as $bot) {
+            $result = $this->deliver([
+                'event-data' => [
+                    'id' => 'evt-' . uniqid(),
+                    'event' => 'opened',
+                    'recipient' => 'prospect@example.com',
+                    'client-info' => ['bot' => $bot],
+                    'user-variables' => ['people_id' => (string) $people->getId()],
+                ],
+            ]);
+
+            $this->assertSame('Automated open (' . $bot . '), ignored', $result['message']);
+        }
+
+        $this->assertSame($before, $people->notes->messages()->count());
+    }
+
+    public function testAnOpenWithAnEmptyBotFieldIsAHumanAndIsRecorded(): void
+    {
+        $people = $this->seedPeople();
+
+        $result = $this->deliver([
+            'event-data' => [
+                'id' => 'evt-' . uniqid(),
+                'event' => 'opened',
+                'recipient' => 'prospect@example.com',
+                'client-info' => ['bot' => '', 'client-type' => 'browser'],
+                'user-variables' => ['people_id' => (string) $people->getId()],
+            ],
+        ]);
+
+        $this->assertSame($people->getId(), $result['people_id']);
     }
 
     public function testAnEventWithNoPeopleIdVariableIsIgnored(): void
@@ -158,6 +198,7 @@ final class EmailOpenedWebhookJobTest extends TestCase
         $leadNote = ($lead->systemNotes ?? $lead->notes)->messages()->latest('id')->first();
         $this->assertNotNull($leadNote, 'The open must land a note on the lead\'s own activity feed');
         $this->assertStringContainsString('prospect@example.com', (string) ($leadNote->message['content'] ?? ''));
+        $this->assertSame(1, $leadNote->is_public);
 
         // Went to the Lead's feed, not the underlying People's notes channel — the two must not merge.
         $this->assertSame($peopleNotesBefore, $lead->people->notes->messages()->count());
