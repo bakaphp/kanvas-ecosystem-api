@@ -87,7 +87,11 @@ class SyncLeadToZohoAction
                         $zohoLeadId
                     );
 
-                    $this->writeLeadIdLinks($leadModule, $lead, $zohoLeadId);
+                    $this->writeRecordLinks(
+                        $leadModule,
+                        $zohoLeadId,
+                        ZohoFieldMapService::leadIdLinkFields($lead, $zohoLeadId)
+                    );
                 } catch (ApiError $e) {
                     Sentry::withScope(function ($scope) use ($zohoData, $lead, $e) {
                         $scope->setContext('Lead Zoho Data', [
@@ -209,20 +213,6 @@ class SyncLeadToZohoAction
         if (empty($zohoData['Owner'])) {
             unset($zohoData['Owner']);
         }
-    }
-
-    /**
-     * Second write on purpose: the Zoho id these links embed doesn't exist until the create returns.
-     */
-    protected function writeLeadIdLinks(ZohoRecordsModule $leadModule, Lead $lead, ?string $zohoLeadId): void
-    {
-        $links = ZohoFieldMapService::leadIdLinkFields($lead, $zohoLeadId);
-
-        if ($links === []) {
-            return;
-        }
-
-        $this->updateRecord($leadModule, (string) $zohoLeadId, $links);
     }
 
     protected function uploadAttachments(ZohoRecordsModule $zohoLead, Lead $lead): void

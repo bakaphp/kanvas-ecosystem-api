@@ -9,7 +9,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Actions\SyncLeadToZohoAction;
 use Kanvas\Guild\Leads\Models\Lead;
-use PHPUnit\Framework\MockObject\MockObject;
 use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
 
 /**
@@ -18,11 +17,6 @@ use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
  */
 trait StubsZohoLeadModule
 {
-    protected function module(): MockObject&ZohoRecordsModule
-    {
-        return $this->createMock(ZohoRecordsModule::class);
-    }
-
     protected function action(Lead $lead, ZohoRecordsModule $module): SyncLeadToZohoAction
     {
         return new class (app(Apps::class), $lead, $module) extends SyncLeadToZohoAction {

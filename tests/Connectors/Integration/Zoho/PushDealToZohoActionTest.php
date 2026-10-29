@@ -7,7 +7,6 @@ namespace Tests\Connectors\Integration\Zoho;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
-use PHPUnit\Framework\MockObject\MockObject;
 use Tests\Connectors\Integration\Zoho\Concerns\BuildsZohoDeal;
 use Tests\Connectors\Integration\Zoho\Support\RecordingFilePusher;
 use Tests\Connectors\Integration\Zoho\Support\StubbedPushDealToZohoAction;
@@ -130,10 +129,5 @@ final class PushDealToZohoActionTest extends TestCase
         $second = new StubbedPushDealToZohoAction($deal, $module, $pusher)->execute();
         $this->assertSame($fileIds, collect($pusher->skipIdsSeen)->sort()->values()->all());
         $this->assertSame([], $second['files']['uploaded']);
-    }
-
-    private function module(): MockObject&ZohoRecordsModule
-    {
-        return $this->createMock(ZohoRecordsModule::class);
     }
 }
