@@ -270,22 +270,36 @@
     {
       "slug": "crm",
       "label": "CRM",
-      "title": "Keep my CRM up to date",
-      "description": "Organize your contacts and business opportunities.",
+      "title": "Keep my pipeline moving",
+      "description": "Know where every lead stands and reach the ones that need a push.",
       "icon": "contact",
-      "is_available": false,
+      "is_available": true,
       "display_order": 5,
       "config": {
-        "agents": [],
+        "agents": [
+          {
+            "slug": "pipeline",
+            "name": "Pipeline watch",
+            "description": "Reports on your pipeline and messaging, finds the leads that share a trait, and runs the outreach you approve.",
+            "source_agent": "Polly",
+            "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\CRM\\SalesManagerAgent",
+            "requirements": []
+          }
+        ],
         "modules": [],
         "requirements": [],
         "capabilities": [
-          "Contact and organization upkeep",
-          "Deal and pipeline hygiene",
-          "Duplicate detection",
-          "Activity logging"
+          "Pipeline and messaging reports",
+          "Lead segments by trait",
+          "Batch SMS and email you approve first",
+          "Opt-outs honored on every send"
         ],
-        "setup_steps": []
+        "setup_steps": [
+          "Review your pipeline together",
+          "Pick the first segment to reach",
+          "Approve the first batch",
+          "Go live"
+        ]
       }
     },
     {

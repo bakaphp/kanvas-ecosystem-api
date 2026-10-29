@@ -69,5 +69,9 @@ return [
         // Cost ceiling on replayed chat history, applied after the model-ceiling sizing. The history is
         // re-sent on every tool-loop step, so a wide window multiplies input spend per turn.
         'max_history_tokens' => (int) env('AGENT_MAX_HISTORY_TOKENS', 50_000),
+        // A new app with no Gemini key of its own runs on the platform GEMINI_API_KEY for this many
+        // days after creation, on this model. 0 turns the trial off.
+        'trial_llm_days' => (int) env('AGENT_TRIAL_LLM_DAYS', 14),
+        'trial_llm_model' => env('AGENT_TRIAL_LLM_MODEL', 'gemini-3.8-flash'),
     ],
 ];
