@@ -13,7 +13,9 @@ use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use PHPUnit\Framework\MockObject\MockObject;
 use Tests\Traits\MakesGuildEntities;
+use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
 
 /**
  * Fixtures live on a fresh company so the Zoho settings a test writes (field map, default owner)
@@ -22,6 +24,11 @@ use Tests\Traits\MakesGuildEntities;
 trait BuildsZohoDeal
 {
     use MakesGuildEntities;
+
+    protected function module(): MockObject&ZohoRecordsModule
+    {
+        return $this->createMock(ZohoRecordsModule::class);
+    }
 
     protected function makeZohoCompany(): Companies
     {

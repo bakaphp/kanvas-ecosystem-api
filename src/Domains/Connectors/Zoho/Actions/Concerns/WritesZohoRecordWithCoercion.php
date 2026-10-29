@@ -39,6 +39,18 @@ trait WritesZohoRecordWithCoercion
         }
     }
 
+    /**
+     * Second write on purpose: the Zoho id these links embed doesn't exist until the create returns.
+     */
+    protected function writeRecordLinks(ZohoRecordsModule $module, ?string $recordId, array $links): void
+    {
+        if ($links === [] || empty($recordId)) {
+            return;
+        }
+
+        $this->updateRecord($module, $recordId, $links);
+    }
+
     protected function coerceRejectedPayload(ApiError $e, array $data): ?array
     {
         $body = json_decode((string) $e->response()->getBody(), true);
