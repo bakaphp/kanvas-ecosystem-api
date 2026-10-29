@@ -14,6 +14,7 @@ use Kanvas\Connectors\Zoho\Actions\Concerns\WritesZohoRecordWithCoercion;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Zoho\Services\ZohoFieldMapService;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -85,6 +86,8 @@ class SyncLeadToZohoAction
                         CustomFieldEnum::ZOHO_LEAD_ID->value,
                         $zohoLeadId
                     );
+
+                    $this->writeLeadIdLinks($leadModule, $lead, $zohoLeadId);
                 } catch (ApiError $e) {
                     Sentry::withScope(function ($scope) use ($zohoData, $lead, $e) {
                         $scope->setContext('Lead Zoho Data', [
@@ -100,6 +103,10 @@ class SyncLeadToZohoAction
             } else {
                 $zohoLeadInfo = $leadModule->get((string) $zohoLeadId)->getData();
                 if (! empty($zohoLeadInfo)) {
+                    $zohoData = [
+                        ...$zohoData,
+                        ...ZohoFieldMapService::leadIdLinkFields($lead, (string) $zohoLeadId),
+                    ];
                     $zohoLead = $this->updateRecord(
                         $leadModule,
                         (string) $zohoLeadId,
@@ -202,6 +209,20 @@ class SyncLeadToZohoAction
         if (empty($zohoData['Owner'])) {
             unset($zohoData['Owner']);
         }
+    }
+
+    /**
+     * Second write on purpose: the Zoho id these links embed doesn't exist until the create returns.
+     */
+    protected function writeLeadIdLinks(ZohoRecordsModule $leadModule, Lead $lead, ?string $zohoLeadId): void
+    {
+        $links = ZohoFieldMapService::leadIdLinkFields($lead, $zohoLeadId);
+
+        if ($links === []) {
+            return;
+        }
+
+        $this->updateRecord($leadModule, (string) $zohoLeadId, $links);
     }
 
     protected function uploadAttachments(ZohoRecordsModule $zohoLead, Lead $lead): void
