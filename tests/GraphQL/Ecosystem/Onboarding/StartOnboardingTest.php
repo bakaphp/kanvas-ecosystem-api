@@ -45,10 +45,17 @@ final class StartOnboardingTest extends TestCase
                 config(['scout.typesense.nodes' => $settings['typesense_nodes']]);
             }
         }
+    }
 
+    public function testAnUnverifiedEmailCanStartOnboarding(): void
+    {
         $profile = auth()->user()->getAppProfile(app(Apps::class));
-        $profile->is_verified = 1;
+        $profile->is_verified = 0;
         $profile->saveOrFail();
+
+        $workspace = $this->graphQL(self::MUTATION, ['input' => ['app_name' => 'Unverified ' . uniqid()]])->json('data.startOnboarding');
+
+        $this->assertNotNull($workspace);
     }
 
     public function testCreatesAppOwnerCompanyAndOnboardingRow(): void
@@ -67,6 +74,11 @@ final class StartOnboardingTest extends TestCase
 
         $newApp = Apps::getById((int) $workspace['app']['id']);
         $this->assertTrue($newApp->getBool(KnowledgeConfigurationEnum::ENABLED->value), 'a self-serve app indexes its company knowledge from day one');
+        $this->assertArrayHasKey(
+            KnowledgeConfigurationEnum::ENABLED->value,
+            $newApp->getAllSettings(onlyPublicSettings: true, fromRedis: false),
+            'the flag is visible on the settings screen, which lists public settings only',
+        );
         /** @var Users $user */
         $user = auth()->user();
         $this->assertTrue($user->isOwnerOf($newApp));
