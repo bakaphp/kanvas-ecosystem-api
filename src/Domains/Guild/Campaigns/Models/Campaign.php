@@ -33,6 +33,7 @@ use Override;
  * @property int         $sent_count
  * @property int         $failed_count
  * @property int         $skipped_count
+ * @property int         $opened_count
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -55,6 +56,7 @@ class Campaign extends BaseModel
             'sent_count' => 'integer',
             'failed_count' => 'integer',
             'skipped_count' => 'integer',
+            'opened_count' => 'integer',
             'is_deleted' => 'boolean',
         ];
     }
