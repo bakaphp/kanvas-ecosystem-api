@@ -698,7 +698,7 @@ final class SyncCrmLeadActionTest extends TestCase
     }
 
     /**
-     * Extensions released before this shape sent `opt_out` as a string. It opts nobody out.
+     * Older extensions send `opt_out` as a string. It opts nobody out.
      */
     public function testTheStringAnOldExtensionSendsAsOptOutIsIgnored(): void
     {

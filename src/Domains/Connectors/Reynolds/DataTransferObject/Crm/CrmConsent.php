@@ -17,9 +17,8 @@ class CrmConsent extends Data
     }
 
     /**
-     * Extensions released before this shape sent `opt_out` as a string. Anything that is not an object
-     * of booleans is dropped instead of failing the request, and a member that is not a real boolean
-     * counts as not opted out.
+     * Older extensions send `opt_out` as a string. Anything that is not an object is dropped instead of
+     * failing the request, and a member that is not a real boolean counts as not opted out.
      *
      * @param array<string, mixed> $properties
      *

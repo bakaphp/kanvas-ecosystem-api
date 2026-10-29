@@ -66,8 +66,8 @@ final class CrmLeadSyncDtoTest extends TestCase
     }
 
     /**
-     * Extensions released before this shape sent `opt_out` as a string, and the ones from the release
-     * after sent `follow_up`. Neither is an error and neither opts anyone out.
+     * Older extensions send `opt_out` as a string or a `follow_up` block. Neither is an error and
+     * neither opts anyone out.
      */
     public function testTheConsentAnOlderExtensionSendsIsIgnored(): void
     {
