@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Ecosystem\Integration\Onboarding;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Onboarding\Models\CompanyOnboarding;
@@ -90,6 +91,18 @@ final class OnboardingRequirementsServiceTest extends TestCase
         $this->assertFalse($this->option('accounting_software', 'Books')['connected']);
 
         $this->integrationRow();
+
+        $this->assertTrue($this->option('accounting_software', 'Books')['connected']);
+    }
+
+    /**
+     * The state is also rendered inside the agent-chat worker, where nobody is logged in; the
+     * company must come from the row, never from the request's user.
+     */
+    public function testIntegrationOptionIsCheckedWithoutALoggedInUser(): void
+    {
+        $this->integrationRow();
+        Auth::forgetGuards();
 
         $this->assertTrue($this->option('accounting_software', 'Books')['connected']);
     }

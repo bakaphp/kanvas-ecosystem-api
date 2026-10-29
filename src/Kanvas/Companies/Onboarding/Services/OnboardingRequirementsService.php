@@ -133,7 +133,7 @@ class OnboardingRequirementsService
         if (! empty($option['integration_id'])) {
             return IntegrationsCompany::query()
                 ->fromApp($app)
-                ->fromCompany((int) $row->companies_id)
+                ->fromCompany($row->company)
                 ->where('integrations_id', (int) $option['integration_id'])
                 ->where('status_id', $this->activeStatusId())
                 ->where('is_active', true)

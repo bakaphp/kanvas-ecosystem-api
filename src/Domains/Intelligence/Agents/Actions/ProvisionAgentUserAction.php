@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
+use Baka\Support\Random;
 use Baka\Support\Str;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
@@ -69,6 +70,7 @@ final class ProvisionAgentUserAction
                             'password' => bin2hex(random_bytes(16)),
                             'firstname' => $this->name,
                             'lastname' => 'Agent',
+                            'displayname' => Random::platformUniqueDisplayName($this->name),
                         ],
                         $branch,
                         $this->app
