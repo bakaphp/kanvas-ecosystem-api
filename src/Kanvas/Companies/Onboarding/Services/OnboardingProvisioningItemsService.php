@@ -27,13 +27,7 @@ final class OnboardingProvisioningItemsService
     public function forRow(CompanyOnboarding $row): array
     {
         $app = $row->app;
-        $items = [[
-            'slug' => self::SETUP_AGENT_SLUG,
-            'kind' => 'agent',
-            'name' => $this->templates->setupAgentName($app),
-            'source_agent' => $this->templates->setupAgentName($app),
-            'requirements' => [],
-        ]];
+        $items = [$this->templates->setupAgentItem($app)];
 
         $selected = array_column((array) $row->dataGet('areas_selected', []), 'slug');
         foreach ($this->sections->forApp($app) as $section) {

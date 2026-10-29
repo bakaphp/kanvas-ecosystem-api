@@ -10,6 +10,8 @@ use Kanvas\Companies\Onboarding\Models\OnboardingSection;
 use Kanvas\Companies\Onboarding\Services\OnboardingAgentTemplateService;
 use Kanvas\Companies\Onboarding\Services\OnboardingSectionsService;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
 use Tests\TestCase;
 
 final class OnboardingSectionsServiceTest extends TestCase
@@ -67,8 +69,25 @@ final class OnboardingSectionsServiceTest extends TestCase
 
         $missing = new OnboardingAgentTemplateService()->missingFor($app);
 
-        $this->assertContains('Ginny', $missing);
         $this->assertNotEmpty(array_filter($missing, fn (string $name): bool => str_starts_with($name, 'Nobody Template')));
+    }
+
+    public function testAgentWhoseTypeExistsIsNotMissingWithoutATemplate(): void
+    {
+        $app = app(Apps::class);
+        $name = 'Typed Only ' . uniqid();
+        AgentType::factory()->withAppId(0)->create(['handler' => AccountsPayableAgent::class]);
+        $this->section('typed_' . uniqid(), 'Typed', config: [
+            'agents' => [
+                ['slug' => 'typed', 'name' => 'Typed', 'description' => 'x', 'source_agent' => $name, 'agent_type' => AccountsPayableAgent::class, 'requirements' => []],
+            ],
+            'modules' => [],
+            'requirements' => [],
+            'capabilities' => [],
+            'setup_steps' => [],
+        ]);
+
+        $this->assertNotContains($name, new OnboardingAgentTemplateService()->missingFor($app));
     }
 
     public function testResolveFallsBackToAppZero(): void

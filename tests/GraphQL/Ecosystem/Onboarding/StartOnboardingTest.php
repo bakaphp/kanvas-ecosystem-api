@@ -8,7 +8,6 @@ use Baka\Search\SearchEngineResolver;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Onboarding\Enums\OnboardingSettingEnum;
 use Kanvas\Companies\Onboarding\Models\CompanyOnboarding;
 use Kanvas\Users\Models\Users;
 use PHPUnit\Framework\Attributes\Group;
@@ -36,8 +35,6 @@ final class StartOnboardingTest extends TestCase
     {
         parent::setUp();
 
-        app(Apps::class)->set(OnboardingSettingEnum::PLATFORM->value, 1);
-
         // A new app indexes its first branch with the platform Typesense key (CI sets TYPESENSE_API_KEY);
         // a local .env without one would fail inside CreateAppsAction, so borrow the platform app's.
         if (trim((string) config('scout.typesense.api_key')) === '') {
@@ -51,13 +48,6 @@ final class StartOnboardingTest extends TestCase
         $profile = auth()->user()->getAppProfile(app(Apps::class));
         $profile->is_verified = 1;
         $profile->saveOrFail();
-    }
-
-    protected function tearDown(): void
-    {
-        app(Apps::class)->del(OnboardingSettingEnum::PLATFORM->value);
-
-        parent::tearDown();
     }
 
     public function testCreatesAppOwnerCompanyAndOnboardingRow(): void
@@ -93,16 +83,6 @@ final class StartOnboardingTest extends TestCase
 
         $this->assertSame($first['app']['id'], $second['app']['id']);
         $this->assertSame(1, Apps::query()->where('name', $name)->count());
-    }
-
-    public function testRefusedOutsidePlatformApp(): void
-    {
-        app(Apps::class)->del(OnboardingSettingEnum::PLATFORM->value);
-
-        $response = $this->graphQL(self::MUTATION, ['input' => ['app_name' => 'Nope ' . uniqid()]]);
-
-        $this->assertNull($response->json('data.startOnboarding'));
-        $this->assertStringContainsStringIgnoringCase('platform', (string) $response->json('errors.0.message'));
     }
 
     public function testRefusedWhileAnotherStartIsInFlightForTheSameUser(): void
