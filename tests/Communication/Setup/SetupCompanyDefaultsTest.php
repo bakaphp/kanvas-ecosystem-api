@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\ConfigurationEnum as MetaConfigurationEnum;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Handlers\MetaWhatsAppHandler;
+use Kanvas\Communication\Connections\Actions\EnsureAutoReplyRuleAction;
 use Kanvas\Communication\Connections\Enums\SetupStatusEnum;
 use Kanvas\Communication\Connections\Exceptions\SetupBlockedException;
 use Kanvas\Communication\Connections\Models\Connection;
@@ -19,6 +20,7 @@ use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Communication\Setup\Enums\DefaultRuleEnum;
 use Kanvas\Communication\Setup\Enums\SetupSettingEnum;
 use Kanvas\Communication\Setup\Jobs\SetupPeopleChannelsJob;
+use Kanvas\Communication\Support\AutoReplyPolicy;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Activities\SalesAssistAgentReachOutActivity;
@@ -186,6 +188,46 @@ final class SetupCompanyDefaultsTest extends TestCase
 
         $this->assertSame(0, $this->setupDefaults()['lead_types_configured']);
         $this->assertTrue(LeadType::query()->fromCompany($this->company)->exists());
+    }
+
+    public function testTheCompanysSallyAnswersInbound(): void
+    {
+        $this->globalAgentTemplates();
+        $this->setupDefaults();
+
+        $this->assertSame(
+            $this->companyAgent(DefaultAgentEnum::SALLY)->getId(),
+            (int) $this->company->get(AutoReplyPolicy::SETTING)
+        );
+    }
+
+    public function testAnAnsweringAgentTheCompanyNamedIsKept(): void
+    {
+        $this->globalAgentTemplates();
+        $this->company->set(AutoReplyPolicy::SETTING, 999999);
+
+        $this->setupDefaults();
+
+        $this->assertSame(999999, (int) $this->company->get(AutoReplyPolicy::SETTING));
+    }
+
+    public function testIntegratingAloneLeavesTheCompanyAnsweringInbound(): void
+    {
+        $this->useFakeProvisioner();
+        $integration = $this->integrateMessaging(['+18095550100'], $this->company);
+
+        $this->runSetup($integration);
+
+        $rule = Rule::query()
+            ->fromApp($this->currentApp())
+            ->where('companies_id', $this->company->getId())
+            ->where('name', EnsureAutoReplyRuleAction::RULE_NAME)
+            ->notDeleted()
+            ->first();
+
+        $this->assertNotNull($rule, 'no auto-reply rule');
+        $this->assertSame(WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value, $rule->type->name);
+        $this->assertSame(['/^fake-/'], $rule->getRulesConditions()->pluck('value')->all());
     }
 
     public function testTheSwitchesTurnTheAgentsOnForNewLeads(): void
