@@ -14,6 +14,7 @@ use Kanvas\Connectors\Reynolds\DataTransferObject\CrmLeadSync;
 use Kanvas\Connectors\Reynolds\DataTransferObject\CrmLeadSyncResult;
 use Kanvas\Connectors\Reynolds\Enums\CrmLeadSyncOutcomeEnum;
 use Kanvas\Connectors\Reynolds\Exceptions\CrmLeadSyncException;
+use Kanvas\Guild\Customers\Actions\RecordPeopleNoteAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
@@ -188,6 +189,8 @@ class SyncCrmLeadAction
             if ($lead instanceof Lead) {
                 $followers?->execute($lead);
             }
+
+            $this->applyChannelOptOuts($people);
         } catch (Throwable $exception) {
             $this->compensate($plan, $people, $lead);
 
@@ -210,6 +213,34 @@ class SyncCrmLeadAction
             $plan->createsLead(),
             false,
             $warnings
+        );
+    }
+
+    /**
+     * A channel the CRM says the customer declined opts out that channel's contacts and nothing else:
+     * not the person, not their leads. It runs after the contacts exist so one this same request added
+     * is covered, and it only ever opts out: a channel the CRM does not flag is left as it is. A
+     * failure is not swallowed, since a missed opt-out leaves that channel contactable; the request
+     * can be sent again.
+     */
+    private function applyChannelOptOuts(People $people): void
+    {
+        $optOut = $this->data->customer?->consent?->opt_out;
+
+        if ($optOut?->email && $people->optOutEmailContacts() > 0) {
+            $this->recordChannelOptOut($people, 'email', 'email');
+        }
+
+        if ($optOut?->phone && $people->optOutPhoneContacts() > 0) {
+            $this->recordChannelOptOut($people, 'text messages', 'phone');
+        }
+    }
+
+    private function recordChannelOptOut(People $people, string $declined, string $contacts): void
+    {
+        new RecordPeopleNoteAction($people)->execute(
+            sprintf('The CRM reports the customer declined %s: their %s contacts were opted out.', $declined, $contacts),
+            'opt-out'
         );
     }
 

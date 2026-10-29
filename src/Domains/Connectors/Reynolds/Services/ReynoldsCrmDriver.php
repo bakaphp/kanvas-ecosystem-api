@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Reynolds\Services;
 
 use Baka\Contracts\CompanyInterface;
-use Baka\Traits\ScalarCoercionTrait;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Reynolds\Contracts\CrmLeadDriver;
 use Kanvas\Connectors\Reynolds\DataTransferObject\Crm\CrmCustomer;
@@ -16,8 +15,6 @@ use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 
 class ReynoldsCrmDriver implements CrmLeadDriver
 {
-    use ScalarCoercionTrait;
-
     public function type(): CrmTypeEnum
     {
         return CrmTypeEnum::REYNOLDS;
@@ -52,23 +49,13 @@ class ReynoldsCrmDriver implements CrmLeadDriver
     }
 
     /**
-     * The language, and the dealer follow-up flags stored the way the webhook stores them (Y or N) so
-     * the push back to Reynolds reads the same fields. The CRM's opt-out flags are not stored: they are
-     * its data-sharing choices, not a request to stop contact. A value the CRM did not send is not
-     * written.
+     * Only the language. Consent is not stored as custom fields: an opt-out lives on the contacts it
+     * silences, and the webhook keeps writing the consent fields the push back to Reynolds reads.
      */
     public function customerCustomFields(CrmCustomer $customer): array
     {
-        $consent = $customer->consent;
-
         return array_filter(
-            [
-                CustomFieldEnum::LANGUAGE->value => $customer->language,
-                CustomFieldEnum::CONSENT_PHONE->value => self::ynOrNull($consent?->follow_up?->phone),
-                CustomFieldEnum::CONSENT_MAIL->value => self::ynOrNull($consent?->follow_up?->mail),
-                CustomFieldEnum::CONSENT_EMAIL->value => self::ynOrNull($consent?->follow_up?->email),
-                CustomFieldEnum::CONSENT_TEXT->value => self::ynOrNull($consent?->follow_up?->text),
-            ],
+            [CustomFieldEnum::LANGUAGE->value => $customer->language],
             fn (mixed $value): bool => $value !== null && $value !== ''
         );
     }

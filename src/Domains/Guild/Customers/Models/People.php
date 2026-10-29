@@ -530,6 +530,13 @@ class People extends BaseModel
             ->update(['is_opt_out' => 1]);
     }
 
+    public function optOutEmailContacts(): int
+    {
+        return $this->contacts()
+            ->whereIn('contacts_types_id', Contact::EMAIL_TYPES)
+            ->update(['is_opt_out' => 1]);
+    }
+
     public function setPhoneOptOut(string $phoneNumber, bool $optOut = true): int
     {
         return $this->phoneContactsMatching($phoneNumber)

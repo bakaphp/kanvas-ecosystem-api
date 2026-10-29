@@ -28,7 +28,7 @@ final class CrmLeadSyncDtoTest extends TestCase
                 'emails' => ['ana.perez@example.com'],
                 'address' => ['address' => '123 Calle Sol', 'address_2' => null, 'city' => 'San Juan', 'state' => 'PR', 'zip' => '00901'],
                 'consent' => [
-                    'follow_up' => ['phone' => 'Y', 'mail' => 'N', 'email' => 'Y', 'text' => 'Y'],
+                    'opt_out' => ['email' => true, 'phone' => false],
                 ],
             ],
             'lead' => [
@@ -53,7 +53,8 @@ final class CrmLeadSyncDtoTest extends TestCase
         $this->assertSame('Perez', $data->customer->lastname);
         $this->assertSame('7875550103', $data->customer->phones->work);
         $this->assertSame('PR', $data->customer->address->state);
-        $this->assertSame('Y', $data->customer->consent->follow_up->email);
+        $this->assertTrue($data->customer->consent->opt_out->email);
+        $this->assertFalse($data->customer->consent->opt_out->phone);
 
         $this->assertSame('6', $data->lead->type->id, 'the CRM sends a number, the DTO holds a string');
         $this->assertSame('*Drove By', $data->lead->source->name);
@@ -65,9 +66,10 @@ final class CrmLeadSyncDtoTest extends TestCase
     }
 
     /**
-     * Extensions already installed still send the CRM's opt-out keys. They are not read and not an error.
+     * Extensions released before this shape sent `opt_out` as a string, and the ones from the release
+     * after sent `follow_up`. Neither is an error and neither opts anyone out.
      */
-    public function testTheOptOutKeysAnOldExtensionSendsAreIgnored(): void
+    public function testTheConsentAnOlderExtensionSendsIsIgnored(): void
     {
         $data = $this->build([
             'customer' => [
@@ -81,12 +83,27 @@ final class CrmLeadSyncDtoTest extends TestCase
             ],
         ]);
 
-        $this->assertSame('N', $data->customer->consent->follow_up->phone);
-        $this->assertSame('Y', $data->customer->consent->follow_up->text);
+        $this->assertNull($data->customer->consent->opt_out);
+        $this->assertFalse(property_exists($data->customer->consent, 'follow_up'));
+    }
 
-        foreach (['text_opt_status', 'opt_out', 'opt_out_use', 'opt_out_share'] as $key) {
-            $this->assertFalse(property_exists($data->customer->consent, $key), $key);
-        }
+    public function testAMemberThatIsNotARealBooleanIsNotAnOptOut(): void
+    {
+        $data = $this->build(['customer' => ['consent' => ['opt_out' => ['email' => 'Y', 'phone' => 1]]]]);
+
+        $this->assertFalse($data->customer->consent->opt_out->email);
+        $this->assertFalse($data->customer->consent->opt_out->phone);
+    }
+
+    public function testAMissingChannelIsNotAnOptOut(): void
+    {
+        $partial = $this->build(['customer' => ['consent' => ['opt_out' => ['email' => true]]]]);
+        $empty = $this->build(['customer' => ['consent' => ['opt_out' => []]]]);
+
+        $this->assertTrue($partial->customer->consent->opt_out->email);
+        $this->assertFalse($partial->customer->consent->opt_out->phone);
+        $this->assertFalse($empty->customer->consent->opt_out->email);
+        $this->assertFalse($empty->customer->consent->opt_out->phone);
     }
 
     public function testOnlyTheIdentityIsRequired(): void

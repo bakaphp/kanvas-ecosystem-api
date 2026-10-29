@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Reynolds;
 
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -24,12 +25,14 @@ use Kanvas\Connectors\Reynolds\Exceptions\CrmLeadSyncException;
 use Kanvas\Connectors\Reynolds\Services\ReynoldsCrmDriver;
 use Kanvas\Guild\Customers\Actions\ApplyDoNotContactAction;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
+use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleRelationship;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
@@ -282,16 +285,16 @@ final class SyncCrmLeadActionTest extends TestCase
         $this->assertContains(['code' => 'lead_required', 'field' => 'followers'], $result->warnings);
     }
 
-    public function testNoOptOutKeyTheCrmSendsSilencesAnyoneWhenThereIsNoLead(): void
+    public function testAnOptOutIsHonoredEvenWhenThereIsNoLead(): void
     {
         $input = $this->payload();
         $input['identity']['lead_id'] = null;
-        $input['customer']['consent'] = ['opt_out' => 'Y', 'opt_out_share' => 'Y'];
+        $input['customer']['consent'] = ['opt_out' => ['email' => true, 'phone' => false]];
 
         $result = $this->sync($input);
 
         $this->assertNull($result->lead);
-        $this->assertFalse((bool) $result->people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
+        $this->assertSame(0, $this->contactsOf($result->people, Contact::EMAIL_TYPES, 0)->count());
     }
 
     public function testThePeopleOnlyAnswerIsReplayedToo(): void
@@ -637,56 +640,89 @@ final class SyncCrmLeadActionTest extends TestCase
         $this->assertSame(CrmLeadSyncOutcomeEnum::CREATED_ALL, $result->outcome);
     }
 
-    public function testTheConsentTheCrmSentIsStoredTheWayTheWebhookStoresIt(): void
-    {
+    #[DataProvider('channelOptOuts')]
+    public function testAChannelTheCrmSaysTheCustomerDeclinedOptsOutOnlyThatChannelsContacts(
+        array $optOut,
+        array $declinedTypes,
+        array $otherTypes
+    ): void {
         $input = $this->payload();
-        $input['customer']['consent'] = [
-            'follow_up' => ['phone' => 'Y', 'mail' => 'N', 'email' => 'Y', 'text' => null],
-        ];
-
-        $people = $this->sync($input)->people;
-
-        $this->assertSame('Y', $people->get(CustomFieldEnum::CONSENT_PHONE->value));
-        $this->assertSame('N', $people->get(CustomFieldEnum::CONSENT_MAIL->value));
-        $this->assertSame('Y', $people->get(CustomFieldEnum::CONSENT_EMAIL->value));
-        $this->assertNull($people->get(CustomFieldEnum::CONSENT_TEXT->value), 'a value the CRM did not send is not written');
-        $this->assertFalse((bool) $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
-    }
-
-    public function testNoConsentInTheRequestWritesNoConsent(): void
-    {
-        $people = $this->sync($this->payload())->people;
-
-        $this->assertNull($people->get(CustomFieldEnum::CONSENT_OPT_OUT->value));
-        $this->assertNull($people->get(CustomFieldEnum::TEXT_OPT_STATUS->value));
-        $this->assertFalse((bool) $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
-    }
-
-    /**
-     * The CRM's opt-out flags are its data-sharing choices. Extensions already installed still send
-     * them: they silence no one and are not stored.
-     */
-    public function testTheOptOutKeysAnOldExtensionSendsSilenceNoOneAndAreNotStored(): void
-    {
-        $input = $this->payload();
-        $input['customer']['consent'] = [
-            'text_opt_status' => 'I',
-            'opt_out' => 'Y',
-            'opt_out_use' => 'Y',
-            'opt_out_share' => 'Y',
-            'follow_up' => ['phone' => 'N', 'mail' => null, 'email' => 'N', 'text' => 'N'],
-        ];
+        $input['customer']['consent'] = ['opt_out' => $optOut];
 
         $result = $this->sync($input);
         $people = $result->people;
 
-        $this->assertFalse((bool) $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
-        $this->assertFalse((bool) $result->lead->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
-        $this->assertSame(0, $people->contacts()->where('is_opt_out', 1)->count());
-        $this->assertNull($people->get(CustomFieldEnum::CONSENT_OPT_OUT->value));
-        $this->assertNull($people->get(CustomFieldEnum::CONSENT_OPT_OUT_USE->value));
-        $this->assertNull($people->get(CustomFieldEnum::TEXT_OPT_STATUS->value));
-        $this->assertSame('N', $people->get(CustomFieldEnum::CONSENT_PHONE->value), 'the dealer follow-up flags are still stored');
+        $this->assertGreaterThan(0, $this->contactsOf($people, $declinedTypes)->count(), 'the request creates contacts of that kind');
+        $this->assertSame(0, $this->contactsOf($people, $declinedTypes, 0)->count(), 'every contact of the declined channel is opted out');
+        $this->assertGreaterThan(0, $this->contactsOf($people, $otherTypes)->count());
+        $this->assertSame(0, $this->contactsOf($people, $otherTypes, 1)->count(), 'the other channel is untouched');
+        $this->assertFalse((bool) $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value), 'the person is not silenced');
+        $this->assertFalse((bool) $result->lead->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value), 'neither is the lead');
+        $this->assertEmpty($result->lead->get(IntelligenceConfigurationEnum::AGENT_HAND_OFF->value), 'no hand-off is raised');
+    }
+
+    public static function channelOptOuts(): array
+    {
+        return [
+            'email' => [['email' => true, 'phone' => false], Contact::EMAIL_TYPES, Contact::PHONE_TYPES],
+            'phone' => [['email' => false, 'phone' => true], Contact::PHONE_TYPES, Contact::EMAIL_TYPES],
+        ];
+    }
+
+    public function testNothingIsOptedOutWhenTheCrmFlagsNoChannel(): void
+    {
+        foreach ([null, ['opt_out' => ['email' => false, 'phone' => false]], ['opt_out' => []]] as $consent) {
+            $input = $this->payload();
+            $input['customer']['consent'] = $consent;
+
+            $people = $this->sync($input)->people;
+
+            $this->assertSame(0, $people->contacts()->where('is_opt_out', 1)->count());
+        }
+    }
+
+    /**
+     * Extensions released before this shape sent `opt_out` as a string. It opts nobody out.
+     */
+    public function testTheStringAnOldExtensionSendsAsOptOutIsIgnored(): void
+    {
+        $input = $this->payload();
+        $input['customer']['consent'] = ['opt_out' => 'Y', 'opt_out_share' => 'Y', 'follow_up' => ['email' => 'N', 'text' => 'N']];
+
+        $result = $this->sync($input);
+
+        $this->assertSame(0, $result->people->contacts()->where('is_opt_out', 1)->count());
+        $this->assertFalse((bool) $result->people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
+    }
+
+    public function testNoConsentIsStoredAsCustomFields(): void
+    {
+        $input = $this->payload();
+        $input['customer']['consent'] = ['opt_out' => ['email' => true, 'phone' => true]];
+
+        $people = $this->sync($input)->people;
+
+        foreach ([CustomFieldEnum::CONSENT_EMAIL, CustomFieldEnum::CONSENT_TEXT, CustomFieldEnum::CONSENT_PHONE, CustomFieldEnum::CONSENT_MAIL, CustomFieldEnum::CONSENT_OPT_OUT] as $field) {
+            $this->assertNull($people->get($field->value), $field->value);
+        }
+    }
+
+    /**
+     * The CRM can only opt a channel out: a later request that stops flagging it does not reopen it.
+     */
+    public function testALaterNoOptOutNeverReopensAChannel(): void
+    {
+        $first = $this->payload();
+        $first['customer']['consent'] = ['opt_out' => ['email' => true, 'phone' => true]];
+        $result = $this->sync($first);
+
+        $this->sync([
+            'request_id' => 'req-' . uniqid(),
+            'identity' => $this->identity($result),
+            'customer' => ['consent' => ['opt_out' => ['email' => false, 'phone' => false]]],
+        ]);
+
+        $this->assertSame(0, $result->people->contacts()->where('is_opt_out', 0)->count());
     }
 
     public function testASyncNeverLiftsAnOptOutKanvasAlreadyHolds(): void
@@ -700,11 +736,12 @@ final class SyncCrmLeadActionTest extends TestCase
             reason: 'STOP'
         )->execute();
         $input = $this->payload(['customer' => ['emails' => [$email]]]);
-        $input['customer']['consent'] = ['follow_up' => ['phone' => 'Y', 'mail' => 'Y', 'email' => 'Y', 'text' => 'Y']];
+        $input['customer']['consent'] = ['opt_out' => ['email' => false, 'phone' => false]];
 
         $this->sync($input);
 
         $this->assertTrue((bool) $people->refresh()->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
+        $this->assertSame(0, $this->contactsOf($people, Contact::EMAIL_TYPES, 0)->count(), 'the contact it already opted out stays opted out');
     }
 
     public function testALeadTheWebhookAlreadyCreatedIsOpenedAndItsPeopleGetsTheClientId(): void
@@ -845,6 +882,13 @@ final class SyncCrmLeadActionTest extends TestCase
                 ? $company->del($observerSetting)
                 : $company->set($observerSetting, $previousObserverValue);
         }
+    }
+
+    private function contactsOf(People $people, array $types, ?int $optedOut = null): HasMany
+    {
+        $query = $people->contacts()->whereIn('contacts_types_id', $types);
+
+        return $optedOut === null ? $query : $query->where('is_opt_out', $optedOut);
     }
 
     private function sync(array $input, ?ReynoldsCrmDriver $driver = null): CrmLeadSyncResult

@@ -28,7 +28,7 @@ use Override;
  *                reported as skipped (lead_required) then.
  *   branch_id    Kanvas branch id, optional; the caller's current branch otherwise.
  *   customer     { firstname, middlename, lastname, language, phones{cell,home,work}, emails[],
- *                  address{address,address_2,city,state,zip}, consent{follow_up{phone,mail,email,text}} }
+ *                  address{address,address_2,city,state,zip}, consent{opt_out{email,phone}} }
  *   lead         { type{id,name}, source{id,name}, status, salesperson{id,name}, description }
  *   participants { add[{firstname,lastname,phone,email,relationship_id}], remove[{people_id,relationship_id}] }
  *   followers    { attach[email], detach[email] }
