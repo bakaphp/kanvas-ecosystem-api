@@ -145,6 +145,24 @@ class EmailDomainTest extends TestCase
         $this->assertFalse(EmailDomain::isInDomains('not-an-email', ['mctekk.com']));
     }
 
+    public function testCompanyDomainReadsEmailsUrlsAndBareDomains(): void
+    {
+        $this->assertSame('acme.com', EmailDomain::companyDomain('Jane.Doe@ACME.com'));
+        $this->assertSame('acme.com', EmailDomain::companyDomain('https://www.acme.com/about'));
+        $this->assertSame('acme.com', EmailDomain::companyDomain('www.acme.com'));
+        $this->assertSame('acme.com', EmailDomain::companyDomain(' acme.com '));
+        $this->assertSame('gowww.acme.com', EmailDomain::companyDomain('gowww.acme.com'));
+    }
+
+    public function testCompanyDomainRejectsPublicProvidersAndJunk(): void
+    {
+        $this->assertNull(EmailDomain::companyDomain('someone@gmail.com'));
+        $this->assertNull(EmailDomain::companyDomain('localhost'));
+        $this->assertNull(EmailDomain::companyDomain(''));
+        $this->assertNull(EmailDomain::companyDomain(null));
+        $this->assertNull(EmailDomain::companyDomain('not a domain.com'));
+    }
+
     public function testBlockedDomainStillCoversBuiltInAndExtraDomains(): void
     {
         $this->assertTrue(EmailDomain::isBlockedDomain('x@getnada.com'));

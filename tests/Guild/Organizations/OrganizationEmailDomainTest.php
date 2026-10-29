@@ -27,24 +27,6 @@ final class OrganizationEmailDomainTest extends TestCase
         $this->company = static::$cachedUser->getCurrentCompany();
     }
 
-    public function testNormalizeReadsEmailsUrlsAndBareDomains(): void
-    {
-        $this->assertSame('acme.com', Organization::normalizeEmailDomain('Jane.Doe@ACME.com'));
-        $this->assertSame('acme.com', Organization::normalizeEmailDomain('https://www.acme.com/about'));
-        $this->assertSame('acme.com', Organization::normalizeEmailDomain('www.acme.com'));
-        $this->assertSame('acme.com', Organization::normalizeEmailDomain(' acme.com '));
-        $this->assertSame('gowww.acme.com', Organization::normalizeEmailDomain('gowww.acme.com'));
-    }
-
-    public function testNormalizeRejectsPublicProvidersAndJunk(): void
-    {
-        $this->assertNull(Organization::normalizeEmailDomain('someone@gmail.com'));
-        $this->assertNull(Organization::normalizeEmailDomain('localhost'));
-        $this->assertNull(Organization::normalizeEmailDomain(''));
-        $this->assertNull(Organization::normalizeEmailDomain(null));
-        $this->assertNull(Organization::normalizeEmailDomain('not a domain.com'));
-    }
-
     public function testAddEmailDomainsIsAdditiveAndDeduplicated(): void
     {
         $domain = $this->uniqueDomain();
