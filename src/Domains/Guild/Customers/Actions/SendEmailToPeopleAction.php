@@ -37,6 +37,7 @@ class SendEmailToPeopleAction
 
     /**
      * @param  list<string>  $attachmentUrls
+     * @param  list<string>  $cc  already filtered by the caller; this action sends to whatever it is given
      */
     public function execute(
         string $to,
@@ -47,6 +48,7 @@ class SendEmailToPeopleAction
         bool $important = false,
         ?Agent $fromAgent = null,
         ?Users $signatureOwner = null,
+        array $cc = [],
     ): array {
         if (trim($to) === '') {
             throw new ValidationException('People has no email address to send to');
@@ -62,6 +64,7 @@ class SendEmailToPeopleAction
                 to: $to,
                 subject: $subject,
                 markdownBody: $message,
+                cc: $cc,
                 attachmentUrls: $attachmentUrls,
                 signature: $ownerSignature,
                 trackingPerson: $this->people,
@@ -95,6 +98,9 @@ class SendEmailToPeopleAction
         $notification->setUserSignature($ownerSignature);
         if ($important) {
             $notification->setImportant();
+        }
+        if ($cc !== []) {
+            $notification->setCc($cc);
         }
 
         Notification::route('mail', $to)->notify($notification);
