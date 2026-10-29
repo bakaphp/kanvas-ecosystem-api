@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Guild\Campaigns\Models\Campaign;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\PropertyType;
@@ -15,7 +16,7 @@ use Override;
 
 /**
  * Batch history / send results for the manager: recent batch campaigns with their status and
- * sent/failed/skipped counts, or the per-recipient result breakdown of a single campaign. Read-only,
+ * sent/failed/skipped/opened counts, or the per-recipient result breakdown of a single campaign. Read-only,
  * company-scoped. Use for "show me my last batch", "how did the RAV4 blast go?", "what happened with
  * campaign 42?".
  */
@@ -27,8 +28,9 @@ class GetBatchHistoryTool extends Tool
     protected string $name = 'get_batch_history';
 
     protected ?string $description = 'Review batch outreach campaigns. With no arguments, lists recent campaigns with their '
-        . 'channel, status, and sent/failed/skipped counts. Pass campaign_id to get that campaign\'s detail '
-        . 'plus a sample of recipients that failed or were skipped, with reasons.';
+        . 'channel, status, sent/failed/skipped/opened counts and email open rate. Pass campaign_id to get that '
+        . 'campaign\'s detail plus a sample of recipients that failed or were skipped, with reasons, and a sample '
+        . 'of who opened the email. Opens are only tracked for emails sent from an agent mailbox.';
 
     /**
      * @return array<int, ToolProperty>
@@ -108,11 +110,38 @@ class GetBatchHistoryTool extends Tool
                 'reason' => $r->reason,
             ])->all();
 
+        $opened = $campaign->recipients()
+            ->whereNotNull('opened_at')
+            ->where('is_deleted', 0)
+            ->orderByDesc('opened_at')
+            ->limit(25)
+            ->get()
+            ->map(fn (CampaignRecipient $r): array => [
+                'lead_id' => $r->leads_id,
+                'people_id' => $r->peoples_id,
+                'opened_at' => $r->opened_at?->toIso8601String(),
+                'open_count' => $r->open_count,
+            ])->all();
+
         return [
             'status' => 'success',
             'campaign' => $this->summary($campaign),
             'problem_recipients_sample' => $problems,
+            'opened_recipients_sample' => $opened,
         ];
+    }
+
+    /**
+     * Null rather than 0 when opens can't be tracked at all — an SMS batch reporting "0% opened" would
+     * read as a failed campaign.
+     */
+    private function openRate(Campaign $campaign): ?float
+    {
+        if ($campaign->channel !== LeadCommunicationChannelEnum::EMAIL->value || $campaign->sent_count === 0) {
+            return null;
+        }
+
+        return round($campaign->opened_count / $campaign->sent_count, 4);
     }
 
     /**
@@ -129,6 +158,8 @@ class GetBatchHistoryTool extends Tool
             'sent' => $campaign->sent_count,
             'failed' => $campaign->failed_count,
             'skipped' => $campaign->skipped_count,
+            'opened' => $campaign->opened_count,
+            'open_rate' => $this->openRate($campaign),
             'created_at' => $campaign->created_at?->toIso8601String(),
             ...$this->tenantLabel($campaign),
         ];
