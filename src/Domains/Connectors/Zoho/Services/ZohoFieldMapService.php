@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\Address;
+use Kanvas\Guild\Leads\Models\Lead;
 
 final class ZohoFieldMapService
 {
@@ -219,6 +220,39 @@ final class ZohoFieldMapService
             'business_state' => 'State',
             'business_zip' => 'Zip_Code',
         ];
+    }
+
+    /**
+     * The company's ZOHO_LEAD_ID_LINK_FIELDS resolved for one lead: Zoho field => URL. Templates may
+     * use {zoho_lead_id}, {lead_id} and {lead_uuid}; an entry whose template is not a string is dropped.
+     *
+     * @return array<string, string>
+     */
+    public static function leadIdLinkFields(Lead $lead, ?string $zohoLeadId): array
+    {
+        $templates = $lead->company->get(CustomFieldEnum::ZOHO_LEAD_ID_LINK_FIELDS->value);
+
+        if (! is_array($templates) || empty($zohoLeadId)) {
+            return [];
+        }
+
+        $placeholders = [
+            '{zoho_lead_id}' => $zohoLeadId,
+            '{lead_id}' => (string) $lead->getId(),
+            '{lead_uuid}' => (string) $lead->uuid,
+        ];
+
+        $links = [];
+
+        foreach ($templates as $zohoField => $template) {
+            if (! is_string($zohoField) || $zohoField === '' || ! is_string($template)) {
+                continue;
+            }
+
+            $links[$zohoField] = strtr($template, $placeholders);
+        }
+
+        return $links;
     }
 
     private static function castScalar(mixed $value, string $type): mixed

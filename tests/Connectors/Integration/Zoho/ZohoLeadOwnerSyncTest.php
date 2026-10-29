@@ -4,20 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Zoho;
 
-use Baka\Contracts\AppInterface;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Zoho\Actions\SyncLeadToZohoAction;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
-use PHPUnit\Framework\MockObject\MockObject;
 use Tests\Connectors\Integration\Zoho\Concerns\BuildsZohoDeal;
+use Tests\Connectors\Integration\Zoho\Concerns\StubsZohoLeadModule;
 use Tests\TestCase;
 use Webleit\ZohoCrmApi\Models\Record;
-use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
 
 /**
  * The company's ZOHO_DEFAULT_OWNER is a create-time fallback only. On an update it would re-assign the
@@ -27,6 +23,7 @@ final class ZohoLeadOwnerSyncTest extends TestCase
 {
     use BuildsZohoDeal;
     use DatabaseTransactions;
+    use StubsZohoLeadModule;
 
     protected $connectionsToTransact = [null, 'crm', 'social', 'ecosystem'];
 
@@ -95,25 +92,5 @@ final class ZohoLeadOwnerSyncTest extends TestCase
         $lead->saveOrFail();
 
         return $lead->fresh();
-    }
-
-    private function module(): MockObject&ZohoRecordsModule
-    {
-        return $this->createMock(ZohoRecordsModule::class);
-    }
-
-    private function action(Lead $lead, ZohoRecordsModule $module): SyncLeadToZohoAction
-    {
-        return new class (app(Apps::class), $lead, $module) extends SyncLeadToZohoAction {
-            public function __construct(AppInterface $app, Lead $lead, private ZohoRecordsModule $module)
-            {
-                parent::__construct($app, $lead);
-            }
-
-            protected function leadModule(Companies $company): ZohoRecordsModule
-            {
-                return $this->module;
-            }
-        };
     }
 }
