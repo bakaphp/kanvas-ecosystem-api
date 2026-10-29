@@ -16,6 +16,7 @@ use Kanvas\Connectors\Reynolds\Enums\CrmLeadSyncOutcomeEnum;
 use Kanvas\Connectors\Reynolds\Exceptions\CrmLeadSyncException;
 use Kanvas\Guild\Customers\Actions\RecordPeopleNoteAction;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -239,8 +240,11 @@ class SyncCrmLeadAction
     private function recordChannelOptOut(People $people, string $declined, string $contacts): void
     {
         new RecordPeopleNoteAction($people)->execute(
-            sprintf('The CRM reports the customer declined %s: their %s contacts were opted out.', $declined, $contacts),
-            'opt-out'
+            body: sprintf('The CRM reports the customer declined %s: their %s contacts were opted out.', $declined, $contacts),
+            tag: LeadMessageTypeEnum::AI_CONTROL->value,
+            actingUser: $people->user,
+            fromIa: false,
+            messageTypeVerb: LeadMessageTypeEnum::AI_CONTROL->value,
         );
     }
 

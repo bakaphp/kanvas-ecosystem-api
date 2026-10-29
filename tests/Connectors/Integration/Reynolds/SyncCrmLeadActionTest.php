@@ -28,6 +28,7 @@ use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleRelationship;
+use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -667,6 +668,21 @@ final class SyncCrmLeadActionTest extends TestCase
             'email' => [['email' => true, 'phone' => false], Contact::EMAIL_TYPES, Contact::PHONE_TYPES],
             'phone' => [['email' => false, 'phone' => true], Contact::PHONE_TYPES, Contact::EMAIL_TYPES],
         ];
+    }
+
+    public function testTheOptOutIsNotedOnThePersonAsAnAiControlNoteByTheirOwner(): void
+    {
+        $input = $this->payload();
+        $input['customer']['consent'] = ['opt_out' => ['email' => true, 'phone' => false]];
+
+        $people = $this->sync($input)->people->refresh();
+
+        $note = $people->notes->messages()->get()
+            ->first(fn ($message): bool => $message->hasTag([LeadMessageTypeEnum::AI_CONTROL->value]));
+        $this->assertNotNull($note, 'a channel that changed rows leaves a note');
+        $this->assertSame(LeadMessageTypeEnum::AI_CONTROL->value, $note->messageType->verb);
+        $this->assertSame($people->users_id, $note->users_id);
+        $this->assertStringContainsString('declined email', $note->message['content']);
     }
 
     public function testNothingIsOptedOutWhenTheCrmFlagsNoChannel(): void
