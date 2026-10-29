@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Reynolds\Actions\PullLeadAction;
 use Kanvas\Connectors\Reynolds\Actions\SyncCrmLeadAction;
@@ -846,12 +847,20 @@ final class SyncCrmLeadActionTest extends TestCase
     {
         $company = $this->company();
         $setting = CrmLeadSyncSettingEnum::CREATE_SOCIAL_CHANNELS->value;
+        // LeadObserver opens the same channels on creation unless this is off, which would hide the sync's own gate.
+        $observerSetting = CompanyConfigurationEnum::CREATE_SOCIAL_CHANNELS_ON_CONTACT_SAVE->value;
+        $previousObserverValue = $company->get($observerSetting);
+
         $company->set($setting, $value);
+        $company->set($observerSetting, false);
 
         try {
             return $callback();
         } finally {
             $company->del($setting);
+            $previousObserverValue === null
+                ? $company->del($observerSetting)
+                : $company->set($observerSetting, $previousObserverValue);
         }
     }
 
