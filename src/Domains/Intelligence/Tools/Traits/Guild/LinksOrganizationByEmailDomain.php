@@ -10,10 +10,6 @@ use Kanvas\Guild\Organizations\Models\Organization;
 trait LinksOrganizationByEmailDomain
 {
     /**
-     * Linked after the person is saved rather than passed as an organization name: that path goes
-     * through CreateOrganizationAction, which normalizes the name and firstOrCreates, so "Acme, Inc."
-     * would come back as a second "Acme" instead of the organization the domain points at.
-     *
      * @return array<string, mixed>
      */
     protected function organizationFromEmailDomain(People $person): array

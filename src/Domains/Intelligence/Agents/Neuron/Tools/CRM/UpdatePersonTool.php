@@ -116,11 +116,11 @@ class UpdatePersonTool extends Tool
             return ['error' => $e->getMessage()];
         }
 
-        $organization = $this->organizationFromEmailDomain($person);
+        $organizationLink = $this->organizationFromEmailDomain($person);
 
         // A call that sets nothing still saves the row; it must not open an approval for an unchanged person.
         $changed = array_filter(
-            [$firstname, $lastname, $middlename, $dob, Str::trimToNull($title), $peopleType, $organization['organization'] ?? null],
+            [$firstname, $lastname, $middlename, $dob, Str::trimToNull($title), $peopleType, $organizationLink['organization'] ?? null],
             static fn (mixed $value): bool => $value !== null
         );
         if ($changed !== []) {
@@ -132,7 +132,7 @@ class UpdatePersonTool extends Tool
             'name' => $person->getName(),
             'title' => $person->get('title') ?: null,
             'people_type' => $person->peopleType?->name,
-            ...$organization,
+            ...$organizationLink,
             'message' => 'Contact updated.',
         ];
     }
