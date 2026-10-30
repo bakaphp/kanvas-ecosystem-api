@@ -8,6 +8,7 @@ enum CampaignRecipientStatusEnum: string
 {
     case PENDING = 'pending';
     case SENT = 'sent';
+    case OPENED = 'opened';
     case FAILED = 'failed';
     case SKIPPED = 'skipped';
 }

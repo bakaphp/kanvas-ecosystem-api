@@ -112,13 +112,16 @@ class ProcessLeadCampaignJob implements ShouldQueue
         }
 
         try {
-            $sent = new SendMessageToLeadAction($lead)->withSignatureOwner($manager)->execute(
-                channel: $channel,
-                message: $this->campaign->message,
-                title: $this->campaign->subject,
-                to: $to,
-                fromAgent: $agent,
-            );
+            $sent = new SendMessageToLeadAction($lead)
+                ->withSignatureOwner($manager)
+                ->forCampaignRecipient($recipient)
+                ->execute(
+                    channel: $channel,
+                    message: $this->campaign->message,
+                    title: $this->campaign->subject,
+                    to: $to,
+                    fromAgent: $agent,
+                );
             $recipient->destination = $to;
             $recipient->sent_at = Carbon::now();
             $this->markRecipient($recipient, CampaignRecipientStatusEnum::SENT);
@@ -191,6 +194,7 @@ class ProcessLeadCampaignJob implements ShouldQueue
                 important: (bool) $this->campaign->is_important,
                 fromAgent: $agent,
                 signatureOwner: $manager,
+                campaignRecipient: $recipient,
             );
             $recipient->destination = $to;
             $recipient->sent_at = Carbon::now();
