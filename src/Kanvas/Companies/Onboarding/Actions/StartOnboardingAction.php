@@ -83,8 +83,7 @@ final class StartOnboardingAction
         );
 
         // Company knowledge (website research, uploads, URLs) only indexes when the app has it on,
-        // and a self-serve app has nobody to flip it later. Public so the settings screen shows it.
-        $app->set(KnowledgeConfigurationEnum::ENABLED->value, 1, isPublic: true);
+        $app->set(KnowledgeConfigurationEnum::ENABLED->value, 1);
 
         $company = Companies::getById((int) $this->user->default_company);
         if ($this->companyName !== null && trim($this->companyName) !== '') {
