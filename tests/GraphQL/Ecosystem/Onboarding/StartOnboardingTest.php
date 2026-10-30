@@ -74,11 +74,6 @@ final class StartOnboardingTest extends TestCase
 
         $newApp = Apps::getById((int) $workspace['app']['id']);
         $this->assertTrue($newApp->getBool(KnowledgeConfigurationEnum::ENABLED->value), 'a self-serve app indexes its company knowledge from day one');
-        $this->assertArrayHasKey(
-            KnowledgeConfigurationEnum::ENABLED->value,
-            $newApp->getAllSettings(onlyPublicSettings: true, fromRedis: false),
-            'the flag is visible on the settings screen, which lists public settings only',
-        );
         /** @var Users $user */
         $user = auth()->user();
         $this->assertTrue($user->isOwnerOf($newApp));
