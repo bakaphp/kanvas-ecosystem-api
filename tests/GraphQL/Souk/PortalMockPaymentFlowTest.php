@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Psr7\Request;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentCaptureInput;
@@ -12,6 +14,7 @@ use Kanvas\Connectors\EchoPay\Enums\PaymentStatusEnum as EchoPayStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class PortalMockPaymentFlowTest extends PortalMockFlowCase
 {
@@ -199,5 +202,68 @@ class PortalMockPaymentFlowTest extends PortalMockFlowCase
         foreach ($seen as $step => $credentials) {
             $this->assertSame(['mock-merchant', 'mock-key', 'mock-secret'], $credentials, $step);
         }
+    }
+
+    public function testASecondFinalizeOnAPaymentAlreadyProcessingMakesNoGatewayCall(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldNotReceive('checkPayerEnrollment');
+        $service->shouldNotReceive('validatePayerAuthResult');
+        $service->shouldNotReceive('authorizePayment');
+        $this->bindPortalProcessor($service);
+        [$paymentId] = $this->createPortalPaymentOnFreshOrder();
+        $this->startChallenge($paymentId);
+        Payments::query()->whereKey($paymentId)->update(['status' => PaymentStatusEnum::PROCESSING->value]);
+
+        $finalize = $this->finalizeChallenge($paymentId);
+
+        $this->assertFalse($finalize['success']);
+        $this->assertSame(PaymentStatusEnum::PROCESSING->value, $finalize['status']);
+        $this->assertSame(PaymentStatusEnum::PROCESSING->value, Payments::find($paymentId)->status);
+    }
+
+    #[DataProvider('settledPaymentActions')]
+    public function testRepeatingAnActionOnASettledPaymentMakesNoGatewayCall(
+        string $mutation,
+        string $settledStatus
+    ): void {
+        $service = $this->portalServiceWithRealMockClient();
+        $paymentId = $this->createAuthorizedPortalPayment($service);
+        Payments::query()->whereKey($paymentId)->update(['status' => $settledStatus]);
+        $service->shouldNotReceive('capturePayment');
+        $service->shouldNotReceive('reversePayment');
+
+        $response = $this->runPaymentAction($mutation, $paymentId);
+
+        $this->assertSame('error', $response['status'], $response['message']);
+        $this->assertSame($settledStatus, Payments::find($paymentId)->status);
+    }
+
+    public static function settledPaymentActions(): array
+    {
+        return [
+            'capture on a paid payment' => ['capturePayment', PaymentStatusEnum::PAID->value],
+            'void on a cancelled payment' => ['voidPayment', PaymentStatusEnum::CANCELLED->value],
+            'refund on a reversed payment' => ['refundPayment', PaymentStatusEnum::REVERSED->value],
+        ];
+    }
+
+    public function testACaptureTimeoutIsTreatedAsCapturedAndKeepsTheBackupMetadata(): void
+    {
+        $this->collectReportedExceptions();
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldReceive('capturePayment')->once()->andThrow(
+            new ConnectException('cURL error 28: timed out', new Request('POST', 'https://mock.echopay.local/capture'))
+        );
+        $paymentId = $this->createAuthorizedPortalPayment($service);
+
+        $capture = $this->runPaymentAction('capturePayment', $paymentId);
+
+        $this->assertSame('success', $capture['status'], $capture['message']);
+        $this->assertSame(PaymentStatusEnum::PAID->value, $capture['payment']['status']);
+        $payment = Payments::find($paymentId);
+        $this->assertSame(PaymentStatusEnum::PAID->value, $payment->status);
+        $this->assertTrue($payment->getMetadata('backup_capture'));
+        $this->assertStringContainsString('timed out', $payment->getMetadata('capture_timeout')['error']);
     }
 }
