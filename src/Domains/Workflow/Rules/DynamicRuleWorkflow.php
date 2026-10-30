@@ -8,6 +8,7 @@ use Generator;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Support\TransientEntity;
 use Workflow\ActivityStub;
@@ -34,6 +35,15 @@ class DynamicRuleWorkflow extends Workflow
 
         if (is_array($rule->params) && count($rule->params) > 0) {
             $params = array_merge($params, $rule->params);
+        }
+
+        if ($entity instanceof Message) {
+            $messageData = (array) ($entity->message['data'] ?? []);
+            $params = array_merge($params, (array) ($messageData['params'] ?? []));
+
+            if (isset($messageData['pdf_file_name'])) {
+                $params['pdf_file_name'] = $messageData['pdf_file_name'];
+            }
         }
 
         unset($params['app']); //don't pass the app to the activity via the param array
