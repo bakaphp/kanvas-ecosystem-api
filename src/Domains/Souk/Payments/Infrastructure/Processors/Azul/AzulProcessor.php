@@ -32,6 +32,7 @@ use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\CurrencyEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Souk\Payments\Support\AutoSubmitForm;
 
 /**
  * Azul payment processor (Banco Popular, Dominican Republic).
@@ -1026,18 +1027,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
     private function buildChallengeForm(string $acsUrl, string $creq, string $termUrl): string
     {
-        $acsUrl  = htmlspecialchars($acsUrl, ENT_QUOTES, 'UTF-8');
-        $creq    = htmlspecialchars($creq, ENT_QUOTES, 'UTF-8');
-        $termUrl = htmlspecialchars($termUrl, ENT_QUOTES, 'UTF-8');
-
-        return <<<HTML
-            <html><body onload="document.forms[0].submit()">
-            <form name="frm" method="POST" action="{$acsUrl}">
-                <input type="hidden" name="creq" value="{$creq}">
-                <input type="hidden" name="TermUrl" value="{$termUrl}">
-            </form>
-            </body></html>
-            HTML;
+        return AutoSubmitForm::render($acsUrl, ['creq' => $creq, 'TermUrl' => $termUrl]);
     }
 
     private function buildCardHolderInfo(Payments $payment, Order $order): ?array

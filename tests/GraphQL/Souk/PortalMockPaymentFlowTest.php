@@ -32,6 +32,9 @@ class PortalMockPaymentFlowTest extends PortalMockFlowCase
         $this->assertSame('mock-access-token', $start['data']['accessToken']);
         $this->assertSame($start['data']['deviceDataUrl'], $start['data']['device_data_collection_url']);
         $this->assertSame($start['data']['referenceId'], $start['data']['reference_id']);
+        $this->assertSame('https://mock.echopay.local', $start['data']['device_data_origin']);
+        $this->assertStringContainsString('action="https://mock.echopay.local/3ds/collect"', $start['data']['method_form']);
+        $this->assertStringContainsString('name="JWT" value="mock-access-token"', $start['data']['method_form']);
         $this->assertSame(PaymentStatusEnum::WAITING_DEVICE_DATA->value, Payments::find($paymentId)->status);
 
         $finalize = $this->finalizeChallenge($paymentId);
@@ -85,6 +88,9 @@ class PortalMockPaymentFlowTest extends PortalMockFlowCase
         $this->assertSame('pareq-payload', $challenge['data']['pareq']);
         $this->assertSame('step-token', $challenge['data']['accessToken']);
         $this->assertSame('https://test.local/3ds/return', $challenge['data']['returnUrl']);
+        $this->assertStringContainsString('action="https://acs.test/step-up"', $challenge['data']['challenge_form']);
+        $this->assertStringContainsString('name="JWT" value="step-token"', $challenge['data']['challenge_form']);
+        $this->assertStringContainsString('name="MD" value="' . $orderId . '"', $challenge['data']['challenge_form']);
         $this->assertSame('auth-tx-1', Order::find($orderId)->get('auth_transaction_id'));
 
         Order::find($orderId)->set('auth_transaction_id', 'webhook-tx');

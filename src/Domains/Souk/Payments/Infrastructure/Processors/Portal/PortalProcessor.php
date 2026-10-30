@@ -49,6 +49,7 @@ use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Jobs\RetryPaymentReversalJob;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Souk\Payments\Support\AutoSubmitForm;
 use RuntimeException;
 use Throwable;
 use UnexpectedValueException;
@@ -383,6 +384,8 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
                     'reference_id' => $referenceId,
                     'access_token' => $accessToken,
                     'device_data_collection_url' => $deviceDataCollectionUrl,
+                    'device_data_origin' => $this->originOf($deviceDataCollectionUrl),
+                    'method_form' => $this->buildMethodForm($deviceDataCollectionUrl, $accessToken),
                 ]),
                 raw: $response,
             );
@@ -577,8 +580,54 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
                 'authenticationTransactionId' => $consumerData->authenticationTransactionId ?? '',
                 'returnUrl' => (string) ($this->app->get(ConfigurationEnum::REDIRECT_URL->value) ?? ''),
                 'consumer_authentication' => $consumerData->toArray(),
+                'challenge_form' => $this->buildChallengeForm($consumerData, (string) $order->id),
             ]),
             raw: $response,
+        );
+    }
+
+    private function originOf(string $url): string
+    {
+        $parts = parse_url($url);
+
+        if (empty($parts['scheme']) || empty($parts['host'])) {
+            return '';
+        }
+
+        return $parts['scheme'] . '://' . $parts['host'] . (isset($parts['port']) ? ':' . $parts['port'] : '');
+    }
+
+    private function buildMethodForm(string $deviceDataCollectionUrl, string $accessToken): string
+    {
+        if ($deviceDataCollectionUrl === '') {
+            return '';
+        }
+
+        return AutoSubmitForm::render($deviceDataCollectionUrl, ['JWT' => $accessToken]);
+    }
+
+    private function buildChallengeForm(ConsumerAuthentication $consumerData, string $orderReference): string
+    {
+        $stepUpUrl = (string) $consumerData->stepUpUrl;
+        $accessToken = (string) $consumerData->accessToken;
+
+        if ($stepUpUrl !== '' && $accessToken !== '') {
+            return AutoSubmitForm::render($stepUpUrl, ['JWT' => $accessToken, 'MD' => $orderReference]);
+        }
+
+        $acsUrl = (string) $consumerData->acsUrl;
+
+        if ($acsUrl === '') {
+            return '';
+        }
+
+        return AutoSubmitForm::render(
+            $acsUrl,
+            [
+                'PaReq' => (string) $consumerData->pareq,
+                'MD' => $orderReference,
+                'TermUrl' => (string) ($this->app->get(ConfigurationEnum::REDIRECT_URL->value) ?? ''),
+            ]
         );
     }
 
