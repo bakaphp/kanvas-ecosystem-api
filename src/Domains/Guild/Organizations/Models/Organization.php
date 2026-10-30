@@ -280,6 +280,38 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     }
 
     /**
+     * A person who already belongs to an organization is left alone: the domain is a guess, the
+     * existing link was a decision.
+     *
+     * @return Collection<int, Organization> the one organization the person was linked to, or the
+     *                                       candidates of the first ambiguous domain (nothing linked)
+     */
+    public static function linkPersonByEmailDomain(People $people): Collection
+    {
+        if ($people->organizations()->exists()) {
+            return collect();
+        }
+
+        $candidates = collect();
+
+        foreach ($people->getEmails() as $email) {
+            $matches = self::findByEmailDomain($people->app, $people->company, (string) $email->value);
+
+            if ($matches->count() === 1) {
+                $matches->first()->addPeople($people);
+
+                return $matches;
+            }
+
+            if ($candidates->isEmpty()) {
+                $candidates = $matches;
+            }
+        }
+
+        return $candidates;
+    }
+
+    /**
      * @psalm-suppress MixedReturnStatement
      */
     public function addPeople(People $people): OrganizationPeople

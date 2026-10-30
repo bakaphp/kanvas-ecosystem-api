@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
 use Kanvas\Intelligence\Tools\Traits\AnnouncesAgentEdits;
+use Kanvas\Intelligence\Tools\Traits\Guild\LinksOrganizationByEmailDomain;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -28,6 +29,7 @@ class UpdatePersonTool extends Tool
 {
     use AnnouncesAgentEdits;
     use HasKanvasContext;
+    use LinksOrganizationByEmailDomain;
     use ReportsToolOutcome;
     use ResolvesPersonForTool;
 
@@ -36,7 +38,9 @@ class UpdatePersonTool extends Tool
     protected ?string $description = 'Update a contact\'s core fields: firstname, lastname, middlename, date of birth, title or '
         . 'people type (e.g. participant, facilitator). '
         . 'Only the fields you pass are changed; emails/phones are left untouched (use manage_person_contact '
-        . 'for those). Identify the person by person_id (use find_person to get it).';
+        . 'for those). A person with no organization is linked to the one their email domain points at: '
+        . 'one match is linked for you, several come back as organization_candidates for you to ask about. '
+        . 'Identify the person by person_id (use find_person to get it).';
 
     /**
      * @return array<int, ToolProperty>
@@ -112,9 +116,11 @@ class UpdatePersonTool extends Tool
             return ['error' => $e->getMessage()];
         }
 
+        $organization = $this->organizationFromEmailDomain($person);
+
         // A call that sets nothing still saves the row; it must not open an approval for an unchanged person.
         $changed = array_filter(
-            [$firstname, $lastname, $middlename, $dob, Str::trimToNull($title), $peopleType],
+            [$firstname, $lastname, $middlename, $dob, Str::trimToNull($title), $peopleType, $organization['organization'] ?? null],
             static fn (mixed $value): bool => $value !== null
         );
         if ($changed !== []) {
@@ -126,6 +132,7 @@ class UpdatePersonTool extends Tool
             'name' => $person->getName(),
             'title' => $person->get('title') ?: null,
             'people_type' => $person->peopleType?->name,
+            ...$organization,
             'message' => 'Contact updated.',
         ];
     }
