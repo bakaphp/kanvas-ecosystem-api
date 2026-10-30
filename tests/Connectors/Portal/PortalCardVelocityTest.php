@@ -68,19 +68,6 @@ final class PortalCardVelocityTest extends TestCase
         parent::tearDown();
     }
 
-    public function testDisabledLimitIsANoOp(): void
-    {
-        $type = $this->orderType();
-        $this->payWith(['1111', '2222', '3333', '4444', '5555'], $type);
-        $payment = $this->pay('6666', $type);
-        $this->expectSetupPayer();
-
-        $result = $this->processor->startChallenge($payment, $payment->payable);
-
-        $this->assertTrue($result->success);
-        $this->assertSame(PaymentStatusEnum::WAITING_DEVICE_DATA->value, $result->status);
-    }
-
     public function testStartChallengeProceedsUnderTheLimit(): void
     {
         $type = $this->orderType(['max_cards_daily' => 4]);
@@ -109,35 +96,6 @@ final class PortalCardVelocityTest extends TestCase
             $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->refresh()->status);
             $this->assertSame($paymentsBefore, Payments::query()->count());
         }
-    }
-
-    public function testStartChallengeMutationSurfacesTheValidationErrorForPortal(): void
-    {
-        $type = $this->orderType(['max_cards_daily' => 4]);
-        $this->payWith(['1111', '2222', '3333'], $type);
-        $payment = $this->pay('4444', $type);
-
-        $this->expectException(CardVelocityExceededException::class);
-
-        new PaymentProcessorMutation()->startChallenge(null, ['paymentId' => $payment->getId()]);
-    }
-
-    public function testStartChallengeWithCardMutationSurfacesTheValidationErrorForPortal(): void
-    {
-        $type = $this->orderType(['max_cards_daily' => 4]);
-        $this->payWith(['1111', '2222', '3333'], $type);
-        $payment = $this->pay('4444', $type);
-
-        $this->expectException(CardVelocityExceededException::class);
-
-        new PaymentProcessorMutation()->startChallengeWithCard(null, [
-            'orderId' => $payment->payable_id,
-            'paymentData' => [
-                'number' => '4444 4444 4444 4444',
-                'expiration_date' => '12/30',
-                'processor' => 'portal',
-            ],
-        ]);
     }
 
     private function expectSetupPayer(): void

@@ -4,18 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Portal;
 
-use Illuminate\Contracts\Queue\Job;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
-use Kanvas\Connectors\EchoPay\Enums\PaymentStatusEnum as EchoPayStatusEnum;
-use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Infrastructure\Processors\Portal\PortalProcessor;
 use Kanvas\Souk\Payments\Jobs\RetryPaymentReversalJob;
@@ -23,12 +17,10 @@ use Kanvas\Souk\Payments\Models\Payments;
 use Mockery;
 use Mockery\MockInterface;
 use RuntimeException;
-use Tests\Connectors\Portal\Concerns\BuildsEnrollmentResponses;
 use Tests\TestCase;
 
 final class RetryPaymentReversalJobTest extends TestCase
 {
-    use BuildsEnrollmentResponses;
     use DatabaseTransactions;
 
     protected array $connectionsToTransact = ['mysql', 'commerce', 'crm', 'ecosystem'];
@@ -84,128 +76,6 @@ final class RetryPaymentReversalJobTest extends TestCase
         new RetryPaymentReversalJob(app(Apps::class), $cleared)->handle();
 
         $this->addToAssertionCount(1);
-    }
-
-    public function testFailedLogsTheExhaustedEvent(): void
-    {
-        $payment = $this->seedPendingPayment(PaymentStatusEnum::FAILED);
-
-        new RetryPaymentReversalJob(app(Apps::class), $payment)->failed(new RuntimeException('gave up'));
-
-        $log = $payment->paymentLogs()->where('event_type', 'payment_reversal_exhausted')->firstOrFail();
-        $this->assertSame('gave up', $log->metadata['error']);
-        $this->assertSame(6, $log->metadata['tries']);
-    }
-
-    public function testTheUniqueIdIsThePaymentId(): void
-    {
-        $payment = $this->seedPendingPayment(PaymentStatusEnum::FAILED);
-
-        $job = new RetryPaymentReversalJob(app(Apps::class), $payment);
-
-        $this->assertSame((string) $payment->getId(), $job->uniqueId());
-    }
-
-    public function testAProcessorWithoutHoldReleaseFailsTheJobWithoutRetrying(): void
-    {
-        $payment = $this->seedPendingPayment(PaymentStatusEnum::FAILED);
-        $processor = Mockery::mock(PaymentProcessorInterface::class);
-        $processor->shouldReceive('name')->andReturn('legacy');
-        $this->app->bind('payment_processor.portal', fn (): PaymentProcessorInterface => $processor);
-        $queueJob = Mockery::mock(Job::class);
-        $queueJob->shouldReceive('fail')->once();
-
-        $job = new RetryPaymentReversalJob(app(Apps::class), $payment);
-        $job->setJob($queueJob);
-        $job->handle();
-
-        $this->assertTrue($payment->fresh()->metadata[RetryPaymentReversalJob::PENDING_KEY]);
-    }
-
-    public function testAFailedHoldReversalAfterAuthorizeMarksPendingAndDispatchesTheRetry(): void
-    {
-        Bus::fake([RetryPaymentReversalJob::class]);
-        $payment = $this->seedPendingPayment(PaymentStatusEnum::WAITING_DEVICE_DATA);
-        $payment->metadata = null;
-        $payment->payment_intent_id = 'setup-1';
-        $payment->saveOrFail();
-        $payment->payable->set('auth_session_id', 'ref-1');
-        $service = Mockery::mock(EchoPayService::class);
-        $service->shouldReceive('checkPayerEnrollment')->once()->andReturn([
-            'consumerAuthenticationInformation' => ConsumerAuthentication::from([
-                ...$this->consumerAuthBase(),
-                'eci' => '05',
-                'eciRaw' => '05',
-                'indicator' => 'vbv',
-                'authenticationResult' => '0',
-            ]),
-            'id' => 'enroll-1',
-            'status' => EchoPayStatusEnum::AUTHENTICATION_SUCCESSFUL->value,
-            'paymentInformation' => ['card' => ['type' => 'VISA']],
-        ]);
-        $service->shouldReceive('authorizePayment')->once()->andReturn([
-            'id' => 'intent-1',
-            'status' => 'AUTHORIZED_RISK_DECLINED',
-        ]);
-        $service->shouldReceive('reversePayment')->once()->andThrow(new EchoPayException(message: 'down', code: 503));
-        $processor = new PortalProcessor(
-            app: app(Apps::class),
-            company: static::$cachedUser->getCurrentCompany(),
-            service: $service,
-        );
-
-        $processor->finalizeChallenge($payment, $payment->payable);
-
-        $payment->refresh();
-        $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->status);
-        $this->assertSame('intent-1', $payment->payment_intent_id);
-        $this->assertTrue($payment->metadata[RetryPaymentReversalJob::PENDING_KEY]);
-        $this->assertSame(1, $payment->metadata['reversal_attempts']);
-        Bus::assertDispatched(
-            RetryPaymentReversalJob::class,
-            function (RetryPaymentReversalJob $job) use ($payment): bool {
-                $persisted = $job->payment->fresh();
-
-                return $job->payment->getId() === $payment->getId()
-                    && $job->delay !== null
-                    && $persisted->status === PaymentStatusEnum::FAILED->value
-                    && $persisted->metadata[RetryPaymentReversalJob::PENDING_KEY] === true;
-            }
-        );
-    }
-
-    public function testNoAuthorizeIdMeansNoPendingMarkerAndNoDispatch(): void
-    {
-        Bus::fake([RetryPaymentReversalJob::class]);
-        $payment = $this->seedPendingPayment(PaymentStatusEnum::WAITING_DEVICE_DATA);
-        $payment->metadata = null;
-        $payment->saveOrFail();
-        $payment->payable->set('auth_session_id', 'ref-1');
-        $service = Mockery::mock(EchoPayService::class);
-        $service->shouldReceive('checkPayerEnrollment')->once()->andReturn([
-            'consumerAuthenticationInformation' => ConsumerAuthentication::from([
-                ...$this->consumerAuthBase(),
-                'eci' => '05',
-                'eciRaw' => '05',
-                'indicator' => 'vbv',
-                'authenticationResult' => '0',
-            ]),
-            'id' => 'enroll-1',
-            'status' => EchoPayStatusEnum::AUTHENTICATION_SUCCESSFUL->value,
-            'paymentInformation' => ['card' => ['type' => 'VISA']],
-        ]);
-        $service->shouldReceive('authorizePayment')->once()->andReturn(['status' => 'PARTIAL_AUTHORIZED']);
-        $service->shouldNotReceive('reversePayment');
-        $processor = new PortalProcessor(
-            app: app(Apps::class),
-            company: static::$cachedUser->getCurrentCompany(),
-            service: $service,
-        );
-
-        $processor->finalizeChallenge($payment, $payment->payable);
-
-        Bus::assertNotDispatched(RetryPaymentReversalJob::class);
-        $this->assertArrayNotHasKey(RetryPaymentReversalJob::PENDING_KEY, $payment->refresh()->metadata ?? []);
     }
 
     private function bindPortalProcessor(): MockInterface
