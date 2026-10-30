@@ -8,11 +8,11 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\LinksRecordsToAdmin;
+use Kanvas\Intelligence\Tools\Traits\Guild\LinksOrganizationByEmailDomain;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -32,6 +32,7 @@ class CreatePersonTool extends Tool
 {
     use DecodesJsonObjectParam;
     use HasKanvasContext;
+    use LinksOrganizationByEmailDomain;
     use LinksRecordsToAdmin;
     use TrackByInputs;
 
@@ -139,49 +140,9 @@ class CreatePersonTool extends Tool
             'admin_url' => $this->adminUrlOf($person),
             'name' => $person->getName(),
             'email' => $person->getEmails()->first()?->value,
-            ...(! $hasOrganization && $email !== null ? $this->organizationFromEmailDomain($person, $email) : []),
+            ...(! $hasOrganization && $email !== null ? $this->organizationFromEmailDomain($person) : []),
             'message' => 'Contact created.',
         ];
-    }
-
-    /**
-     * Linked after the create rather than passed as the DTO's organization name: that path goes
-     * through CreateOrganizationAction, which normalizes the name and firstOrCreates, so "Acme, Inc."
-     * would come back as a second "Acme" instead of the organization the domain points at.
-     *
-     * @return array<string, mixed>
-     */
-    private function organizationFromEmailDomain(People $person, string $email): array
-    {
-        // Dedup can hand back an existing contact who already works somewhere.
-        if ($person->organizations()->exists()) {
-            return [];
-        }
-
-        $matches = Organization::findByEmailDomain($this->app, $this->company, $email);
-
-        if ($matches->count() === 1) {
-            /** @var Organization $organization */
-            $organization = $matches->first();
-            $organization->addPeople($person);
-
-            return [
-                'organization' => ['organization_id' => $organization->getId(), 'name' => $organization->name],
-                'organization_source' => 'email_domain',
-            ];
-        }
-
-        if ($matches->count() > 1) {
-            return [
-                'organization_candidates' => $matches
-                    ->map(fn (Organization $org): array => ['organization_id' => $org->getId(), 'name' => $org->name])
-                    ->all(),
-                'note' => 'Several organizations use this email domain, so none was linked. Ask the user which one '
-                    . 'this person works for before linking them.',
-            ];
-        }
-
-        return [];
     }
 
     private function resolveBranch(): CompaniesBranches

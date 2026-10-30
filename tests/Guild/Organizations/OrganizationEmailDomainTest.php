@@ -7,6 +7,7 @@ namespace Tests\Guild\Organizations;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Actions\MergeOrganizationsAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Tests\TestCase;
@@ -89,6 +90,46 @@ final class OrganizationEmailDomainTest extends TestCase
 
         $matches = Organization::findByEmailDomain($this->kanvasApp, $this->company, 'x@' . $domain);
         $this->assertSame([$target->getId()], $matches->pluck('id')->all());
+    }
+
+    public function testLinkPersonFallsThroughAnAmbiguousEmailToAnUnambiguousOne(): void
+    {
+        $shared = $this->uniqueDomain();
+        $this->seedOrganization('Shared A')->addEmailDomains([$shared]);
+        $this->seedOrganization('Shared B')->addEmailDomains([$shared]);
+        $unique = $this->uniqueDomain();
+        $owner = $this->seedOrganization('Unique Owner');
+        $owner->addEmailDomains([$unique]);
+
+        $people = $this->seedPeople();
+        $people->addEmail('jane@' . $shared);
+        $people->addEmail('jane@' . $unique);
+
+        $matches = Organization::linkPersonByEmailDomain($people);
+
+        $this->assertSame([$owner->getId()], $matches->pluck('id')->all());
+        $this->assertSame([$owner->getId()], $people->organizations()->pluck('organizations.id')->all());
+    }
+
+    public function testLinkPersonReturnsCandidatesAndLinksNothingWhenTheDomainIsShared(): void
+    {
+        $shared = $this->uniqueDomain();
+        $this->seedOrganization('Shared A')->addEmailDomains([$shared]);
+        $this->seedOrganization('Shared B')->addEmailDomains([$shared]);
+        $people = $this->seedPeople();
+        $people->addEmail('jane@' . $shared);
+
+        $this->assertCount(2, Organization::linkPersonByEmailDomain($people));
+        $this->assertFalse($people->organizations()->exists());
+    }
+
+    private function seedPeople(): People
+    {
+        return People::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->withUserId(static::$cachedUser->getId())
+            ->create();
     }
 
     private function uniqueDomain(): string

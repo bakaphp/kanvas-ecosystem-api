@@ -27,7 +27,9 @@ class PushPeopleAction
             $people = People::where('id', $this->people->id)->lockForUpdate()->firstOrFail();
             $company = $people->company;
 
-            $organization = $people->organizations()->first() ?? $this->linkOrganizationByEmailDomain($people);
+            // A Contact without an AccountId lands in Salesforce as a private contact nobody on the
+            // account team sees, so an unlinked person is matched by email domain before the push.
+            $organization = $people->organizations()->first() ?? $this->organizationFromEmailDomain($people);
             if ($organization !== null && ! $organization->get(CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value)) {
                 new PushOrganizationAction($organization)->execute();
                 $organization->refresh();
@@ -47,24 +49,10 @@ class PushPeopleAction
         });
     }
 
-    /**
-     * A Contact without an AccountId lands in Salesforce as a private contact nobody on the account
-     * team sees, so a person nobody linked is matched by email domain before the push. Only an
-     * unambiguous match is linked; a shared domain is left for a human to decide.
-     */
-    private function linkOrganizationByEmailDomain(People $people): ?Organization
+    private function organizationFromEmailDomain(People $people): ?Organization
     {
-        foreach ($people->getEmails() as $email) {
-            $matches = Organization::findByEmailDomain($people->app, $people->company, (string) $email->value);
+        $matches = Organization::linkPersonByEmailDomain($people);
 
-            if ($matches->count() === 1) {
-                $organization = $matches->first();
-                $organization->addPeople($people);
-
-                return $organization;
-            }
-        }
-
-        return null;
+        return $matches->count() === 1 ? $matches->first() : null;
     }
 }
