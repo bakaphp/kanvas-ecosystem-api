@@ -35,6 +35,7 @@ use Kanvas\Souk\Payments\Concerns\LogsEchoPayFailures;
 use Kanvas\Souk\Payments\Concerns\PersistsEchoPayAuthState;
 use Kanvas\Souk\Payments\Concerns\ResolvesEchoPayMerchant;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
+use Kanvas\Souk\Payments\Contracts\ReleasesHoldInterface;
 use Kanvas\Souk\Payments\Contracts\ThreeDSProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\AuthorizeResult;
@@ -46,18 +47,21 @@ use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Jobs\RetryPaymentReversalJob;
 use Kanvas\Souk\Payments\Models\Payments;
 use RuntimeException;
 use Throwable;
 use UnexpectedValueException;
 
-final class PortalProcessor implements PaymentProcessorInterface, TokenizationProcessorInterface, ThreeDSProcessorInterface
+final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldInterface, TokenizationProcessorInterface, ThreeDSProcessorInterface
 {
     use LogsEchoPayFailures;
     use PersistsEchoPayAuthState;
     use ResolvesEchoPayMerchant;
 
     private const string DEFAULT_REVERSAL_REASON = 'Manual reversal';
+
+    private const string AUTHORIZE_ROLLBACK_TAG = 'authorize_rollback';
 
     private const string PARTIAL_AMOUNT_MESSAGE = 'Partial amounts are not supported by EchoPay.';
 
@@ -258,6 +262,21 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
             'void',
             PaymentStatusEnum::CANCELLED,
             'Payment voided.'
+        ));
+    }
+
+    public function releaseHold(
+        Payments $payment,
+        Order $order,
+        float $amount,
+        string $reason
+    ): VoidResult {
+        return new VoidResult(...$this->doReverse(
+            $payment,
+            $order,
+            $amount,
+            $reason,
+            self::AUTHORIZE_ROLLBACK_TAG
         ));
     }
 
@@ -741,6 +760,16 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
             $failure
         );
 
+        if ($reversal !== null && ! $reversal['success'] && $reversal['intentId'] !== '') {
+            RetryPaymentReversalJob::markPending(
+                $payment,
+                $reversal['amount'],
+                $reversal['reason'],
+                $reversal['message']
+            );
+            RetryPaymentReversalJob::dispatchFirstRetry($this->app, $payment);
+        }
+
         return new ThreeDSResult(
             success: false,
             message: ShopperMessageResolver::resolve(
@@ -784,6 +813,8 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
         AuthorizationStatusEnum $authorizationStatus
     ): array {
         $intentId = (string) ($response['id'] ?? '');
+        $amount = (float) ($response['orderInformation']['amountDetails']['authorizedAmount'] ?? $order->getTotalAmount());
+        $reason = 'Authorization not acceptable: ' . $authorizationStatus->failureCode();
 
         if ($intentId === '') {
             $result = $this->failedReversal('Missing authorize transaction id on gateway response.', []);
@@ -792,9 +823,9 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
             $result = $this->doReverse(
                 $payment,
                 $order,
-                (float) ($response['orderInformation']['amountDetails']['authorizedAmount'] ?? $order->getTotalAmount()),
-                'Authorization not acceptable: ' . $authorizationStatus->failureCode(),
-                'authorize_rollback'
+                $amount,
+                $reason,
+                self::AUTHORIZE_ROLLBACK_TAG
             );
         }
 
@@ -804,7 +835,12 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
             ));
         }
 
-        return $result;
+        return [
+            ...$result,
+            'intentId' => $intentId,
+            'amount' => $amount,
+            'reason' => $reason,
+        ];
     }
 
     private function isValidEci(ConsumerAuthentication $consumerData, array $enrollmentData): bool

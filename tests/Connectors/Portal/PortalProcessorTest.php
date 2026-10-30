@@ -12,7 +12,10 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Bus\UniqueLock;
 use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\EchoPay\Client as EchoPayClient;
@@ -33,6 +36,7 @@ use Kanvas\Souk\Payments\DataTransferObject\PaymentFailure;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Infrastructure\Processors\Portal\PortalProcessor;
+use Kanvas\Souk\Payments\Jobs\RetryPaymentReversalJob;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Observers\PaymentObserver;
 use Kanvas\Users\Models\Users;
@@ -1439,6 +1443,9 @@ class PortalProcessorTest extends TestCase
 
     public function testAFailedReversalStillFailsThePaymentAndIsReported(): void
     {
+        Bus::fake([RetryPaymentReversalJob::class]);
+        $staleLock = new RetryPaymentReversalJob($this->currentApp, $this->buildPaymentMock(PaymentStatusEnum::FAILED->value));
+        Cache::lock(UniqueLock::getKey($staleLock))->forceRelease();
         $this->expectReports(1);
         $this->service->shouldReceive('reversePayment')->once()->andThrow($this->decline());
 
@@ -1457,6 +1464,8 @@ class PortalProcessorTest extends TestCase
         $this->assertNotNull($this->findLog('payment_error'));
         $this->assertNull($this->findLog('payment_reversed'));
         $this->assertArrayNotHasKey('should_capture', $order->customFields);
+        $this->assertTrue($payment->metadata[RetryPaymentReversalJob::PENDING_KEY]);
+        Bus::assertDispatched(RetryPaymentReversalJob::class);
     }
 
     public function testAHoldWithoutAGatewayIdIsNotReversedAgainstTheSetupTransaction(): void
