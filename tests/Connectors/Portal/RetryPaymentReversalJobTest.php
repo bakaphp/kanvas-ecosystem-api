@@ -44,18 +44,19 @@ final class RetryPaymentReversalJobTest extends TestCase
         $payment = $this->seedPendingPayment(PaymentStatusEnum::FAILED);
         $service = $this->bindPortalProcessor();
         $service->shouldReceive('reversePayment')->once()->andThrow(new RuntimeException('gateway down'));
+        $shopperMessage = __('payment_errors.PROCESSOR_UNAVAILABLE', [], 'es');
 
         try {
             new RetryPaymentReversalJob(app(Apps::class), $payment)->handle();
             $this->fail('The job must throw so the queue retries it.');
         } catch (RuntimeException $e) {
-            $this->assertStringContainsString('gateway down', $e->getMessage());
+            $this->assertStringContainsString($shopperMessage, $e->getMessage());
         }
 
         $payment->refresh();
         $this->assertTrue($payment->metadata[RetryPaymentReversalJob::PENDING_KEY]);
         $this->assertSame(2, $payment->metadata['reversal_attempts']);
-        $this->assertSame('gateway down', $payment->metadata['reversal_last_error']);
+        $this->assertSame($shopperMessage, $payment->metadata['reversal_last_error']);
         $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->status);
         $this->assertTrue($payment->paymentLogs()->where('event_type', 'payment_reversal_failed')->exists());
     }

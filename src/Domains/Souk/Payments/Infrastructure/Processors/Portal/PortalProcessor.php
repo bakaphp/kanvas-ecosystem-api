@@ -172,6 +172,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
                 message: ShopperMessageResolver::forThrowable($e),
                 transactionId: '',
                 raw: $e instanceof EchoPayException ? $e->getErrorBody() : [],
+                retryable: ! $e instanceof EchoPayException || $e->isGatewayFailure(),
             );
         }
 
@@ -789,13 +790,13 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
         );
 
         if ($reversal !== null && ! $reversal['success'] && $reversal['intentId'] !== '') {
-            RetryPaymentReversalJob::markPending(
+            RetryPaymentReversalJob::schedule(
+                $this->app,
                 $payment,
                 $reversal['amount'],
                 $reversal['reason'],
                 $reversal['message']
             );
-            RetryPaymentReversalJob::dispatchFirstRetry($this->app, $payment);
         }
 
         return new ThreeDSResult(

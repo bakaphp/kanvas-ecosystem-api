@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Souk\Payments\Concerns\RecordsRetryState;
 use Kanvas\Souk\Payments\Contracts\ReleasesHoldInterface;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -25,6 +26,7 @@ final class RetryPaymentReversalJob implements ShouldBeUnique, ShouldQueue
     use InteractsWithQueue;
     use KanvasJobsTrait;
     use Queueable;
+    use RecordsRetryState;
     use SerializesModels;
 
     public const string PENDING_KEY = 'reversal_pending';
@@ -59,23 +61,33 @@ final class RetryPaymentReversalJob implements ShouldBeUnique, ShouldQueue
         string $reason,
         string $error
     ): void {
-        $attempts = (int) ($payment->metadata['reversal_attempts'] ?? 0) + 1;
+        self::recordPendingAttempt(
+            $payment,
+            'reversal',
+            [self::PENDING_KEY => true, 'reversal_amount' => $amount],
+            $reason,
+            $error
+        );
+    }
 
-        $payment->addMetadata([
-            self::PENDING_KEY => true,
-            'reversal_attempts' => $attempts,
-            'reversal_amount' => $amount,
-            'reversal_reason' => $reason,
-            'reversal_last_error' => $error,
-        ]);
-        $payment->saveQuietly();
+    public static function schedule(
+        Apps $app,
+        Payments $payment,
+        float $amount,
+        string $reason,
+        string $error
+    ): void {
+        if ($payment->status !== PaymentStatusEnum::FAILED->value) {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+        }
 
-        $payment->addLog('payment_reversal_failed', [
-            'order_id' => $payment->payable_id,
-            'reason' => $reason,
-            'error' => $error,
-            'attempt' => $attempts,
-        ]);
+        self::markPending(
+            $payment,
+            $amount,
+            $reason,
+            $error
+        );
+        self::dispatchFirstRetry($app, $payment);
     }
 
     public static function dispatchFirstRetry(Apps $app, Payments $payment): void
@@ -134,14 +146,12 @@ final class RetryPaymentReversalJob implements ShouldBeUnique, ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
-        $this->payment->addLog('payment_reversal_exhausted', [
-            'order_id' => $this->payment->payable_id,
-            'reason' => $this->payment->metadata['reversal_reason'] ?? null,
-            'error' => $exception->getMessage(),
-            'tries' => $this->tries,
-        ]);
-
-        report($exception);
+        self::recordExhaustion(
+            $this->payment,
+            'reversal',
+            $exception,
+            $this->tries
+        );
     }
 
     private function isRetryable(Payments $payment): bool

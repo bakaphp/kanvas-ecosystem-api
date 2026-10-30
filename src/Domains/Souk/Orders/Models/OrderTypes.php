@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Models;
 
 use Baka\Casts\Json;
+use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -38,6 +39,10 @@ class OrderTypes extends BaseModel implements ReadableAtLocation
     public const string ALLOWED_PAYMENT_PROCESSORS = 'allowed_payment_processors';
 
     public const string EXPIRATION = 'expiration';
+
+    public const string PAYMENT_RECEIPT_CONFIG_KEY = 'payment_receipt';
+
+    public const string DEFAULT_PAYMENT_RECEIPT_TEMPLATE = 'payment_receipt';
 
     protected $table = 'order_types';
     protected $guarded = [];
@@ -73,6 +78,12 @@ class OrderTypes extends BaseModel implements ReadableAtLocation
     public function cardVelocityLimit(string $key): int
     {
         return (int) ($this->config['card_velocity'][$key] ?? 0);
+    }
+
+    public function paymentReceiptTemplate(): string
+    {
+        return Str::trimToNull($this->config[self::PAYMENT_RECEIPT_CONFIG_KEY]['template'] ?? null)
+            ?? self::DEFAULT_PAYMENT_RECEIPT_TEMPLATE;
     }
 
     public function pdfReceipt(): ?OrderReceipt

@@ -2,20 +2,23 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Movipass\Actions;
+namespace Kanvas\Souk\Payments\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Notification;
-use Kanvas\Connectors\Movipass\Notifications\PaymentReceiptNotification;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Souk\Payments\Notifications\PaymentReceiptNotification;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use Throwable;
 
 class SendPaymentReceiptAction
 {
     private array $channels = ['mail'];
+
     public function __construct(
         private Order $order,
         private Payments $payment,
@@ -23,9 +26,21 @@ class SendPaymentReceiptAction
     ) {
     }
 
-    public function execute(
-        string $emailTemplate = 'payment_receipt'
-    ): void {
+    public static function trySend(Order $order, Payments $payment): void
+    {
+        try {
+            new self(
+                $order,
+                $payment,
+                $payment->user
+            )->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    public function execute(?string $emailTemplate = null): void
+    {
         $payload = [
             'order' => $this->order,
             'payment' => $this->payment,
@@ -34,7 +49,7 @@ class SendPaymentReceiptAction
         ];
 
         $this->sendEmail(
-            $emailTemplate,
+            $emailTemplate ?? $this->order->orderType?->paymentReceiptTemplate() ?? OrderTypes::DEFAULT_PAYMENT_RECEIPT_TEMPLATE,
             $this->user->email,
             $payload,
         );

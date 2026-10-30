@@ -9,6 +9,7 @@ use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Jobs\RetryPaymentReversalJob;
 use Kanvas\Connectors\PasoRapido\Actions\CreatePasoRapidoOrderAction;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Actions\SendPaymentReceiptAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;

@@ -11,6 +11,7 @@ class CaptureResult
         public readonly string $message,
         public readonly string $transactionId,
         public readonly array $raw = [],
+        public readonly bool $retryable = false,
     ) {
     }
 }
