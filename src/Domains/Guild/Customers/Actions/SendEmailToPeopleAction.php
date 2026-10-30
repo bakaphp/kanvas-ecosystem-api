@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
@@ -49,6 +50,7 @@ class SendEmailToPeopleAction
         ?Agent $fromAgent = null,
         ?Users $signatureOwner = null,
         array $cc = [],
+        ?CampaignRecipient $campaignRecipient = null,
     ): array {
         if (trim($to) === '') {
             throw new ValidationException('People has no email address to send to');
@@ -68,6 +70,7 @@ class SendEmailToPeopleAction
                 attachmentUrls: $attachmentUrls,
                 signature: $ownerSignature,
                 trackingPerson: $this->people,
+                trackingCampaignRecipient: $campaignRecipient,
             )->execute();
 
             return [

@@ -7,10 +7,12 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\LinksRecordsToAdmin;
+use Kanvas\Intelligence\Tools\Traits\Guild\LinksOrganizationByEmailDomain;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -30,15 +32,18 @@ class CreatePersonTool extends Tool
 {
     use DecodesJsonObjectParam;
     use HasKanvasContext;
+    use LinksOrganizationByEmailDomain;
     use LinksRecordsToAdmin;
     use TrackByInputs;
 
     protected string $name = 'create_person';
 
     protected ?string $description = 'Create a new contact (person) in the CRM without creating a lead. Provide at least a '
-        . 'firstname; add email, phone, title, organization name, tags and custom fields as known. If a '
-        . 'contact with the same email/phone already exists it is updated, not duplicated. Returns the '
-        . 'person_id. Use create_lead instead when the person should also become a sales lead.';
+        . 'firstname; add email, phone, title, organization name, tags and custom fields as known. When '
+        . 'you give an email and no organization, the organization is deduced from the email domain: one '
+        . 'match is linked for you, several come back as organization_candidates for you to ask about. '
+        . 'If a contact with the same email/phone already exists it is updated, not duplicated. Returns '
+        . 'the person_id. Use create_lead instead when the person should also become a sales lead.';
 
     /**
      * @return array<int, ToolPropertyInterface>
@@ -55,7 +60,8 @@ class CreatePersonTool extends Tool
             new ToolProperty(
                 name: 'organization',
                 type: PropertyType::STRING,
-                description: 'Employer / organization name. Created and linked if it does not exist yet.',
+                description: 'Employer / organization name. Created and linked if it does not exist yet. Leave it '
+                    . 'empty when unknown: a company email domain resolves it.',
                 required: false,
             ),
             new ArrayProperty(
@@ -127,11 +133,14 @@ class CreatePersonTool extends Tool
             return ['error' => $e->getMessage()];
         }
 
+        $hasOrganization = $organization !== null && trim($organization) !== '';
+
         return [
             'person_id' => $person->getId(),
             'admin_url' => $this->adminUrlOf($person),
             'name' => $person->getName(),
             'email' => $person->getEmails()->first()?->value,
+            ...(! $hasOrganization && $email !== null ? $this->organizationFromEmailDomain($person) : []),
             'message' => 'Contact created.',
         ];
     }

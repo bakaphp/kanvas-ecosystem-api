@@ -26,6 +26,7 @@ final class SalesforceBackfillCommandTest extends TestCase
         $this->fakeSalesforceOAuth();
 
         Http::fake([
+            ...$this->fakeAccountDescribe(),
             self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/query*' => Http::response([
                 'totalSize' => 1,
                 'done' => true,
@@ -52,6 +53,7 @@ final class SalesforceBackfillCommandTest extends TestCase
         $this->fakeSalesforceOAuth();
 
         Http::fake([
+            ...$this->fakeAccountDescribe(),
             self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/query*' => Http::response([
                 'totalSize' => 1,
                 'done' => true,
@@ -71,5 +73,38 @@ final class SalesforceBackfillCommandTest extends TestCase
         Queue::assertPushed(function (SalesforceBackfillImportJob $job) {
             return $job->salesforceObjectType === 'Account';
         });
+    }
+
+    public function testDispatchesOneJobPerChunkOfRecords(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+        $this->configureSalesforce($company);
+        $this->fakeSalesforceOAuth();
+
+        $records = array_map(
+            fn (int $i) => ['Id' => sprintf('001xx%013dAAA', $i), 'Name' => "Account {$i}"],
+            range(1, 1001),
+        );
+
+        Http::fake([
+            ...$this->fakeAccountDescribe(),
+            self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/query*' => Http::response([
+                'totalSize' => count($records),
+                'done' => true,
+                'records' => $records,
+            ], 200),
+        ]);
+
+        Queue::fake();
+
+        $this->artisan('kanvas:salesforce-backfill', [
+            'app_id' => $app->getId(),
+            'company_id' => $company->getId(),
+            '--objects' => 'Account',
+        ])->assertSuccessful();
+
+        Queue::assertPushed(SalesforceBackfillImportJob::class, 3);
+        Queue::assertPushed(fn (SalesforceBackfillImportJob $job) => count($job->records) === 1);
     }
 }

@@ -25,6 +25,7 @@ final class PullAllOrganizationsActionTest extends TestCase
         $this->fakeSalesforceOAuth();
 
         Http::fake([
+            ...$this->fakeAccountDescribe(['Website']),
             // `?*` (not a bare `*`) so this doesn't also swallow the page-2 URL below — Http::fake
             // wildcards match path segments too, and `.../query*` alone matches `.../query/01gXX-2000`
             // just as well as `.../query?q=...`, which fed the paginator its own first page forever.
@@ -67,6 +68,7 @@ final class PullAllOrganizationsActionTest extends TestCase
         $this->fakeSalesforceOAuth();
 
         Http::fake([
+            ...$this->fakeAccountDescribe([]),
             self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/query*' => Http::response([
                 'totalSize' => 0,
                 'done' => true,
@@ -77,5 +79,32 @@ final class PullAllOrganizationsActionTest extends TestCase
         $records = new PullAllOrganizationsAction($app, $company)->execute();
 
         $this->assertSame([], $records);
+    }
+
+    public function testSelectsOnlyTheDomainFieldsTheOrgHasPlusContactEmails(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+        $this->configureSalesforce($company);
+        $this->fakeSalesforceOAuth();
+
+        Http::fake([
+            ...$this->fakeAccountDescribe(['Website', 'Company_Domains__c']),
+            self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/query?*' => Http::response([
+                'totalSize' => 0,
+                'done' => true,
+                'records' => [],
+            ], 200),
+        ]);
+
+        new PullAllOrganizationsAction($app, $company)->execute();
+
+        Http::assertSent(function ($request) {
+            $soql = (string) ($request['q'] ?? '');
+
+            return str_contains($soql, 'Website, Company_Domains__c')
+                && ! str_contains($soql, 'Company_URL__c')
+                && str_contains($soql, '(SELECT Email FROM Contacts WHERE Email != null) FROM Account');
+        });
     }
 }

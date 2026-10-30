@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Knowledge\Research;
 
+use Baka\Enums\PublicEmailDomainEnum;
 use Baka\Http\Exceptions\SsrfException;
 use Baka\Http\SafeUrlFetcher;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -12,7 +13,6 @@ use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Jina\Enums\ConfigurationEnum as JinaConfigurationEnum;
 use Kanvas\Connectors\Tavily\Enums\ConfigurationEnum as TavilyConfigurationEnum;
-use Kanvas\Intelligence\Knowledge\Research\Enums\PublicEmailDomainEnum;
 use Kanvas\Intelligence\Knowledge\Research\Services\WebsitePageCollector;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;

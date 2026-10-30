@@ -30,6 +30,12 @@ final class WebsiteUrl
             throw new ValidationException('Website must be an http(s) address with a host');
         }
 
+        // A one-word host is never a public site; it is a leftover of a mistyped scheme ("https" out of
+        // "https://https//x.com") or a bare name, and either would be stored and crawled otherwise.
+        if (! str_contains($host, '.') && filter_var($host, FILTER_VALIDATE_IP) === false) {
+            throw new ValidationException('Website must be a domain name, like example.com');
+        }
+
         if ($host === 'localhost' || str_ends_with($host, '.local') || str_ends_with($host, '.internal')) {
             throw new ValidationException('Website must be a public address');
         }
@@ -43,11 +49,22 @@ final class WebsiteUrl
         return $scheme . '://' . $host . (isset($parts['port']) ? ':' . $parts['port'] : '') . $path;
     }
 
+    /**
+     * People type "https//x.com", "https:/x.com", "https:x.com", and paste "https://https//x.com" when
+     * a form echoed the first mistake back. Every http(s) fragment at the front is peeled off, the last
+     * one wins, and one well-formed scheme goes back; any other scheme is left for normalize() to refuse.
+     */
     public static function withScheme(string $website): string
     {
         $website = trim($website);
+        $scheme = 'https';
 
-        return preg_match('#^[a-z][a-z0-9+.-]*://#i', $website) ? $website : 'https://' . $website;
+        while (preg_match('#^(https?)(?::/*|/+)#i', $website, $match) === 1) {
+            $scheme = strtolower($match[1]);
+            $website = substr($website, strlen($match[0]));
+        }
+
+        return preg_match('#^[a-z][a-z0-9+.-]*://#i', $website) ? $website : $scheme . '://' . $website;
     }
 
     public static function host(string $website): string

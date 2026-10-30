@@ -41,4 +41,24 @@ trait HasSalesforceConfiguration
             ], 200),
         ]);
     }
+
+    /**
+     * PullAllOrganizationsAction describes Account before querying it, to select only the domain
+     * fields the org actually has.
+     *
+     * @param list<string> $extraFields
+     *
+     * @return array<string, mixed> an Http::fake() map entry
+     */
+    protected function fakeAccountDescribe(array $extraFields = []): array
+    {
+        $fields = array_map(
+            fn (string $name) => ['name' => $name],
+            ['Id', 'Name', 'Phone', 'NumberOfEmployees', ...$extraFields],
+        );
+
+        return [
+            self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/sobjects/Account/describe' => Http::response(['fields' => $fields], 200),
+        ];
+    }
 }

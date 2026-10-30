@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\Mailgun\Actions\VerifyMailgunWebhookSignatureAction;
 use Kanvas\Connectors\Mailgun\Services\MailgunEngagementPayloadService;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Guild\Campaigns\Actions\RecordCampaignRecipientOpenAction;
+use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Actions\RecordPeopleNoteAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
@@ -34,7 +36,8 @@ use Override;
         . 'once with Client::createOrUpdateWebhook() pointed at this receiver\'s URL. Every email sent '
         . 'with open tracking on (SendAsAgentMailboxAction\'s trackingPerson/trackingLead) gets an '
         . 'activity note — on the Lead\'s own feed when the mail was about one, otherwise on the '
-        . 'People\'s. Needs no receiver configuration — read off the event\'s own user-variables.',
+        . 'People\'s. A campaign email (v:campaign_recipient_id) also marks that campaign slot opened. '
+        . 'Needs no receiver configuration — read off the event\'s own user-variables.',
     integration: IntegrationsEnum::MAILGUN,
 )]
 class EmailOpenedWebhookJob extends ProcessWebhookJob
@@ -59,17 +62,47 @@ class EmailOpenedWebhookJob extends ProcessWebhookJob
             return ['message' => 'Duplicate delivery'];
         }
 
+        $campaignResult = $this->recordOnCampaignRecipient($payload);
+
         $leadId = $payload->userVariable('lead_id');
         if ($leadId !== null && $leadId !== '') {
-            return $this->recordOnLead((int) $leadId, $payload);
+            return [...$this->recordOnLead((int) $leadId, $payload), ...$campaignResult];
         }
 
         $peopleId = $payload->userVariable('people_id');
         if ($peopleId === null || $peopleId === '') {
-            return ['message' => 'Event carries no people_id or lead_id, nothing to record against'];
+            return ['message' => 'Event carries no people_id or lead_id, nothing to record against', ...$campaignResult];
         }
 
-        return $this->recordOnPeople((int) $peopleId, $payload);
+        return [...$this->recordOnPeople((int) $peopleId, $payload), ...$campaignResult];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function recordOnCampaignRecipient(MailgunEngagementPayloadService $payload): array
+    {
+        $recipientId = $payload->userVariable('campaign_recipient_id');
+        if ($recipientId === null || $recipientId === '') {
+            return [];
+        }
+
+        /** @var CampaignRecipient|null $recipient */
+        $recipient = CampaignRecipient::query()
+            ->whereKey((int) $recipientId)
+            ->fromApp($this->receiver->app)
+            ->fromCompany($this->receiver->company)
+            ->notDeleted()
+            ->first();
+
+        if ($recipient === null) {
+            return ['campaign_recipient' => 'campaign_recipient_id ' . $recipientId . ' not found in this tenant'];
+        }
+
+        return [
+            'campaign_recipient_id' => $recipient->getId(),
+            'campaign_first_open' => new RecordCampaignRecipientOpenAction($recipient)->execute(),
+        ];
     }
 
     private function recordOnLead(int $leadId, MailgunEngagementPayloadService $payload): array

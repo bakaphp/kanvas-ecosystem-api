@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Knowledge\Research\Enums;
+namespace Baka\Enums;
 
 /**
- * Mail domains that identify a provider, never a company: a website built from one of these would be
- * researched as if it were the tenant's own.
+ * Mail domains that identify a provider, never a company: thousands of unrelated people share one, so
+ * neither a website built from it nor an organization matched by it says anything about who they are.
  */
 enum PublicEmailDomainEnum
 {

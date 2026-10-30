@@ -44,10 +44,6 @@ final class StartOnboardingAction
      */
     public function execute(): array
     {
-        if (! (bool) $this->user->getAppProfile($this->originApp)->is_verified) {
-            throw new ValidationException('Verify your email before starting onboarding');
-        }
-
         $lock = Cache::lock('onboarding:start:' . $this->user->getId(), self::LOCK_SECONDS);
         if (! $lock->get()) {
             throw new ValidationException('Onboarding is already starting for this user');
@@ -87,7 +83,6 @@ final class StartOnboardingAction
         );
 
         // Company knowledge (website research, uploads, URLs) only indexes when the app has it on,
-        // and a self-serve app has nobody to flip it later.
         $app->set(KnowledgeConfigurationEnum::ENABLED->value, 1);
 
         $company = Companies::getById((int) $this->user->default_company);

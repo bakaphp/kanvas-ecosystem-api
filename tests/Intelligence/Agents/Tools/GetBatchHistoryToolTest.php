@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Tools;
 
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Campaigns\Enums\CampaignRecipientStatusEnum;
 use Kanvas\Guild\Campaigns\Enums\CampaignStatusEnum;
 use Kanvas\Guild\Campaigns\Models\Campaign;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
@@ -67,5 +69,41 @@ class GetBatchHistoryToolTest extends TestCase
         $this->assertSame('success', $result['status']);
         $this->assertSame($campaign->getId(), $result['campaign']['campaign_id']);
         $this->assertSame('no_deliverable_contact', $result['problem_recipients_sample'][0]['reason']);
+    }
+
+    public function testReportsOpensAndTheOpenRate(): void
+    {
+        $company = Companies::factory()->create();
+        $campaign = $this->campaign($company);
+        $campaign->channel = 'email';
+        $campaign->sent_count = 4;
+        $campaign->opened_count = 1;
+        $campaign->saveOrFail();
+
+        $recipient = CampaignRecipient::pending($campaign, leadId: null, peopleId: 123);
+        $recipient->status = CampaignRecipientStatusEnum::OPENED->value;
+        $recipient->opened_at = Carbon::now();
+        $recipient->open_count = 3;
+        $recipient->saveOrFail();
+
+        $list = $this->tool($company)();
+        $this->assertSame(1, $list['campaigns'][0]['opened']);
+        $this->assertSame(0.25, $list['campaigns'][0]['open_rate']);
+
+        $detail = $this->tool($company)(campaign_id: $campaign->getId());
+        $this->assertSame(123, $detail['opened_recipients_sample'][0]['people_id']);
+        $this->assertSame(3, $detail['opened_recipients_sample'][0]['open_count']);
+    }
+
+    public function testAnSmsCampaignHasNoOpenRateRatherThanZero(): void
+    {
+        $company = Companies::factory()->create();
+        $campaign = $this->campaign($company);
+        $campaign->sent_count = 5;
+        $campaign->saveOrFail();
+
+        $result = $this->tool($company)();
+
+        $this->assertNull($result['campaigns'][0]['open_rate']);
     }
 }

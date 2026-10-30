@@ -15,6 +15,8 @@ final class PullOrganizationActionTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem'];
+
     public function testCreatesOrganizationWhenNoMatchingCustomFieldExists(): void
     {
         $app = app(Apps::class);
@@ -74,5 +76,37 @@ final class PullOrganizationActionTest extends TestCase
         // disableWorkflows() was applied before saveOrFail() — fireWorkflow must short-circuit to
         // null instead of dispatching, which is what would re-trigger the outbound Salesforce sync.
         $this->assertNull($organization->fireWorkflow(WorkflowEnum::UPDATED->value));
+    }
+
+    public function testStoresDomainsFromDomainFieldsWebsiteAndContactEmails(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+        $suffix = uniqid();
+
+        $organization = new PullOrganizationAction(
+            $app,
+            $company,
+            [
+                'Name' => 'Acme Corp',
+                'Company_Domains__c' => "acme-{$suffix}.com, acme-stores-{$suffix}.com",
+                'Website' => "https://www.acme-web-{$suffix}.com/home",
+                'Contacts' => ['records' => [
+                    ['Email' => "jane@acme-mail-{$suffix}.com"],
+                    ['Email' => 'personal@gmail.com'],
+                ]],
+            ],
+            '001xx00000DOMAINS' . $suffix,
+        )->execute();
+
+        $domains = $organization->emailDomains();
+        sort($domains);
+
+        $this->assertSame([
+            "acme-{$suffix}.com",
+            "acme-mail-{$suffix}.com",
+            "acme-stores-{$suffix}.com",
+            "acme-web-{$suffix}.com",
+        ], $domains);
     }
 }

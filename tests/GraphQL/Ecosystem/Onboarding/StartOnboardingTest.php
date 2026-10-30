@@ -45,10 +45,17 @@ final class StartOnboardingTest extends TestCase
                 config(['scout.typesense.nodes' => $settings['typesense_nodes']]);
             }
         }
+    }
 
+    public function testAnUnverifiedEmailCanStartOnboarding(): void
+    {
         $profile = auth()->user()->getAppProfile(app(Apps::class));
-        $profile->is_verified = 1;
+        $profile->is_verified = 0;
         $profile->saveOrFail();
+
+        $workspace = $this->graphQL(self::MUTATION, ['input' => ['app_name' => 'Unverified ' . uniqid()]])->json('data.startOnboarding');
+
+        $this->assertNotNull($workspace);
     }
 
     public function testCreatesAppOwnerCompanyAndOnboardingRow(): void
