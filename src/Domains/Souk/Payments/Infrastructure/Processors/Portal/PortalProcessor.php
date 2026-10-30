@@ -169,7 +169,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
 
             return new CaptureResult(
                 success: false,
-                message: $e instanceof EchoPayException ? $e->getUserMessage() : $e->getMessage(),
+                message: ShopperMessageResolver::forThrowable($e),
                 transactionId: '',
                 raw: $e instanceof EchoPayException ? $e->getErrorBody() : [],
             );
@@ -991,9 +991,10 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
                 'operation' => $logTag,
             ]);
 
-            return $e instanceof EchoPayException
-                ? $this->failedReversal($e->getUserMessage(), $e->getErrorBody())
-                : $this->failedReversal($e->getMessage(), []);
+            return $this->failedReversal(
+                ShopperMessageResolver::forThrowable($e),
+                $e instanceof EchoPayException ? $e->getErrorBody() : []
+            );
         }
 
         $responseTimeMs = $this->elapsedMs($start);
@@ -1202,7 +1203,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
 
         return new ThreeDSResult(
             success: false,
-            message: $errorMessage,
+            message: ShopperMessageResolver::forThrowable($e),
             status: PaymentStatusEnum::FAILED->value,
         );
     }
@@ -1240,7 +1241,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
 
         return new ThreeDSResult(
             success: false,
-            message: $e instanceof EchoPayException ? $e->getUserMessage() : $errorMessage,
+            message: ShopperMessageResolver::forThrowable($e),
             status: PaymentStatusEnum::FAILED->value,
             raw: $e instanceof EchoPayException ? $e->getErrorBody() : [],
         );

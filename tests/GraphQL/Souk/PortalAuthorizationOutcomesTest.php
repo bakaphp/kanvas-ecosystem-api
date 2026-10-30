@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Psr7\Request;
 use Illuminate\Bus\UniqueLock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Bus;
@@ -117,7 +119,11 @@ class PortalAuthorizationOutcomesTest extends PortalMockFlowCase
         $reported = $this->collectReportedExceptions();
         $service = $this->portalServiceWithRealMockClient();
         $service->shouldReceive('authorizePayment')->once()->andThrow(
-            new EchoPayException(message: 'Payment not approved', code: $statusCode, errorBody: [])
+            new EchoPayException(
+                message: "Server error: `POST https://echopay.test/payments` resulted in a `{$statusCode}` response",
+                code: $statusCode,
+                errorBody: []
+            )
         );
         $this->bindPortalProcessor($service);
         [$paymentId] = $this->createPortalPaymentOnFreshOrder();
@@ -131,6 +137,36 @@ class PortalAuthorizationOutcomesTest extends PortalMockFlowCase
             fn ($exception): bool => $exception instanceof EchoPayException
         );
         $this->assertSame($expectedReported, $gatewayReports !== []);
+
+        if ($expectedReported) {
+            $this->assertSame(__('payment_errors.PROCESSOR_UNAVAILABLE', [], 'es'), $finalize['message']);
+            $this->assertStringNotContainsStringIgnoringCase('http', $finalize['message']);
+            $this->assertStringNotContainsString('cURL', $finalize['message']);
+            $this->assertStringContainsString(
+                'echopay.test',
+                (string) $this->logsOf($paymentId, '3ds_authorize_failed')->firstOrFail()->error_message
+            );
+        }
+    }
+
+    public function testATimeoutDuringAuthorizeShowsTheShopperTheTimeoutMessageAndKeepsTheRawErrorInTheLog(): void
+    {
+        $rawError = 'cURL error 28: Operation timed out for https://echopay.test/payments';
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldReceive('authorizePayment')->once()->andThrow(
+            new ConnectException($rawError, new Request('POST', 'https://echopay.test/payments'))
+        );
+        $this->bindPortalProcessor($service);
+        [$paymentId] = $this->createPortalPaymentOnFreshOrder();
+        $this->startChallenge($paymentId);
+
+        $finalize = $this->finalizeChallenge($paymentId);
+
+        $this->assertFalse($finalize['success']);
+        $this->assertSame(PaymentStatusEnum::FAILED->value, $finalize['status']);
+        $this->assertSame(__('payment_errors.SERVER_TIMEOUT', [], 'es'), $finalize['message']);
+        $this->assertStringNotContainsString('cURL', $finalize['message']);
+        $this->assertSame($rawError, $this->logsOf($paymentId, '3ds_authorize_failed')->firstOrFail()->error_message);
     }
 
     public static function gatewayFailureCodes(): array

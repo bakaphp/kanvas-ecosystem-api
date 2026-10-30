@@ -76,11 +76,7 @@ class EchoPayException extends ValidationException
 
     public function getUserMessage(): string
     {
-        return ShopperMessageResolver::resolve(
-            $this->getReason(),
-            $this->getGatewayMessage(),
-            $this->getMessage()
-        );
+        return ShopperMessageResolver::forThrowable($this);
     }
 
     private function getBodySection(string $key): array
