@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Actions;
 
+use Bouncer;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -90,9 +91,15 @@ class ProcessAdminInviteAction
                 isActive: StateEnums::YES->getValue()
             );
 
-            $roleParam = $invite->role_id ?? RolesEnums::ADMIN->value;
-            $role = RolesRepository::getByMixedParamFromCompany(param: $roleParam, app: $app);
-            new AssignRoleAction($user, $role, $app)->execute();
+            // The invite page calls this on the Kanvas app, and Bouncer ANDs the request's scope onto every role query.
+            Bouncer::scope()->onceTo(
+                RolesEnums::getScope($app),
+                function () use ($invite, $user, $app) {
+                    $roleParam = $invite->role_id ?? RolesEnums::ADMIN->value;
+                    $role = RolesRepository::getByMixedParamFromCompany(param: $roleParam, app: $app);
+                    new AssignRoleAction($user, $role, $app)->execute();
+                }
+            );
 
             $invite->softDelete();
             $app->update(); //clear cache
