@@ -98,10 +98,9 @@ final class LocationContext
      *
      * @param class-string $modelClass
      */
-    public static function searchCompany(string $modelClass): ?CompanyInterface
+    public static function searchCompany(string $modelClass, ?UserInterface $user): ?CompanyInterface
     {
-        $user = auth()->user();
-        if (! $user instanceof UserInterface) {
+        if ($user === null) {
             return null;
         }
 

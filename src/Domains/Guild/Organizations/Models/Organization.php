@@ -364,7 +364,7 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     {
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
 
-        $company = LocationContext::searchCompany(static::class);
+        $company = LocationContext::searchCompany(static::class, auth()->user());
         if ($company !== null) {
             $query->where('companies_id', $company->getId());
         }
