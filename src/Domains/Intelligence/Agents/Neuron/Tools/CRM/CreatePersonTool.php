@@ -140,6 +140,9 @@ class CreatePersonTool extends Tool
             'admin_url' => $this->adminUrlOf($person),
             'name' => $person->getName(),
             'email' => $person->getEmails()->first()?->value,
+            // Linked after the create, not passed as the DTO's organization name: that path goes through
+            // CreateOrganizationAction's normalize + firstOrCreate, so "Acme, Inc." would come back as a
+            // second "Acme" instead of the organization the domain points at.
             ...(! $hasOrganization && $email !== null ? $this->organizationFromEmailDomain($person) : []),
             'message' => 'Contact created.',
         ];
