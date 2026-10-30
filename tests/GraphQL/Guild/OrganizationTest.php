@@ -303,7 +303,7 @@ class OrganizationTest extends TestCase
 
     private function seedOrganizationIn(Companies $company, string $name): Organization
     {
-        $organization = Organization::create([
+        return Organization::create([
             'apps_id' => app(Apps::class)->getId(),
             'companies_id' => $company->getId(),
             'users_id' => auth()->user()->getId(),
@@ -311,9 +311,6 @@ class OrganizationTest extends TestCase
             'address' => '',
             'total_employees' => 0,
         ]);
-        $organization->searchable();
-
-        return $organization;
     }
 
     public function testCreateOrganizationNormalizesAndSavesPhone(): void

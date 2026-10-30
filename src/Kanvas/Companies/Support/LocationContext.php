@@ -93,8 +93,8 @@ final class LocationContext
 
     /**
      * The company a Scout `search()` must stay inside. A search never passes through `fromCompany`,
-     * so without this an app-key request that names a location still searched every company.
-     * Null only for an app owner on an app key with no location, the one caller allowed app-wide.
+     * so this is its only company filter. Null only for an app owner on an app key with no location,
+     * the one caller allowed app-wide.
      *
      * @param class-string $modelClass
      */
