@@ -885,6 +885,63 @@ class PipelineTest extends TestCase
         $this->assertSame($dropStageId, (int) $readded[1]['id'], 'Re-adding the name restores the soft-deleted stage');
     }
 
+    public function testSingleSaveUpdatesAddsAndRemovesStages(): void
+    {
+        $input = [
+            'name' => fake()->name(),
+            'weight' => 0,
+            'is_default' => false,
+            'stages' => [
+                ['name' => 'New', 'rotting_days' => 1, 'weight' => 0, 'config' => ['follow_up' => ['enabled' => true]]],
+                ['name' => 'Contacted', 'rotting_days' => 2, 'weight' => 1],
+                ['name' => 'Lost', 'rotting_days' => 3, 'weight' => 2],
+            ],
+        ];
+
+        $response = $this->createPipelineFromInput($input);
+        $pipelineId = $response->json('data.createPipeline.id');
+        [$newId, $contactedId, $lostId] = array_map('intval', array_column($response->json('data.createPipeline.stages'), 'id'));
+
+        $leadId = $this->createLeadOnStage($newId);
+
+        $input['name'] = 'Renamed pipeline';
+        $input['stages'] = [
+            ['stages_id' => $newId, 'name' => 'Fresh', 'rotting_days' => 7, 'weight' => 0, 'config' => ['follow_up' => ['enabled' => false]]],
+            ['stages_id' => $contactedId, 'name' => 'Contacted', 'rotting_days' => 2, 'weight' => 1],
+            ['name' => 'Won', 'rotting_days' => 0, 'weight' => 2],
+        ];
+
+        $updated = $this->graphQL('
+            mutation($id: ID!, $input: PipelineInput!) {
+                updatePipeline(id: $id, input: $input) {
+                    name
+                    stage_count
+                    stages { id name rotting_days weight config }
+                }
+            }
+        ', ['id' => $pipelineId, 'input' => $input])->assertGraphQLErrorFree()->json('data.updatePipeline');
+
+        $this->assertSame('Renamed pipeline', $updated['name']);
+        $this->assertSame(3, $updated['stage_count']);
+        $this->assertSame(['Fresh', 'Contacted', 'Won'], array_column($updated['stages'], 'name'));
+        $this->assertSame([$newId, $contactedId], array_map('intval', array_column(array_slice($updated['stages'], 0, 2), 'id')));
+        $this->assertNotContains($lostId, array_map('intval', array_column($updated['stages'], 'id')));
+
+        $fresh = $updated['stages'][0];
+        $this->assertSame(7, $fresh['rotting_days']);
+        $this->assertSame(['follow_up' => ['enabled' => false]], $fresh['config']);
+
+        $won = $updated['stages'][2];
+        $this->assertSame(2, $won['weight']);
+        $this->assertSame(0, $won['rotting_days']);
+
+        $lead = Lead::find($leadId);
+        $this->assertSame($newId, (int) $lead->pipeline_stage_id);
+        $this->assertSame('Fresh', $lead->stage->name);
+
+        $this->assertSame(1, (int) PipelineStage::find($lostId)->is_deleted);
+    }
+
     protected function createPipelineFromInput(array $input): TestResponse
     {
         return $this->graphQL('
