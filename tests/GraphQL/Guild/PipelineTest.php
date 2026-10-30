@@ -6,7 +6,9 @@ namespace Tests\GraphQL\Guild;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Testing\TestResponse;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Tests\TestCase;
 use Tests\Traits\AssertsIsDefaultOrdering;
 
@@ -299,28 +301,7 @@ class PipelineTest extends TestCase
         $stage1Id = $response->json('data.createPipeline.stages.0.id');
         $stage2Id = $response->json('data.createPipeline.stages.1.id');
 
-        // Create a lead on stage 2
-        $user = auth()->user();
-        $branch = $user->getCurrentBranch();
-
-        $this->graphQL('
-            mutation($input: LeadInput!) {
-                createLead(input: $input) { id }
-            }
-        ', [
-            'input' => [
-                'branch_id' => $branch->getId(),
-                'title' => fake()->title(),
-                'pipeline_stage_id' => (int) $stage2Id,
-                'people' => [
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'contacts' => [
-                        ['value' => fake()->email(), 'contacts_types_id' => 1, 'weight' => 0],
-                    ],
-                ],
-            ],
-        ])->assertSuccessful();
+        $this->createLeadOnStage((int) $stage2Id);
 
         // Try to update pipeline removing stage 2 — should fail
         $input['stages'] = [
@@ -336,7 +317,7 @@ class PipelineTest extends TestCase
             }
         ', ['id' => $pipelineId, 'input' => $input])
         ->assertJsonFragment([
-            'message' => 'Cannot remove pipeline stages that have active leads. Move leads to another stage first.',
+            'message' => 'Cannot remove pipeline stages that have active leads or deals. Move them to another stage first.',
         ]);
     }
 
@@ -759,5 +740,253 @@ class PipelineTest extends TestCase
                 'stages' => [],
             ],
         ])->assertGraphQLErrorFree()->json('data.createPipeline.id');
+    }
+
+    public function testRenameAndReorderWithoutStagesIdKeepsLeadsOnTheirStage(): void
+    {
+        $input = [
+            'name' => fake()->name(),
+            'weight' => 0,
+            'is_default' => false,
+            'stages' => [
+                ['name' => 'New', 'rotting_days' => 1, 'weight' => 0],
+                ['name' => 'Contacted', 'rotting_days' => 1, 'weight' => 1],
+            ],
+        ];
+
+        $response = $this->createPipelineFromInput($input);
+        $pipelineId = $response->json('data.createPipeline.id');
+        $newStageId = (int) $response->json('data.createPipeline.stages.0.id');
+        $contactedStageId = (int) $response->json('data.createPipeline.stages.1.id');
+
+        $leadInNew = $this->createLeadOnStage($newStageId);
+        $leadInContacted = $this->createLeadOnStage($contactedStageId);
+
+        $input['stages'] = [
+            ['name' => 'Reached', 'rotting_days' => 1, 'weight' => 0, 'pipeline_id' => $pipelineId],
+            ['name' => 'New', 'rotting_days' => 1, 'weight' => 1, 'pipeline_id' => $pipelineId],
+        ];
+
+        $updated = $this->updatePipelineFromInput($pipelineId, $input)->json('data.updatePipeline.stages');
+
+        $this->assertSame(['Reached', 'New'], array_column($updated, 'name'));
+        $this->assertSame($contactedStageId, (int) $updated[0]['id'], 'Contacted must keep its id after being renamed and reordered');
+        $this->assertSame($newStageId, (int) $updated[1]['id']);
+        $this->assertSame('New', Lead::find($leadInNew)->stage->name);
+        $this->assertSame('Reached', Lead::find($leadInContacted)->stage->name);
+    }
+
+    public function testUpdatePipelineWithoutConfigKeepsStageConfig(): void
+    {
+        $input = [
+            'name' => fake()->name(),
+            'weight' => 0,
+            'is_default' => false,
+            'stages' => [
+                ['name' => 'Configured', 'rotting_days' => 1, 'weight' => 0, 'config' => ['follow_up' => ['enabled' => true]]],
+            ],
+        ];
+
+        $response = $this->createPipelineFromInput($input);
+        $pipelineId = $response->json('data.createPipeline.id');
+        $stageId = (int) $response->json('data.createPipeline.stages.0.id');
+
+        $input['name'] = fake()->name();
+        $input['stages'] = [
+            ['stages_id' => $stageId, 'name' => 'Configured', 'rotting_days' => 1, 'weight' => 0],
+        ];
+
+        $this->updatePipelineFromInput($pipelineId, $input);
+
+        $this->assertSame(['follow_up' => ['enabled' => true]], PipelineStage::find($stageId)->config);
+    }
+
+    public function testCannotRemoveStageWithActiveDeals(): void
+    {
+        $input = [
+            'name' => fake()->name(),
+            'weight' => 0,
+            'is_default' => false,
+            'stages' => [
+                ['name' => 'Open', 'rotting_days' => 1, 'weight' => 0],
+                ['name' => 'Negotiating', 'rotting_days' => 1, 'weight' => 1],
+            ],
+        ];
+
+        $response = $this->createPipelineFromInput($input);
+        $pipelineId = $response->json('data.createPipeline.id');
+        $openStageId = (int) $response->json('data.createPipeline.stages.0.id');
+        $negotiatingStageId = (int) $response->json('data.createPipeline.stages.1.id');
+
+        $this->graphQL('
+            mutation($input: DealInput!) {
+                createDeal(input: $input) { id }
+            }
+        ', ['input' => [
+            'title' => 'Deal ' . fake()->word(),
+            'pipeline_id' => $pipelineId,
+            'pipeline_stage_id' => $negotiatingStageId,
+        ]])->assertSuccessful();
+
+        $input['stages'] = [
+            ['stages_id' => $openStageId, 'name' => 'Open', 'rotting_days' => 1, 'weight' => 0],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: PipelineInput!) {
+                updatePipeline(id: $id, input: $input) { id }
+            }
+        ', ['id' => $pipelineId, 'input' => $input])->assertJsonFragment([
+            'message' => 'Cannot remove pipeline stages that have active leads or deals. Move them to another stage first.',
+        ]);
+
+        $this->assertSame(0, (int) Deal::where('pipeline_stage_id', $negotiatingStageId)->first()->is_deleted);
+    }
+
+    public function testRemovedStageIsSoftDeletedAndRestoredLeadKeepsIt(): void
+    {
+        $input = [
+            'name' => fake()->name(),
+            'weight' => 0,
+            'is_default' => false,
+            'stages' => [
+                ['name' => 'Keep', 'rotting_days' => 1, 'weight' => 0],
+                ['name' => 'Drop', 'rotting_days' => 1, 'weight' => 1],
+            ],
+        ];
+
+        $response = $this->createPipelineFromInput($input);
+        $pipelineId = $response->json('data.createPipeline.id');
+        $keepStageId = (int) $response->json('data.createPipeline.stages.0.id');
+        $dropStageId = (int) $response->json('data.createPipeline.stages.1.id');
+
+        $leadId = $this->createLeadOnStage($dropStageId);
+        Lead::find($leadId)->softDelete();
+
+        $input['stages'] = [
+            ['stages_id' => $keepStageId, 'name' => 'Keep', 'rotting_days' => 1, 'weight' => 0],
+        ];
+
+        $updated = $this->updatePipelineFromInput($pipelineId, $input)->json('data.updatePipeline.stages');
+
+        $this->assertSame([$keepStageId], array_map('intval', array_column($updated, 'id')));
+
+        $dropped = PipelineStage::find($dropStageId);
+        $this->assertNotNull($dropped, 'Removed stage must survive as a soft-deleted row');
+        $this->assertSame(1, (int) $dropped->is_deleted);
+
+        $lead = Lead::find($leadId);
+        $lead->restoreRecord();
+        $this->assertSame('Drop', $lead->fresh()->stage->name);
+
+        $input['stages'][] = ['name' => 'Drop', 'rotting_days' => 1, 'weight' => 1];
+        $readded = $this->updatePipelineFromInput($pipelineId, $input)->json('data.updatePipeline.stages');
+
+        $this->assertSame($dropStageId, (int) $readded[1]['id'], 'Re-adding the name restores the soft-deleted stage');
+    }
+
+    public function testSingleSaveUpdatesAddsAndRemovesStages(): void
+    {
+        $input = [
+            'name' => fake()->name(),
+            'weight' => 0,
+            'is_default' => false,
+            'stages' => [
+                ['name' => 'New', 'rotting_days' => 1, 'weight' => 0, 'config' => ['follow_up' => ['enabled' => true]]],
+                ['name' => 'Contacted', 'rotting_days' => 2, 'weight' => 1],
+                ['name' => 'Lost', 'rotting_days' => 3, 'weight' => 2],
+            ],
+        ];
+
+        $response = $this->createPipelineFromInput($input);
+        $pipelineId = $response->json('data.createPipeline.id');
+        [$newId, $contactedId, $lostId] = array_map('intval', array_column($response->json('data.createPipeline.stages'), 'id'));
+
+        $leadId = $this->createLeadOnStage($newId);
+
+        $input['name'] = 'Renamed pipeline';
+        $input['stages'] = [
+            ['stages_id' => $newId, 'name' => 'Fresh', 'rotting_days' => 7, 'weight' => 0, 'config' => ['follow_up' => ['enabled' => false]]],
+            ['stages_id' => $contactedId, 'name' => 'Contacted', 'rotting_days' => 2, 'weight' => 1],
+            ['name' => 'Won', 'rotting_days' => 0, 'weight' => 2],
+        ];
+
+        $updated = $this->graphQL('
+            mutation($id: ID!, $input: PipelineInput!) {
+                updatePipeline(id: $id, input: $input) {
+                    name
+                    stage_count
+                    stages { id name rotting_days weight config }
+                }
+            }
+        ', ['id' => $pipelineId, 'input' => $input])->assertGraphQLErrorFree()->json('data.updatePipeline');
+
+        $this->assertSame('Renamed pipeline', $updated['name']);
+        $this->assertSame(3, $updated['stage_count']);
+        $this->assertSame(['Fresh', 'Contacted', 'Won'], array_column($updated['stages'], 'name'));
+        $this->assertSame([$newId, $contactedId], array_map('intval', array_column(array_slice($updated['stages'], 0, 2), 'id')));
+        $this->assertNotContains($lostId, array_map('intval', array_column($updated['stages'], 'id')));
+
+        $fresh = $updated['stages'][0];
+        $this->assertSame(7, $fresh['rotting_days']);
+        $this->assertSame(['follow_up' => ['enabled' => false]], $fresh['config']);
+
+        $won = $updated['stages'][2];
+        $this->assertSame(2, $won['weight']);
+        $this->assertSame(0, $won['rotting_days']);
+
+        $lead = Lead::find($leadId);
+        $this->assertSame($newId, (int) $lead->pipeline_stage_id);
+        $this->assertSame('Fresh', $lead->stage->name);
+
+        $this->assertSame(1, (int) PipelineStage::find($lostId)->is_deleted);
+    }
+
+    protected function createPipelineFromInput(array $input): TestResponse
+    {
+        return $this->graphQL('
+            mutation($input: PipelineInput!) {
+                createPipeline(input: $input) {
+                    id
+                    stages { id name }
+                }
+            }
+        ', ['input' => $input])->assertGraphQLErrorFree();
+    }
+
+    protected function updatePipelineFromInput(string|int $pipelineId, array $input): TestResponse
+    {
+        return $this->graphQL('
+            mutation($id: ID!, $input: PipelineInput!) {
+                updatePipeline(id: $id, input: $input) {
+                    id
+                    stages { id name }
+                }
+            }
+        ', ['id' => $pipelineId, 'input' => $input])->assertGraphQLErrorFree();
+    }
+
+    protected function createLeadOnStage(int $stageId): int
+    {
+        $branch = auth()->user()->getCurrentBranch();
+
+        return (int) $this->graphQL('
+            mutation($input: LeadInput!) {
+                createLead(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'branch_id' => $branch->getId(),
+                'title' => fake()->title(),
+                'pipeline_stage_id' => $stageId,
+                'people' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'contacts' => [
+                        ['value' => fake()->email(), 'contacts_types_id' => 1, 'weight' => 0],
+                    ],
+                ],
+            ],
+        ])->assertGraphQLErrorFree()->json('data.createLead.id');
     }
 }
