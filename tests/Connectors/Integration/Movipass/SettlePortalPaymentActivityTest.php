@@ -9,6 +9,7 @@ use Illuminate\Bus\UniqueLock;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentCaptureInput;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
@@ -24,6 +25,9 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Jobs\RetryPaymentCaptureJob;
 use Kanvas\Souk\Payments\Jobs\RetryPaymentReversalJob;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Souk\Payments\Notifications\PaymentReceiptNotification;
+use Kanvas\Souk\Payments\Processors\ProcessorFactory;
+use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Mockery;
@@ -158,6 +162,124 @@ final class SettlePortalPaymentActivityTest extends PortalMockFlowCase
         $this->assertSame(PaymentStatusEnum::PAID->value, $order->fresh()->payment_status);
     }
 
+    public function testASecondSettleRunCapturesAndSendsTheReceiptOnlyOnce(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldReceive('capturePayment')->once()->passthru();
+        $service->shouldNotReceive('reversePayment');
+        [$payment, $order] = $this->authorizedPasoRapidoPayment($service);
+        $stalePayment = Payments::find($payment->getId());
+        Notification::fake();
+
+        $first = new SettleAuthorizedPaymentAction($payment, $this->confirmingPasoRapido())->execute();
+        $second = new SettleAuthorizedPaymentAction($stalePayment, $this->unreachedPasoRapido())->execute();
+        $lostClaim = ProcessorFactory::make(SettleAuthorizedPaymentAction::PROCESSOR, $this->apps, $this->company)
+            ->capture($stalePayment, $order);
+
+        $this->assertSame('success', $first['status'], $first['message']);
+        $this->assertSame('skipped', $second['status']);
+        $this->assertTrue($lostClaim->skipped);
+        $this->assertSame(PaymentStatusEnum::PAID->value, $payment->fresh()->status);
+        Notification::assertSentOnDemandTimes(PaymentReceiptNotification::class, 1);
+    }
+
+    public function testSettleAfterALegacyCaptureDoesNotCaptureAgain(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldNotReceive('capturePayment');
+        $service->shouldNotReceive('reversePayment');
+        [$payment, $order] = $this->authorizedPasoRapidoPayment($service);
+        $stalePayment = Payments::find($payment->getId());
+        Notification::fake();
+
+        $legacy = new PortalPaymentProcessor($this->apps, $this->company)
+            ->capturePayment($payment, $order, (string) $payment->payment_intent_id);
+        $settled = new SettleAuthorizedPaymentAction($stalePayment, $this->unreachedPasoRapido())->execute();
+        $legacyAgain = new PortalPaymentProcessor($this->apps, $this->company)
+            ->capturePayment($stalePayment, $order, (string) $payment->payment_intent_id);
+
+        $this->assertSame('success', $legacy['status'], $legacy['message']);
+        $this->assertSame('skipped', $settled['status']);
+        $this->assertSame('skipped', $legacyAgain['status']);
+        $this->assertSame(PaymentStatusEnum::PAID->value, $payment->fresh()->status);
+        Notification::assertNothingSent();
+    }
+
+    public function testVoidOfAStalePaymentAlreadyPaidElsewhereNeverReachesTheGatewayNorOverwritesPaid(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldNotReceive('capturePayment');
+        $service->shouldNotReceive('reversePayment');
+        [$payment, $order] = $this->authorizedPasoRapidoPayment($service);
+        $stalePayment = Payments::find($payment->getId());
+        $payment->markAsPaid();
+
+        $result = ProcessorFactory::make(SettleAuthorizedPaymentAction::PROCESSOR, $this->apps, $this->company)
+            ->void($stalePayment, $order);
+
+        $this->assertFalse($result->success);
+        $this->assertTrue($result->skipped);
+        $this->assertSame(PaymentStatusEnum::PAID->value, $payment->fresh()->status);
+    }
+
+    public function testFailedVoidReleasesTheClaimBackToAuthorized(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldReceive('reversePayment')->once()->andThrow(new Exception('gateway down'));
+        [$payment, $order] = $this->authorizedPasoRapidoPayment($service);
+
+        $result = ProcessorFactory::make(SettleAuthorizedPaymentAction::PROCESSOR, $this->apps, $this->company)
+            ->void($payment, $order);
+
+        $this->assertFalse($result->success);
+        $this->assertFalse($result->skipped);
+        $this->assertSame(PaymentStatusEnum::AUTHORIZED->value, $payment->fresh()->status);
+    }
+
+    public function testALegacyAuthorizeThatAssignsTheEnumObjectStillLetsTheLegacyCaptureClaimThePayment(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        [$payment, $order] = $this->authorizedPasoRapidoPayment($service);
+        $payment->update(['status' => PaymentStatusEnum::PROCESSING->value]);
+        $payment->status = PaymentStatusEnum::AUTHORIZED;
+        $payment->saveQuietly();
+        Notification::fake();
+
+        $this->assertSame(PaymentStatusEnum::AUTHORIZED->value, Payments::find($payment->getId())->status);
+
+        $legacy = new PortalPaymentProcessor($this->apps, $this->company)
+            ->capturePayment($payment, $order, (string) $payment->payment_intent_id);
+
+        $this->assertSame('success', $legacy['status'], $legacy['message']);
+        $this->assertSame(PaymentStatusEnum::PAID->value, $payment->fresh()->status);
+    }
+
+    public function testACapturePendingPaymentCapturedElsewhereClearsItsMarkersAndTheRetryJobDoesNothing(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldNotReceive('capturePayment');
+        $service->shouldNotReceive('reversePayment');
+        [$payment] = $this->authorizedPasoRapidoPayment($service);
+        $payment->addMetadata([
+            RetryPaymentCaptureJob::PENDING_KEY => true,
+            RetryPaymentCaptureJob::NEEDS_REVIEW_KEY => true,
+            'capture_reason' => 'Capture failed: gateway down',
+        ]);
+        $payment->saveQuietly();
+        Notification::fake();
+
+        $payment->markAsPaid();
+        $job = new RetryPaymentCaptureJob($this->apps, $payment);
+        $job->handle();
+        $job->failed(new Exception('exhausted'));
+
+        $payment = $payment->fresh();
+        $this->assertSame(PaymentStatusEnum::PAID->value, $payment->status);
+        $this->assertFalse($payment->metadata[RetryPaymentCaptureJob::PENDING_KEY]);
+        $this->assertFalse($payment->metadata[RetryPaymentCaptureJob::NEEDS_REVIEW_KEY]);
+        Notification::assertNothingSent();
+    }
+
     public function testActivitySkipsPaymentsOfOrdersThatAreNotMovipassTypes(): void
     {
         $service = $this->portalServiceWithRealMockClient();
@@ -195,6 +317,14 @@ final class SettlePortalPaymentActivityTest extends PortalMockFlowCase
         $order->saveQuietly();
 
         return [$payment->fresh(), $order->fresh()];
+    }
+
+    private function unreachedPasoRapido(): PasoRapidoService
+    {
+        $service = Mockery::mock(PasoRapidoService::class);
+        $service->shouldNotReceive('confirmPayment');
+
+        return $service;
     }
 
     private function confirmingPasoRapido(): PasoRapidoService

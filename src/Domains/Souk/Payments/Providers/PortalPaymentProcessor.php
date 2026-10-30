@@ -539,6 +539,14 @@ class PortalPaymentProcessor
 
     public function capturePayment(Payments $payment, Order $order, string $transactionId): array
     {
+        if (! $payment->claimForSettlement()) {
+            return [
+                'status' => 'skipped',
+                'message' => 'Payment is already being captured or settled.',
+                'data' => [],
+            ];
+        }
+
         try {
             $payment->addLog('payment_capture_sending', [
                 'order_id' => $order->id,
@@ -607,6 +615,8 @@ class PortalPaymentProcessor
                 report($e);
             }
 
+            $payment->releaseSettlementClaim();
+
             $this->logPaymentError($payment, $e, [
                 'error_type' => 'EchoPayException',
                 'error_message' => $e->getMessage(),
@@ -621,6 +631,7 @@ class PortalPaymentProcessor
                 'data' => $e->getErrorBody(),
             ];
         } catch (Throwable $e) {
+            $payment->releaseSettlementClaim();
             report($e);
 
             $this->logPaymentError($payment, $e, [

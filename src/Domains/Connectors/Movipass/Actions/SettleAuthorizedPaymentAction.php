@@ -33,6 +33,10 @@ final class SettleAuthorizedPaymentAction
 
     public function execute(): array
     {
+        if ($this->payment->fresh()->status !== PaymentStatusEnum::AUTHORIZED->value) {
+            return $this->recoveryResult('skipped', 'Payment is no longer AUTHORIZED');
+        }
+
         $processor = ProcessorFactory::make(
             self::PROCESSOR,
             $this->order->app,
@@ -49,6 +53,10 @@ final class SettleAuthorizedPaymentAction
         }
 
         $capture = $processor->capture($this->payment, $this->order);
+
+        if ($capture->skipped) {
+            return $this->recoveryResult('skipped', $capture->message);
+        }
 
         if (! $capture->success) {
             return $this->holdForCaptureRecovery($capture);
@@ -134,6 +142,10 @@ final class SettleAuthorizedPaymentAction
         ]);
 
         $result = $processor->void($this->payment, $this->order, ['reason' => $reason]);
+
+        if ($result->skipped) {
+            return $this->recoveryResult('skipped', $result->message);
+        }
 
         if (! $result->success) {
             RetryPaymentReversalJob::schedule(

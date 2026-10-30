@@ -43,6 +43,15 @@ final class PaymentAuthorizedWorkflowTest extends TestCase
         new PaymentObserver()->updated($payment);
     }
 
+    public function testAnEnumObjectAssignedAsStatusDoesNotFireItBecauseTheLegacyPathDependsOnThat(): void
+    {
+        $order = $this->orderExpecting(0);
+        $payment = $this->paymentFor($order, PaymentStatusEnum::PAID);
+        $payment->status = PaymentStatusEnum::AUTHORIZED;
+
+        new PaymentObserver()->updated($payment);
+    }
+
     private function orderExpecting(int $times): Order
     {
         $order = Mockery::mock(Order::class)->makePartial();

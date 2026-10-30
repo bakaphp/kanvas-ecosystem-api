@@ -45,6 +45,10 @@ class CapturePaymentAction
 
         $captureResult = $paymentProcessor->capturePayment($this->payment, $this->order, $bankTransaction);
 
+        if ($captureResult['status'] === 'skipped') {
+            return $result;
+        }
+
         if ($captureResult['status'] === 'error') {
             return [
                 'status' => 'error',

@@ -105,10 +105,11 @@ final class RetryPaymentCaptureJob implements ShouldBeUnique, ShouldQueue
 
         $result = $processor->capture($payment, $payment->payable);
 
-        if ($result->success) {
-            $payment->addMetadata([self::PENDING_KEY => false]);
-            $payment->saveQuietly();
+        if ($result->skipped) {
+            return;
+        }
 
+        if ($result->success) {
             SendPaymentReceiptAction::trySend($payment->payable, $payment);
 
             return;
@@ -145,7 +146,12 @@ final class RetryPaymentCaptureJob implements ShouldBeUnique, ShouldQueue
             $exception,
             $this->tries
         );
-        self::markNeedsReview($this->payment->fresh());
+
+        $payment = $this->payment->fresh();
+
+        if ($payment->status === PaymentStatusEnum::AUTHORIZED->value) {
+            self::markNeedsReview($payment);
+        }
     }
 
     private static function markNeedsReview(Payments $payment): void

@@ -18,6 +18,7 @@ use Kanvas\Souk\Payments\Actions\LogPaymentEventAction;
 use Kanvas\Souk\Payments\DataTransferObject\PaymentFailure;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
+use Kanvas\Souk\Payments\Jobs\RetryPaymentCaptureJob;
 use Kanvas\Souk\Payments\Observers\PaymentObserver;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
@@ -165,9 +166,26 @@ class Payments extends BaseModel
         return $claimed;
     }
 
+    public function claimForSettlement(): bool
+    {
+        return $this->transitionStatus(
+            PaymentStatusEnum::AUTHORIZED->value,
+            PaymentStatusEnum::PROCESSING->value
+        );
+    }
+
+    public function releaseSettlementClaim(): bool
+    {
+        return $this->transitionStatus(
+            PaymentStatusEnum::PROCESSING->value,
+            PaymentStatusEnum::AUTHORIZED->value
+        );
+    }
+
     public function markAsPaid(array $metadata = []): void
     {
         $this->status = PaymentStatusEnum::PAID->value;
+        $this->clearCaptureRecoveryMarkers();
 
         if (! empty($metadata)) {
             $this->addMetadata($metadata);
@@ -183,6 +201,18 @@ class Payments extends BaseModel
             $this->payable->markAsPaid($this->user);
         } elseif (method_exists($this->payable, 'checkPayments')) {
             $this->payable->checkPayments();
+        }
+    }
+
+    private function clearCaptureRecoveryMarkers(): void
+    {
+        $stale = array_filter(
+            [RetryPaymentCaptureJob::PENDING_KEY, RetryPaymentCaptureJob::NEEDS_REVIEW_KEY],
+            fn (string $key): bool => isset($this->metadata[$key])
+        );
+
+        if ($stale !== []) {
+            $this->addMetadata(array_fill_keys($stale, false));
         }
     }
 

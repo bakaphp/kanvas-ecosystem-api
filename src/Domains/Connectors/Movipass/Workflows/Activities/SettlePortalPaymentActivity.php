@@ -52,7 +52,7 @@ class SettlePortalPaymentActivity extends KanvasActivity implements WorkflowActi
 
                 $result = new SettleAuthorizedPaymentAction($payment)->execute();
 
-                if ($result['status'] !== 'success') {
+                if (! in_array($result['status'], ['success', 'skipped'], true)) {
                     return $this->failWorkflow($result);
                 }
 

@@ -117,6 +117,15 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
             );
         }
 
+        if (! $payment->claimForSettlement()) {
+            return new CaptureResult(
+                success: false,
+                message: 'Payment is already being captured or settled.',
+                transactionId: '',
+                skipped: true,
+            );
+        }
+
         $captureAmount = $order->getTotalAmount();
         $input = $this->buildCaptureInput($authorizeTxId, $order, $captureAmount);
         $start = hrtime(true);
@@ -158,6 +167,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
                 raw: ['backup_capture' => true],
             );
         } catch (Throwable $e) {
+            $payment->releaseSettlementClaim();
             $this->reportUnlessDecline($e);
             $this->logPaymentError($payment, $e, [
                 ...$this->gatewayErrorContext($e),
@@ -238,14 +248,29 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
             );
         }
 
-        return new VoidResult(...$this->settleReversal(
+        if (! $payment->claimForSettlement()) {
+            return new VoidResult(
+                success: false,
+                message: 'Payment is already being settled.',
+                transactionId: '',
+                skipped: true,
+            );
+        }
+
+        $result = $this->settleReversal(
             $payment,
             $order,
             $context,
             'void',
             PaymentStatusEnum::CANCELLED,
             'Payment voided.'
-        ));
+        );
+
+        if (! $result['success']) {
+            $payment->releaseSettlementClaim();
+        }
+
+        return new VoidResult(...$result);
     }
 
     public function releaseHold(

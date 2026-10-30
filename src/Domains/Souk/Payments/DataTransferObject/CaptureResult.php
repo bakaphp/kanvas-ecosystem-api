@@ -12,6 +12,7 @@ class CaptureResult
         public readonly string $transactionId,
         public readonly array $raw = [],
         public readonly bool $retryable = false,
+        public readonly bool $skipped = false,
     ) {
     }
 }

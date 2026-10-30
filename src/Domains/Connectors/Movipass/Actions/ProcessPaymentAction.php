@@ -86,6 +86,10 @@ class ProcessPaymentAction
 
         $captureResult = $paymentProcessor->capturePayment($this->payment, $this->order, $bankTransaction);
 
+        if ($captureResult['status'] === 'skipped') {
+            return $result;
+        }
+
         if ($captureResult['status'] === 'error') {
             return $this->handleReversal($paymentProcessor, $bankTransaction, 'Capture failed: ' . $captureResult['message']);
         }
