@@ -10,7 +10,6 @@ use Kanvas\Connectors\Movipass\Actions\SettleAuthorizedPaymentAction;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
-use Kanvas\Souk\Payments\Jobs\RetryPaymentCaptureJob;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -74,8 +73,7 @@ class SettlePortalPaymentActivity extends KanvasActivity implements WorkflowActi
             return null;
         }
 
-        if (($payment->metadata[RetryPaymentCaptureJob::PENDING_KEY] ?? false) === true
-            || ($payment->metadata[RetryPaymentCaptureJob::NEEDS_REVIEW_KEY] ?? false) === true) {
+        if ($payment->isInCaptureRecovery()) {
             return null;
         }
 

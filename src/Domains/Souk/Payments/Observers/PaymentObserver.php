@@ -30,9 +30,13 @@ class PaymentObserver
 
     private function broadcastFinalStatus(Payments $payment): void
     {
+        if (! PaymentStatusEnum::isFinalValue($payment->status)) {
+            return;
+        }
+
         $order = $payment->payable;
 
-        if (! $order instanceof Order || ! PaymentStatusEnum::isFinalValue($payment->status)) {
+        if (! $order instanceof Order) {
             return;
         }
 

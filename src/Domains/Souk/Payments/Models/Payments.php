@@ -204,6 +204,12 @@ class Payments extends BaseModel
         }
     }
 
+    public function isInCaptureRecovery(): bool
+    {
+        return ($this->metadata[RetryPaymentCaptureJob::PENDING_KEY] ?? false) === true
+            || ($this->metadata[RetryPaymentCaptureJob::NEEDS_REVIEW_KEY] ?? false) === true;
+    }
+
     private function clearCaptureRecoveryMarkers(): void
     {
         $stale = array_filter(
