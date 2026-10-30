@@ -76,7 +76,6 @@ final class MockClientContractTest extends TestCase
             ['payment' => ['clientReferenceInformation' => ['code' => 'test-ref']]],
         );
 
-        // Mock is frictionless-only: authorize + capture only fire on an approved status and ECI.
         $this->assertSame('AUTHENTICATION_SUCCESSFUL', $response['data']['status']);
         $this->assertContains(
             $response['data']['consumerAuthenticationInformation']['eci'] ?? null,

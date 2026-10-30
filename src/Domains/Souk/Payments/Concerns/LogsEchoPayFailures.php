@@ -10,6 +10,7 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\DataTransferObject\PaymentFailure;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -94,7 +95,7 @@ trait LogsEchoPayFailures
                 'reason' => $errors['code'],
                 'message' => $errors['message'],
                 'pares_status' => $consumerAuthentication->paresStatus,
-                'eci' => $consumerAuthentication->eci ?? $consumerAuthentication->eciRaw,
+                'eci' => $consumerAuthentication->resolvedEci(),
                 'authentication_transaction_id' => $consumerAuthentication->authenticationTransactionId,
                 'request_id' => $enrollmentData['id'] ?? null,
             ],
@@ -126,7 +127,12 @@ trait LogsEchoPayFailures
             $failure,
         );
 
-        $payment->payable->updateQuietly([
+        $this->cancelOrderAfterDecline($payment->payable);
+    }
+
+    protected function cancelOrderAfterDecline(Order $order): void
+    {
+        $order->updateQuietly([
             'status' => OrderStatusEnum::FAILED->value,
             'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
         ]);

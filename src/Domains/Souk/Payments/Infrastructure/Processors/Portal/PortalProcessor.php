@@ -27,7 +27,6 @@ use Kanvas\Connectors\EchoPay\Enums\PaymentStatusEnum as EchoPayStatusEnum;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Connectors\EchoPay\Services\ShopperMessageResolver;
-use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\EnforceCardVelocityLimitAction;
@@ -158,29 +157,10 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
                 transactionId: $authorizeTxId,
                 raw: ['backup_capture' => true],
             );
-        } catch (EchoPayException $e) {
-            $this->reportUnlessDecline($e);
-            $this->logPaymentError($payment, $e, [
-                'error_type' => 'EchoPayException',
-                'error_message' => $e->getMessage(),
-                'error_body' => $e->getErrorBody(),
-                'order_id' => $order->id,
-                'authorize_transaction_id' => $authorizeTxId,
-                'response_time_ms' => $this->elapsedMs($start),
-                'context' => 'capture_payment',
-            ]);
-
-            return new CaptureResult(
-                success: false,
-                message: $e->getUserMessage(),
-                transactionId: '',
-                raw: $e->getErrorBody(),
-            );
         } catch (Throwable $e) {
             $this->reportUnlessDecline($e);
             $this->logPaymentError($payment, $e, [
-                'error_type' => $e::class,
-                'error_message' => $e->getMessage(),
+                ...$this->gatewayErrorContext($e),
                 'order_id' => $order->id,
                 'authorize_transaction_id' => $authorizeTxId,
                 'response_time_ms' => $this->elapsedMs($start),
@@ -189,8 +169,9 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
 
             return new CaptureResult(
                 success: false,
-                message: $e->getMessage(),
+                message: $e instanceof EchoPayException ? $e->getUserMessage() : $e->getMessage(),
                 transactionId: '',
+                raw: $e instanceof EchoPayException ? $e->getErrorBody() : [],
             );
         }
 
@@ -482,7 +463,6 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
 
         $responseTimeMs = $this->elapsedMs($start);
 
-        /** @var ConsumerAuthentication $consumerData */
         $consumerData = $response['consumerAuthenticationInformation'];
         $authTransactionId = (string) ($response['id'] ?? '');
 
@@ -578,7 +558,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
                 'pareq' => $consumerData->pareq ?? '',
                 'access_token' => $consumerData->accessToken ?? '',
                 'authenticationTransactionId' => $consumerData->authenticationTransactionId ?? '',
-                'returnUrl' => (string) ($this->app->get(ConfigurationEnum::REDIRECT_URL->value) ?? ''),
+                'returnUrl' => $this->redirectUrl(),
                 'consumer_authentication' => $consumerData->toArray(),
                 'challenge_form' => $this->buildChallengeForm($consumerData, (string) $order->id),
             ]),
@@ -626,7 +606,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
             [
                 'PaReq' => (string) $consumerData->pareq,
                 'MD' => $orderReference,
-                'TermUrl' => (string) ($this->app->get(ConfigurationEnum::REDIRECT_URL->value) ?? ''),
+                'TermUrl' => $this->redirectUrl(),
             ]
         );
     }
@@ -676,7 +656,6 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
 
         $responseTimeMs = $this->elapsedMs($start);
 
-        /** @var ConsumerAuthentication $consumerData */
         $consumerData = $response['consumerAuthenticationInformation'];
 
         if (! $this->isValidEci($consumerData, $response)) {
@@ -930,7 +909,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
                     deviceChannel: 'BROWSER',
                     referenceId: $referenceId,
                     transactionMode: 'eCommerce',
-                    returnUrl: (string) ($this->app->get(ConfigurationEnum::REDIRECT_URL->value) ?? ''),
+                    returnUrl: $this->redirectUrl(),
                 )
                 : null,
         );
@@ -981,9 +960,6 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
         );
     }
 
-    /**
-     * @return array{success: bool, message: string, transactionId: string, raw: array}
-     */
     private function doReverse(
         Payments $payment,
         Order $order,
@@ -994,12 +970,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
         $authorizeTxId = $this->gatewayIntentId($payment);
 
         if ($authorizeTxId === '') {
-            return [
-                'success' => false,
-                'message' => 'Missing authorize transaction id on payment metadata.',
-                'transactionId' => '',
-                'raw' => [],
-            ];
+            return $this->failedReversal('Missing authorize transaction id on payment metadata.', []);
         }
 
         $input = $this->buildCaptureInput($authorizeTxId, $order, $amount);
@@ -1008,26 +979,10 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
         try {
             $merchant = $this->setupMerchantAuthentication($payment, $order);
             $response = $this->service->reversePayment($input, $merchant, $reason);
-        } catch (EchoPayException $e) {
-            $this->reportUnlessDecline($e);
-            $this->logPaymentError($payment, $e, [
-                'error_type' => 'EchoPayException',
-                'error_message' => $e->getMessage(),
-                'error_body' => $e->getErrorBody(),
-                'order_id' => $order->id,
-                'authorize_transaction_id' => $authorizeTxId,
-                'reason' => $reason,
-                'response_time_ms' => $this->elapsedMs($start),
-                'context' => 'reverse_payment',
-                'operation' => $logTag,
-            ]);
-
-            return $this->failedReversal($e->getUserMessage(), $e->getErrorBody());
         } catch (Throwable $e) {
             $this->reportUnlessDecline($e);
             $this->logPaymentError($payment, $e, [
-                'error_type' => $e::class,
-                'error_message' => $e->getMessage(),
+                ...$this->gatewayErrorContext($e),
                 'order_id' => $order->id,
                 'authorize_transaction_id' => $authorizeTxId,
                 'reason' => $reason,
@@ -1036,7 +991,9 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
                 'operation' => $logTag,
             ]);
 
-            return $this->failedReversal($e->getMessage(), []);
+            return $e instanceof EchoPayException
+                ? $this->failedReversal($e->getUserMessage(), $e->getErrorBody())
+                : $this->failedReversal($e->getMessage(), []);
         }
 
         $responseTimeMs = $this->elapsedMs($start);
@@ -1122,14 +1079,6 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
         return Str::trimToNull($context['reason'] ?? null) ?? self::DEFAULT_REVERSAL_REASON;
     }
 
-    private function cancelOrderAfterDecline(Order $order): void
-    {
-        $order->updateQuietly([
-            'status' => OrderStatusEnum::FAILED->value,
-            'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
-        ]);
-    }
-
     private function gatewayIntentId(Payments $payment): string
     {
         $intentId = (string) ($payment->payment_intent_id ?? '');
@@ -1150,6 +1099,37 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
         }
 
         return (string) ($payment->payment_intent_id ?? '');
+    }
+
+    private function redirectUrl(): string
+    {
+        return (string) ($this->app->get(ConfigurationEnum::REDIRECT_URL->value) ?? '');
+    }
+
+    private function gatewayErrorContext(Throwable $e): array
+    {
+        if ($e instanceof EchoPayException) {
+            return [
+                'error_type' => 'EchoPayException',
+                'error_message' => $e->getMessage(),
+                'error_body' => $e->getErrorBody(),
+            ];
+        }
+
+        return [
+            'error_type' => $e::class,
+            'error_message' => $e->getMessage(),
+        ];
+    }
+
+    private function echoPayFailureMetadata(EchoPayException $e): array
+    {
+        return [
+            'error' => $e->getMessage(),
+            'echopay_error' => $e->getErrorBody(),
+            'user_message' => $e->getUserMessage(),
+            'echopay_error_timestamp' => now()->toIso8601String(),
+        ];
     }
 
     private function elapsedMs(int|float $start): int
@@ -1197,12 +1177,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
             $this->failAuthentication(
                 $payment,
                 $stage,
-                [
-                    'error' => $e->getMessage(),
-                    'echopay_error' => $e->getErrorBody(),
-                    'user_message' => $e->getUserMessage(),
-                    'echopay_error_timestamp' => now()->toIso8601String(),
-                ],
+                $this->echoPayFailureMetadata($e),
                 $e->toPaymentFailure()
             );
 
@@ -1243,12 +1218,7 @@ final class PortalProcessor implements PaymentProcessorInterface, ReleasesHoldIn
 
         $errorMessage = $e instanceof EchoPayException ? $e->getMessage() : $this->resolveErrorMessage($e);
         $failureMetadata = $e instanceof EchoPayException
-            ? [
-                'error' => $errorMessage,
-                'echopay_error' => $e->getErrorBody(),
-                'user_message' => $e->getUserMessage(),
-                'echopay_error_timestamp' => now()->toIso8601String(),
-            ]
+            ? $this->echoPayFailureMetadata($e)
             : [
                 'error' => $errorMessage,
                 'message_body' => $this->resolveGatewayMessageBody($e),

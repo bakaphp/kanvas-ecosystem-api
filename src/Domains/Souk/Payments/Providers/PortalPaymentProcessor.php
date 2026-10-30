@@ -33,7 +33,6 @@ use Kanvas\Souk\Payments\Models\Payments;
 use Throwable;
 use UnexpectedValueException;
 
-/** @deprecated Use ProcessorFactory::make('portal', $app, $company) */
 class PortalPaymentProcessor
 {
     use LogsEchoPayFailures;
