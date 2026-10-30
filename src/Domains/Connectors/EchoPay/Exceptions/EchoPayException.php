@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\EchoPay\Exceptions;
 
+use Kanvas\Connectors\EchoPay\Services\ShopperMessageResolver;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Payments\DataTransferObject\PaymentFailure;
 use Throwable;
@@ -75,19 +76,11 @@ class EchoPayException extends ValidationException
 
     public function getUserMessage(): string
     {
-        $reason = $this->getReason();
-        $message = $this->getGatewayMessage();
-
-        if ($reason) {
-            $translationKey = 'payment_errors.' . $reason;
-            $translated = __($translationKey, [], 'es');
-
-            if ($translated !== $translationKey) {
-                return $translated;
-            }
-        }
-
-        return $message ?? $reason ?? $this->getMessage();
+        return ShopperMessageResolver::resolve(
+            $this->getReason(),
+            $this->getGatewayMessage(),
+            $this->getMessage()
+        );
     }
 
     private function getBodySection(string $key): array

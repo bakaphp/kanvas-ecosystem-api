@@ -788,5 +788,4 @@ class PortalPaymentProcessor
             ];
         }
     }
-
 }

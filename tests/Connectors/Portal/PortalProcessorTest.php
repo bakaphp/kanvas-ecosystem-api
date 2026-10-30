@@ -32,21 +32,24 @@ use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Payments\DataTransferObject\PaymentFailure;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Souk\Payments\Infrastructure\Processors\Portal\PortalProcessor;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Observers\PaymentObserver;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
 use RuntimeException;
+use Tests\Connectors\Portal\Concerns\BuildsEnrollmentResponses;
+use Tests\TestCase;
 use Throwable;
 use UnexpectedValueException;
-use Tests\TestCase;
 
 class PortalProcessorTest extends TestCase
 {
+    use BuildsEnrollmentResponses;
+
     private Apps $currentApp;
     private Companies $currentCompany;
     private EchoPayService $service;
@@ -80,7 +83,6 @@ class PortalProcessorTest extends TestCase
         Mockery::close();
         parent::tearDown();
     }
-
 
     public function testNameReturnsPortal(): void
     {
@@ -146,7 +148,6 @@ class PortalProcessorTest extends TestCase
         $this->assertTrue($this->processor->deleteToken('mock-token'));
     }
 
-
     public function testStartChallengeHappyPathPersistsMetadataAndTransitions(): void
     {
         $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING->value);
@@ -191,7 +192,6 @@ class PortalProcessorTest extends TestCase
         $this->assertSame(PaymentStatusEnum::FAILED->value, $result->status);
         $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->status);
     }
-
 
     public function testStartChallengeWithRawCardContextExplainsThePortalTokenizationRequirement(): void
     {
@@ -363,7 +363,6 @@ class PortalProcessorTest extends TestCase
         $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->status);
     }
 
-
     public function testFinalizeChallengeFromPendingAuthorizationValidatesAndAuthorizes(): void
     {
         $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING_AUTHORIZATION->value);
@@ -426,7 +425,6 @@ class PortalProcessorTest extends TestCase
         $this->assertFalse($result->success);
         $this->assertSame(PaymentStatusEnum::PAID->value, $payment->status);
     }
-
 
     public function testCaptureFromAuthorizedTransitionsToPaid(): void
     {
@@ -618,6 +616,8 @@ class PortalProcessorTest extends TestCase
             'no response' => [0, 1],
             'server error 500' => [500, 1],
             'bad gateway 502' => [502, 1],
+            'not found 404' => [404, 0],
+            'service unavailable 503' => [503, 1],
         ];
     }
 
@@ -790,7 +790,7 @@ class PortalProcessorTest extends TestCase
         $result = $this->processor->finalizeChallenge($payment, $order);
 
         $this->assertFalse($result->success);
-        $this->assertSame('The cardholder could not be authenticated.', $result->message);
+        $this->assertSame(__('payment_errors.CONSUMER_AUTHENTICATION_FAILED', [], 'es'), $result->message);
         $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->status);
         $this->assertSame($response['id'], $payment->metadata['enrollment_data']['id']);
         $log = $this->loggedEvent('payment_authentication_failed');
@@ -1053,7 +1053,7 @@ class PortalProcessorTest extends TestCase
     {
         $payment = $this->buildPaymentMock(PaymentStatusEnum::WAITING_DEVICE_DATA->value);
         $order = $this->buildOrderMock(['auth_session_id' => 'ref-1']);
-        $payment->shouldReceive('addLog')->with('3ds_authorize_declined', Mockery::any())->andThrow(new RuntimeException('log down'));
+        $payment->shouldReceive('addLog')->with('3ds_authorize_declined', Mockery::any(), Mockery::any())->andThrow(new RuntimeException('log down'));
         $this->service->shouldReceive('checkPayerEnrollment')->once()->andReturn($this->frictionlessEnrollment());
         $this->service->shouldReceive('authorizePayment')->once()->andReturn(['id' => 'intent-1', 'status' => 'DECLINED']);
 
@@ -1140,6 +1140,178 @@ class PortalProcessorTest extends TestCase
         $this->assertSame(OrderStatusEnum::FAILED->value, $this->orderUpdates['status']);
     }
 
+    #[DataProvider('enrollmentOutcomeProvider')]
+    public function testEnrollmentOutcomeMapsToTheDocumentedResult(
+        string $status,
+        ?string $paresStatus,
+        ?string $veresEnrolled,
+        ?string $eci,
+        string $brand,
+        string $expectedPaymentStatus,
+        bool $expectedSuccess,
+        bool $expectedAuthorize,
+        int $expectedReports,
+        ?string $expectedInconclusiveOutcome
+    ): void {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::WAITING_DEVICE_DATA->value);
+        $order = $this->buildOrderMock(['auth_session_id' => 'ref-1']);
+        $this->attachOrder($payment, $order);
+        $this->expectReports($expectedReports);
+        $this->service->shouldReceive('checkPayerEnrollment')->once()->andReturn([
+            'consumerAuthenticationInformation' => ConsumerAuthentication::from([
+                ...$this->consumerAuthBase(),
+                'paresStatus' => $paresStatus,
+                'veresEnrolled' => $veresEnrolled,
+                'eci' => $eci,
+                'eciRaw' => $eci,
+            ]),
+            'id' => 'enroll-map',
+            'status' => $status,
+            'paymentInformation' => ['card' => ['type' => $brand]],
+        ]);
+
+        if ($expectedAuthorize) {
+            $this->service->shouldReceive('authorizePayment')->once()->andReturn([
+                'id' => 'intent-map',
+                'status' => 'AUTHORIZED',
+                'processorInformation' => ['transactionId' => 'tx-map'],
+            ]);
+        } else {
+            $this->service->shouldNotReceive('authorizePayment');
+        }
+
+        $result = $this->processor->finalizeChallenge($payment, $order);
+
+        $this->assertSame($expectedSuccess, $result->success);
+        $this->assertSame($expectedPaymentStatus, $result->status);
+        $this->assertSame($expectedPaymentStatus, $payment->status);
+
+        if ($expectedInconclusiveOutcome === null) {
+            $this->assertEmpty(array_filter(
+                $this->loggedEvents,
+                fn (array $log): bool => $log['event'] === '3ds_authentication_inconclusive'
+            ));
+
+            return;
+        }
+
+        $this->assertSame(
+            $expectedInconclusiveOutcome,
+            $this->loggedEvent('3ds_authentication_inconclusive')['context']['outcome']
+        );
+    }
+
+    public static function enrollmentOutcomeProvider(): array
+    {
+        $pending = PaymentStatusEnum::PENDING_AUTHORIZATION->value;
+        $failed = PaymentStatusEnum::FAILED->value;
+        $authorized = PaymentStatusEnum::AUTHORIZED->value;
+        $successful = EchoPayStatusEnum::AUTHENTICATION_SUCCESSFUL->value;
+        $authFailed = EchoPayStatusEnum::AUTHENTICATION_FAILED->value;
+
+        return [
+            'Y/C challenge' => [EchoPayStatusEnum::PENDING_AUTHENTICATION->value, 'C', 'Y', null, 'VISA', $pending, true, false, 0, null],
+            'Y/Y frictionless' => [$successful, 'Y', 'Y', '05', 'VISA', $authorized, true, true, 0, null],
+            'A attempted with eci 06 does not authorize' => [$successful, 'A', 'Y', '06', 'VISA', $pending, true, false, 0, 'attempted'],
+            'Mastercard eci 01 is attempted' => [$successful, 'Y', 'Y', '01', 'MASTERCARD', $pending, true, false, 0, 'attempted'],
+            'Visa eci 01 is not attempted' => [$successful, 'Y', 'Y', '01', 'VISA', $pending, true, false, 0, null],
+            'U unavailable does not authorize' => [$successful, 'U', 'Y', '07', 'VISA', $pending, true, false, 0, 'unavailable'],
+            'successful with a missing eci is unavailable' => [$successful, 'Y', 'Y', null, 'VISA', $pending, true, false, 0, 'unavailable'],
+            'successful with an unaccepted eci' => [$successful, 'Y', 'Y', '07', 'VISA', $pending, true, false, 0, null],
+            'N failed status' => [$authFailed, 'N', 'Y', null, 'VISA', $failed, false, false, 0, null],
+            'R failed status' => [$authFailed, 'R', 'Y', null, 'VISA', $failed, false, false, 0, null],
+            'N under a successful status fails' => [$successful, 'N', 'Y', null, 'VISA', $failed, false, false, 0, null],
+            'R under a successful status fails' => [$successful, 'R', 'Y', '07', 'VISA', $failed, false, false, 0, null],
+            'unknown status fails and reports' => ['SOMETHING_NEW', null, null, null, 'VISA', $failed, false, false, 1, null],
+        ];
+    }
+
+    #[DataProvider('eciTableProvider')]
+    public function testEciValidationPerBrand(
+        ?string $brand,
+        ?string $eci,
+        bool $bypass,
+        bool $expectedAuthorize
+    ): void {
+        $this->appSettings['ECHO_PAY_BYPASS_ECI'] = $bypass;
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::WAITING_DEVICE_DATA->value);
+        $order = $this->buildOrderMock(['auth_session_id' => 'ref-1']);
+        $this->attachOrder($payment, $order);
+        $response = [
+            'consumerAuthenticationInformation' => ConsumerAuthentication::from([
+                ...$this->consumerAuthBase(),
+                'eci' => $eci,
+                'eciRaw' => $eci,
+            ]),
+            'id' => 'enroll-eci',
+            'status' => EchoPayStatusEnum::AUTHENTICATION_SUCCESSFUL->value,
+        ];
+
+        if ($brand !== null) {
+            $response['paymentInformation'] = ['card' => ['type' => $brand]];
+        }
+
+        $this->service->shouldReceive('checkPayerEnrollment')->once()->andReturn($response);
+
+        if ($expectedAuthorize) {
+            $this->service->shouldReceive('authorizePayment')->once()->andReturn([
+                'id' => 'intent-eci',
+                'status' => 'AUTHORIZED',
+                'processorInformation' => ['transactionId' => 'tx-eci'],
+            ]);
+        } else {
+            $this->service->shouldNotReceive('authorizePayment');
+        }
+
+        $result = $this->processor->finalizeChallenge($payment, $order);
+
+        $this->assertSame($expectedAuthorize, $result->status === PaymentStatusEnum::AUTHORIZED->value);
+    }
+
+    public static function eciTableProvider(): array
+    {
+        $cases = [];
+
+        foreach (['VISA', 'AMEX', 'JCB', 'DINERS', 'DISCOVER', 'CUP', 'ELO'] as $brand) {
+            $cases[$brand . ' 05 authenticated'] = [$brand, '05', false, true];
+            $cases[$brand . ' 06 attempted'] = [$brand, '06', false, false];
+            $cases[$brand . ' missing eci with bypass'] = [$brand, null, true, false];
+        }
+
+        return $cases + [
+            'MASTERCARD 02 authenticated' => ['MASTERCARD', '02', false, true],
+            'MASTERCARD 01 attempted' => ['MASTERCARD', '01', false, false],
+            'MASTERCARD missing eci without bypass' => ['MASTERCARD', null, false, false],
+            'MASTERCARD missing eci with bypass' => ['MASTERCARD', null, true, true],
+            'MASTERCARD attempted eci is not bypassed' => ['MASTERCARD', '01', true, false],
+            'unknown brand accepts 02' => [null, '02', false, true],
+            'unknown brand accepts 05' => [null, '05', false, true],
+            'unknown brand missing eci with bypass' => [null, null, true, false],
+            'unknown eci 07' => ['VISA', '07', false, false],
+        ];
+    }
+
+    public function testValidateStepFailsWhenPaResIsNotAuthenticated(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING_AUTHORIZATION->value);
+        $order = $this->buildOrderMock(['auth_session_id' => 'ref-1', 'auth_transaction_id' => 'enroll-1']);
+        $this->attachOrder($payment, $order);
+        $this->service->shouldReceive('validatePayerAuthResult')->once()->andReturn([
+            'consumerAuthenticationInformation' => ConsumerAuthentication::from([
+                ...$this->consumerAuthBase(),
+                'paresStatus' => 'N',
+            ]),
+            'id' => 'validate-n',
+            'status' => EchoPayStatusEnum::AUTHENTICATION_SUCCESSFUL->value,
+        ]);
+        $this->service->shouldNotReceive('authorizePayment');
+
+        $result = $this->processor->finalizeChallenge($payment, $order);
+
+        $this->assertFalse($result->success);
+        $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->status);
+    }
+
     public function testAuthorizeWritesTheOrderFieldsDownstreamActionsRead(): void
     {
         [$payment, $order] = $this->authorizeSuccessfully();
@@ -1205,6 +1377,204 @@ class PortalProcessorTest extends TestCase
         $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->status);
         $this->assertSame([], $this->orderUpdates);
         $this->assertArrayNotHasKey('payment_intent_id', $order->customFields);
+    }
+
+    #[DataProvider('holdStatusProvider')]
+    public function testAHoldWithoutFullAuthorizationIsReversedAndFailsThePayment(string $status, string $errorCode): void
+    {
+        $sent = [];
+        $this->service->shouldReceive('reversePayment')->once()->withArgs(function (PaymentCaptureInput $input) use (&$sent): bool {
+            $sent[] = $input->transactionId;
+
+            return true;
+        })->andReturn(['id' => 'reverse-1']);
+
+        [$payment, $order, $result] = $this->finalizeWithAuthorizeResponse([
+            'id' => 'intent-1',
+            'status' => $status,
+            'processorInformation' => ['transactionId' => 'tx-1'],
+        ]);
+
+        $this->assertFalse($result->success);
+        $this->assertSame(PaymentStatusEnum::FAILED->value, $result->status);
+        $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->status);
+        $this->assertSame(['intent-1'], $sent);
+        $this->assertSame($errorCode, $this->loggedEvent('3ds_authorize_declined')['failure']->code);
+        $this->assertTrue($this->loggedEvent('3ds_authorize_declined')['context']['hold_reversed']);
+        $this->assertNotNull($this->findLog('payment_reversed'));
+        $this->assertSame([], $this->orderUpdates);
+        $this->assertArrayNotHasKey('payment_intent_id', $order->customFields);
+        $this->assertArrayNotHasKey('payment_transaction_id', $order->customFields);
+        $this->assertArrayNotHasKey('should_capture', $order->customFields);
+        $this->assertArrayNotHasKey('payment_response', $payment->metadata['data'] ?? []);
+        $this->assertNull($this->findLog('payment_authorized'));
+    }
+
+    public static function holdStatusProvider(): array
+    {
+        return [
+            'partial' => ['PARTIAL_AUTHORIZED', 'PARTIAL_AUTHORIZATION'],
+            'pending review' => ['AUTHORIZED_PENDING_REVIEW', 'PENDING_REVIEW'],
+            'risk declined' => ['AUTHORIZED_RISK_DECLINED', 'RISK_DECLINED'],
+        ];
+    }
+
+    public function testAPartialAuthorizationReversesTheAmountTheGatewayHeld(): void
+    {
+        $sentAmount = null;
+        $this->service->shouldReceive('reversePayment')->once()->withArgs(function (PaymentCaptureInput $input) use (&$sentAmount): bool {
+            $sentAmount = $input->totalAmount;
+
+            return true;
+        })->andReturn(['id' => 'reverse-1']);
+
+        $this->finalizeWithAuthorizeResponse([
+            'id' => 'intent-1',
+            'status' => 'PARTIAL_AUTHORIZED',
+            'orderInformation' => ['amountDetails' => ['authorizedAmount' => '40.00']],
+        ]);
+
+        $this->assertSame('40', $sentAmount);
+    }
+
+    public function testAFailedReversalStillFailsThePaymentAndIsReported(): void
+    {
+        $this->expectReports(1);
+        $this->service->shouldReceive('reversePayment')->once()->andThrow($this->decline());
+
+        [$payment, $order, $result] = $this->finalizeWithAuthorizeResponse([
+            'id' => 'intent-1',
+            'status' => 'AUTHORIZED_PENDING_REVIEW',
+            'processorInformation' => ['transactionId' => 'tx-1'],
+        ]);
+
+        $this->assertFalse($result->success);
+        $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->status);
+        $this->assertSame('intent-1', $payment->payment_intent_id);
+        $declined = $this->loggedEvent('3ds_authorize_declined');
+        $this->assertSame('PENDING_REVIEW', $declined['failure']->code);
+        $this->assertFalse($declined['context']['hold_reversed']);
+        $this->assertNotNull($this->findLog('payment_error'));
+        $this->assertNull($this->findLog('payment_reversed'));
+        $this->assertArrayNotHasKey('should_capture', $order->customFields);
+    }
+
+    public function testAHoldWithoutAGatewayIdIsNotReversedAgainstTheSetupTransaction(): void
+    {
+        $this->expectReports(1);
+        $this->service->shouldNotReceive('reversePayment');
+
+        [$payment, , $result] = $this->finalizeWithAuthorizeResponse(['status' => 'PARTIAL_AUTHORIZED']);
+
+        $this->assertFalse($result->success);
+        $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->status);
+        $this->assertSame('setup-1', $payment->payment_intent_id);
+        $this->assertFalse($this->loggedEvent('3ds_authorize_declined')['context']['hold_reversed']);
+    }
+
+    #[DataProvider('plainFailureStatusProvider')]
+    public function testADeclinedOrInvalidAuthorizationFailsWithoutReversing(string $status, string $errorCode): void
+    {
+        $this->expectReports(0);
+        $this->service->shouldNotReceive('reversePayment');
+
+        [$payment, $order, $result] = $this->finalizeWithAuthorizeResponse(['id' => 'intent-1', 'status' => $status]);
+
+        $this->assertFalse($result->success);
+        $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->status);
+        $this->assertSame($errorCode, $this->loggedEvent('3ds_authorize_declined')['failure']->code);
+        $this->assertSame([], $this->orderUpdates);
+        $this->assertArrayNotHasKey('payment_intent_id', $order->customFields);
+    }
+
+    public static function plainFailureStatusProvider(): array
+    {
+        return [
+            'declined' => ['DECLINED', 'DECLINED'],
+            'invalid request' => ['INVALID_REQUEST', 'INVALID_REQUEST'],
+        ];
+    }
+
+    public function testAnUnknownAuthorizeStatusFailsWithoutReversingAndReportsIt(): void
+    {
+        $reported = [];
+        $handler = Mockery::mock(ExceptionHandler::class)->shouldIgnoreMissing();
+        $handler->shouldReceive('report')->andReturnUsing(function (Throwable $e) use (&$reported): void {
+            $reported[] = $e;
+        });
+        $this->app->instance(ExceptionHandler::class, $handler);
+        $this->service->shouldNotReceive('reversePayment');
+
+        [$payment, , $result] = $this->finalizeWithAuthorizeResponse(['id' => 'intent-1', 'status' => 'SOMETHING_NEW']);
+
+        $this->assertFalse($result->success);
+        $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->status);
+        $this->assertSame('UNKNOWN_AUTHORIZATION_STATUS', $this->loggedEvent('3ds_authorize_declined')['failure']->code);
+        $this->assertCount(1, $reported);
+        $this->assertInstanceOf(UnexpectedValueException::class, $reported[0]);
+        $this->assertStringContainsString('SOMETHING_NEW', $reported[0]->getMessage());
+    }
+
+    public function testADeclinedAuthorizationShowsTheShopperTheTranslationAndLogsTheRawCode(): void
+    {
+        $this->service->shouldNotReceive('reversePayment');
+
+        [, , $result] = $this->finalizeWithAuthorizeResponse([
+            'id' => 'intent-1',
+            'status' => 'DECLINED',
+            'errorInformation' => ['reason' => 'INSUFFICIENT_FUND', 'message' => 'Decline - Insufficient funds in the account.'],
+        ]);
+
+        $failure = $this->loggedEvent('3ds_authorize_declined')['failure'];
+        $this->assertSame(__('payment_errors.INSUFFICIENT_FUND', [], 'es'), $result->message);
+        $this->assertSame('INSUFFICIENT_FUND', $failure->code);
+        $this->assertSame('Decline - Insufficient funds in the account.', $failure->message);
+    }
+
+    public function testAnUntranslatedReasonWithoutAMessageShowsTheFallbackNotTheRawCode(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::WAITING_DEVICE_DATA->value);
+        $order = $this->buildOrderMock(['auth_session_id' => 'ref-1']);
+        $this->attachOrder($payment, $order);
+        $this->service->shouldReceive('checkPayerEnrollment')->once()->andReturn([
+            'consumerAuthenticationInformation' => $this->validConsumerAuth(),
+            'id' => 'enroll-4',
+            'status' => EchoPayStatusEnum::AUTHENTICATION_FAILED->value,
+            'errorInformation' => ['reason' => 'BRAND_NEW_REASON'],
+        ]);
+
+        $result = $this->processor->finalizeChallenge($payment, $order);
+
+        $this->assertSame('3DS authentication failed at enrollment.', $result->message);
+        $this->assertSame('BRAND_NEW_REASON', $this->loggedEvent('payment_authentication_failed')['failure']->code);
+    }
+
+    public function testAHoldStatusShowsTheShopperAGenericMessageWithoutRevealingTheRiskReview(): void
+    {
+        $this->service->shouldReceive('reversePayment')->once()->andReturn(['id' => 'reverse-1']);
+
+        [, , $result] = $this->finalizeWithAuthorizeResponse([
+            'id' => 'intent-1',
+            'status' => 'AUTHORIZED_PENDING_REVIEW',
+            'processorInformation' => ['transactionId' => 'tx-1'],
+        ]);
+
+        $this->assertSame(__('payment_errors.PENDING_REVIEW', [], 'es'), $result->message);
+        $this->assertSame('PENDING_REVIEW', $this->loggedEvent('3ds_authorize_declined')['failure']->code);
+    }
+
+    public function testAHoldWithoutAuthorizedAmountReversesTheOrderTotal(): void
+    {
+        $sentAmount = null;
+        $this->service->shouldReceive('reversePayment')->once()->withArgs(function (PaymentCaptureInput $input) use (&$sentAmount): bool {
+            $sentAmount = $input->totalAmount;
+
+            return true;
+        })->andReturn(['id' => 'reverse-1']);
+
+        $this->finalizeWithAuthorizeResponse(['id' => 'intent-1', 'status' => 'AUTHORIZED_RISK_DECLINED']);
+
+        $this->assertSame('100', $sentAmount);
     }
 
     public function testCaptureAndReverseSendThePaymentIntentIdTheLegacySends(): void
@@ -1539,6 +1909,129 @@ class PortalProcessorTest extends TestCase
         $this->assertFalse($result->success);
     }
 
+    public function testGatewayFailureWithoutBodyKeepsTheExceptionDetailsInTheLog(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::AUTHORIZED->value, metadata: [
+            'data' => ['echo_pay_authorize_transaction_id' => 'tx-1'],
+        ]);
+        $this->expectReports(1);
+        $this->service->shouldReceive('capturePayment')->once()->andThrow(new EchoPayException('Gateway timeout', 0));
+
+        $this->processor->capture($payment, $this->buildOrderMock());
+
+        $this->assertEquals(
+            new PaymentFailure(code: 'EchoPayException', message: 'Gateway timeout'),
+            $this->loggedEvent('payment_error')['failure']
+        );
+    }
+
+    public function testRefundDeclineIsNotReported(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::PAID->value, metadata: [
+            'data' => ['echo_pay_authorize_transaction_id' => 'tx-1'],
+        ]);
+        $this->expectReports(0);
+        $this->service->shouldReceive('reversePayment')->once()->andThrow($this->decline());
+
+        $this->assertFalse($this->processor->refund($payment, $this->buildOrderMock())->success);
+    }
+
+    public function testVoidDeclineIsNotReported(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::AUTHORIZED->value, metadata: [
+            'data' => ['echo_pay_authorize_transaction_id' => 'tx-1'],
+        ]);
+        $this->expectReports(0);
+        $this->service->shouldReceive('reversePayment')->once()->andThrow($this->decline());
+
+        $this->assertFalse($this->processor->void($payment, $this->buildOrderMock())->success);
+    }
+
+    public function testSetupPayerDeclineIsNotReported(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING->value);
+        $this->expectReports(0);
+        $this->service->shouldReceive('setupPayer')->once()->andThrow($this->decline());
+
+        $this->assertFalse($this->processor->startChallenge($payment, $this->buildOrderMock())->success);
+    }
+
+    public function testValidateDeclineIsNotReported(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING_AUTHORIZATION->value);
+        $order = $this->buildOrderMock(['auth_session_id' => 'ref-1', 'auth_transaction_id' => 'enroll-1']);
+        $this->attachOrder($payment, $order);
+        $this->expectReports(0);
+        $this->service->shouldReceive('validatePayerAuthResult')->once()->andThrow($this->decline());
+
+        $this->assertFalse($this->processor->finalizeChallenge($payment, $order)->success);
+    }
+
+    public function testChallengeRequiredMessageDoesNotLeakTheGatewayError(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::WAITING_DEVICE_DATA->value);
+        $order = $this->buildOrderMock(['auth_session_id' => 'ref-1']);
+        $this->service->shouldReceive('checkPayerEnrollment')->once()->andReturn([
+            ...$this->challengeEnrollmentWithAuthTransaction('auth-tx-1'),
+            'errorInformation' => [
+                'reason' => 'CONSUMER_AUTHENTICATION_REQUIRED',
+                'message' => 'The cardholder is enrolled in Payer Authentication. Please authenticate the cardholder.',
+            ],
+        ]);
+
+        $result = $this->processor->finalizeChallenge($payment, $order);
+
+        $this->assertTrue($result->success);
+        $this->assertSame(PaymentStatusEnum::PENDING_AUTHORIZATION->value, $result->status);
+        $this->assertSame(
+            '3DS challenge required — redirect the cardholder to acs_url with pareq, then call finalizeChallenge again.',
+            $result->message
+        );
+        $this->assertStringNotContainsString('Payer Authentication', $result->message);
+        $this->assertSame(OrderStatusEnum::PENDING->value, $this->orderUpdates['status']);
+    }
+
+    public function testAuthorizeSendsTheClientIpStoredOnTheOrder(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::WAITING_DEVICE_DATA->value);
+        $order = $this->buildOrderMock(['auth_session_id' => 'ref-1']);
+        $order->metadata = ['data' => ['user_ip' => '198.51.100.7']];
+        $sentIp = null;
+        $this->service->shouldReceive('checkPayerEnrollment')->once()->andReturn($this->frictionlessEnrollment());
+        $this->service->shouldReceive('authorizePayment')->once()->withArgs(
+            function (PaymentDetail $detail) use (&$sentIp): bool {
+                $sentIp = $detail->deviceInformation->ipAddress;
+
+                return true;
+            }
+        )->andReturn(['id' => 'intent-1', 'status' => 'AUTHORIZED', 'processorInformation' => ['transactionId' => 'tx-1']]);
+
+        $this->processor->finalizeChallenge($payment, $order);
+
+        $this->assertSame('198.51.100.7', $sentIp);
+    }
+
+    public function testAuthorizeFallsBackToTheRequestIpWhenTheOrderHasNone(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::WAITING_DEVICE_DATA->value);
+        $order = $this->buildOrderMock(['auth_session_id' => 'ref-1']);
+        $order->metadata = ['data' => []];
+        request()->headers->set('X-Forwarded-For', '203.0.113.9, 10.0.0.1');
+        $sentIp = null;
+        $this->service->shouldReceive('checkPayerEnrollment')->once()->andReturn($this->frictionlessEnrollment());
+        $this->service->shouldReceive('authorizePayment')->once()->withArgs(
+            function (PaymentDetail $detail) use (&$sentIp): bool {
+                $sentIp = $detail->deviceInformation->ipAddress;
+
+                return true;
+            }
+        )->andReturn(['id' => 'intent-1', 'status' => 'AUTHORIZED', 'processorInformation' => ['transactionId' => 'tx-1']]);
+
+        $this->processor->finalizeChallenge($payment, $order);
+
+        $this->assertSame('203.0.113.9', $sentIp);
+    }
+
     private function authorizeSuccessfully(): array
     {
         $payment = $this->buildPaymentMock(PaymentStatusEnum::WAITING_DEVICE_DATA->value);
@@ -1554,6 +2047,17 @@ class PortalProcessorTest extends TestCase
         $this->processor->finalizeChallenge($payment, $order);
 
         return [$payment, $order];
+    }
+
+    private function finalizeWithAuthorizeResponse(array $authorizeResponse): array
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::WAITING_DEVICE_DATA->value);
+        $payment->payment_intent_id = 'setup-1';
+        $order = $this->buildOrderMock(['auth_session_id' => 'ref-1']);
+        $this->service->shouldReceive('checkPayerEnrollment')->once()->andReturn($this->frictionlessEnrollment());
+        $this->service->shouldReceive('authorizePayment')->once()->andReturn($authorizeResponse);
+
+        return [$payment, $order, $this->processor->finalizeChallenge($payment, $order)];
     }
 
     private function challengeEnrollmentWithAuthTransaction(string $authenticationTransactionId): array
@@ -2034,36 +2538,5 @@ class PortalProcessorTest extends TestCase
             'indicator' => 'vbv',
             'authenticationResult' => '0',
         ]);
-    }
-
-    private function consumerAuthBase(): array
-    {
-        return [
-            'indicator' => null,
-            'authenticationTransactionId' => null,
-            'eciRaw' => null,
-            'authenticationResult' => null,
-            'strongAuthentication' => [],
-            'authenticationStatusMsg' => null,
-            'eci' => null,
-            'token' => '',
-            'accessToken' => null,
-            'cavv' => null,
-            'paresStatus' => null,
-            'xid' => null,
-            'directoryServerTransactionId' => null,
-            'threeDSServerTransactionId' => null,
-            'specificationVersion' => null,
-            'acsTransactionId' => null,
-            'ucafCollectionIndicator' => null,
-            'ucafAuthenticationData' => null,
-            'challengeRequired' => null,
-            'acsUrl' => null,
-            'acsReferenceNumber' => null,
-            'stepUpUrl' => null,
-            'pareq' => null,
-            'veresEnrolled' => null,
-            'acsOperatorID' => null,
-        ];
     }
 }

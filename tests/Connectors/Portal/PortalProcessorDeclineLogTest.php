@@ -6,6 +6,8 @@ namespace Tests\Connectors\Portal;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
+use Kanvas\Connectors\EchoPay\Enums\PaymentStatusEnum as EchoPayStatusEnum;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Guild\Customers\Models\People;
@@ -16,13 +18,15 @@ use Kanvas\Souk\Payments\Infrastructure\Processors\Portal\PortalProcessor;
 use Kanvas\Souk\Payments\Models\PaymentLogs;
 use Kanvas\Souk\Payments\Models\Payments;
 use Mockery;
+use Tests\Connectors\Portal\Concerns\BuildsEnrollmentResponses;
 use Tests\TestCase;
 
 final class PortalProcessorDeclineLogTest extends TestCase
 {
+    use BuildsEnrollmentResponses;
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'commerce', 'crm'];
+    protected array $connectionsToTransact = ['mysql', 'commerce', 'crm', 'ecosystem'];
 
     public function testCaptureDeclineFillsThePaymentLogErrorColumns(): void
     {
@@ -55,6 +59,90 @@ final class PortalProcessorDeclineLogTest extends TestCase
         $this->assertSame('51', $log->processor_response_code);
         $this->assertSame('ISSUER_CANNOT_APPROVE_AT_THIS_TIME', $log->response_insight);
         $this->assertSame('capture_payment', $log->metadata['context']);
+    }
+
+    public function testAuthenticationFailureFillsThePaymentLogErrorColumns(): void
+    {
+        $payment = $this->seedAuthorizedPayment();
+        $payment->status = PaymentStatusEnum::WAITING_DEVICE_DATA->value;
+        $payment->saveOrFail();
+        $payment->payable->set('auth_session_id', 'ref-1');
+        $service = Mockery::mock(EchoPayService::class);
+        $service->shouldReceive('checkPayerEnrollment')->once()->andReturn([
+            'consumerAuthenticationInformation' => ConsumerAuthentication::from([
+                ...$this->consumerAuthBase(),
+                'authenticationTransactionId' => 'auth-tx-9',
+                'paresStatus' => 'N',
+            ]),
+            'id' => 'enroll-9',
+            'status' => EchoPayStatusEnum::AUTHENTICATION_FAILED->value,
+            'errorInformation' => [
+                'reason' => 'CONSUMER_AUTHENTICATION_FAILED',
+                'message' => 'The cardholder could not be authenticated.',
+            ],
+        ]);
+        $processor = new PortalProcessor(
+            app: app(Apps::class),
+            company: static::$cachedUser->getCurrentCompany(),
+            service: $service,
+        );
+
+        $result = $processor->finalizeChallenge($payment, $payment->payable);
+
+        $log = PaymentLogs::query()
+            ->where('payments_id', $payment->getId())
+            ->where('event_type', 'payment_authentication_failed')
+            ->firstOrFail();
+
+        $this->assertFalse($result->success);
+        $this->assertSame(OrderStatusEnum::FAILED->value, $payment->payable->refresh()->status);
+        $this->assertSame('CONSUMER_AUTHENTICATION_FAILED', $log->error_code);
+        $this->assertSame('The cardholder could not be authenticated.', $log->error_message);
+    }
+
+    public function testAnUnacceptableHoldIsReversedAndLogsItsOwnErrorCode(): void
+    {
+        $payment = $this->seedAuthorizedPayment();
+        $payment->status = PaymentStatusEnum::WAITING_DEVICE_DATA->value;
+        $payment->payment_intent_id = 'setup-1';
+        $payment->saveOrFail();
+        $payment->payable->set('auth_session_id', 'ref-1');
+        $service = Mockery::mock(EchoPayService::class);
+        $service->shouldReceive('checkPayerEnrollment')->once()->andReturn([
+            'consumerAuthenticationInformation' => ConsumerAuthentication::from([
+                ...$this->consumerAuthBase(),
+                'eci' => '05',
+                'eciRaw' => '05',
+                'indicator' => 'vbv',
+                'authenticationResult' => '0',
+            ]),
+            'id' => 'enroll-1',
+            'status' => EchoPayStatusEnum::AUTHENTICATION_SUCCESSFUL->value,
+            'paymentInformation' => ['card' => ['type' => 'VISA']],
+        ]);
+        $service->shouldReceive('authorizePayment')->once()->andReturn([
+            'id' => 'intent-1',
+            'status' => 'AUTHORIZED_RISK_DECLINED',
+        ]);
+        $service->shouldReceive('reversePayment')->once()->andReturn(['id' => 'reverse-1']);
+        $processor = new PortalProcessor(
+            app: app(Apps::class),
+            company: static::$cachedUser->getCurrentCompany(),
+            service: $service,
+        );
+
+        $result = $processor->finalizeChallenge($payment, $payment->payable);
+
+        $log = PaymentLogs::query()
+            ->where('payments_id', $payment->getId())
+            ->where('event_type', '3ds_authorize_declined')
+            ->firstOrFail();
+
+        $this->assertFalse($result->success);
+        $this->assertSame(PaymentStatusEnum::FAILED->value, $payment->refresh()->status);
+        $this->assertSame('RISK_DECLINED', $log->error_code);
+        $this->assertSame('The gateway authorized the payment but its risk rules declined it.', $log->error_message);
+        $this->assertTrue($log->metadata['hold_reversed']);
     }
 
     private function seedAuthorizedPayment(): Payments

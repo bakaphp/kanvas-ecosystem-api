@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Souk;
 
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
+use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentCaptureInput;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Enums\PaymentStatusEnum as EchoPayStatusEnum;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
@@ -14,6 +15,7 @@ use Kanvas\Souk\Payments\Infrastructure\Processors\Portal\PortalProcessor;
 use Kanvas\Souk\Payments\Models\Payments;
 use Mockery;
 use Mockery\MockInterface;
+use RuntimeException;
 
 class PortalMockPaymentFlowTest extends OrderBase
 {
@@ -298,6 +300,189 @@ class PortalMockPaymentFlowTest extends OrderBase
         $this->assertFalse($response->json('data.startPaymentChallengeWithCard.success'));
         $this->assertSame(PaymentStatusEnum::FAILED->value, $response->json('data.startPaymentChallengeWithCard.status'));
         $this->assertStringContainsString('createPaymentMethod', $response->json('data.startPaymentChallengeWithCard.message'));
+    }
+
+    public function testVoidPaymentCancelsAnAuthorizedPaymentAndReversesTheAuthorizeTransaction(): void
+    {
+        $reversedTransactionId = null;
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldReceive('reversePayment')->once()->withArgs(function (PaymentCaptureInput $input) use (&$reversedTransactionId): bool {
+            $reversedTransactionId = $input->transactionId;
+
+            return true;
+        })->andReturn(['id' => 'reversal-1', 'status' => 'REVERSED']);
+        $paymentId = $this->createAuthorizedPortalPayment($service);
+
+        $void = $this->runPaymentAction('voidPayment', $paymentId);
+
+        $this->assertSame('success', $void['status'], $void['message']);
+        $this->assertSame('Payment voided.', $void['message']);
+        $this->assertSame(PaymentStatusEnum::CANCELLED->value, $void['payment']['status']);
+        $payment = Payments::find($paymentId);
+        $this->assertSame(PaymentStatusEnum::CANCELLED->value, $payment->status);
+        $this->assertNotEmpty($payment->payment_intent_id);
+        $this->assertSame($payment->payment_intent_id, $reversedTransactionId);
+    }
+
+    public function testVoidPaymentKeepsThePaymentAuthorizedWhenTheGatewayReversalFails(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldReceive('reversePayment')->once()->andThrow(new RuntimeException('gateway down'));
+        $paymentId = $this->createAuthorizedPortalPayment($service);
+
+        $void = $this->runPaymentAction('voidPayment', $paymentId);
+
+        $this->assertSame('error', $void['status']);
+        $this->assertSame('gateway down', $void['message']);
+        $this->assertSame(PaymentStatusEnum::AUTHORIZED->value, Payments::find($paymentId)->status);
+    }
+
+    public function testVoidPaymentRejectsAPaymentThatIsNotAuthorized(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldNotReceive('reversePayment');
+        $paymentId = $this->createAuthorizedPortalPayment($service);
+        $this->runPaymentAction('capturePayment', $paymentId);
+
+        $void = $this->runPaymentAction('voidPayment', $paymentId);
+
+        $this->assertSame('error', $void['status']);
+        $this->assertStringContainsString("Cannot void payment in state 'paid'", $void['message']);
+        $this->assertSame(PaymentStatusEnum::PAID->value, Payments::find($paymentId)->status);
+    }
+
+    public function testRefundPaymentReversesAPaidPayment(): void
+    {
+        $reversedTransactionId = null;
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldReceive('reversePayment')->once()->withArgs(function (PaymentCaptureInput $input) use (&$reversedTransactionId): bool {
+            $reversedTransactionId = $input->transactionId;
+
+            return true;
+        })->andReturn(['id' => 'refund-1', 'status' => 'REVERSED']);
+        $paymentId = $this->createAuthorizedPortalPayment($service);
+        $capture = $this->runPaymentAction('capturePayment', $paymentId);
+        $this->assertSame(PaymentStatusEnum::PAID->value, $capture['payment']['status'], $capture['message']);
+
+        $refund = $this->runPaymentAction('refundPayment', $paymentId);
+
+        $this->assertSame('success', $refund['status'], $refund['message']);
+        $this->assertSame('Payment refunded.', $refund['message']);
+        $this->assertSame(PaymentStatusEnum::REVERSED->value, $refund['payment']['status']);
+        $payment = Payments::find($paymentId);
+        $this->assertSame(PaymentStatusEnum::REVERSED->value, $payment->status);
+        $this->assertSame($payment->payment_intent_id, $reversedTransactionId);
+    }
+
+    public function testRefundPaymentRejectsAPartialAmountAndLeavesTheStatusUntouched(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldNotReceive('reversePayment');
+        $paymentId = $this->createAuthorizedPortalPayment($service);
+        $this->runPaymentAction('capturePayment', $paymentId);
+
+        $refund = $this->runPaymentAction('refundPayment', $paymentId, ['amount' => 0.01]);
+
+        $this->assertSame('error', $refund['status']);
+        $this->assertStringContainsString('partial', strtolower($refund['message']));
+        $this->assertSame(PaymentStatusEnum::PAID->value, Payments::find($paymentId)->status);
+    }
+
+    public function testRefundPaymentRejectsAPaymentThatWasNeverAuthorized(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldNotReceive('reversePayment');
+        $this->bindPortalProcessor($service);
+        [$paymentId] = $this->createPortalPaymentOnFreshOrder();
+
+        $refund = $this->runPaymentAction('refundPayment', $paymentId);
+
+        $this->assertSame('error', $refund['status']);
+        $this->assertStringContainsString('cannot be refunded', $refund['message']);
+        $this->assertSame(PaymentStatusEnum::PENDING->value, Payments::find($paymentId)->status);
+    }
+
+    public function testVerifyPaymentReturnsTheStoredStatusWithoutCallingTheGateway(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $paymentId = $this->createAuthorizedPortalPayment($service);
+        $service->shouldNotReceive('reversePayment');
+        $service->shouldNotReceive('capturePayment');
+        $service->shouldNotReceive('authorizePayment');
+        $service->shouldNotReceive('checkPayerEnrollment');
+
+        $verify = $this->runPaymentAction(
+            mutation: 'verifyPayment',
+            paymentId: $paymentId,
+            selection: 'status message transaction_id',
+        );
+
+        $this->assertSame('success', $verify['status']);
+        $this->assertStringContainsString('Stored payment status: authorized', $verify['message']);
+        $this->assertNotEmpty($verify['transaction_id']);
+        $this->assertSame(PaymentStatusEnum::AUTHORIZED->value, Payments::find($paymentId)->status);
+    }
+
+    public function testVerifyPaymentReportsAnErrorForAPaymentThatIsNotAuthorizedOrPaid(): void
+    {
+        $this->bindPortalProcessor($this->portalServiceWithRealMockClient());
+        [$paymentId] = $this->createPortalPaymentOnFreshOrder();
+
+        $verify = $this->runPaymentAction(
+            mutation: 'verifyPayment',
+            paymentId: $paymentId,
+            selection: 'status message',
+        );
+
+        $this->assertSame('error', $verify['status']);
+        $this->assertStringContainsString('Stored payment status: pending', $verify['message']);
+        $this->assertSame(PaymentStatusEnum::PENDING->value, Payments::find($paymentId)->status);
+    }
+
+    public function testProcessPaymentRejectsPortalWithoutMarkingThePaymentFailed(): void
+    {
+        $service = $this->portalServiceWithRealMockClient();
+        $service->shouldNotReceive('authorizePayment');
+        $this->bindPortalProcessor($service);
+        [$paymentId] = $this->createPortalPaymentOnFreshOrder();
+
+        $process = $this->runPaymentAction('processPayment', $paymentId);
+
+        $this->assertSame('error', $process['status']);
+        $this->assertStringContainsString('requires 3DS', $process['message']);
+        $this->assertSame(PaymentStatusEnum::PENDING->value, Payments::find($paymentId)->status);
+    }
+
+    private function createAuthorizedPortalPayment(MockInterface $service): string
+    {
+        $this->bindPortalProcessor($service);
+        [$paymentId] = $this->createPortalPaymentOnFreshOrder();
+        $this->startChallenge($paymentId);
+        $finalize = $this->finalizeChallenge($paymentId);
+        $this->assertSame(PaymentStatusEnum::AUTHORIZED->value, $finalize['status'], $finalize['message']);
+
+        return $paymentId;
+    }
+
+    private function runPaymentAction(
+        string $mutation,
+        string $paymentId,
+        array $extraArguments = [],
+        string $selection = 'status message payment { id status }'
+    ): array {
+        $amountVariable = isset($extraArguments['amount']) ? ', $amount: Float' : '';
+        $amountArgument = isset($extraArguments['amount']) ? ', amount: $amount' : '';
+
+        return $this->graphQLData($this->graphQL(
+            'mutation ' . $mutation . '($paymentId: ID!' . $amountVariable . ') {
+                ' . $mutation . '(paymentId: $paymentId' . $amountArgument . ') {
+                    ' . $selection . '
+                }
+            }',
+            ['paymentId' => $paymentId, ...$extraArguments],
+            [],
+            ['X-Kanvas-Location' => $this->company->branch->uuid],
+        ), $mutation);
     }
 
     private function createPortalPaymentOnFreshOrder(): array

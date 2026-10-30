@@ -15,15 +15,18 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthenticationInformation;
 use Kanvas\Connectors\EchoPay\DataTransferObject\DeviceInformation;
-use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\OrderInformation;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentCaptureInput;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
+use Kanvas\Connectors\EchoPay\Enums\AuthenticationOutcomeEnum;
+use Kanvas\Connectors\EchoPay\Enums\AuthorizationStatusEnum;
+use Kanvas\Connectors\EchoPay\Enums\CardBrandEnum;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\EchoPay\Enums\PaymentStatusEnum as EchoPayStatusEnum;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
+use Kanvas\Connectors\EchoPay\Services\ShopperMessageResolver;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
@@ -36,6 +39,7 @@ use Kanvas\Souk\Payments\Contracts\ThreeDSProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\AuthorizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\CaptureResult;
+use Kanvas\Souk\Payments\DataTransferObject\PaymentFailure;
 use Kanvas\Souk\Payments\DataTransferObject\RefundResult;
 use Kanvas\Souk\Payments\DataTransferObject\ThreeDSResult;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
@@ -43,6 +47,7 @@ use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
+use RuntimeException;
 use Throwable;
 use UnexpectedValueException;
 
@@ -494,15 +499,19 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
         string $fallbackMessage
     ): ThreeDSResult {
         $enrollmentStatus = (string) ($response['status'] ?? '');
-        $paymentStatus = $this->mapEnrollmentStatusToPaymentStatus($enrollmentStatus);
+        $outcome = AuthenticationOutcomeEnum::resolve(
+            $enrollmentStatus,
+            $consumerData,
+            CardBrandEnum::fromGateway($response['paymentInformation']['card']['type'] ?? null)
+        );
 
         $this->rememberAuthTransactionId($order, $consumerData);
 
-        if ($paymentStatus === null) {
+        if ($outcome === AuthenticationOutcomeEnum::UNKNOWN) {
             report(new UnexpectedValueException('Unmapped EchoPay enrollment status: ' . $enrollmentStatus));
         }
 
-        if ($paymentStatus !== PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
+        if ($outcome->isFailure()) {
             return $this->failPayerAuthentication(
                 $payment,
                 $order,
@@ -510,6 +519,16 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
                 $consumerData,
                 $fallbackMessage
             );
+        }
+
+        if ($outcome->isInconclusive()) {
+            $payment->addLog('3ds_authentication_inconclusive', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'outcome' => $outcome->value,
+                'eci' => $consumerData->resolvedEci(),
+                'pares_status' => $consumerData->paresStatus,
+            ]);
         }
 
         $payment->addMetadata(['enrollment_data' => $response]);
@@ -639,22 +658,15 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
 
         $responseTimeMs = $this->elapsedMs($start);
 
-        $authorized = ($response['status'] ?? null) === 'AUTHORIZED';
+        $authorizationStatus = AuthorizationStatusEnum::tryFrom((string) ($response['status'] ?? ''));
 
-        if (! $authorized) {
-            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
-            $payment->addLog('3ds_authorize_declined', [
-                'processor' => $this->name(),
-                'order_id' => $order->id,
-                'status' => $response['status'] ?? null,
-                'response_time_ms' => $responseTimeMs,
-            ]);
-
-            return new ThreeDSResult(
-                success: false,
-                message: 'Authorization declined by EchoPay (status: ' . ($response['status'] ?? 'unknown') . ').',
-                status: PaymentStatusEnum::FAILED->value,
-                raw: $response,
+        if ($authorizationStatus !== AuthorizationStatusEnum::AUTHORIZED) {
+            return $this->rejectUnacceptableAuthorization(
+                $payment,
+                $order,
+                $response,
+                $authorizationStatus,
+                $responseTimeMs
             );
         }
 
@@ -695,23 +707,123 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
         );
     }
 
+    private function rejectUnacceptableAuthorization(
+        Payments $payment,
+        Order $order,
+        array $response,
+        ?AuthorizationStatusEnum $authorizationStatus,
+        int $responseTimeMs
+    ): ThreeDSResult {
+        if ($authorizationStatus === null) {
+            report(new UnexpectedValueException('Unmapped EchoPay authorization status: ' . ($response['status'] ?? 'missing')));
+        }
+
+        $reversal = $authorizationStatus?->holdsFunds()
+            ? $this->reverseUnacceptableHold($payment, $order, $response, $authorizationStatus)
+            : null;
+
+        $failure = $this->authorizationFailure($response, $authorizationStatus);
+
+        $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+        $payment->addLog(
+            '3ds_authorize_declined',
+            [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'status' => $response['status'] ?? null,
+                'response_time_ms' => $responseTimeMs,
+                ...($reversal === null ? [] : [
+                    'intent_id' => (string) ($response['id'] ?? ''),
+                    'hold_reversed' => $reversal['success'],
+                    'reversal_message' => $reversal['message'],
+                ]),
+            ],
+            $failure
+        );
+
+        return new ThreeDSResult(
+            success: false,
+            message: ShopperMessageResolver::resolve(
+                $failure->code,
+                $failure->message,
+                __('payment_errors.default', [], 'es')
+            ),
+            status: PaymentStatusEnum::FAILED->value,
+            raw: $response,
+        );
+    }
+
+    private function authorizationFailure(array $response, ?AuthorizationStatusEnum $authorizationStatus): PaymentFailure
+    {
+        if ($authorizationStatus === null) {
+            return new PaymentFailure(
+                code: 'UNKNOWN_AUTHORIZATION_STATUS',
+                message: 'Unmapped EchoPay authorization status: ' . ($response['status'] ?? 'missing'),
+            );
+        }
+
+        if ($authorizationStatus->holdsFunds()) {
+            return new PaymentFailure(
+                code: $authorizationStatus->failureCode(),
+                message: $authorizationStatus->failureMessage(),
+            );
+        }
+
+        $errors = $this->extractErrorsFromEnrollment($response);
+
+        return new PaymentFailure(
+            code: Str::trimToNull($errors['code']) ?? $authorizationStatus->failureCode(),
+            message: Str::trimToNull($errors['message']) ?? $authorizationStatus->failureMessage(),
+        );
+    }
+
+    private function reverseUnacceptableHold(
+        Payments $payment,
+        Order $order,
+        array $response,
+        AuthorizationStatusEnum $authorizationStatus
+    ): array {
+        $intentId = (string) ($response['id'] ?? '');
+
+        if ($intentId === '') {
+            $result = $this->failedReversal('Missing authorize transaction id on gateway response.', []);
+        } else {
+            $payment->payment_intent_id = $intentId;
+            $result = $this->doReverse(
+                $payment,
+                $order,
+                (float) ($response['orderInformation']['amountDetails']['authorizedAmount'] ?? $order->getTotalAmount()),
+                'Authorization not acceptable: ' . $authorizationStatus->failureCode(),
+                'authorize_rollback'
+            );
+        }
+
+        if (! $result['success']) {
+            report(new RuntimeException(
+                "Portal could not reverse a {$authorizationStatus->value} hold for payment {$payment->id}: {$result['message']}"
+            ));
+        }
+
+        return $result;
+    }
+
     private function isValidEci(ConsumerAuthentication $consumerData, array $enrollmentData): bool
     {
         if (($enrollmentData['status'] ?? null) !== EchoPayStatusEnum::AUTHENTICATION_SUCCESSFUL->value) {
             return false;
         }
 
-        $eci = $consumerData->eci ?? $consumerData->eciRaw;
-        $hasValidEci = in_array($eci, ['02', '05'], strict: true);
+        $hasValidEci = in_array(
+            $consumerData->resolvedEci(),
+            CardBrandEnum::authenticatedEcis(),
+            strict: true
+        );
+        $cardBrand = CardBrandEnum::fromGateway($enrollmentData['paymentInformation']['card']['type'] ?? null);
 
-        if (isset($enrollmentData['paymentInformation']['card']['type'])) {
-            $cardBrand = $enrollmentData['paymentInformation']['card']['type'];
-            $isEciMissing = ($enrollmentData['status'] === EchoPayStatusEnum::AUTHENTICATION_SUCCESSFUL->value) && empty($consumerData->eci);
-            $byPassEci = (bool) $this->app->get(ConfigurationEnum::BYPASS_ECI->value);
+        $isEciMissingOnMastercard = $cardBrand === CardBrandEnum::MASTERCARD && empty($consumerData->eci);
 
-            if ($cardBrand === 'MASTERCARD' && $isEciMissing && $byPassEci) {
-                return true;
-            }
+        if ($isEciMissingOnMastercard && (bool) $this->app->get(ConfigurationEnum::BYPASS_ECI->value)) {
+            return true;
         }
 
         return $hasValidEci;
@@ -982,7 +1094,11 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
 
         return new ThreeDSResult(
             success: false,
-            message: $errors['message'] !== '' ? $errors['message'] : $fallbackMessage,
+            message: ShopperMessageResolver::resolve(
+                Str::trimToNull($errors['code']),
+                Str::trimToNull($errors['message']) ?? $fallbackMessage,
+                $fallbackMessage
+            ),
             status: PaymentStatusEnum::FAILED->value,
             raw: $response,
         );

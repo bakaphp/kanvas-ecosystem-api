@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Payments;
 
+use DomainException;
 use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Payments\Actions\CreatePaymentMethodAction;
@@ -23,6 +24,7 @@ class PaymentProcessorMutation
     {
         $app = app(Apps::class);
         $user = auth()->user();
+        $payment = null;
 
         try {
             $payment = Payments::getForShopper((int) $request['paymentId'], $user, $app);
@@ -37,6 +39,9 @@ class PaymentProcessorMutation
                 return ['status' => 'error', 'message' => 'Order is already paid'];
             }
 
+            $processor = ProcessorFactory::make($payment->paymentMethod?->processor, $app, $payment->company);
+
+            $previousStatus = $payment->status;
             $payment->update(['status' => PaymentStatusEnum::PROCESSING->value]);
 
             // Explicit argument wins over the flag stored at addPaymentToOrder time.
@@ -47,7 +52,6 @@ class PaymentProcessorMutation
                 $context['use_hold'] = (bool) $payment->metadata['use_hold'];
             }
 
-            $processor = ProcessorFactory::make($payment->paymentMethod?->processor, $app, $payment->company);
             $result = $processor->authorize($payment, $order, $context);
 
             return [
@@ -56,6 +60,10 @@ class PaymentProcessorMutation
                 'payment' => $payment->fresh(),
                 'data' => $result->raw,
             ];
+        } catch (DomainException $e) {
+            $payment->update(['status' => $previousStatus]);
+
+            return ['status' => 'error', 'message' => $e->getMessage(), 'data' => []];
         } catch (Exception $e) {
             $payment?->update(['status' => PaymentStatusEnum::FAILED->value]);
 
