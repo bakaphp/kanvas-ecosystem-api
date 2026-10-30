@@ -91,6 +91,24 @@ final class LocationContext
             : self::branchFor($user)?->company;
     }
 
+    /**
+     * The company a Scout `search()` must stay inside. A search never passes through `fromCompany`,
+     * so without this an app-key request that names a location still searched every company.
+     * Null only for an app owner on an app key with no location, the one caller allowed app-wide.
+     *
+     * @param class-string $modelClass
+     */
+    public static function searchCompany(string $modelClass): ?CompanyInterface
+    {
+        $user = auth()->user();
+        if (! $user instanceof UserInterface) {
+            return null;
+        }
+
+        return self::readableCompany($modelClass, $user)
+            ?? ($user->isAppOwner() ? null : $user->getCurrentCompany());
+    }
+
     private static function canActIn(UserInterface $user, CompanyInterface $company): bool
     {
         if (app()->bound(AppKey::class) && app(AppKey::class)->isHeldBy((int) $user->getId())) {

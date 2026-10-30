@@ -12,7 +12,6 @@ use Baka\Enums\StateEnums;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
-use Baka\Users\Contracts\UserInterface;
 use Baka\Validations\EmailDomain;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +22,7 @@ use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Analytics\Reporting\Observers\ReportSourceObserver;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Event\Events\Concerns\HasEventResources;
@@ -363,9 +363,10 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     public static function search($query = '', $callback = null)
     {
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
-        $user = auth()->user();
-        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
-            $query->where('companies_id', $user->getCurrentCompany()->getId());
+
+        $company = LocationContext::searchCompany(static::class);
+        if ($company !== null) {
+            $query->where('companies_id', $company->getId());
         }
 
         return $query;
