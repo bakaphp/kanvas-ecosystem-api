@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Souk\Payments;
 
+use Illuminate\Support\Facades\Event;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Events\PaymentStatusChanged;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Observers\PaymentObserver;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -17,6 +19,13 @@ use Tests\TestCase;
 final class PaymentAuthorizedWorkflowTest extends TestCase
 {
     use MockeryPHPUnitIntegration;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Event::fake([PaymentStatusChanged::class]);
+    }
 
     public function testAPaymentBecomingAuthorizedFiresTheEventOnItsOrder(): void
     {
@@ -55,6 +64,8 @@ final class PaymentAuthorizedWorkflowTest extends TestCase
     private function orderExpecting(int $times): Order
     {
         $order = Mockery::mock(Order::class)->makePartial();
+        $order->id = 1;
+        $order->uuid = 'order-uuid';
         $order->setRelation('app', app(Apps::class));
         $order->setRelation('company', null);
         $order->shouldReceive('fireWorkflow')
@@ -67,6 +78,7 @@ final class PaymentAuthorizedWorkflowTest extends TestCase
     private function paymentFor(Order $order, PaymentStatusEnum $status): Payments
     {
         $payment = new Payments();
+        $payment->id = 1;
         $payment->status = PaymentStatusEnum::PROCESSING->value;
         $payment->syncOriginal();
         $payment->status = $status->value;
