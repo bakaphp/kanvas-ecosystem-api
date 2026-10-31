@@ -6,10 +6,10 @@ namespace Kanvas\Souk\Payments\Actions;
 
 use Baka\Support\IPInfo;
 use Kanvas\Auth\Services\AuthenticationService;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Exceptions\CardVelocityExceededException;
 use Kanvas\Souk\Payments\Models\Payments;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
@@ -92,7 +92,7 @@ class EnforceCardVelocityLimitAction
                 . ($ban ? '1' : '0') . ' ip:' . IPInfo::getClientIp() . " app:{$this->payment->apps_id}"
         ));
 
-        throw new ValidationException(__('payment_errors.card_velocity_exceeded', [], 'es'));
+        throw new CardVelocityExceededException(__('payment_errors.card_velocity_exceeded', [], 'es'));
     }
 
     private function banUser(): void

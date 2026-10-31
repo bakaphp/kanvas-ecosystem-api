@@ -18,6 +18,7 @@ use Kanvas\Souk\Payments\Actions\LogPaymentEventAction;
 use Kanvas\Souk\Payments\DataTransferObject\PaymentFailure;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
+use Kanvas\Souk\Payments\Jobs\RetryPaymentCaptureJob;
 use Kanvas\Souk\Payments\Observers\PaymentObserver;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
@@ -150,9 +151,41 @@ class Payments extends BaseModel
         return strtolower($brand) . ':' . $lastFour;
     }
 
+    public function transitionStatus(string $from, string $to): bool
+    {
+        $claimed = static::query()
+            ->whereKey($this->getKey())
+            ->where('status', $from)
+            ->update(['status' => $to]) === 1;
+
+        if ($claimed) {
+            $this->setAttribute('status', $to);
+            $this->syncOriginalAttribute('status');
+        }
+
+        return $claimed;
+    }
+
+    public function claimForSettlement(): bool
+    {
+        return $this->transitionStatus(
+            PaymentStatusEnum::AUTHORIZED->value,
+            PaymentStatusEnum::PROCESSING->value
+        );
+    }
+
+    public function releaseSettlementClaim(): bool
+    {
+        return $this->transitionStatus(
+            PaymentStatusEnum::PROCESSING->value,
+            PaymentStatusEnum::AUTHORIZED->value
+        );
+    }
+
     public function markAsPaid(array $metadata = []): void
     {
         $this->status = PaymentStatusEnum::PAID->value;
+        $this->clearCaptureRecoveryMarkers();
 
         if (! empty($metadata)) {
             $this->addMetadata($metadata);
@@ -168,6 +201,24 @@ class Payments extends BaseModel
             $this->payable->markAsPaid($this->user);
         } elseif (method_exists($this->payable, 'checkPayments')) {
             $this->payable->checkPayments();
+        }
+    }
+
+    public function isInCaptureRecovery(): bool
+    {
+        return ($this->metadata[RetryPaymentCaptureJob::PENDING_KEY] ?? false) === true
+            || ($this->metadata[RetryPaymentCaptureJob::NEEDS_REVIEW_KEY] ?? false) === true;
+    }
+
+    private function clearCaptureRecoveryMarkers(): void
+    {
+        $stale = array_filter(
+            [RetryPaymentCaptureJob::PENDING_KEY, RetryPaymentCaptureJob::NEEDS_REVIEW_KEY],
+            fn (string $key): bool => isset($this->metadata[$key])
+        );
+
+        if ($stale !== []) {
+            $this->addMetadata(array_fill_keys($stale, false));
         }
     }
 

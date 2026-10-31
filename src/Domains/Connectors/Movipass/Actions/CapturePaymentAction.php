@@ -6,6 +6,7 @@ use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Actions\SendPaymentReceiptAction;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 
@@ -43,6 +44,10 @@ class CapturePaymentAction
         ]);
 
         $captureResult = $paymentProcessor->capturePayment($this->payment, $this->order, $bankTransaction);
+
+        if ($captureResult['status'] === 'skipped') {
+            return $result;
+        }
 
         if ($captureResult['status'] === 'error') {
             return [
