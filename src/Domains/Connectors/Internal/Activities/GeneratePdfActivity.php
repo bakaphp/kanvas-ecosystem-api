@@ -74,6 +74,16 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
                     ];
                 }
 
+                $generatedPdfFileName = null;
+                if ($entity instanceof Message) {
+                    $generatedPdfFileName = $entity->message['data']['params']['field_name']
+                        ?? $entity->message['data']['params']['pdf_file_name']
+                        ?? $entity->message['data']['pdf_file_name']
+                        ?? $params['field_name']
+                        ?? null;
+                }
+                $generatedPdfFileName ??= $pdfFileName;
+
                 $engagement = null;
                 $taskListItem = null;
 
@@ -109,7 +119,8 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
                         $entity->user,
                         $pdfTemplate,
                         $entity,
-                        $pdfData
+                        $pdfData,
+                        fileName: $generatedPdfFileName
                     );
 
                     $entity->addFile($pdfFile, $pdfFileName);
