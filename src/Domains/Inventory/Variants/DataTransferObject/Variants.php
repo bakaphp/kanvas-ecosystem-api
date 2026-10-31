@@ -26,7 +26,11 @@ class Variants extends Data
         public ?string $slug = null,
         public array $files = [],
         public ?float $weight = null,
-        public ?bool $is_published = true
+        public ?bool $is_published = true,
+        public ?bool $is_taxable = null,
+        public ?string $tax_category = null,
+        public ?string $tax_code_override = null,
+        public ?int $tax_code_id = null,
     ) {
     }
 
@@ -39,20 +43,24 @@ class Variants extends Data
         }
 
         return new self(
-            $product,
-            $request['name'],
-            $request['sku'],
-            $request['description'] ?? null,
-            $request['status_id'] ?? null,
-            $request['short_description'] ?? null,
-            $request['html_description'] ?? null,
-            $request['ean'] ?? null,
-            $request['barcode'] ?? null,
-            $request['serial_number'] ?? null,
-            $request['slug'] ?? null,
-            $request['files'] ?? [],
-            $request['weight'] ?? null,
-            $request['is_published'] ?? true
+            product: $product,
+            name: $request['name'],
+            sku: $request['sku'],
+            description: $request['description'] ?? null,
+            status_id: $request['status_id'] ?? null,
+            short_description: $request['short_description'] ?? null,
+            html_description: $request['html_description'] ?? null,
+            ean: $request['ean'] ?? null,
+            barcode: $request['barcode'] ?? null,
+            serial_number: $request['serial_number'] ?? null,
+            slug: $request['slug'] ?? null,
+            files: $request['files'] ?? [],
+            weight: $request['weight'] ?? null,
+            is_published: $request['is_published'] ?? true,
+            is_taxable: $request['is_taxable'] ?? null,
+            tax_category: $request['tax_category'] ?? null,
+            tax_code_override: $request['tax_code_override'] ?? null,
+            tax_code_id: isset($request['tax_code_id']) ? (int) $request['tax_code_id'] : null,
         );
     }
 

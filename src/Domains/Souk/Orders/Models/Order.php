@@ -46,6 +46,10 @@ use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Services\B2BConfigurationService;
 use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
+use Kanvas\Souk\Support\Money;
+use Kanvas\Souk\Taxes\Enums\TaxStatusEnum;
+use Kanvas\Souk\Taxes\Jobs\CommitTaxTransactionJob;
+use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Souk\Traits\PayableTrait;
 use Kanvas\Templates\Contracts\ExposesTemplateData;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -81,6 +85,11 @@ use Spatie\LaravelData\DataCollection;
  * @property float|null $shipping_price_net_amount
  * @property float|null $discount_amount
  * @property float|null $tax_amount
+ * @property int|null $totals_version
+ * @property string|null $tax_source
+ * @property float|null $subtotal_amount
+ * @property float|null $total_payable_amount
+ * @property float|null $wallet_tender
  * @property float|null $commission_rate
  * @property float|null $commission_amount
  * @property float|null $provider_amount
@@ -133,6 +142,11 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
         'shipping_price_gross_amount' => 'float',
         'shipping_price_net_amount' => 'float',
         'discount_amount' => 'float',
+        'tax_amount' => 'float',
+        'totals_version' => 'integer',
+        'subtotal_amount' => 'float',
+        'total_payable_amount' => 'float',
+        'wallet_tender' => 'float',
         'commission_rate' => 'float',
         'commission_amount' => 'float',
         'provider_amount' => 'float',
@@ -254,7 +268,7 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
 
     public function getTotalTaxAmount(): float
     {
-        return $this->getTotalAmount() - $this->getSubTotalAmount();
+        return (float) $this->tax_amount;
     }
 
     /**
@@ -369,6 +383,17 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
     protected function firePaidSideEffects(): void
     {
         $this->completed();
+
+        $snapshot = OrderTaxSnapshot::query()
+            ->where('order_id', $this->id)
+            ->where('status', TaxStatusEnum::CALCULATED->value)
+            ->latest()
+            ->first();
+
+        if ($snapshot) {
+            $snapshot->transition(TaxStatusEnum::CALCULATED->value, TaxStatusEnum::COMMITTING->value);
+            CommitTaxTransactionJob::dispatch($snapshot, $this->app);
+        }
 
         $this->fireWorkflow(
             WorkflowEnum::UPDATED->value,
@@ -995,15 +1020,71 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
         return 'order-' . $this->companies_id . '-' . $this->apps_id;
     }
 
-    public function calculateTotal(bool $autoSave = true): void
+    public function recomputeTotals(bool $autoSave = false): self
     {
-        $total = OrderItem::query()->where(['order_id' => $this->id])
+        $row = OrderItem::query()
+            ->where(['order_id' => $this->id])
+            ->selectRaw('sum(unit_price_net_amount * quantity) as price')
+            ->first();
+
+        $subtotal = Money::roundCollect(Money::of((string) ($row->price ?? 0)));
+        $discount = Money::roundCollect(Money::of((string) $this->appliedDiscountAmount()));
+        $shipping = Money::roundCollect(Money::of((string) $this->chargedShippingAmount()));
+
+        $taxSource = (string) ($this->tax_source ?? 'none');
+        $tax = Money::roundCollect(Money::of((string) ($this->tax_amount ?? 0)));
+
+        $payable = $subtotal->minus($discount)->plus($shipping)->plus($tax);
+        $due = $payable->minus(Money::of((string) ($this->wallet_tender ?? 0)));
+
+        $this->totals_version = 2;
+        $this->subtotal_amount = $subtotal->toFloat();
+        $this->discount_amount = $discount->toFloat();
+
+        if ($taxSource === 'souk' || $taxSource === 'none') {
+            $this->tax_amount = $tax->toFloat();
+        }
+
+        $this->total_payable_amount = $payable->toFloat();
+
+        $this->total_gross_amount = $subtotal->toFloat();
+        $this->total_net_amount = $due->toFloat();
+
+        $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
+        $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
+
+        if ($this->commission_rate !== null) {
+            $netAmount = $due->toFloat();
+            $this->commission_amount = $netAmount > 0 ? round($netAmount * $this->commission_rate / 100, 2) : 0.0;
+            $this->provider_amount = $netAmount > 0 ? $netAmount - $this->commission_amount : 0.0;
+        }
+
+        if ($autoSave) {
+            $this->saveOrFail();
+        }
+
+        return $this;
+    }
+
+    public function calculateTotal(bool $autoSave = true): self
+    {
+        $totalsVersion = (int) ($this->totals_version ?? 0);
+
+        if ($totalsVersion >= 2) {
+            return $this->recomputeTotals($autoSave);
+        }
+
+        $total = OrderItem::query()
+            ->where(['order_id' => $this->id])
             ->selectRaw('sum(unit_price_net_amount * quantity) as price, count(*) as count')
             ->first();
 
-        $orderTotal = (float) ($total->price ?? 0);
+        // No line items — totals were set externally; preserve them unchanged.
+        if ((int) ($total->count ?? 0) === 0) {
+            return $this;
+        }
 
-        // Get discount amount from orderDiscounts relationship (single source of truth)
+        $orderTotal = (float) ($total->price ?? 0);
         $discountAmount = $this->appliedDiscountAmount();
 
         $this->total_gross_amount = $orderTotal;
@@ -1021,6 +1102,8 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
         if ($autoSave) {
             $this->saveOrFail();
         }
+
+        return $this;
     }
 
     protected function chargedShippingAmount(): float
@@ -1057,7 +1140,13 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
 
     public function remainingNetAmount(): float
     {
-        return max(0.0, (float) $this->total_gross_amount - $this->appliedDiscountAmount());
+        $totalsVersion = (int) ($this->totals_version ?? 1);
+
+        if ($totalsVersion >= 2) {
+            return max(0.0, (float) $this->subtotal_amount - (float) $this->discount_amount);
+        }
+
+        return max(0.0, (float) $this->total_net_amount);
     }
 
     public function applyDiscountCode(string $code): ?Discount

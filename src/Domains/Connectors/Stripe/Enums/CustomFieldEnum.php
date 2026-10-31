@@ -13,5 +13,7 @@ enum CustomFieldEnum: string
     case STRIPE_CHARGE_ID = 'STRIPE_CHARGE_ID';
     case STRIPE_PAYMENT_LINK_ID = 'stripe_payment_link_id';
     case STRIPE_PAYMENT_LINK_URL = 'stripe_payment_link_url';
+    case STRIPE_PAYMENT_LINK_TAX_REVISION = 'STRIPE_PAYMENT_LINK_TAX_REVISION';
     case STRIPE_CHECKOUT_SESSION_ID = 'stripe_checkout_session_id';
+    case STRIPE_CHECKOUT_SESSION_URL = 'stripe_checkout_session_url';
 }

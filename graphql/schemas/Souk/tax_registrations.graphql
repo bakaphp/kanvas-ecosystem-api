@@ -1,0 +1,58 @@
+type TaxRegistration {
+    id: ID!
+    uuid: String!
+    jurisdiction_country: String!
+    jurisdiction_state: String
+    registration_number: String
+    provider: String!
+    effective_from: String
+    effective_to: String
+    is_active: Boolean!
+    metadata: Mixed
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input TaxRegistrationInput {
+    jurisdiction_country: String!
+    jurisdiction_state: String
+    registration_number: String
+    provider: String
+    effective_from: String
+    effective_to: String
+    is_active: Boolean
+    metadata: Mixed
+}
+
+input UpdateTaxRegistrationInput {
+    jurisdiction_country: String
+    jurisdiction_state: String
+    registration_number: String
+    effective_from: String
+    effective_to: String
+    is_active: Boolean
+    metadata: Mixed
+}
+
+extend type Mutation @guardByAdmin {
+    createTaxRegistration(input: TaxRegistrationInput!): TaxRegistration!
+        @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\TaxRegistrationMutation@create")
+
+    updateTaxRegistration(id: ID!, input: UpdateTaxRegistrationInput!): TaxRegistration!
+        @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\TaxRegistrationMutation@update")
+
+    deleteTaxRegistration(id: ID!): Boolean!
+        @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\TaxRegistrationMutation@delete")
+}
+
+extend type Query @guardByAdmin {
+    taxRegistrations(
+        where: _ @whereConditions(columns: ["id", "uuid", "jurisdiction_country", "jurisdiction_state", "provider", "is_active"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "effective_from"])
+    ): [TaxRegistration!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Taxes\\Models\\TaxRegistration"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+}

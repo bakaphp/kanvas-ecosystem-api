@@ -11,6 +11,7 @@ enum OrderStatusEnum: string
     case DRAFT = 'draft';
     case CANCELED = 'canceled';
     case FAILED = 'failed';
+    case ON_HOLD = 'on_hold';
 
     /**
      * Every status that means the order will never progress. Carries the legacy `cancelled` spelling

@@ -1,0 +1,15 @@
+type TaxCoverage {
+    country: String!
+    state: String
+    provider: String!
+    isSupported: Boolean!
+    unsupportedReason: String
+}
+
+extend type Query @guard {
+    taxCoverage(
+        country_code: String!
+        state_code: String
+    ): TaxCoverage!
+        @field(resolver: "App\\GraphQL\\Souk\\Queries\\Taxes\\TaxCoverageQuery@resolve")
+}

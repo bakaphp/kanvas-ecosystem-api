@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Payments\Providers;
 
 use DateTime;
+use Illuminate\Validation\ValidationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
+use Kanvas\Souk\Taxes\Enums\ConfigurationEnum as TaxConfigurationEnum;
+use Kanvas\Souk\Taxes\Enums\TaxStatusEnum;
+use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use net\authorize\api\constants\ANetEnvironment;
 use net\authorize\api\contract\v1\ANetApiResponseType;
 use net\authorize\api\contract\v1 as AnetAPI;
@@ -29,7 +33,7 @@ class AuthorizeNetPaymentProcessor
         protected CompaniesBranches $branch
     ) {
         $this->company = $this->branch->company;
-        $this->refId = 'ref' . time();        // Set the transaction's refId
+        $this->refId = 'ref' . time();
     }
 
     protected function setupMerchantAuthentication(): AnetAPI\MerchantAuthenticationType
@@ -51,11 +55,17 @@ class AuthorizeNetPaymentProcessor
         return $creditCard;
     }
 
-    protected function setOrder(DirectOrder $orderInput): AnetAPI\OrderType
+    protected function setOrder(DirectOrder $orderInput, ?OrderTaxSnapshot $snapshot = null): AnetAPI\OrderType
     {
         $order = new AnetAPI\OrderType();
-        $order->setInvoiceNumber(time() + $orderInput->user->getId());
-        $order->setDescription($orderInput->cart->getContent()->first()->name);
+
+        if ($snapshot?->merchant_reference !== null) {
+            $order->setInvoiceNumber($snapshot->merchant_reference);
+        } else {
+            $order->setInvoiceNumber((string) (time() + $orderInput->user->getId()));
+        }
+
+        $order->setDescription((string) $orderInput->cart->getContent()->first()->name);
 
         return $order;
     }
@@ -91,66 +101,90 @@ class AuthorizeNetPaymentProcessor
 
     public function processCreditCardPayment(DirectOrder $orderInput): ANetApiResponseType
     {
-        /* Create a merchantAuthenticationType object with authentication details
-             retrieved from the constants file */
+        $snapshot = $this->resolveSnapshot($orderInput);
+
         $merchantAuthentication = $this->setupMerchantAuthentication();
 
-        // Create the payment data for a credit card
         $creditCard = $this->setCreditCard($orderInput->creditCard);
-        $order = $this->setOrder($orderInput);
+        $order = $this->setOrder($orderInput, $snapshot);
 
-        // Add the payment data to a paymentType object
         $paymentOne = new AnetAPI\PaymentType();
         $paymentOne->setCreditCard($creditCard);
 
-        // Set the customer's identifying information
         $customerData = $this->setCustomerData($orderInput);
         $customerAddress = $this->setCustomerBillingAddress($orderInput);
 
-        // Add values for transaction settings
         $duplicateWindowSetting = new AnetAPI\SettingType();
         $duplicateWindowSetting->setSettingName('duplicateWindow');
         $duplicateWindowSetting->setSettingValue('60');
 
-        // Create a TransactionRequestType object and add the previous objects to it
+        $chargeAmount = $snapshot !== null
+            ? (float) ($snapshot->checkout_payload['totals']['gateway_due'] ?? $orderInput->cart->getTotal())
+            : $orderInput->cart->getTotal();
+
+        if ($snapshot !== null) {
+            $this->refId = substr($snapshot->gateway_attempt_key ?? $this->refId, 0, 20);
+        }
+
         $transactionRequestType = new AnetAPI\TransactionRequestType();
         $transactionRequestType->setTransactionType('authCaptureTransaction');
-        $transactionRequestType->setAmount($orderInput->cart->getTotal()); //$orderInput->cart->getTotal());
+        $transactionRequestType->setAmount($chargeAmount);
         $transactionRequestType->setPayment($paymentOne);
         $transactionRequestType->setCustomer($customerData);
         $transactionRequestType->setOrder($order);
         $transactionRequestType->setBillTo($customerAddress);
         $transactionRequestType->addToTransactionSettings($duplicateWindowSetting);
-        //$transactionRequestType->addToUserFields($merchantDefinedField1);
-        //$transactionRequestType->addToUserFields($merchantDefinedField2);
 
-        // Assemble the complete transaction request
         $request = new AnetAPI\CreateTransactionRequest();
         $request->setMerchantAuthentication($merchantAuthentication);
         $request->setRefId($this->refId);
         $request->setTransactionRequest($transactionRequestType);
 
-        // Create the controller and get the response
         $controller = new AnetController\CreateTransactionController($request);
 
-        return $controller->executeWithApiResponse(
+        $response = $controller->executeWithApiResponse(
             $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
         );
+
+        if ($snapshot !== null && $response->getMessages()->getResultCode() === 'Ok') {
+            $transResponse = $response->getTransactionResponse();
+
+            if ($transResponse !== null && $transResponse->getMessages() !== null) {
+                $snapshot->payment_intent_id = $transResponse->getTransId();
+                $snapshot->save();
+            }
+        }
+
+        return $response;
     }
 
-    /**
-     * @todo move to its own class
-     */
+    private function resolveSnapshot(DirectOrder $orderInput): ?OrderTaxSnapshot
+    {
+        $taxEngineEnabled = (bool) $this->app->get(TaxConfigurationEnum::TAX_ENGINE_ENABLED->value);
+        $cartSessionId = $orderInput->cart->getSessionKey();
+
+        $snapshot = OrderTaxSnapshot::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('cart_session_id', $cartSessionId)
+            ->where('status', TaxStatusEnum::CALCULATED->value)
+            ->whereNull('order_id')
+            ->latest()
+            ->first();
+
+        if ($snapshot === null && $taxEngineEnabled) {
+            throw ValidationException::withMessages(['tax' => 'tax_snapshot_required']);
+        }
+
+        return $snapshot;
+    }
+
     public function processSubscriptionPayment(DirectOrder $orderInput, int $intervalLength = 30): ANetApiResponseType
     {
-        /* Create a merchantAuthenticationType object with authentication details
-        retrieved from the constants file */
         $merchantAuthentication = $this->setupMerchantAuthentication();
 
         $firstItem = $orderInput->cart->getContent()->first();
         $variantAttributes = $firstItem->attributes;
 
-        // Subscription Type Info
         $subscription = new AnetAPI\ARBSubscriptionType();
         $subscription->setName($firstItem->name);
 
@@ -160,14 +194,12 @@ class AuthorizeNetPaymentProcessor
 
         $paymentSchedule = new AnetAPI\PaymentScheduleType();
         $paymentSchedule->setInterval($interval);
-        // today in date time
         $paymentSchedule->setStartDate(new DateTime());
         $paymentSchedule->setTotalOccurrences(9999);
-        $paymentSchedule->setTrialOccurrences(1); // Set trial occurrences to 1 for the first payment
+        $paymentSchedule->setTrialOccurrences(1);
 
         $subscription->setPaymentSchedule($paymentSchedule);
 
-        // Fix: Using array access instead of get() method
         $subscription->setAmount($variantAttributes['subscription_price'] ?? 0);
         $subscription->setTrialAmount($orderInput->cart->getTotal());
 
@@ -196,7 +228,6 @@ class AuthorizeNetPaymentProcessor
 
         $subscriptionInitialCharge = null;
 
-        // Fix: Using array access and isset() instead of has() method
         if (isset($variantAttributes['subscription_initial_charge'])) {
             $subscriptionInitialCharge = $this->processCreditCardPayment($orderInput);
         }

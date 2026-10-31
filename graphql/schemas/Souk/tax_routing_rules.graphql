@@ -1,0 +1,67 @@
+type TaxRoutingRule {
+    id: ID!
+    uuid: String!
+    name: String!
+    provider: String!
+    condition_country: String
+    condition_state: String
+    category_codes: Mixed
+    rate: Float!
+    tax_shipping: Boolean!
+    priority: Int!
+    is_active: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input TaxRoutingRuleInput {
+    name: String!
+    provider: String!
+    condition_country: String
+    condition_state: String
+    category_codes: Mixed
+    rate: Float!
+    tax_shipping: Boolean
+    priority: Int
+    is_active: Boolean
+}
+
+input UpdateTaxRoutingRuleInput {
+    name: String
+    provider: String
+    condition_country: String
+    condition_state: String
+    category_codes: Mixed
+    rate: Float
+    tax_shipping: Boolean
+    priority: Int
+    is_active: Boolean
+}
+
+extend type Mutation @guardByAdmin {
+    createTaxRoutingRule(input: TaxRoutingRuleInput!): TaxRoutingRule!
+        @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\TaxRoutingRuleMutation@create")
+
+    updateTaxRoutingRule(id: ID!, input: UpdateTaxRoutingRuleInput!): TaxRoutingRule!
+        @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\TaxRoutingRuleMutation@update")
+
+    deleteTaxRoutingRule(id: ID!): Boolean!
+        @field(resolver: "App\\GraphQL\\Souk\\Mutations\\Taxes\\TaxRoutingRuleMutation@delete")
+}
+
+extend type Query @guard {
+    taxCategories: [String!]!
+        @field(resolver: "App\\GraphQL\\Souk\\Queries\\Taxes\\TaxCategoriesQuery@resolve")
+}
+
+extend type Query @guardByAdmin {
+    taxRoutingRules(
+        where: _ @whereConditions(columns: ["id", "uuid", "name", "provider", "condition_country", "condition_state", "is_active"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "priority"])
+    ): [TaxRoutingRule!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Taxes\\Models\\TaxRoutingRule"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+}

@@ -20,7 +20,6 @@ use Kanvas\Souk\Wallet\Traits\HasWalletHolderTrait;
 use Kanvas\Souk\Wallet\Wallet;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class PayFromWalletAction
 {
@@ -50,11 +49,9 @@ class PayFromWalletAction
         $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
         $wallet = $walletHolder->createAppWallet($this->order->app, ['name' => $tag]);
         $cart = app(Cart::class);
-        $totalDebited = 0.0;
         $useVariantCreditInsteadOfVariantPrice = $this->order->app->get(ConfigurationEnum::USE_VARIANT_CREDIT_INSTEAD_OF_VARIANT_PRICE_SLUG->value);
 
         foreach ($this->order->items as $item) {
-            //if they are coins we cant deduct from the wallet
             if (
                 $item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value)?->value !== null ||
                 $item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_USER_WALLET_COIN_SLUG->value)?->value !== null
@@ -72,8 +69,6 @@ class PayFromWalletAction
             if ($quantity < 1) {
                 continue;
             }
-
-            $totalDebited += $price * $quantity;
 
             $cart = $cart->withItem(
                 product: $item->variant,
@@ -113,19 +108,9 @@ class PayFromWalletAction
 
         $this->order->addTag(ConfigurationEnum::WALLET_CREDIT_TAG->value);
 
-        $this->recordWalletPayment($wallet, $tag, $totalDebited);
+        $this->recordWalletPayment($wallet, $tag, $this->order->getTotalDueAmount());
 
-        $this->order->payment_status = 'paid';
-        $this->order->saveOrFail();
-
-        $this->order->fireWorkflow(
-            WorkflowEnum::AFTER_PAYMENT_INTENT->value,
-            true,
-            [
-                'app' => $this->order->app,
-                'company' => $this->order->company,
-            ]
-        );
+        $this->order->markAsPaid($this->order->user);
 
         return $wallet;
     }
@@ -161,9 +146,6 @@ class PayFromWalletAction
             return $existing;
         }
 
-        // Direct create, not CreatePaymentAction: its PAID branch runs Order::markAsPaid (completes
-        // the order + fires UPDATED). Amount is the actual wallet debit — order totals aren't
-        // aggregated for wallet carts and can be 0.
         $payment = $this->order->payments()->create([
             'amount' => $amount,
             'payment_date' => date('Y-m-d'),

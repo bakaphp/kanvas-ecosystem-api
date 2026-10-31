@@ -29,6 +29,9 @@ final class FakeStripeClient extends StripeClient
     private FakeCouponsService $couponsService;
     private FakeWebhookEndpointsService $webhookEndpointsService;
     private FakePaymentLinksService $paymentLinksService;
+    private FakeCheckoutService $checkoutService;
+    private FakeTaxService $taxService;
+    private FakeAccountsService $accountsService;
 
     public function __construct(?string $apiKey = 'sk_test_fake')
     {
@@ -41,6 +44,9 @@ final class FakeStripeClient extends StripeClient
         $this->couponsService = new FakeCouponsService();
         $this->webhookEndpointsService = new FakeWebhookEndpointsService();
         $this->paymentLinksService = new FakePaymentLinksService();
+        $this->checkoutService = new FakeCheckoutService();
+        $this->taxService = new FakeTaxService();
+        $this->accountsService = new FakeAccountsService();
     }
 
     public function __get($name): mixed
@@ -54,6 +60,9 @@ final class FakeStripeClient extends StripeClient
             'coupons' => $this->couponsService,
             'webhookEndpoints' => $this->webhookEndpointsService,
             'paymentLinks' => $this->paymentLinksService,
+            'checkout' => $this->checkoutService,
+            'tax' => $this->taxService,
+            'accounts' => $this->accountsService,
             default => parent::__get($name),
         };
     }
@@ -61,6 +70,16 @@ final class FakeStripeClient extends StripeClient
     public function getWebhookEndpoints(): FakeWebhookEndpointsService
     {
         return $this->webhookEndpointsService;
+    }
+
+    public function getTax(): FakeTaxService
+    {
+        return $this->taxService;
+    }
+
+    public function getAccounts(): FakeAccountsService
+    {
+        return $this->accountsService;
     }
 
     public function getPaymentLinks(): FakePaymentLinksService
@@ -96,6 +115,11 @@ final class FakeStripeClient extends StripeClient
     public function getWebhooks(): FakeWebhooks
     {
         return $this->webhooksService;
+    }
+
+    public function getCheckout(): FakeCheckoutService
+    {
+        return $this->checkoutService;
     }
 }
 
@@ -213,6 +237,11 @@ final class FakePaymentLinksService
     {
         return $this->recordAndShift('retrieve', array_merge(['id' => $id], $params ?? []), $options);
     }
+
+    public function update(string $id, array $params, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('update', array_merge(['id' => $id], $params), $options);
+    }
 }
 
 final class FakeCustomersService
@@ -272,5 +301,91 @@ final class FakeWebhooks
             'constructEvent',
             ['payload' => $payload, 'sig_header' => $sigHeader, 'secret' => $secret, 'tolerance' => $tolerance],
         );
+    }
+}
+
+/**
+ * Fake for $client->checkout — a thin holder that exposes ->sessions.
+ * Mirrors the real Stripe\Service\Checkout\CheckoutServiceFactory shape.
+ */
+final class FakeCheckoutService
+{
+    public readonly FakeCheckoutSessionsService $sessions;
+
+    public function __construct()
+    {
+        $this->sessions = new FakeCheckoutSessionsService();
+    }
+}
+
+final class FakeCheckoutSessionsService
+{
+    use FakeServiceTrait;
+
+    public function create(array $params, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('create', $params, $options);
+    }
+
+    public function retrieve(string $id, ?array $params = null, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('retrieve', array_merge(['id' => $id], $params ?? []), $options);
+    }
+
+    public function expire(string $id, ?array $params = null, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('expire', array_merge(['id' => $id], $params ?? []), $options);
+    }
+
+    public function update(string $id, array $params, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('update', array_merge(['id' => $id], $params), $options);
+    }
+}
+
+final class FakeTaxCalculationsService
+{
+    use FakeServiceTrait;
+
+    public function create(array $params, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('create', $params, $options);
+    }
+}
+
+final class FakeTaxTransactionsService
+{
+    use FakeServiceTrait;
+
+    public function createFromCalculation(array $params, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('createFromCalculation', $params, $options);
+    }
+
+    public function createReversal(array $params, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('createReversal', $params, $options);
+    }
+}
+
+final class FakeTaxService
+{
+    public readonly FakeTaxCalculationsService $calculations;
+    public readonly FakeTaxTransactionsService $transactions;
+
+    public function __construct()
+    {
+        $this->calculations = new FakeTaxCalculationsService();
+        $this->transactions = new FakeTaxTransactionsService();
+    }
+}
+
+final class FakeAccountsService
+{
+    use FakeServiceTrait;
+
+    public function retrieve(?array $params = null, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('retrieve', $params ?? [], $options);
     }
 }
