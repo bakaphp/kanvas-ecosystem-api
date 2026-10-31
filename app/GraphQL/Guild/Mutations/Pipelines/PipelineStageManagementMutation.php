@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\GraphQL\Guild\Mutations\Pipelines;
 
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Guild\Pipelines\Actions\CreateStagePipelineAction;
 use Kanvas\Guild\Pipelines\Actions\StageCounterAction;
 use Kanvas\Guild\Pipelines\Actions\UpdateStagePipelineAction;
+use Kanvas\Guild\Pipelines\Actions\UpsertPipelineStageAction;
 use Kanvas\Guild\Pipelines\DataTransferObject\Pipeline;
 use Kanvas\Guild\Pipelines\DataTransferObject\PipelineStage;
 use Kanvas\Guild\Pipelines\Models\Pipeline as ModelsPipeline;
@@ -27,7 +27,7 @@ class PipelineStageManagementMutation
             $user->getCurrentCompany()
         );
 
-        $stageAction = new CreateStagePipelineAction(
+        $stageAction = new UpsertPipelineStageAction(
             PipelineStage::viaRequest(
                 $pipeline,
                 $req['input']

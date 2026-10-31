@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Pipelines\DataTransferObject\PipelineStage as PipelineStageData;
 use Kanvas\Guild\Pipelines\Models\Pipeline as ModelsPipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 
@@ -26,31 +27,10 @@ class AssociateStageToPipelineAction
         $keepStageIds = [];
 
         foreach ($this->stages as $index => $stage) {
-            $attributes = [
-                'name' => $stage['name'],
-                'rotting_days' => $stage['rotting_days'],
-                'weight' => ! empty($stage['weight']) ? $stage['weight'] : $index,
-                'pipelines_id' => $this->pipeline->id,
-            ];
+            $weight = ! empty($stage['weight']) ? (int) $stage['weight'] : $index;
+            $stageData = PipelineStageData::viaRequest($this->pipeline, $stage, $weight);
 
-            if (array_key_exists('config', $stage)) {
-                $attributes['config'] = $stage['config'];
-            }
-
-            $existingStage = $matches[$index] ?? $this->findSoftDeletedStageByName($stage['name']);
-
-            if ($existingStage !== null) {
-                $existingStage->update($attributes + ['is_deleted' => 0]);
-                $keepStageIds[] = $existingStage->id;
-
-                continue;
-            }
-
-            $newStage = PipelineStage::create($attributes + [
-                'has_rotting_days' => 0,
-                'config' => $stage['config'] ?? null,
-            ]);
-            $keepStageIds[] = $newStage->id;
+            $keepStageIds[] = new UpsertPipelineStageAction($stageData, $matches[$index])->execute()->id;
         }
 
         $stagesToRemove = $existingStages->reject(fn ($s) => in_array($s->id, $keepStageIds, true));
@@ -127,14 +107,6 @@ class AssociateStageToPipelineAction
         }
 
         return $matches;
-    }
-
-    private function findSoftDeletedStageByName(string $name): ?PipelineStage
-    {
-        return PipelineStage::where('pipelines_id', $this->pipeline->id)
-            ->where('name', $name)
-            ->where('is_deleted', 1)
-            ->first();
     }
 
     /**

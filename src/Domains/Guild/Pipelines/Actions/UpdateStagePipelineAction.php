@@ -47,11 +47,6 @@ class UpdateStagePipelineAction
             throw new ValidationException($validator);
         }
 
-        $this->stage->name = $this->stageData->name;
-        $this->stage->weight = $this->stageData->weight;
-        $this->stage->rotting_days = $this->stageData->rotting_days;
-        $this->stage->saveOrFail();
-
-        return $this->stage;
+        return new UpsertPipelineStageAction($this->stageData, $this->stage)->execute();
     }
 }
