@@ -113,6 +113,16 @@ class BuildAdminLinkTool extends Tool
             : null;
 
         if ($record !== null && method_exists($record, 'adminLinkMeta')) {
+            // A slug is the client's own text and can be empty. Left to fall through, a record with
+            // nothing to open it by reads as "this app has no admin URL configured".
+            if (in_array($record->adminLinkIdentifier(), [null, ''], true)) {
+                return [
+                    'status' => 'error',
+                    'message' => 'This ' . $linkSection->alias() . ' exists, but it has no identifier its page can '
+                        . 'open, so it cannot be linked. Link to the list screen by omitting the id.',
+                ];
+            }
+
             $meta = $record->adminLinkMeta($query);
         } elseif ($identifier !== null && $resolver->supports($linkSection)) {
             return [

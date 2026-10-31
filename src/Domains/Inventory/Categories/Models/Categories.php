@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Companies\Models\Companies;
@@ -36,6 +38,7 @@ class Categories extends BaseModel implements ReadableAtLocation
     use HasTranslationsDefaultFallback;
     use HasLightHouseCache;
     use AsTree;
+    use HasAdminLink;
 
     protected $table = 'categories';
     protected $guarded = [];
@@ -48,6 +51,12 @@ class Categories extends BaseModel implements ReadableAtLocation
     public function getGraphTypeName(): string
     {
         return 'Category';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::CATEGORY;
     }
 
     #[Override]

@@ -132,6 +132,7 @@ class CreateSampleOrderTool extends Tool
 
         return [
             'created' => true,
+            'id' => $order->getId(),
             'order_number' => $order->order_number,
             'status' => $order->status,
             'customer' => $customer_name,

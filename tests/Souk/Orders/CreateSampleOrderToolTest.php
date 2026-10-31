@@ -45,6 +45,7 @@ class CreateSampleOrderToolTest extends TestCase
         $this->assertSame($variant->sku, $result['sku']);
         $this->assertSame(2, $result['quantity']);
         $this->assertGreaterThan(0, (int) $result['order_number']);
+        $this->assertGreaterThan(0, (int) $result['id']);
         $this->assertNotNull(PeoplesRepository::getByEmail('reviewer@yt.test', $company, $app));
     }
 
