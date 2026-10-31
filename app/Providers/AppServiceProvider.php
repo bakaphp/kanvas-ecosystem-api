@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Kanvas\Approvals\Services\ApproverResolverRegistryService;
+use Kanvas\Intelligence\Agents\Neuron\Skills\Services\SkillCatalog;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Social\Messages\Approvals\ChannelMemberApproverResolver;
@@ -37,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
         WalletConfigure::ignoreMigrations();
 
         $this->app->singleton(ConversationStore::class, KanvasConversationStore::class);
+        $this->app->singleton(SkillCatalog::class);
 
         $this->app->extend(
             WalletPurchase::class,

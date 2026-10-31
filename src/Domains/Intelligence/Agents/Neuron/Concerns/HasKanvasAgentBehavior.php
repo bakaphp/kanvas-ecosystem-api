@@ -91,6 +91,7 @@ trait HasKanvasAgentBehavior
         'render_artifact',
         'build_admin_link',
         'capability_lookup',
+        'load_skill',
         'tool_search',
     ];
 

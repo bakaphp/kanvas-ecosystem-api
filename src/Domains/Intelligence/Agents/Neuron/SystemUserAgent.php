@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Skills\Services\SkillCatalog;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ChannelMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
@@ -26,6 +27,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleReminderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\SnoozeNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Skills\LoadSkillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\FindTeammateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadEntityContextTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadMyLedgerTool;
@@ -138,6 +140,12 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
         if ($subject !== null) {
             $instructions .= "\n\n## Who you're helping with right now\n"
                 . new EntityContextBriefService()->renderText($subject);
+        }
+
+        // Appended here and not in resources(): resolveTools() hands back a SystemMessage, not a string.
+        $skillSummary = app(SkillCatalog::class)->getPromptSummary();
+        if ($skillSummary !== '') {
+            $instructions .= "\n\n" . $skillSummary;
         }
 
         return $instructions;
@@ -299,6 +307,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
 
         $tools = [
             new ReadMyLedgerTool($app, $company, $agent),
+            new LoadSkillTool(app(SkillCatalog::class)),
             new WhoIsUserTool(
                 $app,
                 $company,
