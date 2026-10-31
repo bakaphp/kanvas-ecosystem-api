@@ -327,8 +327,8 @@ class OrderReportToolsTest extends TestCase
         [$app, $company, $user] = $this->seedOrders();
 
         $this->backdateLatestOrder($company, 'completed', [
-            'created_at' => now()->subMonths(2)->startOfMonth()->addDay(),
-            'paid_at' => now()->subMonth()->startOfMonth()->addDay(),
+            'created_at' => now()->subMonthsNoOverflow(2)->startOfMonth()->addDay(),
+            'paid_at' => now()->subMonthNoOverflow()->startOfMonth()->addDay(),
         ]);
 
         $result = new OrderTrendTool()
@@ -338,9 +338,9 @@ class OrderReportToolsTest extends TestCase
         $series = collect($result['series'])->keyBy('period');
         $this->assertSame('paid', $result['date_anchor']);
         $this->assertSame(2, (int) $result['total_orders']);
-        $this->assertSame(1, (int) $series[now()->subMonth()->startOfMonth()->toDateString()]['orders']);
+        $this->assertSame(1, (int) $series[now()->subMonthNoOverflow()->startOfMonth()->toDateString()]['orders']);
         $this->assertSame(1, (int) $series[now()->startOfMonth()->toDateString()]['orders']);
-        $this->assertArrayNotHasKey(now()->subMonths(2)->startOfMonth()->toDateString(), $series);
+        $this->assertArrayNotHasKey(now()->subMonthsNoOverflow(2)->startOfMonth()->toDateString(), $series);
     }
 
     public function test_order_trend_cuts_days_in_the_requested_timezone(): void
