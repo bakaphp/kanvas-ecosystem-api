@@ -45,12 +45,6 @@ interface CrmLeadDriver
     public function customerCustomFields(CrmCustomer $customer): array;
 
     /**
-     * Whether the CRM says the customer opted out of being contacted. Only ever true or false for
-     * silencing: a CRM that stops saying so never lifts an opt-out Kanvas already holds.
-     */
-    public function requestsDoNotContact(CrmCustomer $customer): bool;
-
-    /**
      * @return array<string, mixed> custom fields to set on the lead
      */
     public function leadCustomFields(CrmLeadInfo $lead): array;

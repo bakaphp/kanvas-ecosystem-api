@@ -52,7 +52,7 @@ it carries no flag. Every guard therefore checks both.
 | Guard | Covers |
 |---|---|
 | `SendMessageToLeadAction::guardDoNotContact()` | called once in `execute()`, ahead of the channel dispatch — so it covers SMS, WhatsApp, RespondIO, email and voice together |
-| `SendMessageToLeadAction::guardDestinationOptOut()` | per-address opt-outs a stop request never produced (a DMS `doNotEmail` push, a hard bounce) |
+| `SendMessageToLeadAction::guardDestinationOptOut()` | per-address opt-outs a stop request never produced (a DMS `doNotEmail` push, a Reynolds sync of Dealer Email/Text Consent = No, a hard bounce) |
 | `LeadOutboundChannelResolver::resolve()` | follow-up returns no channels for a flagged lead |
 | `AgentReachOutAction` | cold outreach skips a flagged lead |
 | `SendEmailTool` / `SendSmsTool` / `SendPersonEmailTool` | agent-initiated sends |
