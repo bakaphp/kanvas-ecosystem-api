@@ -8,7 +8,9 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Testing\TestResponse;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
 use Tests\TestCase;
 use Tests\Traits\AssertsIsDefaultOrdering;
 
@@ -30,6 +32,324 @@ class PipelineTest extends TestCase
                     }
                 }
             }')->assertOk();
+    }
+
+    public function testCreateStageSavesConfig(): void
+    {
+        $config = ['stage_meta' => ['step_key' => '6_business_hours']];
+
+        $stage = $this->createStage($config);
+
+        $this->assertSame($config, PipelineStage::find($stage['id'])->config);
+    }
+
+    public function testUpdateStageReplacesConfig(): void
+    {
+        $stage = $this->createStage(['stage_meta' => ['step_key' => 'old']]);
+        $config = ['stage_meta' => ['step_key' => 'new']];
+
+        $this->updateStage($stage, ['config' => $config]);
+
+        $this->assertSame($config, PipelineStage::find($stage['id'])->config);
+    }
+
+    public function testUpdateStageWithoutConfigKeepsIt(): void
+    {
+        $config = ['stage_meta' => ['step_key' => 'keep']];
+        $stage = $this->createStage($config);
+
+        $this->updateStage($stage, []);
+
+        $this->assertSame($config, PipelineStage::find($stage['id'])->config);
+    }
+
+    public function testUpdateStageWithNullConfigClearsIt(): void
+    {
+        $stage = $this->createStage(['stage_meta' => ['step_key' => 'remove']]);
+
+        $this->updateStage($stage, ['config' => null]);
+
+        $this->assertNull(PipelineStage::find($stage['id'])->getRawOriginal('config'));
+    }
+
+    public function testCreateStageWithoutConfigLeavesItEmpty(): void
+    {
+        $pipelineId = $this->createPipeline()->json('data.createPipeline.id');
+
+        $response = $this->sendCreateStage([
+            'pipeline_id' => $pipelineId,
+            'name' => fake()->uuid(),
+            'rotting_days' => 0,
+            'weight' => 1,
+        ]);
+
+        $response->assertOk()->assertJsonMissingPath('errors');
+
+        $stage = PipelineStage::find($response->json('data.createPipelineStage.id'));
+
+        $this->assertNull($stage->getRawOriginal('config'));
+    }
+
+    public function testCreateStageRestoresSoftDeletedStageOfSameName(): void
+    {
+        $stage = $this->createStage(['stage_meta' => ['step_key' => 'old']]);
+        $config = ['stage_meta' => ['step_key' => 'restored']];
+
+        PipelineStage::where('id', $stage['id'])->update(['is_deleted' => 1]);
+
+        $response = $this->sendCreateStage([
+            'pipeline_id' => $stage['pipeline_id'],
+            'name' => $stage['name'],
+            'rotting_days' => 0,
+            'weight' => 1,
+            'config' => $config,
+        ]);
+
+        $response->assertOk()->assertJsonMissingPath('errors');
+
+        $restored = PipelineStage::find($stage['id']);
+
+        $this->assertEquals($stage['id'], $response->json('data.createPipelineStage.id'));
+        $this->assertEquals(0, $restored->is_deleted);
+        $this->assertSame($config, $restored->config);
+    }
+
+    public function testCreateStageWithZeroWeightTakesNextWeight(): void
+    {
+        $stage = $this->createStage([]);
+
+        $response = $this->sendCreateStage([
+            'pipeline_id' => $stage['pipeline_id'],
+            'name' => fake()->uuid(),
+            'rotting_days' => 0,
+            'weight' => 0,
+        ]);
+
+        $this->assertSame($stage['weight'] + 1, $response->json('data.createPipelineStage.weight'));
+    }
+
+    public function testUpdateStageWithZeroWeightKeepsCurrentWeight(): void
+    {
+        $stage = $this->createStage([]);
+
+        $this->updateStage($stage, ['weight' => 0]);
+
+        $this->assertEquals($stage['weight'], PipelineStage::find($stage['id'])->weight);
+    }
+
+    public function testUpdateStageRejectsNameUsedByAnotherStage(): void
+    {
+        $stage = $this->createStage([]);
+        $other = fake()->uuid();
+
+        $this->sendCreateStage([
+            'pipeline_id' => $stage['pipeline_id'],
+            'name' => $other,
+            'rotting_days' => 0,
+            'weight' => 2,
+        ])->assertOk()->assertJsonMissingPath('errors');
+
+        $response = $this->sendUpdateStage($stage, ['name' => $other]);
+
+        $this->assertNotEmpty($response->json('errors'));
+        $this->assertSame($stage['name'], PipelineStage::find($stage['id'])->name);
+    }
+
+    public function testUpdatePipelineAndUpdateStageSaveConfigTheSameWay(): void
+    {
+        $stage = $this->createStage(['stage_meta' => ['step_key' => 'keep']]);
+
+        $this->savePipelineStage($stage, [])->assertJsonMissingPath('errors');
+        $this->assertSame(['stage_meta' => ['step_key' => 'keep']], PipelineStage::find($stage['id'])->config);
+
+        $this->savePipelineStage($stage, ['config' => ['stage_meta' => ['step_key' => 'new']]])
+            ->assertJsonMissingPath('errors');
+        $this->assertSame(['stage_meta' => ['step_key' => 'new']], PipelineStage::find($stage['id'])->config);
+
+        $this->savePipelineStage($stage, ['config' => null])->assertJsonMissingPath('errors');
+        $this->assertNull(PipelineStage::find($stage['id'])->getRawOriginal('config'));
+    }
+
+    public function testUpdatePipelineMergesEntriesWithTheSameName(): void
+    {
+        $stage = $this->createStage([]);
+        $entry = [
+            'name' => $stage['name'],
+            'rotting_days' => 0,
+            'weight' => 1,
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: PipelineInput!) {
+                updatePipeline(id: $id, input: $input) {
+                    id
+                }
+            }
+        ', [
+            'id' => $stage['pipeline_id'],
+            'input' => [
+                'name' => Pipeline::find($stage['pipeline_id'])->name,
+                'weight' => 0,
+                'is_default' => false,
+                'stages' => [$entry, $entry],
+            ],
+        ])->assertJsonMissingPath('errors');
+
+        $this->assertSame(
+            1,
+            PipelineStage::where('pipelines_id', $stage['pipeline_id'])->where('name', $stage['name'])->count()
+        );
+    }
+
+    public function testCreateStageWithExistingNameUpdatesIt(): void
+    {
+        $stage = $this->createStage(['stage_meta' => ['step_key' => 'original']]);
+        $config = ['stage_meta' => ['step_key' => 'updated']];
+
+        $response = $this->sendCreateStage([
+            'pipeline_id' => $stage['pipeline_id'],
+            'name' => $stage['name'],
+            'rotting_days' => 0,
+            'weight' => 1,
+            'config' => $config,
+        ]);
+
+        $response->assertOk()->assertJsonMissingPath('errors');
+
+        $this->assertEquals($stage['id'], $response->json('data.createPipelineStage.id'));
+        $this->assertSame($config, PipelineStage::find($stage['id'])->config);
+    }
+
+    public function testUpdateStageReturnsSavedConfig(): void
+    {
+        $stage = $this->createStage(['stage_meta' => ['step_key' => 'old']]);
+        $config = ['stage_meta' => ['step_key' => 'new']];
+
+        $this->sendUpdateStage($stage, ['config' => $config])
+            ->assertJsonPath('data.updatePipelineStage.config', $config);
+    }
+
+    public function testFollowUpEngineReadsConfigSavedThroughStageMutation(): void
+    {
+        $stage = $this->createStage([
+            'follow_up' => [
+                'enabled' => true,
+                'mode' => 'time_based',
+                'time_based' => ['interval_minutes' => 60],
+                'max_retries' => 1,
+                'exhausted_action' => 'stop',
+                'channels' => [
+                    ['type' => 'sms', 'enabled' => true, 'template_name' => 'value_add_day_1'],
+                ],
+            ],
+        ]);
+
+        $config = FollowUpConfig::fromStage(PipelineStage::find($stage['id']));
+
+        $this->assertTrue($config->enabled);
+        $this->assertSame(1, $config->maxRetries);
+        $this->assertSame('value_add_day_1', $config->channelByType('sms')->templateName);
+    }
+
+    public function testCannotUpdateConfigOfAnotherCompanysStage(): void
+    {
+        $config = ['stage_meta' => ['step_key' => 'theirs']];
+        $stage = $this->createStage($config);
+        $otherCompanyId = auth()->user()->getCurrentCompany()->getId() + 100000;
+
+        Pipeline::where('id', $stage['pipeline_id'])->update(['companies_id' => $otherCompanyId]);
+
+        $response = $this->sendUpdateStage($stage, ['config' => ['stage_meta' => ['step_key' => 'hijacked']]]);
+
+        $this->assertNotEmpty($response->json('errors'));
+        $this->assertSame($config, PipelineStage::find($stage['id'])->config);
+    }
+
+    private function createStage(array $config): array
+    {
+        $pipelineId = $this->createPipeline()->json('data.createPipeline.id');
+
+        $response = $this->sendCreateStage([
+            'pipeline_id' => $pipelineId,
+            'name' => fake()->uuid(),
+            'rotting_days' => 0,
+            'weight' => 1,
+            'config' => $config,
+        ]);
+
+        $response->assertOk()->assertJsonMissingPath('errors');
+
+        return [
+            ...$response->json('data.createPipelineStage'),
+            'pipeline_id' => $pipelineId,
+        ];
+    }
+
+    private function updateStage(array $stage, array $input): void
+    {
+        $this->sendUpdateStage($stage, $input)->assertOk()->assertJsonMissingPath('errors');
+    }
+
+    private function sendCreateStage(array $input): TestResponse
+    {
+        return $this->graphQL('
+            mutation($input: PipelineStageInput!) {
+                createPipelineStage(input: $input) {
+                    id
+                    name
+                    rotting_days
+                    weight
+                }
+            }
+        ', ['input' => $input]);
+    }
+
+    private function sendUpdateStage(array $stage, array $input): TestResponse
+    {
+        return $this->graphQL('
+            mutation($id: ID!, $input: PipelineStageInput!) {
+                updatePipelineStage(id: $id, input: $input) {
+                    id
+                    config
+                }
+            }
+        ', [
+            'id' => $stage['id'],
+            'input' => [
+                'pipeline_id' => $stage['pipeline_id'],
+                'name' => $stage['name'],
+                'rotting_days' => $stage['rotting_days'],
+                'weight' => $stage['weight'],
+                ...$input,
+            ],
+        ]);
+    }
+
+    private function savePipelineStage(array $stage, array $input): TestResponse
+    {
+        return $this->graphQL('
+            mutation($id: ID!, $input: PipelineInput!) {
+                updatePipeline(id: $id, input: $input) {
+                    id
+                }
+            }
+        ', [
+            'id' => $stage['pipeline_id'],
+            'input' => [
+                'name' => Pipeline::find($stage['pipeline_id'])->name,
+                'weight' => 0,
+                'is_default' => false,
+                'stages' => [
+                    [
+                        'stages_id' => $stage['id'],
+                        'name' => $stage['name'],
+                        'rotting_days' => 0,
+                        'weight' => 1,
+                        ...$input,
+                    ],
+                ],
+            ],
+        ]);
     }
 
     protected function createPipeline(): TestResponse
