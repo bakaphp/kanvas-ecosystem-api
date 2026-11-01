@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\Phone\ConfigureAgentInboundWebhookAction;
 use Kanvas\Intelligence\Agents\Actions\Phone\ReleaseInboundWebhookForNumberAction;
@@ -125,7 +126,7 @@ class AgentManagementMutation
         $agent = Agent::getByIdFromCompanyApp((int) $req['id'], $company, $app);
         // Capture the agent's number BEFORE the update overwrites voice_config, so
         // we can release the OLD number's inbound webhook if it changes below.
-        $previousNumber = trim((string) ($agent->voice_config['phone_number'] ?? ''));
+        $previousNumber = (string) $agent->phoneNumber(AgentPhoneChannelEnum::VOICE);
         $agentType = AgentTypeModel::getById($input['agent_type_id'], app: $app);
         $agentModel = isset($input['agent_model_id']) ? AgentModel::getById($input['agent_model_id'], app: $app) : null;
         $task = isset($input['company_task_list_id']) ? TaskList::getById($input['company_task_list_id'], app: $app) : null;
@@ -193,7 +194,7 @@ class AgentManagementMutation
         // webhook — but only when no agent anywhere still owns it (account-wide, in
         // the action). Compare on digits so a mere format change isn't treated as a
         // move (which would wrongly clear the number this agent still uses).
-        $newNumber = trim((string) ($agent->voice_config['phone_number'] ?? ''));
+        $newNumber = (string) $agent->phoneNumber(AgentPhoneChannelEnum::VOICE);
         if (
             $previousNumber !== ''
             && AgentsRepository::normalizePhoneNumber($previousNumber)
@@ -233,24 +234,30 @@ class AgentManagementMutation
     /**
      * Decode JSON strings as the model cast does so they cannot bypass number validation.
      */
-    private function normalizeConfigPhone(mixed $config): mixed
+    private function normalizeConfigPhone(mixed $config): ?array
     {
         $decoded = Str::jsonToArray($config);
-        if (! is_array($decoded)) {
-            return $config;
+        if ($decoded === null) {
+            return null;
         }
 
-        if (isset($decoded['phone_number']) && is_string($decoded['phone_number'])) {
-            $decoded['phone_number'] = AgentsRepository::cleanPhoneNumber($decoded['phone_number']);
+        // The input is Mixed and these are JSON columns, so anything else fails as a SQL error.
+        if (! is_array($decoded)) {
+            throw new ValidationException('voice_config and sms_config must be objects.');
+        }
+
+        $number = $decoded['phone_number'] ?? null;
+        if (is_string($number) || is_int($number)) {
+            $decoded['phone_number'] = AgentsRepository::cleanPhoneNumber((string) $number);
         }
 
         return $decoded;
     }
 
-    private function assertPhoneNumbersAvailable(mixed $voiceConfig, mixed $smsConfig, ?Agent $agent = null): void
+    private function assertPhoneNumbersAvailable(?array $voiceConfig, ?array $smsConfig, ?Agent $agent = null): void
     {
         foreach ([$voiceConfig, $smsConfig] as $config) {
-            $number = is_array($config) ? trim((string) ($config['phone_number'] ?? '')) : '';
+            $number = trim((string) ($config['phone_number'] ?? ''));
             if ($number !== '') {
                 SetAgentPhoneNumberAction::assertNumberAvailable($number, $agent);
             }

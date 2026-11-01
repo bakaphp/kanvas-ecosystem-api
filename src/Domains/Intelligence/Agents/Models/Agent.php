@@ -29,6 +29,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
+use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
@@ -360,9 +361,14 @@ class Agent extends BaseModel
             ->latestOfMany();
     }
 
+    public function phoneNumber(AgentPhoneChannelEnum $channel): ?string
+    {
+        return Str::trimToNull((string) ($this->{$channel->configColumn()}['phone_number'] ?? ''));
+    }
+
     public function smsPhoneNumber(): ?string
     {
-        return Str::trimToNull((string) ($this->sms_config['phone_number'] ?? ''));
+        return $this->phoneNumber(AgentPhoneChannelEnum::SMS);
     }
 
     public function isContainerRuntime(): bool

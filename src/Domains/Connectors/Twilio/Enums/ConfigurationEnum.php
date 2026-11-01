@@ -43,9 +43,10 @@ enum ConfigurationEnum: string
     {
         $value = $company->get(self::TWILIO_ALLOWED_FROM_PHONE_NUMBERS->value);
 
-        if (is_string($value)) {
-            $decoded = json_decode($value, true);
-            $value = is_array($decoded) ? $decoded : explode(',', $value);
+        // get() already decodes a JSON array. What is left is a comma list, or one number without a
+        // "+", which get() decodes to an int; reading that as empty would lift the restriction.
+        if (is_string($value) || is_int($value)) {
+            $value = explode(',', (string) $value);
         }
 
         if (! is_array($value)) {

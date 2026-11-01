@@ -59,9 +59,8 @@ class ConfigureAgentInboundWebhookAction
      */
     private function wire(): array
     {
-        $config = $this->agent->{$this->channel->configColumn()} ?? [];
-        $number = trim((string) ($config['phone_number'] ?? ''));
-        if ($number === '') {
+        $number = $this->agent->phoneNumber($this->channel);
+        if ($number === null) {
             // Benign: nothing to wire. Clears any prior status if the number was removed.
             return $this->result('idle', 'No phone number set for this agent.');
         }

@@ -36,7 +36,7 @@ class SetAgentPhoneNumberAction
 
         $column = $this->channel->configColumn();
         $config = $this->agent->{$column} ?? [];
-        $previous = trim((string) ($config['phone_number'] ?? ''));
+        $previous = $this->agent->phoneNumber($this->channel);
 
         unset($config['inbound_webhook']);
         if ($number === null) {
@@ -51,7 +51,7 @@ class SetAgentPhoneNumberAction
         $result = new ConfigureAgentInboundWebhookAction($this->agent, $this->channel, $this->overwrite)->execute();
 
         if (
-            $previous !== ''
+            $previous !== null
             && AgentsRepository::normalizePhoneNumber($previous) !== AgentsRepository::normalizePhoneNumber((string) $number)
         ) {
             new ReleaseInboundWebhookForNumberAction(
@@ -74,8 +74,8 @@ class SetAgentPhoneNumberAction
     public static function assertNumberAvailable(string $number, ?Agent $agent = null): void
     {
         $current = [
-            AgentsRepository::normalizePhoneNumber((string) ($agent?->voice_config['phone_number'] ?? '')),
-            AgentsRepository::normalizePhoneNumber((string) ($agent?->sms_config['phone_number'] ?? '')),
+            AgentsRepository::normalizePhoneNumber((string) $agent?->phoneNumber(AgentPhoneChannelEnum::VOICE)),
+            AgentsRepository::normalizePhoneNumber((string) $agent?->phoneNumber(AgentPhoneChannelEnum::SMS)),
         ];
 
         if (in_array(AgentsRepository::normalizePhoneNumber($number), $current, true)) {

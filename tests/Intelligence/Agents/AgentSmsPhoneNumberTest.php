@@ -171,6 +171,26 @@ class AgentSmsPhoneNumberTest extends TestCase
         $this->assertNull($response->json('errors'), (string) json_encode($response->json('errors')));
     }
 
+    public function testASmsConfigThatIsNotAnObjectIsRejectedAndKeepsTheNumber(): void
+    {
+        $agent = $this->agent(sms: $this->number);
+
+        $response = $this->saveAgent('updateAiAgent(id: ' . $agent->getId() . ', input: $input)', ['sms_config' => 'not-json']);
+
+        $this->assertStringContainsString('must be objects', (string) $response->json('errors.0.message'));
+        $this->assertSame($this->number, $agent->fresh()->smsPhoneNumber());
+    }
+
+    public function testANumericPhoneNumberIsSavedLikeTheSameDigitsAsAString(): void
+    {
+        $digits = (int) substr($this->number, 1);
+
+        $response = $this->saveAgent('createAiAgent(input: $input)', ['sms_config' => ['phone_number' => $digits]]);
+
+        $this->assertNull($response->json('errors'), (string) json_encode($response->json('errors')));
+        $this->assertSame((string) $digits, $response->json('data.agent.sms_config.phone_number'));
+    }
+
     private function saveAgent(string $field, array $input)
     {
         return $this->graphQL('

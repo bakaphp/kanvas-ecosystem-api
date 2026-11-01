@@ -103,8 +103,7 @@ class AgentsRepository
             ->get(['id', 'voice_config', 'sms_config'])
             ->first(function (Agent $agent) use ($channels, $normalized): bool {
                 foreach ($channels as $candidate) {
-                    $stored = $agent->{$candidate->configColumn()}['phone_number'] ?? null;
-                    if (! empty($stored) && self::normalizePhoneNumber((string) $stored) === $normalized) {
+                    if (self::normalizePhoneNumber((string) $agent->phoneNumber($candidate)) === $normalized) {
                         return true;
                     }
                 }

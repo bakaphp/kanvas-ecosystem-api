@@ -96,7 +96,7 @@ class SetAgentPhoneNumberCommand extends Command
     private function dryRun(Agent $agent, AgentPhoneChannelEnum $channel, string $number): int
     {
         $this->line('DRY RUN, nothing written.');
-        $this->line('Current number: ' . (($agent->{$channel->configColumn()}['phone_number'] ?? '') ?: 'none'));
+        $this->line('Current number: ' . ($agent->phoneNumber($channel) ?? 'none'));
 
         $target = $channel === AgentPhoneChannelEnum::SMS
             ? new TwilioReceiverService()->find($agent)?->getUrl()

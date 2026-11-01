@@ -248,6 +248,23 @@ class AgentInboundWebhookTest extends TestCase
         $this->assertStringContainsString('allowed From numbers', $result['warnings'][0]);
     }
 
+    public function testAllowedFromNumbersReadsEveryStoredShape(): void
+    {
+        $key = TwilioConfigurationEnum::TWILIO_ALLOWED_FROM_PHONE_NUMBERS->value;
+        $expected = ['+15550000000', '+15550000001'];
+
+        foreach ([$expected, json_encode($expected), '+15550000000, +15550000001'] as $stored) {
+            $this->company->set($key, $stored);
+            $this->assertSame($expected, TwilioConfigurationEnum::allowedFromNumbers($this->company));
+        }
+
+        $this->company->set($key, '15550000000');
+        $this->assertSame(['+15550000000'], TwilioConfigurationEnum::allowedFromNumbers($this->company));
+
+        $this->company->del($key);
+        $this->assertSame([], TwilioConfigurationEnum::allowedFromNumbers($this->company));
+    }
+
     public function testAnAgentWithoutTheChannelKeepsANullConfig(): void
     {
         $agent = $this->agent(voice: $this->number);

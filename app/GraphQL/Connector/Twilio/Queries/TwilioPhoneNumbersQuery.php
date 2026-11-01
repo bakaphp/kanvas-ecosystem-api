@@ -8,6 +8,7 @@ use App\GraphQL\Concerns\ResolvesActingContext;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\ListCompanyPhoneNumbersAction;
+use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;
 use Throwable;
@@ -61,9 +62,10 @@ class TwilioPhoneNumbersQuery
             ->get(['id', 'voice_config', 'sms_config']);
 
         foreach ($agents as $agent) {
-            foreach ([$agent->voice_config['phone_number'] ?? null, $agent->smsPhoneNumber()] as $number) {
-                if (! empty($number)) {
-                    $assigned[AgentsRepository::normalizePhoneNumber((string) $number)] = true;
+            foreach (AgentPhoneChannelEnum::cases() as $channel) {
+                $number = $agent->phoneNumber($channel);
+                if ($number !== null) {
+                    $assigned[AgentsRepository::normalizePhoneNumber($number)] = true;
                 }
             }
         }
