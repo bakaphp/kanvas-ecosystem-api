@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Enums;
 
+use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
+
 enum ConfigurationEnum: string
 {
     case TWILIO_ACCOUNT_SID = 'TWILIO_ACCOUNT_SID';
@@ -32,4 +35,29 @@ enum ConfigurationEnum: string
      * one post-revocation message: sending none is legal, sending two is the violation.
      */
     case TWILIO_SENDS_OPT_OUT_REPLY = 'twilio_sends_opt_out_reply';
+
+    /**
+     * @return list<string> E.164 numbers; empty means the company set no restriction
+     */
+    public static function allowedFromNumbers(CompanyInterface $company): array
+    {
+        $value = $company->get(self::TWILIO_ALLOWED_FROM_PHONE_NUMBERS->value);
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : explode(',', $value);
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_map(
+            static fn (string $number): string => Str::toE164($number),
+            array_filter(array_map(
+                static fn (mixed $item): string => trim((string) $item),
+                $value,
+            )),
+        ));
+    }
 }

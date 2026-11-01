@@ -9,11 +9,13 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
+use Kanvas\Intelligence\Agents\Actions\Phone\ConfigureAgentInboundWebhookAction;
+use Kanvas\Intelligence\Agents\Actions\Phone\ReleaseInboundWebhookForNumberAction;
+use Kanvas\Intelligence\Agents\Actions\Phone\SetAgentPhoneNumberAction;
 use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
-use Kanvas\Intelligence\Agents\Actions\Voice\ConfigureAgentInboundWebhookAction;
-use Kanvas\Intelligence\Agents\Actions\Voice\ReleaseInboundWebhookForNumberAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
+use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
@@ -40,6 +42,10 @@ class AgentManagementMutation
 
         $input = $this->mapRoleToFields($input);
 
+        $voiceConfig = $this->normalizeConfigPhone($input['voice_config'] ?? null);
+        $smsConfig = $this->normalizeConfigPhone($input['sms_config'] ?? null);
+        $this->assertPhoneNumbersAvailable($voiceConfig, $smsConfig);
+
         $personaUser = isset($input['user_id'])
             ? UsersRepository::getUserOfAppById((int) $input['user_id'], $app)
             : auth()->user();
@@ -63,7 +69,8 @@ class AgentManagementMutation
             identity: $input['identity'] ?? null,
             userContext: $input['user_context'] ?? null,
             toolsConfig: $input['tools_config'] ?? null,
-            voiceConfig: $this->normalizeVoiceConfigPhone($input['voice_config'] ?? null),
+            voiceConfig: $voiceConfig,
+            smsConfig: $smsConfig,
             tools: isset($input['tool_ids']) ? $this->resolveTools($input['tool_ids'], $app) : null,
             parentAgent: $parentAgent,
             createdBy: auth()->user(),
@@ -85,26 +92,28 @@ class AgentManagementMutation
 
         // Best-effort: point the agent's Twilio number at the inbound webhook.
         // Never throws — inbound wiring must not block creating the agent.
-        new ConfigureAgentInboundWebhookAction($agent, $app)->execute();
+        new ConfigureAgentInboundWebhookAction($agent)->execute();
+        new ConfigureAgentInboundWebhookAction($agent, AgentPhoneChannelEnum::SMS)->execute();
 
         return $agent;
     }
 
     /**
-     * Re-run the inbound-webhook wiring for an agent's Twilio number — the admin
-     * "retry" button. Returns the ConfigureAgentInboundWebhookAction outcome
-     * ({status, message, url}); the action also persists it to
-     * voice_config.inbound_webhook so the Voice tab reflects the fresh result.
-     *
-     * @return array{status: string, message: string, url: string|null}
+     * @return array{phone_number: string|null, status: string, message: string, url: string|null, warnings: list<string>}
      */
-    public function configureInboundWebhook(mixed $root, array $req): array
+    public function setPhoneNumber(mixed $root, array $req): array
     {
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
         $agent = Agent::getByIdFromCompanyApp((int) $req['id'], $company, $app);
 
-        return new ConfigureAgentInboundWebhookAction($agent, $app)->execute();
+        return new SetAgentPhoneNumberAction(
+            agent: $agent,
+            channel: AgentPhoneChannelEnum::from($req['channel']),
+            number: $req['phone_number'] ?? null,
+            overwrite: (bool) ($req['overwrite'] ?? false),
+            clearPreviousWebhook: (bool) ($req['clear_previous_webhook'] ?? false),
+        )->execute();
     }
 
     public function update(mixed $root, array $req): Agent
@@ -125,6 +134,13 @@ class AgentManagementMutation
         $llmConfig = $this->resolveLlmConfig($input, $company, $app);
 
         $input = $this->mapRoleToFields($input);
+
+        $voiceConfig = $this->normalizeConfigPhone($input['voice_config'] ?? null);
+        $smsConfig = array_key_exists('sms_config', $input)
+            ? $this->normalizeConfigPhone($input['sms_config'])
+            : $agent->sms_config;
+        $this->assertPhoneNumbersAvailable($voiceConfig, $smsConfig, $agent);
+
         $personaUser = isset($input['user_id'])
             ? UsersRepository::getUserOfAppById((int) $input['user_id'], $app)
             : ($agent->user ?? auth()->user());
@@ -148,7 +164,8 @@ class AgentManagementMutation
             identity: $input['identity'] ?? null,
             userContext: $input['user_context'] ?? null,
             toolsConfig: $input['tools_config'] ?? null,
-            voiceConfig: $this->normalizeVoiceConfigPhone($input['voice_config'] ?? null),
+            voiceConfig: $voiceConfig,
+            smsConfig: $smsConfig,
             parentAgent: $parentAgent,
             isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
             agentLlmConfig: $llmConfig,
@@ -168,7 +185,8 @@ class AgentManagementMutation
 
         // Best-effort: (re)point the agent's Twilio number at the inbound webhook
         // when its number changes. Never throws — must not block the update.
-        new ConfigureAgentInboundWebhookAction($agent, $app)->execute();
+        new ConfigureAgentInboundWebhookAction($agent)->execute();
+        new ConfigureAgentInboundWebhookAction($agent, AgentPhoneChannelEnum::SMS)->execute();
 
         // If the number actually changed (or was cleared), release the OLD number's
         // webhook — but only when no agent anywhere still owns it (account-wide, in
@@ -181,10 +199,10 @@ class AgentManagementMutation
                 !== AgentsRepository::normalizePhoneNumber($newNumber)
         ) {
             new ReleaseInboundWebhookForNumberAction(
-                $previousNumber,
-                $app,
-                $company,
-                $agent->getId(),
+                number: $previousNumber,
+                app: $app,
+                company: $company,
+                exceptAgentId: $agent->getId(),
             )->execute();
         }
 
@@ -212,21 +230,31 @@ class AgentManagementMutation
     }
 
     /**
-     * Canonicalize the per-agent phone number inside voice_config on save, so the
-     * stored value is a clean E.164 caller id — valid for Twilio outbound and an
-     * exact match for inbound number routing. Non-array input passes through.
+     * Canonicalize the per-agent phone number inside voice_config or sms_config on
+     * save, so the stored value is a clean E.164 caller id — valid for Twilio outbound
+     * and an exact match for inbound number routing. Non-array input passes through.
      */
-    private function normalizeVoiceConfigPhone(mixed $voiceConfig): mixed
+    private function normalizeConfigPhone(mixed $config): mixed
     {
         if (
-            is_array($voiceConfig)
-            && isset($voiceConfig['phone_number'])
-            && is_string($voiceConfig['phone_number'])
+            is_array($config)
+            && isset($config['phone_number'])
+            && is_string($config['phone_number'])
         ) {
-            $voiceConfig['phone_number'] = AgentsRepository::cleanPhoneNumber($voiceConfig['phone_number']);
+            $config['phone_number'] = AgentsRepository::cleanPhoneNumber($config['phone_number']);
         }
 
-        return $voiceConfig;
+        return $config;
+    }
+
+    private function assertPhoneNumbersAvailable(mixed $voiceConfig, mixed $smsConfig, ?Agent $agent = null): void
+    {
+        foreach ([$voiceConfig, $smsConfig] as $config) {
+            $number = is_array($config) ? trim((string) ($config['phone_number'] ?? '')) : '';
+            if ($number !== '') {
+                SetAgentPhoneNumberAction::assertNumberAvailable($number, $agent);
+            }
+        }
     }
 
     /**

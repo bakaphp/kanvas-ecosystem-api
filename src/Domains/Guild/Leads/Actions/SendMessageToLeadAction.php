@@ -134,7 +134,7 @@ class SendMessageToLeadAction
             $result = match ($channel) {
                 LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message, $to),
                 LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage(
-                    $this->resolveTwilioFrom($from),
+                    $this->resolveTwilioFrom($fromAgent?->smsPhoneNumber() ?? $from),
                     $message,
                     $to,
                 ),
@@ -671,21 +671,12 @@ class SendMessageToLeadAction
 
         if ($from !== '') {
             $normalizedFrom = Str::toE164($from);
-            $allowedFromNumbers = $this->configuredStringList(
-                $company->get(TwilioConfigurationEnum::TWILIO_ALLOWED_FROM_PHONE_NUMBERS->value)
-            );
+            $allowedFromNumbers = TwilioConfigurationEnum::allowedFromNumbers($company);
 
-            if ($allowedFromNumbers !== []) {
-                $allowedFromNumbers = array_map(
-                    static fn (string $number): string => Str::toE164($number),
-                    $allowedFromNumbers,
+            if ($allowedFromNumbers !== [] && ! in_array($normalizedFrom, $allowedFromNumbers, true)) {
+                throw new InvalidArgumentException(
+                    'Twilio From number is not registered for this dealership/account (prevents sender leakage and error 21660)'
                 );
-
-                if (! in_array($normalizedFrom, $allowedFromNumbers, true)) {
-                    throw new InvalidArgumentException(
-                        'Twilio From number is not registered for this dealership/account (prevents sender leakage and error 21660)'
-                    );
-                }
             }
 
             $this->validateA2pRegistration($normalizedFrom);
@@ -737,24 +728,6 @@ class SendMessageToLeadAction
                 $status !== '' ? $status : 'missing',
             ));
         }
-    }
-
-    /** @return list<string> */
-    private function configuredStringList(mixed $value): array
-    {
-        if (is_string($value)) {
-            $decoded = json_decode($value, true);
-            $value = is_array($decoded) ? $decoded : explode(',', $value);
-        }
-
-        if (! is_array($value)) {
-            return [];
-        }
-
-        return array_values(array_filter(array_map(
-            static fn (mixed $item): string => trim((string) $item),
-            $value,
-        )));
     }
 
     protected function lookupPhoneNumber(TwilioClient $client, string $cellphone): string

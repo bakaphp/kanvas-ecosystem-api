@@ -60,16 +60,18 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         $to = Str::toE164(Str::replace('twilio-', '', $this->channel->slug));
         $to = $this->hijackMessagePhone($to);
 
+        $from = $this->agent->smsPhoneNumber() ?? $params['from'];
+
         $messageResponse = $this->createMessage(
             $responseText,
             $to,
             $this->message,
             $this->channel,
-            $params['from']
+            $from
         );
 
         if (! $messageResponse->is_locked) {
-            $this->sendResponse($to, $params['from'], $responseText);
+            $this->sendResponse($to, $from, $responseText);
         }
 
         return [

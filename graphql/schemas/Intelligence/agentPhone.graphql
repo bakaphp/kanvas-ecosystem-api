@@ -1,0 +1,59 @@
+type AgentPhoneNumberResult {
+    phone_number: String
+    status: String!
+    message: String!
+    url: String
+    warnings: [String!]
+}
+
+enum AgentPhoneChannel {
+    VOICE @enum(value: "voice")
+    SMS @enum(value: "sms")
+}
+
+type AgentAvailablePhoneNumber {
+    phone_number: String!
+    friendly_name: String
+    "The phone provider that owns this number. Only twilio today."
+    provider: String!
+    "The number's id at the provider."
+    provider_id: String!
+}
+
+type AgentTestCallResult {
+    call_id: String
+    twilio_sid: String
+    status: String
+    to: String
+    tenant_id: String
+}
+
+extend type Query @guard {
+    "The numbers on the company's connected phone provider that no other agent holds, voice or SMS. Only Twilio is supported today. Pass id when editing an agent so its own numbers stay listed."
+    agentAvailablePhoneNumbers(id: ID): [AgentAvailablePhoneNumber!]!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Twilio\\Queries\\TwilioPhoneNumbersQuery@available"
+        )
+}
+
+extend type Mutation @guard {
+    "Place a one-off test call for an agent via the external voice runtime."
+    sendAgentTestCall(id: ID!, to_number: String!): AgentTestCallResult!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentCallMutation@placeTestCall"
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    "Give an agent a Twilio number on one channel and wire its inbound webhook. Send the same number to retry, or null to remove it. A webhook another system set is only replaced with overwrite: true. When the number changes, an SMS webhook stays on the old number unless clear_previous_webhook is true, because clearing it stops the company's inbound texts there."
+    setAgentPhoneNumber(
+        id: ID!
+        channel: AgentPhoneChannel!
+        phone_number: String
+        overwrite: Boolean = false
+        clear_previous_webhook: Boolean = false
+    ): AgentPhoneNumberResult!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@setPhoneNumber"
+        )
+}

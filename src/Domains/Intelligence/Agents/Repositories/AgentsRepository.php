@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Repositories;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
@@ -76,6 +77,40 @@ class AgentsRepository
             return $stored !== null
                 && self::normalizePhoneNumber((string) $stored) === $normalized;
         });
+    }
+
+    /**
+     * The agent holding a number on any app, voice or SMS. A Twilio number belongs to one account, so
+     * a match anywhere means it is taken. Null $channel checks both.
+     */
+    public static function getAgentHoldingPhoneNumber(string $number, ?AgentPhoneChannelEnum $channel = null, ?int $exceptAgentId = null): ?Agent
+    {
+        $normalized = self::normalizePhoneNumber($number);
+        if ($normalized === '') {
+            return null;
+        }
+
+        $channels = $channel !== null ? [$channel] : AgentPhoneChannelEnum::cases();
+
+        return Agent::query()
+            ->notDeleted()
+            ->where(function ($query) use ($channels): void {
+                foreach ($channels as $candidate) {
+                    $query->orWhereNotNull($candidate->configColumn());
+                }
+            })
+            ->when($exceptAgentId !== null, fn ($query) => $query->where('id', '!=', $exceptAgentId))
+            ->get(['id', 'voice_config', 'sms_config'])
+            ->first(function (Agent $agent) use ($channels, $normalized): bool {
+                foreach ($channels as $candidate) {
+                    $stored = $agent->{$candidate->configColumn()}['phone_number'] ?? null;
+                    if (! empty($stored) && self::normalizePhoneNumber((string) $stored) === $normalized) {
+                        return true;
+                    }
+                }
+
+                return false;
+            });
     }
 
     /**

@@ -306,7 +306,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $createMessage->setLock();
                                     $createMessage->setPrivate();
                                     $createMessage->set('communicationChannel', $communicationChannel);
-                                    $createMessage->set('from_number', $params['from'] ?? null);
+                                    $createMessage->set(
+                                        'from_number',
+                                        $this->resolveOutreachAgent($params, $app)?->smsPhoneNumber() ?? ($params['from'] ?? null)
+                                    );
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
 
                                     $stopTheClock = false;

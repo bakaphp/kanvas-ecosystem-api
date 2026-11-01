@@ -150,6 +150,7 @@ class SendSmsTool extends Tool
             channel: LeadCommunicationChannelEnum::SMS->value,
             message: $message,
             to: $to,
+            fromAgent: $this->contextAgent(),
         );
     }
 }

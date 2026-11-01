@@ -9,6 +9,7 @@ use Kanvas\Connectors\RespondIO\Enums\MessageTypeEnum as RespondIoMessageTypeEnu
 use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
@@ -139,7 +140,13 @@ class AgentReachOutOnChannelAction
         $outbound = $createMessage->execute();
 
         $outbound->set('communicationChannel', $this->channelType);
-        $outbound->set('from_number', $this->from);
+        // SendDelayMessageCommand sends a held draft from this value, so it has to be the agent's number.
+        $outbound->set(
+            'from_number',
+            $this->channelType === LeadCommunicationChannelEnum::SMS->value
+                ? ($this->agent->smsPhoneNumber() ?? $this->from)
+                : $this->from
+        );
         $outbound->set('title', $emailSubject);
         // $channel is the master People channel. addMessage() handles the channel pivot;
         // the polymorphic People entity link (used by history loaders) needs an explicit

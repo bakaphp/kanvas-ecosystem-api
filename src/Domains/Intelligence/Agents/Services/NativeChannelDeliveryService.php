@@ -45,7 +45,7 @@ class NativeChannelDeliveryService
         return match (true) {
             str_contains($type, 'slack') => self::pushSlack($text, $agent, $canalId),
             str_contains($type, 'whatsapp') => self::pushWhatsApp($channel, $text, $canalId),
-            str_contains($type, 'sms') || str_contains($type, 'twilio') => self::pushSms($channel, $text),
+            str_contains($type, 'sms') || str_contains($type, 'twilio') => self::pushSms($channel, $text, $agent),
             default => false,
         };
     }
@@ -107,12 +107,13 @@ class NativeChannelDeliveryService
         return true;
     }
 
-    private static function pushSms(Channel $channel, string $text): bool
+    private static function pushSms(Channel $channel, string $text, ?Agent $agent): bool
     {
         $company = $channel->company;
 
         $from = (string) (
-            $company->get(TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value)
+            $agent?->smsPhoneNumber()
+            ?? $company->get(TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value)
             ?? $company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value)
             ?? ''
         );
