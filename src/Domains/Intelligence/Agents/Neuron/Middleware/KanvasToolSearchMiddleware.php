@@ -158,8 +158,7 @@ class KanvasToolSearchMiddleware extends ToolSearchMiddleware
     }
 
     /**
-     * Distinct call ids: the turn is the history plus the request, and a resumed run can carry the same
-     * call in both.
+     * Distinct call ids: the turn is the history plus the request, so a call on both counts once.
      *
      * @param Message[] $turn
      */
