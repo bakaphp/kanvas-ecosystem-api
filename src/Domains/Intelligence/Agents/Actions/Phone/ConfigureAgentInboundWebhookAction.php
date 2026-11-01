@@ -13,11 +13,12 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\VoiceRuntimeConfig;
+
+use function Sentry\captureException;
+
 use Throwable;
 use Twilio\Exceptions\RestException;
 use Twilio\Rest\Client as TwilioRestClient;
-
-use function Sentry\captureException;
 
 /**
  * Point an agent's Twilio number at the right inbound webhook, so nobody has to
@@ -34,8 +35,11 @@ use function Sentry\captureException;
  */
 class ConfigureAgentInboundWebhookAction
 {
-    public function __construct(private readonly Agent $agent, private readonly AgentPhoneChannelEnum $channel = AgentPhoneChannelEnum::VOICE, private readonly bool $overwrite = false)
-    {
+    public function __construct(
+        private readonly Agent $agent,
+        private readonly AgentPhoneChannelEnum $channel = AgentPhoneChannelEnum::VOICE,
+        private readonly bool $overwrite = false
+    ) {
     }
 
     /**
