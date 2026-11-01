@@ -27,6 +27,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpOutcome;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpFailureReasonEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpOutcomeKindEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
@@ -40,6 +41,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Templates\Models\Templates;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\WorkflowAction;
 use Kanvas\Workflow\Rules\Enums\ActionKindEnum;
@@ -1709,6 +1711,210 @@ class FollowUpLeadActionTest extends TestCase
         // Agent's message is what gets sent, NOT the rendered static template.
         $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
         $this->assertStringStartsWith('agent-composed body in template style', (string) $outcome->message);
+    }
+
+    public function testALinkTemplateSendsTheLinkExactlyAsStored(): void
+    {
+        $link = 'https://apply.example.com/?a=1&b=2';
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('{{ agent_message|raw }}' . "\n" . '{{ follow_up_links.apply|raw }}');
+        $lead->setFollowUpLinks(['apply' => $link]);
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: "I'm checking in",
+            reason: 'scheduled_touch',
+        );
+
+        $outcome = $action->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind, $outcome->reason ?? '');
+        $this->assertStringStartsWith("I'm checking in\n" . $link, (string) $outcome->message);
+    }
+
+    public function testALinkTemplateWithNoLinkDoesNotSendAndCountsAsFailed(): void
+    {
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('{{ agent_message|raw }}' . "\n" . '{{ follow_up_links.apply|raw }}');
+        $lead->setFollowUpLinks(null);
+
+        $outcome = $action->execute();
+
+        $this->assertSame(FollowUpFailureReasonEnum::LINK_MISSING->value . ': apply', $outcome->reason);
+        $this->assertTrue(FollowUpFailureReasonEnum::isFailure((string) $outcome->reason));
+        $this->assertSame(0, $lead->fresh()->getFollowUpStateCount());
+        $this->assertSame(1, $this->leadNotesTagged($lead));
+    }
+
+    public function testALinkTemplateWithoutAnAgentMessageSlotStillSendsTheLink(): void
+    {
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('Apply here: {{ follow_up_links.apply|raw }}');
+        $link = 'https://apply.example.com/?a=1&b=2';
+        $lead->setFollowUpLinks(['apply' => $link]);
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Please use the application link.',
+            reason: 'scheduled_touch',
+        );
+
+        $outcome = $action->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind, $outcome->reason ?? '');
+        $this->assertStringStartsWith('Apply here: ' . $link, (string) $outcome->message);
+    }
+
+    public function testALinkTemplateWithoutAnAgentMessageSlotDoesNotSendWhenRenderingFails(): void
+    {
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('{{ follow_up_links.apply|raw }}{{ 1 / 0 }}');
+        $lead->setFollowUpLinks(['apply' => 'https://apply.example.com/']);
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Please use the application link.',
+            reason: 'scheduled_touch',
+        );
+
+        $outcome = $action->execute();
+
+        $this->assertSame(FollowUpFailureReasonEnum::TEMPLATE_RENDER_FAILED->value, $outcome->reason);
+        $this->assertSame(0, $lead->fresh()->getFollowUpStateCount());
+        $this->assertSame(1, $this->leadNotesTagged($lead));
+    }
+
+    public function testACronRunDoesNotWriteANoteForAMissingLink(): void
+    {
+        [$lead] = $this->seedLinkTemplateFollowUp('{{ agent_message|raw }}' . "\n" . '{{ follow_up_links.apply|raw }}');
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertSame(FollowUpFailureReasonEnum::LINK_MISSING->value . ': apply', $outcome->reason);
+        $this->assertSame(0, $this->leadNotesTagged($lead));
+    }
+
+    public function testALinkTemplateThatFailsToRenderDoesNotSend(): void
+    {
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('{{ agent_message|raw }}' . "\n" . '{{ follow_up_links.apply|raw }}{{ 1 / 0 }}');
+        $lead->setFollowUpLinks(['apply' => 'https://apply.example.com/']);
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'checking in',
+            reason: 'scheduled_touch',
+        );
+
+        $outcome = $action->execute();
+
+        $this->assertSame(0, $lead->fresh()->getFollowUpStateCount());
+        $this->assertSame(FollowUpFailureReasonEnum::TEMPLATE_RENDER_FAILED->value, $outcome->reason);
+    }
+
+    public function testALinkTemplateMissingTheLinkItNamesDoesNotSendEvenWithOtherLinks(): void
+    {
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('{{ agent_message|raw }}' . "\n" . '{{ follow_up_links.apply|raw }}');
+        $lead->setFollowUpLinks(['other' => 'https://other.example.com/']);
+
+        $outcome = $action->execute();
+
+        $this->assertSame(FollowUpFailureReasonEnum::LINK_MISSING->value . ': apply', $outcome->reason);
+        $this->assertSame(0, $lead->fresh()->getFollowUpStateCount());
+    }
+
+    public function testATemplatePicksTheLinkItNames(): void
+    {
+        [$lead, $action] = $this->seedLinkTemplateFollowUp('{{ agent_message|raw }}' . "\n" . '{{ follow_up_links.apply|raw }}');
+        $lead->setFollowUpLinks([
+            'other' => 'https://other.example.com/',
+            'apply' => 'https://apply.example.com/',
+        ]);
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'checking in',
+            reason: 'scheduled_touch',
+        );
+
+        $outcome = $action->execute();
+
+        $this->assertStringStartsWith("checking in\nhttps://apply.example.com/", (string) $outcome->message);
+        $this->assertStringNotContainsString('other.example.com', (string) $outcome->message);
+    }
+
+    public function testOnlySafeLinksAreStoredAndEachCallReplacesTheMap(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+
+        $lead->setFollowUpLinks([
+            'apply' => 'https://apply.example.com/',
+            'plain' => 'http://apply.example.com/',
+            'script' => 'javascript:alert(1)',
+            'bare' => 'https://',
+            'empty' => '',
+            'nested' => ['https://apply.example.com/'],
+            'bad key' => 'https://apply.example.com/',
+            'https://apply.example.com/',
+        ]);
+        $this->assertSame(['apply' => 'https://apply.example.com/'], $lead->getFollowUpLinks());
+
+        $lead->setFollowUpLinks(['form' => 'https://form.example.com/']);
+        $this->assertSame(['form' => 'https://form.example.com/'], $lead->getFollowUpLinks());
+
+        foreach ([null, 'https://apply.example.com/', []] as $notAMap) {
+            $lead->setFollowUpLinks(['form' => 'https://form.example.com/']);
+            $lead->setFollowUpLinks($notAMap);
+            $this->assertSame([], $lead->getFollowUpLinks());
+        }
+    }
+
+    /**
+     * @return array{0: Lead, 1: FollowUpLeadAction}
+     */
+    private function seedLinkTemplateFollowUp(string $body): array
+    {
+        $template = Templates::create([
+            'apps_id' => $this->testApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => $this->user->getId(),
+            'name' => 'fup_link_' . uniqid(),
+            'title' => 'Link template',
+            'template' => $body,
+        ]);
+
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => $template->name],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        return [
+            $lead,
+            new FollowUpLeadAction(
+                app: $this->testApp,
+                company: $this->company,
+                lead: $lead,
+                agent: $this->seedFollowUpAgent(),
+                force: true,
+            ),
+        ];
+    }
+
+    private function leadNotesTagged(Lead $lead): int
+    {
+        return Message::query()
+            ->where('apps_id', $this->testApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('message', 'like', '%Follow-up not sent%')
+            ->whereHas('channels', fn ($query) => $query->where('channels.entity_id', $lead->getId()))
+            ->count();
     }
 
     public function testLastInboundIsFoundOnDifferentChannelThanPickedSession(): void

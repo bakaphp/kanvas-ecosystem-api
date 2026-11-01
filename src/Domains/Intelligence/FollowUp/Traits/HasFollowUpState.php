@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\FollowUp\Traits;
 
 use Baka\Support\DateHelper;
+use Baka\Support\Str;
 use DateTimeInterface;
 use Illuminate\Support\Carbon;
 
@@ -125,6 +126,38 @@ trait HasFollowUpState
             'exhausted_at' => null,
             'exhausted_reason' => null,
         ]));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function getFollowUpLinks(): array
+    {
+        $links = $this->get('follow_up_links');
+
+        return is_array($links) ? $links : [];
+    }
+
+    /**
+     * Replaces the whole map on every touch, so a link the caller stopped sending cannot go out.
+     * Only https passes because a customer receives it as is; the key shape and the cap bound what
+     * a webhook can write on a lead.
+     */
+    public function setFollowUpLinks(mixed $links): void
+    {
+        $valid = [];
+        foreach (is_array($links) ? $links : [] as $name => $link) {
+            $link = is_string($link) ? Str::trimToNull($link) : null;
+            $isHttpsUrl = $link !== null
+                && str_starts_with($link, 'https://')
+                && filter_var($link, FILTER_VALIDATE_URL) !== false;
+
+            if ($isHttpsUrl && is_string($name) && preg_match('/^\w{1,50}$/', $name) === 1) {
+                $valid[$name] = $link;
+            }
+        }
+
+        $this->set('follow_up_links', array_slice($valid, 0, 20));
     }
 
     /**

@@ -19,6 +19,8 @@ enum FollowUpFailureReasonEnum: string
     case NO_SESSION = 'no_session';
     case SEND_FAILED = 'send_failed';
     case JOB_FAILED = 'job_failed';
+    case LINK_MISSING = 'link_missing';
+    case TEMPLATE_RENDER_FAILED = 'template_render_failed';
 
     /**
      * `agent_call_failed: <error>` and `agent: <text>` carry free text after the colon; the key is

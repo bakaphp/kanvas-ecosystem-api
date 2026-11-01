@@ -52,8 +52,19 @@ default pipeline so synced leads start on it, because a webhook never moves a le
 - Enable only the campaign's channel.
 
 **Templates.** One per `template_key`, created in Kanvas under that exact name. The agent writes the
-message, and a template without an `$agent_message` slot only guides tone. A link that must arrive intact,
-such as a consent form, has to be tested on a real send.
+message, and a template with neither an agent message slot nor a link only guides tone.
+
+A link must arrive intact, so it goes in the template and never in the agent's text. Use `|raw` on both
+values, because templates render as HTML and an SMS would otherwise show `I&#039;m` and `&amp;`:
+
+```twig
+{{ agent_message|raw }}
+{{ follow_up_links.consent|raw }}
+```
+
+Use the dotted form: a template naming a link the call did not send stops with `link_missing: consent`, and
+`follow_up_links['consent']` gets past that check. The stage's `prompt_template` must tell the agent not to
+write URLs, or the customer gets two.
 
 **Receiver.** `createReceiverWebhook` with the action `Zoho Trigger Lead Follow Up` and:
 
@@ -80,25 +91,17 @@ Create an org variable `kanvas_webhook_secret` holding the receiver's secret, th
 named `kanvasLeadFollowUp`:
 
 ```javascript
-void automation.kanvasLeadFollowUp(String leadId, String campaignKey, String stepKey, String templateKey, String channel, String linkType)
+void automation.kanvasLeadFollowUp(String leadId, String campaignKey, String stepKey, String templateKey, String channel)
 {
     receiverUrl = "https://YOUR-KANVAS-API/v1/receiver/YOUR-RECEIVER-UUID";
     secret = zoho.crm.getOrgVariable("kanvas_webhook_secret");
     lead = zoho.crm.getRecordById("Leads", leadId.toLong());
 
-    link = "";
-    if(linkType == "form")
-    {
-        link = ifnull(lead.get("Form_URL"), "");
-    }
-    else if(linkType == "calendly")
-    {
-        link = ifnull(lead.get("Lead_Owner_Calendly_Link"), "");
-    }
-    else if(linkType == "consent")
-    {
-        link = "https://YOUR-APPLICATION-URL/?lead_id=" + leadId;
-    }
+    links = Map();
+    links.put("form", ifnull(lead.get("Form_URL"), ""));
+    links.put("calendly", ifnull(lead.get("Lead_Owner_Calendly_Link"), ""));
+    links.put("consent", "https://YOUR-APPLICATION-URL/?lead_id=" + leadId);
+    links.put("apply", "https://YOUR-APPLICATION-URL/");
 
     payload = Map();
     payload.put("zoho_lead_id", leadId);
@@ -106,7 +109,7 @@ void automation.kanvasLeadFollowUp(String leadId, String campaignKey, String ste
     payload.put("step_key", stepKey);
     payload.put("template_key", templateKey);
     payload.put("channel", channel);
-    payload.put("link", link);
+    payload.put("links", links);
 
     headers = Map();
     headers.put("Content-Type", "application/json");
@@ -124,11 +127,30 @@ void automation.kanvasLeadFollowUp(String leadId, String campaignKey, String ste
 ```
 
 Map `leadId` to the module's record id, and type the others as fixed values on each action. `channel` is
-`sms`, `email` or `both`. `linkType` is `form`, `calendly`, `consent` or empty for a step with no per-lead
-link. The field names and the URL above are examples: use the client's own.
+`sms`, `email` or `both`. The link names, field names and URLs above are examples: use the client's own.
 
-The receiver does not read `channel` or `link` yet, so a step still sends on its stage's channels and a
-template cannot print the link.
+The webhook body the function produces, which is also what to send when testing with curl:
+
+```json
+{
+  "zoho_lead_id": "123",
+  "campaign_key": "new_lead_sms",
+  "step_key": "day_30",
+  "template_key": "day_30_sms",
+  "channel": "sms",
+  "links": {
+    "form": "https://example.com/form",
+    "calendly": "https://example.com/book",
+    "consent": "https://example.com/?lead_id=123",
+    "apply": "https://example.com/"
+  }
+}
+```
+
+Send every link on every call. The receiver replaces the lead's `follow_up_links` with this map each time, so
+a link left out of one call is gone for that step, and an empty or non-https link is dropped. A new link needs
+a line in this function and a template, no code. The receiver does not read `channel` yet, so a step still
+sends on its stage's channels.
 
 ### 4. Cut over
 
@@ -151,6 +173,15 @@ Every stop is recorded on the webhook call, and nothing is moved or sent. Zoho i
 | `step_behind_current_stage` | A late or retried call for an earlier step |
 | `customer_replied` | The customer wrote back. This step and all later ones stop for that lead |
 | `already_queued` | The same lead and stage were queued in the last 5 minutes |
+
+`Lead follow-up queued` does not mean sent. The follow-up job can still skip after the lead has moved, and
+that is recorded in the lead's `lead.follow_up.*` ledger events, not on the webhook call. For these two, a
+private note is also left on the lead, because Zoho will not retry the step:
+
+| `reason` | Meaning |
+|---|---|
+| `link_missing: name` | The template names a link this call did not send, or sent empty or non-https |
+| `template_render_failed` | The template failed to render. Also reported to Sentry |
 
 ### Limits to tell the client
 
