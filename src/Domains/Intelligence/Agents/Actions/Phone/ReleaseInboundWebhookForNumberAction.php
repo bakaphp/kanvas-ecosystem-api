@@ -2,31 +2,33 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Actions\Voice;
+namespace Kanvas\Intelligence\Agents\Actions\Phone;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Client as TwilioClient;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;
+use Kanvas\Intelligence\Agents\Services\VoiceRuntimeConfig;
 use Throwable;
+use Twilio\Exceptions\RestException;
+use Twilio\Rest\Client as TwilioRestClient;
 
 use function Sentry\captureException;
 
 /**
  * Release a Twilio number's inbound webhook when an agent stops using it.
  *
- * The counterpart to ConfigureAgentInboundWebhookAction: when an agent changes
- * (or clears) its phone number, that action wires the NEW number but nothing
- * clears the OLD one, leaving a stale `voiceUrl` pointing at the runtime. This
- * clears it — but ONLY when no voice agent anywhere still owns the number.
+ * Voice clears the webhook only when it is ours, so a released number stops
+ * reaching the runtime while a webhook someone else set survives.
  *
- * The ownership check is ACCOUNT-WIDE on purpose: voice agents share one Twilio
- * account, and a phone-number string belongs to exactly one account, so any
- * agent in ANY app still carrying that number means the webhook is in use and
- * must be left in place (clearing it would kill that agent's inbound). Scanning
- * all voice-configured agents is cheap — the set is small.
+ * SMS stays in place unless forced: the webhook points at the company's receiver,
+ * and clearing it could stop the company's inbound texts on its main number.
+ *
+ * Neither happens while another agent holds the number on that channel, forced or
+ * not, because clearing it would kill that agent's inbound. The check is across
+ * every app: a phone number belongs to exactly one Twilio account.
  *
  * NON-BLOCKING and NEVER throws: it runs on agent save and must not break it.
  * Returns a structured outcome the caller can log.
@@ -36,11 +38,13 @@ class ReleaseInboundWebhookForNumberAction
     public function __construct(
         private readonly string $number,
         private readonly AppInterface $app,
-        private readonly ?Companies $company = null,
+        private readonly Companies $company,
+        private readonly AgentPhoneChannelEnum $channel = AgentPhoneChannelEnum::VOICE,
         // The agent that just moved off the number. It no longer carries it (the
         // update already applied), so this is belt-and-suspenders against a race
         // where the caller passes an agent still holding the old value.
         private readonly ?int $exceptAgentId = null,
+        private readonly bool $force = false,
     ) {
     }
 
@@ -59,12 +63,12 @@ class ReleaseInboundWebhookForNumberAction
             return $this->result('kept', "{$number} is still assigned to another agent; webhook left in place.");
         }
 
+        if ($this->channel === AgentPhoneChannelEnum::SMS && ! $this->force) {
+            return $this->result('kept', "{$number} keeps its SMS webhook; pass force to clear it.");
+        }
+
         try {
-            // Company creds if the company has its own; else the app-level creds
-            // (the shared account the number lives on). Throws when neither is set.
-            $twilio = $this->company !== null
-                ? TwilioClient::getInstanceByAppOrCompany($this->app, $this->company)
-                : TwilioClient::getInstance($this->app);
+            $twilio = $this->twilio();
 
             $numbers = $twilio->incomingPhoneNumbers->read(['phoneNumber' => $number], 1);
             if ($numbers === []) {
@@ -73,17 +77,28 @@ class ReleaseInboundWebhookForNumberAction
                 return $this->result('idle', "{$number} is not a number in the connected Twilio account.");
             }
 
-            // Blank the voiceUrl so calls to this released number no longer reach
-            // the runtime. Re-wired automatically if any agent claims it again.
+            $current = trim((string) $numbers[0]->{$this->channel->twilioUrlField()});
+            if (! $this->force && $current !== VoiceRuntimeConfig::inboundWebhookUrl($this->app)) {
+                return $this->result('kept', "{$number} does not point at our webhook; left in place.");
+            }
+
+            // Re-wired automatically if any agent claims it again.
             $twilio->incomingPhoneNumbers($numbers[0]->sid)->update([
-                'voiceUrl' => '',
-                'voiceMethod' => 'POST',
+                $this->channel->twilioUrlField() => '',
+                $this->channel->twilioMethodField() => 'POST',
             ]);
 
             return $this->result('released', "Cleared the inbound webhook on {$number}.");
         } catch (ValidationException $e) {
             // Expected, actionable misconfiguration — no need to page Sentry.
             return $this->result('error', $e->getMessage());
+        } catch (RestException $e) {
+            // Twilio answered, so its reason is the only thing that tells the admin what to fix.
+            if ($e->getStatusCode() >= 500) {
+                captureException($e);
+            }
+
+            return $this->result('error', "Twilio refused to clear the inbound webhook: {$e->getMessage()}");
         } catch (Throwable $e) {
             captureException($e);
 
@@ -91,35 +106,19 @@ class ReleaseInboundWebhookForNumberAction
         }
     }
 
-    /**
-     * Whether ANY other voice agent (any app) still carries this number. A Twilio
-     * number string is unique to one account, so a match anywhere means it's live.
-     */
+    protected function twilio(): TwilioRestClient
+    {
+        return TwilioClient::getInstanceByCompany($this->company);
+    }
+
     private function stillOwned(string $number): bool
     {
-        $normalized = AgentsRepository::normalizePhoneNumber($number);
-        if ($normalized === '') {
+        if (AgentsRepository::normalizePhoneNumber($number) === '') {
             // Un-normalizable input — never risk clearing a webhook on a guess.
             return true;
         }
 
-        $agents = Agent::query()
-            ->notDeleted()
-            ->whereNotNull('voice_config')
-            ->get();
-
-        foreach ($agents as $agent) {
-            if ($this->exceptAgentId !== null && $agent->getId() === $this->exceptAgentId) {
-                continue;
-            }
-
-            $stored = $agent->voice_config['phone_number'] ?? null;
-            if (! empty($stored) && AgentsRepository::normalizePhoneNumber((string) $stored) === $normalized) {
-                return true;
-            }
-        }
-
-        return false;
+        return AgentsRepository::getAgentHoldingPhoneNumber($number, $this->channel, $this->exceptAgentId) !== null;
     }
 
     /**

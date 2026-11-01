@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Unit;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
@@ -324,7 +325,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
 
     private function makeTwilioPrecheckAction(array $configuration): SendMessageToLeadAction
     {
-        $company = Mockery::mock();
+        $company = Mockery::mock(CompanyInterface::class);
         $company->shouldReceive('get')
             ->zeroOrMoreTimes()
             ->andReturnUsing(static fn (string $key) => $configuration[$key] ?? null);

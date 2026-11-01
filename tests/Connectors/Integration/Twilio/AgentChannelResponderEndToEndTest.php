@@ -21,6 +21,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 use Throwable;
@@ -29,9 +30,21 @@ class AgentChannelResponderEndToEndTest extends TestCase
 {
     use DatabaseTransactions;
 
-    public function testInboundSmsTriggersAgentReplyPersistedOnChannel(): void
+    public static function senderProvider(): array
+    {
+        return [
+            'company number from the rule' => [null, '+15555555555'],
+            'agent number wins' => ['+15550002222', '+15550002222'],
+        ];
+    }
+
+    #[DataProvider('senderProvider')]
+    public function testInboundSmsTriggersAgentReplyPersistedOnChannel(?string $agentNumber, string $expectedFrom): void
     {
         Http::fake();
+
+        // Each run needs its own SMS channel: the assertion below is on the channel's first outbound.
+        $customerPhone = '1999' . fake()->unique()->numerify('#######');
 
         $app = app(Apps::class);
         $user = auth()->user();
@@ -56,7 +69,7 @@ class AgentChannelResponderEndToEndTest extends TestCase
             [
                 'apps_id' => $app->getId(),
                 'companies_id' => $company->getId(),
-                'slug' => SessionChannelService::createChannelSlug('sms', '19998887777'),
+                'slug' => SessionChannelService::createChannelSlug('sms', $customerPhone),
             ],
             ['name' => 'SMS Test', 'description' => 'Test SMS channel', 'users_id' => $user->getId()]
         );
@@ -104,6 +117,7 @@ class AgentChannelResponderEndToEndTest extends TestCase
                 'soul' => 'Test',
                 'instructions' => 'Always respond Hola Mundo',
                 'output_format' => 'plain text',
+                'sms_config' => $agentNumber !== null ? ['phone_number' => $agentNumber] : null,
             ]);
 
         $session = new CreateSessionAction(
@@ -113,7 +127,7 @@ class AgentChannelResponderEndToEndTest extends TestCase
                 'channel' => $channel,
                 'entity_namespace' => Lead::class,
                 'entity_id' => $lead->getId(),
-                'canal_id' => SessionChannelService::createCanalId('sms', '19998887777'),
+                'canal_id' => SessionChannelService::createCanalId('sms', $customerPhone),
                 'user' => [
                     'name' => $lead->people?->getName() ?: 'Lead',
                     'id' => $lead->people?->getId() ?? 0,
@@ -158,5 +172,6 @@ class AgentChannelResponderEndToEndTest extends TestCase
             (string) ($outbound->message['content'] ?? ''),
             'our first reply on a customer-opened SMS conversation must carry the opt-out notice'
         );
+        $this->assertSame($expectedFrom, $outbound->get('from_number'));
     }
 }
