@@ -9,7 +9,6 @@ use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Fallback\RefusedToolStub;
 use NeuronAI\Agent\AgentResources;
 use NeuronAI\Agent\AgentState;
-use NeuronAI\Agent\Events\AIInferenceEvent;
 use NeuronAI\Agent\Events\ToolCallEvent;
 use NeuronAI\Agent\Middleware\AgentMiddleware;
 use NeuronAI\Agent\Nodes\AgentNodeInterface;
@@ -77,37 +76,26 @@ class BoundToolResultsMiddleware extends AgentMiddleware
     }
 
     /**
-     * ToolNode hands the round's call and results to the next inference through the request, not the
-     * history: they are committed only after that provider call succeeds. So the results to bound are
-     * on the request's trailing ToolResultMessage, and what the history already holds for this turn is
-     * spent.
+     * Called by BoundedToolNode before the round reaches the history. A replayed step writes a round the
+     * history already holds: it was bounded on its first write, and counting it against itself would
+     * withhold it.
      */
-    #[Override]
-    protected function afterAgentNode(
-        AgentNodeInterface $node,
-        Event $result,
-        AgentState $state,
-        AgentResources $resources
-    ): void {
-        if (! $result instanceof AIInferenceEvent) {
-            return;
+    public static function bound(ToolResultMessage $message, ChatHistory $history, AgentState $state): void
+    {
+        foreach ($history->getMessages() as $held) {
+            if ($held->getId() === $message->getId()) {
+                return;
+            }
         }
 
-        $inbound = $state->request->messages;
-        $last = end($inbound);
+        $remaining = self::MAX_CHARS_PER_TURN - self::charsSpentThisTurn($history);
 
-        if (! $last instanceof ToolResultMessage) {
-            return;
-        }
-
-        $remaining = self::MAX_CHARS_PER_TURN - self::charsSpentThisTurn($resources->history);
-
-        foreach ($last->getToolCalls() as $call) {
+        foreach ($message->getToolCalls() as $call) {
             if (self::length($call) === 0 || self::isRefused($call)) {
                 continue;
             }
 
-            $remaining -= $this->bound($call, $remaining, $state);
+            $remaining -= self::boundCall($call, $remaining, $state);
         }
     }
 
@@ -148,13 +136,13 @@ class BoundToolResultsMiddleware extends AgentMiddleware
      * The markers stay in the result on purpose — a model that can see the output was cut can narrow
      * its next call instead of answering from half a diff as though it were whole.
      */
-    private function bound(ToolCall $call, int $remaining, AgentState $state): int
+    private static function boundCall(ToolCall $call, int $remaining, AgentState $state): int
     {
         $output = (string) $call->getResult();
         $length = mb_strlen($output);
 
         if ($remaining <= 0) {
-            $this->logCut($call, $length, 0);
+            self::logCut($call, $length, 0);
             $state->set(self::EXHAUSTED, true);
 
             // Calls in the same batch as the one that spent the budget have already run, so this one
@@ -174,7 +162,7 @@ class BoundToolResultsMiddleware extends AgentMiddleware
             return $length;
         }
 
-        $this->logCut($call, $length, $limit);
+        self::logCut($call, $length, $limit);
 
         $call->setResult(Str::limit(
             $output,
@@ -189,7 +177,7 @@ class BoundToolResultsMiddleware extends AgentMiddleware
      * The limits are a guess at what a turn legitimately needs; this is how we find out whether real
      * agents run into them before deciding to move them.
      */
-    private function logCut(ToolCall $call, int $length, int $kept): void
+    private static function logCut(ToolCall $call, int $length, int $kept): void
     {
         Log::warning('Agent tool output bounded to protect the model context', [
             'tool' => $call->getName(),
