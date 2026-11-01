@@ -22,6 +22,7 @@ type AgentAi {
     user_context: String
     tools_config: String
     voice_config: Mixed
+    sms_config: Mixed
     deployment_status: String!
     activeDeployment: AgentDeploymentType @hasOne
     agent_model_id: ID
@@ -128,6 +129,7 @@ input AgentAiInput {
     user_context: String
     tools_config: String
     voice_config: Mixed
+    sms_config: Mixed
     parent_agent_id: ID
     is_active: Boolean!
     company_task_list_id: Int

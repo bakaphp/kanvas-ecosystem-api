@@ -348,10 +348,16 @@ refuse new chats on its thread until `abandon()`. Renaming a tool strands any ru
 v4's `ToolNode` skips a call only when an approval policy rejected it, so there is no hook that says
 "don't run this one". `BoundToolResultsMiddleware::beforeAgentNode` therefore replaces the tool in
 `$resources->tools` with a `RefusedToolStub` that answers `NOT_EXECUTED`; the node runs the stub and
-the model is told, truthfully, that the call did not happen. `afterAgentNode` bounds the trailing
-`ToolResultMessage` in the history by character budget. The middleware is stateless on purpose: it
+the model is told, truthfully, that the call did not happen. The middleware is stateless on purpose: it
 derives "spent this turn" from the history, so a fresh instance per node sees the same budget.
-Registered once on `ToolNode::class`; `ParallelToolNode` extends it and matches by `instanceof`.
+Registered once on `ToolNode::class`; a subclass matches by `instanceof`.
+
+The output cut is not middleware. Since 4.1.17 `ToolNode` writes the `ToolResultMessage` to the history
+as soon as the batch settles and clears `$state->request->messages`, so an `afterAgentNode` runs too late
+and finds nothing to cut. `BoundedToolNode` overrides `addToChatHistory()` and calls
+`BoundToolResultsMiddleware::bound()` before the write; `HasKanvasAgentBehavior::nodes()` swaps it in.
+`ParallelToolNode` and `AwaitToolResultsNode` write results on their own path and are not bounded, which
+is safe only while nothing enables parallel calls or deferred tools.
 
 ## Two provider overrides v4 still needs
 

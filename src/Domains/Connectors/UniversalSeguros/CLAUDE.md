@@ -68,7 +68,7 @@ Enums/                          Environment, Configuration, Product, DocumentTra
   bearer in **Redis** keyed `universalSegurosToken-{appId}-{companyId}-{env}` (TTL = `expires_in − 300s`).
 - **Credentials are company-scoped** (`$company->set(...)`) — they're the aliado's QA/prod creds.
   Environment + URLs are resolved **per-instance** from `EnvironmentEnum` (never static — Octane rule).
-- **Environments:** `qa` and `prod`, each with its own API base + IDP URL (`EnvironmentEnum`).
+- **Environments:** `qa` and `prod`, each with its own API base + IDP URL (`EnvironmentEnum`). QA's API base is `/rest/serviceplattformia` (the old `/rest/serviceplattform` answered `500` to quotes from 2026-10-20); prod stays on `/rest/serviceplattform` until Universal says otherwise.
   QA creds in the spec are QA-only; prod `client_id/secret` are an open item with Universal.
 
 ## Setup (no custom mutation)

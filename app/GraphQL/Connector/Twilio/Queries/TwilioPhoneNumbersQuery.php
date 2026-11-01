@@ -5,23 +5,17 @@ declare(strict_types=1);
 namespace App\GraphQL\Connector\Twilio\Queries;
 
 use App\GraphQL\Concerns\ResolvesActingContext;
+use Baka\Contracts\CompanyInterface;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\ListCompanyPhoneNumbersAction;
+use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;
 use Throwable;
 
 /**
- * List the company's AVAILABLE Twilio numbers — purchased on its Twilio account
- * but NOT yet assigned to another voice agent — for the agent voice-config
- * number picker.
- *
- * The third-party Twilio call is owned by the connector
- * (ListCompanyPhoneNumbersAction); this resolver only composes it with the
- * voice-agent assignment filter. Pass `agent_uuid` when editing an agent so its
- * own currently-assigned number stays listed.
- *
- * @guard (user session). Best-effort: empty list when the company has no Twilio
- * creds or the API is unreachable, so the UI shows "no numbers" not an error.
+ * Best-effort: an empty list when the company has no Twilio credentials or the API is unreachable,
+ * so the agent number picker shows "no numbers" rather than an error.
  */
 class TwilioPhoneNumbersQuery
 {
@@ -37,12 +31,13 @@ class TwilioPhoneNumbersQuery
         $ctx = $this->actingContext();
 
         try {
-            $numbers = new ListCompanyPhoneNumbersAction($ctx->company, $ctx->app)->execute();
+            $numbers = new ListCompanyPhoneNumbersAction($ctx->company)->execute();
         } catch (Throwable) {
             return [];
         }
 
-        $assigned = $this->numbersAssignedToOtherAgents($ctx->app, $ctx->company, $args['agent_uuid'] ?? null);
+        $exceptAgentId = isset($args['id']) ? (int) $args['id'] : null;
+        $assigned = $this->numbersAssignedToOtherAgents($ctx->app, $ctx->company, $exceptAgentId);
 
         return array_values(array_filter(
             $numbers,
@@ -53,28 +48,25 @@ class TwilioPhoneNumbersQuery
     }
 
     /**
-     * Digits-only phone numbers already claimed by another agent's voice_config,
-     * keyed for O(1) lookup. Excludes `$exceptUuid` (the agent being edited).
-     *
-     * @return array<string, true>
+     * @return array<string, true> keyed by normalized number
      */
-    private function numbersAssignedToOtherAgents(mixed $app, mixed $company, ?string $exceptUuid): array
+    private function numbersAssignedToOtherAgents(Apps $app, CompanyInterface $company, ?int $exceptAgentId): array
     {
         $assigned = [];
         $agents = Agent::query()
             ->fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
-            ->whereNotNull('voice_config')
-            ->get();
+            ->where(fn ($query) => $query->whereNotNull('voice_config')->orWhereNotNull('sms_config'))
+            ->when($exceptAgentId !== null, fn ($query) => $query->where('id', '!=', $exceptAgentId))
+            ->get(['id', 'voice_config', 'sms_config']);
 
         foreach ($agents as $agent) {
-            if ($exceptUuid !== null && $agent->uuid === $exceptUuid) {
-                continue;
-            }
-            $number = $agent->voice_config['phone_number'] ?? null;
-            if (! empty($number)) {
-                $assigned[AgentsRepository::normalizePhoneNumber((string) $number)] = true;
+            foreach (AgentPhoneChannelEnum::cases() as $channel) {
+                $number = $agent->phoneNumber($channel);
+                if ($number !== null) {
+                    $assigned[AgentsRepository::normalizePhoneNumber($number)] = true;
+                }
             }
         }
 

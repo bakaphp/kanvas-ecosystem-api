@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\CancelsOnRequestMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasToolSearchMiddleware;
+use Kanvas\Intelligence\Agents\Neuron\Nodes\BoundedToolNode;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
@@ -593,6 +594,24 @@ trait HasKanvasAgentBehavior
         }
 
         return $middleware;
+    }
+
+    /**
+     * Swaps the node rather than rebuilding the list, so the rest of the graph stays Neuron's. Matched by
+     * exact class: ParallelToolNode and AwaitToolResultsNode write results too, and nothing here enables
+     * parallel calls or deferred tools. Turning either on needs the same bound on that node.
+     *
+     * @return array<int, NodeInterface>
+     */
+    #[Override]
+    protected function nodes(): array
+    {
+        return array_map(
+            fn (NodeInterface $node): NodeInterface => $node::class === ToolNode::class
+                ? new BoundedToolNode($this->toolMaxRuns, $this->toolErrorHandler ?? $this->resolveToolErrorHandler())
+                : $node,
+            parent::nodes(),
+        );
     }
 
     /**

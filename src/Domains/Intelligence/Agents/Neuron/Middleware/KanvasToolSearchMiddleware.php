@@ -158,8 +158,7 @@ class KanvasToolSearchMiddleware extends ToolSearchMiddleware
     }
 
     /**
-     * Distinct call ids: the ToolNode leaves the latest result on the request while the history
-     * already holds it, so the same call can appear twice in the turn.
+     * Distinct call ids: the turn is the history plus the request, so a call on both counts once.
      *
      * @param Message[] $turn
      */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Unit;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
@@ -276,6 +277,32 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $action->validateTwilioSenderRouteForTest('+1 (272) 291-7870');
     }
 
+    public function testTwilioSenderPrecheckAcceptsTheOnlyAllowedNumberStoredWithoutPlus(): void
+    {
+        $action = $this->makeTwilioPrecheckAction([
+            TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value => 'ACdealer',
+            TwilioConfigurationEnum::TWILIO_ALLOWED_FROM_PHONE_NUMBERS->value => [12722917870],
+        ]);
+
+        $this->assertSame(
+            ['from' => '+12722917870'],
+            $action->validateTwilioSenderRouteForTest('12722917870'),
+        );
+    }
+
+    public function testTwilioSenderPrecheckRejectsANumberOffTheAllowedList(): void
+    {
+        $action = $this->makeTwilioPrecheckAction([
+            TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value => 'ACdealer',
+            TwilioConfigurationEnum::TWILIO_ALLOWED_FROM_PHONE_NUMBERS->value => [12722917870],
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('not registered for this dealership');
+
+        $action->validateTwilioSenderRouteForTest('+12722917871');
+    }
+
     public function testTwilioBodyPrecheckUsesConfiguredCarrierSafeLimit(): void
     {
         $action = $this->makeTwilioPrecheckAction([
@@ -322,9 +349,52 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $this->assertSame('+12722917870', $action->capturedFrom);
     }
 
-    private function makeTwilioPrecheckAction(array $configuration): SendMessageToLeadAction
+    /**
+     * A follow-up on a company with only twilio_from_phone_number reaches the send with an empty
+     * from and an agent that has no number.
+     */
+    public function testSmsResolvesConfiguredCompanySenderWhenFromIsEmptyAndTheAgentHasNoNumber(): void
     {
         $company = Mockery::mock();
+        $company->shouldReceive('get')
+            ->once()
+            ->with(TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value)
+            ->andReturn('+12722917870');
+
+        $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('get')->andReturn(null)->byDefault();
+        $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
+
+        $agent = Mockery::mock(Agent::class);
+        $agent->shouldReceive('smsPhoneNumber')->andReturn(null);
+        $agent->shouldReceive('conversesWithUser')->andReturn(false);
+
+        $action = new class ($lead) extends SendMessageToLeadAction {
+            public string $capturedFrom = '';
+
+            protected function sendSmsMessage(string $from, string $message, ?string $to = null): array
+            {
+                $this->capturedFrom = $from;
+
+                return [];
+            }
+        };
+
+        $action->execute(
+            channel: 'sms',
+            message: 'Scheduled touch',
+            from: '',
+            to: '+15551234567',
+            fromAgent: $agent,
+        );
+
+        $this->assertSame('+12722917870', $action->capturedFrom);
+    }
+
+    private function makeTwilioPrecheckAction(array $configuration): SendMessageToLeadAction
+    {
+        $company = Mockery::mock(CompanyInterface::class);
         $company->shouldReceive('get')
             ->zeroOrMoreTimes()
             ->andReturnUsing(static fn (string $key) => $configuration[$key] ?? null);
