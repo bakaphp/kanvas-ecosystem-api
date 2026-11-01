@@ -29,6 +29,8 @@ class TriggerZohoLeadFollowUpWebhookJobTest extends TestCase
 {
     use DatabaseTransactions;
 
+    public array $pulledLeadIds = [];
+
     protected array $connectionsToTransact = ['mysql', 'crm', 'social', 'workflow'];
 
     private Apps $testApp;
@@ -87,6 +89,45 @@ class TriggerZohoLeadFollowUpWebhookJobTest extends TestCase
     public function testRejectsAnUnknownLead(): void
     {
         $this->assertStopped('lead_not_found', $this->runWebhook(['zoho_lead_id' => 'missing']));
+    }
+
+    public function testPullsAMissingLeadFromZohoAndContinues(): void
+    {
+        $this->lead->set(CustomFieldEnum::ZOHO_LEAD_ID->value, null);
+
+        $result = $this->runPullingWebhook($this->lead, []);
+
+        $this->assertSame('Lead follow-up queued', $result['message']);
+        $this->assertSame([$this->zohoLeadId], $this->pulledLeadIds);
+        $this->assertSame($this->secondStage->getId(), $this->lead->fresh()->pipeline_stage_id);
+        $this->assertFollowUpQueued();
+    }
+
+    public function testDoesNotPullALeadKanvasAlreadyHas(): void
+    {
+        $this->runPullingWebhook(null, []);
+
+        $this->assertSame([], $this->pulledLeadIds);
+        $this->assertFollowUpQueued();
+    }
+
+    public function testALeadZohoCannotReturnStopsTheStep(): void
+    {
+        $result = $this->runPullingWebhook(null, ['zoho_lead_id' => 'missing']);
+
+        $this->assertSame(['missing'], $this->pulledLeadIds);
+        $this->assertStopped('lead_not_found', $result);
+    }
+
+    public function testABadCampaignNeverPullsALead(): void
+    {
+        $result = $this->runPullingWebhook(null, [
+            'zoho_lead_id' => 'missing',
+            'campaign_key' => 'missing',
+        ]);
+
+        $this->assertSame([], $this->pulledLeadIds);
+        $this->assertSame('campaign_not_found', $result['reason']);
     }
 
     public function testDoesNotFindALeadFromAnotherCompany(): void
@@ -230,9 +271,46 @@ class TriggerZohoLeadFollowUpWebhookJobTest extends TestCase
 
     private function runWebhook(array $overrides): array
     {
+        $call = $this->webhookCall($overrides);
+
+        $result = new TriggerZohoLeadFollowUpWebhookJob($call)->handle();
+
+        $this->assertSame('success', $call->fresh()->status, json_encode($call->fresh()->exception));
+
+        return $result;
+    }
+
+    private function runPullingWebhook(?Lead $pulled, array $overrides): array
+    {
+        $call = $this->webhookCall($overrides);
+        $test = $this;
+
+        $job = new class ($call, $pulled, $test) extends TriggerZohoLeadFollowUpWebhookJob {
+            public function __construct(ReceiverWebhookCall $call, private readonly ?Lead $pulled, private readonly TriggerZohoLeadFollowUpWebhookJobTest $test)
+            {
+                parent::__construct($call);
+            }
+
+            protected function pullLead(string $zohoLeadId): ?Lead
+            {
+                $this->test->pulledLeadIds[] = $zohoLeadId;
+
+                return $this->pulled;
+            }
+        };
+
+        $result = $job->handle();
+
+        $this->assertSame('success', $call->fresh()->status, json_encode($call->fresh()->exception));
+
+        return $result;
+    }
+
+    private function webhookCall(array $overrides): ReceiverWebhookCall
+    {
         $receiver = $this->receiver(['shared_secret' => 'right']);
 
-        $call = ReceiverWebhookCall::create([
+        return ReceiverWebhookCall::create([
             'receiver_webhooks_id' => $receiver->getId(),
             'url' => 'https://graphapi.kanvas.dev/v1/receiver/' . $receiver->uuid,
             'headers' => [],
@@ -247,12 +325,6 @@ class TriggerZohoLeadFollowUpWebhookJobTest extends TestCase
             'status' => 'pending',
             'results' => [],
         ]);
-
-        $result = new TriggerZohoLeadFollowUpWebhookJob($call)->handle();
-
-        $this->assertSame('success', $call->fresh()->status, json_encode($call->fresh()->exception));
-
-        return $result;
     }
 
     private function assertStopped(string $reason, array $result): void

@@ -6,8 +6,10 @@ namespace Kanvas\Connectors\Zoho\Jobs;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ChannelConfig;
@@ -23,8 +25,8 @@ use Override;
 #[WorkflowAction(
     name: 'Zoho Trigger Lead Follow Up',
     description: 'Receiver for a Zoho cadence step: matches the campaign, step and template to a Kanvas pipeline '
-        . 'stage, moves the lead there and runs the follow-up agent. This CONTACTS the customer. Stops for good '
-        . 'once the customer has replied. Writes nothing back to Zoho.',
+        . 'stage, pulls the lead from Zoho if Kanvas lacks it, moves the lead there and runs the follow-up agent. '
+        . 'This CONTACTS the customer. Stops for good once the customer has replied. Writes nothing back to Zoho.',
     integration: IntegrationsEnum::ZOHO,
 )]
 class TriggerZohoLeadFollowUpWebhookJob extends ProcessWebhookJob
@@ -48,11 +50,9 @@ class TriggerZohoLeadFollowUpWebhookJob extends ProcessWebhookJob
     public function execute(): array
     {
         $payload = is_array($this->webhookRequest->payload) ? $this->webhookRequest->payload : [];
+        $zohoLeadId = (string) ($payload['zoho_lead_id'] ?? '');
 
-        $lead = $this->findLead((string) ($payload['zoho_lead_id'] ?? ''));
-        if ($lead === null) {
-            return $this->stop('lead_not_found');
-        }
+        $lead = $this->findLead($zohoLeadId);
 
         $pipeline = Pipeline::queryBySlug((string) ($payload['campaign_key'] ?? ''), $this->receiver->company)
             ->fromApp($this->receiver->app)
@@ -68,6 +68,12 @@ class TriggerZohoLeadFollowUpWebhookJob extends ProcessWebhookJob
 
         if (! $this->stageUsesTemplate($stage, (string) ($payload['template_key'] ?? ''))) {
             return $this->stop('template_mismatch', $lead);
+        }
+
+        // After the campaign checks: a misconfigured action must not create a lead or spend a Zoho call.
+        $lead ??= $this->pullLead($zohoLeadId);
+        if ($lead === null) {
+            return $this->stop('lead_not_found');
         }
 
         $currentStage = $lead->stage;
@@ -116,6 +122,21 @@ class TriggerZohoLeadFollowUpWebhookJob extends ProcessWebhookJob
             'lead_id' => $lead->getId(),
             'stage_id' => $stage->getId(),
         ];
+    }
+
+    protected function pullLead(string $zohoLeadId): ?Lead
+    {
+        $leadReceiverId = (int) (($this->receiver->configuration ?? [])['receiver_id'] ?? 0);
+        if ($zohoLeadId === '' || $leadReceiverId === 0) {
+            return null;
+        }
+
+        return new SyncZohoLeadAction(
+            $this->receiver->app,
+            $this->receiver->company,
+            LeadReceiver::getByIdFromCompanyApp($leadReceiverId, $this->receiver->company, $this->receiver->app),
+            $zohoLeadId
+        )->execute();
     }
 
     private function findLead(string $zohoLeadId): ?Lead
