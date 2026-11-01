@@ -15,6 +15,7 @@ Per-connector `CLAUDE.md` (load when working in that connector's tree):
 - [`SalesAssist/CLAUDE.md`](SalesAssist/CLAUDE.md) — dealer CRM lead notes (VinSolution, Elead, Reynolds, DealerSocket, DriveCentric): the two
   note-writing activities and which messages each one handles, why a company sees no conversation notes (missing comment
   rule, or the Message → Lead row-order bug), how to wire the comment rule without double notes, and the lookup query.
+- [`Zoho/CLAUDE.md`](Zoho/CLAUDE.md) — client setup recipe for a Zoho-scheduled campaign sent by a Kanvas agent: the campaign/step/template key mapping, pipeline and stage config, the receiver, the Deluge function, cut-over order and every stop reason.
 - [`Yusen/CLAUDE.md`](Yusen/CLAUDE.md) — 3PL Item Balance XML → discrepancy report: the exact POST Yusen makes (multipart vs raw body), why the connector writes no stock (a per-source warehouse double-counts `Variants::setTotalQuantity()`), the lot-summing assumption and its `multi_record_items` tripwire, and the synthetic-fixture rule.
 
 ## Known duplication — flagged, not yet resolved
