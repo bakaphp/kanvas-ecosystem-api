@@ -260,7 +260,7 @@ class BoundToolResultsMiddlewareTest extends TestCase
         $tool = new CallbackTool(
             'get_pull_request_diff',
             'Returns the PR diff',
-            fn () => str_repeat('+ line', BoundToolResultsMiddleware::MAX_CHARS_PER_RESULT),
+            fn () => str_repeat('+ line', BoundToolResultsMiddleware::MAX_CHARS_PER_RESULT)
         );
 
         $agent = new CapturingNeuronAgentStub()->setThreadId('bounded-history');
