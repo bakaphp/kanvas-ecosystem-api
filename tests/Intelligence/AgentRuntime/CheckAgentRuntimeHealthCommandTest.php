@@ -7,9 +7,13 @@ namespace Tests\Intelligence\AgentRuntime;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Intelligence\Agents\Enums\AgentAwakeStateEnum;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Kanvas\Intelligence\Agents\Models\AgentType;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class CheckAgentRuntimeHealthCommandTest extends TestCase
@@ -45,6 +49,43 @@ class CheckAgentRuntimeHealthCommandTest extends TestCase
             'Orphaned deployment should be terminated so it stops being re-probed.',
         );
         $this->assertNotNull($deployment->terminated_at);
+    }
+
+    #[Group('serial')]
+    public function testAgentWithMissingCompanyDoesNotStopReconcilingTheOthers(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        // Rows committed by earlier runs would each be probed over SSH; rolled back with the test.
+        AgentDeployment::query()
+            ->where('apps_id', $app->getId())
+            ->where('status', DeploymentStatusEnum::RUNNING->value)
+            ->update(['status' => DeploymentStatusEnum::TERMINATED->value]);
+
+        $orphan = $this->makeInProcessAgent($app->getId(), PHP_INT_MAX);
+        $inactive = $this->makeInProcessAgent($app->getId(), $company->getId());
+
+        $this->artisan('kanvas:agent-runtime-check-health', ['--app' => $app->getId()])
+            ->assertSuccessful();
+
+        $this->assertSame(AgentAwakeStateEnum::AWAKE->value, $orphan->refresh()->awake_state);
+        $this->assertSame(AgentAwakeStateEnum::OFFLINE->value, $inactive->refresh()->awake_state);
+    }
+
+    private function makeInProcessAgent(int $appId, int $companyId): Agent
+    {
+        $agent = Agent::factory()
+            ->withAppId($appId)
+            ->withCompanyId($companyId)
+            ->create([
+                'agent_type_id' => AgentType::factory()->create(['provider' => AgentProviderEnum::NEURON->value])->getId(),
+                'is_active' => false,
+            ]);
+        $agent->awake_state = AgentAwakeStateEnum::AWAKE->value;
+        $agent->saveOrFail();
+
+        return $agent;
     }
 
     private function makeRunningDeployment(Apps $app, int $companyId, int $agentId): AgentDeployment

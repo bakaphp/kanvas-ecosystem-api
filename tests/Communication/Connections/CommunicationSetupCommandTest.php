@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Communication\Connections;
 
+use App\Console\Commands\Communication\Schedules\CommunicationSchedule;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Communication\Connections\Actions\ProbeConnectionsAction;
 use Kanvas\Communication\Connections\Actions\ReleaseUnusedRegistrationsAction;
@@ -34,6 +36,19 @@ final class CommunicationSetupCommandTest extends TestCase
         parent::setUp();
 
         $this->vendor = $this->useFakeProvisioner();
+    }
+
+    /**
+     * The scheduler renders parameters into a shell string, so `['--all-apps' => true]` becomes
+     * `--all-apps=1`, which a value-less option rejects before the command ever runs.
+     */
+    public function testTheScheduleRendersAllAppsAsABareFlag(): void
+    {
+        $schedule = new Schedule();
+
+        CommunicationSchedule::register($schedule);
+
+        $this->assertMatchesRegularExpression('/ --all-apps$/', $schedule->events()[0]->command);
     }
 
     /**
