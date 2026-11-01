@@ -109,6 +109,8 @@ class TriggerZohoLeadFollowUpWebhookJob extends ProcessWebhookJob
             $lead->saveOrFail();
         }
 
+        $lead->setFollowUpLinks($payload['links'] ?? null);
+
         // Forced because entering a stage restarts the wait interval. Zoho owns the timing here.
         LeadFollowUpJob::dispatch(
             $this->receiver->app,

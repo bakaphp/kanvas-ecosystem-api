@@ -13,6 +13,7 @@ use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -147,6 +148,11 @@ final class FollowUpLeadAction
             return $this->skip($skipReason);
         }
 
+        $missingLinks = implode(', ', $this->missingLinks($template));
+        if ($missingLinks !== '') {
+            return $this->skipWithNote(FollowUpFailureReasonEnum::LINK_MISSING->value . ': ' . $missingLinks, 'Follow-up not sent: this step needs a link the lead does not have (' . $missingLinks . ').');
+        }
+
         // Every free gate has passed; this is the last stop before money is spent (a CRM call,
         // then the agent). Pull the lead's source state now, never earlier.
         $sourceOutcome = $this->syncLeadSource();
@@ -159,7 +165,7 @@ final class FollowUpLeadAction
             $channelType,
             $template?->name,
             $template !== null
-                ? $this->renderTemplateForStyleReference($template)
+                ? $this->renderTemplateWithMessage($template, '[agent message slot]')
                 : $this->renderDefaultStyleReference($channelType),
             $metaTemplate,
             $silenceMin
@@ -224,6 +230,9 @@ final class FollowUpLeadAction
         $channelsForBump = [];
         if ($result->shouldRespond && $result->message !== null) {
             $resolvedBody = $this->resolveOutboundBody($template, $result->message);
+            if ($resolvedBody === null) {
+                return $this->skipWithNote(FollowUpFailureReasonEnum::TEMPLATE_RENDER_FAILED->value, 'Follow-up not sent: its template failed to render.');
+            }
 
             foreach ($targets as $target) {
                 $body = $this->withSmsOptOutNotice($target, $resolvedBody);
@@ -506,66 +515,93 @@ final class FollowUpLeadAction
         }
     }
 
-    // Renders the template body with the lead/people/company context so the
-    // agent prompt sees actual text. Where the template has a `$agent_message`
-    // slot, we substitute a sentinel so the agent knows where its content lands.
-    private function renderTemplateForStyleReference(Templates $template): ?string
-    {
-        $body = (string) ($template->template ?? '');
-        if ($body === '') {
-            return null;
-        }
-
-        try {
-            return new RenderTemplateAction($this->app, $this->company)->renderBody($template, [
-                'lead' => $this->lead,
-                'people' => $this->lead->people ?? null,
-                'company' => $this->company,
-                'agent_message' => '[agent message slot]',
-            ]);
-        } catch (Throwable $e) {
-            report($e);
-
-            return null;
-        }
-    }
-
-    // For templates with a `$agent_message` slot, render the template (agent
-    // message wrapped). For static templates without the slot, send the agent
-    // message directly — the template was a style guide only.
-    private function resolveOutboundBody(?Templates $template, string $agentMessage): string
+    // Link templates must render even without an agent_message slot so the URL survives unchanged.
+    // Other static templates only guide the agent's tone. Null means do not send.
+    private function resolveOutboundBody(?Templates $template, string $agentMessage): ?string
     {
         if ($template === null) {
             return $agentMessage;
         }
 
         $body = (string) ($template->template ?? '');
-        if (! str_contains($body, 'agent_message')) {
+        $usesLink = $this->templateUsesLink($template);
+        if (! str_contains($body, 'agent_message') && ! $usesLink) {
             return $agentMessage;
         }
 
-        return $this->renderTemplateWithMessage($template, $agentMessage);
+        $rendered = $this->renderTemplateWithMessage($template, $agentMessage);
+
+        return $rendered ?? ($usesLink ? null : $agentMessage);
     }
 
-    private function renderTemplateWithMessage(Templates $template, string $agentMessage): string
+    private function renderTemplateWithMessage(Templates $template, string $agentMessage): ?string
     {
         $body = (string) ($template->template ?? '');
         if ($body === '') {
-            return $agentMessage;
+            return null;
         }
 
         try {
-            return new RenderTemplateAction($this->app, $this->company)->renderBody($template, [
-                'lead' => $this->lead,
-                'people' => $this->lead->people ?? null,
-                'company' => $this->company,
-                'agent_message' => $agentMessage,
-            ]);
+            return new RenderTemplateAction($this->app, $this->company)->renderBody($template, $this->templateContext($agentMessage));
         } catch (Throwable $e) {
             report($e);
 
-            return $agentMessage;
+            return null;
         }
+    }
+
+    /**
+     * The links are the only custom field exposed: a template can print whatever reaches it, and lead
+     * custom fields hold personal data.
+     *
+     * @return array<string, mixed>
+     */
+    private function templateContext(string $agentMessage): array
+    {
+        return [
+            'lead' => $this->lead,
+            'people' => $this->lead->people ?? null,
+            'company' => $this->company,
+            'agent_message' => $agentMessage,
+            'follow_up_links' => $this->lead->getFollowUpLinks(),
+        ];
+    }
+
+    private function templateUsesLink(?Templates $template): bool
+    {
+        return str_contains((string) ($template?->template ?? ''), 'follow_up_links');
+    }
+
+    /**
+     * Twig renders a missing key as empty, so without this the message would go out ending on
+     * "here:". Only sees the dotted form, `follow_up_links.name`.
+     *
+     * @return string[]
+     */
+    private function missingLinks(?Templates $template): array
+    {
+        preg_match_all('/follow_up_links\.(\w+)/', (string) ($template?->template ?? ''), $matches);
+        if ($matches[1] === []) {
+            return [];
+        }
+
+        return array_values(array_diff(
+            array_unique($matches[1]),
+            array_keys($this->lead->getFollowUpLinks())
+        ));
+    }
+
+    /**
+     * Forced runs only: the touch will not be retried, so a person needs to see it was lost. The
+     * cron retries every hour and would write the same note each time.
+     */
+    private function skipWithNote(string $reason, string $note): FollowUpOutcome
+    {
+        if ($this->force) {
+            new RecordLeadNoteAction($this->lead)->execute(body: $note, tag: 'follow-up-not-sent', isPublic: false);
+        }
+
+        return $this->skip($reason);
     }
 
     private function persistMessage(Session $session, ResolvedChannel $target, string $body): Message

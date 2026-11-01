@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\Zoho;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -101,6 +102,16 @@ class TriggerZohoLeadFollowUpWebhookJobTest extends TestCase
         $this->assertSame([$this->zohoLeadId], $this->pulledLeadIds);
         $this->assertSame($this->secondStage->getId(), $this->lead->fresh()->pipeline_stage_id);
         $this->assertFollowUpQueued();
+    }
+
+    public function testStoresTheLinkOnTheLeadAndAStepWithoutOneClearsIt(): void
+    {
+        $this->runWebhook(['links' => ['apply' => 'https://apply.example.com/?lead_id=1']]);
+        $this->assertSame(['apply' => 'https://apply.example.com/?lead_id=1'], $this->lead->fresh()->getFollowUpLinks());
+
+        Cache::lock('zoho-lead-follow-up:' . $this->lead->getId() . ':' . $this->secondStage->getId())->forceRelease();
+        $this->runWebhook([]);
+        $this->assertSame([], $this->lead->fresh()->getFollowUpLinks());
     }
 
     public function testDoesNotPullALeadKanvasAlreadyHas(): void
