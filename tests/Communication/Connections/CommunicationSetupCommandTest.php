@@ -18,6 +18,7 @@ use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Communication\Concerns\BuildsCommunicationFixtures;
 use Tests\Communication\Fixtures\FakeProvisioner;
 use Tests\TestCase;
@@ -49,6 +50,29 @@ final class CommunicationSetupCommandTest extends TestCase
         CommunicationSchedule::register($schedule);
 
         $this->assertMatchesRegularExpression('/ --all-apps$/', $schedule->events()[0]->command);
+    }
+
+    /**
+     * Until a first messaging integration exists every scheduled run has nothing to do, and that
+     * must not count as a failed cron. Serial because it empties a table sibling tests read.
+     */
+    #[Group('serial')]
+    public function testAllAppsWithNothingToSweepSucceeds(): void
+    {
+        config(['communication.providers' => []]);
+        Connection::query()->delete();
+
+        $this->artisan('communication:setup', ['--all-apps' => true])->assertSuccessful();
+    }
+
+    public function testMissingTargetOptionFails(): void
+    {
+        $this->artisan('communication:setup')->assertFailed();
+    }
+
+    public function testAnUnknownAppFails(): void
+    {
+        $this->artisan('communication:setup', ['--app' => 0])->assertFailed();
     }
 
     /**

@@ -42,12 +42,24 @@ class CommunicationSetupCommand extends Command
 
     public function handle(): int
     {
-        $apps = $this->targetApps();
-
-        if ($apps->isEmpty()) {
+        if ($this->option('app') === null && ! $this->option('all-apps')) {
             $this->error('Pass --app=ID, or --all-apps.');
 
             return self::FAILURE;
+        }
+
+        $apps = $this->targetApps();
+
+        if ($apps->isEmpty()) {
+            if ($this->option('app') !== null) {
+                $this->error("App {$this->option('app')} not found.");
+
+                return self::FAILURE;
+            }
+
+            $this->info('No app has a messaging integration; nothing to sweep.');
+
+            return self::SUCCESS;
         }
 
         // Legacy rows carry no app, so adopting them is one pass, not one per app swept.
@@ -212,10 +224,6 @@ class CommunicationSetupCommand extends Command
     {
         if ($this->option('app') !== null) {
             return Apps::query()->whereKey((int) $this->option('app'))->get();
-        }
-
-        if (! $this->option('all-apps')) {
-            return collect();
         }
 
         $appIds = $this->messagingIntegrations(IntegrationsCompany::query()->whereNotNull('apps_id'))
