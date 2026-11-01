@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Event as EventFacade;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -473,6 +475,49 @@ class FollowUpLeadActionTest extends TestCase
             $this->assertNull($resolve->invoke($action));
             $legacySession->update($original);
         }
+    }
+
+    public function testOpensASessionForALeadThatNeverHadOneWhenAsked(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+        Contact::factory()->create([
+            'peoples_id' => $lead->people_id,
+            'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
+            'value' => '+18095550142',
+        ]);
+        $agent = $this->seedFollowUpAgent();
+        $sessions = fn () => Session::query()->fromApp($this->testApp)->fromCompany($this->company)
+            ->where('entity_namespace', People::class)->where('entity_id', $lead->people_id);
+
+        $skipped = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $agent,
+            force: true,
+        )->execute();
+
+        $this->assertSame('no_session', $skipped->reason);
+        $this->assertSame(0, $sessions()->count());
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Hello, just checking in.',
+            reason: 'scheduled_touch',
+        );
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $agent,
+            force: true,
+            openSessionIfMissing: true,
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind, $outcome->reason ?? '');
+        $this->assertSame(1, $sessions()->count());
     }
 
     public function testContactChannelCreatesBothSessionTypesWithoutDuplicates(): void

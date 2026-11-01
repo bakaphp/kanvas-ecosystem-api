@@ -114,7 +114,8 @@ class TriggerZohoLeadFollowUpWebhookJob extends ProcessWebhookJob
             $this->receiver->app,
             $this->receiver->company,
             $lead,
-            force: true
+            force: true,
+            openSessionIfMissing: true
         )->onQueue('lead_follow_ups');
 
         return [

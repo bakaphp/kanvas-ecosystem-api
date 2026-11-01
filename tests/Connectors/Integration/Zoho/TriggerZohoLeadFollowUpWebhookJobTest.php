@@ -338,7 +338,7 @@ class TriggerZohoLeadFollowUpWebhookJobTest extends TestCase
         Queue::assertPushedOn(
             'lead_follow_ups',
             LeadFollowUpJob::class,
-            fn (LeadFollowUpJob $job) => $job->force && $job->lead->getId() === $this->lead->getId()
+            fn (LeadFollowUpJob $job) => $job->force && $job->openSessionIfMissing && $job->lead->getId() === $this->lead->getId()
         );
     }
 

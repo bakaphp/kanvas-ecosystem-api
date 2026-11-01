@@ -20,6 +20,7 @@ use Kanvas\Guild\Leads\Services\CrmLeadSourceSynchronizer;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Actions\Outreach\BootstrapChannelForLeadAction;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\AgentFollowUpResult;
@@ -57,6 +58,8 @@ use Throwable;
  * docs/intelligence/follow-up-v1-spec.md.
  *
  * `force: true` bypasses the silence gate only — for manual UI triggers.
+ * `openSessionIfMissing: true` is for a caller that owns first contact, such as an external scheduler
+ * whose lead was never reached out to. The cron leaves it off and skips with `no_session`.
  */
 final class FollowUpLeadAction
 {
@@ -67,6 +70,7 @@ final class FollowUpLeadAction
         protected readonly Agent $agent,
         protected readonly bool $force = false,
         protected readonly ?CrmLeadSourceSynchronizer $synchronizer = null,
+        protected readonly bool $openSessionIfMissing = false,
     ) {
     }
 
@@ -106,6 +110,15 @@ final class FollowUpLeadAction
         }
 
         $session = $this->resolveSession();
+        if (! $session && $this->openSessionIfMissing) {
+            [, $session] = new BootstrapChannelForLeadAction(
+                $this->lead,
+                $candidates[0]->channelType,
+                (string) $candidates[0]->contact->value,
+                $this->agent
+            )->execute();
+        }
+
         if (! $session) {
             return $this->skip(FollowUpFailureReasonEnum::NO_SESSION->value);
         }

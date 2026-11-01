@@ -19,7 +19,7 @@ final class CommunicationSchedule
 {
     public static function register(Schedule $schedule): void
     {
-        $schedule->command(CommunicationSetupCommand::class, ['--all-apps' => true])
+        $schedule->command(CommunicationSetupCommand::class, ['--all-apps'])
             ->everyTenMinutes()
             ->withoutOverlapping(30)
             ->onOneServer();
