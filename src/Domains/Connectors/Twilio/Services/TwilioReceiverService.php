@@ -14,9 +14,20 @@ use Kanvas\Workflow\Services\WorkflowActionCatalog;
  */
 class TwilioReceiverService
 {
-    public function __construct(
-        protected WorkflowActionCatalog $catalog = new WorkflowActionCatalog()
-    ) {
+    public function __construct(protected WorkflowActionCatalog $catalog = new WorkflowActionCatalog())
+    {
+    }
+
+    public function find(Agent $agent): ?ReceiverWebhook
+    {
+        return ReceiverWebhook::query()
+            ->fromApp($agent->app)
+            ->fromCompany($agent->company)
+            ->forJob(ProcessTwilioWebhookJob::class)
+            ->where('is_active', 1)
+            ->notDeleted()
+            ->orderBy('id')
+            ->first();
     }
 
     /**
@@ -24,22 +35,13 @@ class TwilioReceiverService
      */
     public function ensure(Agent $agent): ReceiverWebhook
     {
-        $app = $agent->app;
-        $company = $agent->company;
-
-        $receiver = ReceiverWebhook::query()
-            ->fromApp($app)
-            ->fromCompany($company)
-            ->forJob(ProcessTwilioWebhookJob::class)
-            ->where('is_active', 1)
-            ->notDeleted()
-            ->orderBy('id')
-            ->first();
-
+        $receiver = $this->find($agent);
         if ($receiver !== null) {
             return $receiver;
         }
 
+        $app = $agent->app;
+        $company = $agent->company;
         $action = $this->catalog->register(ProcessTwilioWebhookJob::class);
         $userId = $agent->user->getId();
 

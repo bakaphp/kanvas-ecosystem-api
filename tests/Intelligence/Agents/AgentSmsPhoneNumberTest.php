@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Agents\Enums\AgentPhoneChannelEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class AgentSmsPhoneNumberTest extends TestCase
@@ -74,6 +75,57 @@ class AgentSmsPhoneNumberTest extends TestCase
         $response = $this->saveAgent('createAiAgent(input: $input)', ['sms_config' => ['phone_number' => $this->number]]);
 
         $this->assertStringContainsString('already assigned', (string) $response->json('errors.0.message'));
+    }
+
+    public static function phoneConfigProvider(): array
+    {
+        return [
+            'voice' => ['voice_config'],
+            'SMS' => ['sms_config'],
+        ];
+    }
+
+    #[DataProvider('phoneConfigProvider')]
+    public function testJsonPhoneConfigCannotClaimATakenNumberOnCreate(string $column): void
+    {
+        $this->agent(voice: $this->number);
+        $count = Agent::query()->fromApp($this->testApp)->fromCompany($this->company)->count();
+
+        $response = $this->saveAgent('createAiAgent(input: $input)', [
+            $column => json_encode(['phone_number' => $this->number]),
+        ]);
+
+        $this->assertStringContainsString('already assigned', (string) $response->json('errors.0.message'));
+        $this->assertSame($count, Agent::query()->fromApp($this->testApp)->fromCompany($this->company)->count());
+    }
+
+    #[DataProvider('phoneConfigProvider')]
+    public function testJsonPhoneConfigCannotClaimATakenNumberOnUpdate(string $column): void
+    {
+        $this->agent(sms: $this->number);
+        $agent = $this->agent();
+
+        $response = $this->saveAgent('updateAiAgent(id: ' . $agent->getId() . ', input: $input)', [
+            $column => json_encode(['phone_number' => $this->number]),
+        ]);
+
+        $this->assertStringContainsString('already assigned', (string) $response->json('errors.0.message'));
+        $this->assertNull($agent->fresh()->{$column});
+    }
+
+    #[DataProvider('phoneConfigProvider')]
+    public function testJsonPhoneConfigNormalizesTheNumberAndPreservesOtherSettings(string $column): void
+    {
+        $formatted = '+1 (555) ' . substr($this->number, 5, 3) . '-' . substr($this->number, 8);
+
+        $response = $this->saveAgent('createAiAgent(input: $input)', [
+            $column => json_encode(['phone_number' => $formatted, 'enabled' => true]),
+        ]);
+
+        $this->assertNull($response->json('errors'), (string) json_encode($response->json('errors')));
+        $agent = Agent::getByIdFromCompanyApp($response->json('data.agent.id'), $this->company, $this->testApp);
+        $this->assertSame($this->number, $agent->{$column}['phone_number']);
+        $this->assertTrue($agent->{$column}['enabled']);
     }
 
     public function testOneAgentMayUseTheSameNumberForVoiceAndSms(): void

@@ -6,6 +6,7 @@ namespace App\GraphQL\Intelligence\Mutations;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
@@ -230,21 +231,20 @@ class AgentManagementMutation
     }
 
     /**
-     * Canonicalize the per-agent phone number inside voice_config or sms_config on
-     * save, so the stored value is a clean E.164 caller id — valid for Twilio outbound
-     * and an exact match for inbound number routing. Non-array input passes through.
+     * Decode JSON strings as the model cast does so they cannot bypass number validation.
      */
     private function normalizeConfigPhone(mixed $config): mixed
     {
-        if (
-            is_array($config)
-            && isset($config['phone_number'])
-            && is_string($config['phone_number'])
-        ) {
-            $config['phone_number'] = AgentsRepository::cleanPhoneNumber($config['phone_number']);
+        $decoded = Str::jsonToArray($config);
+        if (! is_array($decoded)) {
+            return $config;
         }
 
-        return $config;
+        if (isset($decoded['phone_number']) && is_string($decoded['phone_number'])) {
+            $decoded['phone_number'] = AgentsRepository::cleanPhoneNumber($decoded['phone_number']);
+        }
+
+        return $decoded;
     }
 
     private function assertPhoneNumbersAvailable(mixed $voiceConfig, mixed $smsConfig, ?Agent $agent = null): void
@@ -307,14 +307,7 @@ class AgentManagementMutation
      */
     private function syncTools(Agent $agent, array $toolIds, AppInterface $app): void
     {
-        $ids = [];
-        foreach ($toolIds as $toolId) {
-            $tool = Tool::query()
-                ->where('id', (int) $toolId)
-                ->whereIn('apps_id', [0, $app->getId()])
-                ->firstOrFail();
-            $ids[] = $tool->getId();
-        }
+        $ids = array_map(fn (Tool $tool): int => $tool->getId(), $this->resolveTools($toolIds, $app));
 
         $agent->selectedTools()->sync($ids);
     }

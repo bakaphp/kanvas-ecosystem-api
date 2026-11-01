@@ -34,11 +34,8 @@ use function Sentry\captureException;
  */
 class ConfigureAgentInboundWebhookAction
 {
-    public function __construct(
-        private readonly Agent $agent,
-        private readonly AgentPhoneChannelEnum $channel = AgentPhoneChannelEnum::VOICE,
-        private readonly bool $overwrite = false,
-    ) {
+    public function __construct(private readonly Agent $agent, private readonly AgentPhoneChannelEnum $channel = AgentPhoneChannelEnum::VOICE, private readonly bool $overwrite = false)
+    {
     }
 
     /**
@@ -137,9 +134,6 @@ class ConfigureAgentInboundWebhookAction
         }
     }
 
-    // TODO: a mutation reaching the Twilio connector directly means this belongs to a first-party
-    // domain. Move it, and the receiver lookup below, behind the Communication domain when that
-    // migrates Twilio.
     protected function twilio(Companies $company): TwilioRestClient
     {
         return TwilioClient::getInstanceByCompany($company);

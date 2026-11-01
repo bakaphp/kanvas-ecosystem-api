@@ -30,8 +30,6 @@ class TwilioPhoneNumbersQuery
         $ctx = $this->actingContext();
 
         try {
-            // TODO: a resolver reaching the Twilio connector directly means this belongs to a
-            // first-party domain. Move it behind the Communication domain when that migrates Twilio.
             $numbers = new ListCompanyPhoneNumbersAction($ctx->company)->execute();
         } catch (Throwable) {
             return [];
@@ -59,12 +57,10 @@ class TwilioPhoneNumbersQuery
             ->fromCompany($company)
             ->notDeleted()
             ->where(fn ($query) => $query->whereNotNull('voice_config')->orWhereNotNull('sms_config'))
+            ->when($exceptAgentId !== null, fn ($query) => $query->where('id', '!=', $exceptAgentId))
             ->get(['id', 'voice_config', 'sms_config']);
 
         foreach ($agents as $agent) {
-            if ($agent->getId() === $exceptAgentId) {
-                continue;
-            }
             foreach ([$agent->voice_config['phone_number'] ?? null, $agent->smsPhoneNumber()] as $number) {
                 if (! empty($number)) {
                     $assigned[AgentsRepository::normalizePhoneNumber((string) $number)] = true;

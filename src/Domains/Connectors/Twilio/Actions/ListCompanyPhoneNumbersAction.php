@@ -17,9 +17,8 @@ use Twilio\Rest\Client as TwilioRestClient;
  */
 class ListCompanyPhoneNumbersAction
 {
-    public function __construct(
-        private readonly Companies $company,
-    ) {
+    public function __construct(private readonly Companies $company)
+    {
     }
 
     /**

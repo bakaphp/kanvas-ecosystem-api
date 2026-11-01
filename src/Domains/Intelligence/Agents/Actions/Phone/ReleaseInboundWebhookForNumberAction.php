@@ -106,8 +106,6 @@ class ReleaseInboundWebhookForNumberAction
         }
     }
 
-    // TODO: a mutation reaching the Twilio connector directly means this belongs to a first-party
-    // domain. Move it behind the Communication domain when that migrates Twilio.
     protected function twilio(): TwilioRestClient
     {
         return TwilioClient::getInstanceByCompany($this->company);
