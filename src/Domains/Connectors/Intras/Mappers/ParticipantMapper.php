@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\Intras\Mappers;
 
 use Baka\Support\Str;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
+use Kanvas\Guild\Customers\Classification\Enums\PeopleClassificationFieldEnum;
+use Kanvas\Guild\Customers\Classification\Enums\PeopleClassificationSourceEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\ContactType;
@@ -60,6 +62,15 @@ class ParticipantMapper
         // import what is stored instead of recomputing.
         'dobmoth' => 'dob_mes',
         'dobdate' => 'dob_dia',
+    ];
+
+    /**
+     * Kept out of the pull maps on purpose: Kanvas owns these, and importing them back would let a
+     * stale SIPGO value overwrite a newer classification.
+     */
+    public const array CLASSIFICATION_FIELDS = [
+        PeopleClassificationFieldEnum::LEVEL->value => 'Nivel Jerárquico',
+        PeopleClassificationFieldEnum::AREA->value => 'Área Funcional',
     ];
 
     /**
@@ -174,6 +185,31 @@ class ParticipantMapper
             'participant' => $participant,
             'custom_fields' => [...$customFields, ...self::contactSlots($people, $current)],
         ];
+    }
+
+    /**
+     * The applied classification in PushPeopleToIntrasAction's change-set shape. Empty when the person
+     * is waiting on review.
+     *
+     * @return array{custom_fields?: array<string, array{from: null, to: string}>}
+     */
+    public static function classificationChanges(People $people): array
+    {
+        if ($people->get(PeopleClassificationFieldEnum::SOURCE->value) === PeopleClassificationSourceEnum::PENDING_REVIEW->value) {
+            return [];
+        }
+
+        $changes = [];
+
+        foreach (array_keys(self::CLASSIFICATION_FIELDS) as $name) {
+            $value = Str::trimToNull((string) $people->get($name));
+
+            if ($value !== null) {
+                $changes[$name] = ['from' => null, 'to' => $value];
+            }
+        }
+
+        return $changes === [] ? [] : ['custom_fields' => $changes];
     }
 
     /**

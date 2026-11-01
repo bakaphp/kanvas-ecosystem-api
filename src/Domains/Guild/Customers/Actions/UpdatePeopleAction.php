@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Actions;
 
+use Kanvas\Guild\Customers\Classification\Jobs\ClassifyPeopleJob;
 use Kanvas\Guild\Customers\Concerns\ManagesPeopleContacts;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
@@ -86,7 +87,8 @@ class UpdatePeopleAction
             );
         }
 
-        //$this->people->clearLightHouseCacheJob();
+        ClassifyPeopleJob::dispatchIfEnabled($this->people);
+
         return $this->people;
     }
 
