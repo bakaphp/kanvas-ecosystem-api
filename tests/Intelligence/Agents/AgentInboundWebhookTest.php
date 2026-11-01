@@ -253,7 +253,7 @@ class AgentInboundWebhookTest extends TestCase
         $key = TwilioConfigurationEnum::TWILIO_ALLOWED_FROM_PHONE_NUMBERS->value;
         $expected = ['+15550000000', '+15550000001'];
 
-        foreach ([$expected, json_encode($expected), '+15550000000, +15550000001'] as $stored) {
+        foreach ([$expected, json_encode($expected), '+15550000000, +15550000001', [15550000000, 15550000001]] as $stored) {
             $this->company->set($key, $stored);
             $this->assertSame($expected, TwilioConfigurationEnum::allowedFromNumbers($this->company));
         }
