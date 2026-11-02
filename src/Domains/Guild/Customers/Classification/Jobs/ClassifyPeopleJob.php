@@ -29,8 +29,11 @@ class ClassifyPeopleJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
     public int $uniqueFor = 300;
     public bool $deleteWhenMissingModels = true;
 
-    public function __construct(public readonly Apps $app, public readonly People $people, public readonly bool $force = false)
-    {
+    public function __construct(
+        public readonly Apps $app,
+        public readonly People $people,
+        public readonly bool $force = false
+    ) {
         $this->afterCommit();
     }
 
