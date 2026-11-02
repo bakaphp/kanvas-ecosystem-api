@@ -7,15 +7,38 @@ namespace Kanvas\Connectors\Reynolds\DataTransferObject\Crm;
 use Spatie\LaravelData\Data;
 
 /**
- * The CRM's consent values exactly as it sent them. What each one means is the driver's to decide.
+ * What the CRM says about contact consent, already translated to booleans by the client.
  */
 class CrmConsent extends Data
 {
     public function __construct(
-        public readonly ?string $text_opt_status = null,
-        public readonly ?string $opt_out = null,
-        public readonly ?string $opt_out_use = null,
-        public readonly ?CrmFollowUp $follow_up = null
+        public readonly ?CrmOptOut $opt_out = null
     ) {
+    }
+
+    /**
+     * Older extensions send `opt_out` as a string. Anything that is not an object is dropped instead of
+     * failing the request, and a member that is not a real boolean counts as not opted out.
+     *
+     * @param array<string, mixed> $properties
+     *
+     * @return array<string, mixed>
+     */
+    public static function prepareForPipeline(array $properties): array
+    {
+        $optOut = $properties['opt_out'] ?? null;
+
+        if (! is_array($optOut)) {
+            unset($properties['opt_out']);
+
+            return $properties;
+        }
+
+        $properties['opt_out'] = [
+            'email' => ($optOut['email'] ?? null) === true,
+            'phone' => ($optOut['phone'] ?? null) === true,
+        ];
+
+        return $properties;
     }
 }
