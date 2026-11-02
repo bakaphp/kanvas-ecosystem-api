@@ -13,6 +13,7 @@ use Kanvas\Approvals\Actions\ExpireApprovalRequestsAction;
 use Kanvas\Approvals\Actions\NotifyApproversAction;
 use Kanvas\Approvals\Actions\RequestApprovalAction;
 use Kanvas\Approvals\Enums\ApprovalDecisionEnum;
+use Kanvas\Approvals\Enums\ApprovalEmailTemplateEnum;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
@@ -23,6 +24,8 @@ use Kanvas\Approvals\Notifications\ApprovalDigestNotification;
 use Kanvas\Approvals\Notifications\ApprovalRequestedNotification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Templates\Actions\CreateTemplateAction;
+use Kanvas\Templates\DataTransferObject\TemplateInput;
 use Kanvas\Users\Models\Users;
 use Tests\Approvals\Fixtures\ApprovableOrganization;
 use Tests\TestCase;
@@ -169,6 +172,35 @@ final class ApprovalNotificationAndExpiryTest extends TestCase
 
         NotificationFacade::assertSentToTimes($approver, ApprovalRequestedNotification::class, 1);
         $this->assertNotNull($immediate->approvers()->first()->notified_at);
+    }
+
+    public function test_without_a_template_the_email_falls_back_to_readable_html(): void
+    {
+        $request = $this->openRequest($this->digestPolicy($this->approver(), ['notify' => 'none']));
+
+        $content = new ApprovalRequestedNotification($request)->getEmailContent();
+
+        $this->assertStringContainsString(e($request->resolveEntity()->name), $content);
+        $this->assertStringContainsString('Approve Digest Entity', $content);
+        $this->assertStringNotContainsString('\\', $content, 'The record type must not be a class name.');
+    }
+
+    public function test_a_company_template_replaces_the_built_in_email(): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+        new CreateTemplateAction(new TemplateInput(
+            app: app(Apps::class),
+            name: ApprovalEmailTemplateEnum::DIGEST->value,
+            template: '<p>Custom: {{ count }} for {{ company_name }} — {% for approval in approvals %}[{{ approval.name }}]{% endfor %}</p>',
+            company: $company,
+        ))->execute();
+        $policy = $this->digestPolicy($this->approver(), ['notify' => 'none']);
+        $requests = collect([$this->openRequest($policy), $this->openRequest($policy)]);
+
+        $content = new ApprovalDigestNotification($company, $requests)->getEmailContent();
+
+        $this->assertStringContainsString('Custom: 2 for ' . e($company->name), $content);
+        $this->assertStringContainsString('[' . e($requests[0]->resolveEntity()->name) . ']', $content);
     }
 
     public function test_a_second_run_does_not_re_notify_the_same_approver(): void
