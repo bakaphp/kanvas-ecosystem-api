@@ -79,6 +79,7 @@ final class ProvisionOnboardingItemsJobTest extends TestCase
         $agent = $this->companyAgent('Typed AP');
         $this->assertSame(AccountsPayableAgent::class, $agent->type->handler);
         $this->assertSame($this->named('Typed AP'), $agent->name);
+        $this->assertSame('x', $agent->description, 'the catalog copy, not the agent type\'s developer description');
     }
 
     public function testGinnyIsCreatedFromTheCompanyBrainTypeWhenNoTemplateExists(): void

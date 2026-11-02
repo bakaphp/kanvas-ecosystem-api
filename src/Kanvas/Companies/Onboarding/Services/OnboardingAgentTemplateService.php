@@ -65,6 +65,7 @@ final class OnboardingAgentTemplateService
             'slug' => 'ginny',
             'kind' => 'agent',
             'name' => $name,
+            'description' => OnboardingSettingEnum::DEFAULT_SETUP_AGENT_DESCRIPTION,
             'source_agent' => $name,
             'agent_type' => OnboardingSettingEnum::DEFAULT_SETUP_AGENT_TYPE,
             'requirements' => [],

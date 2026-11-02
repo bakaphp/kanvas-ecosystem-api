@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Onboarding\Actions;
 
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Setup\Enums\DefaultAgentEnum;
 use Kanvas\Companies\Models\Companies;
@@ -113,7 +114,7 @@ final class ProvisionOnboardingItemAction
                 name: $name,
                 role: $type->role ?? [],
                 is_active: true,
-                description: $type->description,
+                description: Str::trimToNull((string) ($this->item['description'] ?? '')) ?? $type->description,
                 soul: $type->soul,
                 instructions: $type->instructions,
                 outputFormat: $type->output_format,

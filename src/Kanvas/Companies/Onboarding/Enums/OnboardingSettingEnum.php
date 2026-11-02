@@ -14,5 +14,6 @@ enum OnboardingSettingEnum: string
     case RESEARCH_MODEL = 'company_research_model';
 
     public const string DEFAULT_SETUP_AGENT = 'Ginny';
+    public const string DEFAULT_SETUP_AGENT_DESCRIPTION = 'Knows your whole business, answers across sales, money and operations, and walks you through setup.';
     public const string DEFAULT_SETUP_AGENT_TYPE = CompanyBrainAgent::class;
 }
