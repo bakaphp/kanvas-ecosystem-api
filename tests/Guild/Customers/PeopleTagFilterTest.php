@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Guild\Customers;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
@@ -13,14 +14,16 @@ use Kanvas\Social\Tags\Models\TagEntity;
 use Tests\TestCase;
 
 /**
- * `hasTags` runs on the crm connection with a subquery into the social database, so the tag has to be
- * committed for it to see the row: `social` stays out of the transaction here, and the test cleans up.
+ * `hasTags` runs on the crm connection with a subquery into the social database. Neither stays in a
+ * transaction here: an open crm transaction fixes its snapshot at its first read, across every database
+ * on the server, so a tag committed after that read is invisible and the filter looks broken. Whether a
+ * read lands first depends on the queue driver, so it passes locally and fails in CI. The test cleans up.
  */
 final class PeopleTagFilterTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'ecosystem', 'crm'];
+    protected array $connectionsToTransact = ['mysql', 'ecosystem'];
 
     public function test_the_people_query_filters_by_tag(): void
     {
@@ -52,6 +55,7 @@ final class PeopleTagFilterTest extends TestCase
             $tagId = Tag::query()->where('name', $tagName)->value('id');
             TagEntity::query()->where('tags_id', $tagId)->delete();
             Tag::query()->where('id', $tagId)->delete();
+            DB::connection('crm')->table('peoples')->whereIn('id', [$tagged->getId(), $untagged->getId()])->delete();
         }
     }
 

@@ -48,10 +48,15 @@ The command runs regardless of the enabled flag and needs only a taxonomy.
 
 ## Turning it on for another app
 
-Nothing runs until an app or company has both a taxonomy and the enabled flag. There is no platform default
-taxonomy: categories are a tenant's business decision, and INTRAS's list lives in its connector.
+Nothing runs until an app or company has both a taxonomy and the enabled flag. Nothing is applied by default:
+categories are a tenant's business decision, and INTRAS's list lives in its connector.
 
-1. Agree the categories with the client and set `people_classification_taxonomy`:
+1. Give it a taxonomy. Either copy the English template, `Support/DefaultPeopleTaxonomy`:
+   ```bash
+   php artisan kanvas:people-classification-assign-taxonomy {app} [--company_id=] [--force]
+   ```
+   The tenant owns its copy, so later edits to the template reach nobody; that is why it is never read at
+   runtime. Or agree the categories with the client and set `people_classification_taxonomy` yourself:
    ```json
    {
      "levels": {"GERENTE": {"label": "Gerencia", "tag": "Nivel: Gerencia", "keywords": ["Gerente", "Manager"]}},
