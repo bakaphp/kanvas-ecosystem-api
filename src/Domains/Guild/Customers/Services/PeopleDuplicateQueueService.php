@@ -132,10 +132,12 @@ class PeopleDuplicateQueueService
     private function signatureTaken(string $signature, DuplicateReviewGroup $group): bool
     {
         return DuplicateReviewGroup::query()
-            ->where('apps_id', $group->apps_id)
-            ->where('companies_id', $group->companies_id)
-            ->where('entity_type', $group->entity_type)
-            ->where('signature', $signature)
+            ->withSignature(
+                $group->apps_id,
+                $group->companies_id,
+                $group->entity_type,
+                $signature
+            )
             ->where('id', '!=', $group->getId())
             ->exists();
     }
