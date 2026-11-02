@@ -10,6 +10,7 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Exceptions\MissingParticipantPeopleIdException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Throwable;
 
@@ -60,11 +61,10 @@ class LeadChannelFilesService
     {
         $groups = [];
 
-        // Get lead's first social channel only
-        $channel = $this->lead->socialChannels()->first();
+        $channel = $this->getEngagementChannel();
 
         if (! $channel) {
-            return $groups; // No channel found, return empty
+            return $groups;
         }
 
         // Use the proper relationship - get messages through the channel's messages relationship
@@ -83,6 +83,17 @@ class LeadChannelFilesService
         }
 
         return $groups;
+    }
+
+    /**
+     * Engagement messages always land on the channel whose slug is the lead uuid
+     * (CreateEngagementAction::createOrGetChannel). Contact channels (email-*, twilio-*, ai-assist-*)
+     * share the same entity and can be created before it, so first() is not a stable pick.
+     */
+    protected function getEngagementChannel(): ?Channel
+    {
+        return $this->lead->socialChannels()->where('slug', (string) $this->lead->uuid)->first()
+            ?? $this->lead->socialChannels()->first();
     }
 
     protected function formatMessageFileGroup(Message $message): array
