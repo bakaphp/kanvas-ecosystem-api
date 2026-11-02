@@ -21,4 +21,34 @@ trait ExtractsPersonContacts
     {
         return $person->contacts->first(fn (object $c): bool => ! str_contains((string) $c->value, '@'))?->value;
     }
+
+    /**
+     * @return list<string>
+     */
+    protected function allEmails(People $person): array
+    {
+        return $this->contactValues($person, isEmail: true);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function allPhones(People $person): array
+    {
+        return $this->contactValues($person, isEmail: false);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function contactValues(People $person, bool $isEmail): array
+    {
+        return $person->contacts
+            ->filter(fn (object $c): bool => str_contains((string) $c->value, '@') === $isEmail)
+            ->pluck('value')
+            ->map(fn ($value): string => (string) $value)
+            ->unique()
+            ->values()
+            ->all();
+    }
 }
