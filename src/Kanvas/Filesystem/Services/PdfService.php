@@ -6,6 +6,7 @@ namespace Kanvas\Filesystem\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Baka\Support\TempFile;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model;
@@ -34,7 +35,7 @@ class PdfService
             app: $app,
             user: $user,
             company: $company,
-            fileName: $fileName ?: uniqid('pdf_', true) . '.pdf',
+            fileName: Str::trimToNull($fileName) ?? uniqid('pdf_', true) . '.pdf',
             extension: 'pdf',
             mimeType: 'application/pdf',
             render: static function (string $tempDir, string $tempFilePath) use ($html, $options): void {

@@ -143,16 +143,13 @@ final class PdfServiceTest extends TestCase
             $app,
             Auth::user(),
             'pdf-service-entity-company-test',
-            $message,
-            fileName: 'credit-app-4.pdf'
+            $message
         );
 
         try {
             $message->addFile($filesystem, 'test-pdf');
 
-            $this->assertSame('credit-app-4.pdf', $filesystem->name);
             $this->assertSame($otherCompany->getId(), (int) $filesystem->companies_id);
-            $this->assertCount(1, $message->getFilesQueryBuilder()->get());
             $this->assertSame(
                 [$filesystem->url],
                 $message->getFilesQueryBuilder()->pluck('url')->all()
@@ -162,22 +159,35 @@ final class PdfServiceTest extends TestCase
         }
     }
 
-    public function testGeneratePdfFromTemplateKeepsGeneratedNameWhenNoNameIsGiven(): void
+    public function testGeneratePdfFromTemplateUsesGivenFileName(): void
     {
         $app = app(Apps::class);
-
-        new CreateTemplateAction(
-            TemplateInput::from([
-                'app' => $app,
-                'name' => 'pdf-service-generated-name-test',
-                'template' => '<p>Message {{ $entity->getId() }}</p>',
-            ])
-        )->execute();
+        $this->createNamedTemplate($app);
 
         $filesystem = PdfService::generatePdfFromTemplate(
             $app,
             Auth::user(),
-            'pdf-service-generated-name-test',
+            'pdf-service-file-name-test',
+            Message::factory()->create(),
+            fileName: 'credit-app-4.pdf'
+        );
+
+        try {
+            $this->assertSame('credit-app-4.pdf', $filesystem->name);
+        } finally {
+            new FilesystemServices($app)->delete($filesystem);
+        }
+    }
+
+    public function testGeneratePdfFromTemplateKeepsGeneratedNameWhenNoNameIsGiven(): void
+    {
+        $app = app(Apps::class);
+        $this->createNamedTemplate($app);
+
+        $filesystem = PdfService::generatePdfFromTemplate(
+            $app,
+            Auth::user(),
+            'pdf-service-file-name-test',
             Message::factory()->create()
         );
 
@@ -187,6 +197,17 @@ final class PdfServiceTest extends TestCase
         } finally {
             new FilesystemServices($app)->delete($filesystem);
         }
+    }
+
+    private function createNamedTemplate(Apps $app): void
+    {
+        new CreateTemplateAction(
+            TemplateInput::from([
+                'app' => $app,
+                'name' => 'pdf-service-file-name-test',
+                'template' => '<p>Message {{ $entity->getId() }}</p>',
+            ])
+        )->execute();
     }
 
     private function makeOtherCompany(Apps $app): Companies

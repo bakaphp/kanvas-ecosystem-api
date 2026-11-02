@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Internal\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -30,11 +31,13 @@ use Throwable;
     name: 'Generate PDF From Template',
     description: 'Renders a PDF from a named template using the record\'s data and attaches it. Both the '
         . 'template and the file name must be configured on the rule — without either it does nothing '
-        . 'and says so rather than failing.',
+        . 'and says so rather than failing. A message can override the file name per record through '
+        . 'message.data.pdf_file_name.',
     integration: IntegrationsEnum::INTERNAL,
     params: [
         'template_pdf' => 'Name of the blade template to render. Required; without it the step is a no-op.',
-        'pdf_file_name' => 'File name for the generated PDF. Required; without it the step is a no-op.',
+        'pdf_file_name' => 'File name for the generated PDF. Required; without it the step is a no-op. '
+            . 'A Message record overrides it with message.data.pdf_file_name when that is set.',
     ],
 )]
 class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInterface
@@ -49,7 +52,7 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
         $this->overwriteAppService($app);
 
         $pdfTemplate = $params['template_pdf'] ?? null;
-        $pdfFileName = $params['pdf_file_name'] ?? null;
+        $pdfFileName = $this->messageFileName($entity) ?? $params['pdf_file_name'] ?? null;
         $sleepTime = $params['sleepTime'] ?? 5;
 
         return $this->executeIntegration(
@@ -73,16 +76,6 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
                         'entity_id' => $entity->getId(),
                     ];
                 }
-
-                $generatedPdfFileName = null;
-                if ($entity instanceof Message) {
-                    $generatedPdfFileName = $entity->message['data']['params']['field_name']
-                        ?? $entity->message['data']['params']['pdf_file_name']
-                        ?? $entity->message['data']['pdf_file_name']
-                        ?? $params['field_name']
-                        ?? null;
-                }
-                $generatedPdfFileName ??= $pdfFileName;
 
                 $engagement = null;
                 $taskListItem = null;
@@ -120,7 +113,7 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
                         $pdfTemplate,
                         $entity,
                         $pdfData,
-                        fileName: $generatedPdfFileName
+                        fileName: $pdfFileName
                     );
 
                     $entity->addFile($pdfFile, $pdfFileName);
@@ -178,6 +171,15 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
             },
             company: $entity->company
         );
+    }
+
+    private function messageFileName(Model $entity): ?string
+    {
+        if (! $entity instanceof Message) {
+            return null;
+        }
+
+        return Str::trimmedStringOrNull($entity->message['data']['pdf_file_name'] ?? null);
     }
 
     /**
