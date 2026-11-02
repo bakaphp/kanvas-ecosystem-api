@@ -37,6 +37,36 @@ class Client
     }
 
     /**
+     * The business token behind the code an embedded signup hands the browser. Only the server can
+     * do this, because it takes our app secret.
+     */
+    public static function exchangeCode(AppInterface $app, string $code): string
+    {
+        $appId = (string) $app->get(ConfigurationEnum::APP_ID->value);
+        $appSecret = (string) $app->get(ConfigurationEnum::APP_SECRET->value);
+
+        if ($appId === '' || $appSecret === '') {
+            throw new RuntimeException(sprintf(
+                'The app needs %s and %s to finish a WhatsApp embedded signup.',
+                ConfigurationEnum::APP_ID->value,
+                ConfigurationEnum::APP_SECRET->value
+            ));
+        }
+
+        $graphVersion = (string) ($app->get(ConfigurationEnum::GRAPH_API_VERSION->value) ?? self::DEFAULT_GRAPH_VERSION);
+
+        return (string) Http::acceptJson()
+            ->timeout(30)
+            ->get('https://graph.facebook.com/' . $graphVersion . '/oauth/access_token', [
+                'client_id' => $appId,
+                'client_secret' => $appSecret,
+                'code' => $code,
+            ])
+            ->throw()
+            ->json('access_token');
+    }
+
+    /**
      * With the token the company set up its number with.
      */
     public static function forCompany(AppInterface $app, Companies $company): self

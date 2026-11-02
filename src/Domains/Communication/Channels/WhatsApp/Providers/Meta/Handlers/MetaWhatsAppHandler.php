@@ -13,9 +13,11 @@ use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\Enums\ConfigurationEnu
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\MetaInbound;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\MetaProvisioner;
 use Kanvas\Communication\Channels\WhatsApp\Providers\Meta\WhatsAppTransport;
+use Kanvas\Communication\Connections\Actions\ReleaseUnusedRegistrationsAction;
 use Kanvas\Communication\Connections\Concerns\ProvisionsConnections;
 use Kanvas\Communication\Connections\DataTransferObject\AccountSelection;
 use Kanvas\Communication\Connections\DataTransferObject\Retention;
+use Kanvas\Communication\Connections\Models\Connection;
 use Kanvas\Communication\Contracts\CommunicationProvider;
 use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Connectors\Contracts\BaseIntegration;
@@ -23,47 +25,69 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Override;
+use RuntimeException;
 
 /**
- * WhatsApp Cloud API (Meta). The number and its token are kept on the company; the
- * integration_companies row only records that the integration was completed.
+ * WhatsApp Cloud API (Meta). As a Meta partner we get the number, its WABA and a business token per
+ * company, kept on the company; the integration_companies row only records that the integration was
+ * completed. The app secret that signs the webhooks is ours, not the company's: an app setting.
  */
 class MetaWhatsAppHandler extends BaseIntegration implements CommunicationProvider
 {
-    use ProvisionsConnections;
+    use ProvisionsConnections {
+        removing as retireConnections;
+    }
 
     #[Override]
     public function setup(): bool
     {
         $phoneNumberId = Str::trimToNull($this->data['phone_number_id'] ?? null);
-        $accessToken = Str::trimToNull($this->data['access_token'] ?? null);
+        $wabaId = Str::trimToNull($this->data['waba_id'] ?? null);
+        $code = Str::trimToNull($this->data['code'] ?? null);
 
-        if ($phoneNumberId === null || $accessToken === null) {
-            throw new ValidationException('The WhatsApp phone number id and access token are required.');
+        // The WABA too: its webhook subscription is what brings the number's messages in.
+        if ($phoneNumberId === null || $wabaId === null) {
+            throw new ValidationException('The WhatsApp phone number id and business account id are required.');
         }
+
+        // An embedded signup hands over a code, never the token itself.
+        $accessToken = Str::trimToNull($this->data['access_token'] ?? null)
+            ?? ($code !== null ? $this->exchangeCode($code) : null)
+            ?? throw new ValidationException('The WhatsApp access token, or the code from Meta\'s signup, is required.');
 
         $phoneNumber = $this->fetchPhoneNumber($phoneNumberId, $accessToken);
 
         $this->company->set(ConfigurationEnum::PHONE_NUMBER_ID->value, $phoneNumberId);
         $this->company->setEncrypted(ConfigurationEnum::ACCESS_TOKEN->value, $accessToken);
+        $this->company->set(ConfigurationEnum::WABA_ID->value, $wabaId);
 
         // Cleared when absent, so re-saving with another number leaves nothing of the old one.
-        $optional = [
-            ConfigurationEnum::WABA_ID->value => Str::trimToNull($this->data['waba_id'] ?? null),
-            ConfigurationEnum::DISPLAY_PHONE_NUMBER->value => Str::trimToNull($phoneNumber['display_phone_number'] ?? null),
-        ];
+        $displayPhoneNumber = Str::trimToNull($phoneNumber['display_phone_number'] ?? null);
 
-        foreach ($optional as $key => $value) {
-            if ($value === null) {
-                $this->company->del($key);
-
-                continue;
-            }
-
-            $this->company->set($key, $value);
+        if ($displayPhoneNumber === null) {
+            $this->company->del(ConfigurationEnum::DISPLAY_PHONE_NUMBER->value);
+        } else {
+            $this->company->set(ConfigurationEnum::DISPLAY_PHONE_NUMBER->value, $displayPhoneNumber);
         }
 
         return true;
+    }
+
+    /**
+     * The WABA is unsubscribed here rather than by the sweep: teardown() deletes the token the sweep
+     * would need to reach Meta, and a WABA left subscribed keeps posting to the shared callback.
+     */
+    #[Override]
+    public function removing(IntegrationsCompany $integrationCompany): void
+    {
+        $this->retireConnections($integrationCompany);
+
+        new ReleaseUnusedRegistrationsAction($this->app)->releaseLeftBy(
+            Connection::query()
+                ->where('integrations_company_id', $integrationCompany->getId())
+                ->pluck('id')
+                ->all()
+        );
     }
 
     #[Override]
@@ -148,6 +172,20 @@ class MetaWhatsAppHandler extends BaseIntegration implements CommunicationProvid
     public static function inbound(): string
     {
         return MetaInbound::class;
+    }
+
+    protected function exchangeCode(string $code): string
+    {
+        try {
+            return Client::exchangeCode($this->app, $code);
+        } catch (RuntimeException $exception) {
+            throw new ValidationException($exception->getMessage());
+        } catch (RequestException $exception) {
+            throw new ValidationException(
+                'Meta rejected the signup code: '
+                . ($exception->response->json('error.message') ?? $exception->getMessage())
+            );
+        }
     }
 
     /**

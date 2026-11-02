@@ -38,6 +38,14 @@ final class SetupCompanyDefaultsAction
      */
     public function execute(): array
     {
+        // Every copy is owned by the company's owner, so without one nothing may be created at all.
+        if ($this->company->user === null) {
+            throw new SetupBlockedException(
+                'missing_company_owner',
+                'Company ' . $this->company->getId() . ' has no owner to own its agents; set one and the setup runs again.'
+            );
+        }
+
         $templates = $this->agentTemplates();
         $followUpPipeline = $this->followUpPipelineTemplate();
         $followsUp = $this->followsUp();
