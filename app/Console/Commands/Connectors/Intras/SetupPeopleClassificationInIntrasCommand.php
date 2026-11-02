@@ -10,8 +10,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Intras\Actions\SetupPeopleClassificationInIntrasAction;
 use Kanvas\Connectors\Intras\Support\IntrasPeopleTaxonomy;
 use Kanvas\Guild\Customers\Classification\Enums\PeopleClassificationConfigurationEnum;
-use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Workflow\Rules\Models\RuleType;
 
 /**
  * Writes to the live SIPGO database. Turns nothing on: the enabled flag and the workflow rules stay
@@ -47,7 +45,6 @@ class SetupPeopleClassificationInIntrasCommand extends Command
         }
 
         $app->set(PeopleClassificationConfigurationEnum::TAXONOMY->value, IntrasPeopleTaxonomy::VALUE);
-        RuleType::firstOrCreate(['name' => WorkflowEnum::PEOPLE_CLASSIFIED->value]);
 
         $this->info('Taxonomy set on the app.');
 
