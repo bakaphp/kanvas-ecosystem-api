@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Approvals\Actions;
 
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Kanvas\Approvals\Enums\ApprovalDecisionEnum;
+use Kanvas\Approvals\Enums\ApprovalNotifyModeEnum;
+use Kanvas\Approvals\Jobs\SendApprovalDigestJob;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Approvals\Models\ApprovalRequestApprover;
 use Kanvas\Approvals\Notifications\ApprovalRequestedNotification;
@@ -30,9 +32,9 @@ class NotifyApproversAction
 
     public function execute(): int
     {
-        $mode = $this->request->policy?->notify ?? 'all';
+        $mode = ApprovalNotifyModeEnum::fromSetting($this->request->policy?->notify);
 
-        if ($mode === 'none') {
+        if ($mode === ApprovalNotifyModeEnum::NONE) {
             return 0;
         }
 
@@ -43,7 +45,13 @@ class NotifyApproversAction
             ->with('user')
             ->get();
 
-        if ($mode === 'first') {
+        if ($mode === ApprovalNotifyModeEnum::DIGEST) {
+            $this->scheduleDigests($recipients);
+
+            return 0;
+        }
+
+        if ($mode === ApprovalNotifyModeEnum::FIRST) {
             $recipients = $recipients->take(1);
         }
 
@@ -73,10 +81,26 @@ class NotifyApproversAction
         }
 
         // Stamped only on success, so a retry can pick up whoever was actually missed.
-        $recipient->notified_at = Carbon::now();
-        $recipient->notification_channel = 'mail';
-        $recipient->saveOrFail();
+        $recipient->markNotified();
 
         return true;
+    }
+
+    /**
+     * @param Collection<int, ApprovalRequestApprover> $recipients
+     */
+    private function scheduleDigests(Collection $recipients): void
+    {
+        foreach ($recipients as $recipient) {
+            if ($recipient->user === null) {
+                continue;
+            }
+
+            try {
+                SendApprovalDigestJob::schedule($this->request->app, $this->request->company, $recipient->user);
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
     }
 }
