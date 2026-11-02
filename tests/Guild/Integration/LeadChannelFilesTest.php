@@ -23,6 +23,7 @@ use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Kanvas\Guild\Leads\Services\LeadChannelFilesService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
+use Kanvas\Social\Channels\Models\Channel as ChannelModel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -85,6 +86,29 @@ final class LeadChannelFilesTest extends TestCase
         $file = $this->groupFor($lead, $message)['files'][0];
 
         $this->assertNull($file['attachment_uuid']);
+    }
+
+    /**
+     * Prod lead 459416: the contact channels (email-*, twilio-*, ai-assist-*) were created before the
+     * engagement channel was re-created, so socialChannels()->first() returned an empty email channel
+     * and channel_files came back with zero groups while the engagement files sat on the uuid channel.
+     */
+    public function testReadsTheEngagementChannelNotTheFirstChannel(): void
+    {
+        $lead = $this->makeLead();
+        $lead->socialChannels()->update(['is_deleted' => 1]);
+        $this->makeChannel($lead, 'email-rene-dot-mathis-at-gmail-dot-com');
+        $engagementChannel = $this->makeChannel($lead, (string) $lead->uuid);
+
+        $message = $this->makeIdVerificationMessage($lead, channel: $engagementChannel);
+        $this->makeEngagement($lead, $message, (int) $lead->people_id);
+
+        $this->assertNotSame($engagementChannel->getId(), $lead->socialChannels()->first()->getId());
+
+        $group = $this->groupFor($lead, $message);
+
+        $this->assertSame('ID Verification', $group['action']);
+        $this->assertCount(1, $group['files']);
     }
 
     public function testMainBuyerEngagementHasNoParticipantSuffix(): void
@@ -276,8 +300,11 @@ final class LeadChannelFilesTest extends TestCase
      * system module link matters because the engagement observer reads notification copy off
      * message->entity().
      */
-    private function makeIdVerificationMessage(Lead $lead, ?Message $parent = null): Message
-    {
+    private function makeIdVerificationMessage(
+        Lead $lead,
+        ?Message $parent = null,
+        ?ChannelModel $channel = null
+    ): Message {
         $app = app(Apps::class);
         $user = auth()->user();
 
@@ -310,9 +337,28 @@ final class LeadChannelFilesTest extends TestCase
         )->execute();
 
         $message->addFile($this->makeFilesystem($lead), 'id-verification');
-        $lead->socialChannels()->firstOrFail()->addMessage($message, $user);
+        ($channel ?? $lead->socialChannels()->firstOrFail())->addMessage($message, $user);
 
         return $message;
+    }
+
+    /**
+     * Straight on the model: CreateChannelAction dedups on slug with no is_deleted filter, so it would
+     * hand back the soft-deleted channel instead of a second row with the same slug, which is what
+     * prod holds for this lead.
+     */
+    private function makeChannel(Lead $lead, string $slug): ChannelModel
+    {
+        return ChannelModel::create([
+            'apps_id' => (int) $lead->apps_id,
+            'companies_id' => (int) $lead->companies_id,
+            'users_id' => (int) $lead->users_id,
+            'slug' => $slug,
+            'entity_id' => (string) $lead->getId(),
+            'entity_namespace' => Lead::class,
+            'name' => $slug,
+            'description' => $slug,
+        ]);
     }
 
     private function makeFilesystem(Lead $lead): Filesystem
