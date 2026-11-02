@@ -109,12 +109,8 @@ class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
             return ['message' => 'payment not found', 'payment_intent_id' => $intent->id];
         }
 
-        if (! $this->companyMatches($intent)) {
-            return ['message' => 'company mismatch', 'payment_intent_id' => $intent->id];
-        }
-
-        if ($this->isTerminal($payment)) {
-            return ['message' => 'payment already terminal', 'status' => $payment->status];
+        if ($rejected = $this->rejectInactivePayment($payment, $intent)) {
+            return $rejected;
         }
 
         $chargeId = $this->extractChargeId($intent);
@@ -141,12 +137,8 @@ class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
             return ['message' => 'payment not found', 'payment_intent_id' => $intent->id];
         }
 
-        if (! $this->companyMatches($intent)) {
-            return ['message' => 'company mismatch', 'payment_intent_id' => $intent->id];
-        }
-
-        if ($this->isTerminal($payment)) {
-            return ['message' => 'payment already terminal', 'status' => $payment->status];
+        if ($rejected = $this->rejectInactivePayment($payment, $intent)) {
+            return $rejected;
         }
 
         $error = $intent->last_payment_error->message ?? null;
@@ -171,12 +163,8 @@ class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
             return ['message' => 'payment not found', 'payment_intent_id' => $intent->id];
         }
 
-        if (! $this->companyMatches($intent)) {
-            return ['message' => 'company mismatch', 'payment_intent_id' => $intent->id];
-        }
-
-        if ($this->isTerminal($payment)) {
-            return ['message' => 'payment already terminal', 'status' => $payment->status];
+        if ($rejected = $this->rejectInactivePayment($payment, $intent)) {
+            return $rejected;
         }
 
         $payment->status = PaymentStatusEnum::PENDING_AUTHORIZATION->value;
@@ -222,8 +210,12 @@ class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
         );
     }
 
-    private function recordRefund(string $chargeId, string $refundId, int $amountCents, string $status): array
-    {
+    private function recordRefund(
+        string $chargeId,
+        string $refundId,
+        int $amountCents,
+        string $status
+    ): array {
         $payment = $this->findPaymentByCharge($chargeId);
 
         if (! $payment) {
@@ -367,6 +359,19 @@ class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
             ->where('companies_id', $this->receiver->company->getId())
             ->where('authorization_code', $chargeId)
             ->first();
+    }
+
+    private function rejectInactivePayment(Payments $payment, StripeObject $intent): ?array
+    {
+        if (! $this->companyMatches($intent)) {
+            return ['message' => 'company mismatch', 'payment_intent_id' => $intent->id];
+        }
+
+        if ($this->isTerminal($payment)) {
+            return ['message' => 'payment already terminal', 'status' => $payment->status];
+        }
+
+        return null;
     }
 
     private function companyMatches(StripeObject $intent): bool

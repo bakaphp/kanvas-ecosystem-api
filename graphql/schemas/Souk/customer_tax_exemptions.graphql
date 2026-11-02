@@ -3,6 +3,8 @@ type CustomerTaxExemption {
     uuid: String!
     people_id: ID!
     exemption_type: String!
+    jurisdiction_country: String!
+    jurisdiction_state: String
     certificate_number: String
     valid_from: String
     valid_to: String
@@ -13,6 +15,8 @@ type CustomerTaxExemption {
 input CustomerTaxExemptionInput {
     people_id: ID!
     exemption_type: String!
+    jurisdiction_country: String!
+    jurisdiction_state: String
     certificate_number: String
     valid_from: String
     valid_to: String
@@ -20,6 +24,8 @@ input CustomerTaxExemptionInput {
 
 input UpdateCustomerTaxExemptionInput {
     exemption_type: String
+    jurisdiction_country: String
+    jurisdiction_state: String
     certificate_number: String
     valid_from: String
     valid_to: String
@@ -38,7 +44,7 @@ extend type Mutation @guardByAdmin {
 
 extend type Query @guardByAdmin {
     customerTaxExemptions(
-        where: _ @whereConditions(columns: ["id", "uuid", "people_id", "exemption_type", "certificate_number"])
+        where: _ @whereConditions(columns: ["id", "uuid", "people_id", "exemption_type", "jurisdiction_country", "certificate_number"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "valid_from"])
     ): [CustomerTaxExemption!]!
         @paginate(

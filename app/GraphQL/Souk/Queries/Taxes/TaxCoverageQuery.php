@@ -20,8 +20,6 @@ class TaxCoverageQuery
         $address = new TaxAddress(
             country: $request['country_code'],
             state: $request['state_code'] ?? null,
-            city: null,
-            postalCode: null,
         );
 
         return new TaxProviderResolver($ctx->app)->coverage($address);

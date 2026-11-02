@@ -42,8 +42,6 @@ use Spatie\LaravelData\DataCollection;
 use Throwable;
 use Wearepixel\Cart\Cart;
 
-use function Sentry\captureMessage;
-
 class CreateBaseOrderAction
 {
     public function __construct(
@@ -240,11 +238,7 @@ class CreateBaseOrderAction
         $payloadHash = $snapshot->checkout_payload['input_hash'] ?? null;
 
         if ($payloadHash !== null && $payloadHash !== $storedHash) {
-            $order->tax_status = TaxStatusEnum::MISMATCH->value;
-            $order->status = OrderStatusEnum::ON_HOLD->value;
-            $order->saveOrFail();
-
-            captureMessage("Tax hash mismatch on order {$order->id}");
+            $order->holdForTaxMismatch();
 
             return;
         }
@@ -259,7 +253,7 @@ class CreateBaseOrderAction
 
         $order->tax_amount = (float) $snapshot->tax_amount;
         $order->tax_source = 'souk';
-        $order->recomputeTotals(true);
+        $order->recomputeTotals(autoSave: true);
 
         $payable = (float) $order->total_payable_amount;
         $snapshotPayable = (float) ($snapshot->checkout_payload['totals']['payable'] ?? 0.0);
@@ -280,7 +274,7 @@ class CreateBaseOrderAction
 
         if ($paymentIntentId !== null) {
             $snapshot = OrderTaxSnapshot::query()
-                ->where('apps_id', $this->app->getId())
+                ->fromApp($this->app)
                 ->where('payment_intent_id', $paymentIntentId)
                 ->where('status', TaxStatusEnum::CALCULATED->value)
                 ->latest()
@@ -298,7 +292,7 @@ class CreateBaseOrderAction
         }
 
         return OrderTaxSnapshot::query()
-            ->where('apps_id', $this->app->getId())
+            ->fromApp($this->app)
             ->where('cart_session_id', $cartSessionId)
             ->where('status', TaxStatusEnum::CALCULATED->value)
             ->whereNull('order_id')

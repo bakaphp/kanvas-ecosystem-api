@@ -134,11 +134,6 @@ class ManualRateTaxProvider implements TaxProviderInterface
         );
     }
 
-    /**
-     * General rules (empty category_codes) apply to every taxable line.
-     * Category-specific rules apply only when the line's taxCategory is listed.
-     * Shipping lines are skipped when the rule's tax_shipping flag is false.
-     */
     private function ruleAppliesToLine(TaxRoutingRule $rule, TaxableLine $line): bool
     {
         if ($line->isShipping && ! $rule->tax_shipping) {

@@ -11,6 +11,7 @@ use Kanvas\Connectors\Stripe\Enums\StripeTaxCodeMap;
 use Kanvas\Connectors\Stripe\Services\StripeTaxService;
 use Kanvas\Souk\Taxes\Contracts\TaxProviderInterface;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxableLine;
+use Kanvas\Souk\Taxes\DataTransferObject\TaxAddress;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxComponent;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxContext;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxCoverage;
@@ -19,7 +20,6 @@ use Kanvas\Souk\Taxes\DataTransferObject\TaxReversal;
 use Kanvas\Souk\Taxes\Enums\TaxCategoryEnum;
 use Kanvas\Souk\Taxes\Enums\TaxProviderEnum;
 use Kanvas\Souk\Taxes\Enums\TaxTreatmentEnum;
-use Kanvas\Souk\Taxes\Exceptions\IllegalTaxTransition;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use RuntimeException;
 use Stripe\StripeClient;
@@ -30,6 +30,7 @@ class StripeTaxProvider implements TaxProviderInterface
     private const EU_COUNTRIES = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK'];
     private const SUPPORTED_NON_EU = ['US', 'CA', 'MX', 'GB'];
     private const TAX_DATE_WINDOW_DAYS = 31;
+    private const ZERO_DECIMAL_CURRENCIES = ['jpy', 'krw', 'bif', 'clp', 'gnf', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'xaf', 'xof'];
 
     public function __construct(
         private readonly AppInterface $app,
@@ -50,61 +51,52 @@ class StripeTaxProvider implements TaxProviderInterface
             return TaxResult::failed('shipping_address_invalid');
         }
 
-        if ($ctx->taxDate !== '') {
-            $taxDate = Carbon::parse($ctx->taxDate);
-            $diffDays = abs(Carbon::now()->diffInDays($taxDate, absolute: false));
+        $taxDate = $ctx->taxDate !== '' ? Carbon::parse($ctx->taxDate) : null;
 
-            if ($diffDays > self::TAX_DATE_WINDOW_DAYS) {
-                return TaxResult::failed('tax_date_unsupported');
-            }
+        if ($taxDate !== null && Carbon::now()->diffInDays($taxDate) > self::TAX_DATE_WINDOW_DAYS) {
+            return TaxResult::failed('tax_date_unsupported');
         }
 
         $taxCodeOverride = $this->extractTaxCodeOverride($ctx);
 
-        if ($taxCodeOverride !== null) {
-            if (! $this->isValidPtcCode($taxCodeOverride)) {
-                return TaxResult::failed('invalid_tax_code_override');
-            }
+        if ($taxCodeOverride !== null && ! $this->isValidPtcCode($taxCodeOverride)) {
+            return TaxResult::failed('invalid_tax_code_override');
         }
 
         try {
-            $lineItems = $this->buildLineItems($ctx, $taxCodeOverride);
-
             $params = [
                 'currency' => strtolower($ctx->currency),
-                'line_items' => $lineItems,
+                'line_items' => $this->buildLineItems($ctx, $taxCodeOverride),
                 'ship_from_details' => [
-                    'address' => $this->buildStripeAddress($ctx->shipFrom->country, $ctx->shipFrom->state, $ctx->shipFrom->postalCode, $ctx->shipFrom->city),
+                    'address' => $this->buildStripeAddress($ctx->shipFrom),
                 ],
                 'customer_details' => [
-                    'address' => $this->buildStripeAddress($ctx->shipTo->country, $ctx->shipTo->state, $ctx->shipTo->postalCode, $ctx->shipTo->city),
+                    'address' => $this->buildStripeAddress($ctx->shipTo),
                     'address_source' => 'shipping',
                 ],
             ];
 
-            if ($ctx->taxDate !== '') {
-                $params['tax_date'] = Carbon::parse($ctx->taxDate)->timestamp;
+            if ($taxDate !== null) {
+                $params['tax_date'] = $taxDate->timestamp;
             }
 
             $calculation = $this->client()->tax->calculations->create($params);
 
-            if (($calculation->tax_amount_exclusive ?? 0) === 0 && isset($calculation->not_collecting) && $calculation->not_collecting) {
+            if (! empty($calculation->not_collecting) && ($calculation->tax_amount_exclusive ?? 0) === 0) {
                 return TaxResult::unsupported('not_collecting');
             }
 
-            $fingerprint = $this->taxService->accountFingerprint($this->app, $this->company);
-            $components = $this->buildComponents($calculation, $ctx);
-
-            $totalTaxMinor = $calculation->tax_amount_exclusive ?? 0;
-            $totalTaxableMinor = $calculation->taxable_amount ?? 0;
-
             return new TaxResult(
                 treatment: TaxTreatmentEnum::TAXED,
-                totalTax: $this->fromMinorUnits($totalTaxMinor, $ctx->currency),
-                totalTaxable: $this->fromMinorUnits($totalTaxableMinor, $ctx->currency),
-                components: $components,
+                totalTax: $this->fromMinorUnits($calculation->tax_amount_exclusive ?? 0, $ctx->currency),
+                totalTaxable: $this->fromMinorUnits($calculation->taxable_amount ?? 0, $ctx->currency),
+                components: $this->buildComponents($calculation, $ctx),
                 providerTransactionId: $calculation->id,
-                metadata: ['account_fingerprint' => $fingerprint, 'calculation_id' => $calculation->id],
+                metadata: [
+                    'account_fingerprint' => $this->taxService->accountFingerprint($this->app, $this->company),
+                    'calculation_id' => $calculation->id,
+                    'currency' => $ctx->currency,
+                ],
             );
         } catch (Throwable $e) {
             return TaxResult::failed($e->getMessage());
@@ -160,23 +152,22 @@ class StripeTaxProvider implements TaxProviderInterface
 
         $flatAmountMinor = $this->toMinorUnits((string) $reversal->taxAmount, $metadata['currency'] ?? 'usd');
 
-        $reversal = $this->client()->tax->transactions->createReversal([
+        $stripeReversal = $this->client()->tax->transactions->createReversal([
             'original_transaction' => $transactionId,
             'reference' => $reversalRef,
             'mode' => 'full',
             'flat_amount' => $flatAmountMinor,
         ]);
 
-        $snapshot->metadata = array_merge($metadata, [$alreadyReversedKey => $reversal->id]);
+        $snapshot->metadata = array_merge($metadata, [$alreadyReversedKey => $stripeReversal->id]);
         $snapshot->saveQuietly();
     }
 
+    /**
+     * A calculation that was never committed has nothing to undo on Stripe's side.
+     */
     public function void(OrderTaxSnapshot $snapshot): void
     {
-        try {
-            $snapshot->transition('pending', 'voided');
-        } catch (IllegalTaxTransition) {
-        }
     }
 
     public function coverage(string $country, ?string $state = null): TaxCoverage
@@ -196,40 +187,33 @@ class StripeTaxProvider implements TaxProviderInterface
 
     private function buildLineItems(TaxContext $ctx, ?string $globalTaxCodeOverride): array
     {
-        return array_map(function (TaxableLine $line) use ($globalTaxCodeOverride): array {
-            if (! $line->isTaxable) {
-                return [
-                    'amount' => $this->toMinorUnits($line->subtotal(), $line->reference),
-                    'reference' => $line->lineId,
-                    'tax_code' => 'txcd_00000000',
-                ];
-            }
-
-            $taxCode = $line->taxCodeOverride
-                ?? $globalTaxCodeOverride
-                ?? ($line->taxCategory
-                    ? StripeTaxCodeMap::fromTaxCategory(TaxCategoryEnum::from($line->taxCategory))
-                    : StripeTaxCodeMap::GENERAL_TANGIBLE);
-
-            return [
-                'amount' => $this->toMinorUnits($line->subtotal(), $line->reference),
-                'reference' => $line->lineId,
-                'tax_code' => $taxCode,
-            ];
-        }, $ctx->lines);
+        return array_map(fn (TaxableLine $line): array => [
+            'amount' => $this->toMinorUnits($line->subtotal(), $ctx->currency),
+            'reference' => $line->lineId,
+            'tax_code' => $this->taxCodeFor($line, $globalTaxCodeOverride),
+        ], $ctx->lines);
     }
 
-    private function buildStripeAddress(
-        ?string $country,
-        ?string $state,
-        ?string $postalCode,
-        ?string $city,
-    ): array {
+    private function taxCodeFor(TaxableLine $line, ?string $globalTaxCodeOverride): string
+    {
+        if (! $line->isTaxable) {
+            return StripeTaxCodeMap::NON_TAXABLE;
+        }
+
+        return $line->taxCodeOverride
+            ?? $globalTaxCodeOverride
+            ?? ($line->taxCategory
+                ? StripeTaxCodeMap::fromTaxCategory(TaxCategoryEnum::from($line->taxCategory))
+                : StripeTaxCodeMap::GENERAL_TANGIBLE);
+    }
+
+    private function buildStripeAddress(TaxAddress $address): array
+    {
         return array_filter([
-            'country' => $country,
-            'state' => $state,
-            'postal_code' => $postalCode,
-            'city' => $city,
+            'country' => $address->country,
+            'state' => $address->state,
+            'postal_code' => $address->postalCode,
+            'city' => $address->city,
         ]);
     }
 
@@ -287,10 +271,7 @@ class StripeTaxProvider implements TaxProviderInterface
 
     private function toMinorUnits(string $amount, string $currencyHint = 'usd'): int
     {
-        $currency = strtolower($currencyHint);
-        $zeroDecimalCurrencies = ['jpy', 'krw', 'bif', 'clp', 'gnf', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'xaf', 'xof'];
-
-        if (in_array($currency, $zeroDecimalCurrencies, true)) {
+        if (in_array(strtolower($currencyHint), self::ZERO_DECIMAL_CURRENCIES, true)) {
             return (int) round((float) $amount);
         }
 
@@ -299,10 +280,7 @@ class StripeTaxProvider implements TaxProviderInterface
 
     private function fromMinorUnits(int $minor, string $currencyHint = 'usd'): string
     {
-        $currency = strtolower($currencyHint);
-        $zeroDecimalCurrencies = ['jpy', 'krw', 'bif', 'clp', 'gnf', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'xaf', 'xof'];
-
-        if (in_array($currency, $zeroDecimalCurrencies, true)) {
+        if (in_array(strtolower($currencyHint), self::ZERO_DECIMAL_CURRENCIES, true)) {
             return (string) $minor;
         }
 

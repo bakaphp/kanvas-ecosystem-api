@@ -58,6 +58,8 @@ use Nevadskiy\Tree\AsTree;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
+use function Sentry\captureMessage;
+
 /**
  * Class Order
  *
@@ -1005,6 +1007,15 @@ class Order extends BaseModel implements PayableInterface, ExposesTemplateData, 
     public function getActivityLogName(): string
     {
         return 'order-' . $this->companies_id . '-' . $this->apps_id;
+    }
+
+    public function holdForTaxMismatch(): void
+    {
+        $this->tax_status = TaxStatusEnum::MISMATCH->value;
+        $this->status = OrderStatusEnum::ON_HOLD->value;
+        $this->saveOrFail();
+
+        captureMessage("Tax hash mismatch on order {$this->id}");
     }
 
     public function recomputeTotals(bool $autoSave = false): self

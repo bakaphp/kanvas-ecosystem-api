@@ -5,25 +5,23 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Taxes\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Taxes\Exceptions\IllegalTaxTransition;
 
 class OrderTaxSnapshot extends BaseModel
 {
     use CascadeSoftDeletes;
+    use NoCompanyRelationshipTrait;
     use UuidTrait;
 
     protected $table = 'order_tax_snapshots';
     protected $guarded = [];
-    protected $keyType = 'int';
-    public $incrementing = true;
-
-    public static function bootCompaniesIdTrait(): void
-    {
-    }
 
     protected array $cascadeDeletes = ['components'];
 
@@ -33,6 +31,11 @@ class OrderTaxSnapshot extends BaseModel
             'checkout_payload' => Json::class,
             'metadata' => Json::class,
         ];
+    }
+
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'order_id', 'id');
     }
 
     public function components(): HasMany

@@ -46,7 +46,7 @@ class CheckoutReconcileCommand extends Command
         $appsIds = Settings::where([
             'name' => TaxConfigurationEnum::TAX_ENGINE_ENABLED->value,
             'value' => '1',
-        ])->select('apps_id')->get()->pluck('apps_id');
+        ])->pluck('apps_id');
 
         $this->info("Checking {$appsIds->count()} apps for stale snapshots");
 

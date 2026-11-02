@@ -384,13 +384,7 @@ class StripePaymentLinkService
     }
 
     /**
-     * Create a Stripe Payment Link pinned to a tax snapshot.
-     *
-     * - Amount comes from snapshot->gateway_due (checkout_payload.totals.gateway_due)
-     * - Stores snapshot uuid in the STRIPE_PAYMENT_LINK_TAX_REVISION custom field
-     * - Reuses the existing link when the snapshot hasn't changed (stripe_payment_link_id present)
-     * - Rejects automatic_tax: Souk owns tax, not Stripe Tax
-     * - Shipping collection is disabled: Souk owns shipping
+     * Souk owns tax and shipping, so automatic_tax and shipping collection are never delegated to Stripe.
      */
     public function createLinkFromSnapshot(
         OrderTaxSnapshot $snapshot,

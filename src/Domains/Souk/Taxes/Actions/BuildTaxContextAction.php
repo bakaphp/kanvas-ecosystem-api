@@ -48,7 +48,7 @@ class BuildTaxContextAction
         $address = $this->order->shippingAddress ?? $this->order->billingAddress;
 
         if ($address === null) {
-            return new TaxAddress(country: null, state: null, city: null, postalCode: null);
+            return new TaxAddress(country: null);
         }
 
         return $this->addressToTaxAddress($address);
