@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Peoples;
 
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Actions\MergePeopleAction;
 use Kanvas\Guild\Customers\Models\People;
@@ -12,16 +13,16 @@ use Kanvas\Guild\Duplicates\Models\DuplicateReviewGroup;
 
 class PeopleMergeMutation
 {
+    use ResolvesActingContext;
+
     /**
      * @return array<int, array<string, mixed>>
      */
     public function findDuplicates(mixed $rootValue, array $request): array
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $ctx = $this->actingContext();
 
-        $groups = new PeopleDuplicateQueueService($app, $company)->pending((int) ($request['max_groups'] ?? 100));
+        $groups = new PeopleDuplicateQueueService($ctx->app, $ctx->company)->pending((int) ($request['max_groups'] ?? 100));
 
         return array_map(
             fn (DuplicateReviewGroup $group): array => [
@@ -39,11 +40,9 @@ class PeopleMergeMutation
      */
     public function detectDuplicates(mixed $rootValue, array $request): array
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $ctx = $this->actingContext();
 
-        $groups = new PeopleDuplicateQueueService($app, $company)->detect((int) ($request['max_groups'] ?? 100));
+        $groups = new PeopleDuplicateQueueService($ctx->app, $ctx->company)->detect((int) ($request['max_groups'] ?? 100));
 
         return array_map(
             fn ($group): array => [
