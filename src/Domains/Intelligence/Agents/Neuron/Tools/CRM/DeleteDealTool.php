@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesDealForTool;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -20,6 +21,7 @@ use Throwable;
 #[AgentTool(name: 'Delete Deal', category: 'crm')]
 class DeleteDealTool extends Tool
 {
+    use GuardsAdminForTool;
     use HasKanvasContext;
     use ResolvesDealForTool;
 
@@ -49,6 +51,10 @@ class DeleteDealTool extends Tool
      */
     public function __invoke(int $deal_id): array
     {
+        if ($denied = $this->requireAdminOrError()) {
+            return ['status' => 'error'] + $denied;
+        }
+
         $result = $this->resolveDealOrError($deal_id);
         if (is_array($result)) {
             return $result;
