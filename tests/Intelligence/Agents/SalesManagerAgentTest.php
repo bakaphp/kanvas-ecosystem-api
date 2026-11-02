@@ -66,6 +66,24 @@ class SalesManagerAgentTest extends TestCase
             'add_organization_note',
             'upload_file_to_lead',
             'upload_file_to_message',
+            // A sales manager keeps the CRM itself: full create/update/delete over leads, people,
+            // deals and organizations. Deletes and merges stay admin-gated in the tools.
+            'create_lead',
+            'update_lead',
+            'convert_lead_to_deal',
+            'merge_lead',
+            'delete_lead',
+            'create_person',
+            'update_person',
+            'merge_people',
+            'link_person_to_organization',
+            'create_deal',
+            'update_deal',
+            'delete_deal',
+            'search_deals',
+            'create_organization',
+            'update_organization',
+            'get_organization',
         ] as $expected) {
             $this->assertContains($expected, $names, "Polly should expose {$expected}");
         }
