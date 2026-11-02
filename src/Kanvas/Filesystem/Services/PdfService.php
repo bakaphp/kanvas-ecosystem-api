@@ -6,6 +6,7 @@ namespace Kanvas\Filesystem\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Baka\Support\TempFile;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model;
@@ -34,7 +35,7 @@ class PdfService
             app: $app,
             user: $user,
             company: $company,
-            fileName: $fileName ?? uniqid('pdf_', true) . '.pdf',
+            fileName: Str::trimToNull($fileName) ?? uniqid('pdf_', true) . '.pdf',
             extension: 'pdf',
             mimeType: 'application/pdf',
             render: static function (string $tempDir, string $tempFilePath) use ($html, $options): void {
@@ -135,7 +136,8 @@ class PdfService
         string $templateName,
         Model $entity,
         array $data = [],
-        array $options = []
+        array $options = [],
+        ?string $fileName = null
     ): ModelsFilesystem {
         $renderTemplate = new RenderTemplateAction($app, $entity->company ?? null);
 
@@ -156,6 +158,7 @@ class PdfService
             app: $app,
             user: $user,
             html: $renderTemplateHtml,
+            fileName: $fileName,
             options: $options,
             company: $entity->company ?? null
         );

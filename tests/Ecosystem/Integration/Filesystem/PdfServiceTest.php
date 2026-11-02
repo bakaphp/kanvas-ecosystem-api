@@ -61,6 +61,25 @@ final class PdfServiceTest extends TestCase
         }
     }
 
+    public function testHtmlToPdfGeneratesFileNameWhenEmptyNameGiven(): void
+    {
+        $app = app(Apps::class);
+
+        $filesystem = PdfService::htmlToPdf(
+            app: $app,
+            user: Auth::user(),
+            html: '<p>Empty name</p>',
+            fileName: ''
+        );
+
+        try {
+            $this->assertStringStartsWith('pdf_', $filesystem->name);
+            $this->assertStringEndsWith('.pdf', $filesystem->name);
+        } finally {
+            new FilesystemServices($app)->delete($filesystem);
+        }
+    }
+
     /**
      * With neither app nor platform storage credentials the upload step throws after the PDF is
      * rendered — the exact window where the old code leaked the file.
@@ -138,6 +157,57 @@ final class PdfServiceTest extends TestCase
         } finally {
             new FilesystemServices($app)->delete($filesystem);
         }
+    }
+
+    public function testGeneratePdfFromTemplateUsesGivenFileName(): void
+    {
+        $app = app(Apps::class);
+        $this->createNamedTemplate($app);
+
+        $filesystem = PdfService::generatePdfFromTemplate(
+            $app,
+            Auth::user(),
+            'pdf-service-file-name-test',
+            Message::factory()->create(),
+            fileName: 'credit-app-4.pdf'
+        );
+
+        try {
+            $this->assertSame('credit-app-4.pdf', $filesystem->name);
+        } finally {
+            new FilesystemServices($app)->delete($filesystem);
+        }
+    }
+
+    public function testGeneratePdfFromTemplateKeepsGeneratedNameWhenNoNameIsGiven(): void
+    {
+        $app = app(Apps::class);
+        $this->createNamedTemplate($app);
+
+        $filesystem = PdfService::generatePdfFromTemplate(
+            $app,
+            Auth::user(),
+            'pdf-service-file-name-test',
+            Message::factory()->create()
+        );
+
+        try {
+            $this->assertStringStartsWith('pdf_', $filesystem->name);
+            $this->assertStringEndsWith('.pdf', $filesystem->name);
+        } finally {
+            new FilesystemServices($app)->delete($filesystem);
+        }
+    }
+
+    private function createNamedTemplate(Apps $app): void
+    {
+        new CreateTemplateAction(
+            TemplateInput::from([
+                'app' => $app,
+                'name' => 'pdf-service-file-name-test',
+                'template' => '<p>Message {{ $entity->getId() }}</p>',
+            ])
+        )->execute();
     }
 
     private function makeOtherCompany(Apps $app): Companies
