@@ -20,6 +20,8 @@ use Kanvas\Intelligence\FollowUp\Actions\WriteLeadStageChangeThreadMessageAction
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
@@ -176,6 +178,10 @@ class LeadObserver
 
         if ($lead->wasChanged('leads_status_id')) {
             SummarizeLeadConversationJob::dispatchIfEligible($lead);
+
+            if ($lead->closeSold() || $lead->closeNotSold()) {
+                new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
+            }
         }
 
         if ($lead->wasChanged([
