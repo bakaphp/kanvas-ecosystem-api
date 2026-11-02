@@ -7,9 +7,7 @@ namespace App\GraphQL\Guild\Mutations\Peoples;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Actions\MergePeopleAction;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Services\FindPeopleDuplicatesService;
-use Kanvas\Guild\Duplicates\Actions\UpsertDuplicateReviewGroupAction;
-use Kanvas\Guild\Duplicates\Enums\DuplicateReviewStatusEnum;
+use Kanvas\Guild\Customers\Services\PeopleDuplicateQueueService;
 use Kanvas\Guild\Duplicates\Models\DuplicateReviewGroup;
 
 class PeopleMergeMutation
@@ -23,22 +21,17 @@ class PeopleMergeMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $groups = DuplicateReviewGroup::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('entity_type', People::class)
-            ->where('status', DuplicateReviewStatusEnum::PENDING->value)
-            ->where('is_deleted', false)
-            ->orderByDesc('id')
-            ->limit((int) ($request['max_groups'] ?? 100))
-            ->get();
+        $groups = new PeopleDuplicateQueueService($app, $company)->pending((int) ($request['max_groups'] ?? 100));
 
-        return $groups->map(fn (DuplicateReviewGroup $group): array => [
-            'canonical_id' => $group->canonical_id,
-            'member_ids' => $group->member_ids,
-            'reason' => $group->reason,
-            'sample_name' => $this->sampleNameFor($group->canonical_id),
-        ])->all();
+        return array_map(
+            fn (DuplicateReviewGroup $group): array => [
+                'canonical_id' => $group->canonical_id,
+                'member_ids' => $group->member_ids,
+                'reason' => $group->reason,
+                'sample_name' => $this->sampleNameFor($group->canonical_id),
+            ],
+            $groups,
+        );
     }
 
     /**
@@ -50,16 +43,7 @@ class PeopleMergeMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $groups = new FindPeopleDuplicatesService()->generate(
-            app: $app,
-            company: $company,
-            maxGroups: (int) ($request['max_groups'] ?? 100),
-        );
-
-        $upserter = new UpsertDuplicateReviewGroupAction(People::class, $app->getId(), $company->getId());
-        foreach ($groups as $group) {
-            $upserter->execute($group);
-        }
+        $groups = new PeopleDuplicateQueueService($app, $company)->detect((int) ($request['max_groups'] ?? 100));
 
         return array_map(
             fn ($group): array => [
