@@ -156,3 +156,31 @@ bases' entries are written back untouched. A failed render burns a number; gaps 
 filed. Claiming it would mean a real scan arriving within 3 minutes of a regeneration gets no report, no
 PDF and no engagement at all. `GenerateIdVerificationFromMessageActivity` defaults to it (its `send_email`
 param opts back in), because that path re-scores a scan that already notified once.
+
+## Which license files a lead shows — `id_verification_files`
+
+One run leaves `drivers_license_front` / `_back` **and** `drivers_license_combined` (the same two sides merged into
+one PDF) in the same folder, so the licence is there twice and a printed packet carries it twice. The company
+setting `id_verification_files` picks what the lead's files show:
+
+| value | shown | hidden |
+|---|---|---|
+| `both` (default; also when unset or unrecognised) | front, back, combined | — |
+| `images` | front, back | combined |
+| `pdf` | combined | front, back |
+
+- **Read-time only.** Every file stays stored and linked; `Guild\Leads\Enums\IdVerificationFilesModeEnum::filter()` leaves
+  them out of `LeadChannelFilesService::getChannelFiles()`, which is what the digital jacket and the packet merge read. So it
+  also fixes leads that already hold both. Code that reads `filesystem_entities` directly
+  (`AttachFileToChecklistItemActivity`) is unaffected.
+- **All groups.** Message folders, "Uploads Mainbuyer" and co-buyer uploads, because `AttachMessageFilesToLeadActivity` copies
+  message files onto the lead.
+- **Never hides the only copy.** A mode drops a document only when the one it prefers is in the same group, so a failed combined
+  PDF (or a missing side) cannot leave the folder without the licence.
+- **Known gap in `pdf`:** `VerifyPeopleIdAction` builds the combined PDF even when only one side is there, and the
+  deprecated `after-id-verification` job can add the other side ~30s later, when `DriverLicenseCombinedPdfService::attach()`
+  already returned early. `pdf` then hides that late side although the combined PDF does not contain it.
+- **`face_image` and the `id-verification` report are not part of it** and always show.
+- **Not covered:** repeats across runs (rule 218's second PDF on every lead edit, and the folder per scan that PR #11426
+  adds) and non-canonical names such as `AttachIdVerificationFilesToMessageActivity`'s
+  `<slug>-N` fallback. Set the key like `disable_id_verification_email`, as a company setting.
