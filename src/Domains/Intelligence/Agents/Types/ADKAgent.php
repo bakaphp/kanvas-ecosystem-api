@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Contracts\AgentTypeHandler;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\GoogleADKService;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -17,7 +18,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 
-class ADKAgent
+class ADKAgent implements AgentTypeHandler
 {
     protected ?Agent $agent = null;
     protected ?Apps $app = null;

@@ -23,7 +23,9 @@ use Kanvas\Workflow\KanvasActivity;
 use Override;
 
 /**
- * Runs on Lead::AFTER_RUNNING_RECEIVER. Opens the Salesforce sync gate for the lead's People —
+ * Runs on Lead::AFTER_RUNNING_RECEIVER, and on People::AGENT_UPDATED when an agent's tool edits a
+ * person (a person's own edit fires UPDATED and stays on the direct push). Opens the Salesforce sync
+ * gate for the People —
  * `approve_people_salesforce_create` / `approve_people_salesforce_update` — independent of the plain
  * content review (Guild\Customers\Activities\RequestPeopleContentApprovalActivity). Only THIS approval
  * gates the actual push (via PushApprovedPeopleActivity, once approved — the Rule listens on this type,
@@ -32,8 +34,9 @@ use Override;
  * UpsertsByExternalId::upsertByExternalId() also checks the record still exists there — this pre-check
  * is an accepted approximation, not worth a second API round trip just to label a string).
  *
- * If the webhook payload carries a `variant_id` (the property is already a Kanvas Product/Variant —
- * ImportSalesforcePropertiesCommand/PullPropertyAction imported it as one), a LeadVariantInterest row
+ * If the webhook payload carries a `variant_id` (the property is already a Kanvas Product Variant —
+ * ImportSalesforcePropertiesCommand imported its Project__c as the Product and this Location__c as
+ * one of that Product's Variants), a LeadVariantInterest row
  * is created/reused so the interest survives in Kanvas itself, not only as a Salesforce side effect.
  * Most leads carry no `variant_id` at all (a generic contact form) — that is the common case, not an
  * edge case, and simply skips this part.
@@ -52,34 +55,44 @@ class RequestPeopleApprovalActivity extends KanvasActivity implements WorkflowAc
     public $tries = 3;
 
     /**
-     * @param Lead $lead
+     * @param Lead|People $entity
      */
     #[Override]
-    public function execute(Model $lead, AppInterface $app, array $params): array
+    public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
 
         return $this->executeIntegration(
-            entity: $lead,
+            entity: $entity,
             app: $app,
             integration: IntegrationsEnum::SALESFORCE,
             additionalParams: $params,
-            integrationOperation: fn ($lead, $app, $integrationCompany, $additionalParams) => $this->requestApproval(
-                $lead,
+            integrationOperation: fn ($entity, $app, $integrationCompany, $additionalParams) => $this->requestApproval(
+                $entity,
                 $app,
-                $lead->company,
+                $entity->company,
                 $additionalParams,
             ),
-            company: $lead->company,
+            company: $entity->company,
         );
     }
 
     private function requestApproval(
-        Lead $lead,
+        Lead|People $entity,
         AppInterface $app,
         CompanyInterface $company,
         array $params,
     ): array {
+        if ($entity instanceof People) {
+            return $this->openOrSupersede(
+                $entity,
+                $this->salesforceSyncApprovalType($entity)->value,
+                ['people_id' => $entity->getId()],
+                $params,
+            );
+        }
+
+        $lead = $entity;
         $people = $lead->people;
 
         if ($people === null) {

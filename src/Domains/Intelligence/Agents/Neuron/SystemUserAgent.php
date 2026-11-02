@@ -16,10 +16,17 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ChannelMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemTaskFilesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\OpenFollowUpTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleReminderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\SnoozeNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\FindTeammateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadEntityContextTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadMyLedgerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadUserActivityTool;
@@ -28,6 +35,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendSlackDirectMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\WhoIsUserTool;
 use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
+use Kanvas\Intelligence\Knowledge\Research\Services\CompanyProfileService;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
@@ -117,7 +125,9 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     #[Override]
     public function instructions(): string
     {
-        $instructions = $this->selfIdentityBlock() . parent::instructions();
+        $instructions = $this->selfIdentityBlock()
+            . CompanyProfileService::promptBlock($this->company)
+            . parent::instructions();
 
         $human = $this->conversationHumanBlock();
         if ($human !== '') {
@@ -222,13 +232,6 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
         return implode("\n", $lines);
     }
 
-    private function displayNameFor(Users $user): string
-    {
-        $fullName = trim($user->firstname . ' ' . $user->lastname);
-
-        return $fullName !== '' ? $fullName : $user->getAppDisplayName();
-    }
-
     private function hrLine(Users $user): ?string
     {
         $app = $this->app;
@@ -263,12 +266,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             $core[] = new ReadUserActivityTool($app, $company, $subject);
         }
 
-        $core[] = new SendEmailToUserTool($agent);
-        $core = [...$core, ...$this->scheduleTools($agent)];
-
-        if ((string) ($agent->get(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value) ?? '') !== '') {
-            $core[] = new SendSlackDirectMessageTool($agent);
-        }
+        $core = [...$core, ...$this->followThroughTools($agent)];
 
         return $this->mergeRegisteredTools(
             $core,
@@ -333,19 +331,67 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     }
 
     /**
+     * How an internal agent waits on a person: it asks them (email, Slack when connected), parks the
+     * task, and is woken. Every system-user agent gets these, including the ones that build their own
+     * tool list — an agent without them can only answer "I'll follow up" and never does.
+     *
+     * @return list<object>
+     */
+    protected function followThroughTools(Agent $agent): array
+    {
+        $human = $this->requestingHuman() ?? $agent->user;
+
+        $tools = [
+            new FindTeammateTool()->withContext(
+                $this->app,
+                $this->company,
+                $human,
+                $agent,
+            ),
+            new SendEmailToUserTool($agent, $this->session)->withContext(
+                $this->app,
+                $this->company,
+                $human,
+                $agent,
+            ),
+            new OpenFollowUpTool($this->session)->withContext(
+                $this->app,
+                $this->company,
+                $human,
+                $agent,
+            ),
+            new GetNervousSystemTaskTool()->withContext($this->app, $this->company, $human),
+            new UpdateNervousSystemTaskStatusTool()->withContext($this->app, $this->company, $human),
+            new AttachFileToNervousSystemTaskTool()->withContext($this->app, $this->company, $human),
+            new ListNervousSystemTaskFilesTool()->withContext($this->app, $this->company, $human),
+            ...$this->scheduleTools($agent, $human),
+        ];
+
+        if ((string) ($agent->get(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value) ?? '') !== '') {
+            $tools[] = new SendSlackDirectMessageTool($agent, $this->session)->withContext(
+                $this->app,
+                $this->company,
+                $human,
+                $agent,
+            );
+        }
+
+        return $tools;
+    }
+
+    /**
      * The schedule tools key on the human, not the agent: "remind me" must land on the person who
      * asked. On an @mention surface $this->user IS the agent's own user, so the conversation human
      * (set by the caller) wins over it.
      *
      * @return list<object>
      */
-    protected function scheduleTools(Agent $agent): array
+    protected function scheduleTools(Agent $agent, Users $human): array
     {
-        $human = $this->requestingHuman() ?? $agent->user;
-
         return [
             new ScheduleReminderTool($agent, $this->session)->withContext($this->app, $this->company, $human),
             new ScheduleAgentTaskTool($agent, $this->session)->withContext($this->app, $this->company, $human),
+            new SnoozeNervousSystemTaskTool($agent, $this->session)->withContext($this->app, $this->company, $human),
             new ListScheduledActionsTool($this->session)->withContext($this->app, $this->company, $human),
             new CancelScheduledActionTool($this->session)->withContext($this->app, $this->company, $human),
         ];

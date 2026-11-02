@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Slack\Webhooks;
 
 use Kanvas\Connectors\Slack\Actions\CreateMessageFromSlackListenerEventAction;
-use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Slack\Enums\EventTypeEnum;
 use Kanvas\Connectors\Slack\Jobs\JoinChannelJob;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -21,16 +20,6 @@ use Override;
 )]
 class ProcessSlackListenerWebhookJob extends SlackWebhookJob
 {
-    private const array IGNORED_SUBTYPES = [
-        'channel_join',
-        'channel_leave',
-        'channel_topic',
-        'channel_purpose',
-        'channel_name',
-        'channel_archive',
-        'channel_unarchive',
-    ];
-
     /**
      * The only receiver whose volume isn't bounded by customer action — it fires on internal chatter
      * across every channel. On the shared default queue it would sit in front of agent replies.
@@ -79,7 +68,7 @@ class ProcessSlackListenerWebhookJob extends SlackWebhookJob
 
         $subtype = (string) ($event['subtype'] ?? '');
 
-        if (in_array($subtype, self::IGNORED_SUBTYPES, true)) {
+        if (EventTypeEnum::isNoise($subtype)) {
             return ['message' => 'Non-conversational subtype ignored'];
         }
 
@@ -99,37 +88,5 @@ class ProcessSlackListenerWebhookJob extends SlackWebhookJob
             'message' => $message === null ? 'Empty message skipped' : 'Ingested',
             'entity' => $message?->getId(),
         ];
-    }
-
-    /**
-     * Edits and deletions nest their real content under `message` / `previous_message`, with the
-     * channel only on the wrapper.
-     *
-     * They become NEW rows rather than mutating the original: finding the original means a JSON
-     * lookup on `messages.message->message_id`, which has no index and would table-scan on every
-     * edit in a busy workspace. Append-only also keeps the real history.
-     *
-     * @return array{0: array, 1: list<string>}
-     */
-    private function normalize(array $event, string $subtype): array
-    {
-        return match ($subtype) {
-            EventTypeEnum::MESSAGE_CHANGED->value => [
-                [...(array) ($event['message'] ?? []), 'channel' => $event['channel'] ?? ''],
-                ['slack-edit'],
-            ],
-            EventTypeEnum::MESSAGE_DELETED->value => [
-                [...(array) ($event['previous_message'] ?? []), 'channel' => $event['channel'] ?? ''],
-                ['slack-delete'],
-            ],
-            default => [$event, []],
-        };
-    }
-
-    private function isDenied(string $slackChannelId): bool
-    {
-        $denyList = $this->receiver->configuration[ConfigurationEnum::CHANNEL_DENY_LIST->value] ?? [];
-
-        return is_array($denyList) && in_array($slackChannelId, $denyList, true);
     }
 }

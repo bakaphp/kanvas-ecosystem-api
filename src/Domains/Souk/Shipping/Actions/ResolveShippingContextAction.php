@@ -8,6 +8,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Regions\Services\RegionResolutionService;
 use Kanvas\Souk\Services\B2BConfigurationService;
@@ -45,7 +46,7 @@ class ResolveShippingContextAction
     private function resolveCompany(): ?CompanyInterface
     {
         if ($this->user !== null) {
-            return B2BConfigurationService::getConfiguredB2BCompany($this->app, $this->user->getCurrentCompany());
+            return B2BConfigurationService::getConfiguredB2BCompany($this->app, LocationContext::shoppingCompany($this->user));
         }
 
         return $this->branch?->company;

@@ -6,6 +6,7 @@ namespace App\GraphQL\Concerns;
 
 use Baka\Support\DateHelper;
 use DateTimeInterface;
+use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 
 /**
@@ -23,6 +24,16 @@ trait ResolvesActingContext
             app(Apps::class),
             $user->getCurrentCompany()
         );
+    }
+
+    /**
+     * KanvasAppKeyMiddleware installs the key's owner as auth()->user() only when the request carries
+     * no bearer token, so this is the same condition it used: true means the "logged-in" user is the
+     * key's system user, not a person.
+     */
+    protected function actingThroughAppKeyOnly(): bool
+    {
+        return app()->bound(AppKey::class) && empty(request()->bearerToken());
     }
 
     /**

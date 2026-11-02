@@ -90,6 +90,9 @@ class ProcessTwilioWebhookJobTest extends TestCase
         $message = Message::query()->where('id', $result[0]['message_id'])->first();
         $this->assertSame('contact', $message->sender_type);
         $this->assertNotNull($message->people_id);
+        $lead = $message->entity(Lead::class);
+        $this->assertInstanceOf(Lead::class, $lead);
+        $this->assertTrue($lead->tags()->where('name', 'engaged')->exists());
     }
 
     public function testProcessStopMarksPhoneContactsAsOptedOut(): void
@@ -117,6 +120,7 @@ class ProcessTwilioWebhookJobTest extends TestCase
         );
         $this->assertSame('STOP', $result[0]['consent_type']);
         $this->assertTrue($result[0]['automated_response_suppressed']);
+        $this->assertFalse($lead->tags()->where('name', 'engaged')->exists());
         Queue::assertNotPushed(FlushMessageBurstJob::class);
     }
 

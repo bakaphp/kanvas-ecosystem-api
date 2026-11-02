@@ -14,6 +14,12 @@ return [
             'google_play_credentials_json' => env('GOOGLE_PLAY_CREDENTIALS'),
         ],
     ],
+    'app_key' => [
+        // Default for apps without the `app_key_enforce_user_match` setting. When off, a request carrying
+        // an app key plus another user's token is allowed through. Temporary: public apps forward
+        // the end-user token on their admin client. Flip per app as they stop, then flip the default.
+        'enforce_user_match' => env('APP_KEY_ENFORCE_USER_MATCH', false),
+    ],
     'jwt' => [
         'secretKey' => env('APP_JWT_TOKEN'),
         'payload' => [
@@ -41,6 +47,11 @@ return [
         'alert_emails' => env('SIGNUP_ANOMALY_ALERT_EMAILS'),
         'sentry_enabled' => env('SIGNUP_ABUSE_SENTRY_ENABLED', true),
     ],
+    // Who hears that an agent was asked for something the platform cannot do yet. Platform-wide,
+    // because the roadmap is ours; the `capability_gap_alert_emails` app setting replaces it per app.
+    'capability_gap' => [
+        'alert_emails' => env('CAPABILITY_GAP_ALERT_EMAILS'),
+    ],
     // External voice runtime (Pipecat / Cloud Run). A single deployment serves
     // every app, so these are the global default; a per-app setting
     // (kanvas-intelligence-voice-runtime-*) still overrides when present.
@@ -58,5 +69,9 @@ return [
         // Cost ceiling on replayed chat history, applied after the model-ceiling sizing. The history is
         // re-sent on every tool-loop step, so a wide window multiplies input spend per turn.
         'max_history_tokens' => (int) env('AGENT_MAX_HISTORY_TOKENS', 50_000),
+        // A new app with no Gemini key of its own runs on the platform GEMINI_API_KEY for this many
+        // days after creation, on this model. 0 turns the trial off.
+        'trial_llm_days' => (int) env('AGENT_TRIAL_LLM_DAYS', 14),
+        'trial_llm_model' => env('AGENT_TRIAL_LLM_MODEL', 'gemini-3.8-flash'),
     ],
 ];

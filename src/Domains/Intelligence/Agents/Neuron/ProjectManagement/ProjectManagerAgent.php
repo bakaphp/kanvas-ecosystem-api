@@ -18,7 +18,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ApproveNervousSystemPl
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemPlanTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CommentOnNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemProjectTool;
@@ -26,21 +25,22 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPla
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSystemMemberTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GrantAgentToolsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAssignedWorkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlanFilesTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemTaskFilesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlansTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadChannelWindowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadThreadTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Social\SearchChannelMessagesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Supadata\GetTranscriptionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\BuildAdminLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateEmailRouteTool;
@@ -88,10 +88,9 @@ class ProjectManagerAgent extends SystemUserAgent
             Each turn you are given a Context
             bundle (JSON): the project (id, objective, status, completion_pct), its members (each with
             role, a `users_id`, a mentionable `handle`, and — for agents only — an `agent_id`), its
-            open plans (each with plan_id and its tasks — each with task_id, status, agent_id), and the
-            recent
-            messages/events. Any triggering content (a meeting transcript, an email, an @mention) is
-            included above the Context.
+            open plans (each with plan_id, its owner as agent_id OR assigned_users_id, and its tasks —
+            each with task_id, status, agent_id), and the recent messages/events. Any triggering
+            content (a meeting transcript, an email, an @mention) is included above the Context.
 
             NEVER EXPLAIN AWAY SOMETHING YOU CANNOT SEE. The Context bundle is a summary — capped
             messages, recent plans, truncated results. It is NOT the record. When someone asks what a
@@ -100,6 +99,15 @@ class ProjectManagerAgent extends SystemUserAgent
             anything was not produced, was a duplicate, or cannot be found. Saying "I don't see it" is
             acceptable only after you have looked; inventing a reason for its absence is never
             acceptable, and a plausible-sounding explanation is worse than admitting you did not check.
+
+            THE SAME GOES FOR WHO OWNS WHAT. The bundle shows one project, and a task has no human
+            assignee of its own: a person owns work through the plan. When anyone asks what a member
+            is working on, whether they have anything assigned, or what is on their plate, call
+            list_assigned_work with that member's users_id or agent_id (it searches every project)
+            and answer from the rows. For the board the other way round — what is unassigned,
+            blocked, overdue or awaiting approval, in one project or all of them — call
+            list_nervous_system_plans with the matching filter. Never say someone has nothing
+            assigned, or that nothing is waiting, from the bundle alone.
 
             NOTIFYING A HUMAN: humans are NOT watching the channel — the only way to get a person's
             attention (an approval, a decision, missing info, a sign-off) is to @mention them using
@@ -417,6 +425,8 @@ class ProjectManagerAgent extends SystemUserAgent
         $core = $this->addToolContext([
             new ReadMessageContentTool(),
             new ListProjectsTool(),
+            new ListAssignedWorkTool(),
+            new ListNervousSystemPlansTool(),
             new UpdateNervousSystemProjectTool(),
             new DeleteNervousSystemProjectTool(),
             new CreateNervousSystemPlanTool($this->session),
@@ -427,16 +437,14 @@ class ProjectManagerAgent extends SystemUserAgent
             new FindAndAddNervousSystemMemberTool(),
             new AddNervousSystemTaskTool(),
             new AssignNervousSystemTaskTool(),
-            new UpdateNervousSystemTaskStatusTool(),
             new ReadNervousSystemPlanActivityTool(),
-            new GetNervousSystemTaskTool(),
             new CommentOnNervousSystemPlanTool(),
             new AttachFileToNervousSystemPlanTool(),
-            new AttachFileToNervousSystemTaskTool(),
             new ListNervousSystemPlanFilesTool(),
-            new ListNervousSystemTaskFilesTool(),
             new DeleteNervousSystemTaskTool(),
             new ReadChannelWindowTool(),
+            new SearchChannelMessagesTool(),
+            new ReadThreadTool(),
             new GetTranscriptionTool(),
             new ListActiveIntegrationsTool(),
             new BuildAdminLinkTool(),
@@ -450,7 +458,7 @@ class ProjectManagerAgent extends SystemUserAgent
         ]);
 
         $core[] = new CapabilityLookupTool($agent);
-        $core[] = new ReportCapabilityGapTool($agent);
+        $core[] = new ReportCapabilityGapTool($agent, $requestingHuman, $this->session);
 
         foreach ([
             new ListAgentsTool($agent),
@@ -467,7 +475,7 @@ class ProjectManagerAgent extends SystemUserAgent
                 ->forRequestingUser($requestingHuman);
         }
 
-        $core = [...$core, ...$this->scheduleTools($agent)];
+        $core = [...$core, ...$this->followThroughTools($agent)];
 
         // Opening a project is done FOR a human — the owner is who gets @mentioned when the board
         // can't move — so it keys on the human, not on the PM's own user.

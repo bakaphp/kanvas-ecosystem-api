@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Status\Models\Status;
@@ -49,7 +50,7 @@ use Override;
  * @property bool $is_deleted
  */
 #[ObservedBy([VariantsWarehouseObserver::class])]
-class VariantsWarehouses extends BaseModel
+class VariantsWarehouses extends BaseModel implements ReadableAtLocation
 {
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
@@ -69,7 +70,7 @@ class VariantsWarehouses extends BaseModel
             'max_capacity' => 'integer',
             'latitude' => 'decimal:6',
             'longitude' => 'decimal:6',
-            'config' => Json::class
+            'config' => Json::class,
         ];
     }
 

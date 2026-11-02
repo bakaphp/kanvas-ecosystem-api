@@ -119,15 +119,27 @@ final class LeadCrmUserResolutionTest extends TestCase
         $this->assertSame($lead->owner->getId(), DriveCentricLeadUserService::resolve($lead)->getId());
     }
 
-    public function testDriveCentricFallsBackToTheLeadUserOnAnUnassignedLead(): void
+    public function testDriveCentricResolvesToNullOnAnUnassignedLeadEvenWhenTheLeadUserIsMapped(): void
     {
         $lead = $this->makeLead();
         $lead->leads_owner_id = 0;
         $lead->saveQuietly();
         $lead->refresh();
+        $lead->user->set(DriveCentricConfigurationEnum::getUserKey($lead->company), '111');
 
         $this->assertNull($lead->owner, 'precondition: the lead is unassigned');
-        $this->assertSame($lead->user->getId(), DriveCentricLeadUserService::resolve($lead)->getId());
+        $this->assertNull(
+            DriveCentricLeadUserService::resolve($lead),
+            'the creating account must not become salesperson1; DriveCentric assigns unassigned leads itself'
+        );
+    }
+
+    public function testDriveCentricResolvesToNullWhenTheOwnerIsNotMapped(): void
+    {
+        $lead = $this->makeLead();
+        $lead->user->set(DriveCentricConfigurationEnum::getUserKey($lead->company), '111');
+
+        $this->assertNull(DriveCentricLeadUserService::resolve($lead));
     }
 
     private function mapEleadUser(Users $user, Lead $lead, bool $withJobPosition = true): void

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\OpenCode\Concerns\PreparesHostDirectory;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
+use Kanvas\Connectors\OpenCode\Services\CodingImageService;
 use Kanvas\Connectors\OpenCode\Services\CodingModelResolver;
 use Kanvas\Connectors\OpenCode\SshClient;
 use Kanvas\Exceptions\ValidationException;
@@ -78,10 +79,11 @@ class EnsureAgentCodingContainerAction
         $root = rtrim((string) ($this->app->get(ConfigurationEnum::WORKSPACE_ROOT->value) ?? '/srv/kanvas'), '/');
         $agentDir = $root . '/agents/' . $this->agent->getId();
         $worktreeRoot = $agentDir . '/worktrees';
+        $image = CodingImageService::configuredFor($this->app);
         $client = SshClient::fromMachine($this->machine);
 
         try {
-            if ($this->isRunningWithCurrentKey($client, $container)) {
+            if ($this->isRunningWithCurrentKeyAndImage($client, $container, $image)) {
                 return [
                     'container' => $container,
                     'endpoint' => $this->endpoint($container),
@@ -102,6 +104,7 @@ class EnsureAgentCodingContainerAction
             $result = $client->exec(
                 $this->runCommand(
                     $container,
+                    $image,
                     $worktreeRoot,
                     $password,
                     $port,
@@ -185,26 +188,29 @@ class EnsureAgentCodingContainerAction
     }
 
     /**
-     * Reuse the running container only if it holds the key the agent is configured with now.
+     * Reuse the running container only if it holds the key the agent is configured with now AND runs
+     * the image the app is configured with now.
      *
-     * The key is passed at `docker run`, so a container started with an older one keeps using it for as
-     * long as it lives — rotating a revoked key, or pointing an agent at a different key, would appear
-     * to do nothing. Comparing a fingerprint carried as a label makes the change take effect on the
-     * next task instead of whenever the container happens to be replaced.
+     * Both are fixed at `docker run`, so a container started earlier keeps them for as long as it lives
+     * — rotating a revoked key, or upgrading the image, would appear to do nothing. Comparing here makes
+     * either change take effect on the next task instead of whenever the container happens to die.
+     * `{{.Image}}` shows the bare id once the tag has been rebuilt under it, so a same-tag rebuild also
+     * rolls over.
      */
-    private function isRunningWithCurrentKey(SshClient $client, string $container): bool
+    private function isRunningWithCurrentKeyAndImage(SshClient $client, string $container, string $image): bool
     {
         $output = trim($client->exec(
             'docker ps --filter ' . escapeshellarg('name=^' . $container . '$')
-            . ' --format ' . escapeshellarg('{{.Names}}|{{.Label "kanvas.keyfp"}}'),
+            . ' --format ' . escapeshellarg('{{.Names}}|{{.Label "kanvas.keyfp"}}|{{.Image}}'),
             60
         ));
 
-        if (! str_starts_with($output, $container . '|')) {
-            return false;
-        }
+        $parts = array_map('trim', explode('|', $output, 3));
 
-        return trim(mb_substr($output, mb_strlen($container) + 1)) === $this->keyFingerprint();
+        return count($parts) === 3
+            && $parts[0] === $container
+            && $parts[1] === $this->keyFingerprint()
+            && $parts[2] === $image;
     }
 
     /**
@@ -227,6 +233,7 @@ class EnsureAgentCodingContainerAction
 
     private function runCommand(
         string $container,
+        string $image,
         string $worktreeRoot,
         string $password,
         ?int $port,
@@ -234,11 +241,6 @@ class EnsureAgentCodingContainerAction
     ): string {
         $apiKeyEnv = $this->resolver()->envVar();
         $apiKey = $this->resolveApiKey();
-        $image = Str::trimToNull((string) $this->app->get(ConfigurationEnum::IMAGE->value));
-
-        if ($image === null) {
-            throw new ValidationException('No opencode image configured (' . ConfigurationEnum::IMAGE->value . ')');
-        }
 
         $parts = [
             'docker run -d --restart unless-stopped',

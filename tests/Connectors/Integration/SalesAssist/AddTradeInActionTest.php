@@ -91,7 +91,7 @@ final class AddTradeInActionTest extends TestCase
 
         $lead->refresh();
 
-        $expected = ['vin' => '1G1ZD5ST0MF012345', 'odometer' => '42,000'];
+        $expected = ['vin' => '1G1ZD5ST0MF012345', 'mileage' => '42,000'];
         $this->assertSame($expected, $result['tradein_data']);
         $this->assertSame($expected, $lead->get(LeadCustomFieldEnum::TRADE_IN_DATA->value));
     }

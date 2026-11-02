@@ -14,6 +14,7 @@ class ResolveCorporateOrderCreatorAction
 {
     public const CREATOR_METADATA_KEY = 'created_by_user_id';
     public const COMPANY_METADATA_KEY = 'user_company_id';
+    public const COMPANY_METADATA_SQL = "COALESCE(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.data.user_company_id')), JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.user_company_id')))";
 
     public function __construct(
         protected Order $order
@@ -51,7 +52,7 @@ class ResolveCorporateOrderCreatorAction
         return $metadata['data'][$key] ?? $metadata[$key] ?? null;
     }
 
-    private function company(): ?Companies
+    public function company(): ?Companies
     {
         $companyId = (int) $this->metadataValue(self::COMPANY_METADATA_KEY);
 

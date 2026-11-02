@@ -120,6 +120,23 @@ skipped and needs no bypass code.
 - **Commands iterating apps must `overwriteAppService($app)` per iteration** — `RoleApproverResolver`
   reads Bouncer-scoped roles.
 
+## Notifying approvers — the policy's `notify`
+
+`NotifyApproversAction` mails the live step's approvers when a request opens or a step advances.
+`ApprovalNotifyModeEnum`: `all` (default), `first`, `none`, `digest`.
+
+`digest` exists for bulk sources — a 15-row people import opened 15 requests and sent 15 emails. Instead
+of mailing, it calls `SendApprovalDigestJob::schedule()`, which debounces per (app, company, approver)
+with a `Cache::add` key and a job delayed `WINDOW_MINUTES` (5). The job sends ONE
+`ApprovalDigestNotification` listing every still-pending, un-notified request of a digest policy at the
+approver's live step, or the regular `ApprovalRequestedNotification` when there is only one.
+
+- The key is released when the job **starts**, not when it ends, so a request opened while a digest is
+  being built opens the next window instead of being dropped.
+- Requests stay individual: digest groups the email, never the decision.
+- The digest notification is template-free (`setType('blank')` + `getEmailContent()`), so switching a
+  policy to digest needs no email template.
+
 ## Every decision goes to the ledger
 
 `ApprovalWorkflowService::fire()` is the single announcement point: it writes a NervousSystem ledger

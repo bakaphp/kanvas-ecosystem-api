@@ -105,8 +105,7 @@ final class RecordDeliveryStatusEventAction
             return true;
         }
 
-        $terminalStatuses = ['delivered', 'undelivered', 'failed', 'canceled'];
-        if (in_array(strtolower($currentStatus), $terminalStatuses, true)) {
+        if (RecordMessageAttemptAction::isTerminal($currentStatus)) {
             return strtolower($currentStatus) === strtolower($incomingStatus);
         }
 
@@ -133,7 +132,7 @@ final class RecordDeliveryStatusEventAction
             21603, 21660 => 'configuration_error',
             30034 => 'registration_hold',
             21211, 30019 => 'validation_failed',
-            30003, 30005 => 'temporary_failure',
+            30003, 30005 => 'destination_unreachable',
             30006 => 'sms_unavailable',
             default => null,
         };
@@ -142,10 +141,9 @@ final class RecordDeliveryStatusEventAction
     private static function remediationAction(?int $errorCode): ?string
     {
         return match ($errorCode) {
-            21610, 30006 => 'suppress_sms',
+            21610, 30003, 30005, 30006 => 'suppress_sms',
             30034 => 'hold_sender',
             21211, 21603, 21660, 30019 => 'no_retry',
-            30003, 30005 => 'delayed_retry',
             default => null,
         };
     }

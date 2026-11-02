@@ -13,6 +13,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\NervousSystem\Scheduling\Actions\CancelScheduledActionAction;
 use Kanvas\NervousSystem\Scheduling\Actions\CreateScheduledActionAction;
 use Kanvas\NervousSystem\Scheduling\DataTransferObject\ScheduledAction as ScheduledActionData;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionStatusEnum;
@@ -22,6 +23,8 @@ use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
 use Kanvas\NervousSystem\Scheduling\Notifications\ScheduledReminderNotification;
 use Kanvas\NervousSystem\Scheduling\Services\ScheduledActionSweepService;
 use Kanvas\Users\Models\Users;
+use ReflectionMethod;
+use RuntimeException;
 use Tests\Stubs\Intelligence\BusyThreadNeuronAgentStub;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
@@ -200,6 +203,36 @@ class ScheduledActionSweepAndFireTest extends TestCase
         $this->assertSame(1, (int) $action->occurrences_count);
     }
 
+    /** A model asked for "every 30 minutes, no limit" passes max_occurrences 0 as often as it omits it. */
+    public function testAZeroOccurrenceCapMeansNoCap(): void
+    {
+        Notification::fake();
+        [$app, $company] = $this->context();
+
+        $action = $this->makeDue($this->makeReminder(cron: '*/30 * * * *', maxOccurrences: 0), Carbon::now()->subMinute());
+        $this->assertNull($action->max_occurrences, 'A zero cap is stored as no cap.');
+
+        new RunScheduledAgentActionJob($app, $company, $action)->handle();
+
+        $action->refresh();
+        $this->assertSame(ScheduledActionStatusEnum::PENDING->value, $action->status);
+        $this->assertSame(1, (int) $action->occurrences_count);
+    }
+
+    /** Rows written before the fix carry a literal 0; the re-arm must keep them going too. */
+    public function testARowAlreadyStoredWithAZeroCapKeepsRecurring(): void
+    {
+        Notification::fake();
+        [$app, $company] = $this->context();
+
+        $action = $this->makeDue($this->makeReminder(cron: '*/30 * * * *'), Carbon::now()->subMinute());
+        ScheduledAction::query()->whereKey($action->getKey())->update(['max_occurrences' => 0]);
+
+        new RunScheduledAgentActionJob($app, $company, $action->refresh())->handle();
+
+        $this->assertSame(ScheduledActionStatusEnum::PENDING->value, $action->refresh()->status);
+    }
+
     public function testAgentTaskFireWakesAgentAndCompletes(): void
     {
         [$app, $company, $user] = $this->context();
@@ -311,5 +344,102 @@ class ScheduledActionSweepAndFireTest extends TestCase
         )->execute();
 
         return $this->makeDue($action);
+    }
+
+    /**
+     * The sweeper claims a row and queues the job; a cancel that lands in that gap used to be ignored
+     * — the reminder went out and the row flipped from `cancelled` back to `executed`.
+     */
+    public function testACancelAfterTheClaimStopsTheReminderAndStaysCancelled(): void
+    {
+        Notification::fake();
+        [$app, $company] = $this->context();
+        $action = $this->makeDue($this->makeReminder());
+
+        $claimed = new ScheduledActionSweepService()->claimDue()->firstWhere('id', $action->getId());
+        $this->assertNotNull($claimed);
+        $claim = $claimed->claimed_at?->toDateTimeString();
+        $this->assertNotNull($claim);
+
+        new CancelScheduledActionAction($claimed)->execute();
+
+        new RunScheduledAgentActionJob(
+            $app,
+            $company,
+            $claimed,
+            $claim,
+        )->handle();
+
+        Notification::assertNothingSent();
+        $action->refresh();
+        $this->assertSame(ScheduledActionStatusEnum::CANCELLED->value, $action->status);
+        $this->assertSame(0, (int) $action->occurrences_count);
+    }
+
+    /**
+     * The job's model is reloaded when it runs, so the claim it was dispatched with is the only thing
+     * that tells it apart from a newer job for the same row after a stale-claim reclaim.
+     */
+    public function testAJobWithASupersededClaimDoesNothing(): void
+    {
+        Notification::fake();
+        [$app, $company] = $this->context();
+        $action = $this->makeDue($this->makeReminder());
+
+        $claimed = new ScheduledActionSweepService()->claimDue()->firstWhere('id', $action->getId());
+        $staleClaim = $claimed->claimed_at?->toDateTimeString();
+
+        $claimed->claimed_at = Carbon::now()->addMinutes(20);
+        $claimed->saveOrFail();
+
+        new RunScheduledAgentActionJob(
+            $app,
+            $company,
+            $claimed,
+            $staleClaim,
+        )->handle();
+
+        Notification::assertNothingSent();
+        $this->assertSame(ScheduledActionStatusEnum::EXECUTING->value, $action->refresh()->status);
+    }
+
+    /** A cancel that lands while the turn is running must not be overwritten by the post-run write. */
+    public function testACancelDuringTheTurnIsNotOverwrittenByTheOutcome(): void
+    {
+        [$app, $company] = $this->context();
+        $action = $this->makeDue($this->makeReminder(cron: '0 9 * * *'));
+        $job = new RunScheduledAgentActionJob($app, $company, $action);
+
+        new CancelScheduledActionAction($action)->execute();
+
+        new ReflectionMethod($job, 'reArmOrComplete')->invoke($job);
+
+        $action->refresh();
+        $this->assertSame(ScheduledActionStatusEnum::CANCELLED->value, $action->status, 'a cancelled recurrence must not re-arm');
+        $this->assertSame(0, (int) $action->occurrences_count);
+    }
+
+    public function testACancelDuringTheTurnIsNotOverwrittenByAFailure(): void
+    {
+        [$app, $company] = $this->context();
+        $action = $this->makeDue($this->makeReminder());
+        $job = new RunScheduledAgentActionJob($app, $company, $action);
+
+        new CancelScheduledActionAction($action)->execute();
+
+        $job->failed(new RuntimeException('provider down'));
+
+        $action->refresh();
+        $this->assertSame(ScheduledActionStatusEnum::CANCELLED->value, $action->status);
+        $this->assertNull($action->last_error);
+        $this->assertDatabaseMissing(
+            'nervous_system_events',
+            [
+                'source_entity_type' => ScheduledAction::class,
+                'source_entity_id' => $action->getId(),
+                'event_type' => 'scheduled_action.failed',
+            ],
+            'intelligence',
+        );
     }
 }

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -260,7 +261,7 @@ final class FindLeadsAndDealsBulkToolTest extends TestCase
                     public function idsFor(
                         Model $model,
                         Apps $app,
-                        Companies $company,
+                        Companies|CompanyScope $company,
                         string $queryBy,
                         array $terms,
                         int $perTerm,

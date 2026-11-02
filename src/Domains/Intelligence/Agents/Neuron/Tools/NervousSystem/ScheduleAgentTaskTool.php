@@ -65,8 +65,9 @@ class ScheduleAgentTaskTool extends Tool
             new ToolProperty(
                 name: 'recurrence_cron',
                 type: PropertyType::STRING,
-                description: 'Optional standard 5-field cron for a repeating task, e.g. "0 8 * * 1-5". At most '
-                    . 'every 15 minutes. Evaluated in the user\'s timezone.',
+                description: 'Optional standard 5-field cron for a repeating task: "0 8 * * 1-5" is weekdays at '
+                    . '08:00, "*/30 * * * *" is every 30 minutes, "0 * * * *" is hourly. At most every 15 '
+                    . 'minutes. Evaluated in the user\'s timezone.',
                 required: false,
             ),
             new ToolProperty(
@@ -78,7 +79,8 @@ class ScheduleAgentTaskTool extends Tool
             new ToolProperty(
                 name: 'max_occurrences',
                 type: PropertyType::INTEGER,
-                description: 'Optional cap on how many times a recurring task runs.',
+                description: 'Optional cap on how many times a recurring task runs. Omit it for a task that keeps '
+                    . 'running; do not pass 0.',
                 required: false,
             ),
         ];

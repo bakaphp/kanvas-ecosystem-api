@@ -50,9 +50,11 @@ final class SystemUserAgentSlackDmToolTest extends TestCase
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
 
+        // The handler class on the type is what `conversesWithUser()` reads: the follow-through tools
+        // are system-only and withheld from an agent whose type does not say what it is.
         $type = AgentType::factory()
             ->withAppId($app->getId())
-            ->create(['provider' => 'neuron']);
+            ->create(['provider' => 'neuron', 'handler' => SystemUserAgent::class]);
 
         return Agent::factory()
             ->withAppId($app->getId())

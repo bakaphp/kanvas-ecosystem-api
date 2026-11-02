@@ -7,6 +7,7 @@ namespace Kanvas\NervousSystem\Ledger\DataTransferObject;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Spatie\LaravelData\Data;
 
@@ -22,7 +23,7 @@ class EventAnalyticsQuery extends Data
      */
     public function __construct(
         public readonly AppInterface $app,
-        public readonly ?CompanyInterface $company = null,
+        public readonly CompanyInterface|CompanyScope|null $company = null,
         public readonly array $eventTypes = [],
         public readonly ?string $sourceDomain = null,
         public readonly ?string $sourceEntityType = null,

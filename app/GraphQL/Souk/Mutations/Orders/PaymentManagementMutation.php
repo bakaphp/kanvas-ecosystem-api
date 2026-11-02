@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Connectors\Stripe\Actions\PushUserToStripeCustomerAction;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Enums\AppEnums;
@@ -50,7 +51,7 @@ class PaymentManagementMutation
         $customer = new PushUserToStripeCustomerAction(
             $user,
             $app,
-            $user->getCurrentCompany()
+            LocationContext::shoppingCompany($user)
         )->execute();
 
         //$totalAmount = $amount * 100;
@@ -135,7 +136,7 @@ class PaymentManagementMutation
         $customer = new PushUserToStripeCustomerAction(
             $user,
             $app,
-            $user->getCurrentCompany()
+            LocationContext::shoppingCompany($user)
         )->execute();
 
         $amount = $order->getTotalAmount();

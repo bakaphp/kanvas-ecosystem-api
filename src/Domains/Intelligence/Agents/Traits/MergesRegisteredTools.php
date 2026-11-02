@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Traits;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Connectors\Mcp\Services\McpConnectionService;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
@@ -277,13 +278,15 @@ trait MergesRegisteredTools
 
     protected function defaultRegisteredToolResolver(Tool $tool): ?object
     {
-        if ($tool->handler === null || ! class_exists($tool->handler)) {
+        $handlerClass = $tool->handlerClass();
+
+        if ($handlerClass === null) {
             return null;
         }
 
-        $ctor = new ReflectionClass($tool->handler)->getConstructor();
+        $ctor = new ReflectionClass($handlerClass)->getConstructor();
         if ($ctor === null || $ctor->getNumberOfParameters() === 0) {
-            return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $tool->handler())));
+            return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $handlerClass())));
         }
 
         $candidates = $this->dependencyCandidates();
@@ -304,7 +307,7 @@ trait MergesRegisteredTools
             }
         }
 
-        return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $tool->handler(...$args))));
+        return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $handlerClass(...$args))));
     }
 
     /**
@@ -381,6 +384,7 @@ trait MergesRegisteredTools
             $company = $this->firstCandidateOfType($candidates, Companies::class);
             $user = $this->firstCandidateOfType($candidates, Users::class);
             $actingAgent = $this->firstCandidateOfType($candidates, Agent::class);
+            $scope = $this->firstCandidateOfType($candidates, CompanyScope::class);
 
             if ($app instanceof Apps && $company instanceof Companies && $user instanceof Users) {
                 $tool->withContext(
@@ -388,6 +392,7 @@ trait MergesRegisteredTools
                     $company,
                     $user,
                     $actingAgent instanceof Agent ? $actingAgent : null,
+                    $scope instanceof CompanyScope ? $scope : null,
                 );
             }
         }

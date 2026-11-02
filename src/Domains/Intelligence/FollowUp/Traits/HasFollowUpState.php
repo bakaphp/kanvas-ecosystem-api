@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\FollowUp\Traits;
 
 use Baka\Support\DateHelper;
+use Baka\Support\Str;
+use DateTimeInterface;
 use Illuminate\Support\Carbon;
 
 /**
@@ -58,10 +60,20 @@ trait HasFollowUpState
 
     public function followUpSilenceMinutesSince(?Carbon $lastInboundAt): int
     {
-        $reference = $this->getFollowUpLastAt() ?? $lastInboundAt;
+        $reference = null;
+        foreach ([$this->getFollowUpStageEnteredAt(), $this->getFollowUpLastAt(), $lastInboundAt] as $candidate) {
+            if ($candidate !== null && ($reference === null || $candidate->greaterThan($reference))) {
+                $reference = $candidate;
+            }
+        }
 
-        // Carbon ^3 returns float; abs() so a future reference doesn't yield negative.
-        return $reference ? (int) abs(Carbon::now()->diffInMinutes($reference)) : PHP_INT_MAX;
+        $createdAt = $this->created_at;
+        $reference ??= $createdAt instanceof DateTimeInterface
+            ? Carbon::instance($createdAt)
+            : DateHelper::tryParseCarbon($createdAt);
+
+        // Missing or future timestamps must not make a follow-up immediately due.
+        return $reference !== null ? max(0, (int) $reference->diffInMinutes(Carbon::now())) : 0;
     }
 
     /**
@@ -114,6 +126,38 @@ trait HasFollowUpState
             'exhausted_at' => null,
             'exhausted_reason' => null,
         ]));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function getFollowUpLinks(): array
+    {
+        $links = $this->get('follow_up_links');
+
+        return is_array($links) ? $links : [];
+    }
+
+    /**
+     * Replaces the whole map on every touch, so a link the caller stopped sending cannot go out.
+     * Only https passes because a customer receives it as is; the key shape and the cap bound what
+     * a webhook can write on a lead.
+     */
+    public function setFollowUpLinks(mixed $links): void
+    {
+        $valid = [];
+        foreach (is_array($links) ? $links : [] as $name => $link) {
+            $link = is_string($link) ? Str::trimToNull($link) : null;
+            $isHttpsUrl = $link !== null
+                && str_starts_with($link, 'https://')
+                && filter_var($link, FILTER_VALIDATE_URL) !== false;
+
+            if ($isHttpsUrl && is_string($name) && preg_match('/^\w{1,50}$/', $name) === 1) {
+                $valid[$name] = $link;
+            }
+        }
+
+        $this->set('follow_up_links', array_slice($valid, 0, 20));
     }
 
     /**

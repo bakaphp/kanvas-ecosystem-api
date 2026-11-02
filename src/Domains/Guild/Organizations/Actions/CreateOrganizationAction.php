@@ -39,7 +39,7 @@ class CreateOrganizationAction
         ]);
 
         // firstOrCreate, so this is a find as often as it is a create. Only the create is news.
-        if ($organization->wasRecentlyCreated) {
+        if ($organization->wasRecentlyCreated && $this->organizationData->runWorkflow) {
             $organization->fireWorkflow(
                 WorkflowEnum::CREATED->value,
                 params: ['app' => $this->organizationData->app],

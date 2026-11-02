@@ -108,6 +108,17 @@ class DispatchTaskBandAction
 
         $lowest = $pending[0]->sequence;
 
+        // A task parked at a lower sequence is a prerequisite that has not finished; the band behind
+        // it stays put until the wait ends, the same as it would behind an in-progress task.
+        $waitingAhead = $this->plan->tasks()
+            ->waiting()
+            ->where('sequence', '<', $lowest)
+            ->exists();
+
+        if ($waitingAhead) {
+            return [];
+        }
+
         return array_values(array_filter(
             $pending,
             static fn (Task $task): bool => $task->sequence === $lowest,

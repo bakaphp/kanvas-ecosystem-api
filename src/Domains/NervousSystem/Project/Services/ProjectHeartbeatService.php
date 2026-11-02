@@ -175,7 +175,15 @@ class ProjectHeartbeatService
             return [];
         }
 
-        return $active->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        // A waiting task is idle only once its wake is overdue: before that it is waiting as planned,
+        // and nudging the PM about it would be the "still waiting" turn the wait exists to avoid.
+        $overdue = Task::query()
+            ->whereIn('plan_id', $planIds)
+            ->overdueWake()
+            ->orderBy('id')
+            ->pluck('id');
+
+        return $active->pluck('id')->merge($overdue)->map(fn (mixed $id): int => (int) $id)->unique()->sort()->values()->all();
     }
 
     /**

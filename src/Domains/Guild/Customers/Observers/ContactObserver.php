@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Observers;
 
+use Kanvas\Guild\Customers\Actions\CreatePeopleSocialChannelsAction;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -22,11 +23,16 @@ class ContactObserver
     public function created(Contact $contact): void
     {
         $this->runWorkflow($contact);
+        $this->createSocialChannels($contact);
     }
 
     public function updated(Contact $contact): void
     {
         $this->runWorkflow($contact);
+
+        if ($contact->wasChanged(['value', 'contacts_types_id'])) {
+            $this->createSocialChannels($contact);
+        }
     }
 
     private function cleanPhoneNumber(Contact $contact): void
@@ -53,5 +59,17 @@ class ContactObserver
                'app' => $contact->people->app,
             ]
         );
+    }
+
+    /**
+     * A contact added after the lead was pulled has no channel to talk on until the next pull.
+     */
+    private function createSocialChannels(Contact $contact): void
+    {
+        if ($contact->people === null) {
+            return;
+        }
+
+        new CreatePeopleSocialChannelsAction($contact->people)->execute();
     }
 }

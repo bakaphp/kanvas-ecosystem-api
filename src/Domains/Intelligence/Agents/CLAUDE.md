@@ -72,7 +72,11 @@ What the customer marker actually gates today (add to this list, don't invent a 
 - **`read_my_ledger`** — company-wide cross-entity recall; never on a customer surface.
 - **`ReadFileTool`** and the plan/task file tools — `read_file` reaches any file the company owns, so
   a prospect who talks the agent into a `filesystem_id` reads another prospect's quote. These are
-  **granted per agent from the catalog**, never baseline: only `ProjectManagerAgent` holds them
+  **granted per agent from the catalog**, never universal baseline. The task-level pair
+  (`attach_file_to_task`, `list_task_files`) rides on every `SystemUserAgent` through
+  `followThroughTools()` so a teammate's reply can be filed on the task it answers; they and the other
+  follow-through tools implement `RequiresSystemAgent`, so a customer-facing agent is refused them at
+  grant and at runtime. The plan-level pair stays PM-only; `ProjectManagerAgent` holds it
   intrinsically. Do not add them to `universalTools()` — a baseline addition silently rewrites the
   toolset of every curated handler (it turned a deliberately single-tool agent into a three-tool one
   in `NeuronDynamicSubAgentTest`) and reaches customer-facing agents before any marker can stop it.
@@ -497,18 +501,37 @@ A tool constructed outside that path (a test, a one-off script) must call `withC
   tool-layer mirror of `@guardByAdmin`) — not on the agent's own user.
 - Honor the audience/memory-scope rule from the top of this file: a customer-facing tool must be
   entity-scoped, never company-wide `read_my_ledger`.
+- **A READ tool scopes with `fromCompany($this->auditedReadScope())`, a WRITE tool with `$this->company`.**
+  An agent may be granted other companies to read (`agent-read-access-companies`, set through
+  `setAgentSetting`); the scope reaching the tool is that grant ∩ the requesting human's membership,
+  and it collapses to the agent's own company on a customer surface or when no human is at the keyboard. `CompanyScope`
+  is always a scope, even with one id, and `scopeFromCompany()` checks it **before** the AppKey
+  branch, so a bound app key can never widen it. Every cross-company row carries `tenant_company_id`
+  + `tenant_company` (`tenantLabel()`), never `company`, which already means the employer in Apollo
+  rows; an explicit `get([...])` projection must include `companies_id` for that. Combined aggregates
+  carry `tenantScopeSummary()`; an entity ranking prepends `tenantGroupBy()` to its group-by. The scope is
+  the **fifth** `withContext()` argument (the fourth is the agent) and arrives through both
+  `fillKanvasContext()` and `addToolContext()`; hand-wired tools stay own-company-only. One
+  `agent.cross_company_read` ledger event per turn and reach, however many tools read. A read tool also declares
+  `...$this->tenantCompanyProperty()` and opens `__invoke` with `narrowReadScope($tenant_company_id)`,
+  so the model can ask for one company; a by-id READ resolves with `resolve*InReadScopeOrError()`,
+  a write keeps `resolve*OrError()`. Plan and decisions: `docs/agents/agent-cross-company-read-scope.md`;
+  coverage `CrossCompanyReadScopeTest`, `CrossCompanyNarrowingAndLeadsTest`.
 
-### A lead's open state is its named status, never `Lead::isOpen()`
+### A lead's open state is its named status
 
-`Lead::isOpen()` reads the integer `status` column, which nothing in the app writes, so it is `true`
-for every lead; marking a lead Lost writes `leads_status_id` only. A tool that reported `is_open` from
-it told an agent a lost deal was an active negotiation. In a tool, report `status` as
-`$lead->statusName()` and `is_open` as `$lead->hasOpenLeadStatus()`, and filter with the
-`hasOpenLeadStatus()` / `hasClosedLeadStatus()` scopes, which honour the company's
-`guild_open_leads_status_ids`. `search_leads`, `find_leads_bulk`, `LeadBaseFilter`, `list_stale_leads`
-and `get_person` are the references; the follow-up and outreach gates still use `isOpen()` and are a
-known, separate decision. Deals carry the same pair (`status_id` named, integer `status` mirrored from
-the API): use `Deal::statusName()`, `hasOpenStatus()` and the `havingDealState()` scope the same way.
+A lead is open when its status row has `is_open` (plus, for now, the company's legacy
+`guild_open_leads_status_ids`); the integer `status` column is written by nothing and sits at its
+default on every row. `Lead::isOpen()` and the `isOpen` scope delegate to `hasOpenLeadStatus()` /
+`scopeHasOpenLeadStatus()`. Never gate on the `status` column: a `status < 2` gate passes every lead,
+which is how the reach-out lane texted a closed lead (lead 521104, app 2, 2026-10-27). A status row
+created without an explicit `is_open` is flagged open when its name is one of
+`LeadStatus::OPEN_STATUS_NAMES` or it is the company default, so a connector-seeded "Active" is open
+without a manual step. In a tool, report `status` as `$lead->statusName()` and `is_open` as
+`$lead->hasOpenLeadStatus()`, and filter with the `hasOpenLeadStatus()` / `hasClosedLeadStatus()`
+scopes. `search_leads`, `find_leads_bulk`, `LeadBaseFilter`, `list_stale_leads` and `get_person` are the
+references. Deals carry the same pair (`status_id` named, integer `status` mirrored from the API): use
+`Deal::statusName()`, `hasOpenStatus()` and the `havingDealState()` scope the same way.
 
 ### Destination safety — the recipient is never a free LLM param
 
@@ -533,6 +556,13 @@ that picks the destination can be prompt-injected into mailing a quote to `attac
     `addLeadParticipant` mutation write, so the allowlist asserts the tenant itself rather than inheriting
     it. No tenant context → no CC at all. This is the reference pattern for "let the agent widen delivery
     without opening an exfiltration hole" — copy it, don't invent a looser one.
+  - Admin-curated domain allowlist — the `cc` of `send_lead_email` and `send_person_email` (both through
+    `Neuron/Tools/Concerns/SendsEmailToPeople`) also accepts an address on a domain listed
+    in the app setting `guild_agent_email_cc_allowed_domains` (`ConfigurationEnum::AGENT_EMAIL_CC_ALLOWED_DOMAINS`;
+    array, JSON array or comma string). Exact domain match only (`EmailDomain::isInDomains`), so a
+    subdomain must be listed itself. Listing a public domain is the admin's call; the tool does not
+    second-guess it. A stop request still wins: an allowlisted address belonging to a CRM person with
+    `do_not_contact`, or a contact that opted out or hard-bounced, is rejected.
 
 If you need a genuinely new "send to X" capability, the recipient must be entity-derived or closed-set-verified.
 There is no approved path for a free-text external recipient.
@@ -542,11 +572,18 @@ There is no approved path for a free-text external recipient.
 | Tool | Recipient | History it leaves |
 |---|---|---|
 | `send_lead_email` | **Leads only** — the lead's on-file address (`lead_id` required) | message on the lead's email channel (lead + person entities) + lead note |
+| `send_person_email` | A People with no lead, by `person_id`, at its on-file address. Internal agents only (`RequiresSystemAgent`): it reaches any person in the company. CC from the person's and their organizations' contacts or the domain allowlist | message on the person's email channel + person note |
 | `create_lead_campaign` / `add_people_to_campaign` | People by id, no lead needed, admin-only, via `ProcessLeadCampaignJob` | message on the person's (or lead's) email channel + note |
 | `send_batch_message` | Leads by id, admin-only, same job | message on the lead's channel + lead note |
 | `send_lead_sms` | **Leads only** — the lead's on-file phone | message on the lead's SMS channel + lead note |
 | `send_email_to_user` | A Kanvas user in the company (internal) | assistant turn in the recipient's own chat with the agent (Social channel **and** `agent_conversation_messages`) + `agent.email.sent_to_user` ledger event |
 | `gmail_reply_to_thread` | The bill/invoice approver, inside an existing Gmail thread | the Gmail thread itself |
+
+Every send leaves from the agent's own mailbox when it has one (`AgentMailboxService::addressFor()` →
+`SendAsAgentMailboxAction`, Reply-To included) and only otherwise from the company SMTP sender
+(`SmtpRuntimeConfiguration::getFromEmail()`). That sender is one identity for the whole company — a
+company whose `from_email_name` is its outreach agent put Sofia's teammate email in the inbox as "Sally
+Castro" (2026-10-28) — so a new send path takes the mailbox branch first, never the SMTP sender alone.
 
 Every send writes its history through `PersistOutboundMessageAction` (Lead or People) or, for a teammate,
 into their chat with the agent — an email that leaves no record is invisible to the activity timeline and to
@@ -561,6 +598,21 @@ The lead send tools were `send_email` / `send_sms` until 2026-10-09 (`gmail_repl
 `reply_to_email`); `2026_10_09_000001_rename_lead_send_and_gmail_reply_tools` rewrote the catalog labels and
 the old ids in agent prose. Tool names are also matched literally by `WorkerToolPolicy` (and by prefix in
 `ApprovalPolicy`) — renaming a send tool without updating them lets an unsupervised worker send.
+
+### A tool that edits a record announces it (`AnnouncesAgentEdits`)
+
+Who made an edit cannot be read back afterwards: an agent's user is shared across agents and is often a
+person's own login, and the record keeps no "edited by". So a tool that writes a record calls
+`announceAgentEdit($model)` from [`Intelligence/Tools/Traits/AnnouncesAgentEdits`](../Tools/Traits/AnnouncesAgentEdits.php) (shared namespace, like `ReportsToolOutcome`, so Neuron and Laravel tools both use it)
+after the write succeeds. It fires `WorkflowEnum::AGENT_UPDATED` on that model, never `UPDATED`, so a
+tenant can hang a rule on "edited by an agent" without touching the rules a person's mutation already
+triggers. Works for any model with `CanUseWorkflow`; on one without it is a no-op.
+
+- Announce only when something changed — a call that sets nothing must not trigger the rule.
+- Today's adopters: the four People editing tools (`update_person`, `manage_person_contact`,
+  `set_person_address`, `set_person_custom_fields`), whose rule opens the Salesforce sync approval
+  (`SalesforceRequestPeopleApprovalActivity`). A new editing tool that skips the call is invisible to it.
+- A tenant enables a reaction by creating a rule on the model's system module with rule type `agent-updated`.
 
 ### Param typing
 
@@ -705,6 +757,12 @@ unused and broken until 6A1. `GuardsRepeatCallsTest` fails if a guarded tool for
 Opt in per tool. A status poll or job check is *supposed* to return something different on the second
 identical call — guarding those would hide real progress.
 
+The same guard fits a **write whose identical repeat is a duplicate**, with `rememberFailures: false`
+so a refused attempt stays retryable: `reply_to_coding_pull_request` (one comment per PR per turn) and
+`apply_ar_payment` / `apply_ap_payment` (`AbstractApplyPaymentTool`, KANVAS-ECOSYSTEM-6P5 — ten
+payments posted in one turn before the per-name budget killed it). Pair it with `TrackByInputs` when the
+tool is also driven once per row, and keep the two apart on a shared-destination write (see the PR tool).
+
 Reference/coverage: [`HumanResourcesAgentToolsTest::testBulkCreateToolsBudgetRunsPerInputsNotPerToolName`](../../../../tests/GraphQL/HumanResources/HumanResourcesAgentToolsTest.php),
 plus the per-domain equivalents in [`AccountsReceivableAgentToolsTest`](../../../../tests/Scribe/Intelligence/AccountsReceivableAgentToolsTest.php),
 [`AccountsPayableAgentToolsTest`](../../../../tests/Scribe/Intelligence/AccountsPayableAgentToolsTest.php),
@@ -728,6 +786,7 @@ Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
 
 ## Don't break
 
+- **Agent types are the platform catalog.** There is no GraphQL write for them; `kanvas:intelligence:sync-agent-types` or the database writes `agent_types`. A handler is built through `AgentType::handlerClass()`, which only returns a class implementing `AgentTypeHandler` — a new runtime implements it, a raw `new $type->handler()` is never added.
 - **`AgentChatKernel` is load-bearing for 4 call sites** — `userChat` (GraphQL), channel responders (×6), `WakeAgentForPlanJob`, `AgentReceiverJob`. Any change to its constructor or `execute()` contract ripples through all of them. Test both `userChat` and at least one channel responder end-to-end after touching it.
 - **The connector path threads by entity, not by session.** `AgentChatKernel::threadId()` returns the session entity's uuid whenever `sourceChannel` is set, and that is what keeps cross-channel rollup working — a prospect emails Monday, WhatsApps Tuesday, and both land on one thread. Neuron 4 needs a thread on every run, so a new caller cannot skip it: pass `sourceChannel` when there is one and let the kernel pick the id. Never hand a session uuid to a channel agent.
 - **Don't pass `app` / `company` to the kernel.** They were removed deliberately. The agent IS the tenant.
@@ -749,7 +808,7 @@ Frontend contract: `docs/intelligence/agent-chat-cancel-frontend.md`.
 - [`Actions/Chat/AgentChatKernel.php`](Actions/Chat/AgentChatKernel.php) — the kernel's own class docblock explains the routing logic in 7 lines
 - [`Actions/BaseAgentChannelReplyAction.php`](Actions/BaseAgentChannelReplyAction.php) — base class docblock explains the connector-side contract
 - [`Neuron/Tools/CRM/SendEmailTool.php`](Neuron/Tools/CRM/SendEmailTool.php) — reference for tool authoring: resolve-or-error, entity-derived recipient, and the allowlist-filtered `cc` (destination-safety) pattern. Traits it leans on live in [`Neuron/Tools/Traits/`](Neuron/Tools/Traits/).
-- Product recommendation tool (`Laravel/Tools/Inventory/ProductRecommendationLookupTool.php`) — a thin pass-through to `RecommendProductsAction`; the search backend is resolved per tenant behind it. Pass the shopper's sentence verbatim. Pipeline and configuration: [`src/Domains/Inventory/CLAUDE.md`](../../Inventory/CLAUDE.md).
+- Product recommendation tool (`Laravel/Tools/Inventory/ProductRecommendationLookupTool.php`, Neuron twin in `Neuron/Tools/Inventory/`) — both parse through `DiscoveryInputParser` into `RecommendProductsAction`; the search backend is resolved per tenant behind it. The agent passes the verbatim `request` AND what it understood (catalog-terms `search_query`, preferences, price, numeric limits) in ONE call; an invalid filter comes back as a correctable error. Usage, output shape and configuration: [`src/Domains/Inventory/Recommendations/CLAUDE.md`](../../Inventory/Recommendations/CLAUDE.md).
 - Existing end-to-end tests in [`tests/Connectors/Integration/{WaSender,Mailgun,RespondIO,Twilio}/AgentChannelResponderEndToEndTest.php`](../../../../tests/Connectors/Integration/) — copy-paste shape when adding a new connector
 
 ## Laravel agents: a tool result must never be empty, and a sub-agent needs steps to answer in

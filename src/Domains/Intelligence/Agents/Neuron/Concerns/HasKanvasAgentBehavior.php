@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
@@ -18,6 +20,7 @@ use Kanvas\Intelligence\Agents\Neuron\Browser\BrowserSessionFactory;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\CancelsOnRequestMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasToolSearchMiddleware;
+use Kanvas\Intelligence\Agents\Neuron\Nodes\BoundedToolNode;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ConversationMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Stores\KanvasMessageStore;
@@ -27,10 +30,12 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\DynamicSubAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Fallback\UnknownToolStub;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
+use Kanvas\Intelligence\Agents\Support\AgentReadAccessCompanies;
 use Kanvas\Intelligence\Agents\Traits\HasTemporalContext;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Scheduling\Services\ScheduledActionTimezoneResolver;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\AgentResources;
@@ -64,6 +69,9 @@ trait HasKanvasAgentBehavior
      * cost about as much as the schemas they would hide.
      */
     private const int TOOL_SEARCH_MIN_POOL = 6;
+
+    /** Enough for every ask one person realistically owes an agent; more is a prompt, not a list. */
+    private const int WAITING_ON_PERSON_LIMIT = 8;
 
     /**
      * Catalog grants stay in the prompt up to this many: each is a few hundred tokens and an agent
@@ -121,6 +129,11 @@ trait HasKanvasAgentBehavior
     protected bool $privateUserTurn = false;
     protected bool $rendersArtifacts = false;
 
+    /**
+     * Built lazily at tool wiring: the mention job names the human after setConfiguration().
+     */
+    private ?CompanyScope $companyScope = null;
+
     public function setConfiguration(Agent $agent, ?Model $entity = null, ?Users $user = null): void
     {
         if ($user === null) {
@@ -137,6 +150,44 @@ trait HasKanvasAgentBehavior
         $this->app = $agent->app;
         $this->company = $agent->companyFor($user);
         $this->user = $user;
+        $this->companyScope = null;
+    }
+
+    protected function companyScope(): ?CompanyScope
+    {
+        if ($this->agent === null || $this->company === null) {
+            return null;
+        }
+
+        $human = $this->requestingHuman();
+
+        if ($human === null) {
+            return null;
+        }
+
+        return $this->companyScope ??= AgentReadAccessCompanies::scopeFor($this->agent, $this->company, $human);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function crossCompanyLines(): array
+    {
+        $scope = $this->companyScope();
+
+        if ($scope === null || ! $scope->isCrossCompany()) {
+            return [];
+        }
+
+        return [
+            sprintf(
+                'You can read records from these companies: %s. Every row you read carries tenant_company, '
+                . 'so say which company a result belongs to; the same person may appear once per company. '
+                . 'Anything you create or change goes to %s only.',
+                implode(', ', $scope->companyNames()),
+                $scope->ownCompany->name,
+            ),
+        ];
     }
 
     /**
@@ -159,6 +210,7 @@ trait HasKanvasAgentBehavior
     public function setConversationHuman(?Users $user): void
     {
         $this->conversationHuman = $user;
+        $this->companyScope = null;
     }
 
     /**
@@ -346,6 +398,7 @@ trait HasKanvasAgentBehavior
             $this->agent,
             $this->resolveLeadForTurn(),
             $this->entity,
+            $this->companyScope(),
         ]));
     }
 
@@ -409,7 +462,12 @@ trait HasKanvasAgentBehavior
     {
         /** @var list<ToolInterface> $configured */
         $configured = array_map(
-            fn (object $tool): object => $tool->withContext($this->app, $this->company, $this->actingUser()),
+            fn (object $tool): object => $tool->withContext(
+                $this->app,
+                $this->company,
+                $this->actingUser(),
+                scope: $this->companyScope(),
+            ),
             $tools,
         );
 
@@ -558,6 +616,24 @@ trait HasKanvasAgentBehavior
     }
 
     /**
+     * Swaps the node rather than rebuilding the list, so the rest of the graph stays Neuron's. Matched by
+     * exact class: ParallelToolNode and AwaitToolResultsNode write results too, and nothing here enables
+     * parallel calls or deferred tools. Turning either on needs the same bound on that node.
+     *
+     * @return array<int, NodeInterface>
+     */
+    #[Override]
+    protected function nodes(): array
+    {
+        return array_map(
+            fn (NodeInterface $node): NodeInterface => $node::class === ToolNode::class
+                ? new BoundedToolNode($this->toolMaxRuns, $this->toolErrorHandler ?? $this->resolveToolErrorHandler())
+                : $node,
+            parent::nodes(),
+        );
+    }
+
+    /**
      * A model that names a tool it was never given is a recoverable mistake, not a platform fault. The
      * provider answers the parse with an UnknownToolStub (RecoversUnknownToolCalls) so the response
      * loads, but ToolNode resolves the call against the agent's registry, where the stub is not, and
@@ -650,6 +726,8 @@ trait HasKanvasAgentBehavior
                 ...$this->temporalContextLines($this->resolveTenantTimezone()),
                 ...$this->memoryRecallLines(),
                 ...self::platformContext(),
+                ...$this->crossCompanyLines(),
+                ...$this->waitingOnPersonLines(),
             ],
             steps: explode("\n", $this->agent?->roleSection('steps', "\n") ?? ''),
             output: explode("\n", $this->agent?->roleSection('output', "\n") ?? ''),
@@ -667,7 +745,79 @@ trait HasKanvasAgentBehavior
     protected function platformContextBlock(): string
     {
         return "\n\nHOW WORK IS DONE HERE — this applies to you like every other agent:\n"
-            . implode("\n", array_map(fn (string $line): string => '- ' . $line, self::platformContext()));
+            . implode("\n", array_map(fn (string $line): string => '- ' . $line, self::platformContext()))
+            . $this->waitingOnPersonBlock();
+    }
+
+    /** The waiting-tasks lines as a prompt block, for the agents that write their own `instructions()`. */
+    protected function waitingOnPersonBlock(): string
+    {
+        $lines = $this->waitingOnPersonLines();
+
+        return $lines === [] ? '' : "\n\n" . implode("\n", $lines);
+    }
+
+    /**
+     * The agent's tasks parked on the person it is talking to, so their message is read as the answer
+     * it probably is. Without this a reply from Charlie arrived as a stranger's message and the agent
+     * told him to "reply to Scott instead".
+     *
+     * Only on a turn with a real human on the other side: on the @mention and channel surfaces
+     * `$this->user` is the agent's own user, and listing its own waits to itself is noise.
+     *
+     * @return list<string>
+     */
+    protected function waitingOnPersonLines(): array
+    {
+        $human = $this->requestingHuman();
+
+        if ($this->agent === null || $human === null || $human->getId() === (int) ($this->agent->user_id ?? 0)) {
+            return [];
+        }
+
+        $tasks = Task::query()
+            ->fromApp($this->agent->app)
+            ->fromCompany($this->agent->company)
+            ->waitingOnPerson($human, $this->session?->channel_id)
+            ->orderBy('wake_at')
+            ->limit(self::WAITING_ON_PERSON_LIMIT)
+            ->get();
+
+        if ($tasks->isEmpty()) {
+            return [];
+        }
+
+        $lines = [sprintf(
+            'OPEN TASKS WAITING ON THIS PERSON (%s). Their message is probably the answer to one of these:',
+            $this->displayNameFor($human),
+        )];
+
+        foreach ($tasks as $task) {
+            $lines[] = sprintf(
+                '  task #%d "%s" — asked for: %s%s',
+                $task->getId(),
+                Str::limit((string) $task->title, 100),
+                Str::limit((string) ($task->blocked_reason ?? $task->description ?? 'no reason recorded'), 200),
+                $task->wake_at !== null ? ' — follow-up booked ' . $task->wake_at->toDateString() : '',
+            );
+        }
+
+        $lines[] = 'Check the reply against what was actually asked — every question, the right period, the '
+            . 'right file — before closing anything. Record what was answered on the task (the result of '
+            . 'update_nervous_system_task_status: the link, the figure, the answer; attach_file_to_task for a '
+            . 'file they sent) and close it only when the '
+            . 'ask is fully met; closing cancels the follow-up. If part is missing, thank them, ask for exactly '
+            . 'the remainder, and snooze_task to when they say. A reply arriving is not, by itself, the answer. '
+            . 'If they ask about the task itself, report its status from here — do not open a second task.';
+
+        return $lines;
+    }
+
+    protected function displayNameFor(Users $user): string
+    {
+        $fullName = trim((string) $user->firstname . ' ' . (string) $user->lastname);
+
+        return $fullName !== '' ? $fullName : $user->getAppDisplayName();
     }
 
     /**

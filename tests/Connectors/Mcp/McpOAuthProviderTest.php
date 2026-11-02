@@ -186,6 +186,33 @@ final class McpOAuthProviderTest extends McpTestCase
         Http::assertNotSent(fn (ClientRequest $request): bool => str_ends_with($request->url(), '/register'));
     }
 
+    public function testAClientKeyRowWithoutAHandMadeClientRefusesToSelfRegister(): void
+    {
+        $this->fakeAuthorizationServer();
+        $clientKey = 'test_' . Str::lower(Str::random(12));
+        $integration = $this->makeIntegration([
+            'url' => self::MCP_URL,
+            'auth_methods' => ['oauth'],
+            'oauth' => ['client_key' => $clientKey],
+        ]);
+
+        try {
+            new McpOAuthProvider()->getAuthorizationUrl(
+                $this->receiverFor($this->makeAgent(), $this->makeMcpTool($integration)),
+                $this->mcpApp,
+                Request::create('/'),
+                'nonce-shared'
+            );
+            $this->fail('A shared client key must never be filled by self-registration.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString(ConfigurationEnum::OAUTH_CLIENT_ID_PREFIX->value . $clientKey, $e->getMessage());
+            $this->assertStringContainsString(ReceiverWebhook::sharedOAuthCallbackUrl(), $e->getMessage());
+        }
+
+        // The server advertises a registration endpoint; the refusal is ours, before any request leaves.
+        Http::assertNotSent(fn (ClientRequest $request): bool => str_ends_with($request->url(), '/register'));
+    }
+
     public function testPinningAnotherAuthorizationServerRegistersANewClientThere(): void
     {
         Http::fake([

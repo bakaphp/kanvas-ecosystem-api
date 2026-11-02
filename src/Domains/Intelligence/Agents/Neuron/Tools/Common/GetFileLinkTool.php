@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Common;
 
 use Baka\Support\Str;
-use Illuminate\Support\Arr;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\NormalizesIdListParam;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -30,6 +30,7 @@ use Override;
 class GetFileLinkTool extends Tool
 {
     use HasKanvasContext;
+    use NormalizesIdListParam;
 
     // A summary that links six documents may ask for them one at a time, and the default per-name
     // budget would abort the turn partway through the list.
@@ -65,10 +66,6 @@ class GetFileLinkTool extends Tool
     }
 
     /**
-     * The union type is not defensiveness: asked for one document, models pass the bare id rather
-     * than a one-element list, and a typed `array` parameter turns that into a TypeError the model
-     * never sees an explanation for.
-     *
      * @return array<string, mixed>
      */
     public function __invoke(array|int|string|null $filesystem_ids = null): array
@@ -170,23 +167,5 @@ class GetFileLinkTool extends Tool
         return $unavailable === []
             ? $note
             : $note . sprintf(' %d file(s) could not be linked — say so instead of guessing a URL.', count($unavailable));
-    }
-
-    /**
-     * @return list<int>
-     */
-    private function normalizeIds(array|int|string|null $ids): array
-    {
-        $normalized = [];
-
-        foreach (Arr::wrap($ids) as $id) {
-            $id = (int) $id;
-
-            if ($id > 0 && ! in_array($id, $normalized, true)) {
-                $normalized[] = $id;
-            }
-        }
-
-        return $normalized;
     }
 }

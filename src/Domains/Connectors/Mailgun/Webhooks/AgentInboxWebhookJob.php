@@ -18,6 +18,7 @@ use Kanvas\Connectors\Mailgun\Services\MailgunPayloadService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
@@ -107,6 +108,15 @@ class AgentInboxWebhookJob extends ProcessWebhookJob
         // This receiver replies inline, so consent has to be settled before the responder runs — an
         // agent mailbox that answers "unsubscribe" with a sales pitch is the worst version of this.
         $consentOutcome = MailgunConsentService::process($entity, $payload);
+
+        if ($consentOutcome?->isStop() !== true) {
+            $engagedLead = match (true) {
+                $entity instanceof Lead => $entity,
+                $entity instanceof People => LeadsRepository::getPeopleActiveLead($entity),
+                default => null,
+            };
+            $engagedLead?->addTag('engaged');
+        }
 
         $message = new CreateMessageFromAgentInboxAction(
             $this->webhookRequest,

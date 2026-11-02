@@ -15,7 +15,8 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Inventory\Attributes\Actions\AddAttributeValue;
 use Kanvas\Inventory\Attributes\Observers\AttributeObserver;
 use Kanvas\Inventory\Models\BaseModel;
@@ -39,7 +40,7 @@ use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
  * @property int $is_deleted
  */
 #[ObservedBy(AttributeObserver::class)]
-class Attributes extends BaseModel
+class Attributes extends BaseModel implements ReadableAtLocation
 {
     use UuidTrait;
     use SlugTrait;
@@ -225,8 +226,10 @@ class Attributes extends BaseModel
                     $query->where('companies_id', $user->getCurrentCompany()->getId());
                 } */
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }

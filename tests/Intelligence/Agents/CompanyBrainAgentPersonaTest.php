@@ -72,6 +72,12 @@ class CompanyBrainAgentPersonaTest extends TestCase
             'get_project_analytics',
             'read_my_ledger',
             'remember',
+            // The brain staffs the company: it sees who is on the team and what types exist, and hires
+            // or widens an agent on an admin's say-so, like the project manager does.
+            'list_agents',
+            'list_agent_types',
+            'hire_agent',
+            'grant_agent_tools',
         ] as $expected) {
             $this->assertContains($expected, $names, "Brain should expose {$expected}");
         }

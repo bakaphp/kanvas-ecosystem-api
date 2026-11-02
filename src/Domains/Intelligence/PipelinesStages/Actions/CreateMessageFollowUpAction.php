@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Baka\Support\Str;
 use Exception;
-use Illuminate\Support\Facades\Blade;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
@@ -292,7 +291,7 @@ class CreateMessageFollowUpAction
             'day' => $this->day,
         ];
 
-        return Blade::render($this->agent->roleSection('background'), $data) . $this->buildAntiRepeatDirective();
+        return $this->agent->renderRoleSection('background', $data) . $this->buildAntiRepeatDirective();
     }
 
     /**

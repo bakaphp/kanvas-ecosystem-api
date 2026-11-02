@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Support;
 
+use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Support\Carbon;
 use Throwable;
@@ -23,6 +24,13 @@ class DateHelper
         }
 
         return null;
+    }
+
+    public static function parseYmd(string $value): ?DateTimeImmutable
+    {
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        return $date !== false && $date->format('Y-m-d') === $value ? $date : null;
     }
 
     public static function normalizeDate(string $date, string $timezone = 'UTC', string $format = 'Y-m-d'): ?string

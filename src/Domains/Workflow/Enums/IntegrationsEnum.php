@@ -65,7 +65,9 @@ enum IntegrationsEnum: string
     case PIDEV = 'pidev';
     case WORDPRESS = 'wordpress';
     case UNIVERSAL_SEGUROS = 'universal_seguros';
+    case HUMANO = 'humano';
     case YUSEN = 'yusen';
     case DEALER_APP_CENTER = 'dealer_app_center';
     case BRUSHCRAZY = 'brushcrazy';
+    case META_WHATSAPP = 'meta_whatsapp';
 }

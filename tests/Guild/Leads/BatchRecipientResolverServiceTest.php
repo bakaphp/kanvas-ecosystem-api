@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Leads;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -15,6 +16,10 @@ use Tests\TestCase;
 
 class BatchRecipientResolverServiceTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem'];
+
     private function freshLead(Companies $company, ?int $peopleId = null): Lead
     {
         $factory = Lead::factory()

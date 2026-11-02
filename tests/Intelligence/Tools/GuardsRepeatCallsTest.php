@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Mockery;
 use NeuronAI\Tools\TrackByInputs;
 use ReflectionClass;
-use ReflectionProperty;
 use SplFileInfo;
 use Symfony\Component\Finder\Finder;
 use Tests\TestCase;
@@ -126,7 +125,7 @@ class GuardsRepeatCallsTest extends TestCase
             $tool = new $class();
 
             $this->assertTrue(
-                new ReflectionProperty($tool, 'repeatLedger')->isInitialized($tool),
+                $this->repeatLedgerIsInitialised($tool),
                 $class . ' must call initRepeatGuard() in its constructor — see '
                     . 'test_the_guard_still_holds_across_the_clones_neuron_makes_per_call for why it cannot be lazy.',
             );
@@ -192,7 +191,22 @@ class GuardsRepeatCallsTest extends TestCase
     {
         $tool = new ReplyToHarnessPullRequestTool(Mockery::mock(Agent::class)->makePartial());
 
-        $this->assertTrue(new ReflectionProperty($tool, 'repeatLedger')->isInitialized($tool));
+        $this->assertTrue($this->repeatLedgerIsInitialised($tool));
+    }
+
+    /**
+     * The ledger is a private trait property, so it belongs to the class that uses the trait, and a
+     * tool that inherits the guard from an abstract base does not see it through its own reflection.
+     */
+    private function repeatLedgerIsInitialised(object $tool): bool
+    {
+        $class = new ReflectionClass($tool);
+
+        while (! $class->hasProperty('repeatLedger')) {
+            $class = $class->getParentClass();
+        }
+
+        return $class->getProperty('repeatLedger')->isInitialized($tool);
     }
 
     /**
@@ -210,6 +224,9 @@ class GuardsRepeatCallsTest extends TestCase
     }
 
     /**
+     * Every instantiable tool under the Tools tree that carries the guard, including through an
+     * abstract base such as `AbstractApplyPaymentTool`, which cannot be built itself.
+     *
      * @return array<int, class-string>
      */
     private function guardedTools(): array
@@ -218,15 +235,21 @@ class GuardsRepeatCallsTest extends TestCase
             ->files()
             ->in(base_path(self::TOOLS_PATH))
             ->name('*.php')
-            ->notPath('Traits')
-            ->contains('use GuardsRepeatCalls;');
+            ->notPath('Traits');
 
-        return array_values(array_map(
+        $classes = array_map(
             static fn (SplFileInfo $file): string => 'Kanvas\\Intelligence\\Agents\\Neuron\\Tools\\'
                 . str_replace('/', '\\', $file->getRelativePath())
                 . ($file->getRelativePath() === '' ? '' : '\\')
                 . $file->getBasename('.php'),
             iterator_to_array($files),
+        );
+
+        return array_values(array_filter(
+            $classes,
+            static fn (string $class): bool => class_exists($class)
+                && new ReflectionClass($class)->isInstantiable()
+                && in_array(GuardsRepeatCalls::class, class_uses_recursive($class), true),
         ));
     }
 }

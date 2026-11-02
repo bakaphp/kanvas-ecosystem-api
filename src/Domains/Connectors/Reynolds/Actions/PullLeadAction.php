@@ -13,6 +13,7 @@ use Kanvas\Connectors\Reynolds\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Exceptions\ReynoldsException;
 use Kanvas\Connectors\Reynolds\Services\SalespersonResolver;
+use Kanvas\Connectors\SalesAssist\Actions\RecordLeadVehicleNotesAction;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People as PeopleModel;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
@@ -155,7 +156,10 @@ class PullLeadAction
             'custom_fields' => $customFields,
         ]);
 
-        return new SyncLeadByThirdPartyCustomFieldAction($leadData)->execute();
+        $lead = new SyncLeadByThirdPartyCustomFieldAction($leadData)->execute();
+        RecordLeadVehicleNotesAction::recordAll($lead);
+
+        return $lead;
     }
 
     private function findExistingLead(string $prospectId): ?LeadModel

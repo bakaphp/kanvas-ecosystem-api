@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\FollowUp\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -18,6 +17,7 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
+use Kanvas\Templates\Support\TemplateSandbox;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
@@ -189,7 +189,7 @@ class FollowUpPromptActivity extends KanvasActivity implements WorkflowActivityI
             return null;
         }
 
-        return Blade::render($background, $data);
+        return TemplateSandbox::render($background, $data);
     }
 
     protected function mapConversationHistory(Session $session, Lead $lead): array

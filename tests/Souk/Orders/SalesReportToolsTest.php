@@ -130,4 +130,30 @@ class SalesReportToolsTest extends TestCase
         $this->assertSame('all-time', $result['since']);
         $this->assertSame('open-ended', $result['until']);
     }
+
+    /**
+     * "All-time high month" invites one call per month; a per-name budget kills the turn on the
+     * eleventh. Each tool keys its budget by inputs and answers an identical repeat from the first run.
+     */
+    public function test_sales_tools_key_their_budget_by_inputs_and_answer_a_repeat_without_running_again(): void
+    {
+        [$app, $company, $user] = $this->bookedOrder();
+
+        foreach ([new SalesRevenueTool(), new SalesByCustomerTool(), new SalesByProductTool()] as $tool) {
+            $tool->withContext($app, $company, $user);
+
+            $this->assertNotSame(
+                $tool->setInputs(['since' => '2026-01-01'])->getRunKey(),
+                $tool->setInputs(['since' => '2026-02-01'])->getRunKey(),
+                $tool->getName() . ' must budget distinct arguments separately'
+            );
+
+            $first = $tool->__invoke();
+            $repeat = $tool->__invoke();
+
+            $this->assertArrayNotHasKey('repeat_call', $first);
+            $this->assertTrue($repeat['repeat_call'], $tool->getName() . ' must answer the repeat from the first run');
+            $this->assertSame(ToolOutcomeEnum::NOOP->value, $repeat['outcome']);
+        }
+    }
 }

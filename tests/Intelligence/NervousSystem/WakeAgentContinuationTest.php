@@ -113,4 +113,15 @@ class WakeAgentContinuationTest extends TestCase
 
         return (string) $method->invoke(new WakeAgentForPlanJob($plan, $reason, $userMessage), $decision);
     }
+
+    public function test_a_waiting_plan_is_told_to_do_nothing(): void
+    {
+        $plan = $this->makePlan();
+        $this->makeTask($plan, TaskStatusEnum::WAITING);
+
+        $message = $this->buildMessage($plan, WakeAgentForPlanJob::REASON_TASK_COMPLETED, 'Task 1 finished.');
+
+        $this->assertStringContainsString('verdict=wait', $message);
+        $this->assertStringContainsString('Do nothing now', $message);
+    }
 }

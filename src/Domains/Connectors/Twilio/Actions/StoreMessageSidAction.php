@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Actions;
 
+use Baka\Support\Str;
 use Kanvas\Connectors\Twilio\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Twilio\Enums\MessageStatusEnum;
 use Kanvas\Social\Messages\Models\Message;
 
 class StoreMessageSidAction
@@ -28,6 +30,11 @@ class StoreMessageSidAction
             $this->message->set(CustomFieldEnum::LAST_ERROR_CODE->value, (string) $errorCode);
             $this->message->set(CustomFieldEnum::CURRENT_STATUS->value, 'failed');
             $this->message->set(CustomFieldEnum::LAST_STATUS_AT->value, now()->toAtomString());
+            $this->recordDelivery(
+                MessageStatusEnum::FAILED,
+                errorCode: (string) $errorCode,
+                errorMessage: is_string($errorMessage) ? Str::trimToNull($errorMessage) : null,
+            );
         }
         if (is_string($errorMessage) && $errorMessage !== '') {
             $this->message->set(CustomFieldEnum::LAST_ERROR_MESSAGE->value, $errorMessage);
@@ -43,8 +50,30 @@ class StoreMessageSidAction
         if (is_string($status) && $status !== '') {
             $this->message->set(CustomFieldEnum::CURRENT_STATUS->value, $status);
             $this->message->set(CustomFieldEnum::LAST_STATUS_AT->value, now()->toAtomString());
+            $deliveryStatus = MessageStatusEnum::fromTwilio($status);
+            if ($deliveryStatus !== null) {
+                $this->recordDelivery($deliveryStatus, messageSid: $sid);
+            }
         }
 
         return $sid;
+    }
+
+    private function recordDelivery(
+        MessageStatusEnum $status,
+        ?string $messageSid = null,
+        ?string $errorCode = null,
+        ?string $errorMessage = null,
+    ): void {
+        if (! $this->message->exists) {
+            return;
+        }
+
+        new RecordDeliveryOnMessageAction($this->message)->execute(
+            $status,
+            $messageSid,
+            $errorCode,
+            $errorMessage,
+        );
     }
 }

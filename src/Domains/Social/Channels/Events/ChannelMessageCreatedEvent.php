@@ -54,19 +54,51 @@ class ChannelMessageCreatedEvent implements ShouldBroadcast
     #[Override]
     public function broadcastOn(): array
     {
-        $appPrefix = 'app-' . $this->channel->apps_id;
+        return self::pusherChannelsFor($this->channel);
+    }
+
+    /**
+     * Every Pusher channel a client watching this Social channel subscribes to. Shared so an event
+     * about a message already in the channel (e.g. its delivery status) reaches the same listeners.
+     *
+     * @return list<Channel>
+     */
+    public static function pusherChannelsFor(ModelsChannel $channel): array
+    {
+        return self::pusherChannelNames(
+            $channel->apps_id,
+            $channel->id,
+            $channel->slug,
+            $channel->entity_namespace,
+            $channel->entity_id,
+        );
+    }
+
+    /**
+     * The scalar form of {@see pusherChannelsFor()}, for events that cannot carry the model.
+     *
+     * @return list<Channel>
+     */
+    public static function pusherChannelNames(
+        int $appsId,
+        int $channelId,
+        string $channelSlug,
+        ?string $entityNamespace,
+        int|string|null $entityId
+    ): array {
+        $appPrefix = 'app-' . $appsId;
 
         $channels = [
-            new Channel(Str::sanitizeChannelName($appPrefix . '-new-message-channel-' . $this->channel->slug . '-' . $this->channel->id)),
-            new Channel(Str::sanitizeChannelName($appPrefix . $this->channel->slug)),
+            new Channel(Str::sanitizeChannelName($appPrefix . '-new-message-channel-' . $channelSlug . '-' . $channelId)),
+            new Channel(Str::sanitizeChannelName($appPrefix . $channelSlug)),
         ];
 
-        if (! empty($this->channel->entity_namespace)) {
-            $entityNamespace = SystemModules::convertLegacySystemModules($this->channel->entity_namespace);
-            $channelSlug = SystemModules::getSlugBySystemModuleNameSpace($entityNamespace);
+        if (! empty($entityNamespace)) {
+            $entityNamespace = SystemModules::convertLegacySystemModules($entityNamespace);
+            $entitySlug = SystemModules::getSlugBySystemModuleNameSpace($entityNamespace);
             array_unshift(
                 $channels,
-                new Channel('new-message-channel-' . $channelSlug . '-' . ($this->channel->entity_id ?? $this->channel->id)),
+                new Channel('new-message-channel-' . $entitySlug . '-' . ($entityId ?? $channelId)),
             );
         }
 

@@ -12,6 +12,7 @@ use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\DataTransferObject\AdminInvite as AdminInviteDto;
 use Kanvas\Users\Models\AdminInvite;
 use Kanvas\Users\Models\Users;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 class CreateAdminInviteAction
 {
@@ -24,10 +25,9 @@ class CreateAdminInviteAction
 
     public function execute(): AdminInvite
     {
-        // Still figuring out this validation.
-        // if($this->user->isAdmin()) {
-        //     throw new ValidationException('You must be owner for invite admins'); ///Temporal
-        // };
+        if (! $this->user->isOwnerOf($this->inviteDto->app)) {
+            throw new AuthorizationException('Only an owner of this app can invite admins.');
+        }
 
         $invite = new AdminInvite();
         $invite->fill([

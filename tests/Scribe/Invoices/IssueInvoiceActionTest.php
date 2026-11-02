@@ -96,14 +96,14 @@ class IssueInvoiceActionTest extends TestCase
         $this->assertSame(InvoiceDocumentStatusEnum::ISSUED, $issued->document_status);
         $this->assertSame(InvoiceCollectionStateEnum::CURRENT, $issued->collection_state);
 
-        // Snapshot frozen — values come from the real Guild Organization (BillableTrait getters).
+        // Snapshot frozen — values come from the real Guild Organization (IsBillable getters).
         // Org has no tax_id / email columns today so those snapshot fields are null until a tenant
         // backfills the custom fields. The display name and address are present.
         $this->assertSame('ACME Corp', $issued->billable_display_name);
         $this->assertNull($issued->billable_tax_id);
         $this->assertNull($issued->billable_email);
         // billing_address_snapshot is null because the seeded org's address column is empty.
-        // BillableTrait::getBillingAddressArray returns null on empty raw — that's the contract.
+        // IsBillable::getBillingAddressArray returns null on empty raw — that's the contract.
         $this->assertNull($issued->billing_address_snapshot);
 
         // Number allocated

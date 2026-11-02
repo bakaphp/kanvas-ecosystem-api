@@ -52,12 +52,17 @@ type NervousSystemTask {
     uuid: String!
     plan: NervousSystemPlan! @belongsTo(relation: "plan")
     agent: AgentAi @belongsTo(relation: "agent")
+    parent: NervousSystemTask @belongsTo(relation: "parent")
+    children: [NervousSystemTask!]! @hasMany(relation: "children")
     sequence: Int!
     title: String!
     description: String
     status: String!
     result: Mixed
     blocked_reason: String
+    wake_at: DateTime
+    waiting_on_user: User @belongsTo(relation: "waitingOn")
+    revision: Int!
     started_at: DateTime
     completed_at: DateTime
     created_at: DateTime!

@@ -7,9 +7,11 @@ namespace Tests\Intelligence\NervousSystem;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Tests\TestCase;
+use Tests\Traits\ForcesStoredHandler;
 
 class CheckAgentToolDriftCommandTest extends TestCase
 {
+    use ForcesStoredHandler;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'intelligence'];
@@ -21,17 +23,7 @@ class CheckAgentToolDriftCommandTest extends TestCase
      */
     public function test_fails_when_a_catalog_row_points_at_a_class_that_does_not_exist(): void
     {
-        Tool::create([
-            'apps_id' => 0,
-            'name' => 'Zzqq Ghost Tool',
-            'description' => 'A catalog row whose class was deleted.',
-            'handler' => 'Kanvas\\Intelligence\\Agents\\Neuron\\Tools\\Zzqq\\GhostTool',
-            'tool_type' => 'system',
-            'frameworks' => ['neuron'],
-            'version' => '1.0.0',
-            'is_active' => 1,
-            'is_deleted' => 0,
-        ]);
+        $this->createGhostTool();
 
         $this->artisan('kanvas:nervous-system:check-tool-drift')
             ->expectsOutputToContain('Kanvas\\Intelligence\\Agents\\Neuron\\Tools\\Zzqq\\GhostTool')
@@ -41,17 +33,7 @@ class CheckAgentToolDriftCommandTest extends TestCase
     /** --allow-stale downgrades attribute differences only; an orphan is still a hard failure. */
     public function test_allow_stale_does_not_excuse_an_orphaned_row(): void
     {
-        Tool::create([
-            'apps_id' => 0,
-            'name' => 'Zzqq Ghost Tool',
-            'description' => 'A catalog row whose class was deleted.',
-            'handler' => 'Kanvas\\Intelligence\\Agents\\Neuron\\Tools\\Zzqq\\GhostTool',
-            'tool_type' => 'system',
-            'frameworks' => ['neuron'],
-            'version' => '1.0.0',
-            'is_active' => 1,
-            'is_deleted' => 0,
-        ]);
+        $this->createGhostTool();
 
         $this->artisan('kanvas:nervous-system:check-tool-drift --allow-stale')
             ->assertExitCode(1);
@@ -79,5 +61,21 @@ class CheckAgentToolDriftCommandTest extends TestCase
         $this->artisan('kanvas:nervous-system:check-tool-drift')
             ->expectsOutputToContain('Stale rows')
             ->assertExitCode(1);
+    }
+
+    private function createGhostTool(): void
+    {
+        $tool = Tool::create([
+            'apps_id' => 0,
+            'name' => 'Zzqq Ghost Tool',
+            'description' => 'A catalog row whose class was deleted.',
+            'tool_type' => 'system',
+            'frameworks' => ['neuron'],
+            'version' => '1.0.0',
+            'is_active' => 1,
+            'is_deleted' => 0,
+        ]);
+
+        $this->forceStoredHandler($tool, 'Kanvas\\Intelligence\\Agents\\Neuron\\Tools\\Zzqq\\GhostTool');
     }
 }

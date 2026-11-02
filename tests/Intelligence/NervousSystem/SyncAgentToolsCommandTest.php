@@ -18,9 +18,11 @@ use Kanvas\NervousSystem\Capability\Models\ToolCategory;
 use PHPUnit\Framework\Attributes\Group;
 use stdClass;
 use Tests\TestCase;
+use Tests\Traits\ForcesStoredHandler;
 
 class SyncAgentToolsCommandTest extends TestCase
 {
+    use ForcesStoredHandler;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'intelligence'];
@@ -92,13 +94,14 @@ class SyncAgentToolsCommandTest extends TestCase
             'apps_id' => 0,
             'name' => $entry['name'],
             'description' => $entry['description'],
-            'handler' => 'Kanvas\\Intelligence\\Agents\\Neuron\\Tools\\Acumatica\\FindInvoiceTool',
             'tool_type' => 'system',
             'frameworks' => ['neuron'],
             'version' => '1.0.0',
             'is_active' => 1,
             'is_deleted' => 0,
         ]);
+
+        $this->forceStoredHandler($legacyTool, 'Kanvas\\Intelligence\\Agents\\Neuron\\Tools\\Acumatica\\FindInvoiceTool');
 
         $this->artisan('kanvas:nervous-system:sync-tools')->assertSuccessful();
 

@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
@@ -234,5 +235,91 @@ class LeadObserverTest extends TestCase
         $lead->softDelete();
 
         $this->assertSame(0, $lead->socialChannels()->count(), 'Soft-deleting a lead must soft-delete its social channels.');
+    }
+
+    public function testClosingTheStatusStampsClosedAtAndEmitsLedgerEvent(): void
+    {
+        $sold = $this->makeStatus('Sold');
+        $lead = Lead::factory()
+            ->withAppAndCompany($this->testApp->getId(), $this->company->getId())
+            ->create();
+
+        $this->assertNull($lead->closed_at, 'A lead created open has no closed_at.');
+        $openStatusId = (int) $lead->leads_status_id;
+
+        Carbon::setTestNow('2026-10-23 15:00:00');
+        $lead->leads_status_id = $sold->getId();
+        $lead->save();
+        Carbon::setTestNow();
+
+        $lead->refresh();
+        $this->assertSame('2026-10-23 15:00:00', $lead->closed_at?->format('Y-m-d H:i:s'));
+
+        $event = Event::query()
+            ->where('apps_id', $this->testApp->getId())
+            ->where('event_type', 'lead.status.changed')
+            ->where('source_entity_id', $lead->getId())
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($event);
+        $this->assertSame($openStatusId, $event->payload['from_status_id'] ?? null);
+        $this->assertSame($sold->getId(), $event->payload['to_status_id'] ?? null);
+        $this->assertSame('closed', $event->payload['to_state'] ?? null);
+    }
+
+    public function testReopeningClearsClosedAtAndAClosedToClosedMoveKeepsIt(): void
+    {
+        $sold = $this->makeStatus('Sold');
+        $lost = $this->makeStatus('Closed - Not Sold');
+        $lead = Lead::factory()
+            ->withAppAndCompany($this->testApp->getId(), $this->company->getId())
+            ->create();
+        $openStatusId = (int) $lead->leads_status_id;
+
+        $lead->leads_status_id = $sold->getId();
+        $lead->save();
+        $lead->refresh();
+        $closedAt = $lead->closed_at;
+        $this->assertNotNull($closedAt);
+
+        $lead->leads_status_id = $lost->getId();
+        $lead->save();
+        $lead->refresh();
+        $this->assertTrue($closedAt->equalTo($lead->closed_at), 'Sold to Not Sold is still closed; the first close date stays.');
+
+        $lead->leads_status_id = $openStatusId;
+        $lead->save();
+        $lead->refresh();
+        $this->assertNull($lead->closed_at, 'Reopening clears closed_at.');
+
+        $this->assertSame(
+            'open',
+            Event::query()
+                ->where('event_type', 'lead.status.changed')
+                ->where('source_entity_id', $lead->getId())
+                ->latest('id')
+                ->value('payload')['to_state'] ?? null,
+        );
+    }
+
+    public function testALeadCreatedAlreadyClosedIsStampedOnCreate(): void
+    {
+        $sold = $this->makeStatus('Sold');
+
+        $lead = Lead::factory()
+            ->withAppAndCompany($this->testApp->getId(), $this->company->getId())
+            ->create(['leads_status_id' => $sold->getId()]);
+
+        $this->assertNotNull($lead->refresh()->closed_at);
+    }
+
+    private function makeStatus(string $name): LeadStatus
+    {
+        return LeadStatus::create([
+            'apps_id' => $this->testApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'name' => $name,
+            'is_default' => 0,
+        ]);
     }
 }

@@ -1,0 +1,83 @@
+type LeadCampaign {
+    id: ID!
+    uuid: ID!
+    company: Company @belongsTo(relation: "company")
+    user: User @belongsTo(relation: "user")
+    channel: String!
+    subject: String
+    message: String!
+    template_name: String
+    is_important: Boolean!
+    attachment_urls: [String!]
+    criteria: Mixed
+    status: String!
+    scheduled_at: DateTime
+    total_recipients: Int!
+    sent_count: Int!
+    failed_count: Int!
+    skipped_count: Int!
+    opened_count: Int!
+    recipients(
+        where: _
+            @whereConditions(
+                columns: ["status", "destination", "sent_at", "opened_at"]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "status", "sent_at", "opened_at", "open_count"])
+    ): [LeadCampaignRecipient!]!
+        @hasMany(
+            relation: "recipients"
+            type: PAGINATOR
+            scopes: ["notDeleted"]
+            defaultCount: 25
+        )
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type LeadCampaignRecipient {
+    id: ID!
+    uuid: ID!
+    lead: Lead @belongsTo(relation: "lead")
+    people: People @belongsTo(relation: "people")
+    status: String!
+    reason: String
+    destination: String
+    sent_at: DateTime
+    opened_at: DateTime
+    open_count: Int!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+extend type Query @guard {
+    leadCampaigns(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "channel"
+                    "status"
+                    "scheduled_at"
+                    "created_at"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "scheduled_at"
+                    "total_recipients"
+                    "sent_count"
+                    "opened_count"
+                ]
+            )
+    ): [LeadCampaign!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Campaigns\\Models\\Campaign"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}

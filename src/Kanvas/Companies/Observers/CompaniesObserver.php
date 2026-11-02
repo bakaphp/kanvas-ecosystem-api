@@ -44,7 +44,8 @@ class CompaniesObserver
                 StateEnums::YES->getValue(),
                 true,
                 $company->email
-            )
+            ),
+            $app
         );
 
         $branch = $createCompanyBranch->execute();

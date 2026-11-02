@@ -14,6 +14,12 @@ enum HarnessStatusEnum: string
     case AWAITING_PERMISSION = 'awaiting_permission';
     /** Paused at its limit, waiting on a `coding_extension` approval. Kanvas sets it; no runtime reports it. */
     case AWAITING_EXTENSION = 'awaiting_extension';
+    /**
+     * The agent reported done but the workspace could not say what changed. Kanvas sets it; the diff
+     * is re-read for a few minutes before the run is called finished or failed, because a diff that
+     * is merely unavailable must never be recorded as empty.
+     */
+    case VERIFYING_DIFF = 'verifying_diff';
     case IDLE = 'idle';
     case COMPLETED = 'completed';
     case FAILED = 'failed';
@@ -50,7 +56,7 @@ enum HarnessStatusEnum: string
         return match ($this) {
             self::STARTING, self::RUNNING, self::IDLE,
             self::AWAITING_ANSWER, self::AWAITING_PERMISSION,
-            self::AWAITING_EXTENSION => TaskStatusEnum::IN_PROGRESS,
+            self::AWAITING_EXTENSION, self::VERIFYING_DIFF => TaskStatusEnum::IN_PROGRESS,
             self::COMPLETED => TaskStatusEnum::DONE,
             self::FAILED => TaskStatusEnum::BLOCKED,
             self::CANCELLED => TaskStatusEnum::SKIPPED,

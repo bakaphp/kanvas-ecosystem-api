@@ -31,6 +31,8 @@ use Override;
  * @property string|null $reason
  * @property string|null $destination
  * @property Carbon|null $sent_at
+ * @property Carbon|null $opened_at
+ * @property int         $open_count
  */
 class CampaignRecipient extends BaseModel
 {
@@ -44,6 +46,8 @@ class CampaignRecipient extends BaseModel
     {
         return [
             'sent_at' => 'datetime',
+            'opened_at' => 'datetime',
+            'open_count' => 'integer',
             'is_deleted' => 'boolean',
         ];
     }

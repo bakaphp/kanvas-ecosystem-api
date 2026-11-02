@@ -54,6 +54,36 @@ class EnumerateAgentsForDailyLearningActionTest extends TestCase
         $this->assertTrue($agents->contains('id', $agent->getId()));
     }
 
+    public function testInactiveAgentsAreNotEnumerated(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'user_id' => $user->getId(),
+                'is_active' => false,
+            ]);
+
+        $conversation = AgentConversation::query()->create([
+            'id' => (string) Str::uuid7(),
+            'user_id' => $user->getId(),
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'agent_id' => $agent->getId(),
+            'title' => 'inactive-agent',
+        ]);
+        $this->seedMessage($conversation->id, $user->getId(), AgentConversationMessage::STATUS_COMPLETED);
+
+        $cycleDate = Carbon::now(CycleWindowResolverService::resolveTimezone($app, $company));
+        $agents = new EnumerateAgentsForDailyLearningAction($app, $company, $cycleDate)->execute();
+
+        $this->assertFalse($agents->contains('id', $agent->getId()));
+    }
+
     private function seedMessage(string $conversationId, int $userId, string $status): void
     {
         AgentConversationMessage::query()->create([

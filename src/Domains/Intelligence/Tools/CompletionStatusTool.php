@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Tools;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Blade;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -37,11 +36,9 @@ class CompletionStatusTool implements ContextToolInterface
             'company' => $this->entity->company->toArray(),
             'additional_context_information' => $this->entity->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
         ];
-        $background = $this->agent->roleSection('background');
-        $steps = $this->agent->roleSection('steps');
         /** @var StructuredAgentResponse $response */
         $response = agent(
-            instructions: Blade::render($background, $data),
+            instructions: $this->agent->renderRoleSection('background', $data),
             schema: fn ($schema) => [
                 'lead_intent' => $schema->string()->description('Echo of the intent passed as input')->required(),
                 'intent_completion_status' => $schema->string()->enum(['COMPLETE', 'INCOMPLETE'])->description('Whether the intent is completed')->required(),
@@ -53,7 +50,7 @@ class CompletionStatusTool implements ContextToolInterface
                 'internal_notes' => $schema->string()->description('One concise CRM note; no PII beyond artifacts')->required(),
             ],
         )->prompt(
-            Blade::render($steps, $data),
+            $this->agent->renderRoleSection('steps', $data),
             provider: Lab::Gemini,
             model: 'gemini-3.1-flash-lite',
             timeout: 220,

@@ -34,7 +34,8 @@ class UploadFileToLeadTool implements KanvasToolInterface
             . 'buried in a note. Use this for technical documentation, a PRD, a spec, a quote write-up, meeting '
             . 'minutes, or any supporting document. Normally you pass content — the full text of the document you '
             . 'wrote — plus a file_name ending in .md, .txt, .csv or .json. Pass file_url instead only when the '
-            . 'file already exists at a public URL.';
+            . 'file already exists at a public URL, or filesystem_id for a file already in Kanvas (the id in an '
+            . '"Attached file on this message" marker).';
     }
 
     #[Override]

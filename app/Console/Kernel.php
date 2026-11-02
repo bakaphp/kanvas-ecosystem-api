@@ -4,6 +4,7 @@ namespace App\Console;
 
 use App\Console\Commands\Analytics\Schedules\AnalyticsSchedule;
 use App\Console\Commands\Approvals\ExpireApprovalRequestsCommand;
+use App\Console\Commands\Communication\Schedules\CommunicationSchedule;
 use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
 use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
@@ -19,6 +20,7 @@ use App\Console\Commands\Ecosystem\Users\DetectSignupAnomalyCommand;
 use App\Console\Commands\Event\GenerateUpcomingTimeSlotsCommand;
 use App\Console\Commands\Guild\GuildDailyLeadsDigestCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
+use App\Console\Commands\Insurance\SendInsurancePolicyRemindersCommand;
 use App\Console\Commands\Intelligence\Agents\PruneAgentMemoryCommand;
 use App\Console\Commands\Lead\Schedules\LeadFollowUpSchedule;
 use App\Console\Commands\NervousSystem\Agents\Coding\ReapCodingAgentRuntimeCommand;
@@ -32,6 +34,7 @@ use App\Console\Commands\Souk\CancelStalePaymentsCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use Kanvas\Workflow\Models\StoredWorkflow;
 use Override;
 use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;
 use Spatie\Health\Commands\RunHealthChecksCommand;
@@ -50,6 +53,9 @@ class Kernel extends ConsoleKernel
     #[Override]
     protected function schedule(Schedule $schedule)
     {
+        // Safety net so a task added without ->onOneServer() can't run once per scheduler host.
+        Schedule::alwaysOnOneServer();
+
         // Platform health (Spatie).
         $schedule->command(RunHealthChecksCommand::class)->everyMinute();
         $schedule->command(DispatchQueueCheckJobsCommand::class)->everyMinute();
@@ -57,6 +63,10 @@ class Kernel extends ConsoleKernel
 
         // Ecosystem / Social / Souk / Connectors — small enough to inline today.
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
+        // Honours `workflows.prune_age`; chunked, so the first pass over the backlog is long but
+        // never one statement.
+        $schedule->command('model:prune', ['--model' => [StoredWorkflow::class]])->dailyAt('03:30')
+            ->withoutOverlapping(1380)->onOneServer();
         $schedule->command(DetectSignupAnomalyCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(ExpireApprovalRequestsCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(FlagOverdueCorporateApplicationsCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
@@ -92,6 +102,8 @@ class Kernel extends ConsoleKernel
         $schedule->command(GuildDailyLeadsDigestCommand::class)->dailyAt('08:00')->withoutOverlapping(720)->onOneServer();
         $schedule->command(PruneAgentMemoryCommand::class)->dailyAt('03:30')->withoutOverlapping(720)->onOneServer();
 
+        $schedule->command(SendInsurancePolicyRemindersCommand::class)->dailyAt('09:00')->withoutOverlapping(720)->onOneServer();
+
         // Scheduled imports (FTP/SFTP → mapper → importer). Each source has its own cron + timezone;
         // this tick only queues the ones that are due.
         $schedule->command(RunImportSourcesCommand::class)->everyFifteenMinutes()->withoutOverlapping(30)->onOneServer();
@@ -121,6 +133,9 @@ class Kernel extends ConsoleKernel
 
         // Analytics — weekly Engage usage leaderboard to each company's managers.
         AnalyticsSchedule::register($schedule);
+
+        // Communication — the setup/cleanup sweep for messaging connections.
+        CommunicationSchedule::register($schedule);
 
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()

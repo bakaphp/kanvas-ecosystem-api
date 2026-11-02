@@ -203,6 +203,20 @@ class EngagementLeaderboardTest extends TestCase
         $this->assertSame(0.6667, round((float) $this->leaderboard()['team']['ai_share'], 4));
     }
 
+    public function testAHeldAiDraftIsNotASend(): void
+    {
+        $owner = $this->createRep();
+        $lead = $this->createLead($owner);
+
+        $this->createMessage($lead, ['from_me' => true, 'from_ia' => true], $owner);
+        $this->createMessage($lead, ['from_me' => true, 'from_ia' => true], $owner)->setLock();
+
+        $row = $this->leaderboard()['rows'][0];
+
+        $this->assertSame(1, $row['ai_sent']);
+        $this->assertSame(1, $row['total_sent']);
+    }
+
     public function testMedianResponseTimeIgnoresAiReplies(): void
     {
         $owner = $this->createRep();

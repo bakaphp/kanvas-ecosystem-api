@@ -71,15 +71,21 @@ class CreatePaymentAction
             );
         }
 
+        $allowedProcessors = $this->order->orderType?->allowedPaymentProcessors();
+
+        if ($allowedProcessors !== null && ! in_array($paymentMethod?->processor, $allowedProcessors, true)) {
+            throw new ValidationException('This order can only be paid with: ' . implode(', ', $allowedProcessors));
+        }
+
         if ($this->hasPendingPayments()) {
             $this->order->payments()->pending()->forceDelete();
         }
 
         $paymentFormData = [
-            "amount" => $formData['amount'] ?? $this->order->getTotalAmount(),
-            "payment_date" => $formData['payment_date'] ?? date("Y-m-d"),
-            "concept" => $formData['concept'] ?? "Payment {$this->order->reference}",
-            "payment_methods_id" => $paymentMethodId,
+            'amount' => $formData['amount'] ?? $this->order->getTotalAmount(),
+            'payment_date' => $formData['payment_date'] ?? date('Y-m-d'),
+            'concept' => $formData['concept'] ?? "Payment {$this->order->reference}",
+            'payment_methods_id' => $paymentMethodId,
             'payment_intent_id' => $paymentIntent,
             'idempotency_key' => $idempotencyKey,
             'users_id' => $this->user->getId(),
@@ -122,7 +128,7 @@ class CreatePaymentAction
                 'data' => [
                     ...($this->order->metadata['data'] ?? []),
                     ...($formData['order_metadata']['data'] ?? []),
-                ]
+                ],
             ];
             $this->order->saveQuietly();
         }
@@ -136,6 +142,7 @@ class CreatePaymentAction
                 ]
             );
         }
+
         return $payment;
     }
 

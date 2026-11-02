@@ -15,6 +15,7 @@ use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
@@ -29,7 +30,11 @@ use Throwable;
 
 class FilesystemServices
 {
+    public const string PLATFORM_DISK = 's3';
+
     protected Filesystem $storage;
+
+    protected bool $usesPlatformStorage = false;
 
     /**
      * Construct function.
@@ -48,7 +53,7 @@ class FilesystemServices
     {
         $file = $this->optimizeBeforeUpload($file);
 
-        $path = $this->app->get('cloud-bucket-path') ?? '/';
+        $path = $this->uploadPath();
         $preserveOriginalName = (bool) ($this->app->get('filesystem-preserve-original-filename') ?? false);
 
         if ($preserveOriginalName) {
@@ -103,7 +108,7 @@ class FilesystemServices
      */
     public function getStorageByDisk(): Filesystem
     {
-        return match ($this->app->get('filesystem-service')) {
+        return $this->storage ??= match ($this->app->get('filesystem-service')) {
             'gcs' => $this->buildGoogleCloudStorage(),
             's3' => $this->buildS3Storage(),
             default => $this->buildS3Storage(),
@@ -131,15 +136,12 @@ class FilesystemServices
         ]);
     }
 
-    /**
-     * Build an on-demand aws s3 storage using the (must) already saved service-account-file
-     */
     public function buildS3Storage(): Filesystem
     {
         $aws = (array) $this->app->get('service-account-file');
 
-        if (empty($aws['key']) || empty($aws['secret']) || empty($aws['region'])) {
-            throw new ValidationException('Missing AWS credentials');
+        if (self::missingAwsCredentials($aws)) {
+            return $this->buildPlatformStorage();
         }
 
         return Storage::build([
@@ -149,10 +151,49 @@ class FilesystemServices
             'region' => $aws['region'],
             'bucket' => $this->app->get('cloud-bucket'),
             'url' => $this->app->get('cloud-cdn'),
-            'path' => $this->app->get('cloud-bucket-path') ?? '/',
+            'path' => $this->uploadPath(),
             'use_path_style_endpoint' => (bool) ($this->app->get('use_path_style_endpoint') ?? false),
             'endpoint' => $aws['endpoint'] ?? null,
         ]);
+    }
+
+    /**
+     * An app with no S3 settings of its own (every self-serve app created by onboarding) shares the
+     * platform disk from .env. The credentials stay in the environment: copying them into the app's
+     * settings would expose them to that app's admins.
+     */
+    protected function buildPlatformStorage(): Filesystem
+    {
+        $config = (array) config('filesystems.disks.' . self::PLATFORM_DISK);
+
+        if (self::missingAwsCredentials($config) || empty($config['bucket'])) {
+            throw new ValidationException('Missing AWS credentials');
+        }
+
+        $this->usesPlatformStorage = true;
+        Log::info('App has no storage settings, using the platform disk', ['apps_id' => $this->app->getId()]);
+
+        return Storage::disk(self::PLATFORM_DISK);
+    }
+
+    private static function missingAwsCredentials(array $config): bool
+    {
+        return empty($config['key']) || empty($config['secret']) || empty($config['region']);
+    }
+
+    /**
+     * Directory every upload for this app lands in. On the platform disk tenants share one bucket,
+     * so the app id is the only thing keeping their objects apart.
+     */
+    public function uploadPath(): string
+    {
+        $path = (string) ($this->app->get('cloud-bucket-path') ?? '/');
+
+        if (! $this->usesPlatformStorage) {
+            return $path;
+        }
+
+        return rtrim('apps/' . $this->app->getId() . '/' . ltrim($path, '/'), '/');
     }
 
     protected function optimizeBeforeUpload(UploadedFile $file): UploadedFile

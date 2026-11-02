@@ -8,6 +8,7 @@ use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -25,7 +26,7 @@ use Kanvas\Social\Tags\Traits\HasTagsTrait;
  * @property string $execution_mode
  * @property bool $expose_as_product
  */
-class Bundle extends BaseModel
+class Bundle extends BaseModel implements ReadableAtLocation
 {
     use HasFilesystemTrait;
     use HasTagsTrait;

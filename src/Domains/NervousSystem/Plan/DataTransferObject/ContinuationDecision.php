@@ -20,6 +20,7 @@ final readonly class ContinuationDecision
         public int $blockedTasks = 0,
         public int $doneTasks = 0,
         public int $wakeCount = 0,
+        public int $waitingTasks = 0,
     ) {
     }
 
@@ -35,6 +36,7 @@ final readonly class ContinuationDecision
             'blocked_tasks' => $this->blockedTasks,
             'done_tasks' => $this->doneTasks,
             'wake_count' => $this->wakeCount,
+            'waiting_tasks' => $this->waitingTasks,
         ];
     }
 }

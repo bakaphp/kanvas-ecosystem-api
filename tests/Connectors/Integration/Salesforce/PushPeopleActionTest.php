@@ -19,6 +19,8 @@ final class PushPeopleActionTest extends TestCase
     use DatabaseTransactions;
     use HasSalesforceConfiguration;
 
+    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem'];
+
     public function testCreatesContactWhenNoExternalIdExists(): void
     {
         $app = app(Apps::class);
@@ -121,5 +123,81 @@ final class PushPeopleActionTest extends TestCase
             return $request->url() === self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/sobjects/Contact'
                 && $request['AccountId'] === '001xx000003DHP0AAA';
         });
+    }
+
+    public function testLinksTheOrganizationByEmailDomainWhenThePersonHasNone(): void
+    {
+        $app = app(Apps::class);
+        $user = static::$cachedUser;
+        $company = $user->getCurrentCompany();
+        $this->configureSalesforce($company);
+        $domain = 'acme' . uniqid() . '.test';
+
+        $organization = Organization::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Acme ' . uniqid(),
+        ]);
+        $organization->addEmailDomains([$domain]);
+        $organization->set(CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value, '001xx000003DOMAIN');
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create();
+        $people->addEmail('jane@' . $domain, 0, 0);
+
+        $this->fakeSalesforceOAuth();
+        Http::fake([
+            self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/sobjects/Contact' => Http::response([
+                'id' => '003xx000004DOMAIN',
+                'success' => true,
+            ], 201),
+        ]);
+
+        $result = new PushPeopleAction($people)->execute();
+
+        $this->assertSame('001xx000003DOMAIN', $result['AccountId']);
+        $this->assertSame([$organization->getId()], $people->organizations()->pluck('organizations.id')->all());
+    }
+
+    public function testLeavesASharedDomainUnlinked(): void
+    {
+        $app = app(Apps::class);
+        $user = static::$cachedUser;
+        $company = $user->getCurrentCompany();
+        $this->configureSalesforce($company);
+        $domain = 'shared' . uniqid() . '.test';
+
+        foreach (['Brand A', 'Brand B'] as $name) {
+            Organization::create([
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'users_id' => $user->getId(),
+                'name' => $name . ' ' . uniqid(),
+            ])->addEmailDomains([$domain]);
+        }
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create();
+        $people->addEmail('jane@' . $domain, 0, 0);
+
+        $this->fakeSalesforceOAuth();
+        Http::fake([
+            self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/sobjects/Contact' => Http::response([
+                'id' => '003xx000004SHARED',
+                'success' => true,
+            ], 201),
+        ]);
+
+        $result = new PushPeopleAction($people)->execute();
+
+        $this->assertArrayNotHasKey('AccountId', $result);
+        $this->assertFalse($people->organizations()->exists());
     }
 }

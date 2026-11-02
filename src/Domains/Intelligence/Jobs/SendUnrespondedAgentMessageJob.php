@@ -111,7 +111,7 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
             return;
         }
 
-        $lead = $this->message->entity();
+        $lead = $this->message->entity(Lead::class);
 
         if (! $lead instanceof Lead || ! $lead->isAiSupport()) {
             return;
@@ -127,46 +127,43 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
 
             $actionResult = $action->execute($this->params);
             $this->updateIntegrationHistoryResult($actionResult);
-            $entity = $this->message->entity();
-            if ($entity instanceof Lead) {
-                $entity->fireWorkflow(
-                    WorkflowEnum::TRIGGER_AI->value,
-                    true,
-                    [
-                        'trigger_type' => TriggersEnum::AI_TAKEOVER->value,
-                    ]
-                );
+            $lead->fireWorkflow(
+                WorkflowEnum::TRIGGER_AI->value,
+                true,
+                [
+                    'trigger_type' => TriggersEnum::AI_TAKEOVER->value,
+                ]
+            );
 
-                DailyReportService::track(
-                    $entity->app,
-                    $entity->company,
-                    'ai_unresponde_message_sent'
-                );
+            DailyReportService::track(
+                $lead->app,
+                $lead->company,
+                'ai_unresponde_message_sent'
+            );
 
-                try {
-                    $isElead = $entity->company->get(CustomFieldEnum::COMPANY->value) !== null;
-                    $isVinSolutions = $entity->company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
-                    $unrespondedMessageMinutes = $entity->company->get(ConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES->value)
-                        ?? ConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES_DEFAULT;
-                    $note = "The sales agent hasn't responded to the customer's message in {$unrespondedMessageMinutes} minutes. Sally is responding to the customer.";
-                    if ($isElead) {
-                        $eLeadOpportunity = EntitiesLead::getById(
-                            $lead->app,
-                            $lead->company,
-                            (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
-                        );
-                        $eLeadOpportunity->addComment($note);
-                    } elseif ($isVinSolutions) {
-                        new PushNoteToLeadAction(
-                            lead: $entity,
-                            message: $this->message,
-                        )->execute($note);
-                    }
-
-                    $entity->set('sended_note_un_response', true);
-                } catch (ClientException $e) {
-                } catch (Exception $e) {
+            try {
+                $isElead = $lead->company->get(CustomFieldEnum::COMPANY->value) !== null;
+                $isVinSolutions = $lead->company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
+                $unrespondedMessageMinutes = $lead->company->get(ConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES->value)
+                    ?? ConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES_DEFAULT;
+                $note = "The sales agent hasn't responded to the customer's message in {$unrespondedMessageMinutes} minutes. Sally is responding to the customer.";
+                if ($isElead) {
+                    $eLeadOpportunity = EntitiesLead::getById(
+                        $lead->app,
+                        $lead->company,
+                        (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                    );
+                    $eLeadOpportunity->addComment($note);
+                } elseif ($isVinSolutions) {
+                    new PushNoteToLeadAction(
+                        lead: $lead,
+                        message: $this->message,
+                    )->execute($note);
                 }
+
+                $lead->set('sended_note_un_response', true);
+            } catch (ClientException $e) {
+            } catch (Exception $e) {
             }
         } catch (Exception $e) {
             throw $e;

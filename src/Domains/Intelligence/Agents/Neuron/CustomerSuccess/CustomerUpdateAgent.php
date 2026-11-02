@@ -122,6 +122,10 @@ class CustomerUpdateAgent extends SystemUserAgent
             $tools[] = new ReadEntityContextTool($this->entity);
         }
 
+        if ($this->agent !== null) {
+            $tools = [...$tools, ...$this->followThroughTools($this->agent)];
+        }
+
         return $this->mergeRegisteredTools(
             $tools,
             $this->agent,

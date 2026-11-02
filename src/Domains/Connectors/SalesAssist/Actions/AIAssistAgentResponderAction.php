@@ -22,7 +22,7 @@ class AIAssistAgentResponderAction extends BaseAgentChannelReplyAction
     #[Override]
     public function execute(array $params = []): array
     {
-        $entity = $this->message->entity();
+        $entity = $this->message->preferredEntity(Lead::class);
 
         if ($entity === null) {
             throw new ValidationException('No entity found');

@@ -6,17 +6,15 @@ namespace Kanvas\Intelligence\Triggers\Actions;
 
 use Exception;
 use InvalidArgumentException;
+use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 
 use function Sentry\captureException;
 
@@ -71,7 +69,7 @@ class ApplyLeadAiModeAction
             TriggersEnum::HUMAN_HANDOFF->value => null,
             TriggersEnum::HUMAN_TAKEOVER->value => null,
             TriggersEnum::HANDOFF->value => null,
-            TriggersEnum::MANUAL_OFF->value => $this->applyManualMode(IntelligenceModeEnum::IDLE->value),
+            TriggersEnum::MANUAL_OFF->value => $this->applyManualOff(),
             TriggersEnum::MANUAL_SUPPORT->value => $this->applyManualMode(IntelligenceModeEnum::SUPPORT->value),
             TriggersEnum::MANUAL_FON->value => $this->applyManualFullOn(),
             TriggersEnum::FOLLOW_UP_ON->value => $this->setFollowUp(FollowUpValueEnum::ON()),
@@ -166,6 +164,12 @@ class ApplyLeadAiModeAction
         }
     }
 
+    protected function applyManualOff(): void
+    {
+        $this->applyManualMode(IntelligenceModeEnum::IDLE->value);
+        $this->setFollowUp(FollowUpValueEnum::OFF());
+    }
+
     protected function applyManualFullOn(): void
     {
         $this->lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
@@ -211,36 +215,12 @@ class ApplyLeadAiModeAction
 
     protected function logSystemNote(string $noteContent): void
     {
-        $notesChannel = $this->lead->systemNotes;
-        if (! $notesChannel) {
-            return;
-        }
-
-        $messageType = new CreateMessageTypeAction(
-            new MessageTypeInput(
-                apps_id: $this->lead->app->getId(),
-                languages_id: 1,
-                name: 'ai-control',
-                verb: 'ai-control',
-                template: '{{message}}',
-                templates_plura: '{{message}}',
-            )
-        )->execute();
-
-        $createMessageAction = new CreateMessageAction(
-            new MessageInput(
-                app: $this->lead->app,
-                company: $this->lead->company,
-                user: $this->lead->user,
-                type: $messageType,
-                message: [
-                    'content' => $noteContent,
-                    'from_me' => true,
-                ],
-            )
+        new RecordLeadNoteAction($this->lead)->execute(
+            body: $noteContent,
+            tag: LeadMessageTypeEnum::AI_CONTROL->value,
+            actingUser: $this->lead->user,
+            fromIa: false,
+            messageTypeVerb: LeadMessageTypeEnum::AI_CONTROL->value,
         );
-        $createMessageAction->runWorkflow = true;
-        $message = $createMessageAction->execute();
-        $notesChannel->addMessage($message, $this->lead->user);
     }
 }

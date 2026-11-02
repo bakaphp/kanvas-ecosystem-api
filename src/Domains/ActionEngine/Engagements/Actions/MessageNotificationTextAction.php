@@ -7,7 +7,7 @@ namespace Kanvas\ActionEngine\Engagements\Actions;
 use Baka\Support\Str;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Social\Messages\Models\Message;
-use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
+use Kanvas\Workflow\Rules\Support\SafeExpression;
 use Throwable;
 
 class MessageNotificationTextAction
@@ -71,12 +71,7 @@ class MessageNotificationTextAction
         ];
 
         try {
-            $expressionLanguage = new ExpressionLanguage();
-
-            $message = $expressionLanguage->evaluate(
-                $messageTemplate,
-                $values
-            );
+            $message = SafeExpression::evaluateText($messageTemplate, $values);
         } catch (Throwable $e) {
         }
 

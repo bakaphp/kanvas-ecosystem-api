@@ -213,4 +213,70 @@ class TaskWorkerBandTest extends TestCase
             'intelligence',
         );
     }
+
+    /** A wait with a booked wake needs no turn — and the re-entry it would have spent is handed back. */
+    public function test_a_wake_on_a_waiting_plan_runs_no_turn_and_spends_no_re_entry(): void
+    {
+        Bus::fake();
+
+        $agent = $this->makeAgent();
+        $agent->type->update(['handler' => SalesNeuronAgentStub::class]);
+        $agent->set(PlanLoopConfigEnum::CONTINUATION_ENABLED->value, '1');
+
+        $plan = $this->makePlan([], $agent->refresh());
+        $this->makeTask($plan, TaskStatusEnum::WAITING, sequence: 1);
+
+        new WakeAgentForPlanJob($plan, WakeAgentForPlanJob::REASON_TASK_REOPENED)->handle();
+
+        Bus::assertBatchCount(0);
+        $this->assertSame(0, (int) $plan->refresh()->wake_count);
+        $this->assertDatabaseMissing(
+            'nervous_system_events',
+            [
+                'source_entity_type' => Plan::class,
+                'source_entity_id' => $plan->getId(),
+                'event_type' => 'plan.agent.invoked',
+            ],
+            'intelligence',
+        );
+    }
+
+    /** A person writing on a waiting plan still gets an answer. */
+    public function test_a_human_comment_on_a_waiting_plan_still_runs_a_turn(): void
+    {
+        Bus::fake();
+
+        $agent = $this->makeAgent();
+        $agent->type->update(['handler' => SalesNeuronAgentStub::class]);
+        $agent->set(PlanLoopConfigEnum::CONTINUATION_ENABLED->value, '1');
+
+        $plan = $this->makePlan([], $agent->refresh());
+        $this->makeTask($plan, TaskStatusEnum::WAITING, sequence: 1);
+
+        new WakeAgentForPlanJob($plan, WakeAgentForPlanJob::REASON_COMMENT, 'Cancel this, I will handle it.')->handle();
+
+        $this->assertDatabaseHas(
+            'nervous_system_events',
+            [
+                'source_entity_type' => Plan::class,
+                'source_entity_id' => $plan->getId(),
+                'event_type' => 'plan.agent.invoked',
+            ],
+            'intelligence',
+        );
+    }
+
+    public function test_a_band_does_not_advance_past_a_waiting_prerequisite(): void
+    {
+        Bus::fake();
+
+        $plan = $this->makePlan();
+        $this->makeTask($plan, TaskStatusEnum::WAITING, sequence: 1);
+        $this->makeTask($plan, TaskStatusEnum::PENDING, sequence: 2);
+
+        $result = new DispatchTaskBandAction($plan)->execute();
+
+        $this->assertSame(0, $result['dispatched']);
+        Bus::assertBatchCount(0);
+    }
 }

@@ -8,6 +8,8 @@ use Baka\Enums\StateEnums;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -19,8 +21,8 @@ class UserManagementQuery
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-        $companiesId = auth()->user()->isAdmin() && ! empty($args['companies_id']) ? $args['companies_id'] : auth()->user()->currentCompanyId();
         $app = app(Apps::class);
+        $companiesId = $this->requestedCompanyId($args, $app) ?? auth()->user()->currentCompanyId();
 
         $query = Users::select(
             'users_associated_apps.users_id as id', // User ID
@@ -81,6 +83,24 @@ class UserManagementQuery
         }
 
         return $query;
+    }
+
+    /**
+     * Whoever may add users to a company (app owners, admins, members) may list it by id; without the
+     * argument the scope is the X-Kanvas-Location company, which an admin screen for another company
+     * cannot rely on.
+     */
+    private function requestedCompanyId(array $args, Apps $app): ?int
+    {
+        if (empty($args['companies_id'])) {
+            return null;
+        }
+
+        $company = Companies::getById((int) $args['companies_id']);
+        CompaniesRepository::hasAccessToThisApp($company, $app);
+        CompaniesRepository::userAssociatedToCompany($company, auth()->user());
+
+        return $company->getId();
     }
 
     /**

@@ -50,6 +50,7 @@ class SendDailyLearningDigestAction
             ->where('cycle_date', $cycleDateLabel)
             ->where('is_deleted', 0)
             ->whereNotNull('morning_briefing')
+            ->whereHas('agent', fn ($q) => $q->where('is_active', 1)->notDeleted())
             ->with('agent')
             ->orderBy('agent_id')
             ->get();
@@ -59,6 +60,10 @@ class SendDailyLearningDigestAction
         }
 
         $agents = $this->buildAgentRows($cycles);
+
+        if ($agents === []) {
+            return 0;
+        }
 
         try {
             $recipients = UsersRepository::getCompanyAppUserByRole(
@@ -117,8 +122,19 @@ class SendDailyLearningDigestAction
         $dayStart = $window['dayStart'];
         $dayEnd = $window['dayEnd'];
 
+        $conversationCounts = $this->conversationCountsByAgent(
+            $cycles->pluck('agent_id')->all(),
+            $dayStart,
+            $dayEnd
+        );
+
         $rows = [];
         foreach ($cycles as $cycle) {
+            $conversationCount = (int) ($conversationCounts[$cycle->agent_id] ?? 0);
+            if ($conversationCount === 0) {
+                continue;
+            }
+
             $agent = $cycle->agent;
             $agentName = $agent !== null && $agent->name !== ''
                 ? $agent->name
@@ -133,7 +149,7 @@ class SendDailyLearningDigestAction
                 'skills_emerged' => $cycle->skills_emerged ?? [],
                 'self_improvement_score' => (float) $cycle->self_improvement_score,
                 'signed_by_text' => $cycle->signed_by_text,
-                'conversation_count' => $this->conversationCountFor($cycle->agent_id, $dayStart, $dayEnd),
+                'conversation_count' => $conversationCount,
                 'pushed_to_runtime' => false, // not tracked on AgentDailyCycle; surfaced from ledger in v1.1 if useful
             ];
         }
@@ -141,10 +157,14 @@ class SendDailyLearningDigestAction
         return $rows;
     }
 
-    private function conversationCountFor(int $agentId, Carbon $dayStart, Carbon $dayEnd): int
+    /**
+     * @param  list<int>        $agentIds
+     * @return array<int, int>
+     */
+    private function conversationCountsByAgent(array $agentIds, Carbon $dayStart, Carbon $dayEnd): array
     {
         return AgentConversation::query()
-            ->where('agent_id', $agentId)
+            ->whereIn('agent_id', $agentIds)
             ->where('apps_id', (int) $this->app->getId())
             ->where('companies_id', (int) $this->company->getId())
             ->whereHas(
@@ -152,7 +172,10 @@ class SendDailyLearningDigestAction
                 fn ($q) => $q->whereBetween('created_at', [$dayStart, $dayEnd])
                     ->where('status', AgentConversationMessage::STATUS_COMPLETED)
             )
-            ->count();
+            ->selectRaw('agent_id, COUNT(*) AS total')
+            ->groupBy('agent_id')
+            ->pluck('total', 'agent_id')
+            ->all();
     }
 
     private function emitLedger(int $recipientCount, int $agentCount): void

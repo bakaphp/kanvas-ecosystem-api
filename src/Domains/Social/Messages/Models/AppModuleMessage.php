@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Models;
 
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Observers\AppModuleMessageObserver;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\SystemModules\Models\SystemModules;
 use Override;
 
 /**
@@ -56,11 +58,21 @@ class AppModuleMessage extends BaseModel
 
     public function entity(): BelongsTo
     {
-        return $this->belongsTo($this->system_modules, 'entity_id');
+        return $this->belongsTo($this->entityClass(), 'entity_id');
+    }
+
+    public function entityClass(): string
+    {
+        return SystemModules::convertLegacySystemModules($this->system_modules);
     }
 
     public function hasEntityOfClass(string $className): bool
     {
-        return (bool)$this->entity::class == $className;
+        return is_a($this->entityClass(), $className, true);
+    }
+
+    public function resolveEntity(): Model
+    {
+        return $this->entityClass()::getById($this->entity_id);
     }
 }

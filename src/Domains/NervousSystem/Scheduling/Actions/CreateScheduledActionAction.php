@@ -50,7 +50,8 @@ class CreateScheduledActionAction
             $action->timezone = $timezone;
             $action->recurrence_cron = $this->data->recurrenceCron;
             $action->recurrence_ends_at = $this->data->recurrenceEndsAt;
-            $action->max_occurrences = $this->data->maxOccurrences;
+            // Zero means no cap, never a cap of zero (see ScheduledAction::occurrenceCapReached).
+            $action->max_occurrences = $this->data->maxOccurrences > 0 ? $this->data->maxOccurrences : null;
             $action->occurrences_count = 0;
             $action->payload = $this->data->toPayload();
             $action->channel = $this->data->channel;
@@ -148,7 +149,7 @@ class CreateScheduledActionAction
             throw new ValidationException(
                 $this->data->type === ScheduledActionTypeEnum::AGENT_TASK
                     ? "An agent task can run at most every {$minutes} minutes."
-                    : "A reminder can run at most once per minute.",
+                    : 'A reminder can run at most once per minute.',
             );
         }
     }

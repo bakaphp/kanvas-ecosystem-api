@@ -7,6 +7,7 @@ namespace Baka\Traits;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\LocationContext;
 
 trait PublicAppScopeTrait
 {
@@ -22,7 +23,7 @@ trait PublicAppScopeTrait
     {
         $company = $company instanceof Companies
             ? $company
-            : auth()->user()->getCurrentCompany();
+            : LocationContext::companyToScope($this);
 
         return $query->whereIn('companies_id', [0, $company->getId()]);
     }

@@ -13,6 +13,7 @@ use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfCompletedPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Plan\Support\VerificationVerdict;
 use Kanvas\NervousSystem\Plan\Support\VerifierToolPolicy;
 use Throwable;
 
@@ -34,9 +35,6 @@ class VerifyPlanAction
 {
     /** What each task reported, as fed to the verifier. Trimmed at both ends — see the map below. */
     private const int REPORTED_CHAR_CAP = 400;
-
-    /** Answering with this exact token is the only thing that counts as a pass. */
-    public const string PASS_TOKEN = 'VERIFIED';
 
     public function __construct(
         private readonly Plan $plan,
@@ -66,7 +64,7 @@ class VerifyPlanAction
         } catch (Throwable $e) {
             // A verifier that could not run has not verified anything. Failing closed is the only
             // safe direction: the alternative silently promotes "we could not check" to "it is fine".
-            $this->record(false, 'Verification could not run: ' . $e->getMessage());
+            $this->record(false, 'Verification could not run: ' . $e->getMessage(), []);
 
             $this->plan->emitLedgerEvent(
                 eventType: 'plan.verification.failed_to_run',
@@ -79,9 +77,15 @@ class VerifyPlanAction
             return false;
         }
 
-        $passed = str_contains(strtoupper($verdict), self::PASS_TOKEN);
+        $judged = VerificationVerdict::fromResponse($verdict);
+        $passed = $judged->passed;
 
-        $this->record($passed, $verdict);
+        $this->record(
+            $passed,
+            $verdict,
+            $judged->checks,
+            $judged->reason,
+        );
         $this->settle($passed);
 
         $this->plan->emitLedgerEvent(
@@ -126,26 +130,38 @@ class VerifyPlanAction
             . 'Check the underlying records yourself — you have read-only tools and no ability to change '
             . 'anything, deliberately. Do not take the task summaries at face value; they are the claim '
             . "under test.\n\n"
-            . 'Answer with the single word %s ONLY if you can positively confirm the objective was met. '
-            . 'If you cannot confirm it, or the evidence is ambiguous, or you could not check, say what is '
-            . 'missing instead. Ambiguity is NOT verification.',
+            . "Answer with ONLY this JSON object and nothing else:\n"
+            . '{"verdict": "pass" | "fail", "checks": [{"criterion": "<what you tested>", '
+            . '"passed": true | false, "evidence": "<what you read that shows it>"}]}' . "\n"
+            . 'One check per thing the objective requires, each with the evidence you actually read. '
+            . 'Answer "pass" ONLY if every check held and you can positively confirm the objective was met. '
+            . 'If you cannot confirm it, the evidence is ambiguous, or you could not check, answer "fail" '
+            . 'and say in the evidence what is missing. Ambiguity is NOT verification.',
             $this->plan->getId(),
             $this->plan->title,
             $this->plan->description !== null && $this->plan->description !== ''
                 ? 'Detail: ' . $this->plan->description . "\n"
                 : '',
             $tasks !== '' ? $tasks : '(no tasks recorded)',
-            self::PASS_TOKEN,
         );
     }
 
-    private function record(bool $passed, string $verdict): void
-    {
+    /**
+     * @param list<array{criterion: string, passed: bool, evidence: string}> $checks
+     */
+    private function record(
+        bool $passed,
+        string $verdict,
+        array $checks,
+        ?string $reason = null,
+    ): void {
         $this->plan->output = [
             ...(is_array($this->plan->output) ? $this->plan->output : []),
             'verification' => [
                 'verified' => $passed,
                 'verdict' => Str::limit($verdict, 4000),
+                'reason' => $reason,
+                'checks' => $checks,
                 'checked_at' => Carbon::now()->toIso8601String(),
             ],
         ];

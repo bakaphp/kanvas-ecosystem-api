@@ -30,7 +30,7 @@ class AttachMessageFilesToLeadActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) {
-                $lead = $message->entity();
+                $lead = $message->entity(Lead::class);
 
                 if (! $lead instanceof Lead) {
                     return $this->failWorkflow([

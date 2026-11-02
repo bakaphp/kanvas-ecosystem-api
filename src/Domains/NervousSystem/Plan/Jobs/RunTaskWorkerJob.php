@@ -11,11 +11,11 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
@@ -70,6 +70,11 @@ class RunTaskWorkerJob implements ShouldQueue
 
     public function __construct(
         public readonly Task $task,
+        /**
+         * Set when the worker is being resumed rather than started: the outcome of work it delegated.
+         * It replaces the brief, because the task's own thread already holds the brief.
+         */
+        public readonly ?string $resumeFact = null,
     ) {
         $this->onQueue('agent-task-worker');
     }
@@ -104,7 +109,7 @@ class RunTaskWorkerJob implements ShouldQueue
             $response = WorkerToolPolicy::within(fn (): string => new AgentChatKernel(
                 agent: $agent,
                 session: $this->workerSession(),
-                message: $this->brief(),
+                message: $this->resumeFact !== null ? $this->resumeBrief() : $this->brief(),
                 user: $owner,
                 persistConversation: false,
             )->execute());
@@ -121,6 +126,25 @@ class RunTaskWorkerJob implements ShouldQueue
 
             // Swallowed deliberately: one failed task blocks itself and the batch carries on. Letting
             // it throw would fail the batch and strand tasks that had nothing to do with this one.
+            $this->wakeOrchestratorIfUnbatched();
+
+            return;
+        }
+
+        // A worker that handed part of its task to a coding job has not finished it — the job's
+        // outcome resumes this worker. Recorded as done, the task closed on plan 725 while the real
+        // work was still running, and nothing came back when it landed.
+        $openChildren = $this->task->children()->open()->get(['id', 'title']);
+
+        if ($openChildren->isNotEmpty()) {
+            $this->markWaitingOnChildren($response, $openChildren->pluck('title')->all());
+
+            $this->task->emitLedgerEvent('plan.task.worker_delegated', payload: [
+                'task_id' => $this->task->getId(),
+                'plan_id' => $plan->getId(),
+                'children' => $openChildren->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
+            ], durationMs: (int) ((microtime(true) - $startedAt) * 1000.0));
+
             return;
         }
 
@@ -142,6 +166,8 @@ class RunTaskWorkerJob implements ShouldQueue
                 durationMs: (int) ((microtime(true) - $startedAt) * 1000.0),
             );
 
+            $this->wakeOrchestratorIfUnbatched();
+
             return;
         }
 
@@ -155,6 +181,42 @@ class RunTaskWorkerJob implements ShouldQueue
                 'response_length' => strlen($response),
             ],
             durationMs: (int) ((microtime(true) - $startedAt) * 1000.0),
+        );
+
+        $this->wakeOrchestratorIfUnbatched();
+    }
+
+    /**
+     * A band's batch wakes the orchestrator once for all its workers. A resumed worker runs alone, so
+     * it has to say it finished itself — unless it is somebody's child, in which case its own
+     * outcome row already resumes that parent.
+     */
+    private function wakeOrchestratorIfUnbatched(): void
+    {
+        if ($this->batch() !== null || $this->task->parent_task_id !== null) {
+            return;
+        }
+
+        WakeAgentForPlanJob::dispatch(
+            $this->task->plan,
+            WakeAgentForPlanJob::REASON_TASK_COMPLETED,
+            sprintf('Task #%d ("%s") is now %s.', $this->task->getId(), (string) $this->task->title, (string) $this->task->status),
+        );
+    }
+
+    private function resumeBrief(): string
+    {
+        return sprintf(
+            "[NS:task_worker] task_id=%d plan_id=%d resumed=1\n\n"
+            . "You are resuming the ONE task you were working; its brief is above in this thread.\n\n"
+            . "What just happened: %s\n\n"
+            . 'Finish the task from here. If the delegated work completes it, report the result — what was '
+            . 'delivered and where (branch, pull request, file). If it did not, say what is still missing. '
+            . 'IF YOU CANNOT FINISH, START YOUR ANSWER WITH THE WORD BLOCKED, then say exactly what stopped you. '
+            . 'Do not start the same delegated work again.',
+            $this->task->getId(),
+            $this->task->plan->getId(),
+            $this->resumeFact,
         );
     }
 
@@ -223,24 +285,59 @@ class RunTaskWorkerJob implements ShouldQueue
         return PlanStatusEnum::from($plan->status)->isExecutable();
     }
 
+    /**
+     * Every status write goes through the transition as a sync change: the batch's completion callback
+     * wakes the orchestrator once, so the listener must not wake it per task — but the attempt id,
+     * the wake cancellation and the parent waiting on this task all live in the transition and must
+     * not be skipped by a bare save.
+     */
     private function markInProgress(): void
     {
-        $this->task->status = TaskStatusEnum::IN_PROGRESS->value;
-        $this->task->started_at = Carbon::now();
-        $this->task->saveQuietly();
+        new UpdateTaskStatusAction(
+            task: $this->task,
+            newStatus: TaskStatusEnum::IN_PROGRESS,
+            fromSync: true,
+        )->execute();
     }
 
     private function markDone(string $response): void
     {
-        $this->task->status = TaskStatusEnum::DONE->value;
-        $this->task->completed_at = Carbon::now();
-        $this->task->result = [
+        new UpdateTaskStatusAction(
+            task: $this->task,
+            newStatus: TaskStatusEnum::DONE,
+            result: $this->resultWithSummary($response),
+            fromSync: true,
+        )->execute();
+    }
+
+    /**
+     * @param list<string> $childTitles
+     */
+    private function markWaitingOnChildren(string $response, array $childTitles): void
+    {
+        $titles = implode(', ', array_map(
+            static fn (string $title): string => '"' . Str::limit($title, 80) . '"',
+            $childTitles,
+        ));
+
+        new UpdateTaskStatusAction(
+            task: $this->task,
+            newStatus: TaskStatusEnum::WAITING,
+            result: $this->resultWithSummary($response),
+            blockedReason: Str::limit('Waiting on delegated work: ' . $titles, 500),
+            fromSync: true,
+        )->execute();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resultWithSummary(string $text): array
+    {
+        return [
             ...(is_array($this->task->result) ? $this->task->result : []),
-            'worker_summary' => Str::limit($response, 4000),
+            'worker_summary' => Str::limit($text, 4000),
         ];
-        // Quiet: the batch's completion callback wakes the orchestrator once, rather than every task
-        // waking it separately and giving it N turns to say the same thing.
-        $this->task->saveQuietly();
     }
 
     /**
@@ -272,16 +369,12 @@ class RunTaskWorkerJob implements ShouldQueue
      */
     private function markBlocked(string $reason, bool $keepAsResult = false): void
     {
-        $this->task->status = TaskStatusEnum::BLOCKED->value;
-        $this->task->blocked_reason = Str::limit($reason, 500);
-
-        if ($keepAsResult) {
-            $this->task->result = [
-                ...(is_array($this->task->result) ? $this->task->result : []),
-                'worker_summary' => Str::limit($reason, 4000),
-            ];
-        }
-
-        $this->task->saveQuietly();
+        new UpdateTaskStatusAction(
+            task: $this->task,
+            newStatus: TaskStatusEnum::BLOCKED,
+            result: $keepAsResult ? $this->resultWithSummary($reason) : null,
+            blockedReason: Str::limit($reason, 500),
+            fromSync: true,
+        )->execute();
     }
 }

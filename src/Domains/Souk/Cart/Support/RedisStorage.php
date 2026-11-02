@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Souk\Cart\Models\Cart;
 use Override;
 
@@ -110,7 +111,7 @@ class RedisStorage implements ArrayAccess
                     $existingUserCart->update([
                         'email' => $this->user->email,
                         'users_id' => $this->user->id,
-                        'companies_id' => $this->user?->getCurrentCompany()->getId() ?? 1,
+                        'companies_id' => $this->user !== null ? LocationContext::shoppingCompany($this->user)->getId() : 1,
                         'amount' => $totalAmount,
                         'currency' => $this->getCurrencyFromItems(),
                         'items' => $this->data[$this->itemsKey],
@@ -136,7 +137,7 @@ class RedisStorage implements ArrayAccess
                 'apps_id' => $this->app->getId(),
             ],
             [
-                'companies_id' => $this->user?->getCurrentCompany()->getId() ?? 1,
+                'companies_id' => $this->user !== null ? LocationContext::shoppingCompany($this->user)->getId() : 1,
                 'users_id' => $this->user?->id,
                 'email' => $this->user?->email,
                 'amount' => 0.00,
@@ -152,7 +153,7 @@ class RedisStorage implements ArrayAccess
     {
         $this->cartModel = Cart::create([
             'apps_id' => $this->app->getId(),
-            'companies_id' => $this->user?->getCurrentCompany()->getId() ?? 0,
+            'companies_id' => $this->user !== null ? LocationContext::shoppingCompany($this->user)->getId() : 0,
             'users_id' => $this->user?->id,
             'email' => $this->user?->email,
             'session_id' => $sessionKey,

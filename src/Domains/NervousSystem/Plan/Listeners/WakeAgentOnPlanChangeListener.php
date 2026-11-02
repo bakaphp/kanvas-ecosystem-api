@@ -99,6 +99,12 @@ class WakeAgentOnPlanChangeListener
             return false;
         }
 
+        // A delegated task's ending resumes the task that delegated it, through its outcome row —
+        // waking the plan here as well would hand the agent the same result twice.
+        if ($task->parent_task_id !== null) {
+            return false;
+        }
+
         if ($task->agent_id !== null && $task->agent_id === $event->plan->agent_id) {
             return false;
         }

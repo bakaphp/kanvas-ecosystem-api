@@ -22,6 +22,7 @@ use Kanvas\Workflow\Integrations\DataTransferObject\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory as ModelsEntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Throwable;
 
@@ -33,6 +34,16 @@ trait ActivityIntegrationTrait
     public function setWorkflowStatus(StatusEnum $status): void
     {
         $this->workflowStatus = $status;
+    }
+
+    public function workflowStatus(): ?StatusEnum
+    {
+        return $this->workflowStatus;
+    }
+
+    public function lastIntegrationHistory(): ?ModelsEntityIntegrationHistory
+    {
+        return $this->lastIntegrationHistory;
     }
 
     public function failWorkflow(array $message): array
@@ -90,7 +101,8 @@ trait ActivityIntegrationTrait
             response: $historyResponse ?? null,
             exception: $exception,
             workflowId: $this->workflowId(),
-            rule: $rule
+            rule: $rule,
+            action: Action::forHandler(static::class),
         );
 
         $this->lastIntegrationHistory = new AddEntityIntegrationHistoryAction(
@@ -102,7 +114,7 @@ trait ActivityIntegrationTrait
         return $this->lastIntegrationHistory;
     }
 
-    protected function buildIntegrationHistoryInput(Model $entity, array $params): array
+    public function buildIntegrationHistoryInput(Model $entity, array $params): array
     {
         return [
             'entity' => $entity->toArray(),
@@ -160,12 +172,32 @@ trait ActivityIntegrationTrait
             ];
         }
 
+        return $this->runForIntegrationCompany(
+            entity: $entity,
+            app: $app,
+            integrationCompany: $integrationCompany,
+            integrationOperation: $integrationOperation,
+            additionalParams: $additionalParams,
+            throwException: $throwException
+        );
+    }
+
+    /**
+     * Runs the operation and records it in the integration's history. For an activity that already
+     * holds the integration it acts for, rather than looking one up by name and region.
+     */
+    public function runForIntegrationCompany(
+        Model $entity,
+        AppInterface $app,
+        IntegrationsCompany $integrationCompany,
+        callable $integrationOperation,
+        array $additionalParams = [],
+        bool $throwException = false
+    ): array {
         $response = null;
         $exception = null;
-        $status = $activeStatus;
 
         try {
-            // Execute the integration operation
             $response = $integrationOperation($entity, $app, $integrationCompany, $additionalParams);
             $status = $this->getStatus($this->workflowStatus ?? StatusEnum::CONNECTED);
         } catch (Throwable $exception) {
@@ -176,7 +208,6 @@ trait ActivityIntegrationTrait
             }
         }
 
-        // Record integration history
         $this->addToIntegrationHistory(
             $app,
             $integrationCompany,
@@ -195,8 +226,8 @@ trait ActivityIntegrationTrait
         if ($exception) {
             return [
                 'error' => $exception->getMessage(),
-                'company' => $company->getId(),
-                'integration' => $integration->value,
+                'company' => $integrationCompany->companies_id,
+                'integration' => $integrationCompany->integration?->name,
                 'entity_id' => $entity->getId(),
                 'trace' => $exception->getTraceAsString(),
             ];

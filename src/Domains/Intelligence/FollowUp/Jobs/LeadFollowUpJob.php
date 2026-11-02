@@ -13,10 +13,14 @@ use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\CrmLeadSourceSynchronizer;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpFailureReasonEnum;
+use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Throwable;
 
 /**
  * Per-lead wrapper. Resolves agent at handle() so config changes between
@@ -41,10 +45,15 @@ final class LeadFollowUpJob implements ShouldQueue
         public readonly Companies $company,
         public readonly Lead $lead,
         public readonly bool $force = false,
+        public readonly bool $openSessionIfMissing = false,
     ) {
     }
 
-    public function handle(): void
+    /**
+     * The synchronizer is method-injected so tests can hand in a fake; the action decides when to
+     * use it (only after every free gate, since CRM calls are billed).
+     */
+    public function handle(CrmLeadSourceSynchronizer $synchronizer): void
     {
         $this->overwriteAppService($this->app);
 
@@ -63,7 +72,26 @@ final class LeadFollowUpJob implements ShouldQueue
             lead: $this->lead,
             agent: $agent,
             force: $this->force,
+            synchronizer: $synchronizer,
+            openSessionIfMissing: $this->openSessionIfMissing,
         )->execute();
+    }
+
+    /**
+     * Runs once the last try is spent. Without it a crashed run leaves only `queued` in the ledger,
+     * and the follow-up reports could not tell it from one still waiting.
+     */
+    public function failed(Throwable $e): void
+    {
+        try {
+            $this->lead->emitLedgerEvent('lead.follow_up.failed', EventStatusEnum::ERROR, [
+                'stage_id' => $this->lead->pipeline_stage_id,
+                'reason' => FollowUpFailureReasonEnum::JOB_FAILED->value,
+                'error' => mb_substr($e->getMessage(), 0, 500),
+            ]);
+        } catch (Throwable $ledgerError) {
+            report($ledgerError);
+        }
     }
 
     private function resolveAgentName(): string

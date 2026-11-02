@@ -16,9 +16,12 @@ use Tests\Stubs\Intelligence\FakeCrmInventoryToolHandler;
 use Tests\Stubs\Intelligence\FakeCrmOnlyToolHandler;
 use Tests\Stubs\Intelligence\FakeToolHandlerWithoutContract;
 use Tests\TestCase;
+use Tests\Traits\ForcesStoredHandler;
 
 class ReconcileToolKanvasModulesActionTest extends TestCase
 {
+    use ForcesStoredHandler;
+
     private function makeTool(?string $handler): Tool
     {
         return new CreateToolAction(
@@ -108,7 +111,7 @@ class ReconcileToolKanvasModulesActionTest extends TestCase
 
     public function testHandlerThatDoesNotImplementContractIsNoOp(): void
     {
-        $tool = $this->makeTool(FakeToolHandlerWithoutContract::class);
+        $tool = $this->forceStoredHandler($this->makeTool(null), FakeToolHandlerWithoutContract::class);
 
         $result = new ReconcileToolKanvasModulesAction($tool)->execute();
 
@@ -118,7 +121,7 @@ class ReconcileToolKanvasModulesActionTest extends TestCase
 
     public function testHandlerWithUnknownClassIsNoOp(): void
     {
-        $tool = $this->makeTool('App\\Doesnt\\Exist');
+        $tool = $this->forceStoredHandler($this->makeTool(null), 'App\\Doesnt\\Exist');
 
         $result = new ReconcileToolKanvasModulesAction($tool)->execute();
 

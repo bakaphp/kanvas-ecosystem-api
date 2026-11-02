@@ -74,10 +74,7 @@ class RegisterMercuryWebhookAction
             ->fromApp($this->app)
             ->fromCompany($this->company)
             ->notDeleted()
-            ->whereHas(
-                'action',
-                fn ($query) => $query->where('model_name', ProcessMercuryWebhookJob::class),
-            )
+            ->forJob(ProcessMercuryWebhookJob::class)
             ->first();
     }
 

@@ -10,6 +10,7 @@ use InvalidArgumentException;
 use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
 use Throwable;
 
 /**
@@ -23,6 +24,8 @@ use Throwable;
  */
 trait AttachesFileToEntity
 {
+    use ResolvesFilesystemForTool;
+
     /** Narrower than the upload allow-list: inline content is a model-authored string, so only text. */
     private const CONTENT_EXTENSIONS = [
         'md',
@@ -46,25 +49,39 @@ trait AttachesFileToEntity
         ?string $fileUrl = null,
         ?string $content = null,
         ?string $fileName = null,
+        ?int $filesystemId = null,
     ): array {
         $fileUrl = Str::trimToNull((string) $fileUrl);
         $content = Str::trimToNull((string) $content);
         $fileName = Str::trimToNull((string) $fileName);
+        $filesystemId = $filesystemId > 0 ? $filesystemId : null;
 
-        if ($fileUrl === null && $content === null) {
+        $sources = array_filter([$fileUrl, $content, $filesystemId], static fn (mixed $value): bool => $value !== null);
+
+        if ($sources === []) {
             return [
                 'status' => 'error',
                 'message' => 'Nothing to upload. Pass `content` with the text of the document you want stored '
-                    . '(the usual case — write the markdown yourself), or `file_url` with a public URL to '
-                    . 'download. Retry with one of them.',
+                    . '(the usual case — write the markdown yourself), `file_url` with a public URL to '
+                    . 'download, or `filesystem_id` for a file already in Kanvas (the id from an attachment '
+                    . 'marker on the message). Retry with one of them.',
             ];
         }
 
-        if ($fileUrl !== null && $content !== null) {
+        if (count($sources) > 1) {
             return [
                 'status' => 'error',
-                'message' => 'Pass either `content` or `file_url`, not both. Retry with just one.',
+                'message' => 'Pass just one of `content`, `file_url` or `filesystem_id`, not several. Retry with one.',
             ];
+        }
+
+        if ($filesystemId !== null) {
+            return $this->attachExistingFile(
+                $entity,
+                $entityLabel,
+                $filesystemId,
+                $fileName
+            );
         }
 
         $user = $this->contextUser();
@@ -128,6 +145,38 @@ trait AttachesFileToEntity
                 'message' => 'The file could not be stored. Do not claim it was uploaded — tell the person it failed.',
             ];
         }
+
+        return $this->attachStoredFile($entity, $entityLabel, $file, $name);
+    }
+
+    /**
+     * A file a person handed the agent this turn is already stored under this tenant, so it is
+     * attached as it is: no second download, and no extension check, which the upload already passed.
+     *
+     * @return array<string, mixed>
+     */
+    private function attachExistingFile(
+        EloquentModel $entity,
+        string $entityLabel,
+        int $filesystemId,
+        ?string $fileName,
+    ): array {
+        $file = $this->findTenantFile($filesystemId);
+
+        if ($file === null) {
+            return [
+                'status' => 'error',
+                'message' => sprintf(
+                    'No file with filesystem_id %d belongs to this company. Do not retry the same id — use the id '
+                        . 'from the attachment marker on the message, or from a list/upload tool result.',
+                    $filesystemId,
+                ),
+            ];
+        }
+
+        $name = ($fileName !== null ? $this->safeFileName($fileName) : null)
+            ?? Str::trimToNull((string) $file->name)
+            ?? 'file-' . $file->getId();
 
         return $this->attachStoredFile($entity, $entityLabel, $file, $name);
     }

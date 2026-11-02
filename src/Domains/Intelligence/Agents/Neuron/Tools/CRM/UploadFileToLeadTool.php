@@ -35,8 +35,9 @@ class UploadFileToLeadTool extends Tool
         . 'instead of buried in a note. Use this for technical documentation, a PRD, a spec, a quote '
         . 'write-up, meeting minutes, or any supporting document. Normally you pass `content` — the full '
         . 'text of the document you wrote — plus a `file_name` ending in .md, .txt, .csv or .json. Pass '
-        . '`file_url` instead only when the file already exists at a public URL. Use search_leads or '
-        . 'get_lead_ref to get the lead_id first. For a short remark that belongs in the conversation '
+        . '`file_url` instead only when the file already exists at a public URL, or `filesystem_id` for a '
+        . 'file already in Kanvas — the id in an "Attached file on this message" marker. Use search_leads '
+        . 'or get_lead_ref to get the lead_id first. For a short remark that belongs in the conversation '
         . 'thread, use add_lead_note instead.';
 
     /**
@@ -64,6 +65,7 @@ class UploadFileToLeadTool extends Tool
         ?string $file_name = null,
         ?string $content = null,
         ?string $file_url = null,
+        ?int $filesystem_id = null,
     ): array {
         $result = $this->resolveLeadOrError($lead_id);
         if (is_array($result)) {
@@ -79,6 +81,7 @@ class UploadFileToLeadTool extends Tool
                 fileUrl: $file_url,
                 content: $content,
                 fileName: $file_name,
+                filesystemId: $filesystem_id,
             ),
         ];
     }

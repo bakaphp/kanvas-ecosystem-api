@@ -93,18 +93,167 @@ Bug surfaced 2026-06-08 on lead 25628: agent had 46 People-keyed message rows av
 
 ## The agent never terminally exhausts a lead
 
+The lead's `ai_follow_up` custom field (set by `TriggerIntelligenceActivity` via
+`ApplyLeadAiModeAction`) gates only once it exists. An absent value means the triggers
+never configured the lead, so the remaining gates run. Once present it must be explicitly
+on per `Lead::isAiFollowUpEnabled()` — the shapes the legacy engine accepted — so OFF (`0`)
+and a `FollowUpTypeEnum::NO_FOLLOW_UP` (`3`) type both skip with `lead_follow_up_disabled`.
+This check applies even to forced runs; enabling it does not override a disabled
+lead type. `lead_has_follow_up` is the legacy mirror written by the trigger.
+
+The lead's resolved AI mode (`Lead::isAiMuted()`, key `ai_mode`) also gates: IDLE or
+OFF skips with `ai_mode_off`, pausable like `ai_mode_manual`. This is the same mute
+every channel responder and `AgentReachOutAction` honour; the follow-up agent is not
+allowed to speak for a lead whose AI is off.
+
+## "Open" means `leads_status_id`, never the `status` column
+
+Both the fan-out query and the action's `lead_not_active` gate use `hasOpenLeadStatus()` /
+`scopeHasOpenLeadStatus($company)`: the lead's status row has `is_open` (plus the company's legacy
+`guild_open_leads_status_ids`). `Lead::isOpen()` and the `isOpen` scope delegate to those. Never gate
+on the `status` integer column: no app code writes it (758k of 759k local rows sit at the default
+`0`), so a gate on it passes everyone. CRM pulls and the UI write `leads_status_id` (`close()` /
+`open()`), so that is the only column that reflects a close. A status row created without an explicit
+`is_open` is open when its name is in `LeadStatus::OPEN_STATUS_NAMES` or it is the company default.
+
+## Third-party leads are pulled from their CRM before the follow-up runs
+
+A dealer CRM without webhooks never tells us a lead was closed or sold, so the action asks it —
+**after every free gate has passed** (stage config, `ai_follow_up`, lead type, open status,
+exhaustion, hand-off, manual, mute, reachable channel, session, `too_soon`, template) and right
+before the agent call. CRM calls are billed per request (Elead), so a lead that would skip anyway
+must never cost one. `FollowUpLeadAction::syncLeadSource()` runs
+`SyncLeadSourceBeforeFollowUpAction` and then re-runs the three gates a pull can flip (open
+status, `ai_follow_up`, mute). "Where is this lead from and how do I ask it" lives in Guild:
+`Guild\Leads\Services\CrmLeadSourceSynchronizer`, a concrete class `LeadFollowUpJob`
+method-injects and hands to the action (no provider binding). It dispatches on the company's CRM
+through the SalesAssist `PullLeadAction` exactly like the pull button, then re-applies
+`ApplyLeadClosingStatusAction` so a CRM close flips `ai_mode` / `ai_follow_up`. The forced-run
+mutation passes no synchronizer, so a manual click never pulls.
+
+- `canSync()` requires the company to run a pull-capable connector (Elead, VinSolutions,
+  DealerSocket, DriveCentric — Reynolds is webhook-only) AND the lead to carry that connector's
+  external id. Without the id the pull becomes a people search by phone, which can create or
+  close leads; an hourly cron must not trigger that.
+- Throttle: the lead custom field `guild_follow_up_source_synced_at` is stamped after a pull and
+  skips the next one for `lead_follow_up_sync_interval_minutes` (company setting, default 55) —
+  one CRM call per lead per tick, forced runs in between share it.
+- A failed pull skips with `reason: crm_sync_failed` and is reported; the next tick retries.
+  Nudging a lead whose state could not be verified is the thing the step exists to prevent. The
+  Elead 404 case (opportunity gone) closes the lead inside the pull.
+- Tests swap the seam by passing a Mockery mock of `CrmLeadSourceSynchronizer` to the action's
+  `synchronizer:` or to the job's `handle()`; a bare lead on a company with no CRM config is simply
+  not syncable, so the rest of the suite needs nothing.
+
+## A follow-up is filed on the channel it was sent through
+
+Each sent body is added to the protocol channel of its target — `twilio-<phone>`, `email-<address>`,
+`wa-chat-<phone>-at-swhatsappnet` (`SessionChannelService::createChannelSlug()`), the same slugs the
+inbound connectors write — never to the follow-up session's channel, which may be another protocol.
+An existing channel with that slug is reused whatever entity opened it; a first touch opens it on the
+lead's person. The lead's default channel still gets it too, for the UI.
+
+## Outbound SMS carries the opt-out clause on the first text
+
+`SmsOptOutNoticeService` is applied per SMS target before the message is persisted, so the
+stored row matches what shipped. "First" is judged on the lead's **SMS channel**
+(`SessionChannelService::createChannelSlug('sms', $phone)`), not the follow-up session's
+channel — the session may live on email/WhatsApp and a prior email must not suppress the
+clause on the first text. No SMS channel yet means nothing has ever been texted, so the
+clause is appended. `FollowUpOutcome::$message` reports the primary target's body as sent.
+
+## `after-follow-up` workflow — the CRM hook
+
+Once at least one channel shipped, the action fires `WorkflowEnum::AFTER_FOLLOW_UP`
+(`after-follow-up`) **on the Lead**, so a tenant can hang connector activities on it
+(mirror the touch as a note in Elead / VinSolutions / DealerSocket, etc.) without the engine
+knowing about any CRM. Rule type row: `database/migrations/Workflow/2026_10_13_120000_*`.
+Advance-only runs do not fire it; the `lead.follow_up.sent` ledger event covers those.
+
+Params the activity receives (besides the Lead entity and the app):
+
+| key | value |
+|---|---|
+| `message` | the persisted `Message` for the primary target |
+| `body` | the body as shipped on the primary target (opt-out clause included for SMS) |
+| `channels` | channel types dispatched this touch, e.g. `['sms']` or `['sms', 'email']` |
+| `template` | template name used, or `null` |
+| `stage_id` | the lead's stage after any advance |
+| `advanced_stage` | whether this touch moved the lead to the next stage |
+| `agent` | the follow-up `Agent` |
+| `company` | the lead's company (also what scopes rule lookup) |
+
+A failing tenant rule is reported and swallowed — the touch is already sent and bumped.
+
+Lead-type continued-follow-up defaults can veto execution before retry handling or
+stage advancement. `LeadConfigurationService::allowsContinuedFollowUp()` reads
+`*_con_fu_active_default`, `*_con_fu_cns_default`, or
+`*_con_fu_closed-sold_default` for the lead state. Missing settings allow the
+remaining gates to run; explicit false values skip with
+`lead_type_follow_up_disabled`, even for forced runs. First-message defaults are
+independent. This veto does not override the engine's open-leads-only restriction.
+
+## The fan-out runs the lead gates before queueing
+
+`DispatchAppLeadFollowUpsJob` calls `LeadFollowUpEligibilityService::dispatchSkipReason()` for every
+SQL candidate and only queues leads with no skip reason, so a lead followed up (or messaged) inside
+the stage interval, exhausted, manual or muted never takes a `lead_follow_ups` slot. Each candidate
+still leaves a ledger record: `lead.follow_up.skipped` with the reason and `source: dispatch`, or
+`lead.follow_up.queued` (counted as `queued` in the daily summary). Leads at
+`max_retries` or handed off are still queued inside the interval: only the action exhausts them and
+applies `exhausted_action`. The action runs the same service methods, so the gates live in one place;
+channel, session, template and CRM checks stay in the action.
+
+The company setting `lead_follow_up_start_date` (`IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE`)
+is a cutoff: a lead created before it skips with `lead_created_before_follow_up_start_date`, forced
+runs included, and the fan-out query never queues it. Unset, empty or unparseable means no cutoff, so
+a typo in the setting never silences every lead. Read through
+`LeadConfigurationService::getFollowUpStartDate()` in both places.
+
 `should_respond: false` + `advance_stage: false` from the LLM is treated as a **transient SKIP**, not a terminal exhaustion. The next cron tick re-evaluates the lead. The skip emits `lead.follow_up.skipped` with `reason: 'agent: <text>'` for ledger visibility — no `exhausted_at` set, no operator reset required.
 
 This was a real bug: the agent was using `should_respond: false` to mean "wait longer, customer is still digesting" and the action treated that as terminal exhaustion. Leads got stuck after a single agent timing-feedback decision. Fixed 2026-06-08.
 
 **Terminal exhaustion has only three sources:**
-- `max_retries` hit (count of actual sends, configured per stage)
+- `max_retries` hit (count of actual sends, configured per stage), unless `exhausted_action: advance` successfully moves to the next stage. Successful advancement returns a non-terminal skip (`max_retries_stage_advanced`); the stage observer resets the count and wait window.
 - `agent_hand_off` flag set on the lead (explicit human takeover)
 - Operator calls `resetLeadFollowUp` / clears state manually
 
 **Risk to watch:** since skipping doesn't bump `count`, an agent that keeps declining indefinitely produces unlimited cron-tick LLM calls without ever sending. If you see leads with `count: 0` and many `lead.follow_up.skipped` events with `agent:` reasons piling up, add an `agent_declines` counter to `follow_up_state` with its own cap (e.g. 5) that auto-exhausts. Deferred until the pattern shows up in production.
 
 The inbound re-engagement hook in `BaseAgentChannelReplyAction` (which checks `str_starts_with($reason, 'agent:')` on the exhaustion reason) stays in place for legacy data — leads exhausted via the old `agent:` path will still resume cleanly on customer reply.
+
+## Reports: the daily summary email and `lead:follow-up-status`
+
+Both read the ledger, and both split real failures from skips with
+[`FollowUpFailureReasonEnum`](Enums/FollowUpFailureReasonEnum.php): `agent_call_failed`, `crm_sync_failed`,
+`no_reachable_channel`, `no_session`, `send_failed`, `job_failed`. Those count as **failed** and never as
+skipped; every other skip reason (too_soon, ai_mode_off, agent declined...) is a gate doing its job.
+
+- `lead.follow_up.send_failed` — `dispatchOutbound()` writes it per target the provider refused, with
+  `channel` and `error`. `SendMessageToLeadAction` returns `success: false` for a rejection it will not
+  retry instead of throwing, so the result is checked as well as the exception. The touch still counts
+  as `sent` (the message was stored and the count bumped), so a refused send shows in both columns.
+- `lead.follow_up.failed` — `LeadFollowUpJob::failed()` writes it once the last try is spent, so a run
+  that crashed is not left looking like one still `queued`.
+- `lead:follow-up-daily-summary` (00:30 UTC) builds `follow_up.daily.summary` from
+  `LeadFollowUpActivityService::summarize()` — totals, sent by channel, skips, failures and exhaustions
+  by reason, the latest 20 failures with the lead's title — and emails it through
+  `SendLeadFollowUpDailySummaryAction` to the company's active members holding the app's `FollowUpDev`
+  role (`UsersRepository::getActiveCompanyAppUsersByRole`, the same lookup as the Engage usage
+  report). New apps get the role from `CreateAppsAction::acl()`; an existing one needs
+  `kanvas:create-role FollowUpDev {app_id}`. No role holders, or a day with nothing queued, sent,
+  failed or exhausted, sends nothing. Template `lead-follow-up-daily-summary`
+  (`resources/views/emails/leadFollowUpDailySummary.twig`); an existing app gets it with
+  `kanvas:email-template-sync`.
+- `lead:follow-up-status [--app_id] [--company_id] [--from=08:00] [--to] [--hours] [--tz]` is the
+  `kanvas:status` of follow-ups over a window, by default today from 08:00 to now (in the company's
+  timezone with `--company_id`, else UTC; before 08:00 it starts at yesterday's). One row per company,
+  then each company's detail from the same `summarize()` the email renders, so the two never disagree.
+  The overview counts are grouped in SQL by `countsByCompany()` — the dispatch writes a row per
+  candidate per hour, too many to load across an app. The queue line (`lead_follow_ups` waiting,
+  `failed_jobs` total and in the window, the top errors in the window) is global: a failed job row
+  cannot be told apart by company.
 
 ## Agent resolution — current design + planned evolution
 
@@ -170,8 +319,8 @@ Required config per stage:
 - `prompt_template`: instruct the agent to always return `advance_stage: true` on its single send. This collapses send-and-advance into one tick instead of two, and avoids spamming `lead.follow_up.exhausted` events per day-transition.
 
 **Caveats unique to Pattern B:**
-- **One-hour lag without the "always advance" prompt nudge** — without it, send happens on tick N (`count=0→1`), advance happens on tick N+1 (`count=1≥1` fires the exhaust gate). The ledger then carries one `lead.follow_up.exhausted` per day-stage with `reason: max_retries`.
-- **Customer inbound pauses the day clock** — `followUpSilenceMinutesSince` uses `last_inbound_at` as the reference. A reply during Day 2 resets `silence_minutes`, so the Day 2 nudge waits another 24h. Usually desired (don't pile on the engaged customer). If you need strict calendar advance regardless of conversation activity, swap the silence reference to `stage_entered_at` — this is the only line that needs changing.
+- **One-hour lag without the "always advance" prompt nudge** — without it, send happens on tick N (`count=0→1`), advance happens on tick N+1 (`count=1≥1` fires the exhaust gate). A successful transition records `lead.follow_up.skipped` with `reason: max_retries_stage_advanced`; it does not exhaust the new stage.
+- **The interval restarts on stage entry, follow-up, or any message in either direction** — `LeadFollowUpEligibilityService::silenceMinutes()` feeds the person's last message to `followUpSilenceMinutesSince`, which uses the latest of these timestamps. Without any, it falls back to entity creation time. Missing or future references yield zero elapsed minutes. Resetting state on a stage change therefore starts the full next-stage interval.
 - **Last-stage exhaust is a no-op** — `moveToNextPipelineStage()` silently does nothing when there's no next stage. The lead just parks there exhausted.
 
 ### What the infra does NOT do today
@@ -191,23 +340,23 @@ Stage `channels[].template_name` resolves to a `Templates` row. How it gets used
 
 The agent prompt shows the rendered body either way — with `[agent message slot]` substituted into the placeholder so the LLM understands where its content lands.
 
+**A link that must arrive intact goes in the template as `{{ follow_up_links.name|raw }}`, never in the agent's text.** Whoever triggers the touch calls `$lead->setFollowUpLinks(['name' => $url])` first; every touch replaces the whole map, so a link the caller stopped sending cannot go out, and only `https` is kept. A new link needs the caller and a template, no code here. It is the only custom field a follow-up template sees, because a template can print whatever reaches it and lead custom fields hold personal data. A template naming a link the lead lacks skips with `link_missing: name` before the agent is paid for; the check reads the dotted form only, so `follow_up_links[key]` gets past it. One that fails to render skips with `template_render_failed` and reports to Sentry. Both count as failed; on a forced run they also leave a private note on the lead, since nothing will retry that touch.
+
 **The agent prompt ALWAYS has a tone reference.** When the stage has no `template_name` configured, [`renderDefaultStyleReference($channelType)`](Actions/FollowUpLeadAction.php) returns channel-specific neutral default copy (email gets a `"Best, {company}"` sign-off; sms/whatsapp gets a shorter inline one). This is critical — a "no template configured" prompt with no tone anchor was provoking Gemini to bail with canned fallback text (`"I ran into a hiccup processing that..."`). The agent never sees an empty reference block.
 
 **The reference is for STYLE only, never for body content.** The prompt explicitly tells the agent: "Use the reference for HOW to write — NOT for WHAT to write." The BODY must come from the conversation history (prior questions, offers made, specific topics discussed). The prompt also bans generic phrases like `"wanted to circle back"` / `"anything I can help clarify"` when prior conversation context exists — those are reserved for genuinely cold leads. This explicit split was added after the agent was producing bland reminders that ignored real conversation context (e.g. a customer who got a concrete "10-min whiteboard session" offer 13h ago received a generic "wanted to circle back" follow-up). The fix is on the prompt-instruction side, not the template-rendering side.
 
-**Important silence-calc behavior:** the prompt's `Silence since last inbound: N` is computed via [`getLastInboundForLead`](Actions/FollowUpLeadAction.php) which queries inbound messages across **all** of the person's channels (not just the picked session's channel). This is the truth signal. If no inbound exists anywhere on file, silence renders as `no prior inbound on file (cold lead OR no message stream yet)` — never the `PHP_INT_MAX` raw integer.
+**Important silence-calc behavior:** silence is measured against the person's last message in either direction ([`LeadFollowUpEligibilityService::getLastMessageAt`](Services/LeadFollowUpEligibilityService.php)) across **all** of the person's channels (not just the picked session's channel), so an agent reply or reach-out restarts the interval just like a customer inbound. The WhatsApp 24h window still uses the last **inbound** only (`getLastInboundAt`).
 
 The verb filter (`whatsapp-text`) was dropped from the inbound query. `from_me = false` on a People-keyed channel is the only test; this catches email/SMS/WhatsApp inbound uniformly.
 
-## Only open leads are nudged (`isOpen()` / status < 2)
+## Only open leads are nudged (`hasOpenLeadStatus()`)
 
-Follow-up (and the outbound outreach in `AgentReachOutAction`) only act on **open** leads — `Lead::isOpen()` (`status < 2`). A closed lead (won/lost/inactive) sitting in a non-terminal nudge stage is excluded two ways:
-- [`DispatchAppLeadFollowUpsJob`](Jobs/DispatchAppLeadFollowUpsJob.php) SQL-filters candidates to `status IS NULL OR status < 2` (null = open, matching the model; the column is nullable default 0) so closed leads never spawn a job.
-- [`FollowUpLeadAction`](Actions/FollowUpLeadAction.php) re-checks `isOpen()` as a hard gate → `skip('lead_not_active')`. **Not bypassed by `force`** — force only relaxes the silence gate.
+Follow-up (and the outbound outreach in `AgentReachOutAction`) only act on **open** leads — the named status, see "Open means `leads_status_id`" above. A closed lead (won/lost/inactive) sitting in a non-terminal nudge stage is excluded two ways:
+- [`DispatchAppLeadFollowUpsJob`](Jobs/DispatchAppLeadFollowUpsJob.php) SQL-filters candidates with the `hasOpenLeadStatus($company)` scope so closed leads never spawn a job.
+- [`FollowUpLeadAction`](Actions/FollowUpLeadAction.php) re-checks `hasOpenLeadStatus()` as a hard gate → `skip('lead_not_active')`. **Not bypassed by `force`** — force only relaxes the silence gate.
 
 Inbound agent **replies** are intentionally NOT gated on status — if a customer writes back even on a closed lead, the agent still answers. Only proactive touches (outreach + follow-up) require an open lead.
-
-`Lead::isOpen()` reads the `status` column explicitly (`getAttributeValue`) because `status` is both a column and a `status()` relation — `$this->status` on a partially-hydrated model resolves to the `LeadStatus` object and TypeErrors on `< 2`.
 
 ## Email follow-ups thread under the original outreach (`title_email_follow_up`)
 
@@ -248,7 +397,7 @@ Within each type, ordered by `weight DESC`, then `id DESC`. Opt-outs (`is_opt_ou
 | `agent_picks` | **v1: aliases to `priority_only`.** Future agent-aware routing — see v1.5 TODO. |
 | `fan_out_all` | **All reachable channels per touch.** Same agent message dispatched to every candidate. One touch = one bump (does NOT consume N retry slots for N channels). Same template + same body across channels — if you need per-channel templates, use a pick-one strategy instead. Reserved for high-urgency stages (demo reminder, deal closing). Tenants opt in per stage; default stays pick-one to avoid accidental cross-channel spam / TCPA-class compliance exposure. |
 
-**Skip reasons:** `no_session` (no Session row for the person), `no_reachable_channel` (no stage-enabled channel has a matching non-opted-out contact). The old `channel_not_configured` skip is dead — was a session-driven false positive.
+**Skip reasons:** `no_session` (no Session row for the person; a caller that owns first contact, like the Zoho receiver, passes `openSessionIfMissing` and opens one instead), `no_reachable_channel` (no stage-enabled channel has a matching non-opted-out contact). The old `channel_not_configured` skip is dead — was a session-driven false positive.
 
 **Opt-out behavior change:** leads who unsubscribed but were still being nudged on opted-out contacts will now skip with `no_reachable_channel` if no other channel is reachable. Pre-fix the action didn't consult opt-outs at all.
 
@@ -267,7 +416,7 @@ All three can ship independently — enum case (or branch for #1 which case alre
 | Case | Value | Behavior |
 |---|---|---|
 | `STOP` | `'stop'` | Lead exhausts in current stage. `exhausted_at` set, no advance. Operator (or customer reply) is the only way out. Default. |
-| `ADVANCE` | `'advance'` | Lead exhausts in current stage AND `moveToNextPipelineStage()` is called. Used by drip pipelines + first-touch "auto-bump cold leads" shape. |
+| `ADVANCE` | `'advance'` | Calls `moveToNextPipelineStage()`. On success, leaves the new stage eligible after its wait interval; exhausts only if there is no next stage. Used by drip pipelines + first-touch "auto-bump cold leads" shape. |
 
 **Likely future cases — discuss before adding, but keep them in mind so we don't reinvent:**
 

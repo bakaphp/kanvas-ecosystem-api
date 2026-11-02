@@ -8,7 +8,15 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsReceivableAgent;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\CFOAgent;
+use Kanvas\Intelligence\Agents\Neuron\Coding\ProgrammingAgent;
+use Kanvas\Intelligence\Agents\Neuron\Commerce\CommerceAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
+use Kanvas\Intelligence\Agents\Neuron\CRM\SalesManagerAgent;
+use Kanvas\Intelligence\Agents\Neuron\CustomerSuccess\CustomerUpdateAgent;
+use Kanvas\Intelligence\Agents\Neuron\HumanResources\HumanResourcesAgent;
 use Kanvas\Intelligence\Agents\Neuron\KanvasGenericNeuronAgent;
 use Kanvas\Intelligence\Agents\Neuron\ProjectManagement\ProjectManagerAgent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
@@ -63,18 +71,57 @@ class UniversalAgentToolsTest extends TestCase
     }
 
     /**
-     * The widening is read-only and deliberate. An internal system agent may OPEN a file it is
-     * pointed at; attaching and listing still cost a grant, so a teammate agent cannot quietly
-     * acquire the PM's file-management surface by inheriting a baseline.
+     * An internal system agent may open a file it is pointed at and file what a teammate sends on the
+     * task it was waiting on (Max, 2026-10-12). The plan-level file surface is still the PM's: it
+     * costs a grant, so a teammate agent cannot quietly acquire the board's file management.
      */
-    public function testSystemUserAgentGetsOnlyTheReadSideOfTheFileTools(): void
+    public function testSystemUserAgentGetsTaskFileToolsButNotPlanFileTools(): void
     {
         $names = $this->toolNames(SystemUserAgent::make());
 
-        $this->assertContains('read_file', $names);
+        foreach (['read_file', 'attach_file_to_task', 'list_task_files'] as $tool) {
+            $this->assertContains($tool, $names);
+        }
 
-        foreach (['attach_file_to_task', 'attach_file_to_plan', 'list_task_files', 'list_plan_files'] as $tool) {
+        foreach (['attach_file_to_plan', 'list_plan_files'] as $tool) {
             $this->assertNotContains($tool, $names, 'SystemUserAgent got ' . $tool . ' without a grant');
+        }
+    }
+
+    /**
+     * Waiting on a person is the one thing every internal agent must be able to do: ask them, park the
+     * task, be woken. The agents that curate their own tool list are the ones that silently lost it.
+     */
+    public function testEverySystemUserAgentCanAskWaitAndBeWoken(): void
+    {
+        foreach ($this->systemUserHandlers() as $handler) {
+            $names = $this->toolNames($handler);
+
+            foreach ([
+                'find_teammate',
+                'send_email_to_user',
+                'open_follow_up',
+                'get_nervous_system_task',
+                'update_nervous_system_task_status',
+                'attach_file_to_task',
+                'list_task_files',
+                'snooze_task',
+                'schedule_agent_task',
+                'schedule_reminder',
+            ] as $tool) {
+                $this->assertContains($tool, $names, $handler::class . ' cannot follow through: no ' . $tool);
+            }
+        }
+    }
+
+    /** A tool wired by hand and again through a shared set is two tools with one name. */
+    public function testNoSystemUserAgentRegistersAToolTwice(): void
+    {
+        foreach ($this->systemUserHandlers() as $handler) {
+            $names = $this->toolNames($handler);
+            $duplicates = array_keys(array_filter(array_count_values($names), static fn (int $count): bool => $count > 1));
+
+            $this->assertSame([], $duplicates, $handler::class . ' registers a tool twice');
         }
     }
 
@@ -93,6 +140,25 @@ class UniversalAgentToolsTest extends TestCase
     }
 
     /**
+     * @return list<object>
+     */
+    private function systemUserHandlers(): array
+    {
+        return [
+            SystemUserAgent::make(),
+            ProjectManagerAgent::make(),
+            CommerceAgent::make(),
+            CFOAgent::make(),
+            AccountsPayableAgent::make(),
+            AccountsReceivableAgent::make(),
+            SalesManagerAgent::make(),
+            ProgrammingAgent::make(),
+            HumanResourcesAgent::make(),
+            CustomerUpdateAgent::make(),
+        ];
+    }
+
+    /**
      * @return list<string>
      */
     private function toolNames(?object $handler = null): array
@@ -101,13 +167,18 @@ class UniversalAgentToolsTest extends TestCase
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $type = AgentType::factory()->withAppId($app->getId())->create(['provider' => 'neuron']);
+        $handler ??= KanvasGenericNeuronAgent::make();
+
+        // The handler class on the type is what `conversesWithUser()` reads: the system-only tools
+        // are withheld at runtime from an agent whose type does not say what it is.
+        $type = AgentType::factory()->withAppId($app->getId())->create([
+            'provider' => 'neuron',
+            'handler' => $handler::class,
+        ]);
         $agent = Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($user->getCurrentCompany()->getId())
             ->create(['agent_type_id' => $type->getId()]);
-
-        $handler ??= KanvasGenericNeuronAgent::make();
         $handler->setConfiguration(agent: $agent, user: $user);
 
         return array_values(array_map(

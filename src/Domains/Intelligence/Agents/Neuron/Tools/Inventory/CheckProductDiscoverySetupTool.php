@@ -72,6 +72,7 @@ class CheckProductDiscoverySetupTool extends Tool
             'status' => 'success',
             'ready' => $report['ready'],
             'checks' => $report['checks'],
+            'flags' => $report['flags'],
             'note' => $report['ready']
                 ? 'Discovery is fully configured for this company.'
                 : count($blocking) . ' step(s) still missing. Apply the fixes in the order listed — the '

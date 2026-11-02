@@ -34,7 +34,7 @@ class SuperCarrosVehicleInventoryCommand extends Command
                             {--region_id= : Optional region override; defaults to each company default region}
                             {--warehouse_id= : Optional warehouse ID (single-company mode only)}
                             {--channel_id= : Optional channel ID (single-company mode only)}
-                            {--unpublish-all : Unpublish all variants from the channel before importing}
+                            {--unpublish-all : After importing, unpublish channel vehicles no SuperCarros feed for the company sent this run}
                             {--customer_id= : Optional customer ID override (single-company mode only)}
                             {--weight= : Optional weight to assign to imported products}
                             {--email=* : Email addresses to send the import report to}';
@@ -229,7 +229,7 @@ class SuperCarrosVehicleInventoryCommand extends Command
         }
 
         if ($unpublishAll) {
-            $this->warn('Will unpublish all variants from channel before importing');
+            $this->warn('Will unpublish channel vehicles missing from this run after importing');
         }
 
         $this->info('');
@@ -269,6 +269,10 @@ class SuperCarrosVehicleInventoryCommand extends Command
             $this->info('Total vehicles processed: ' . $result['total_processed']);
             $this->info('Successfully imported: ' . $result['imported']);
             $this->info('Failed imports: ' . $result['failed']);
+            $this->info('Unpublished (missing from feed): ' . ($result['unpublished'] ?? 0));
+            if (! empty($result['unpublish_skipped_reason'])) {
+                $this->warn('Unpublish skipped: ' . $result['unpublish_skipped_reason']);
+            }
             $this->info('===================');
 
             if (! empty($result['errors'])) {

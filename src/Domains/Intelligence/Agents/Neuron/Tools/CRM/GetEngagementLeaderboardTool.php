@@ -76,6 +76,7 @@ class GetEngagementLeaderboardTool extends Tool
                     . 'Defaults to total.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -88,7 +89,12 @@ class GetEngagementLeaderboardTool extends Tool
         ?string $from = null,
         ?string $to = null,
         ?string $sort_by = null,
+        ?int $tenant_company_id = null,
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $channelEnum = MessageChannelEnum::tryFrom(strtolower(trim((string) $channel)) ?: 'all');
         if ($channelEnum === null) {
             return [
@@ -107,15 +113,17 @@ class GetEngagementLeaderboardTool extends Tool
 
         $args = $this->analyticsRangeArgs($timeframe, $from, $to);
 
+        $scope = $this->auditedReadScope();
         $result = new BuildEngagementLeaderboardAction(
             app: $this->app,
-            company: $this->company,
-            request: AnalyticsRequest::fromGraphQL($args, $this->company),
+            company: $scope,
+            request: AnalyticsRequest::fromGraphQL($args, $scope),
             channel: $channelEnum,
         )->execute();
 
         return [
             'status' => 'success',
+            ...$this->tenantScopeSummary(),
             'timeframe' => ['from' => $args['from'], 'to' => $args['to']],
             'channel' => $channelEnum->value,
             'sort_by' => $sortBy,

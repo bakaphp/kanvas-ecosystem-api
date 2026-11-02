@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Plan\Actions;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
@@ -92,6 +93,8 @@ class CreatePlanAction
             $plan->status_pill = $this->data->statusPill;
             $plan->saveOrFail();
 
+            $tasks = [];
+
             foreach ($this->tasks as $taskData) {
                 $task = new Task();
                 $task->plan_id = $plan->id;
@@ -104,12 +107,20 @@ class CreatePlanAction
                 $task->result = $taskData->result;
                 $task->blocked_reason = $taskData->blockedReason;
                 $task->saveOrFail();
+                // TaskObserver loads `plan` on save; swap in the live instance so edits callers make to
+                // $plan afterwards are visible through the task.
+                $task->setRelation('plan', $plan);
+                $tasks[] = $task;
             }
 
-            if (! empty($this->tasks)) {
+            if ($tasks !== []) {
                 $plan->refresh();
                 $plan->recomputeCompletionPct();
             }
+
+            // `intelligence` is not sticky: a `tasks()` query after commit may hit a replica that lacks
+            // these rows, so callers get them as the loaded relation instead.
+            $plan->setRelation('tasks', new Collection($tasks));
 
             if ($this->data->files !== []) {
                 $plan->addMultipleFilesFromUrl($this->data->files);

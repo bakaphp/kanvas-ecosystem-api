@@ -13,6 +13,7 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Recommendations\Enrichment\Jobs\EnrichProductJob;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -122,6 +123,8 @@ class CreateProductAction
                 true
             );
         }
+
+        EnrichProductJob::dispatchIfEnabled($products);
 
         return $products;
     }

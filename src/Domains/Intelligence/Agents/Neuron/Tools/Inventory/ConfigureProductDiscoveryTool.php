@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SemanticProfileStrategyEnum;
+use Kanvas\Inventory\Recommendations\Services\ProductDiscoveryResolver;
 use Kanvas\Inventory\Recommendations\Services\ProductDiscoveryStatusService;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
@@ -34,9 +35,10 @@ class ConfigureProductDiscoveryTool extends Tool
 
     protected string $name = 'configure_product_discovery';
 
-    protected ?string $description = 'Set up natural-language product discovery for this app. Admin only. Points '
-        . 'products at Typesense, gives the app its own collection, and turns on embeddings so a '
-        . 'shopper can search in one language against a catalog written in another. '
+    protected ?string $description = 'Set up natural-language product discovery for this app. Admin only. Works '
+        . 'with whichever search engine the app already uses (Typesense or Algolia) and never switches it. '
+        . 'Gives the app its own index, records the catalog language, and on Typesense turns on '
+        . 'embeddings so a shopper can search in one language against a catalog written in another. '
         . 'It only writes settings — it does NOT index, enrich or create the collection, because '
         . 'those cost money and take hours. It returns the commands a human still has to run, in '
         . 'order. Run check_product_discovery_setup first to see what is actually missing, and '
@@ -55,8 +57,9 @@ class ConfigureProductDiscoveryTool extends Tool
                 name: 'index_name',
                 type: PropertyType::STRING,
                 description: 'Collection name for this app, e.g. "acme_product_index". Without one the app '
-                    . 'shares a collection with every other tenant on the cluster. Defaults to '
-                    . '"app{id}_product_index".',
+                    . 'shares a collection with every other tenant on the cluster. On Typesense it defaults to '
+                    . '"app{id}_product_index" when the app has none; on Algolia it is never defaulted, because '
+                    . 'a new name moves indexing off the index the live storefront reads.',
                 required: false,
             ),
             new ToolProperty(
@@ -152,15 +155,18 @@ class ConfigureProductDiscoveryTool extends Tool
 
         return [
             'status' => 'success',
+            'engine' => ProductDiscoveryResolver::engineFor($this->app),
             'applied' => $applied,
             'remaining' => array_values(array_filter(
                 array_map(static fn (array $c): ?string => $c['fix'], $report['checks']),
             )),
             'next_commands' => [
                 'php artisan kanvas:workflow-sync-actions',
+                'php artisan kanvas-inventory:prepare-discovery-index ' . $this->app->getId() . ' --dry-run',
                 'php artisan kanvas-inventory:backfill-product-enrichment ' . $this->app->getId() . ' --company_id=' . $this->company->getId() . ' --limit=5 --sync',
                 'php artisan kanvas-inventory:backfill-product-enrichment ' . $this->app->getId() . ' --company_id=' . $this->company->getId(),
                 'php artisan kanvas-inventory:scout-product-index-process ' . $this->app->getId() . ' --action=reindex',
+                'php artisan kanvas-inventory:verify-discovery-index ' . $this->app->getId(),
             ],
             'gotchas' => [
                 'queue' => 'The backfill without --sync only DISPATCHES to the `product-enrichment` queue. '
@@ -188,6 +194,30 @@ class ConfigureProductDiscoveryTool extends Tool
     /**
      * @return array<string, string>
      */
+    private function applyEmbedding(?string $embeddingModel): array
+    {
+        $embeddingModel = Str::trimToNull($embeddingModel) ?? self::DEFAULT_EMBEDDING_MODEL;
+
+        if (mb_strtolower($embeddingModel) === 'none') {
+            $this->app->set(ConfigurationEnum::TYPESENSE_QUERY_BY->value, 'search_blurb,name,description');
+
+            return [ConfigurationEnum::TYPESENSE_QUERY_BY->value => 'search_blurb,name,description (keyword only)'];
+        }
+
+        $this->app->set(ConfigurationEnum::EMBEDDING_MODEL->value, $embeddingModel);
+        // Only meaningful once the collection declares the field; naming it
+        // earlier makes Typesense reject every search.
+        $this->app->set(ConfigurationEnum::TYPESENSE_QUERY_BY->value, 'search_blurb,name,description,embedding');
+
+        return [
+            ConfigurationEnum::EMBEDDING_MODEL->value => $embeddingModel,
+            ConfigurationEnum::TYPESENSE_QUERY_BY->value => 'search_blurb,name,description,embedding',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
     private function apply(
         ?string $catalogType,
         ?string $catalogLanguage,
@@ -203,28 +233,38 @@ class ConfigureProductDiscoveryTool extends Tool
         $this->app->set(ConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value, $strategy->value);
         $applied[ConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value] = $strategy->value;
 
-        $this->app->set('products_search_engine', 'typesense');
-        $applied['products_search_engine'] = 'typesense';
+        $engine = ProductDiscoveryResolver::engineFor($this->app);
+        $applied['products_search_engine'] = $engine === ProductDiscoveryResolver::ENGINE_SQL
+            ? 'none configured, discovery runs the SQL fallback; set products_search_engine to typesense or algolia'
+            : "left as {$engine}";
 
-        $indexName = trim((string) $indexName) ?: 'app' . $this->app->getId() . '_product_index';
-        $this->app->set('app_custom_product_index', $indexName);
-        $applied['app_custom_product_index'] = $indexName;
+        $indexName = Str::trimToNull($indexName);
 
-        $embeddingModel = trim((string) $embeddingModel) ?: self::DEFAULT_EMBEDDING_MODEL;
+        // A new name on an Algolia app would move indexing off the index its live storefront reads,
+        // so Algolia only gets one when the caller asks for it by name.
+        if ($indexName === null && $engine !== ProductDiscoveryResolver::ENGINE_ALGOLIA && $this->app->get('app_custom_product_index') === null) {
+            $indexName = 'app' . $this->app->getId() . '_product_index';
+        }
 
-        if (mb_strtolower($embeddingModel) !== 'none') {
-            $this->app->set(ConfigurationEnum::EMBEDDING_MODEL->value, $embeddingModel);
-            // Only meaningful once the collection declares the field; naming it
-            // earlier makes Typesense reject every search.
-            $this->app->set(ConfigurationEnum::TYPESENSE_QUERY_BY->value, 'search_blurb,name,description,embedding');
-            $applied[ConfigurationEnum::EMBEDDING_MODEL->value] = $embeddingModel;
-            $applied[ConfigurationEnum::TYPESENSE_QUERY_BY->value] = 'search_blurb,name,description,embedding';
+        if ($indexName !== null) {
+            $this->app->set('app_custom_product_index', $indexName);
+            $applied['app_custom_product_index'] = $indexName;
+        }
+
+        if ($engine === ProductDiscoveryResolver::ENGINE_ALGOLIA) {
+            $applied[ConfigurationEnum::EMBEDDING_MODEL->value] = 'skipped, Algolia has no embedding model';
         } else {
-            $this->app->set(ConfigurationEnum::TYPESENSE_QUERY_BY->value, 'search_blurb,name,description');
-            $applied[ConfigurationEnum::TYPESENSE_QUERY_BY->value] = 'search_blurb,name,description (keyword only)';
+            $applied += $this->applyEmbedding($embeddingModel);
         }
 
         $language = mb_strtolower(trim((string) $catalogLanguage));
+
+        if (preg_match('/^[a-z]{2}$/', $language) === 1) {
+            $languages = array_values(array_unique([$language, 'en']));
+            $this->app->set(ConfigurationEnum::QUERY_LANGUAGES->value, $languages);
+            $applied[ConfigurationEnum::QUERY_LANGUAGES->value] = implode(', ', $languages);
+        }
+
         $terms = (array) config('inventory-discovery.intent_lexicon_translations.' . $language, []);
 
         if ($terms !== []) {

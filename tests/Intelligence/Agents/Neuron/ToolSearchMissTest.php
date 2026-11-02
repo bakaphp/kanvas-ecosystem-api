@@ -79,6 +79,46 @@ class ToolSearchMissTest extends TestCase
 
         $this->assertStringStartsWith('Found 1 tool(s):', $provider->toolResults[0]);
         $this->assertStringNotContainsString('This list is complete', $provider->toolResults[0]);
+        $this->assertStringNotContainsString('Showing', $provider->toolResults[0], 'Nothing was left out, so nothing to say');
+    }
+
+    /**
+     * The KIAS turn: nine kias__ tools in the pool, a search for "kias" shows five, and the model
+     * reported those five as every tool it had.
+     */
+    public function testAHitSaysHowManyMoreMatchedAndNamesThem(): void
+    {
+        $provider = $this->scriptedProvider([
+            new ToolCallMessage(null, [ToolCall::make('tool_search', 'c-1', ['query' => 'kias'])]),
+            new AssistantMessage('ok'),
+        ]);
+        $agent = $this->agentWithPool($provider, $this->kiasPool());
+
+        $agent->chat(new UserMessage('which kias tools do you have?'));
+
+        $hit = $provider->toolResults[0];
+        $this->assertStringStartsWith('Found 5 tool(s):', $hit);
+        $this->assertStringContainsString('Showing 5 of 9 matches. Also matching, not loaded: ', $hit);
+        $this->assertStringContainsString('Search for one by its exact name', $hit);
+        preg_match_all('/kias__[a-z_]+/', $hit, $names);
+        $this->assertCount(9, array_unique($names[0]), 'Every matching tool is named, loaded or not');
+    }
+
+    public function testThePromptNamesThePoolAndSaysASearchIsPartial(): void
+    {
+        $provider = $this->scriptedProvider([new AssistantMessage('ok')]);
+        $agent = $this->agentWithPool($provider, [...$this->pool(), ...$this->kiasPool()]);
+
+        $agent->chat(new UserMessage('hi'));
+
+        $prompt = (string) $provider->instructions;
+        $this->assertStringContainsString('Your searchable pool holds 15 tools', $prompt);
+        $this->assertStringContainsString('the kias MCP toolkit (9 tools, prefixed kias__)', $prompt);
+        $this->assertStringContainsString('create_invoice', $prompt);
+        $this->assertStringNotContainsString('kias__create_task', $prompt, 'A toolkit is one line, not a menu');
+        $this->assertStringContainsString('at most 5 matches', $prompt);
+        $this->assertStringContainsString('until the next user message', $prompt);
+        $this->assertStringContainsString('never from what one search returned', $prompt);
     }
 
     public function testASearchForAToolAlreadyDeclaredPointsAtItInsteadOfTheList(): void
@@ -191,6 +231,29 @@ class ToolSearchMissTest extends TestCase
             'refund_order' => 'Refund an order.',
         ] as $name => $description) {
             $tools[] = new CallbackTool($name, $description, static fn (): string => 'done');
+        }
+
+        return $tools;
+    }
+
+    /**
+     * @return list<ToolInterface>
+     */
+    private function kiasPool(): array
+    {
+        $tools = [];
+        foreach ([
+            'check_processed_message',
+            'create_task',
+            'get_task',
+            'link_task_thread',
+            'list_expiring_tasks',
+            'list_open_tasks',
+            'mark_message_processed',
+            'record_task_followup',
+            'update_task',
+        ] as $name) {
+            $tools[] = new CallbackTool('kias__' . $name, 'KIAS: ' . str_replace('_', ' ', $name) . '.', static fn (): string => 'ok');
         }
 
         return $tools;

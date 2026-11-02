@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\UniversalSeguros\DataTransferObject;
 
+use Kanvas\Connectors\UniversalSeguros\Concerns\OmitsNulls;
 use Kanvas\Connectors\UniversalSeguros\Enums\ProductEnum;
 use Override;
 use Spatie\LaravelData\Data;
 
 class QuoteRequest extends Data
 {
+    use OmitsNulls;
+
     public function __construct(
         public string $producto,
         public QuoteData $data,
@@ -17,35 +20,14 @@ class QuoteRequest extends Data
     }
 
     /**
-     * "Campo no obligatorio" in their doc means omit the key, not send null: Spatie
-     * serialises unset optionals as explicit nulls and `terminos.ceroDeducible: null`
-     * turns a clean 400 into a bare 500. Empty arrays stay — `aditamentos: []` means
-     * "none", which is not the same as unspecified.
+     * Spatie serialises unset optionals as explicit nulls, and
+     * `terminos.ceroDeducible: null` is one of the keys that turns a clean 400 into
+     * a bare 500 — see OmitsNulls.
      */
     #[Override]
     public function toArray(): array
     {
         return self::withoutNulls(parent::toArray());
-    }
-
-    /**
-     * @param array<array-key, mixed> $data
-     *
-     * @return array<array-key, mixed>
-     */
-    private static function withoutNulls(array $data): array
-    {
-        $clean = [];
-
-        foreach ($data as $key => $value) {
-            if ($value === null) {
-                continue;
-            }
-
-            $clean[$key] = is_array($value) ? self::withoutNulls($value) : $value;
-        }
-
-        return $clean;
     }
 
     /**

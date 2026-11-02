@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,8 +17,9 @@ use Illuminate\Support\Facades\Config;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Workflow\Factories\ReceiverWebhookFactory;
+use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
 /**
@@ -76,6 +78,17 @@ class ReceiverWebhook extends BaseModel
     public function action(): BelongsTo
     {
         return $this->belongsTo(WorkflowAction::class, 'action_id');
+    }
+
+    /**
+     * @param class-string<ProcessWebhookJob> $jobClass
+     */
+    public function scopeForJob(Builder $query, string $jobClass): Builder
+    {
+        return $query->whereHas(
+            'action',
+            fn (Builder $action) => $action->where('model_name', $jobClass),
+        );
     }
 
     public function webhookCalls(): HasMany
@@ -193,8 +206,10 @@ class ReceiverWebhook extends BaseModel
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }

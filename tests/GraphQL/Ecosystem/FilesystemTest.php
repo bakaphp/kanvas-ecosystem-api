@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Actions\CreateFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Inventory\Products\Models\Products;
+use Nuwave\Lighthouse\Cache\CacheKeyAndTagsGenerator;
 use Tests\TestCase;
 
 class FilesystemTest extends TestCase
@@ -35,6 +40,91 @@ class FilesystemTest extends TestCase
             'http://localhost/testing/' . $file->hashName(),
             'uploads'
         );
+    }
+
+    /**
+     * @return array{0: FilesystemEntities, 1: string}
+     */
+    private function attachFileToProductWithWarmCache(): array
+    {
+        $product = Products::factory()->create([
+            'companies_id' => auth()->user()->getCurrentCompany()->getId(),
+        ]);
+        $fileEntity = new AttachFilesystemAction($this->uploadFileDirectly('photo.jpg'), $product)->execute('photo');
+        $hashKey = CacheKeyAndTagsGenerator::PREFIX . ':' . $product->getGraphTypeName() . ':' . $product->getId();
+
+        Redis::connection('graph-cache')->hSet($hashKey, 'files:first:25', 'warmed-payload');
+
+        return [$fileEntity, $hashKey];
+    }
+
+    private function assertCacheDropped(string $hashKey): void
+    {
+        $this->assertSame(
+            0,
+            (int) Redis::connection('graph-cache')->exists($hashKey),
+            'The entity still serves its pre-delete files payload.',
+        );
+    }
+
+    public function testDetachingAFileDropsTheEntityWarmedCache(): void
+    {
+        [$fileEntity, $hashKey] = $this->attachFileToProductWithWarmCache();
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation($uuids: [String!]!) {
+                deAttachFiles(uuids: $uuids)
+            }',
+            ['uuids' => [$fileEntity->uuid]]
+        )->assertJson(['data' => ['deAttachFiles' => true]]);
+
+        $this->assertTrue($fileEntity->fresh()->trashed());
+        $this->assertCacheDropped($hashKey);
+    }
+
+    /**
+     * The client built its file list from a stale cache, so it asks to detach a row that is already
+     * gone. Failing here surfaces as "No result found for model FilesystemEntities" on the product
+     * save; the right outcome is a successful no-op that repairs the cache.
+     */
+    public function testDetachingAnAlreadyDetachedFileSucceedsAndDropsTheStaleCache(): void
+    {
+        [$fileEntity, $hashKey] = $this->attachFileToProductWithWarmCache();
+        $fileEntity->softDelete();
+        Redis::connection('graph-cache')->hSet($hashKey, 'files:first:25', 'stale-payload');
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation($uuid: String!) {
+                deAttachFile(uuid: $uuid)
+            }',
+            ['uuid' => $fileEntity->uuid]
+        )->assertJson(['data' => ['deAttachFile' => true]]);
+
+        $this->assertCacheDropped($hashKey);
+    }
+
+    public function testDeletingAFileDetachesItAndDropsTheEntityWarmedCache(): void
+    {
+        [$fileEntity, $hashKey] = $this->attachFileToProductWithWarmCache();
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation($uuid: String!) {
+                deleteFile(uuid: $uuid)
+            }',
+            ['uuid' => $fileEntity->filesystem->uuid]
+        )->assertJson(['data' => ['deleteFile' => true]]);
+
+        $this->assertTrue($fileEntity->fresh()->trashed());
+        $this->assertCacheDropped($hashKey);
+    }
+
+    public function testHardDeletingAFileEntityRowDropsTheEntityWarmedCache(): void
+    {
+        [$fileEntity, $hashKey] = $this->attachFileToProductWithWarmCache();
+
+        $fileEntity->delete();
+
+        $this->assertCacheDropped($hashKey);
     }
 
     public function testUploadFile(): void

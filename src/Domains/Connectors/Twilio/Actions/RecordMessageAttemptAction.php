@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Twilio\Actions;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Twilio\Enums\MessageStatusEnum;
 use Kanvas\Connectors\Twilio\Models\MessageAttempt;
 use Kanvas\Connectors\Twilio\Models\MessageDeliveryEvent;
 use Kanvas\Social\Messages\Models\Message;
@@ -132,7 +133,7 @@ final class RecordMessageAttemptAction
 
     public static function isTerminal(string $status): bool
     {
-        return in_array(strtolower($status), ['delivered', 'undelivered', 'failed', 'canceled'], true);
+        return MessageStatusEnum::fromTwilio($status)?->isTerminal() ?? false;
     }
 
     private static function remediationAction(array $providerResponse): ?string

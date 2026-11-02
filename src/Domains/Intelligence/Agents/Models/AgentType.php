@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
+use Baka\Concerns\HasHandlerClass;
 use Baka\Contracts\AppInterface;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SoftDeletesTrait;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Intelligence\Agents\Contracts\AgentTypeHandler;
 use Kanvas\Intelligence\Agents\Factories\AgentTypeFactory;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\NervousSystem\Capability\Models\Tool;
@@ -42,6 +44,7 @@ use Override;
  */
 class AgentType extends BaseModel
 {
+    use HasHandlerClass;
     use DatabaseSearchableTrait {
         search as public traitSearch;
     }
@@ -76,6 +79,12 @@ class AgentType extends BaseModel
         'is_multi_agent' => 'boolean',
         'is_default' => 'boolean',
     ];
+
+    #[Override]
+    protected static function handlerContracts(): array
+    {
+        return [AgentTypeHandler::class];
+    }
 
     #[Override]
     public static function getById(mixed $id, ?AppInterface $app = null): static

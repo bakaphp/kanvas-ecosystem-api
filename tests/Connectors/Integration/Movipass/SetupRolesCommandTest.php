@@ -45,6 +45,19 @@ final class SetupRolesCommandTest extends TestCase
         }
     }
 
+    public function testInsurerRoleOnlyReadsOrdersAndReports(): void
+    {
+        $insurer = $this->abilitiesOf(MovipassRolesEnum::INSURER);
+
+        foreach (['list-orders', 'view-order', 'order-reports'] as $granted) {
+            $this->assertContains($granted, $insurer);
+        }
+
+        foreach (['update-orders', 'cancel-orders', 'download-orders', 'configure-company', 'adjust-amount', 'wallet-view'] as $denied) {
+            $this->assertNotContains($denied, $insurer);
+        }
+    }
+
     public function testRerunRevokesAGrantThatLeftTheMatrix(): void
     {
         Bouncer::allow(MovipassRolesEnum::PARKING_OPERATOR->value)->to('wallet-configure');

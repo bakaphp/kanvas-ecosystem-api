@@ -6,12 +6,12 @@ namespace Kanvas\Intelligence\Agents\Neuron\Exporters;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\EventVersionParticipant;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\Traits\ReadsExportFilters;
 use Override;
-use Throwable;
 
 class EventParticipantsRecordExporter implements RecordExporterInterface
 {
@@ -36,17 +36,22 @@ class EventParticipantsRecordExporter implements RecordExporterInterface
     }
 
     #[Override]
-    public function rows(Apps $app, Companies $company, array $filters): array
+    public function rows(Apps $app, Companies|CompanyScope $company, array $filters): array
     {
         $versionId = $this->filterInt($filters, 'version_id');
         if ($versionId === null) {
             throw new ValidationException('version_id is required to export event_participants.');
         }
 
-        try {
-            /** @var EventVersion $version */
-            $version = EventVersion::getByIdFromCompanyApp($versionId, $company, $app);
-        } catch (Throwable) {
+        /** @var EventVersion|null $version */
+        $version = EventVersion::query()
+            ->where('id', $versionId)
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->first();
+
+        if ($version === null) {
             throw new ValidationException(sprintf('No event version #%d found in this company.', $versionId));
         }
 

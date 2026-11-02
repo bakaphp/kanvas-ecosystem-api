@@ -32,7 +32,8 @@ class UploadFileToMessageTool implements KanvasToolInterface
         return 'Attach a file or media to an existing message / activity post, so it shows up with the message '
             . 'instead of only as text. Normally you pass content — the full text of the document you wrote — plus '
             . 'a file_name ending in .md, .txt, .csv or .json. Pass file_url instead when the file or image '
-            . 'already exists at a public URL.';
+            . 'already exists at a public URL, or filesystem_id for a file already in Kanvas (the id in an '
+            . '"Attached file on this message" marker).';
     }
 
     #[Override]

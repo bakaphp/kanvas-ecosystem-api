@@ -87,8 +87,8 @@ final class RespondToMentionJob implements ShouldQueue
             return;
         }
 
-        $handlerClass = $this->agent->type?->handler;
-        if ($handlerClass === null || ! class_exists($handlerClass)) {
+        $handlerClass = $this->agent->type?->handlerClass();
+        if ($handlerClass === null) {
             return;
         }
 

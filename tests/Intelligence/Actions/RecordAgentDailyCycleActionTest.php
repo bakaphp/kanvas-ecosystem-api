@@ -124,7 +124,7 @@ class RecordAgentDailyCycleActionTest extends TestCase
         $this->assertSame(1, $phaseCount, 'Phases should be rebuilt, not duplicated');
     }
 
-    public function testEmptyDayProducesValidCycleWithQuietBriefing(): void
+    public function testEmptyDayProducesCycleWithoutBriefing(): void
     {
         $agent = $this->makeAgent();
         $today = Carbon::today();
@@ -133,7 +133,7 @@ class RecordAgentDailyCycleActionTest extends TestCase
 
         $this->assertSame(0, $cycle->events_processed_count);
         $this->assertSame(0, $cycle->proactive_actions_count);
-        $this->assertStringContainsString('Quiet cycle', (string) $cycle->morning_briefing);
+        $this->assertNull($cycle->morning_briefing);
         $this->assertCount(0, $cycle->phases);
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Handlers;
 
+use Exception;
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
@@ -14,18 +15,24 @@ class TwilioHandlers extends BaseIntegration
     #[Override]
     public function setup(): bool
     {
-        $validated = $this->validateCredentials(
-            $this->data['account_sid'] ?? '',
-            $this->data['auth_token'] ?? '',
-        );
+        $validated = $this->validateCredentials($this->data['account_sid'] ?? '', $this->data['auth_token'] ?? '');
         if (! $validated) {
-            throw new \Exception('Failed to validate Twilio connection');
+            throw new Exception('Failed to validate Twilio connection');
         }
-        $this->app->set(ConfigurationEnum::TWILIO_ACCOUNT_SID->value, $this->data['account_sid']);
-        $this->app->set(ConfigurationEnum::TWILIO_AUTH_TOKEN->value, $this->data['auth_token']);
 
-        // Handle incoming messages from Twilio
+        $this->company->set(ConfigurationEnum::TWILIO_ACCOUNT_SID->value, $this->data['account_sid']);
+        $this->company->set(ConfigurationEnum::TWILIO_AUTH_TOKEN->value, $this->data['auth_token']);
+
         return true;
+    }
+
+    #[Override]
+    protected function companySettingKeys(): array
+    {
+        return [
+            ConfigurationEnum::TWILIO_ACCOUNT_SID->value,
+            ConfigurationEnum::TWILIO_AUTH_TOKEN->value,
+        ];
     }
 
     protected function validateCredentials(string $accountSid, string $authToken): bool

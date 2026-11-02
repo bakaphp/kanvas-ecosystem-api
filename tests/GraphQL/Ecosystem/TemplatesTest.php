@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
 
+use Illuminate\Testing\TestResponse;
+use Kanvas\Companies\Models\Companies;
 use Tests\TestCase;
+use Tests\Traits\MakesTemplates;
 
 class TemplatesTest extends TestCase
 {
+    use MakesTemplates;
+
     /**
      * Test Create Template
      */
@@ -239,5 +244,64 @@ class TemplatesTest extends TestCase
                 'deleteTemplate' => true,
             ],
         ]);
+    }
+
+    public function testUpdateRefusesATemplateManagedByThePlatform(): void
+    {
+        $template = $this->makeHandMadeBladeTemplate('<p>hand made</p>', auth()->user()->getCurrentCompany());
+
+        $this->updateTemplate($template->getId(), $template->name, '<p>replaced</p>')
+            ->assertGraphQLErrorMessage("Template {$template->name} is managed by the platform and cannot be changed here.");
+
+        $this->assertSame('<p>hand made</p>', $template->refresh()->template);
+    }
+
+    public function testCreateOverATemplateManagedByThePlatformIsRefused(): void
+    {
+        $template = $this->makeHandMadeBladeTemplate('<p>hand made</p>', auth()->user()->getCurrentCompany());
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation createTemplate($input: TemplateInput!) {
+                createTemplate(input: $input) { id }
+            }',
+            [
+                'input' => [
+                    'name' => $template->name,
+                    'template' => '<p>replaced</p>',
+                    'parent_template_id' => 0,
+                    'template_variables' => [],
+                ],
+            ]
+        )->assertGraphQLErrorMessage("Template {$template->name} is managed by the platform and cannot be changed here.");
+
+        $this->assertSame('<p>hand made</p>', $template->refresh()->template);
+    }
+
+    public function testUpdateCannotReachAnotherCompanysTemplate(): void
+    {
+        $foreign = $this->makeTemplate('<p>theirs</p>', Companies::factory()->create());
+
+        $response = $this->updateTemplate($foreign->getId(), $foreign->name, '<p>mine</p>');
+
+        $this->assertStringContainsString('record found', (string) $response->json('errors.0.message'));
+        $this->assertSame('<p>theirs</p>', $foreign->refresh()->template);
+    }
+
+    private function updateTemplate(int $id, string $name, string $body): TestResponse
+    {
+        return $this->graphQL(/** @lang GraphQL */ '
+            mutation updateTemplate($id: ID!, $input: TemplateInput!) {
+                updateTemplate(id: $id, input: $input) { id template }
+            }',
+            [
+                'id' => $id,
+                'input' => [
+                    'name' => $name,
+                    'template' => $body,
+                    'parent_template_id' => 0,
+                    'template_variables' => [],
+                ],
+            ]
+        );
     }
 }

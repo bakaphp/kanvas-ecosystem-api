@@ -34,6 +34,12 @@ class AddTaskAction
             $task->status = $this->data->status->value;
             $task->result = $this->data->result;
             $task->blocked_reason = $this->data->blockedReason;
+
+            if ($this->data->parentTask !== null) {
+                $task->parent_task_id = $this->data->parentTask->getId();
+                $task->parent_revision = (int) $this->data->parentTask->revision;
+            }
+
             $task->saveOrFail();
 
             $this->plan->refresh();

@@ -7,6 +7,7 @@ namespace Tests\Approvals;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
+use Illuminate\Support\Facades\Queue;
 use Kanvas\Approvals\Actions\ApproveAction;
 use Kanvas\Approvals\Actions\ExpireApprovalRequestsAction;
 use Kanvas\Approvals\Actions\NotifyApproversAction;
@@ -15,8 +16,10 @@ use Kanvas\Approvals\Enums\ApprovalDecisionEnum;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
+use Kanvas\Approvals\Jobs\SendApprovalDigestJob;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Approvals\Models\ApprovalRequest;
+use Kanvas\Approvals\Notifications\ApprovalDigestNotification;
 use Kanvas\Approvals\Notifications\ApprovalRequestedNotification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -86,6 +89,86 @@ final class ApprovalNotificationAndExpiryTest extends TestCase
 
         NotificationFacade::assertNotSentTo($approvers[0], ApprovalRequestedNotification::class);
         $this->assertSame(0, $request->approvers()->whereNotNull('notified_at')->count());
+    }
+
+    public function test_notify_mode_digest_sends_nothing_now_and_schedules_one_digest_per_approver(): void
+    {
+        Queue::fake();
+        $approver = $this->approver();
+        $policy = $this->digestPolicy($approver);
+
+        $requests = array_map(fn () => $this->openRequest($policy), range(1, 3));
+
+        NotificationFacade::assertNothingSentTo($approver);
+        Queue::assertPushed(SendApprovalDigestJob::class, 1);
+        Queue::assertPushed(
+            SendApprovalDigestJob::class,
+            fn (SendApprovalDigestJob $job): bool => $job->user->is($approver) && $job->delay !== null
+        );
+        $this->assertSame(0, $requests[0]->approvers()->whereNotNull('notified_at')->count());
+    }
+
+    public function test_the_digest_sends_one_email_for_every_request_in_the_window(): void
+    {
+        Queue::fake();
+        $approver = $this->approver();
+        $policy = $this->digestPolicy($approver);
+        $requests = array_map(fn () => $this->openRequest($policy), range(1, 3));
+
+        $this->runDigest($approver);
+
+        NotificationFacade::assertSentToTimes($approver, ApprovalDigestNotification::class, 1);
+        NotificationFacade::assertSentTo(
+            $approver,
+            ApprovalDigestNotification::class,
+            fn (ApprovalDigestNotification $digest): bool => str_contains($digest->getEmailContent(), '3 approvals waiting for you')
+                && substr_count($digest->getEmailContent(), 'Digest Corp') === 3
+        );
+        NotificationFacade::assertNotSentTo($approver, ApprovalRequestedNotification::class);
+        foreach ($requests as $request) {
+            $this->assertNotNull($request->approvers()->where('users_id', $approver->getId())->first()->notified_at);
+        }
+    }
+
+    public function test_a_digest_with_a_single_request_sends_the_regular_email(): void
+    {
+        Queue::fake();
+        $approver = $this->approver();
+        $this->openRequest($this->digestPolicy($approver));
+
+        $this->runDigest($approver);
+
+        NotificationFacade::assertSentToTimes($approver, ApprovalRequestedNotification::class, 1);
+        NotificationFacade::assertNotSentTo($approver, ApprovalDigestNotification::class);
+    }
+
+    public function test_a_request_opened_after_the_digest_ran_starts_a_new_window(): void
+    {
+        Queue::fake();
+        $approver = $this->approver();
+        $policy = $this->digestPolicy($approver);
+        $this->openRequest($policy);
+        $this->runDigest($approver);
+
+        $late = $this->openRequest($policy);
+
+        Queue::assertPushed(SendApprovalDigestJob::class, 2);
+        $this->runDigest($approver);
+        $this->assertNotNull($late->approvers()->where('users_id', $approver->getId())->first()->notified_at);
+        NotificationFacade::assertSentToTimes($approver, ApprovalRequestedNotification::class, 2);
+    }
+
+    public function test_the_digest_leaves_requests_of_an_immediate_policy_alone(): void
+    {
+        Queue::fake();
+        $approver = $this->approver();
+        $immediate = $this->openRequest($this->digestPolicy($approver, ['notify' => 'all', 'approval_type' => 'approve_now']));
+        NotificationFacade::assertSentToTimes($approver, ApprovalRequestedNotification::class, 1);
+
+        $this->runDigest($approver);
+
+        NotificationFacade::assertSentToTimes($approver, ApprovalRequestedNotification::class, 1);
+        $this->assertNotNull($immediate->approvers()->first()->notified_at);
     }
 
     public function test_a_second_run_does_not_re_notify_the_same_approver(): void
@@ -201,6 +284,44 @@ final class ApprovalNotificationAndExpiryTest extends TestCase
         )->execute()->refresh();
 
         return [$request, $approvers];
+    }
+
+    private function approver(): Users
+    {
+        return Users::factory()->create(['email' => 'digest-' . uniqid() . '@example.test']);
+    }
+
+    private function digestPolicy(Users $approver, array $overrides = []): ApprovalPolicy
+    {
+        return ApprovalPolicy::create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => auth()->user()->getCurrentCompany()->getId(),
+            'system_modules_id' => new ApprovableOrganization()->approvalSystemModuleId(),
+            'approval_type' => 'approve_digest_entity',
+            'steps' => [[
+                'step' => 1,
+                'resolver' => 'explicit_users',
+                'config' => ['users_id' => [$approver->getId()]],
+                'required_approvals' => 1,
+            ]],
+            'trigger' => ApprovalTriggerEnum::MANUAL,
+            'notify' => 'digest',
+            ...$overrides,
+        ]);
+    }
+
+    private function openRequest(ApprovalPolicy $policy): ApprovalRequest
+    {
+        return new RequestApprovalAction(
+            entity: $this->seedEntity('Digest Corp ' . uniqid()),
+            policy: $policy,
+            origin: ApprovalOriginEnum::AGENT,
+        )->execute()->refresh();
+    }
+
+    private function runDigest(Users $approver): void
+    {
+        new SendApprovalDigestJob(app(Apps::class), auth()->user()->getCurrentCompany(), $approver)->handle();
     }
 
     private function seedEntity(string $name): ApprovableOrganization

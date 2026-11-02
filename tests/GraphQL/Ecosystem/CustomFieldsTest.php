@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
@@ -312,5 +313,24 @@ class CustomFieldsTest extends TestCase
                 'deleteCustomField' => true,
             ],
         ]);
+    }
+
+    /** Both storage types matter: the Redis hash hands an int back as an int, not as JSON text. */
+    public function testLargeIntegerCustomFieldsAreServedAsStrings(): void
+    {
+        $lead = Lead::factory()->create(['companies_id' => auth()->user()->getCurrentCompany()->getId()]);
+        $lead->set('ZOHO_LEAD_ID', 2896936000576711333);
+        $lead->set('ZOHO_DEAL_ID', '2896936000576711444');
+
+        $body = $this->graphQL('
+            query ($id: Mixed!) {
+                leads(where: { column: ID, operator: EQ, value: $id }, first: 1) {
+                    data { custom_fields(first: 100) { data { name value } } }
+                }
+            }
+        ', ['id' => $lead->getId()])->assertSuccessful()->getContent();
+
+        $this->assertStringContainsString('{"name":"ZOHO_LEAD_ID","value":"2896936000576711333"}', $body);
+        $this->assertStringContainsString('{"name":"ZOHO_DEAL_ID","value":"2896936000576711444"}', $body);
     }
 }

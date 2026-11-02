@@ -24,7 +24,7 @@ class PaymentProcessorMutation
         $user = auth()->user();
 
         try {
-            $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
+            $payment = Payments::getForShopper((int) $request['paymentId'], $user, $app);
 
             if ($payment->isPaid()) {
                 return ['status' => 'error', 'message' => 'Payment is already paid'];
@@ -149,7 +149,7 @@ class PaymentProcessorMutation
         $user = auth()->user();
 
         try {
-            $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
+            $payment = Payments::getForShopper((int) $request['paymentId'], $user, $app);
 
             if ($payment->isPaid()) {
                 return ['success' => true, 'message' => 'Payment is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
@@ -177,8 +177,8 @@ class PaymentProcessorMutation
 
     public function startChallengeWithCard(mixed $root, array $request): array
     {
-        $app      = app(Apps::class);
-        $user     = auth()->user();
+        $app = app(Apps::class);
+        $user = auth()->user();
         $cardData = $request['paymentData'];
 
         try {
@@ -201,20 +201,20 @@ class PaymentProcessorMutation
             //     used for datos3ds). Drop the flat keys once Azul is migrated.
             $cardNumber = preg_replace('/\s+/', '', $cardData['number']);
             $context = [
-                'card_number'  => $cardNumber,
-                'cvc'          => $cardData['cvv'] ?? null,
+                'card_number' => $cardNumber,
+                'cvc' => $cardData['cvv'] ?? null,
                 'browser_info' => $cardData['browser_info'] ?? [],
-                'save_card'    => (bool) ($cardData['save_card'] ?? false),
+                'save_card' => (bool) ($cardData['save_card'] ?? false),
                 'card' => [
-                    'number'          => $cardNumber,
-                    'cvv'             => $cardData['cvv'] ?? null,
+                    'number' => $cardNumber,
+                    'cvv' => $cardData['cvv'] ?? null,
                     'expiration_date' => $cardData['expiration_date'] ?? null,
-                    'firstname'       => $cardData['firstname'] ?? null,
-                    'lastname'        => $cardData['lastname'] ?? null,
-                    'address'         => $cardData['address'] ?? null,
-                    'phone'           => $cardData['phone'] ?? null,
-                    'country'         => $cardData['country'] ?? null,
-                    'zip_code'        => $cardData['zip_code'] ?? null,
+                    'firstname' => $cardData['firstname'] ?? null,
+                    'lastname' => $cardData['lastname'] ?? null,
+                    'address' => $cardData['address'] ?? null,
+                    'phone' => $cardData['phone'] ?? null,
+                    'country' => $cardData['country'] ?? null,
+                    'zip_code' => $cardData['zip_code'] ?? null,
                 ],
             ];
 
@@ -223,11 +223,11 @@ class PaymentProcessorMutation
             return [
                 'success' => $result->success,
                 'message' => $result->message,
-                'status'  => $result->status,
-                'data'    => [
+                'status' => $result->status,
+                'data' => [
                     ...$result->data,
                     'raw' => $result->raw,
-                    'payment_id' => $payment->id
+                    'payment_id' => $payment->id,
                 ],
             ];
         } catch (Exception $e) {
@@ -235,7 +235,7 @@ class PaymentProcessorMutation
                 'success' => false,
                 'message' => $e->getMessage(),
                 'status' => PaymentStatusEnum::FAILED->value,
-                'data' => null
+                'data' => null,
             ];
         }
     }
@@ -259,7 +259,7 @@ class PaymentProcessorMutation
             return $existing;
         }
 
-        $cardNumber    = preg_replace('/\s+/', '', $cardData['number']);
+        $cardNumber = preg_replace('/\s+/', '', $cardData['number']);
         $processorName = $cardData['processor'];
 
         $paymentMethod = new CreatePaymentMethodAction(new PaymentMethodData(
@@ -273,17 +273,17 @@ class PaymentProcessorMutation
             processor: $processorName,
             metadata: [
                 'firstname' => $cardData['firstname'] ?? null,
-                'lastname'  => $cardData['lastname'] ?? null,
-                'address'   => $cardData['address'] ?? null,
-                'city'      => $cardData['city'] ?? null,
-                'state'     => $cardData['state'] ?? null,
-                'zip_code'  => $cardData['zip_code'] ?? null,
-                'country'   => $cardData['country'] ?? null,
-                'phone'     => $cardData['phone'] ?? null,
+                'lastname' => $cardData['lastname'] ?? null,
+                'address' => $cardData['address'] ?? null,
+                'city' => $cardData['city'] ?? null,
+                'state' => $cardData['state'] ?? null,
+                'zip_code' => $cardData['zip_code'] ?? null,
+                'country' => $cardData['country'] ?? null,
+                'phone' => $cardData['phone'] ?? null,
             ],
         ))->execute();
 
-        $createPayment              = new CreatePaymentAction($order, $user);
+        $createPayment = new CreatePaymentAction($order, $user);
         $createPayment->runWorkflow = false;
 
         return $createPayment->execute([
@@ -298,7 +298,7 @@ class PaymentProcessorMutation
         $user = auth()->user();
 
         try {
-            $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
+            $payment = Payments::getForShopper((int) $request['paymentId'], $user, $app);
 
             if ($payment->isPaid()) {
                 return ['success' => true, 'message' => 'Payment is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
@@ -331,7 +331,7 @@ class PaymentProcessorMutation
         try {
             if (isset($request['paymentId'])) {
                 $user = auth()->user();
-                $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
+                $payment = Payments::getForShopper((int) $request['paymentId'], $user, $app);
                 $order = $payment->order ?? throw new RuntimeException('Order not found for this payment');
             } else {
                 $order = Order::where([

@@ -59,6 +59,24 @@ abstract class SlackWebhookJob extends ProcessWebhookJob
     }
 
     /**
+     * One Slack message can arrive as two events with two event ids: a tagged room message is sent
+     * as `app_mention` AND as `message`. Keyed on the message timestamp, per receiver — the agent
+     * app and the workspace listener each keep their own copy on purpose.
+     */
+    protected function isFirstSightingOfMessage(string $slackChannelId, string $ts): bool
+    {
+        if ($slackChannelId === '' || $ts === '') {
+            return true;
+        }
+
+        return Cache::add(
+            'slack:message-seen:' . $this->receiver->getId() . ':' . $slackChannelId . ':' . $ts,
+            true,
+            self::DEDUPE_TTL_SECONDS
+        );
+    }
+
+    /**
      * Slack echoes our own posts back as inbound events.
      */
     protected function isFromBot(array $event): bool
@@ -68,6 +86,37 @@ abstract class SlackWebhookJob extends ProcessWebhookJob
         return isset($event['bot_id'])
             || ($event['subtype'] ?? null) === 'bot_message'
             || ($botUserId !== '' && ($event['user'] ?? null) === $botUserId);
+    }
+
+    protected function isDenied(string $slackChannelId): bool
+    {
+        $denyList = $this->receiver->configuration[ConfigurationEnum::CHANNEL_DENY_LIST->value] ?? [];
+
+        return is_array($denyList) && in_array($slackChannelId, $denyList, true);
+    }
+
+    /**
+     * Edits and deletions nest their real content under `message` / `previous_message`, with the
+     * channel only on the wrapper.
+     *
+     * They become NEW rows rather than mutating the original: append-only keeps the real history, and
+     * the original stays reachable by its timestamp through SlackMessageLookupService.
+     *
+     * @return array{0: array, 1: list<string>}
+     */
+    protected function normalize(array $event, string $subtype): array
+    {
+        return match ($subtype) {
+            EventTypeEnum::MESSAGE_CHANGED->value => [
+                [...(array) ($event['message'] ?? []), 'channel' => $event['channel'] ?? ''],
+                ['slack-edit'],
+            ],
+            EventTypeEnum::MESSAGE_DELETED->value => [
+                [...(array) ($event['previous_message'] ?? []), 'channel' => $event['channel'] ?? ''],
+                ['slack-delete'],
+            ],
+            default => [$event, []],
+        };
     }
 
     protected function deactivateReceiver(): void

@@ -20,6 +20,7 @@ class GenerateOrderReceiptAction
         protected Order $order,
         protected UserInterface $user,
         protected ?OrderReceipt $receipt = null,
+        protected ?array $data = null,
     ) {
     }
 
@@ -40,7 +41,7 @@ class GenerateOrderReceiptAction
             $this->user,
             $receipt->template,
             $this->order,
-            $this->receiptData(),
+            $this->data ?? $this->receiptData(),
         );
 
         $this->order->addFile($pdfFile, $filename);

@@ -119,6 +119,10 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 contactValue: (string) $request['From'],
                 detectedSignal: $consentType,
             )->execute();
+
+            if (! $consentOutcome->isStop()) {
+                $lead->addTag('engaged');
+            }
         }
 
         $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);

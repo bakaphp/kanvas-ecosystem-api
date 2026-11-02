@@ -6,16 +6,14 @@ namespace Kanvas\Connectors\Zoho\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Baka\Support\Str;
 use Exception;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use Kanvas\Connectors\Zoho\Actions\Concerns\SyncsZohoPerson;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Zoho\Services\ZohoFieldMapService;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
-use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
@@ -31,6 +29,8 @@ use Webleit\ZohoCrmApi\Models\Record;
 
 class SyncZohoLeadAction
 {
+    use SyncsZohoPerson;
+
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
@@ -41,13 +41,11 @@ class SyncZohoLeadAction
 
     public function execute(?Record $zohoLead = null): ?Lead
     {
-        $zohoService = new ZohoService($this->app, $this->company);
         $rejectLeadsWithoutAgents = $this->app->get('dont_allow_leads_without_agents');
 
         try {
-            $zohoLead = $zohoLead === null ? $zohoService->getLeadById($this->zohoLeadId) : $zohoLead;
+            $zohoLead ??= new ZohoService($this->app, $this->company)->getLeadById($this->zohoLeadId);
         } catch (Exception $e) {
-            //Log::error('Error getting Zoho Lead', ['error' => $e->getMessage()]);
             report($e);
 
             return null;
@@ -89,20 +87,6 @@ class SyncZohoLeadAction
             ]
         );
 
-        /**
-         * @todo if we don't have it create the status
-         */
-        /*         $leadStatus = match (true) {
-                    Str::contains($status, 'close') => LeadStatus::getByName('bad'),
-                    Str::contains($status, 'bad') => LeadStatus::getByName('bad'),
-                    Str::contains($status, 'junk') => LeadStatus::getByName('bad'),
-                    Str::contains($status, 'lost') => LeadStatus::getByName('close'),
-                    Str::contains($status, 'won') => LeadStatus::getByName('complete'),
-                    Str::contains($status, 'duplicate') => LeadStatus::getByName('complete'),
-                    default => LeadStatus::getByName('active'),
-                }; */
-
-        // Fix: Safely access Owner email with null checks
         $ownerUser = null;
         if (! empty($zohoLead->Owner) && ! empty($zohoLead->Owner['email'])) {
             $ownerUser = UsersAssociatedApps::query()
@@ -112,35 +96,17 @@ class SyncZohoLeadAction
         }
 
         $user = $agent?->user ?? $this->company->user;
+        $companyZohoMapFields = $this->company->get(CustomFieldEnum::FIELDS_MAP->value) ?? [];
+        $record = $zohoLead->getData();
 
         if (! $localLead) {
-            //create lead
             $pipelineStage = Pipeline::query()->fromApp($this->app)->fromCompany($this->company)->where('is_default', 1)->first()->stages()->first();
-
-            $contact = [];
-
-            if (! empty($zohoLead->Email)) {
-                $contact[] = [
-                    'value' => $zohoLead->Email,
-                    'contacts_types_id' => 1,
-                    'weight' => 0,
-                ];
-            }
-
-            if (! empty($zohoLead->Phone)) {
-                $contact[] = [
-                    'value' => $zohoLead->Phone,
-                    'contacts_types_id' => 2,
-                    'weight' => 0,
-                ];
-            }
+            $address = $this->personAddress($record, $companyZohoMapFields);
 
             /**
              * @todo assign owner and user and member # if exist
              */
-            $firstName = $zohoLead->First_Name
-                        ?? $zohoLead->Full_Name
-                        ?? (! empty($zohoLead->Email) ? Str::before($zohoLead->Email, '@') : '');
+            $firstName = $this->personFirstNameForCreate($record, $companyZohoMapFields) ?? '';
             $lead = new DataTransferObjectLead(
                 app: $this->app,
                 branch: $this->company->defaultBranch,
@@ -148,24 +114,29 @@ class SyncZohoLeadAction
                 title: $zohoLead->Full_Name ?? $firstName,
                 pipeline_stage_id: $pipelineStage->getId(),
                 people: new People(
-                    $this->app,
-                    $this->company->defaultBranch,
-                    $user ?? $this->company->user,
-                    $firstName,
-                    Contact::collect($contact, DataCollection::class),
-                    Address::collect([], DataCollection::class),
-                    $zohoLead->Last_Name
+                    app: $this->app,
+                    branch: $this->company->defaultBranch,
+                    user: $user ?? $this->company->user,
+                    firstname: $firstName,
+                    contacts: $this->personContacts($record, $companyZohoMapFields),
+                    address: Address::collect($address ? [$address] : [], DataCollection::class),
+                    lastname: $this->personLastName($record, $companyZohoMapFields),
+                    dob: $this->personDateOfBirth($record, $companyZohoMapFields),
                 ),
                 leads_owner_id: $ownerUser ? $ownerUser->getId() : 0,
                 status_id: $leadStatus->getId(),
                 receiver_id: $this->receiver->getId(),
                 custom_fields: [
+                    ...$this->extractMappedCustomFields($record, $companyZohoMapFields),
                     CustomFieldEnum::ZOHO_LEAD_ID->value => $this->zohoLeadId,
                 ],
                 runWorkflow: false
             );
 
-            return (new CreateLeadAction($lead))->execute();
+            $localLead = new CreateLeadAction($lead)->execute();
+            $this->syncAddressCustomFields($localLead, $localLead->people?->getDefaultAddress());
+
+            return $localLead;
         }
 
         if ($ownerUser) {
@@ -175,110 +146,44 @@ class SyncZohoLeadAction
         if ($user) {
             $localLead->users_id = $user->getId();
         }
-        /*         if ($user) {
-                    $localLead->leads_owner_id = $user->getId();
-                    $localLead->users_id = $user->getId();
-                } */
 
         if (! empty($zohoLead->Company)) {
-            $organization = (new CreateOrganizationAction(
+            $organization = new CreateOrganizationAction(
                 new Organization(
                     name: $zohoLead->Company,
                     company: $this->company,
                     app: $this->app,
                     user: $user ?? $this->company->user
                 )
-            ))->execute();
+            )->execute();
             $localLead->organization_id = $organization->getId();
         }
 
-        $companyZohoMapFields = $this->company->get(CustomFieldEnum::FIELDS_MAP->value);
-
-        $localLead->people->firstname = $zohoLead->First_Name ?? $zohoLead->Full_Name;
-        $localLead->people->lastname = $zohoLead->Last_Name;
         $localLead->firstname = $zohoLead->First_Name;
         $localLead->lastname = $zohoLead->Last_Name;
         $localLead->title = $zohoLead->Full_Name;
         $localLead->description = $zohoLead->Description;
         $localLead->leads_status_id = $leadStatus->getId();
 
-        if (! empty($companyZohoMapFields)) {
-            $this->mapZohoCustomFields($localLead, $zohoLead, $companyZohoMapFields);
+        foreach ($this->extractMappedCustomFields($record, $companyZohoMapFields) as $name => $value) {
+            $localLead->set($name, $value);
         }
 
         $localLead->disableWorkflows();
         $localLead->saveOrFail();
 
+        $this->syncPerson($localLead->people, $record, $companyZohoMapFields);
+        $this->syncAddressCustomFields($localLead, $localLead->people->getDefaultAddress());
+
         return $localLead;
     }
 
-    /**
-     * Map custom fields from Zoho lead to local lead based on company field mapping configuration.
-     *
-     * @param Lead $localLead The local lead to set custom fields on
-     * @param Record $zohoLead The Zoho lead object containing the data
-     * @param array|null $fieldMapping The field mapping configuration
-     */
-    protected function mapZohoCustomFields(Lead $localLead, Record $zohoLead, ?array $fieldMapping): void
+    protected function extractMappedCustomFields(array $record, array $fieldMapping): array
     {
-        if ($fieldMapping === null || count($fieldMapping) === 0) {
-            return;
-        }
-
-        $leadTableFields = $this->getLeadTableFields();
-
-        foreach ($fieldMapping as $localFieldName => $zohoFieldConfig) {
-            // Ensure localFieldName is a string
-            if (! is_string($localFieldName)) {
-                continue;
-            }
-
-            // Skip if the field is a standard lead table field
-            if (in_array($localFieldName, $leadTableFields)) {
-                continue;
-            }
-
-            // Get the Zoho field name
-            $zohoFieldName = is_array($zohoFieldConfig)
-                ? ($zohoFieldConfig['name'] ?? $localFieldName)
-                : $zohoFieldConfig;
-
-            // Check if the Zoho lead has this field and it has a value
-            if (isset($zohoLead->$zohoFieldName) && ! empty($zohoLead->$zohoFieldName)) {
-                $value = $zohoLead->$zohoFieldName;
-
-                // Handle date type conversion if specified
-                if (is_array($zohoFieldConfig) && isset($zohoFieldConfig['type']) && $zohoFieldConfig['type'] === 'date') {
-                    // Convert date format if needed
-                    try {
-                        $timestamp = strtotime($value);
-                        if ($timestamp !== false) {
-                            $value = date('Y-m-d', $timestamp);
-                        }
-                    } catch (Exception $e) {
-                        // Keep original value if date conversion fails
-                    }
-                }
-
-                // Set the custom field on the lead
-                $localLead->set($localFieldName, $value);
-            }
-        }
-    }
-
-    protected function getLeadTableFields(): array
-    {
-        $leadModel = new Lead();
-        $tableName = $leadModel->getTable();
-        $connection = $leadModel->getConnection();
-        $connectionName = $connection->getName();
-
-        // Create a unique cache key that includes the connection and table name
-        $cacheKey = "lead_table_fields_{$connectionName}_{$tableName}";
-
-        // Cache for 1 hour (3600 seconds)
-        return Cache::remember($cacheKey, 3600, function () use ($connectionName, $tableName) {
-            return Schema::connection($connectionName)->getColumnListing($tableName);
-        });
+        return ZohoFieldMapService::extract(
+            $fieldMapping,
+            $record,
+            ZohoFieldMapService::tableColumns(new Lead())
+        );
     }
 }

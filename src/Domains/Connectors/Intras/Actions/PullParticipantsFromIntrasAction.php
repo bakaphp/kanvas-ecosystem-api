@@ -15,6 +15,8 @@ use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
 use Kanvas\Event\Events\Models\Event;
+use Kanvas\Guild\Customers\Classification\Jobs\ClassifyPeopleJob;
+use Kanvas\Guild\Customers\Classification\Services\PeopleClassificationSettings;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\ContactType;
@@ -121,9 +123,13 @@ class PullParticipantsFromIntrasAction
 
         $lookupNames = self::loadLookupNames($client);
 
+        // Read once so a tenant with the feature off pays nothing per row. The pull writes quietly, so
+        // nothing else would notice a new position or a person still missing their tags.
+        $classifies = PeopleClassificationSettings::for($this->app, $this->company)->isActive();
+
         $count = 0;
 
-        $query->orderBy('p.id')->chunk(500, function ($rows) use ($client, &$count, $participantType, $keyContactType, $lookupNames) {
+        $query->orderBy('p.id')->chunk(500, function ($rows) use ($client, &$count, $participantType, $keyContactType, $lookupNames, $classifies) {
             $participantIds = array_map(fn ($r) => (int) $r->id, $rows->all());
             $contactMap = self::loadParticipantContacts($client, $participantIds);
 
@@ -192,6 +198,10 @@ class PullParticipantsFromIntrasAction
 
                 $position = isset($row->position) ? trim((string) $row->position) : null;
                 $this->linkToOrganization($people, $row->companies_id, $position !== '' ? $position : null);
+
+                if ($classifies && ! $people->is_deleted) {
+                    ClassifyPeopleJob::dispatchIfEnabled($people);
+                }
 
                 $count++;
             }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\GraphQL\Intelligence\Queries;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
@@ -18,7 +17,7 @@ class AgentSessionQuery
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $company = app(CompaniesBranches::class)->company;
+        $company = $user->getCurrentCompany();
 
         $session = SessionRepository::getByUuidAndNamespaceFromCompanyApp(
             uuid: $request['id'],

@@ -44,6 +44,11 @@ class Action extends BaseModel
         ];
     }
 
+    public static function forHandler(string $handlerClass): ?self
+    {
+        return static::query()->where('model_name', $handlerClass)->first();
+    }
+
     /**
      * Settings keys this step needs before it can run. Empty means it has no external dependency —
      * NOT that nobody has declared one, which the catalog cannot tell apart and deliberately reports

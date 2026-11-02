@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Sessions\Activities;
 
+use Baka\Support\AllowedClass;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Services\GoogleADKService;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -50,7 +52,7 @@ class InjectADKSessionEventsActivity extends KanvasActivity
             ]);
         }
 
-        $entity = $message->entity() ?? $channel->entityData();
+        $entity = $message->preferredEntity(Lead::class) ?? $channel->entityData();
 
         if (! $entity) {
             return $this->failWorkflow([
@@ -180,14 +182,17 @@ class InjectADKSessionEventsActivity extends KanvasActivity
             ];
         }
 
-        $handler = new $session->agent->type->handler();
+        $handlerClass = AllowedClass::resolve($session->agent->type->handler, ADKAgent::class);
 
-        if (! $handler instanceof ADKAgent) {
+        if ($handlerClass === null) {
             return [
                 'message' => 'Session agent is not an ADK agent',
                 'entity' => $entity,
             ];
         }
+
+        /** @var ADKAgent $handler */
+        $handler = new $handlerClass();
 
         $this->ensureAdkSessionStarted(
             $adkService,

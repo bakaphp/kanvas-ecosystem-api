@@ -5,15 +5,28 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem\Users;
 
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Models\AdminInvite;
 use Kanvas\Users\Models\Users;
 use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
+use Tests\Traits\ActsAsAppOwner;
+use Tests\Traits\CreatesBareApps;
 
 class AdminInviteTest extends TestCase
 {
+    use ActsAsAppOwner;
+    use CreatesBareApps;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->actingAsAppOwner();
+    }
+
     public function testInviteNewAdmin(): void
     {
         Notification::fake();
@@ -61,7 +74,6 @@ class AdminInviteTest extends TestCase
                     'firstname' => fake()->firstName(),
                     'lastname' => fake()->lastName(),
                     'custom_fields' => [],
-
                 ],
             ]
         );
@@ -83,7 +95,6 @@ class AdminInviteTest extends TestCase
                     'password' => fake()->password(8),
                     'invite_hash' => $invite['invite_hash'],
                     'phone_number' => fake()->phoneNumber(),
-
                 ],
             ]
         )->assertSuccessful()
@@ -168,7 +179,6 @@ class AdminInviteTest extends TestCase
                     }
                 }',
             [
-
             ]
         )
         ->assertSuccessful()
@@ -211,7 +221,6 @@ class AdminInviteTest extends TestCase
                     }
                 }',
             [
-
                     'hash' => $invite['invite_hash'],
             ]
         )
@@ -281,6 +290,63 @@ class AdminInviteTest extends TestCase
         $this->assertTrue($user->isAn(RolesEnums::USER->value));
     }
 
+    public function testReinviteExistingAdminDoesNotFailOnDuplicateKeyName(): void
+    {
+        Notification::fake();
+
+        $app = app(Apps::class);
+        $email = fake()->email();
+        $inviteMutation = '
+            mutation inviteAdmin($data: AdminInviteInput!) {
+                inviteAdmin(input: $data) {
+                    id
+                    email
+                    invite_hash
+                }
+            }';
+
+        $invite = $this->graphQL($inviteMutation, [
+            'data' => [
+                'email' => $email,
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+            ],
+        ])->assertSuccessful()->json('data.inviteAdmin');
+
+        $userId = $this->graphQL(
+            '
+            mutation processAdminInvite($data: CompleteInviteInput!) {
+                processAdminInvite(input: $data) {
+                    id
+                }
+            }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'password' => fake()->password(8),
+                    'invite_hash' => $invite['invite_hash'],
+                ],
+            ]
+        )->assertSuccessful()->json('data.processAdminInvite.id');
+
+        $user = Users::getById($userId);
+        $this->assertCount(1, $app->getUserKeys($user));
+
+        $this->graphQL($inviteMutation, [
+            'data' => [
+                'email' => $email,
+                'firstname' => $user->firstname,
+                'lastname' => $user->lastname,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJsonMissing(['message' => 'The name has already been taken.'])
+        ->assertJsonPath('data.inviteAdmin.email', $email);
+
+        $this->assertCount(1, $app->getUserKeys($user));
+    }
+
     public function testProcessAdminInviteDefaultsToAdminRole(): void
     {
         Notification::fake();
@@ -333,5 +399,55 @@ class AdminInviteTest extends TestCase
 
         Bouncer::scope()->to($scope);
         $this->assertTrue($user->isAn(RolesEnums::ADMIN->value));
+    }
+
+    public function testProcessAdminInviteForAnotherAppFromTheKanvasApp(): void
+    {
+        Notification::fake();
+
+        $requestScope = RolesEnums::getScope(app(Apps::class));
+        $invitedApp = $this->createBareApp();
+        $invitedScope = RolesEnums::getScope($invitedApp);
+
+        Bouncer::scope()->onceTo(
+            $invitedScope,
+            fn () => Bouncer::role()->create([
+                'name' => RolesEnums::ADMIN->value,
+                'title' => RolesEnums::ADMIN->value,
+            ])
+        );
+
+        $invite = new AdminInvite();
+        $invite->fill([
+            'invite_hash' => Str::random(50),
+            'users_id' => auth()->id(),
+            'apps_id' => $invitedApp->getId(),
+            'email' => 'invite-' . Str::uuid() . '@kanvas.dev',
+        ]);
+        $invite->saveOrFail();
+
+        $response = $this->graphQL(
+            '
+            mutation processAdminInvite($data: CompleteInviteInput!) {
+                processAdminInvite(input: $data) {
+                    id
+                }
+            }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'password' => fake()->password(8),
+                    'invite_hash' => $invite->invite_hash,
+                ],
+            ]
+        )->assertSuccessful();
+
+        $this->assertNull($response->json('errors'), (string) $response->getContent());
+
+        $user = Users::getById($response->json('data.processAdminInvite.id'));
+
+        $this->assertSame($requestScope, Bouncer::scope()->get());
+        $this->assertTrue(Bouncer::scope()->onceTo($invitedScope, fn () => $user->isAn(RolesEnums::ADMIN->value)));
     }
 }

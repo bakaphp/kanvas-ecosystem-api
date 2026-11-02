@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
+use GuzzleHttp\Psr7\Response;
+use Imdhemy\AppStore\ClientFactory;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\InAppPurchase\Actions\CreateOrderFromAppleReceiptAction;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
@@ -22,7 +25,6 @@ class InAppPurchaseAppleOrderTest extends TestCase
         $company = $user->getCurrentCompany();
         $setupInventory = new Setup($app, $user, $company);
         $setupInventory->run();
-        $app->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, env('TEST_APPLE_PAYMENT_SHARED_SECRET'));
 
         $region = Regions::fromApp($app)->fromCompany($company)->first();
 
@@ -49,6 +51,8 @@ class InAppPurchaseAppleOrderTest extends TestCase
         $product = new CreateProductAction($productData, $user)->execute();
 
         // Perform GraphQL mutation
+        $this->fakeAppleVerification($receipt);
+
         $response = $this->graphQL('
             mutation createOrderFromAppleInAppPurchase($input: AppleInAppPurchaseReceipt!) {
                 createOrderFromAppleInAppPurchase(input: $input) {
@@ -88,7 +92,6 @@ class InAppPurchaseAppleOrderTest extends TestCase
         $company = $user->getCurrentCompany();
         $setupInventory = new Setup($app, $user, $company);
         $setupInventory->run();
-        $app->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, env('TEST_APPLE_PAYMENT_SHARED_SECRET'));
 
         $region = Regions::fromApp($app)->fromCompany($company)->first();
 
@@ -122,6 +125,8 @@ class InAppPurchaseAppleOrderTest extends TestCase
         $product = (new CreateProductAction($productData, $user))->execute();
 
         // Perform GraphQL mutation
+        $this->fakeAppleVerification($receipt);
+
         $response = $this->graphQL('
             mutation createOrderFromAppleInAppPurchase($input: AppleInAppPurchaseReceipt!) {
                 createOrderFromAppleInAppPurchase(input: $input) {
@@ -167,7 +172,6 @@ class InAppPurchaseAppleOrderTest extends TestCase
         $company = $user->getCurrentCompany();
         $setupInventory = new Setup($app, $user, $company);
         $setupInventory->run();
-        $app->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, env('TEST_APPLE_PAYMENT_SHARED_SECRET'));
 
         $region = Regions::fromApp($app)->fromCompany($company)->first();
 
@@ -222,6 +226,8 @@ class InAppPurchaseAppleOrderTest extends TestCase
         $product = (new CreateProductAction($productData, $user))->execute();
 
         // Perform GraphQL mutation
+        $this->fakeAppleVerification($receipt);
+
         $response = $this->graphQL('
             mutation createOrderFromAppleInAppPurchase($input: AppleInAppPurchaseReceipt!) {
                 createOrderFromAppleInAppPurchase(input: $input) {
@@ -260,5 +266,60 @@ class InAppPurchaseAppleOrderTest extends TestCase
         ]);
 
         $this->assertCount(2, OrderItem::where('order_id', $response->json('data.createOrderFromAppleInAppPurchase.id'))->get());
+    }
+
+    public function testAppleUnavailableIsRejectedAsAnInvalidReceipt(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, 'test-shared-secret');
+
+        $this->app->instance(
+            CreateOrderFromAppleReceiptAction::CLIENT_BINDING,
+            ClientFactory::mock(new Response(200, [], json_encode(['status' => 21104, 'is-retryable' => true])))
+        );
+
+        $response = $this->graphQL('
+            mutation createOrderFromAppleInAppPurchase($input: AppleInAppPurchaseReceipt!) {
+                createOrderFromAppleInAppPurchase(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'product_id' => 'apple_down_' . fake()->uuid(),
+                'transaction_id' => '2000000778751927',
+                'receipt' => 'receipt-data',
+                'transaction_date' => 1731943806000,
+            ],
+        ]);
+
+        $this->assertSame('Invalid Receipt', $response->json('errors.0.message'));
+    }
+
+    /**
+     * Apple's sandbox answers the same receipt with 0 or a retryable 211xx at random, so the
+     * verification response is faked with the purchase the test is about to send.
+     */
+    private function fakeAppleVerification(array $receipt): void
+    {
+        app(Apps::class)->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, 'test-shared-secret');
+
+        $body = [
+            'status' => 0,
+            'environment' => 'Sandbox',
+            'receipt' => [
+                'in_app' => [[
+                    'quantity' => '1',
+                    'product_id' => $receipt['product_id'],
+                    'transaction_id' => $receipt['transaction_id'],
+                    'original_transaction_id' => $receipt['transaction_id'],
+                    'purchase_date_ms' => (string) $receipt['transaction_date'],
+                    'original_purchase_date_ms' => (string) $receipt['transaction_date'],
+                ]],
+            ],
+        ];
+
+        $this->app->instance(
+            CreateOrderFromAppleReceiptAction::CLIENT_BINDING,
+            ClientFactory::mock(new Response(200, [], json_encode($body)))
+        );
     }
 }

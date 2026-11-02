@@ -19,6 +19,8 @@ use Kanvas\Guild\Deals\Models\Deal;
  * Unlike ResolvesLeadForTool this does NOT pull in HasKanvasContext: UpdateDealTool declares its own
  * promoted private $app/$company, and a trait re-declaring them would fatal on property composition.
  * The context is read wherever the host tool put it — via HasKanvasContext or its own constructor.
+ * For the same reason there is no read-scope variant here; GetDealRefTool, the one read-only deal
+ * tool, does its scoped lookup itself.
  *
  * Pattern:
  *
@@ -57,7 +59,7 @@ trait ResolvesDealForTool
     /**
      * @return array{status: string, message: string}
      */
-    private function dealNotResolvedError(int $dealId): array
+    protected function dealNotResolvedError(int $dealId): array
     {
         return [
             'status' => 'error',

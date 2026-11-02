@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
@@ -26,7 +27,7 @@ use Nevadskiy\Tree\AsTree;
 use Override;
 
 #[ObservedBy(ClearsLightHouseCacheObserver::class)]
-class Categories extends BaseModel
+class Categories extends BaseModel implements ReadableAtLocation
 {
     use UuidTrait;
     use SlugTrait;

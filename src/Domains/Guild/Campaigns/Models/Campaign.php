@@ -23,6 +23,9 @@ use Override;
  * @property int         $users_id
  * @property string      $channel
  * @property string      $message
+ * @property string|null $template_name
+ * @property bool        $is_important
+ * @property list<string>|null $attachment_urls
  * @property array|null  $criteria
  * @property string      $status
  * @property Carbon|null $scheduled_at
@@ -30,6 +33,7 @@ use Override;
  * @property int         $sent_count
  * @property int         $failed_count
  * @property int         $skipped_count
+ * @property int         $opened_count
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -45,11 +49,14 @@ class Campaign extends BaseModel
     {
         return [
             'criteria' => Json::class,
+            'attachment_urls' => Json::class,
+            'is_important' => 'boolean',
             'scheduled_at' => 'datetime',
             'total_recipients' => 'integer',
             'sent_count' => 'integer',
             'failed_count' => 'integer',
             'skipped_count' => 'integer',
+            'opened_count' => 'integer',
             'is_deleted' => 'boolean',
         ];
     }

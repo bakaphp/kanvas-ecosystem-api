@@ -63,8 +63,11 @@ class ExpireApprovalRequestsAction
         }
 
         $request->skipUndecidedApprovers();
+        $request->refresh();
 
-        $this->workflow->fire($request->refresh(), WorkflowEnum::APPROVAL_EXPIRED);
+        new RunWithdrawalHandlerAction($request)->execute();
+
+        $this->workflow->fire($request, WorkflowEnum::APPROVAL_EXPIRED);
 
         return true;
     }

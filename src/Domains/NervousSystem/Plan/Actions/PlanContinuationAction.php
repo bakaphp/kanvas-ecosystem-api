@@ -44,6 +44,9 @@ class PlanContinuationAction
     private int $blocked = 0;
     private int $done = 0;
     private int $total = 0;
+    private int $waiting = 0;
+    private ?int $lowestPendingSequence = null;
+    private ?int $lowestWaitingSequence = null;
     private ?string $firstBlockedReason = null;
 
     public function execute(): ContinuationDecision
@@ -84,10 +87,19 @@ class PlanContinuationAction
             );
         }
 
-        if ($this->open > 0) {
+        // A waiting task ahead of the next band holds it: the band dispatcher takes the lowest open
+        // sequence, so dispatching here would run work that was sequenced after the wait.
+        if ($this->open > 0 && ! $this->waitHoldsTheNextBand()) {
             return $this->decide(
                 ContinuationDecisionEnum::DISPATCH,
                 sprintf('%d task(s) still open.', $this->open),
+            );
+        }
+
+        if ($this->waiting > 0) {
+            return $this->decide(
+                ContinuationDecisionEnum::WAIT,
+                sprintf('%d task(s) waiting on a booked wake.', $this->waiting),
             );
         }
 
@@ -125,12 +137,32 @@ class PlanContinuationAction
             $this->total++;
 
             match ($task->status) {
-                TaskStatusEnum::PENDING->value, TaskStatusEnum::IN_PROGRESS->value => $this->open++,
+                TaskStatusEnum::PENDING->value => $this->recordPending($task),
+                TaskStatusEnum::IN_PROGRESS->value => $this->open++,
+                TaskStatusEnum::WAITING->value => $this->recordWaiting($task),
                 TaskStatusEnum::DONE->value, TaskStatusEnum::SKIPPED->value => $this->done++,
                 TaskStatusEnum::BLOCKED->value => $this->recordBlocked($task),
                 default => null,
             };
         }
+    }
+
+    private function recordPending(Task $task): void
+    {
+        $this->open++;
+        $this->lowestPendingSequence = min($this->lowestPendingSequence ?? PHP_INT_MAX, (int) $task->sequence);
+    }
+
+    private function recordWaiting(Task $task): void
+    {
+        $this->waiting++;
+        $this->lowestWaitingSequence = min($this->lowestWaitingSequence ?? PHP_INT_MAX, (int) $task->sequence);
+    }
+
+    private function waitHoldsTheNextBand(): bool
+    {
+        return $this->lowestWaitingSequence !== null
+            && ($this->lowestPendingSequence === null || $this->lowestWaitingSequence < $this->lowestPendingSequence);
     }
 
     private function recordBlocked(Task $task): void
@@ -148,6 +180,7 @@ class PlanContinuationAction
             blockedTasks: $this->blocked,
             doneTasks: $this->done,
             wakeCount: (int) $this->plan->wake_count,
+            waitingTasks: $this->waiting,
         );
     }
 

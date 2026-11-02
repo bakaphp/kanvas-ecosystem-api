@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Services;
 
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
-use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
+use Kanvas\Workflow\Rules\Support\SafeExpression;
 use Throwable;
 
 class MessageNotificationTextService
@@ -46,7 +47,7 @@ class MessageNotificationTextService
         if (isset($data['message']['data'])) {
             $messageData = $data['message']['data'];
         }
-        $entity = $engagementMessage->entity();
+        $entity = $engagementMessage->preferredEntity(Lead::class);
 
         //variables for stage messages
         $values = [
@@ -67,12 +68,7 @@ class MessageNotificationTextService
         ];
 
         try {
-            $expressionLanguage = new ExpressionLanguage();
-
-            $message = $expressionLanguage->evaluate(
-                $messageTemplate,
-                $values
-            );
+            $message = SafeExpression::evaluateText($messageTemplate, $values);
         } catch (Throwable $e) {
         }
 

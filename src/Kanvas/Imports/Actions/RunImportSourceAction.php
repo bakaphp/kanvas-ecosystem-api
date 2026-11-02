@@ -17,7 +17,8 @@ use Kanvas\Imports\Enums\ImportRunStatusEnum;
 use Kanvas\Imports\Models\ImportSource;
 use Kanvas\Imports\RemoteFiles\RemoteFileClient;
 use Kanvas\Imports\RemoteFiles\RemoteFileClientFactory;
-use Kanvas\Inventory\Channels\Actions\UnPublishAllVariantsAction;
+use Kanvas\Inventory\Importer\Actions\FinishProductImportAction;
+use Kanvas\Inventory\Importer\Actions\RecordProductImportBatchAction;
 use Kanvas\Inventory\Products\Actions\ImportProductFromFilesystemAction;
 use Kanvas\Inventory\Products\Models\Products;
 use Throwable;
@@ -119,13 +120,27 @@ class RunImportSourceAction
             );
         }
 
+        $message = sprintf('%d rows from %d file(s) queued for import', $feed->rows, count($downloaded));
+
+        // Swept before the import is queued: the stamps already cover the whole feed, and a sweep
+        // that throws then leaves no queued import behind a run recorded as FAILED.
         if ($this->source->unpublish_missing && $this->source->channel !== null) {
-            new UnPublishAllVariantsAction($this->source->channel, $feed->skus)->execute();
+            $run = new RecordProductImportBatchAction(
+                $this->source->app,
+                $this->source->company,
+                $this->source->user,
+                $feed->skus,
+            )->execute();
+            $run = new FinishProductImportAction($run, $this->source->channel)->execute();
+
+            $message .= $run->skipped_reason === null
+                ? sprintf('; %d missing variant(s) unpublished', $run->unpublished_count)
+                : '; nothing unpublished: ' . $run->skipped_reason;
         }
 
         return new ImportRunResult(
             status: ImportRunStatusEnum::COMPLETED,
-            message: sprintf('%d rows from %d file(s) queued for import', $feed->rows, count($downloaded)),
+            message: $message,
             files: $files,
             rows: $feed->rows,
             skippedRows: $feed->skippedRows,

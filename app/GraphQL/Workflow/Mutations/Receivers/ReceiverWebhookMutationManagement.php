@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Workflow\Mutations\Receivers;
 
+use Baka\Support\AllowedClass;
 use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
@@ -11,6 +12,7 @@ use Kanvas\Workflow\Actions\CreateReceiverWebhookAction;
 use Kanvas\Workflow\Actions\RetryWebhookCallAction;
 use Kanvas\Workflow\Actions\UpdateReceiverWebhookAction;
 use Kanvas\Workflow\DataTransferObject\ReceiverWebhook as ReceiverWebhookData;
+use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Kanvas\Workflow\Models\WorkflowAction;
@@ -25,8 +27,7 @@ class ReceiverWebhookMutationManagement
         $company = $user->getCurrentCompany();
         $input = $request['input'];
 
-        /** @var WorkflowAction $action */
-        $action = WorkflowAction::getById((int) $input['action_id']);
+        $action = $this->webhookAction((int) $input['action_id']);
 
         return new CreateReceiverWebhookAction(
             new ReceiverWebhookData(
@@ -53,8 +54,7 @@ class ReceiverWebhookMutationManagement
         /** @var ReceiverWebhook $receiver */
         $receiver = ReceiverWebhook::getByIdFromCompanyApp((int) $request['id'], $company, $app);
 
-        /** @var WorkflowAction $action */
-        $action = WorkflowAction::getById((int) ($input['action_id'] ?? $receiver->action_id));
+        $action = $this->webhookAction((int) ($input['action_id'] ?? $receiver->action_id));
 
         return new UpdateReceiverWebhookAction(
             $receiver,
@@ -105,5 +105,18 @@ class ReceiverWebhookMutationManagement
         $action->execute();
 
         return true;
+    }
+
+    /**
+     * A receiver runs its action's class on every inbound call, so only a webhook job may be bound.
+     */
+    private function webhookAction(int $actionId): WorkflowAction
+    {
+        /** @var WorkflowAction $action */
+        $action = WorkflowAction::getById($actionId);
+
+        AllowedClass::assert($action->model_name, 'receiver action', ProcessWebhookJob::class);
+
+        return $action;
     }
 }

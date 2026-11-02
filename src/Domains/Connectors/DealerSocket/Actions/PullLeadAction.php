@@ -12,6 +12,7 @@ use Kanvas\Connectors\DealerSocket\DataTransferObject\Lead as DataTransferObject
 use Kanvas\Connectors\DealerSocket\Enums\ConfigurationEnum;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketLeadService;
+use Kanvas\Connectors\SalesAssist\Actions\RecordLeadVehicleNotesAction;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadCandidate;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
@@ -51,6 +52,7 @@ class PullLeadAction
         );
 
         $lead = new SyncLeadByThirdPartyCustomFieldAction($dealerSocketLead)->execute();
+        RecordLeadVehicleNotesAction::recordAll($lead);
 
         //set communication channel
         if ($lead->company->get('ai', false) || $triggerFirstMessage) {

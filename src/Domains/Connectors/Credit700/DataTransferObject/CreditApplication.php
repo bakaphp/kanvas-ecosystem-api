@@ -63,7 +63,6 @@ class CreditApplication extends Data
         $financial = $formData['financial'] ?? [];
 
         $employmentDuration = DateHelper::parseDuration($financial['years_at_current_employment'] ?? '');
-        $previousEmploymentDuration = DateHelper::parseDuration($financial['years_at_previous_employment'] ?? '');
 
         $peopleLicense = $people->getDriverLicense();
         $hasPreviousAddress = ! empty($housing['previous_address'] ?? null);
@@ -88,10 +87,13 @@ class CreditApplication extends Data
             employmentMonths: $employmentDuration['months'],
             workPhone: self::nullableString($financial['current_employer_phone'] ?? null),
             previousEmployer: self::nullableString($financial['previous_employer'] ?? null),
-            previousEmploymentYears: $previousEmploymentDuration['years'],
+            previousEmploymentYears: self::normalizeYears($financial['years_at_previous_employment'] ?? null),
             previousEmploymentTitle: self::nullableString($financial['previous_employment_title'] ?? null),
             previousWorkPhone: self::nullableString($financial['previous_employer_phone'] ?? null),
-            monthlyIncome: self::nullableFloat($financial['gross_income'] ?? null),
+            monthlyIncome: self::normalizeMonthlyIncome(
+                $financial['gross_income'] ?? null,
+                $financial['income_interval'] ?? null
+            ),
             otherIncome: self::nullableFloat($financial['other_income'] ?? null),
             otherIncomeExplanation: self::nullableString($financial['other_income_source'] ?? null),
             housingType: self::nullableString($housing['residence_type'] ?? null),
@@ -100,23 +102,23 @@ class CreditApplication extends Data
                 ?? $peopleLicense?->number,
             driversLicenseState: self::normalizeState($personal['drivers_license_state'] ?? null)
                 ?: $peopleLicense?->state,
-            currentAddressPeriod: self::normalizePeriod($housing['time_at_address'] ?? null),
+            currentAddressPeriod: self::normalizeYears($housing['time_at_address'] ?? null),
             previousAddress: $hasPreviousAddress ? self::normalizeStreet($housing['previous_address']) : null,
             previousCity: $hasPreviousAddress ? self::normalizeCity($housing['previous_city'] ?? null) : null,
             previousState: $hasPreviousAddress ? self::normalizeState($housing['previous_state'] ?? null) : null,
             previousZip: $hasPreviousAddress ? self::normalizeZip($housing['previous_zip_code'] ?? '') : null,
             previousAddressPeriod: $hasPreviousAddress
-                ? self::normalizePeriod($housing['previous_time_at_address'] ?? null)
+                ? self::normalizeYears($housing['previous_time_at_address'] ?? null)
                 : null,
         );
     }
 
     /**
-     * 700Credit/RouteOne expects a single integer: whole years when the duration has no
-     * month remainder (e.g. "3.0" -> 3 years), otherwise the total in months (e.g. "1.4"
-     * -> 16 months). Never send decimals or "years.months" text.
+     * CURRENTADDRESSPERIOD / PREVADDRESSPERIOD / PREVEMPLOYMENTYEARS are single integer
+     * "years" fields in the 700Credit spec with no months counterpart, so the form's
+     * "years.months" value rounds to whole years. RouteOne reads anything else as months.
      */
-    private static function normalizePeriod(mixed $duration): ?int
+    private static function normalizeYears(mixed $duration): ?int
     {
         if (empty($duration)) {
             return null;
@@ -124,7 +126,31 @@ class CreditApplication extends Data
 
         $parsed = DateHelper::parseDuration($duration);
 
-        return $parsed['months'] === 0 ? $parsed['years'] : ($parsed['years'] * 12) + $parsed['months'];
+        return (int) round($parsed['years'] + ($parsed['months'] / 12));
+    }
+
+    /**
+     * MINCOME is monthly and RouteOne has no income-frequency field, so the form's
+     * gross_income has to be converted here from whatever interval the customer picked.
+     * Whole dollars: the spec caps the value at 7 characters, which cents blow past
+     * for anything over $9,999.99 a month.
+     */
+    private static function normalizeMonthlyIncome(mixed $income, ?string $interval): ?float
+    {
+        $income = self::nullableFloat($income);
+
+        if ($income === null) {
+            return null;
+        }
+
+        $monthly = match (strtolower(trim((string) $interval))) {
+            'yearly', 'annually', 'annual' => $income / 12,
+            'bi-weekly', 'biweekly' => $income * 26 / 12,
+            'weekly' => $income * 52 / 12,
+            default => $income,
+        };
+
+        return round($monthly);
     }
 
     /**

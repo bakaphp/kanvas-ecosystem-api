@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Apps\Actions;
 
 use Baka\Support\Str;
-use Bouncer;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
+use Kanvas\Enums\StateEnums;
 
 class CreateAppKeyAction
 {
@@ -33,7 +32,8 @@ class CreateAppKeyAction
             'name' => [
                 'required',
                 Rule::unique('apps_keys')->where(function ($query) use ($data) {
-                    return $query->where('apps_id', $data['apps_id']);
+                    return $query->where('apps_id', $data['apps_id'])
+                        ->where('is_deleted', StateEnums::NO->getValue());
                 }),
             ],
         ]);
@@ -49,10 +49,6 @@ class CreateAppKeyAction
         $app->users_id = $this->data->user->getId();
         $app->expires_at = $this->data->expiresAt;
         $app->saveOrFail();
-
-        //@todo change to use scope
-        Bouncer::scope()->to(RolesEnums::getScope($this->data->app));
-        $this->data->user->assign(RolesEnums::OWNER->value);
 
         if ($this->createUserInApp) {
             $userRegisterInApp = new RegisterUsersAppAction($this->data->user);

@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Rules\Models\Rule;
+use Kanvas\Workflow\Rules\Models\RuleAction;
 use Workflow\Models\StoredWorkflow as BaseStoredWorkflow;
 use Workflow\Serializers\Serializer;
 
@@ -16,9 +17,40 @@ class StoredWorkflow extends BaseStoredWorkflow
 {
     protected $connection = 'workflow';
 
+    /**
+     * Sync runs execute their activities inline and write no logs, so the name comes from the
+     * rule the run was started with.
+     */
     public function getActivityName(): string
     {
-        return class_basename($this->logs()->first()?->class ?? '');
+        $fromLogs = class_basename($this->logs()->first()?->class ?? '');
+
+        if ($fromLogs !== '') {
+            return $fromLogs;
+        }
+
+        return $this->ruleFromArguments()
+            ?->workflowActivities
+            ->map(fn (RuleAction $ruleAction) => class_basename($ruleAction->activity->actionClass()))
+            ->implode(', ') ?? '';
+    }
+
+    private function ruleFromArguments(): ?Rule
+    {
+        if (empty($this->arguments)) {
+            return null;
+        }
+
+        try {
+            foreach ($this->workflowArguments() as $argument) {
+                if ($argument instanceof Rule) {
+                    return $argument;
+                }
+            }
+        } catch (Exception) {
+        }
+
+        return null;
     }
 
     public function getUnSerializeArgument(): array

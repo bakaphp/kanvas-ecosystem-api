@@ -7,7 +7,7 @@ namespace Kanvas\Workflow\Traits;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Actions\ProcessWorkflowEventAction;
-use Kanvas\Workflow\SyncWorkflowStub;
+use Workflow\WorkflowStub;
 
 trait CanUseWorkflow
 {
@@ -17,7 +17,7 @@ trait CanUseWorkflow
         string $event,
         bool $async = true,
         array $params = []
-    ): ?SyncWorkflowStub {
+    ): ?WorkflowStub {
         if (! $this->enableWorkflows) {
             return null;
         }

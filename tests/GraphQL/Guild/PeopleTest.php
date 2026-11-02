@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Guild;
 
 use Illuminate\Http\UploadedFile;
+use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Tests\TestCase;
 
@@ -1358,6 +1359,52 @@ class PeopleTest extends TestCase
 
         $people->refresh();
         $this->assertCount(2, $people->contacts()->get(), 'Other contacts should not be affected');
+        $this->assertTrue((bool) $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
+        $this->assertSame('manual', $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT_SOURCE->value));
+        $this->assertSame(0, $people->contacts()->where('is_opt_out', 0)->count(), 'Opt-out is person-wide');
+    }
+
+    public function testUpdateContactAlreadyOptedOutDoesNotApplyDoNotContact(): void
+    {
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => fake()->unique()->safeEmail(),
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => '8095558888',
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                    'is_opt_out' => true,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $people = People::find($response['data']['createPeople']['id']);
+        $phoneContact = $people->contacts()->where('contacts_types_id', 2)->first();
+
+        $this->graphQL('
+            mutation($id: ID!, $input: UpdateContactInput!) {
+                updateContact(id: $id, input: $input) {
+                    id
+                    is_opt_out
+                }
+            }
+        ', [
+            'id' => $phoneContact->id,
+            'input' => ['weight' => 1, 'is_opt_out' => true],
+        ])->assertSuccessful();
+
+        $people->refresh();
+        $this->assertFalse((bool) $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
+        $this->assertSame(0, (int) $people->contacts()->where('contacts_types_id', 1)->value('is_opt_out'));
     }
 
     public function testDeleteContact(): void

@@ -20,14 +20,19 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
  * Persist a message already delivered (by an agent tool or a campaign) on the matching protocol channel.
  *
  * Delivery happens first. This action records that exact outbound on the SMS/email channel of the
  * Lead or, for a person with no lead, of the People record, so the activity timeline and future agent
- * turns see one continuous protocol history. It does not create a Session or fire the CREATED delivery
- * workflow: the provider has already accepted the message and must never be called twice.
+ * turns see one continuous protocol history. It creates no Session.
+ *
+ * Message CREATED fires last, once the entity links and the delivery SID are on the row, so a Message
+ * rule (a CRM note push, a stakeholder notice) sees a tool send the way it sees a reach-out or a channel
+ * reply. Nothing on that event delivers: the activities that send to a customer are typed on Channel, so
+ * the provider is never called twice.
  */
 class PersistOutboundMessageAction
 {
@@ -80,6 +85,7 @@ class PersistOutboundMessageAction
             is_public: 1,
             people: $people,
         ));
+        // Not here: the create transaction would fire CREATED before the lead and the SID are on the row.
         $createMessage->runWorkflow = false;
         $message = $createMessage->execute();
 
@@ -97,6 +103,12 @@ class PersistOutboundMessageAction
         if ($this->channelType === ChannelCategoryEnum::SMS->value) {
             new StoreMessageSidAction($message)->execute($providerResponse);
         }
+
+        $message->fireWorkflow(
+            WorkflowEnum::CREATED->value,
+            true,
+            ['app' => $this->entity->app],
+        );
 
         return ['message' => $message, 'channel' => $channel];
     }

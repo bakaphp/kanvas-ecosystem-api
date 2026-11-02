@@ -33,6 +33,10 @@ class AppTemplateMutation
             )
         );
 
-        return $createTemplate->execute();
+        $template = $createTemplate->execute();
+
+        $template->assertNotBlade();
+
+        return $template;
     }
 }

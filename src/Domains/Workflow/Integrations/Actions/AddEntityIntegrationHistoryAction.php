@@ -24,15 +24,19 @@ class AddEntityIntegrationHistoryAction
         $integrationHistory->entity_namespace = get_class($this->dto->entity);
         $integrationHistory->entity_id = $this->dto->entity->getId();
         $integrationHistory->apps_id = $this->app->getId();
-        $integrationHistory->integrations_company_id = $this->dto->integrationCompany->getId();
-        $integrationHistory->companies_id = $this->dto->integrationCompany->company->getId();
-        $integrationHistory->integrations_id = $this->dto->integrationCompany->integration->getId();
+        $integrationHistory->integrations_company_id = $this->dto->integrationCompany?->getId();
+        $integrationHistory->companies_id = $this->dto->integrationCompany?->company->getId()
+            ?? $this->dto->company?->getId()
+            ?? (int) $this->dto->entity->companies_id;
+        $integrationHistory->integrations_id = $this->dto->integrationCompany?->integration->getId()
+            ?? $this->dto->integration?->getId();
         $integrationHistory->status_id = $this->dto->status->getId();
         $integrationHistory->input = $this->dto->input;
         $integrationHistory->response = $this->dto->response;
         $integrationHistory->exception = $this->dto->exception;
         $integrationHistory->workflow_id = $this->dto->workflowId;
         $integrationHistory->rules_id = $this->dto->rule?->getId();
+        $integrationHistory->actions_id = $this->dto->action?->getId();
 
         $integrationHistory->saveOrFail();
 

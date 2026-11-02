@@ -7,6 +7,7 @@ namespace Baka\Search\Contracts;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 
 /**
  * Resolves a batch of names to record ids through the app's search engine. Ids only — hydration and
@@ -19,6 +20,7 @@ interface NameSearchInterface
     public const int DEFAULT_CANDIDATES_PER_TERM = 20;
 
     /**
+     * @param Companies|CompanyScope $company one company, or the companies an agent read may span
      * @param list<array{query: string, tokens: list<string>}> $terms
      * @param string $queryBy comma-separated index fields to match against
      *
@@ -27,7 +29,7 @@ interface NameSearchInterface
     public function idsFor(
         Model $model,
         Apps $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         string $queryBy,
         array $terms,
         int $perTerm,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Stubs\Intelligence;
 
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Intelligence\Agents\Contracts\AgentTypeHandler;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\AgentState;
@@ -12,7 +13,7 @@ use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Providers\ProviderResponse;
 
-class FakeAgentHandler
+class FakeAgentHandler implements AgentTypeHandler
 {
     public function setConfiguration(
         Agent $agent,

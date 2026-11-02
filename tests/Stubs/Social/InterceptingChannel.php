@@ -6,8 +6,8 @@ namespace Tests\Stubs\Social;
 
 use Closure;
 use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Workflow\SyncWorkflowStub;
 use Override;
+use Workflow\WorkflowStub;
 
 /**
  * A real channel row whose workflow announcements are observable.
@@ -44,7 +44,7 @@ class InterceptingChannel extends Channel
         string $event,
         bool $async = true,
         array $params = []
-    ): ?SyncWorkflowStub {
+    ): ?WorkflowStub {
         if ($this->onFire !== null) {
             ($this->onFire)($event, $params);
         }

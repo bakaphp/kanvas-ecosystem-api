@@ -11,9 +11,12 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Actions\RecalculateSlotCapacityAction;
+use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Enums\EmailTemplateEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderStatus;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Orders\Notifications\OrderExpirationNotification;
 
 class OrderFinishExpiredCommand extends Command
@@ -103,6 +106,72 @@ class OrderFinishExpiredCommand extends Command
                 $this->sendExpiringOrderNotification($order, $orderEndTime);
             }
         }
+
+        OrderTypes::query()
+            ->where('apps_id', $app->getId())
+            ->get()
+            ->each(fn (OrderTypes $orderType) => $this->expireOrdersOfType($orderType));
+    }
+
+    protected function expireOrdersOfType(OrderTypes $orderType): void
+    {
+        $rule = $orderType->expirationRule();
+
+        if ($rule === null) {
+            return;
+        }
+
+        $statuses = OrderStatus::query()
+            ->where('order_types_id', $orderType->getId())
+            ->whereIn('slug', [$rule['from_status'], $rule['to_status']])
+            ->get()
+            ->keyBy('slug');
+
+        $from = $statuses->get($rule['from_status']);
+        $to = $statuses->get($rule['to_status']);
+
+        if ($from === null || $to === null) {
+            return;
+        }
+
+        Order::query()
+            ->where('apps_id', $orderType->apps_id)
+            ->notDeleted()
+            ->where('order_types_id', $orderType->getId())
+            ->where('order_status_id', $from->getId())
+            ->whereRaw('JSON_VALID(metadata)')
+            ->whereRaw('JSON_UNQUOTE(JSON_EXTRACT(metadata, ?)) is not null', ['$.' . $rule['date_path']])
+            ->each(function (Order $order) use ($rule, $to): void {
+                if ($order->user !== null && $this->hasEnded($order, $rule['date_path'])) {
+                    $this->expireOrder($order, $to);
+                }
+            });
+    }
+
+    protected function hasEnded(Order $order, string $datePath): bool
+    {
+        $value = trim((string) data_get($order->metadata, $datePath));
+
+        if ($value === '') {
+            return false;
+        }
+
+        $endsAt = Carbon::parse($value, $this->resolveOrderTimezone($order));
+
+        return (strlen($value) <= 10 ? $endsAt->endOfDay() : $endsAt)->isPast();
+    }
+
+    protected function expireOrder(Order $order, OrderStatus $to): void
+    {
+        $result = new TransitionOrderStateAction($order, $order->user, $to)->execute(processQuietly: true);
+
+        if ($result['status'] !== 'success') {
+            $this->warn('Could not expire order ' . $order->id . ': ' . $result['message']);
+
+            return;
+        }
+
+        $this->info('Expired order ' . $order->id . ' for app ' . $order->app->name);
     }
 
     protected function resolveOrderTimezone(Order $order): string

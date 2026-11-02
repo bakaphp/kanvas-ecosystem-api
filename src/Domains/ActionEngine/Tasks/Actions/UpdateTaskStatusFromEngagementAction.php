@@ -19,22 +19,16 @@ class UpdateTaskStatusFromEngagementAction
     ) {
     }
 
+    /**
+     * @return list<TaskEngagementItem> empty when the company action has no task list items
+     */
     public function execute(): array
     {
         $this->validateInput();
 
         $results = [];
-        $taskListItems = $this->findTaskListItems()->get();
 
-        if ($taskListItems->isEmpty()) {
-            return [
-                'success' => false,
-                'message' => 'No task list items found for the engagement company action.',
-                'results' => [],
-            ];
-        }
-
-        foreach ($taskListItems as $taskListItem) {
+        foreach ($this->findTaskListItems()->get() as $taskListItem) {
             $results[] = $this->processTaskListItem($taskListItem);
         }
 

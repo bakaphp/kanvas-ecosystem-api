@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\DispatchHarnessTaskAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\Concerns\ReportsInternalDispatchFailure;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\SplitsReferenceSlugs;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
@@ -23,6 +26,7 @@ use Throwable;
 #[AgentTool(name: 'Dispatch Self-Hosted Coding Task', category: 'coding')]
 class DispatchHarnessCodingTaskTool extends Tool implements RequiresSystemAgent
 {
+    use ReportsInternalDispatchFailure;
     use ReportsToolOutcome;
     use SplitsReferenceSlugs;
     // Distinct briefs are distinct work; without this every dispatch in a turn shares one budget.
@@ -116,7 +120,10 @@ class DispatchHarnessCodingTaskTool extends Tool implements RequiresSystemAgent
                 referenceSlugs: $this->splitReferenceSlugs($references),
                 attachmentIds: $this->splitAttachmentIds($attachments),
             )->execute();
-        } catch (Throwable $e) {
+        } catch (HarnessTransportException $e) {
+            // A ValidationException by type, but an unreachable runtime is nothing the model can act on.
+            return $this->internalFailure($e);
+        } catch (ValidationException $e) {
             // Spelling out the wrong move, because the model reliably finds it: told it cannot touch a
             // repository, it offers to write the file contents in the conversation instead. That reads
             // as helpfulness and is the opposite — nobody asked for text, the work did not happen, and
@@ -128,10 +135,13 @@ class DispatchHarnessCodingTaskTool extends Tool implements RequiresSystemAgent
                     . 'that does not cover it. Do NOT write the code, the file contents or a diff in '
                     . 'the conversation as a substitute; that is not the work you were asked to do.'
             );
+        } catch (Throwable $e) {
+            return $this->internalFailure($e);
         }
 
+        // Written a moment ago on the writer; the replica may not have it yet.
         /** @var AgentTaskSession|null $session */
-        $session = AgentTaskSession::query()->forTask($record->getId())->latest('id')->first();
+        $session = AgentTaskSession::query()->useWritePdo()->forTask($record->getId())->latest('id')->first();
 
         return $this->ok(
             [

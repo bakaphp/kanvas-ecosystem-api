@@ -37,6 +37,6 @@ class EventResource extends BaseModel
 
     public function resource(): MorphTo
     {
-        return $this->morphTo();
+        return $this->morphTo('resource', 'resources_type', 'resources_id');
     }
 }

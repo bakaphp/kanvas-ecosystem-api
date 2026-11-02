@@ -79,22 +79,18 @@ class RespondToAgentMentionListener
             // Let the mentioned entity own the routing (e.g. a Project/Plan drives its PM loop with full
             // context + board tools + ledger). The generic responder is skipped so the agent never
             // double-answers. Only the entity decides eligibility (a Project routes only for its PM).
-            $entityRoute = $this->routeThroughEntities(
+            $job = $this->routeThroughEntities(
                 $routableEntities,
                 $agent,
                 $message,
                 $threadRootId
-            );
-            if ($entityRoute !== null) {
-                dispatch($entityRoute);
+            ) ?? new RespondToMentionJob($agent, $message);
 
-                continue;
-            }
-
-            $job = RespondToMentionJob::dispatch($agent, $message);
+            // Either route reads the mention's files when it runs, so both wait for the upload.
+            $pending = dispatch($job);
 
             if ($awaitingUpload) {
-                $job->delay(
+                $pending->delay(
                     now()->addSeconds(self::ATTACHMENT_SETTLE_SECONDS)
                 );
             }

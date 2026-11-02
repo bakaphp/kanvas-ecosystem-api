@@ -113,6 +113,7 @@ class AgentToolDiscoveryService extends AttributeClassDiscovery
     {
         return match (true) {
             str_contains($fqcn, '\\Inventory\\') => 'inventory',
+            str_contains($fqcn, '\\Elead\\') => 'elead',
             str_contains($fqcn, '\\Guild\\'),
             str_contains($fqcn, '\\CRM\\'),
             str_contains($fqcn, '\\Apollo\\'),

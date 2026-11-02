@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Notification;
@@ -24,6 +23,7 @@ use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
 use Kanvas\Social\Messages\Listeners\NotifyMentionedUsersListener;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Notifications\UserMentionedNotification;
+use Kanvas\Templates\Support\TemplateSandbox;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -124,8 +124,8 @@ class MentionNotificationTest extends TestCase
 
     public function testMentionEmailTemplateIncludesMessageBody(): void
     {
-        $rendered = Blade::render(
-            File::get(resource_path('views/emails/userMentioned.blade.php')),
+        $rendered = TemplateSandbox::renderHtml(
+            File::get(resource_path('views/emails/userMentioned.twig')),
             [
                 'user' => (object) ['firstname' => 'Johnny'],
                 'fromUserName' => 'Roven PM',

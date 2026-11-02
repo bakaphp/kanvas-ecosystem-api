@@ -6,6 +6,7 @@ namespace Kanvas\NervousSystem\Plan\DataTransferObject;
 
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Models\Task as TaskModel;
 use Spatie\LaravelData\Data;
 
 /**
@@ -22,6 +23,8 @@ class Task extends Data
         public readonly TaskStatusEnum $status = TaskStatusEnum::PENDING,
         public readonly ?array $result = null,
         public readonly ?string $blockedReason = null,
+        /** The task this one is a sub-step of; its outcome resumes that task. */
+        public readonly ?TaskModel $parentTask = null,
     ) {
     }
 

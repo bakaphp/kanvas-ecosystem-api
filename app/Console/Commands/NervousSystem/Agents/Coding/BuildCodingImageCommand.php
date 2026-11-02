@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem\Agents\Coding;
 
+use App\Console\Commands\NervousSystem\Agents\Coding\Concerns\SelectsAppMachines;
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenCode\Services\CodingImageService;
 use Kanvas\Connectors\OpenCode\SshClient;
@@ -29,6 +29,7 @@ use Throwable;
 class BuildCodingImageCommand extends Command
 {
     use KanvasJobsTrait;
+    use SelectsAppMachines;
 
     /** Where the recorded digest lives, so `kanvas:coding:sessions` and a human can compare machines. */
     public const string DIGEST_FIELD = 'CODING_IMAGE_DIGEST';
@@ -87,8 +88,7 @@ class BuildCodingImageCommand extends Command
         // The whole point of the build. Without this an operator builds the image successfully and
         // dispatch still dies on "No opencode image configured", because the tag was only ever an
         // argument — and the obvious next move, running the command again, reports no tag at all.
-        if ($failed === 0 && (string) $app->get(ConfigurationEnum::IMAGE->value) !== $image) {
-            $app->set(ConfigurationEnum::IMAGE->value, $image);
+        if ($failed === 0 && CodingImageService::configure($app, $image)) {
             $this->info('Set ' . ConfigurationEnum::IMAGE->value . ' = ' . $image . ' on app ' . $app->getId() . '.');
         }
 
@@ -210,38 +210,5 @@ class BuildCodingImageCommand extends Command
         }
 
         return $context;
-    }
-
-    /**
-     * @return list<AgentMachine>
-     */
-    private function machines(Apps $app): array
-    {
-        if ($this->option('all')) {
-            return AgentMachine::query()
-                ->fromApp($app)
-                ->notDeleted()
-                ->where('is_active', 1)
-                ->get()
-                ->all();
-        }
-
-        $machineId = $this->option('machine');
-
-        if ($machineId === null) {
-            return [];
-        }
-
-        /** @var AgentMachine|null $machine */
-        $machine = AgentMachine::query()->where('id', (int) $machineId)->fromApp($app)->notDeleted()->first();
-
-        return $machine === null ? [] : [$machine];
-    }
-
-    private function resolveApp(): ?Apps
-    {
-        $appId = $this->option('app');
-
-        return $appId === null ? null : Apps::query()->where('id', (int) $appId)->first();
     }
 }

@@ -91,7 +91,7 @@ class MicrosoftAgentChannelResponderAction extends BaseAgentChannelReplyAction
 
     private function generateAgentResponse(): string
     {
-        $entity = $this->session?->entity() ?? $this->message->entity();
+        $entity = $this->session?->entity() ?? $this->message->preferredEntity(Lead::class);
 
         $responseContent = new AgentChatKernel(
             agent: $this->agent,

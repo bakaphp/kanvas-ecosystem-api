@@ -31,6 +31,7 @@ class GenerateSlackManifestAction
         'im:write',
         'mpim:history',
         'mpim:read',
+        'mpim:write',
         'channels:history',
         'channels:read',
         'groups:history',
@@ -45,9 +46,21 @@ class GenerateSlackManifestAction
         'users.profile:read',
     ];
 
+    /**
+     * `message.channels` / `message.groups` deliver every message in a room the bot was invited to,
+     * so it has the conversation in view when it is finally tagged; the webhook stores them all and
+     * answers only the tagged ones. `app_mention` stays for the room it is NOT in yet (the "invite
+     * me" reply) — once a member, the same mention also arrives as a plain message and the webhook
+     * dedupes on the message timestamp. `member_joined_channel` is the invite itself, which starts
+     * the history backfill.
+     */
     private const array BOT_EVENTS = [
         'app_mention',
         'message.im',
+        'message.mpim',
+        'message.channels',
+        'message.groups',
+        'member_joined_channel',
         'app_uninstalled',
         'tokens_revoked',
     ];

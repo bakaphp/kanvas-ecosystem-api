@@ -9,9 +9,9 @@ use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Laravel\Ai\Tools\Request;
 
 /**
- * The file_name / content / file_url triplet every upload_file_to_* tool exposes, plus the handle()
- * body that feeds it to AttachesFileToEntity and encodes the result. The Neuron side declares the
- * same triplet as ToolProperty in HasFileUploadToolProperties.
+ * The file_name / content / file_url / filesystem_id set every upload_file_to_* tool exposes, plus
+ * the handle() body that feeds it to AttachesFileToEntity and encodes the result. The Neuron side
+ * declares the same set as ToolProperty in HasFileUploadToolProperties.
  */
 trait HasFileUploadToolSchema
 {
@@ -31,13 +31,20 @@ trait HasFileUploadToolSchema
                 ->string()
                 ->description(
                     'The full text of the document to store (markdown, plain text, CSV or JSON). Use this when you '
-                    . 'are the one writing the document. Mutually exclusive with file_url.'
+                    . 'are the one writing the document. Mutually exclusive with file_url and filesystem_id.'
                 ),
             'file_url' => $schema
                 ->string()
                 ->description(
-                    'A public URL to download the file from, when it already exists somewhere. Mutually exclusive '
-                    . 'with content.'
+                    'A public URL to download the file from, when it already exists somewhere outside Kanvas. '
+                    . 'Mutually exclusive with content and filesystem_id.'
+                ),
+            'filesystem_id' => $schema
+                ->integer()
+                ->description(
+                    'The id of a file already stored in Kanvas — the filesystem_id from an "Attached file on this '
+                    . 'message" marker, or one a list/upload tool returned. Attaches that file as it is, no '
+                    . 're-upload. Mutually exclusive with content and file_url.'
                 ),
         ];
     }
@@ -59,6 +66,7 @@ trait HasFileUploadToolSchema
                 fileUrl: (string) $request->string('file_url'),
                 content: (string) $request->string('content'),
                 fileName: (string) $request->string('file_name'),
+                filesystemId: $request->integer('filesystem_id') ?: null,
             ),
         ], JSON_PRETTY_PRINT);
     }

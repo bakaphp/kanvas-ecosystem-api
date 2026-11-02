@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\NervousSystem\Plan\Support\MentionHandle;
@@ -16,7 +17,7 @@ use Override;
 
 /** Read one task — including which plan and project it belongs to. */
 #[AgentTool(name: 'Get Task', category: 'nervous_system')]
-class GetNervousSystemTaskTool extends Tool
+class GetNervousSystemTaskTool extends Tool implements RequiresSystemAgent
 {
     use HasKanvasContext;
     use ResolvesTaskForTool;
@@ -69,6 +70,13 @@ class GetNervousSystemTaskTool extends Tool
             'status' => $task->status,
             'sequence' => $task->sequence,
             'blocked_reason' => $task->blocked_reason,
+            'wake_at' => $task->wake_at?->toIso8601String(),
+            'waiting_on' => $task->waiting_on_users_id !== null ? [
+                'user_id' => $task->waiting_on_users_id,
+                'email' => $task->waitingOn?->email,
+                'channel_id' => $task->waiting_on_channel_id,
+            ] : null,
+            'parent_task_id' => $task->parent_task_id,
             'result' => $task->result,
             'assigned_agent_id' => $task->agent_id,
             'assigned_agent_name' => $task->agent?->name,

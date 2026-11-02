@@ -69,4 +69,5 @@ enum ActionEnum: string
     case RED_FLAG_CHECKLIST = 'red-flag-checklist';
     case REFER_ME = 'refer-me';
     case MESSAGE_VIDEO = 'message-video';
+    case SYNC = 'sync';
 }

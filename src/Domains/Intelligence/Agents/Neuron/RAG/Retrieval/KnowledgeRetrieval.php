@@ -54,10 +54,16 @@ class KnowledgeRetrieval implements RetrievalInterface
             return [];
         }
 
+        // A picture with no caption arrives as an empty turn with media; the embedder refuses a blank
+        // string and there is nothing to search for anyway (KANVAS-ECOSYSTEM-6KC).
+        $question = (string) $query->getContent();
+        if (trim($question) === '') {
+            return [];
+        }
+
         $store = KnowledgeComponents::store($this->app);
         $topK = KnowledgeComponents::resultLimit($this->app);
         $minScore = KnowledgeComponents::minScore($this->app);
-        $question = (string) $query->getContent();
         $embedding = KnowledgeComponents::embedder($this->app)->embed($question);
 
         if ($this->organizationWide) {

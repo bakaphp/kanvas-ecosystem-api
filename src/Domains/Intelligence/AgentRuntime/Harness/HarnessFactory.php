@@ -58,6 +58,15 @@ class HarnessFactory
      */
     public static function diffOrEmpty(AgentTaskSession $session): HarnessDiff
     {
+        return self::diffOrNull($session) ?? new HarnessDiff();
+    }
+
+    /**
+     * The diff, or null when it could not be read. The distinction is the whole point for a caller
+     * deciding whether a run delivered anything: "no changes" is an answer, "could not ask" is not.
+     */
+    public static function diffOrNull(AgentTaskSession $session): ?HarnessDiff
+    {
         try {
             $harness = self::forSession($session);
 
@@ -65,7 +74,7 @@ class HarnessFactory
         } catch (Throwable $e) {
             report($e);
 
-            return new HarnessDiff();
+            return null;
         }
     }
 

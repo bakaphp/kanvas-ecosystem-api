@@ -63,7 +63,7 @@ class ReadOrganizationActivityTool extends Tool
             return $refusal;
         }
 
-        $organization = $this->resolveOrganization($organization_id, $organization_name);
+        $organization = $this->resolveOrganizationInReadScope($organization_id, $organization_name);
         if (is_array($organization)) {
             return $organization;
         }

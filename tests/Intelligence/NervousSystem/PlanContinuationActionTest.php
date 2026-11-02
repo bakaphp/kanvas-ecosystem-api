@@ -150,4 +150,46 @@ class PlanContinuationActionTest extends TestCase
         $this->assertSame(1, $payload['done_tasks']);
         $this->assertSame(4, $payload['wake_count']);
     }
+
+    /** A wait with a booked wake is not open work: dispatching would only buy a "still waiting" turn. */
+    public function test_waits_when_the_only_open_task_is_waiting(): void
+    {
+        $plan = $this->makePlan();
+        $this->makeTask($plan, TaskStatusEnum::DONE);
+        $this->makeTask($plan, TaskStatusEnum::WAITING);
+
+        $decision = new PlanContinuationAction($plan)->execute();
+
+        $this->assertSame(ContinuationDecisionEnum::WAIT, $decision->verdict);
+        $this->assertSame(1, $decision->waitingTasks);
+        $this->assertSame(0, $decision->openTasks);
+    }
+
+    /** The band dispatcher takes the lowest open sequence; a wait ahead of it holds the band behind. */
+    public function test_a_waiting_prerequisite_holds_the_pending_band_behind_it(): void
+    {
+        $plan = $this->makePlan();
+        $this->makeTask($plan, TaskStatusEnum::WAITING, sequence: 1);
+        $this->makeTask($plan, TaskStatusEnum::PENDING, sequence: 2);
+
+        $this->assertSame(ContinuationDecisionEnum::WAIT, new PlanContinuationAction($plan)->execute()->verdict);
+    }
+
+    public function test_pending_work_ahead_of_a_wait_still_dispatches(): void
+    {
+        $plan = $this->makePlan();
+        $this->makeTask($plan, TaskStatusEnum::PENDING, sequence: 1);
+        $this->makeTask($plan, TaskStatusEnum::WAITING, sequence: 2);
+
+        $this->assertSame(ContinuationDecisionEnum::DISPATCH, new PlanContinuationAction($plan)->execute()->verdict);
+    }
+
+    public function test_a_wait_outranks_a_blocked_task(): void
+    {
+        $plan = $this->makePlan();
+        $this->makeTask($plan, TaskStatusEnum::BLOCKED, blockedReason: 'needs legal');
+        $this->makeTask($plan, TaskStatusEnum::WAITING);
+
+        $this->assertSame(ContinuationDecisionEnum::WAIT, new PlanContinuationAction($plan)->execute()->verdict);
+    }
 }

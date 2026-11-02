@@ -29,9 +29,8 @@ use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
-use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
-use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
+use Kanvas\Guild\Customers\Services\ConsentGuard;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
@@ -54,6 +53,7 @@ class SendMessageToLeadAction
     private const int TWILIO_UNSUBSCRIBED_RECIPIENT_CODE = 21610;
     private const int DEFAULT_TWILIO_MAX_MESSAGE_BODY_LENGTH = 1600;
     private const array APPROVED_A2P_REGISTRATION_STATUSES = ['approved', 'registered', 'verified', 'active'];
+    private const string SMS_ALLOWED_LINE_TYPE = 'mobile';
 
     /**
      * Default media items per Twilio MMS API call. Override per-app via
@@ -76,10 +76,9 @@ class SendMessageToLeadAction
     protected string $attemptUuid;
     protected ?string $attemptedFrom = null;
     protected ?string $attemptedTo = null;
-    protected int $retryNumber = 0;
-    protected ?int $parentAttemptId = null;
     protected bool $isOptOutConfirmation = false;
     protected ?Users $signatureOwner = null;
+    protected ?CampaignRecipient $campaignRecipient = null;
 
     public function withSignatureOwner(?Users $user): self
     {
@@ -88,18 +87,17 @@ class SendMessageToLeadAction
         return $this;
     }
 
+    public function forCampaignRecipient(?CampaignRecipient $recipient): self
+    {
+        $this->campaignRecipient = $recipient;
+
+        return $this;
+    }
+
     public function __construct(
         protected Lead $lead,
     ) {
         $this->attemptUuid = Uuid::uuid4()->toString();
-    }
-
-    public function withRetryContext(int $parentAttemptId, int $retryNumber = 1): self
-    {
-        $this->parentAttemptId = $parentAttemptId;
-        $this->retryNumber = $retryNumber;
-
-        return $this;
     }
 
     /**
@@ -136,7 +134,7 @@ class SendMessageToLeadAction
             $result = match ($channel) {
                 LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message, $to),
                 LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage(
-                    $this->resolveTwilioFrom($from),
+                    $this->resolveTwilioFrom($fromAgent?->smsPhoneNumber() ?? $from),
                     $message,
                     $to,
                 ),
@@ -155,8 +153,6 @@ class SendMessageToLeadAction
 
             if ($channel === LeadCommunicationChannelEnum::SMS->value) {
                 $result['attempt_uuid'] = $this->attemptUuid;
-                $result['parent_attempt_id'] = $this->parentAttemptId;
-                $result['retry_number'] = $this->retryNumber;
                 $this->recordTwilioAttempt($result);
             }
 
@@ -190,8 +186,6 @@ class SendMessageToLeadAction
             'account_sid' => $this->lead->company?->get(TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value),
             'from' => $this->attemptedFrom,
             'to' => $this->attemptedTo,
-            'parent_attempt_id' => $this->parentAttemptId,
-            'retry_number' => $this->retryNumber,
         ], $classification);
 
         if ($channel === LeadCommunicationChannelEnum::SMS->value) {
@@ -677,21 +671,12 @@ class SendMessageToLeadAction
 
         if ($from !== '') {
             $normalizedFrom = Str::toE164($from);
-            $allowedFromNumbers = $this->configuredStringList(
-                $company->get(TwilioConfigurationEnum::TWILIO_ALLOWED_FROM_PHONE_NUMBERS->value)
-            );
+            $allowedFromNumbers = TwilioConfigurationEnum::allowedFromNumbers($company);
 
-            if ($allowedFromNumbers !== []) {
-                $allowedFromNumbers = array_map(
-                    static fn (string $number): string => Str::toE164($number),
-                    $allowedFromNumbers,
+            if ($allowedFromNumbers !== [] && ! in_array($normalizedFrom, $allowedFromNumbers, true)) {
+                throw new InvalidArgumentException(
+                    'Twilio From number is not registered for this dealership/account (prevents sender leakage and error 21660)'
                 );
-
-                if (! in_array($normalizedFrom, $allowedFromNumbers, true)) {
-                    throw new InvalidArgumentException(
-                        'Twilio From number is not registered for this dealership/account (prevents sender leakage and error 21660)'
-                    );
-                }
             }
 
             $this->validateA2pRegistration($normalizedFrom);
@@ -745,24 +730,6 @@ class SendMessageToLeadAction
         }
     }
 
-    /** @return list<string> */
-    private function configuredStringList(mixed $value): array
-    {
-        if (is_string($value)) {
-            $decoded = json_decode($value, true);
-            $value = is_array($decoded) ? $decoded : explode(',', $value);
-        }
-
-        if (! is_array($value)) {
-            return [];
-        }
-
-        return array_values(array_filter(array_map(
-            static fn (mixed $item): string => trim((string) $item),
-            $value,
-        )));
-    }
-
     protected function lookupPhoneNumber(TwilioClient $client, string $cellphone): string
     {
         $phoneNumber = $client->lookups->v2->phoneNumbers($cellphone)->fetch([
@@ -775,15 +742,25 @@ class SendMessageToLeadAction
             );
         }
 
-        $unsupportedLine = match (strtolower((string) ($phoneNumber->lineTypeIntelligence['type'] ?? ''))) {
-            'landline' => 'a landline',
-            'premium' => 'a premium line',
-            default => null,
-        };
-        if ($unsupportedLine !== null) {
-            throw new LeadMissingContactException(
-                sprintf('Lead cellphone number %s is %s and cannot receive SMS messages', $cellphone, $unsupportedLine)
-            );
+        $receivedLineType = trim((string) ($phoneNumber->lineTypeIntelligence['type'] ?? ''));
+        $lineType = strtolower($receivedLineType);
+        if ($lineType !== '') {
+            $this->lead->people?->setPhoneLandline($cellphone, $lineType === 'landline');
+        }
+
+        // Allow-list on purpose: a type Twilio adds later, or a number it could not classify, must not slip through.
+        if ($lineType !== self::SMS_ALLOWED_LINE_TYPE) {
+            $lookupErrorCode = $phoneNumber->lineTypeIntelligence['error_code'] ?? null;
+
+            throw new LeadMissingContactException(sprintf(
+                'Lead cellphone number %s has line type %s; our policy only allows SMS to mobile numbers',
+                $cellphone,
+                match (true) {
+                    $lineType !== '' => $receivedLineType,
+                    $lookupErrorCode !== null => sprintf('unknown (Twilio lookup error %s)', $lookupErrorCode),
+                    default => 'unknown (Twilio returned no line type)',
+                },
+            ));
         }
 
         $lineStatus = strtolower((string) ($phoneNumber->lineStatus['status'] ?? 'unknown'));
@@ -809,10 +786,6 @@ class SendMessageToLeadAction
     /**
      * Channel-agnostic and checked once per send, ahead of the channel dispatch: a stop request is
      * person-wide, so it has to outrank whichever channel this particular call happens to use.
-     *
-     * The people-level flag is not redundant with the lead one. ApplyDoNotContactAction flags every
-     * lead that exists at the time, but a connector sync can create a NEW lead for the same person
-     * afterwards, and that lead carries no flag of its own.
      */
     protected function guardDoNotContact(): void
     {
@@ -820,10 +793,7 @@ class SendMessageToLeadAction
             return;
         }
 
-        $isFlagged = (bool) $this->lead->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value)
-            || (bool) $this->lead->people?->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value);
-
-        if ($isFlagged) {
+        if (ConsentGuard::isDoNotContact($this->lead->people, $this->lead)) {
             throw new LeadOptedOutException(
                 'Lead is flagged do-not-contact; no further automated messages may be sent',
             );
@@ -831,8 +801,7 @@ class SendMessageToLeadAction
     }
 
     /**
-     * Per-address opt-out, for the ones a stop request never produced: a DMS sync pushing
-     * `doNotEmail`, or a hard bounce. guardDoNotContact covers the person-wide case.
+     * Per-address opt-out; guardDoNotContact covers the person-wide case.
      */
     protected function guardDestinationOptOut(string $destination, string $channel): void
     {
@@ -840,25 +809,11 @@ class SendMessageToLeadAction
             return;
         }
 
-        $isEmail = $channel === LeadCommunicationChannelEnum::EMAIL->value;
-
-        // Normalize the destination once, against the type we are actually sending to — not against
-        // each row's own type. Phone normalization strips a value to its last 10 digits, so an email
-        // address compared under it collapses to whatever digits it contains and can match a real
-        // number. Filtering the rows by channel also stops us comparing an address to a phone at all.
-        $normalizedDestination = Contact::normalizeValue(
+        $isOptedOut = ConsentGuard::isDestinationOptedOut(
+            $this->lead->people,
             $destination,
-            $isEmail ? ContactTypeEnum::EMAIL->value : ContactTypeEnum::CELLPHONE->value,
+            $channel === LeadCommunicationChannelEnum::EMAIL->value
         );
-
-        $isOptedOut = $this->lead->people?->contacts()
-            ->where('is_opt_out', 1)
-            ->whereIn('contacts_types_id', $isEmail ? Contact::EMAIL_TYPES : Contact::PHONE_TYPES)
-            ->get()
-            ->contains(fn (Contact $contact): bool => Contact::normalizeValue(
-                (string) $contact->value,
-                (int) $contact->contacts_types_id,
-            ) === $normalizedDestination) ?? false;
 
         if ($isOptedOut) {
             throw new LeadOptedOutException(
@@ -884,10 +839,7 @@ class SendMessageToLeadAction
             ->fromCompany($this->lead->company)
             ->notDeleted()
             ->where('is_active', true)
-            ->whereHas(
-                'action',
-                fn ($query) => $query->where('model_name', ProcessTwilioMessageStatusWebhookJob::class),
-            )
+            ->forJob(ProcessTwilioMessageStatusWebhookJob::class)
             ->first();
 
         return $receiver?->getUrl();
@@ -994,9 +946,8 @@ class SendMessageToLeadAction
 
         $this->guardDestinationOptOut((string) $leadEmail, LeadCommunicationChannelEnum::EMAIL->value);
 
-        $ownerSignature = ($fromAgent?->conversesWithUser() ?? false)
-            ? UserEmailSignature::fromUser($this->signatureOwner)
-            : null;
+        $ownerSignature = UserEmailSignature::forSender($this->signatureOwner, $this->lead->company, $fromAgent);
+        $signature = $signature && $ownerSignature === null;
 
         $mailboxAddress = $fromAgent !== null
             ? new AgentMailboxService()->addressFor($fromAgent)
@@ -1011,6 +962,9 @@ class SendMessageToLeadAction
                 cc: $ccList,
                 attachmentUrls: $attachments,
                 signature: $ownerSignature,
+                trackingPerson: $this->lead->people,
+                trackingLead: $this->lead,
+                trackingCampaignRecipient: $this->campaignRecipient,
             )->execute();
 
             return $this->emailResult(
@@ -1027,7 +981,6 @@ class SendMessageToLeadAction
 
         // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
         $message = MarkdownEmailRenderer::toEmailHtml($message);
-        $message .= $ownerSignature?->toHtml() ?? '';
 
         $notification = new Blank(
             'first-time-agent-engagement',
@@ -1044,6 +997,7 @@ class SendMessageToLeadAction
         );
         $notification->setFromUser($this->lead->user);
         $notification->setSubject($subject);
+        $notification->setUserSignature($ownerSignature);
         if ($ccList !== []) {
             $notification->setCc($ccList);
         }

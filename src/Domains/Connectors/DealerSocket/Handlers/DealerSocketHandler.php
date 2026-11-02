@@ -8,10 +8,13 @@ use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\DealerSocket\DataTransferObject\DealerSocket;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketConfigurationService;
+use Kanvas\Connectors\SalesAssist\Concerns\DeclaresSalesAssistPullRules;
 use Override;
 
 class DealerSocketHandler extends BaseIntegration
 {
+    use DeclaresSalesAssistPullRules;
+
     #[Override]
     public function setup(): bool
     {

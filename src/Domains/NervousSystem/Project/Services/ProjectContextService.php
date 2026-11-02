@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use Kanvas\HumanResources\Employees\Services\EmployeeIdentityResolver;
+use Kanvas\Intelligence\Agents\Services\AgentChannelActivity;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
@@ -181,6 +182,8 @@ class ProjectContextService
                 'title' => $plan->title,
                 'status' => $plan->status,
                 'completion_pct' => $plan->completion_pct,
+                'agent_id' => $plan->agent_id,
+                'assigned_users_id' => $plan->assigned_users_id,
                 'tasks' => $plan->tasks
                     ->toBase()
                     ->map(fn (Task $task): array => array_filter(
@@ -252,6 +255,7 @@ class ProjectContextService
         }
 
         return Message::query()
+            ->with('messageType')
             ->whereHas('channels', fn (Builder $query) => $query->whereIn('channels.id', $channelIds))
             ->orderByDesc('id')
             ->limit($limit)
@@ -269,6 +273,11 @@ class ProjectContextService
 
     private function messageContent(Message $message): string
     {
+        // The PM's own compaction note: replaying it makes the next wake summarize the summary.
+        if (AgentChannelActivity::isCompactionNote($message)) {
+            return '';
+        }
+
         $raw = $message->contentText();
 
         // Never feed an agent wake PROMPT back in as "context" — that's the growth loop.

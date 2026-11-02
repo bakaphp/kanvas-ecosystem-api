@@ -10,6 +10,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactValidationStatusEnum;
 use Kanvas\Guild\Customers\Models\People;
@@ -22,6 +24,8 @@ use Kanvas\NervousSystem\Ledger\Services\EventAnalyticsService;
  * for the headline counts and reads the `people.enriched` payload directly for the
  * per-company "al día vs desactualizado" split — both are domain concerns
  * (payload meaning, company grouping) that don't belong in the generic layer.
+ *
+ * `byCompany` is the EMPLOYER split; `byTenantCompany` is the Kanvas-company split. Different axes.
  */
 class CleanupReportAction
 {
@@ -30,7 +34,7 @@ class CleanupReportAction
 
     public function __construct(
         protected Apps $app,
-        protected CompanyInterface $company,
+        protected CompanyInterface|CompanyScope $company,
         protected ?Carbon $from = null,
         protected ?Carbon $to = null,
         protected int $topCompanies = 5,
@@ -44,18 +48,10 @@ class CleanupReportAction
     {
         $service = new EventAnalyticsService();
 
-        $base = new EventAnalyticsQuery(
-            app: $this->app,
-            company: $this->company,
-            eventTypes: [self::EVENT_TYPE],
-            sourceDomain: self::SOURCE_DOMAIN,
-            sourceEntityType: People::class,
-            from: $this->from,
-            to: $this->to,
-        );
+        $base = $this->analyticsQuery($this->company);
 
         $verified = $service->countDistinctEntities($base);
-        $total = (int) People::query()->fromApp($this->app)->fromCompany($this->company)->notDeleted()->count();
+        $total = $this->totalPeople($this->company);
 
         $byKey = $service->countByPayloadKeys($base, [
             'changes.current_employer',
@@ -76,20 +72,67 @@ class CleanupReportAction
             'changedEmail' => $this->peopleWith($byKey, 'changes.email_changed'),
             'promotedToDecisionMaker' => $this->peopleWith($byKey, 'changes.seniority_promoted'),
             'newAccounts' => $this->peopleWith($byKey, 'changes.new_account'),
-            'bouncingPeople' => $this->bouncingPeople(),
+            'bouncingPeople' => $this->bouncingPeople($this->company),
             'byCompany' => $this->companyBreakdown(),
+            ...$this->tenantBreakdown($service),
         ];
+    }
+
+    private function analyticsQuery(CompanyInterface|CompanyScope $company): EventAnalyticsQuery
+    {
+        return new EventAnalyticsQuery(
+            app: $this->app,
+            company: $company,
+            eventTypes: [self::EVENT_TYPE],
+            sourceDomain: self::SOURCE_DOMAIN,
+            sourceEntityType: People::class,
+            from: $this->from,
+            to: $this->to,
+        );
+    }
+
+    private function totalPeople(CompanyInterface|CompanyScope $company): int
+    {
+        return (int) People::query()->fromApp($this->app)->fromCompany($company)->notDeleted()->count();
+    }
+
+    /**
+     * @return array{byTenantCompany: list<array<string, mixed>>}|array{}
+     */
+    private function tenantBreakdown(EventAnalyticsService $service): array
+    {
+        if (! CompanyScope::needsTenantLabel($this->company)) {
+            return [];
+        }
+
+        $rows = [];
+
+        foreach (Companies::query()->whereIn('id', $this->company->companyIds)->orderBy('name')->get() as $company) {
+            $verified = $service->countDistinctEntities($this->analyticsQuery($company));
+            $total = $this->totalPeople($company);
+
+            $rows[] = [
+                'tenant_company_id' => (int) $company->getId(),
+                'tenant_company' => (string) $company->name,
+                'totalPeople' => $total,
+                'verifiedPeople' => $verified,
+                'verifiedPct' => $total > 0 ? round((float) $verified / (float) $total * 100.0, 1) : 0.0,
+                'bouncingPeople' => $this->bouncingPeople($company),
+            ];
+        }
+
+        return ['byTenantCompany' => $rows];
     }
 
     /**
      * People whose email is a dead address (hard bounce / invalid) — flagged for
      * replacement. Independent of the ledger: it reads the live contact flag.
      */
-    private function bouncingPeople(): int
+    private function bouncingPeople(CompanyInterface|CompanyScope $company): int
     {
         return (int) People::query()
             ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->fromCompany($company)
             ->notDeleted()
             ->whereHas(
                 'contacts',

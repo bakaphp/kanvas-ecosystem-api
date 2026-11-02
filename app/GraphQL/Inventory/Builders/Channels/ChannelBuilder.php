@@ -6,6 +6,7 @@ namespace App\GraphQL\Inventory\Builders\Channels;
 
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
@@ -22,7 +23,7 @@ class ChannelBuilder
         $region = RegionRepository::getById(
             id: (int) $args['region_id'],
             app: app(Apps::class),
-            company: auth()->user()->getCurrentCompany()
+            company: LocationContext::shoppingCompany(auth()->user())
         );
 
         return Channels::join("{$variantChannelsTable} as pvc", "{$channelsTable}.id", '=', 'pvc.channels_id')

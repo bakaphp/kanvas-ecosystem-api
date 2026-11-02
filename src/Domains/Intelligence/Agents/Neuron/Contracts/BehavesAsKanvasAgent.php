@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Contracts;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Contracts\AgentTypeHandler;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -18,7 +19,7 @@ use NeuronAI\Chat\Messages\Message;
  * Every entry point binds a thread (AgentInterface::setThreadId) before running: the session uuid in
  * userChat, the entity uuid on a channel, a suffixed parent thread for a sub-agent.
  */
-interface BehavesAsKanvasAgent extends AgentInterface, ProvidesToolDependencies
+interface BehavesAsKanvasAgent extends AgentInterface, ProvidesToolDependencies, AgentTypeHandler
 {
     public function setConfiguration(Agent $agent, ?Model $entity = null, ?Users $user = null): void;
 

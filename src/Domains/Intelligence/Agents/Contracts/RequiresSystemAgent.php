@@ -12,6 +12,10 @@ namespace Kanvas\Intelligence\Agents\Contracts;
  * the company acting on its own repositories. A prospect on a WhatsApp thread who can steer the agent
  * holding them is not a support incident, it is code execution and source access.
  *
+ * The follow-through tools carry it for a quieter reason: `find_teammate` is the staff directory with
+ * phone numbers, the send tools message staff, and the task tools close the company's work. None of
+ * that belongs on a surface a prospect types into.
+ *
  * Gated in two places, for the reason `SetAgentToolAction` already documents for MCP servers: the
  * grant is refused where an admin is told why, and `MergesRegisteredTools` filters it again at
  * runtime, because the marker can be added to an agent that already holds the grant.

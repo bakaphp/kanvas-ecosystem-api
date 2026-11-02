@@ -21,19 +21,22 @@ class GetMessageUsageReportToolTest extends TestCase
         $sms = MessageType::factory()->create(['apps_id' => $app->getId(), 'verb' => 'twilio-sms']);
         $email = MessageType::factory()->create(['apps_id' => $app->getId(), 'verb' => 'mailgun-email']);
 
-        $make = function (MessageType $type, array $payload) use ($app, $company): void {
+        $make = function (MessageType $type, array $payload, int $isLocked = 0) use ($app, $company): void {
             Message::factory()->create([
                 'apps_id' => $app->getId(),
                 'companies_id' => $company->getId(),
                 'message_types_id' => $type->getId(),
                 'message' => $payload,
+                'is_locked' => $isLocked,
             ]);
         };
 
-        // 2 human SMS, 1 AI SMS, 1 inbound SMS, 1 human email
+        // 2 human SMS, 1 AI SMS, 1 inbound SMS, 1 human email; the locked AI draft is pending approval
+        // and was never sent, so it must not count.
         $make($sms, ['content' => 'hi', 'from_me' => true]);
         $make($sms, ['content' => 'hi', 'from_me' => true]);
         $make($sms, ['content' => 'hi', 'from_me' => true, 'from_ia' => true]);
+        $make($sms, ['content' => 'hi', 'from_me' => true, 'from_ia' => true], isLocked: 1);
         $make($sms, ['content' => 'hi', 'from_me' => false]);
         $make($email, ['content' => 'hi', 'from_me' => true]);
     }

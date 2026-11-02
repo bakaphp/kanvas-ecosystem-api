@@ -54,6 +54,8 @@ use Kanvas\Souk\Payments\Models\Payments;
  */
 class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorInterface, ThreeDSProcessorInterface
 {
+    private const string THREE_DS_HOLD_KEY = 'three_ds_use_hold';
+
     protected AzulService $service;
 
     public function __construct(
@@ -142,16 +144,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 ],
             ];
 
-            if ($useHold) {
-                // Funds reserved — not yet captured. Order payment_status stays unchanged.
-                $payment->status = PaymentStatusEnum::AUTHORIZED->value;
-                $payment->addMetadata($responseData);
-                $payment->save();
-                $paymentStatus = PaymentStatusEnum::AUTHORIZED;
-            } else {
-                $payment->markAsPaid($responseData);
-                $paymentStatus = PaymentStatusEnum::PAID;
-            }
+            $paymentStatus = $this->settleApproval($payment, $responseData, $useHold);
 
             $payment->addLog($useHold ? 'hold_success' : 'authorize_success', [
                 'processor' => $this->name(),
@@ -504,13 +497,13 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
      * Initiate a 3DS-enabled payment.
      *
      * - If the card is NOT enrolled in 3DS, Azul approves immediately (IsoCode=00)
-     *   and the payment is marked PAID — no challenge needed.
+     *   and the payment is marked PAID (AUTHORIZED when held) — no challenge needed.
      * - If a challenge IS required, Azul returns the ACS URL and PAReq.
      *   The payment is set to PENDING_AUTHORIZATION and the caller must
      *   redirect the cardholder to `data['acs_url']` with `data['pa_req']`.
      *
      * Context keys:
-     *   - use_hold (bool)                     : use Hold instead of Sale (default: AZUL_USE_HOLD config)
+     *   - use_hold (bool)                     : use Hold instead of Sale (default: payment metadata use_hold, then AZUL_USE_HOLD config)
      *   - requestor_challenge_indicator (string): Azul challenge preference (default: '01' = no preference)
      *   - card_holder_info (array)             : optional CardHolderInfo block (billing/shipping/contact)
      */
@@ -518,9 +511,8 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
     {
         $this->assertSupportedCurrency($order);
 
-        $useHold = array_key_exists('use_hold', $context)
-            ? (bool) $context['use_hold']
-            : (bool) $this->app->get(ConfigurationEnum::AZUL_USE_HOLD->value);
+        $useHold = $this->resolveChallengeHold($payment, $context);
+        $payment->addMetadata(['data' => [self::THREE_DS_HOLD_KEY => $useHold]]);
 
         $baseTermUrl = (string) ($this->app->get(ConfigurationEnum::AZUL_3DS_TERM_URL->value) ?? '');
         $termUrl     = $baseTermUrl
@@ -580,7 +572,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 }
 
                 $payment->number = $response->ticket;
-                $payment->markAsPaid($responseData);
+                $settledStatus = $this->settleApproval($payment, $responseData, $useHold);
 
                 $this->persistVaultToken($payment, $response);
 
@@ -594,7 +586,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 return new ThreeDSResult(
                     success: true,
                     message: $response->responseMessage,
-                    status: PaymentStatusEnum::PAID->value,
+                    status: $settledStatus->value,
                     data: [
                         'azul_order_id'    => $response->azulOrderId,
                         'vault_token_data' => $this->buildVaultTokenData($response),
@@ -673,6 +665,35 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
         }
     }
 
+    private function resolveChallengeHold(Payments $payment, array $context): bool
+    {
+        if (array_key_exists('use_hold', $context)) {
+            return (bool) $context['use_hold'];
+        }
+
+        if (isset($payment->metadata['use_hold'])) {
+            return (bool) $payment->metadata['use_hold'];
+        }
+
+        return (bool) $this->app->get(ConfigurationEnum::AZUL_USE_HOLD->value);
+    }
+
+    private function settleApproval(Payments $payment, array $responseData, bool $useHold): PaymentStatusEnum
+    {
+        if (! $useHold) {
+            $payment->markAsPaid($responseData);
+
+            return PaymentStatusEnum::PAID;
+        }
+
+        // Funds reserved, not captured: the order's payment_status stays unchanged.
+        $payment->status = PaymentStatusEnum::AUTHORIZED->value;
+        $payment->addMetadata($responseData);
+        $payment->save();
+
+        return PaymentStatusEnum::AUTHORIZED;
+    }
+
     /**
      * Finalize a 3DS challenge after the cardholder completes browser authentication.
      * Uses VerifyPayment to check Azul's final decision and marks the payment accordingly.
@@ -729,7 +750,11 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             }
 
             $payment->number = $response->ticket;
-            $payment->markAsPaid($responseData);
+            $settledStatus = $this->settleApproval(
+                $payment,
+                $responseData,
+                (bool) $payment->getMetadata(self::THREE_DS_HOLD_KEY)
+            );
 
             $this->persistVaultToken($payment, $response);
 
@@ -743,7 +768,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             return new ThreeDSResult(
                 success: true,
                 message: $response->responseMessage,
-                status: PaymentStatusEnum::PAID->value,
+                status: $settledStatus->value,
                 data: [
                     'azul_order_id'    => $response->azulOrderId,
                     'vault_token_data' => $this->buildVaultTokenData($response),

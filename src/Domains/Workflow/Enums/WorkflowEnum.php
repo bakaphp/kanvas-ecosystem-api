@@ -32,6 +32,7 @@ enum WorkflowEnum: string
     case AFTER_RUNNING_RECEIVER = 'after-running-receiver';
     case AFTER_MESSAGE_INTERACTION = 'after-message-interaction';
     case AFTER_PAYMENT_INTENT = 'after-payment-intent';
+    case AFTER_PAYMENT_AUTHORIZED = 'after-payment-authorized';
     /**
      * @deprecated Carries no target engagement, so its report lands in a second folder. Use
      *             GENERATE_ID_VERIFICATION; drop this case and its `rules_types` row once the Phalcon
@@ -41,6 +42,7 @@ enum WorkflowEnum: string
     case GENERATE_ID_VERIFICATION = 'generate-id-verification';
     case DURING_WORKFLOW = 'during-workflow';
     case AFTER_ADDING_MESSAGE_TO_CHANNEL = 'after-adding-message-to-channel';
+    case AFTER_ADD_TAG = 'after-add-tag';
     case BEFORE_ACTION = 'before-action';
     case STATUS_TRANSITION = 'status-transition';
     case AFTER_UPLOAD = 'after-upload';
@@ -54,6 +56,12 @@ enum WorkflowEnum: string
     case AFTER_LEGACY_FEED = 'after-legacy-feed';
     case SUBSCRIPTION_LIFECYCLE = 'subscription-lifecycle';
     case FOLLOW_UP_PROMPT = 'follow-up-prompt';
+    case AFTER_FOLLOW_UP = 'after-follow-up';
+    /**
+     * A record edited by an agent's tool (AnnouncesAgentEdits). Kept apart from UPDATED, which a person's
+     * own edit through a mutation fires, so rules that should react only to agent edits can.
+     */
+    case AGENT_UPDATED = 'agent-updated';
     case DEBUG = 'debug';
     case NOTIFICATION = 'notify';
     case AFTER_ONBOARDING = 'after-onboarding';
@@ -61,6 +69,7 @@ enum WorkflowEnum: string
     case AFTER_ADDING_MESSAGE_TO_AGENT_CHANNEL = 'after-adding-message-to-agent-channel';
     case AFTER_CONFIGURATION = 'after-configuration';
     case AFTER_MERGE = 'after-merge';
+    case PEOPLE_CLASSIFIED = 'people-classified';
     case EVENT_VERSIONS_WORKFLOW = 'event-versions-workflow';
 
     case VARIANT_CHANNEL_SAVED = 'variant-channel-saved';

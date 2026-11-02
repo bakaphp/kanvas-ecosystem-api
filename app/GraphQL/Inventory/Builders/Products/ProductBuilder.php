@@ -9,6 +9,7 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeItemRecommendationService;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
@@ -28,7 +29,7 @@ class ProductBuilder
     ): Builder {
         $user = auth()->user();
         $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        $company = LocationContext::shoppingCompany($user);
 
         if (! $user->isAppOwner()) {
             //Products::setSearchIndex($company->getId());
@@ -118,7 +119,7 @@ class ProductBuilder
     {
         $user = auth()->user();
         $app = app(Apps::class);
-        $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
+        $company = B2BConfigurationService::getConfiguredB2BCompany($app, LocationContext::shoppingCompany($user));
 
         try {
             $exportProducts = new ExportProductsAction($app, $company);
@@ -167,7 +168,7 @@ class ProductBuilder
     ): Builder {
         $app = app(Apps::class);
         $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $company = LocationContext::shoppingCompany($user);
         $intent = $args['intent'] ?? 'product';
         $productId = (int) $args['id'];
         //$scenario = $args['scenario'] ?? ConfigurationEnum::FOR_YOU_SCENARIO->value;

@@ -31,7 +31,8 @@ class SweepScheduledActionsCommand extends Command
             RunScheduledAgentActionJob::dispatch(
                 $action->app,
                 $action->company,
-                $action
+                $action,
+                $action->claimed_at?->toDateTimeString(),
             );
         }
 

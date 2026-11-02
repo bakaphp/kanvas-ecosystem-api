@@ -188,10 +188,11 @@ class RecordAgentDailyCycleAction
     /**
      * @param array<int, array{name: string, confidence: float}> $skills
      */
-    private function composeBriefing(int $eventsProcessed, array $skills, int $phaseCount): string
+    private function composeBriefing(int $eventsProcessed, array $skills, int $phaseCount): ?string
     {
+        // A null briefing is what keeps a quiet day out of the daily-learning digest.
         if ($eventsProcessed === 0) {
-            return 'Good morning. Quiet cycle — no signals processed and no new patterns surfaced. Standing by for inbound.';
+            return null;
         }
 
         $skillLine = '';

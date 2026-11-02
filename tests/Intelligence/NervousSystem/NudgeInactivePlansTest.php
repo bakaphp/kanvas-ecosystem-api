@@ -15,7 +15,9 @@ use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\Actions\NudgeInactivePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\Actions\NotifyProjectInactivePlansAction;
@@ -286,5 +288,28 @@ class NudgeInactivePlansTest extends TestCase
 
         $this->assertFalse(new NotifyProjectInactivePlansAction($project, [], 24)->execute());
         Notification::assertNothingSent();
+    }
+
+    /** Waiting on a booked wake is not silence: the wake owns the plan until it fires. */
+    public function testAPlanWaitingOnABookedWakeIsNotNudged(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $stale = $this->stalePlan($project, $app, $company, $user);
+
+        Task::create([
+            'plan_id' => $stale->getId(),
+            'apps_id' => $stale->apps_id,
+            'companies_id' => $stale->companies_id,
+            'sequence' => 0,
+            'title' => 'Waiting on Charlie',
+            'status' => TaskStatusEnum::WAITING->value,
+            'wake_at' => now()->addDay(),
+            'is_deleted' => 0,
+        ]);
+
+        $ids = new StalePlanNudgeService()->stalePlans($app, 24)->pluck('id')->map('intval')->all();
+
+        $this->assertNotContains((int) $stale->id, $ids);
     }
 }

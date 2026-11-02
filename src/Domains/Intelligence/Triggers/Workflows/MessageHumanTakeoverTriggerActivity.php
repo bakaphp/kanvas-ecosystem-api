@@ -52,7 +52,7 @@ class MessageHumanTakeoverTriggerActivity extends KanvasActivity
                     ];
                 }
 
-                $lead = $message->entity();
+                $lead = $message->entity(Lead::class);
 
                 if (! $lead instanceof Lead) {
                     return [

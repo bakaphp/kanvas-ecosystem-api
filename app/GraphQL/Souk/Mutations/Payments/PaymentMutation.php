@@ -32,7 +32,7 @@ class PaymentMutation
         $paymentId = (int) $request['paymentID'];
         $user = auth()->user();
 
-        $payment = Payments::getByIdFromCompanyApp($paymentId, $user->getCurrentCompany(), $app);
+        $payment = Payments::getForShopper($paymentId, $user, $app);
 
         $paymentIntent = new MakePaymentIntentAction($payment);
 
@@ -489,7 +489,7 @@ class PaymentMutation
         $paymentId = (int) $request['paymentId'];
         $user = auth()->user();
 
-        $payment = Payments::getByIdFromCompanyApp($paymentId, $user->getCurrentCompany(), $app);
+        $payment = Payments::getForShopper($paymentId, $user, $app);
 
         $order = $payment->payable;
 

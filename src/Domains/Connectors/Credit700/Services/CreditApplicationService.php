@@ -98,7 +98,7 @@ class CreditApplicationService
             'OTHERINCOMEEXPLN' => $application->otherIncomeExplanation,
 
             'HOUSING' => $application->housingType,
-            'HOUSINGPAY' => $application->housingPayment,
+            'HOUSINGPAY' => $application->housingPayment === null ? null : round($application->housingPayment),
 
             'CURRENTADDRESSPERIOD' => $application->currentAddressPeriod,
             'PREVADDRESS' => $application->previousAddress,

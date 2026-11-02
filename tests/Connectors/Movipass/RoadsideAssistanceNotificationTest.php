@@ -10,8 +10,13 @@ use Kanvas\Connectors\Movipass\Notifications\PendingOrderAssignmentNotification;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Notifications\Channels\KanvasDatabase;
 use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Notifications\Models\UsersNotificationsSettings;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\Models\Users;
 use NotificationChannels\Expo\ExpoChannel;
 use Tests\TestCase;
@@ -46,6 +51,45 @@ final class RoadsideAssistanceNotificationTest extends TestCase
         $this->assertContains(OneSignalNotificationChannel::class, $resolved);
         $this->assertContains(ExpoChannel::class, $resolved);
         $this->assertContains(KanvasDatabase::class, $resolved);
+    }
+
+    /**
+     * Regression: roadside notifications were typed as the shared generic "blank" type, so any
+     * setting a user had saved for it (mail-only here) stripped push and expo from every one of them.
+     */
+    public function testBlankTypeSettingDoesNotStripRoadsidePushChannels(): void
+    {
+        $order = $this->createRoadsideOrder();
+
+        $blankType = NotificationTypes::firstOrCreate([
+            'apps_id' => $this->apps->getId(),
+            'name' => EmailTemplateEnum::BLANK->value,
+            'is_deleted' => 0,
+        ], [
+            'key' => EmailTemplateEnum::BLANK->value,
+            'template' => EmailTemplateEnum::BLANK->value,
+            'system_modules_id' => SystemModulesRepository::getByModelName(Order::class, $this->apps)->getId(),
+        ]);
+
+        UsersNotificationsSettings::updateOrCreate([
+            'users_id' => $this->authUser->getId(),
+            'apps_id' => $this->apps->getId(),
+            'notifications_types_id' => $blankType->getId(),
+        ], [
+            'is_enabled' => 1,
+            'channels' => [NotificationChannelEnum::MAIL->value],
+        ]);
+
+        $notification = new RoadsideAssistanceStatusNotification(
+            $order,
+            'Mechanic on site',
+            'The mechanic has arrived at your location.',
+            'on_site',
+        );
+
+        $resolved = $notification->via($this->authUser);
+        $this->assertContains(OneSignalNotificationChannel::class, $resolved);
+        $this->assertContains(ExpoChannel::class, $resolved);
     }
 
     public function testStatusNotificationBuildsExpoMessageWithoutStoredTemplate(): void

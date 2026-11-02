@@ -65,8 +65,8 @@ final class DynamicWorkflowTest extends TestCase
         $processWorkflow = new ProcessWorkflowEventAction($app, $lead);
         $results = $processWorkflow->execute(WorkflowEnum::CREATED->value, $params);
 
-        //since value and param interaction don't match we will get a empty result
-        $this->assertEmpty($results->output());
+        //since value and param interaction don't match no workflow is started at all
+        $this->assertNull($results);
 
         $params = [
             'interaction' => 'likes',

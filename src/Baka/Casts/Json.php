@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Baka\Casts;
 
+use Baka\Support\Str;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 use Override;
 
 class Json implements CastsAttributes
@@ -21,7 +21,7 @@ class Json implements CastsAttributes
     #[Override]
     public function get(Model $model, string $key, mixed $value, array $attributes): mixed
     {
-        return Str::isJson($value) ? json_decode($value, true) : $value;
+        return Str::jsonToArray($value);
     }
 
     /**

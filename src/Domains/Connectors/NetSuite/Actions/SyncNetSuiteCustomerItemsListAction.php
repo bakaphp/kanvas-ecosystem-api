@@ -83,6 +83,16 @@ class SyncNetSuiteCustomerItemsListAction
             $totalProcessed++;
         }
 
+        $this->buyerCompany->set(
+            CustomFieldEnum::NET_SUITE_ITEMS_LAST_SYNC->value,
+            [
+                'at' => now()->toISOString(),
+                'ns_items' => count($listOrProductVariantsBarCodeIds),
+                'processed' => $totalProcessed,
+                'not_found' => count($missed),
+            ]
+        );
+
         return [
             'channel' => $channel->getId(),
             'company' => $this->buyerCompany->getId(),

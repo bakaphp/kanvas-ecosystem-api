@@ -89,7 +89,7 @@ class WakeAgentForTaskJob implements ShouldQueue
         $session = $this->resolveSession();
         $basePayload = ['task_id' => $this->task->getId(), 'agent_id' => $agent->getId()];
 
-        [$response, $durationMs] = $this->runAgentWake(
+        $wake = $this->runAgentWake(
             $agent,
             $session,
             $owner,
@@ -98,6 +98,12 @@ class WakeAgentForTaskJob implements ShouldQueue
             'task.agent',
             $basePayload,
         );
+
+        if ($wake === null) {
+            return;
+        }
+
+        [$response, $durationMs] = $wake;
 
         $project->emitLedgerEvent(
             'task.agent.invoked',

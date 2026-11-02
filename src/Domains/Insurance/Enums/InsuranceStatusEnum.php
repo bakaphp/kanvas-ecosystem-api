@@ -14,4 +14,5 @@ enum InsuranceStatusEnum: string
     case POLICY_ACTIVE = 'policy_active';
     case CANCELLED = 'cancelled';
     case FAILED = 'failed';
+    case EXPIRED = 'expired';
 }

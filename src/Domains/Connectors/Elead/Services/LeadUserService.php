@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Services;
 
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Users\Models\UserConfig;
+use Kanvas\Users\Models\Users;
 
 class LeadUserService
 {
@@ -28,5 +32,19 @@ class LeadUserService
         }
 
         return null;
+    }
+
+    public static function resolveByEleadUserId(Companies $company, ?string $eleadUserId): ?Users
+    {
+        if (Str::trimToNull($eleadUserId) === null) {
+            return null;
+        }
+
+        $config = UserConfig::where([
+            'name' => CustomFieldEnum::getUserKey($company),
+            'value' => $eleadUserId,
+        ])->first();
+
+        return $config?->user;
     }
 }

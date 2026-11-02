@@ -16,6 +16,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
+use ValueError;
 
 /**
  * Lets the PM update a plan — retitle it, re-scope its description, reprioritize, or change its
@@ -123,7 +124,17 @@ class UpdateNervousSystemPlanTool extends Tool
             $data['description'] = $description;
         }
         if ($status !== null) {
-            $data['status'] = $status;
+            // A bad value must come back as a correctable tool error: a ValueError here ends the
+            // whole chat turn. "on_hold" is the usual one — it is a project status, not a plan one.
+            try {
+                $data['status'] = PlanStatusEnum::fromAlias($status)->value;
+            } catch (ValueError) {
+                return [
+                    'error' => "Invalid plan status '{$status}'. Use one of: "
+                        . implode(', ', array_map(fn (PlanStatusEnum $case): string => $case->value, PlanStatusEnum::cases()))
+                        . '. To hold a plan for sign-off set requires_human_approval=true instead.',
+                ];
+            }
         }
         if ($priority !== null) {
             $data['priority'] = $priority;

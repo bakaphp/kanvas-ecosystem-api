@@ -83,6 +83,13 @@ input EmploymentPeopleHistoryInput {
     income_type: String
 }
 
+type PeopleClassificationSuggestion {
+    level: String
+    area: String
+    confidence: Float!
+    normalized_title: String!
+}
+
 "One cluster of likely-duplicate People the duplicate-finder grouped together."
 type PeopleDuplicateGroup {
     "Recommended merge target — oldest id in the group."
@@ -228,6 +235,7 @@ extend type Query @guard {
         hasCustomFields: _
             @whereHasConditions(
                 relation: "customFields"
+                handler: "App\\GraphQL\\Ecosystem\\Handlers\\CompanyScopedCustomFieldsHandler"
                 columns: ["name", "value"]
             )
         orderBy: _
@@ -350,6 +358,15 @@ extend type Mutation @guard {
     deletePeopleEmploymentHistory(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleEmploymentHistoryMutation@delete"
+        )
+
+    suggestPeopleClassification(title: String!): PeopleClassificationSuggestion!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleClassificationMutation@suggest"
+        )
+    setPeopleClassification(id: ID!, level: String, area: String): People!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleClassificationMutation@set"
         )
 
     mergePeople(source_ids: [Int!]!, target_id: Int!): People!

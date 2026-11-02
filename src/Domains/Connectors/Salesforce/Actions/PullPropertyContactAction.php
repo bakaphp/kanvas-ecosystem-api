@@ -6,20 +6,34 @@ namespace Kanvas\Connectors\Salesforce\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Connectors\Salesforce\Actions\Concerns\SyncsImportedContact;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationData;
-use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 
+/**
+ * One Location__c can carry several Location_Contact__c rows (broker, attorney, landlord, the
+ * prospect itself) — the caller runs this once per row, not once per location. Each contact becomes
+ * its own People, tagged "{role} - {location name} #{variant_id}" so an agent can find "who is the
+ * X for Y" by a partial match on either half (see ListPeopleTool); there's no dedicated People<->
+ * Variant relation in Kanvas, and that tag is the whole relationship. A second tag captures
+ * Interest_Level__c the same way, when Salesforce carries one, standing in for a lead-variant-interest
+ * record without a new table.
+ */
 class PullPropertyContactAction
 {
+    use SyncsImportedContact;
+
+    private const string INTEREST_TAG_PREFIX = 'Interest';
+
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
-        protected Products $product,
+        protected Variants $variant,
         protected array $payload,
         protected string $salesforceId,
     ) {
@@ -76,17 +90,45 @@ class PullPropertyContactAction
 
         $companyName = trim((string) ($this->payload['Company_Name__c'] ?? ''));
         if ($companyName !== '') {
+            // runWorkflow: false — an Organization pulled FROM Salesforce must not trigger a
+            // CREATED workflow that could be wired to PushOrganizationActivity, which would push
+            // this same, minimally-populated Organization straight back as a duplicate Account.
             new CreateOrganizationAction(
                 new OrganizationData(
                     company: $this->company,
                     user: $this->company->user,
                     app: $this->app,
                     name: $companyName,
+                    runWorkflow: false,
                 ),
             )->execute();
         }
 
-        $this->product->set(CustomFieldEnum::PROPERTY_BROKER_PEOPLE_ID->value, (string) $people->getId());
+        $suffix = $this->relationshipTagSuffix($this->variant);
+
+        $role = trim((string) ($this->payload['Location_Contact_Type__c'] ?? ''));
+        $tags = [];
+        if ($role !== '') {
+            $peopleType = new ResolvePeopleTypeByNameAction($this->app, $this->company, $this->company->user)
+                ->execute($role);
+            $people->people_types_id = $peopleType->getId();
+            $people->saveOrFail();
+
+            $tags[] = "{$role} - {$this->variant->name}{$suffix}";
+        }
+
+        $interestLevel = trim((string) ($this->payload['Interest_Level__c'] ?? ''));
+        if ($interestLevel !== '') {
+            $tags[] = self::INTEREST_TAG_PREFIX . ": {$interestLevel} - {$this->variant->name}{$suffix}";
+        }
+
+        $this->replaceRelationshipTags($people, $this->variant, $tags);
+
+        // Only the primary contact stands in as "the" broker for the variant — the rest of the
+        // relationships now live as tags, so this scalar field is never ambiguous across re-syncs.
+        if ((bool) ($this->payload['Primary_Location_Contact__c'] ?? false)) {
+            $this->variant->set(CustomFieldEnum::PROPERTY_BROKER_PEOPLE_ID->value, (string) $people->getId());
+        }
 
         return $people;
     }
@@ -96,21 +138,5 @@ class PullPropertyContactAction
         $parts = explode(' ', $fullName, 2);
 
         return [$parts[0], $parts[1] ?? $parts[0]];
-    }
-
-    private function syncContact(People $people, int $typeId, string $value): void
-    {
-        $exists = $people->contacts()
-            ->where('contacts_types_id', $typeId)
-            ->where('value', $value)
-            ->exists();
-
-        if (! $exists) {
-            $people->contacts()->create([
-                'contacts_types_id' => $typeId,
-                'value' => $value,
-                'weight' => 0,
-            ]);
-        }
     }
 }

@@ -7,11 +7,12 @@ namespace Kanvas\Event\Events\Models;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Event\Models\BaseModel;
 use Override;
 
-class EventType extends BaseModel
+class EventType extends BaseModel implements ReadableAtLocation
 {
     use DatabaseSearchableTrait;
 
@@ -45,8 +46,10 @@ class EventType extends BaseModel
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }

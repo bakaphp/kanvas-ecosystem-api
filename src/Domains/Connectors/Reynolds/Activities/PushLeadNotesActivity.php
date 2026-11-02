@@ -69,7 +69,7 @@ class PushLeadNotesActivity extends KanvasActivity
             return ['error' => 'Reynolds dealer/store/area not configured for this company'];
         }
 
-        $lead = $message->entity();
+        $lead = $message->entity(Lead::class);
         if (! $lead instanceof Lead) {
             return $this->failWorkflow([
                 'message_id' => $message->getId(),

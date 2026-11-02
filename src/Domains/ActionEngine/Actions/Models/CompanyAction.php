@@ -15,6 +15,7 @@ use Kanvas\ActionEngine\Models\BaseModel;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Enums\AppEnums;
 use Nevadskiy\Tree\AsTree;
 use Override;
@@ -117,8 +118,10 @@ class CompanyAction extends BaseModel
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }

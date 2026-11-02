@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Approvals\Models;
 
 use Baka\Casts\Json;
+use Baka\Concerns\HasHandlerClass;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Approvals\Contracts\ApprovalHandlerInterface;
 use Kanvas\Approvals\DataTransferObject\ApprovalStep;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
+use Override;
 
 /**
  * @property int $id
@@ -33,6 +35,7 @@ use Kanvas\SystemModules\Models\SystemModules;
  */
 class ApprovalPolicy extends BaseModel
 {
+    use HasHandlerClass;
     protected $table = 'approval_policies';
     protected $guarded = [];
 
@@ -71,19 +74,21 @@ class ApprovalPolicy extends BaseModel
         return $steps;
     }
 
+    #[Override]
+    protected static function handlerContracts(): array
+    {
+        return [ApprovalHandlerInterface::class];
+    }
+
     /**
      * Null when the policy names no handler, or names a class that no longer exists or does not
      * implement the contract — a stale handler reference must not stop the approval being recorded.
      */
     public function handlerInstance(): ?ApprovalHandlerInterface
     {
-        if ($this->handler === null || ! class_exists($this->handler)) {
-            return null;
-        }
+        $handlerClass = $this->handlerClass();
 
-        $handler = app($this->handler);
-
-        return $handler instanceof ApprovalHandlerInterface ? $handler : null;
+        return $handlerClass === null ? null : app($handlerClass);
     }
 
     public function stepAt(int $step): ?ApprovalStep

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Messages;
 
+use Baka\Support\Arr;
 use Baka\Support\IPInfo;
 use Baka\Support\Str;
 use Exception;
@@ -230,25 +231,15 @@ class MessageManagementMutation
             throw new Exception('The message does not belong to the authenticated user');
         }
 
-        $files = isset($request['file']) ? [$request['file']] : ($request['files'] ?? []);
         $files = MessageFileConstrainerService::constrain(
             $app,
             (string) $message->messageType->verb,
-            $files,
+            Arr::wrap($request['file'] ?? $request['files'] ?? []),
         );
 
-        if (isset($request['file'])) {
-            $request['file'] = $files[0];
-        } else {
-            $request['files'] = $files;
-        }
+        $this->uploadFilesAndCollect($message, $app, auth()->user(), $files);
 
-        return $this->uploadFileToEntity(
-            model: $message,
-            app: $app,
-            user: auth()->user(),
-            request: $request
-        );
+        return $message;
     }
 
     public function recoverMessage(mixed $root, array $request): Message

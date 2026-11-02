@@ -25,6 +25,12 @@ enum ConfigurationEnum: string
      */
     case PROVIDER_NPM = 'opencode_provider_npm';
     case MODEL = 'opencode_model';
+    /**
+     * The model a retried run uses, when the tenant names one. Unset, the retry runs on the model the
+     * empty run used. Same provider either way: a model on another provider needs that provider's
+     * transport, which a single setting cannot carry.
+     */
+    case FALLBACK_MODEL = 'coding_fallback_model';
     case WORKSPACE_ROOT = 'opencode_workspace_root';
     /**
      * A coding container often shares a box with other agents, so its ceiling has to be set against

@@ -65,6 +65,18 @@ class PullPropertyAction
 
     private function mapAttributes(): array
     {
+        return self::attributesFromPayload($this->payload);
+    }
+
+    /**
+     * Shared with ImportSalesforcePropertiesCommand, which maps a Location__c row into a Product
+     * Variant's attributes instead of a standalone Product's — same Location__c field names either
+     * way, so the map lives here once.
+     *
+     * @return array<int, array{name: string, value: mixed}>
+     */
+    public static function attributesFromPayload(array $payload): array
+    {
         $map = [
             'Deal Status' => 'Deal_Status__c',
             'Marketing Status' => 'Marketing_Status__c',
@@ -85,7 +97,7 @@ class PullPropertyAction
 
         $attributes = [];
         foreach ($map as $attributeName => $salesforceField) {
-            $value = $this->payload[$salesforceField] ?? null;
+            $value = $payload[$salesforceField] ?? null;
             if ($value === null || $value === '') {
                 continue;
             }

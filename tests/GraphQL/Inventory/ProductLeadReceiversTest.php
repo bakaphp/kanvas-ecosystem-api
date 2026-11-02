@@ -13,9 +13,11 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Tests\TestCase;
+use Tests\Traits\CreatesBareApps;
 
 class ProductLeadReceiversTest extends TestCase
 {
+    use CreatesBareApps;
     use DatabaseTransactions;
 
     protected array $connectionsToTransact = ['mysql', 'ecosystem', 'inventory', 'crm', 'workflow'];
@@ -181,23 +183,5 @@ class ProductLeadReceiversTest extends TestCase
             'lead_types_id' => 0,
             'is_default' => false,
         ]);
-    }
-
-    private function createBareApp(): Apps
-    {
-        $uniqueId = uniqid();
-        $app = new Apps();
-        $app->name = 'Other App ' . $uniqueId;
-        $app->url = 'https://other-' . $uniqueId . '.example.com';
-        $app->domain = 'other-' . $uniqueId . '.example.com';
-        $app->description = 'Cross-tenant forms test app';
-        $app->is_actived = 1;
-        $app->ecosystem_auth = 0;
-        $app->payments_active = 0;
-        $app->is_public = 1;
-        $app->domain_based = 0;
-        $app->save();
-
-        return $app;
     }
 }

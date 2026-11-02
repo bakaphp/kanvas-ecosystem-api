@@ -48,24 +48,30 @@ class GetCleanupReportTool extends Tool
                 description: 'Optional range end as an ISO date (YYYY-MM-DD).',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(?string $from = null, ?string $to = null): array
+    public function __invoke(?string $from = null, ?string $to = null, ?int $tenant_company_id = null): array
     {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $report = new CleanupReportAction(
             app: $this->app,
-            company: $this->company,
+            company: $this->auditedReadScope(),
             from: ! empty($from) ? Carbon::parse($from)->startOfDay() : null,
             to: ! empty($to) ? Carbon::parse($to)->endOfDay() : null,
         )->execute();
 
+        // byCompany is the employer split, not the tenant one.
         unset($report['byCompany']);
         $report['company'] = $this->company->name;
 
-        return $report;
+        return [...$report, ...$this->tenantScopeSummary()];
     }
 }

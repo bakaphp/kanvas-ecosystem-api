@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Cart;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
@@ -21,7 +21,7 @@ class CartManagementMutation
     public function add(mixed $root, array $request): array
     {
         $user = auth()->user();
-        $company = $user ? $user->getCurrentCompany() : app(CompaniesBranches::class)->company;
+        $company = $user ? LocationContext::shoppingCompany($user) : LocationContext::company();
 
         if (! $company) {
             throw new ModelNotFoundException('No company found');
@@ -77,7 +77,7 @@ class CartManagementMutation
         $user = auth()->user();
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
-        $company = $user ? $user->getCurrentCompany() : app(CompaniesBranches::class)->company;
+        $company = $user ? LocationContext::shoppingCompany($user) : LocationContext::company();
 
         $discountCodes = $request['discountCodes'] ?? [];
 

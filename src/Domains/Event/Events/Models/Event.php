@@ -12,13 +12,17 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
+use Kanvas\Companies\Support\LocationContext;
+use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
@@ -33,7 +37,7 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
 #[ObservedBy([ClearsLightHouseCacheObserver::class])]
-class Event extends BaseModel
+class Event extends BaseModel implements ReadableAtLocation
 {
     use UuidTrait;
     use SlugTrait;
@@ -71,6 +75,11 @@ class Event extends BaseModel
         return $this->belongsTo(EventStatus::class);
     }
 
+    public function isCancelled(): bool
+    {
+        return $this->eventStatus?->name === EventStatusEnum::CANCELLED->value;
+    }
+
     public function eventCategory(): BelongsTo
     {
         return $this->belongsTo(EventCategory::class);
@@ -99,6 +108,47 @@ class Event extends BaseModel
     public function resources(): HasMany
     {
         return $this->hasMany(EventResource::class);
+    }
+
+    public function latestVersion(): ?EventVersion
+    {
+        return $this->versions()->latest('id')->first();
+    }
+
+    /**
+     * The start the latest version records, in UTC: `start_at` when set, else the first date row.
+     * Null for an event with no dates at all.
+     */
+    public function startsAt(): ?Carbon
+    {
+        $version = $this->latestVersion();
+
+        if ($version?->start_at !== null) {
+            return $version->start_at->copy()->utc();
+        }
+
+        $date = $version?->dates()->first();
+
+        if ($date === null) {
+            return null;
+        }
+
+        return Carbon::parse(
+            $date->event_date->format('Y-m-d') . ' ' . ((string) ($date->start_time ?? '00:00'))
+        )->utc();
+    }
+
+    /**
+     * The entity this event is about, by class: the primary `resource` morph when it is one, else the
+     * first matching `event_resources` row. Bookings made for a lead record it in both places.
+     */
+    public function linkedResource(string $class): ?Model
+    {
+        if ($this->resources_type === $class && $this->resources_id) {
+            return $this->resource;
+        }
+
+        return $this->resources()->where('resources_type', $class)->first()?->resource;
     }
 
     public function getStringIdAttribute(): string
@@ -200,8 +250,10 @@ class Event extends BaseModel
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->where('companies_id', $locationCompany->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }

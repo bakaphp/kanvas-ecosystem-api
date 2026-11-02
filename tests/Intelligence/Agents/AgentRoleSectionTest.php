@@ -36,4 +36,17 @@ class AgentRoleSectionTest extends TestCase
 
         $this->assertSame('', $agent->roleSection('output'));
     }
+
+    public function testRenderRoleSectionRendersThroughTheTemplateSandbox(): void
+    {
+        $agent = new Agent();
+        $agent->role = [
+            'background' => ['Hi {{ $people["name"] }},', "@php touch('/tmp/x') @endphp"],
+        ];
+
+        $this->assertSame(
+            "Hi Ana,\n@php touch('/tmp/x') @endphp",
+            $agent->renderRoleSection('background', ['people' => ['name' => 'Ana']], "\n")
+        );
+    }
 }

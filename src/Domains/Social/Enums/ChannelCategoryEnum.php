@@ -60,6 +60,30 @@ enum ChannelCategoryEnum: string
             );
     }
 
+    /**
+     * The channel a message was actually delivered on, read from its MessageType verb
+     * ('twilio-sms', 'mailgun-email', 'whatsapp-text', ...). Null when the verb is not a
+     * delivery verb (notes, system turns), so callers can fall back to the channel slug.
+     *
+     * Prefer this over getLeadChannelName(): a message can sit on a channel of another
+     * type (a follow-up SMS filed under the person's email session), and the verb is the
+     * one field that says how it really went out.
+     */
+    public static function getLeadChannelNameFromVerb(?string $verb): ?string
+    {
+        if ($verb === null || $verb === '') {
+            return null;
+        }
+
+        return match (true) {
+            str_contains($verb, 'whatsapp') => self::WHATSAPP->value,
+            str_contains($verb, 'twilio'), str_contains($verb, 'sms') => self::SMS->value,
+            str_contains($verb, 'mailgun'), str_contains($verb, 'email') => self::EMAIL->value,
+            str_contains($verb, 'respondio') => self::RESPONDIO->value,
+            default => null,
+        };
+    }
+
     public static function getLeadChannelName(string $channelSlug): string
     {
         return match (true) {

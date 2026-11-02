@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Guild\Customers\Enums\ContactCustomFieldEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactValidationStatusEnum;
 use Kanvas\Guild\Customers\Factories\ContactFactory;
@@ -106,6 +107,14 @@ class Contact extends BaseModel
         $this->bounced_at = Carbon::now();
 
         return $this->saveOrFail();
+    }
+
+    /** Null until a Twilio Lookup has classified the number. */
+    public function isLandline(): ?bool
+    {
+        $value = $this->get(ContactCustomFieldEnum::IS_LANDLINE->value);
+
+        return $value === null ? null : (bool) $value;
     }
 
     public function markInvalid(): bool

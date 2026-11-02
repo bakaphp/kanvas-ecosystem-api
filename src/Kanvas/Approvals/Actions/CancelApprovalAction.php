@@ -40,6 +40,8 @@ class CancelApprovalAction
         $this->request->skipUndecidedApprovers();
         $this->request->refresh();
 
+        new RunWithdrawalHandlerAction($this->request)->execute();
+
         // No workflow — nobody decided anything — but the audit still has to show it was withdrawn.
         new ApprovalWorkflowService()->record($this->request, WorkflowEnum::APPROVAL_CANCELLED);
 

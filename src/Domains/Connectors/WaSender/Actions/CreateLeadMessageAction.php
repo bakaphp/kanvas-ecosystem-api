@@ -135,6 +135,10 @@ class CreateLeadMessageAction
         $consentOutcome = $this->processConsent($lead, $isFromMe, $text ?? $messageBody);
         $haltAgentTurn = $consentOutcome?->shouldHaltAgentTurn() ?? false;
 
+        if ($isFromMe === false && ! $haltAgentTurn) {
+            $lead->addTag('engaged');
+        }
+
         if ($haltAgentTurn) {
             $message->addTag('consent-stop');
 

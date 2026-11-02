@@ -6,13 +6,15 @@ namespace Kanvas\Workflow\Integrations\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Contracts\BaseIntegration;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Rules\Actions\RemoveIntegrationDefaultRulesAction;
 
 final class RemoveIntegrationCompanyAction
 {
     /**
-     * integration_companies carries no apps_id and a company can live in several apps, so the
-     * app has to come from the caller.
+     * A company can live in several apps, so the app has to come from the caller — and it has to be
+     * the row's own, or one app could disconnect another app's integration.
      */
     public function __construct(
         private readonly IntegrationsCompany $integrationCompany,
@@ -22,25 +24,16 @@ final class RemoveIntegrationCompanyAction
 
     public function execute(): bool
     {
-        $this->teardownHandler();
-
-        return (bool) $this->integrationCompany->delete();
-    }
-
-    private function teardownHandler(): void
-    {
-        $handler = $this->integrationCompany->integration?->handler;
-
-        if (! is_string($handler) || ! is_subclass_of($handler, BaseIntegration::class)) {
-            return;
+        if (! $this->integrationCompany->isManageableFrom($this->app)) {
+            throw new ModelNotFoundException('Integration not found for this app.');
         }
 
-        new $handler(
-            app: $this->app,
-            company: $this->integrationCompany->company,
-            region: $this->integrationCompany->region,
-            data: [],
-            integration: $this->integrationCompany->integration,
-        )->teardown();
+        new RemoveIntegrationDefaultRulesAction($this->integrationCompany, $this->app)->execute();
+
+        $handler = BaseIntegration::forIntegrationCompany($this->integrationCompany, $this->app);
+        $handler?->removing($this->integrationCompany);
+        $handler?->teardown();
+
+        return (bool) $this->integrationCompany->delete();
     }
 }

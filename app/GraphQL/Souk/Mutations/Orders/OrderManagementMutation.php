@@ -6,6 +6,7 @@ namespace App\GraphQL\Souk\Mutations\Orders;
 
 use Baka\Support\IPInfo;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
@@ -87,13 +88,13 @@ class OrderManagementMutation
         $user = auth()->user();
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
-        $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
+        $company = B2BConfigurationService::getConfiguredB2BCompany($app, LocationContext::shoppingCompany($user));
 
         $region = new RegionResolutionService($app)->forCurrentRequestOrFail($company);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
             $app,
-            $user->getCurrentBranch(),
+            LocationContext::shoppingBranch($user),
             $user
         );
         $people = $createPeople->execute();
@@ -195,7 +196,7 @@ class OrderManagementMutation
         $user = auth()->user();
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
-        $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
+        $company = B2BConfigurationService::getConfiguredB2BCompany($app, LocationContext::shoppingCompany($user));
 
         $parentOrder = Order::where([
             'apps_id' => $app->getId(),
@@ -223,7 +224,7 @@ class OrderManagementMutation
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
             $app,
-            $user->getCurrentBranch(),
+            LocationContext::shoppingBranch($user),
             $user
         );
         $people = $createPeople->execute();
@@ -309,7 +310,7 @@ class OrderManagementMutation
     {
         $payment = new AuthorizeNetPaymentProcessor(
             app(Apps::class),
-            auth()->user()->getCurrentBranch()
+            LocationContext::shoppingBranch(auth()->user())
         );
 
         return $isSubscription
@@ -401,7 +402,7 @@ class OrderManagementMutation
     {
         $user = auth()->user();
         $app = app(Apps::class);
-        $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
+        $company = B2BConfigurationService::getConfiguredB2BCompany($app, LocationContext::shoppingCompany($user));
 
         $input = $request['input'];
 

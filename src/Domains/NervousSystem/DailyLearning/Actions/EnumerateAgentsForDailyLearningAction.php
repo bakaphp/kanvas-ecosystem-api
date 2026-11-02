@@ -72,6 +72,7 @@ class EnumerateAgentsForDailyLearningAction
             ->whereIn('id', $agentIds)
             ->fromApp($this->app)
             ->fromCompany($this->company)
+            ->where('is_active', 1)
             ->notDeleted()
             ->orderBy('id')
             ->get();

@@ -17,8 +17,7 @@ use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Auth\Services\RegistrationAbuseReportService;
 use Kanvas\Auth\Services\RegistrationVelocityService;
-use Kanvas\Companies\Actions\CreateCompaniesAction;
-use Kanvas\Companies\DataTransferObject\Company;
+use Kanvas\Companies\Actions\CreateDefaultCompanyForUserAction;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
@@ -300,8 +299,9 @@ class CreateUserAction
     {
         $roles = $this->data->role_ids;
         if (empty($roles)) {
+            // Roles are app-wide, so an app that wants signups to be admins says so in its settings.
             $defaultAppSettingsRole = $this->app->get(AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue());
-            $roles = [RolesEnums::getRoleBySlug($defaultAppSettingsRole ?? RolesEnums::ADMIN->value)];
+            $roles = [RolesEnums::getRoleBySlug($defaultAppSettingsRole ?? RolesEnums::USER->value)];
         }
 
         foreach ($roles as $role) {
@@ -349,25 +349,7 @@ class CreateUserAction
 
     protected function createCompany(Users $user): CompanyInterface
     {
-        $createCompany = new CreateCompaniesAction(
-            new Company(
-                user: $user,
-                name: $user->defaultCompanyName ?? $user->displayname . 'CP',
-                email: $user->email
-            )
-        );
-
-        $company = $createCompany->execute();
-        $branch = $company->branch()->firstOrFail();
-
-        $user->default_company = (int) $company->id;
-        $user->default_company_branch = (int) $branch->id;
-        $user->saveOrFail();
-
-        $action = new AssignCompanyAction($user, $branch);
-        $action->execute();
-
-        return $company;
+        return new CreateDefaultCompanyForUserAction($user)->execute();
     }
 
     public function disableWorkflow(): void

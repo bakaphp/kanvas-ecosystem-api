@@ -13,12 +13,17 @@ use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
+use Throwable;
 
 /**
- * Per-app fan-out. SQL pre-filters at STAGE level (enabled + non-terminal)
- * and to open leads (status < 2); remaining lead-level state is checked inside
- * FollowUpLeadAction so each skip lands a clean ledger event with the specific
- * reason. Streams via cursor().
+ * Per-app fan-out. SQL pre-filters at STAGE level (enabled + non-terminal) and to open leads (by
+ * status id); the lead-level gates (ai follow-up, lead type, exhausted, manual, mute, and the stage
+ * interval against the lead's last message) run here too, so a lead that was already followed up
+ * never takes a queue slot. Every lead leaves a ledger record: `lead.follow_up.skipped` with the
+ * reason and `source: dispatch`, or `lead.follow_up.queued`. FollowUpLeadAction still re-checks
+ * every gate when the job runs.
  */
 final class DispatchAppLeadFollowUpsJob implements ShouldQueue
 {
@@ -40,19 +45,17 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
+        $startDate = new LeadConfigurationService()->getFollowUpStartDate($this->company);
+
         $leads = Lead::query()
             ->fromApp($this->app)
             ->fromCompany($this->company)
             ->notDeleted()
-            // Open leads only (isOpen() === status < 2). null is treated as open
-            // to match the model (status column is nullable, default 0). The
-            // authoritative check is FollowUpLeadAction's isOpen() gate; this just
+            // Open leads only, by `leads_status_id` — the column CRM pulls and the UI write. The
+            // authoritative check is FollowUpLeadAction's hasOpenLeadStatus() gate; this just
             // avoids spawning jobs for already-closed leads.
-            ->where(
-                fn ($q) => $q
-                    ->whereNull('status')
-                    ->orWhere('status', '<', 2),
-            )
+            ->hasOpenLeadStatus($this->company)
+            ->when($startDate, fn ($query) => $query->where('created_at', '>=', $startDate))
             ->whereNotNull('pipeline_stage_id')
             ->whereHas(
                 'stage',
@@ -65,11 +68,37 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
                             ->orWhereNull('config->stage_meta->is_terminal'),
                     ),
             )
-            ->cursor();
+            ->with('stage')
+            ->lazyById(500);
 
+        $eligibility = new LeadFollowUpEligibilityService();
         foreach ($leads as $lead) {
+            $skipReason = $eligibility->dispatchSkipReason($lead);
+            if ($skipReason !== null) {
+                $this->record($lead, 'lead.follow_up.skipped', ['reason' => $skipReason]);
+
+                continue;
+            }
+
             LeadFollowUpJob::dispatch($this->app, $this->company, $lead)
                 ->onQueue('lead_follow_ups');
+            $this->record($lead, 'lead.follow_up.queued');
+        }
+    }
+
+    /**
+     * A failed ledger write is reported, never allowed to stop the fan-out for the remaining leads.
+     */
+    private function record(Lead $lead, string $eventType, array $payload = []): void
+    {
+        try {
+            $lead->emitLedgerEvent($eventType, payload: [
+                'stage_id' => $lead->pipeline_stage_id,
+                ...$payload,
+                'source' => 'dispatch',
+            ]);
+        } catch (Throwable $e) {
+            report($e);
         }
     }
 }

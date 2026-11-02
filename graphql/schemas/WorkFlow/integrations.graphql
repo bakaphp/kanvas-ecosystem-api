@@ -49,6 +49,7 @@ type WorkflowIntegrationsHistory {
     integrationCompany: IntegrationsCompanies
     status: Status
     workflow: Workflow
+    action: WorkflowAction @belongsTo(relation: "action")
     input: Mixed
     response: Mixed
     exception: Mixed

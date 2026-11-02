@@ -8,14 +8,15 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Guild\Customers\Models\People;
 
 trait HydratesPeopleCandidates
 {
     /** What MatchesPeopleByName presents per match — both sources must load the same or they drift. */
-    private const array CANDIDATE_COLUMNS = ['id', 'firstname', 'middlename', 'lastname', 'name'];
+    private const array CANDIDATE_COLUMNS = ['id', 'firstname', 'middlename', 'lastname', 'name', 'companies_id'];
 
-    protected function peopleCandidateQuery(Apps $app, Companies $company): Builder
+    protected function peopleCandidateQuery(Apps $app, Companies|CompanyScope $company): Builder
     {
         return People::query()
             ->fromApp($app)
@@ -36,7 +37,7 @@ trait HydratesPeopleCandidates
      *
      * @return Collection<int, People>
      */
-    protected function hydrateCandidates(Apps $app, Companies $company, array $ids): Collection
+    protected function hydrateCandidates(Apps $app, Companies|CompanyScope $company, array $ids): Collection
     {
         if ($ids === []) {
             return new Collection();

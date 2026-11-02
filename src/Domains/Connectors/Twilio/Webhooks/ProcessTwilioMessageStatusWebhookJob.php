@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Webhooks;
 
+use Baka\Support\Str;
 use Illuminate\Http\Request;
+use Kanvas\Connectors\Twilio\Actions\RecordDeliveryOnMessageAction;
 use Kanvas\Connectors\Twilio\Actions\RecordDeliveryStatusEventAction;
 use Kanvas\Connectors\Twilio\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Twilio\Jobs\RetryMessageAttemptJob;
-use Kanvas\Connectors\Twilio\Models\MessageAttempt;
+use Kanvas\Connectors\Twilio\Enums\MessageStatusEnum;
 use Kanvas\Connectors\Twilio\Services\WebhookSignatureValidator;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -22,18 +23,20 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Override;
 
 #[WorkflowAction(
     name: 'Twilio Delivery Status Webhook',
     description: 'Receiver for Twilio delivery receipts: records whether a text was delivered or failed, and '
-        . 'retries the ones worth retrying. Bookkeeping for outbound texts — it does not handle inbound '
+        . 'stops texting numbers the carrier rejected. Bookkeeping for outbound texts — it does not handle inbound '
         . 'replies.',
     integration: IntegrationsEnum::TWILIO,
 )]
 class ProcessTwilioMessageStatusWebhookJob extends ProcessWebhookJob
 {
     private const string MESSAGE_TYPE_VERB = 'twilio-message-status';
+    private const string INBOUND_STATUS = 'received';
 
     #[Override]
     public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
@@ -63,6 +66,10 @@ class ProcessTwilioMessageStatusWebhookJob extends ProcessWebhookJob
             ];
         }
 
+        if ($status === self::INBOUND_STATUS) {
+            return $this->rerouteInboundMessage($payload, $sid);
+        }
+
         $parent = Message::getByCustomFieldBuilderTransactionSafe(
             CustomFieldEnum::MESSAGE_SID->value,
             $sid,
@@ -82,7 +89,6 @@ class ProcessTwilioMessageStatusWebhookJob extends ProcessWebhookJob
             )->execute();
             if ($recordedDelivery['created']) {
                 $this->applyDestinationRemediation($payload, $errorCode);
-                $this->applyCarrierRetryPolicy($recordedDelivery['attempt'], $errorCode);
             }
 
             return [
@@ -127,6 +133,15 @@ class ProcessTwilioMessageStatusWebhookJob extends ProcessWebhookJob
             if ($errorMessage !== '') {
                 $parent->set(CustomFieldEnum::LAST_ERROR_MESSAGE->value, $errorMessage);
             }
+            $deliveryStatus = MessageStatusEnum::fromTwilio($attempt->current_status);
+            if ($deliveryStatus !== null) {
+                new RecordDeliveryOnMessageAction($parent)->execute(
+                    $deliveryStatus,
+                    $sid,
+                    Str::trimToNull($errorCode),
+                    Str::trimToNull($errorMessage),
+                );
+            }
         }
 
         $messageType = MessageTypeService::getOrCreate(
@@ -156,7 +171,6 @@ class ProcessTwilioMessageStatusWebhookJob extends ProcessWebhookJob
 
         if ($recordedDelivery['created']) {
             $this->applyDestinationRemediation($payload, $errorCode);
-            $this->applyCarrierRetryPolicy($attempt, $errorCode);
         }
 
         return [
@@ -168,9 +182,54 @@ class ProcessTwilioMessageStatusWebhookJob extends ProcessWebhookJob
         ];
     }
 
+    /**
+     * Twilio only ever reports `received` for an inbound text, so one landing here means the
+     * Messaging Service's incoming-message URL points at this receiver instead of the inbound one.
+     * Filing it as a delivery attempt would record a bogus attempt row and drop the customer's reply
+     * on the floor, so hand it to the inbound receiver and let the conversation happen.
+     */
+    protected function rerouteInboundMessage(array $payload, string $sid): array
+    {
+        $inboundReceiver = ReceiverWebhook::query()
+            ->fromApp($this->receiver->app)
+            ->fromCompany($this->receiver->company)
+            ->notDeleted()
+            ->where('is_active', true)
+            ->forJob(ProcessTwilioWebhookJob::class)
+            ->first();
+
+        if (! $inboundReceiver instanceof ReceiverWebhook) {
+            $this->failedReturnHttpCode = 422;
+
+            return [
+                'status' => 422,
+                'message' => 'Inbound SMS reached the delivery-status receiver and the company has no active '
+                    . 'inbound Twilio receiver; point the Messaging Service incoming-message URL at one',
+                'sid' => $sid,
+            ];
+        }
+
+        $inboundCall = ReceiverWebhookCall::create([
+            'receiver_webhooks_id' => $inboundReceiver->getId(),
+            'url' => $inboundReceiver->getUrl(),
+            'headers' => $this->webhookRequest->headers,
+            'payload' => $payload,
+            'raw_payload' => $this->webhookRequest->raw_payload,
+        ]);
+
+        ProcessTwilioWebhookJob::dispatch($inboundCall);
+
+        return [
+            'message' => 'Inbound SMS reached the delivery-status receiver; re-routed to the inbound receiver',
+            'sid' => $sid,
+            'inbound_receiver_id' => $inboundReceiver->getId(),
+            'inbound_call_id' => $inboundCall->getId(),
+        ];
+    }
+
     protected function applyDestinationRemediation(array $payload, string $errorCode): void
     {
-        if (! in_array($errorCode, ['21610', '30006'], true)) {
+        if (! in_array($errorCode, ['21610', '30003', '30005', '30006'], true)) {
             return;
         }
 
@@ -197,70 +256,6 @@ class ProcessTwilioMessageStatusWebhookJob extends ProcessWebhookJob
                 continue;
             }
 
-            $person->contacts()
-                ->whereIn('contacts_types_id', Contact::PHONE_TYPES)
-                ->get()
-                ->filter(
-                    fn (Contact $contact): bool => Contact::normalizeValue(
-                        $contact->value,
-                        $contact->contacts_types_id,
-                    ) === $normalizedDestination,
-                )
-                ->each(fn (Contact $contact): bool => $contact->markInvalid());
-        }
-    }
-
-    protected function applyCarrierRetryPolicy(MessageAttempt $attempt, string $errorCode): void
-    {
-        if (! in_array($errorCode, ['30003', '30005'], true)) {
-            return;
-        }
-
-        if ($attempt->retry_number >= 1) {
-            $attempt->remediation_action = 'suppress_sms';
-            $attempt->saveOrFail();
-            $this->markDestinationInvalid((string) $attempt->to_number);
-
-            return;
-        }
-
-        $claimed = MessageAttempt::query()
-            ->whereKey($attempt->getId())
-            ->where('retry_number', 0)
-            ->where('remediation_action', 'delayed_retry')
-            ->update(['remediation_action' => 'retry_scheduled']);
-
-        if ($claimed !== 1) {
-            return;
-        }
-
-        $delayMinutes = max(
-            1,
-            (int) ($this->receiver->company->get('twilio-carrier-retry-delay-minutes', 30) ?? 30),
-        );
-
-        RetryMessageAttemptJob::dispatch($attempt->getId())
-            ->delay(now()->addMinutes($delayMinutes));
-    }
-
-    protected function markDestinationInvalid(string $destination): void
-    {
-        if ($destination === '') {
-            return;
-        }
-
-        $normalizedDestination = Contact::normalizeValue(
-            $destination,
-            ContactTypeEnum::CELLPHONE->value,
-        );
-
-        $people = PeoplesRepository::getByPhoneNumber(
-            app: $this->receiver->app,
-            company: $this->receiver->company,
-            phoneNumbers: [$destination, Contact::cleanPhone($destination)],
-        )->get();
-
-        foreach ($people as $person) {
             $person->contacts()
                 ->whereIn('contacts_types_id', Contact::PHONE_TYPES)
                 ->get()

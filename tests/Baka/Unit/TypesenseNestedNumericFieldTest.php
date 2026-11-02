@@ -77,7 +77,10 @@ final class TypesenseNestedNumericFieldTest extends TestCase
             $types = $this->fieldTypes(new $class());
 
             foreach (array_keys($types) as $name) {
-                if (! str_contains($name, '.') || str_contains($name, '\\.')) {
+                // `num_.*` is a top-level wildcard (num_mileage_min, …), not a child of `num_`.
+                $isTopLevelWildcard = str_ends_with($name, '_.*') && substr_count($name, '.') === 1;
+
+                if (! str_contains($name, '.') || str_contains($name, '\\.') || $isTopLevelWildcard) {
                     continue;
                 }
 

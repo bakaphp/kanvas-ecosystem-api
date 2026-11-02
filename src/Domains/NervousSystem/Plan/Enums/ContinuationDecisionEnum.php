@@ -23,6 +23,9 @@ enum ContinuationDecisionEnum: string
     /** Everything is done. Hand to whatever establishes the goal was actually met. */
     case VERIFY = 'verify';
 
+    /** Nothing can move until a booked wake fires — a person owes an answer, a date was promised. */
+    case WAIT = 'wait';
+
     /** Something is stuck in a way only a human can clear. */
     case BLOCK = 'block';
 
@@ -33,7 +36,7 @@ enum ContinuationDecisionEnum: string
     public function continuesUnattended(): bool
     {
         return match ($this) {
-            self::DISPATCH, self::EXTEND, self::VERIFY => true,
+            self::DISPATCH, self::EXTEND, self::VERIFY, self::WAIT => true,
             self::BLOCK, self::ABANDON => false,
         };
     }
@@ -51,6 +54,8 @@ enum ContinuationDecisionEnum: string
                 . 'that would finish it. If you believe the goal IS met, say so explicitly and close the plan.',
             self::VERIFY => 'All tasks are complete and the goal appears met. Summarise what was achieved '
                 . 'against the original objective, then close the plan.',
+            self::WAIT => 'This plan is waiting on something with a wake already booked. Do nothing now: do not '
+                . 'chase, do not add tasks, do not close the plan. You will be woken when the wait ends.',
             self::BLOCK => 'This plan is blocked and you cannot clear it yourself. Explain what is blocking it '
                 . 'and what a human needs to do. Do NOT attempt the blocked work again.',
             self::ABANDON => 'This plan has exhausted its budget and is being stopped. Summarise what was done '

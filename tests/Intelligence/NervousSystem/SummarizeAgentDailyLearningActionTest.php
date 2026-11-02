@@ -12,10 +12,13 @@ use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
 use Kanvas\Intelligence\Agents\Models\AgentDailyCycle;
 use Kanvas\NervousSystem\DailyLearning\Actions\SummarizeAgentDailyLearningAction;
 use Laravel\Ai\StructuredAnonymousAgent;
+use Tests\Intelligence\NervousSystem\Concerns\SeedsDailyLearningConversations;
 use Tests\TestCase;
 
 class SummarizeAgentDailyLearningActionTest extends TestCase
 {
+    use SeedsDailyLearningConversations;
+
     public function testReturnsNullWhenNoConversationsOnCycleDate(): void
     {
         $app = app(Apps::class);
@@ -37,6 +40,48 @@ class SummarizeAgentDailyLearningActionTest extends TestCase
         )->execute();
 
         $this->assertNull($result, 'Empty-day cycles should be a no-op, not a fabricated row');
+        $this->assertDatabaseMissing(
+            'agent_daily_cycles',
+            [
+                'agent_id' => $agent->getId(),
+                'cycle_date' => '2026-05-23',
+            ],
+            'intelligence',
+        );
+    }
+
+    public function testInactiveAgentIsNotSummarizedOrSaved(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'name' => 'felix-sales',
+                'is_active' => false,
+            ]);
+
+        $cycleDate = Carbon::parse('2026-05-23');
+
+        $this->seedConversationOnCompanyTimezoneDay(
+            $agent,
+            $app,
+            $company,
+            $user->getId(),
+            $cycleDate,
+        );
+
+        $result = new SummarizeAgentDailyLearningAction(
+            agent: $agent,
+            app: $app,
+            company: $company,
+            cycleDate: $cycleDate,
+        )->execute();
+
+        $this->assertNull($result);
         $this->assertDatabaseMissing(
             'agent_daily_cycles',
             [
@@ -305,65 +350,5 @@ class SummarizeAgentDailyLearningActionTest extends TestCase
 
         $this->assertCount(1, $rows, 'updateOrCreate must produce exactly one row per (agent, date)');
         $this->assertSame('Run #2 briefing supersedes the first.', $rows->first()->morning_briefing);
-    }
-
-    /**
-     * Seed one conversation with two messages timestamped inside the company
-     * timezone day so the action's whereBetween catches them.
-     */
-    private function seedConversationOnCompanyTimezoneDay(
-        Agent $agent,
-        Apps $app,
-        $company,
-        int $userId,
-        Carbon $cycleDate,
-    ): void {
-        $companyTz = ((string) $company->timezone) !== ''
-            ? (string) $company->timezone
-            : ((is_string($app->get('timezone')) && $app->get('timezone') !== '') ? $app->get('timezone') : 'UTC');
-        // Anchor the moment IN the tz (parse the label there), don't shift
-        // into it — same fix shape as the production action.
-        $messageAt = Carbon::parse($cycleDate->toDateString(), $companyTz)->setTime(12, 0, 0)->utc();
-
-        $conversation = AgentConversation::query()->create([
-            'id' => 'conv-' . uniqid('', true),
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'agent_id' => $agent->getId(),
-            'title' => 'Daily sync',
-            'meta' => ['source' => 'slack'],
-            'created_at' => $messageAt,
-            'updated_at' => $messageAt,
-        ]);
-
-        AgentConversationMessage::query()->create([
-            'id' => 'msg-' . uniqid('', true) . '-u',
-            'conversation_id' => $conversation->id,
-            'user_id' => $userId,
-            'agent' => 'TestAgent',
-            'role' => 'user',
-            'content' => 'How did the gate meeting go?',
-            'attachments' => [],
-            'steps' => [],
-            'usage' => [],
-            'meta' => [],
-            'created_at' => $messageAt,
-            'updated_at' => $messageAt,
-        ]);
-
-        AgentConversationMessage::query()->create([
-            'id' => 'msg-' . uniqid('', true) . '-a',
-            'conversation_id' => $conversation->id,
-            'user_id' => null,
-            'agent' => 'TestAgent',
-            'role' => 'assistant',
-            'content' => 'It went well — Kevin signed off on the milestone.',
-            'attachments' => [],
-            'steps' => [],
-            'usage' => [],
-            'meta' => [],
-            'created_at' => $messageAt->copy()->addSecond(),
-            'updated_at' => $messageAt->copy()->addSecond(),
-        ]);
     }
 }

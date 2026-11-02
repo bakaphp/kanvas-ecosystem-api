@@ -25,7 +25,6 @@ class BaseModel extends EloquentModel
 
     /**
      * Prevent laravel from cast is_deleted as date using carbon.
-     *
      */
     protected $casts = [
         'is_deleted' => 'boolean',
@@ -34,12 +33,12 @@ class BaseModel extends EloquentModel
     public const DELETED_AT = 'is_deleted';
 
     /**
-     * Determine if the model instance has been soft-deleted.
+     * Untyped on purpose: models that also use Laravel's SoftDeletes inherit its untyped trashed().
      *
      * @return bool
      */
     public function trashed()
     {
-        return $this->{$this->getDeletedAtColumn()};
+        return (bool) $this->{static::DELETED_AT};
     }
 }

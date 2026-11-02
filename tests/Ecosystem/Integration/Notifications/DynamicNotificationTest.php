@@ -198,16 +198,17 @@ final class DynamicNotificationTest extends TestCase
             ->create();
 
         $emailMarker = 'EMAIL-BODY-MARKER-' . time();
+        $templateName = 'baseline-email-only-notification-' . uniqid();
         new CreateTemplateAction(
             TemplateInput::from([
                 'app' => $app,
-                'name' => 'baseline-email-only-notification',
+                'name' => $templateName,
                 'template' => '<html><body>' . $emailMarker . '</body></html>',
             ])
         )->execute();
 
         $notification = new Blank(
-            templateName: 'baseline-email-only-notification',
+            templateName: $templateName,
             data: [
                 'message' => $lead,
                 'company' => $company,
@@ -239,10 +240,11 @@ final class DynamicNotificationTest extends TestCase
             ->withAppAndCompany($app->getId(), $company->getId())
             ->create();
 
+        $suffix = uniqid();
         new CreateTemplateAction(
             TemplateInput::from([
                 'app' => $app,
-                'name' => 'agent-manager-notification-email',
+                'name' => 'agent-manager-notification-email-' . $suffix,
                 'template' => '<html><body><h1>This is the long email body that must NOT land in notifications.content</h1></body></html>',
             ])
         )->execute();
@@ -251,13 +253,13 @@ final class DynamicNotificationTest extends TestCase
         new CreateTemplateAction(
             TemplateInput::from([
                 'app' => $app,
-                'name' => 'agent-manager-notification-database',
+                'name' => 'agent-manager-notification-database-' . $suffix,
                 'template' => $databaseBlurb,
             ])
         )->execute();
 
         $notification = new Blank(
-            templateName: 'agent-manager-notification-email',
+            templateName: 'agent-manager-notification-email-' . $suffix,
             data: [
                 'message' => $lead,
                 'company' => $company,
@@ -267,7 +269,7 @@ final class DynamicNotificationTest extends TestCase
             via: ['database'],
             entity: $lead
         );
-        $notification->setDatabaseTemplateName('agent-manager-notification-database');
+        $notification->setDatabaseTemplateName('agent-manager-notification-database-' . $suffix);
 
         new KanvasDatabase()->send($user, $notification);
 

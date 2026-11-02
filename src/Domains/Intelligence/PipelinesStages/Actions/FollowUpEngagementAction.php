@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Carbon\Carbon;
 use Exception;
-use Illuminate\Support\Facades\Blade;
 use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
@@ -27,6 +26,7 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Templates\Support\TemplateSandbox;
 use Override;
 
 use function Sentry\captureException;
@@ -321,7 +321,7 @@ final class FollowUpEngagementAction implements FollowUpTimeGateOverridable
                     $emailTitle = $this->lead->get('title_email_follow_up') ?? $this->lead->company->name;
                     $messageToSend = $message;
 
-                    // If WhatsApp and outside 24h window, use template processed with Blade
+                    // If WhatsApp and outside 24h window, send the stage template instead
                     if ($useWhatsAppTemplate && $whatsAppTemplate) {
                         $messageToSend = $this->renderTemplate($whatsAppTemplate);
                     }
@@ -463,12 +463,9 @@ final class FollowUpEngagementAction implements FollowUpTimeGateOverridable
         return $this->skippedReasons;
     }
 
-    /**
-     * Render a Blade template with lead data
-     */
     protected function renderTemplate(string $template): string
     {
-        return Blade::render($template, [
+        return TemplateSandbox::render($template, [
             'lead' => $this->lead,
             'people' => $this->lead->people,
             'company' => $this->lead->company,

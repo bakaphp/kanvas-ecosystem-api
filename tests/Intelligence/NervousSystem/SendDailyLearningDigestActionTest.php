@@ -10,15 +10,19 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDailyCycle;
 use Kanvas\NervousSystem\DailyLearning\Actions\EnsureAgentReportRoleAction;
 use Kanvas\NervousSystem\DailyLearning\Actions\SendDailyLearningDigestAction;
 use Kanvas\NervousSystem\DailyLearning\Notifications\DailyLearningDigestNotification;
+use Tests\Intelligence\NervousSystem\Concerns\SeedsDailyLearningConversations;
 use Tests\TestCase;
 
 class SendDailyLearningDigestActionTest extends TestCase
 {
+    use SeedsDailyLearningConversations;
+
     /**
      * Bootstrap the AgentReport role on the current app once per test.
      * `EnsureAgentReportRoleAction` is idempotent (firstOrCreate), so
@@ -148,19 +152,79 @@ class SendDailyLearningDigestActionTest extends TestCase
         );
     }
 
-    private function seedCycle(Apps $app, $company, string $cycleDate): AgentDailyCycle
+    public function testSkipsInactiveAgentsQuietCyclesAndAgentsWithNoConversations(): void
     {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $this->seedCycle(
+            $app,
+            $company,
+            '2026-05-24',
+            isActive: false,
+        );
+        $this->seedCycle(
+            $app,
+            $company,
+            '2026-05-24',
+            briefing: null,
+        );
+        $this->seedCycle(
+            $app,
+            $company,
+            '2026-05-24',
+            briefing: 'Good morning. Quiet cycle — no signals processed and no new patterns surfaced. Standing by for inbound.',
+            withConversation: false,
+        );
+
+        Bouncer::scope()->to(RolesEnums::getScope($app));
+        Bouncer::assign(RolesEnums::AGENT_REPORT->value)->to($user);
+
+        Notification::fake();
+
+        $sent = new SendDailyLearningDigestAction(
+            app: $app,
+            company: $company,
+            cycleDate: Carbon::parse('2026-05-24'),
+        )->execute();
+
+        $this->assertSame(0, $sent);
+        Notification::assertNothingSent();
+    }
+
+    private function seedCycle(
+        Apps $app,
+        Companies $company,
+        string $cycleDate,
+        ?string $briefing = 'Yesterday went well — closed two deals.',
+        bool $isActive = true,
+        bool $withConversation = true
+    ): AgentDailyCycle {
         $agent = Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
-            ->create(['name' => 'felix-sales']);
+            ->create([
+                'name' => 'felix-sales',
+                'is_active' => $isActive,
+            ]);
+
+        if ($withConversation) {
+            $this->seedConversationOnCompanyTimezoneDay(
+                $agent,
+                $app,
+                $company,
+                auth()->user()->getId(),
+                Carbon::parse($cycleDate),
+            );
+        }
 
         return AgentDailyCycle::query()->create([
             'apps_id' => $app->getId(),
             'companies_id' => $company->getId(),
             'agent_id' => $agent->getId(),
             'cycle_date' => $cycleDate,
-            'morning_briefing' => 'Yesterday went well — closed two deals.',
+            'morning_briefing' => $briefing,
             'proposed_actions' => ['Follow up with Steven', 'Review the EVT schedule'],
             'durable_facts' => ['Steven handles PNP communications.'],
             'skills_emerged' => [['name' => 'deal-closing', 'confidence' => 0.7]],

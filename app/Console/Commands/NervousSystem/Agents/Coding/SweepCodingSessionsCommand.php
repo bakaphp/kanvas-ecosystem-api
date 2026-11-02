@@ -98,7 +98,7 @@ class SweepCodingSessionsCommand extends Command
         $session->saveOrFail();
 
         try {
-            new FinalizeHarnessSessionAction($session, null, $reason)->execute();
+            new FinalizeHarnessSessionAction($session, failureReason: $reason, silence: true)->execute();
         } catch (Throwable $e) {
             report($e);
         }

@@ -14,6 +14,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Intelligence\Agents\Contracts\AgentTypeHandler;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
@@ -612,7 +613,7 @@ final class TestableTriggerIntelligenceActivity extends TriggerIntelligenceActiv
     }
 }
 
-final class IntelligenceHandlerWithoutSendData
+final class IntelligenceHandlerWithoutSendData implements AgentTypeHandler
 {
     public static int $constructed = 0;
 

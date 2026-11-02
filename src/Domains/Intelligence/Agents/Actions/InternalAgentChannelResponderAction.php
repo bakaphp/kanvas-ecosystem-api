@@ -65,7 +65,7 @@ class InternalAgentChannelResponderAction extends AbstractAgentChannelResponderA
             throw new ValidationException('Message has no content or attachments to send to the agent');
         }
 
-        $entity = $this->message->entity();
+        $entity = $this->message->preferredEntity(Lead::class);
 
         $reply = new AgentChatKernel(
             agent: $this->agent,

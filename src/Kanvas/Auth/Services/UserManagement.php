@@ -10,6 +10,7 @@ use Illuminate\Support\Arr;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Enums\AbilityEnum;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\AccessControlList\Support\RoleChangeGuard;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Users\Models\UserAddress;
 use Kanvas\Users\Models\Users;
@@ -196,6 +197,7 @@ class UserManagement
                     param: $roleId,
                     app: $this->app
                 );
+                RoleChangeGuard::assertCanChange($this->userEditing, $this->user, $role->name, $this->app);
 
                 $assign = new AssignRoleAction(
                     $this->user,

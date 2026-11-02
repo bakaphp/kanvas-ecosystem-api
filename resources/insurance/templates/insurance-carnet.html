@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 0; padding: 40px; font-family: Arial, Helvetica, sans-serif; color: #1f2933; }
+        .card { border: 2px solid #1f2933; border-radius: 12px; padding: 28px; }
+        .header { border-bottom: 2px solid #1f2933; padding-bottom: 14px; margin-bottom: 18px; }
+        .header h1 { margin: 0; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
+        .header p { margin: 4px 0 0; font-size: 14px; color: #52606d; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 8px 0; font-size: 14px; vertical-align: top; border-bottom: 1px solid #e4e7eb; }
+        td.label { width: 38%; color: #52606d; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; padding-top: 10px; }
+        td.value { font-weight: bold; }
+        .policy { font-size: 20px; }
+        .qr { text-align: center; margin-top: 22px; }
+        .qr img { width: 140px; height: 140px; }
+        .qr p { margin: 6px 0 0; font-size: 11px; color: #52606d; }
+        .footer { margin-top: 18px; font-size: 11px; color: #52606d; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <h1>Carnet digital de seguro</h1>
+            <p>{{ insurer }}</p>
+        </div>
+        <table>
+            <tr><td class="label">Póliza</td><td class="value policy">{{ policyNumber }}</td></tr>
+            {% if plan %}
+                <tr><td class="label">Plan</td><td class="value">{{ plan }}</td></tr>
+            {% endif %}
+            {% if insured %}
+                <tr><td class="label">Asegurado</td><td class="value">{{ insured }}</td></tr>
+            {% endif %}
+            {% if vehicle.description %}
+                <tr><td class="label">Vehículo</td><td class="value">{{ vehicle.description }}</td></tr>
+            {% endif %}
+            {% if vehicle.plate %}
+                <tr><td class="label">Placa</td><td class="value">{{ vehicle.plate }}</td></tr>
+            {% endif %}
+            {% if startsAt %}
+                <tr><td class="label">Vigente desde</td><td class="value">{{ startsAt }}</td></tr>
+            {% endif %}
+            {% if endsAt %}
+                <tr><td class="label">Vigente hasta</td><td class="value">{{ endsAt }}</td></tr>
+            {% endif %}
+        </table>
+        <div class="qr">
+            <img src="{{ qr }}" alt="QR">
+            <p>{{ policyNumber }}</p>
+        </div>
+    </div>
+    <div class="footer">Presenta este carnet junto a tu documento de identidad cuando te lo soliciten.</div>
+</body>
+</html>

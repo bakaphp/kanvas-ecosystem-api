@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
@@ -33,7 +34,7 @@ use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
  * @property string $description
  * @property int $weight
  */
-class ProductsTypes extends BaseModel
+class ProductsTypes extends BaseModel implements ReadableAtLocation
 {
     use UuidTrait;
     use SlugTrait;

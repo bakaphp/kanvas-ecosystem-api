@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Movipass;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Activities\Models\Activity;
 use Kanvas\Apps\Models\Apps;
@@ -56,6 +57,14 @@ final class AddObservationsActionTest extends TestCase
         );
     }
 
+    private function correctionLog(Order $order, string $type): ?Activity
+    {
+        return Activity::where('subject_id', $order->id)
+            ->where('subject_type', Order::class)
+            ->where('description', $type)
+            ->first();
+    }
+
     public function testItAddsObservations(): void
     {
         $app = app(Apps::class);
@@ -77,14 +86,42 @@ final class AddObservationsActionTest extends TestCase
 
         $this->assertEquals('Vehículo con daños en parachoque trasero', $result->metadata['data']['observations']);
 
-        $log = Activity::where('subject_id', $order->id)
-            ->where('subject_type', Order::class)
-            ->where('description', 'add-observations')
-            ->first();
+        $log = $this->correctionLog($order, 'add-observations');
 
         $this->assertNotNull($log);
         $this->assertEquals('Vehículo con daños en parachoque trasero', $log->properties['changes']['observations']['new']);
         $this->assertEquals('Observación registrada al momento del ingreso', $log->properties['reason']);
+    }
+
+    public function testACorrectionDoesNotMoveTheOrderUpdatedAt(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+
+        $order = $this->createTestOrder($app, $user, [
+            'order_number' => 22009,
+            'metadata' => ['data' => ['vehiclePlate' => 'AAA111']],
+        ]);
+        $original = Carbon::parse('2026-01-15 10:30:00');
+        Order::query()->whereKey($order->getKey())->toBase()->update(['updated_at' => $original]);
+
+        $result = Order::withoutSyncingToSearch(
+            fn () => new AddObservationsAction(
+                $order->fresh(),
+                $user,
+                'Vehículo con daños en parachoque trasero',
+                'Observación registrada al momento del ingreso',
+            )->execute()
+        );
+
+        $this->assertSame('Vehículo con daños en parachoque trasero', $result->metadata['data']['observations']);
+        $this->assertTrue($original->equalTo($result->updated_at));
+        $this->assertTrue($original->equalTo($order->fresh()->updated_at));
+
+        $log = $this->correctionLog($order, 'add-observations');
+
+        $this->assertNotNull($log);
+        $this->assertTrue($log->created_at->greaterThan($original));
     }
 
     public function testItReplacesExistingObservationAndKeepsEvidenceOutOfOrderImages(): void
@@ -116,10 +153,7 @@ final class AddObservationsActionTest extends TestCase
         $this->assertEquals('Observación actualizada', $result->metadata['data']['observations']);
         $this->assertEquals(['https://s3.example.com/old.jpg'], $result->metadata['data']['images']);
 
-        $log = Activity::where('subject_id', $order->id)
-            ->where('subject_type', Order::class)
-            ->where('description', 'add-observations')
-            ->first();
+        $log = $this->correctionLog($order, 'add-observations');
 
         $this->assertEquals('Observación anterior', $log->properties['changes']['observations']['old']);
         $this->assertEquals('Observación actualizada', $log->properties['changes']['observations']['new']);

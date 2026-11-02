@@ -5,18 +5,24 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Bouncer;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentConversation;
+use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
 use Kanvas\Intelligence\Agents\Models\AgentDailyCycle;
 use Kanvas\NervousSystem\DailyLearning\Actions\EnsureAgentReportRoleAction;
 use Kanvas\NervousSystem\DailyLearning\Notifications\DailyLearningDigestNotification;
 use Kanvas\NervousSystem\Ledger\Models\Event;
+use Tests\Intelligence\NervousSystem\Concerns\SeedsDailyLearningConversations;
 use Tests\TestCase;
 
 class SendDailyLearningDigestCommandTest extends TestCase
 {
+    use SeedsDailyLearningConversations;
+
     /**
      * Far-future, test-unique date so the seeded cycle never collides with
      * the 2026-05-23 rows the sibling action test queries. This suite does
@@ -35,6 +41,9 @@ class SendDailyLearningDigestCommandTest extends TestCase
 
         AgentDailyCycle::query()->where('cycle_date', self::CYCLE_DATE)->forceDelete();
         if ($this->seededAgentId !== null) {
+            $conversationIds = AgentConversation::query()->where('agent_id', $this->seededAgentId)->pluck('id');
+            AgentConversationMessage::query()->whereIn('conversation_id', $conversationIds)->delete();
+            AgentConversation::query()->whereIn('id', $conversationIds)->delete();
             Agent::query()->where('id', $this->seededAgentId)->forceDelete();
         }
 
@@ -103,6 +112,14 @@ class SendDailyLearningDigestCommandTest extends TestCase
             ->create(['name' => 'felix-sales']);
 
         $this->seededAgentId = $agent->getId();
+
+        $this->seedConversationOnCompanyTimezoneDay(
+            $agent,
+            $app,
+            $company,
+            auth()->user()->getId(),
+            Carbon::parse($cycleDate),
+        );
 
         return AgentDailyCycle::query()->create([
             'apps_id' => $app->getId(),

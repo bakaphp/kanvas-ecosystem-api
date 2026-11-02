@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\InAppPurchase\Actions;
 
 use Carbon\Carbon;
+use GuzzleHttp\ClientInterface;
 use Imdhemy\AppStore\ClientFactory;
 use Imdhemy\AppStore\Receipts\ReceiptResponse;
 use Imdhemy\AppStore\Receipts\Verifier;
@@ -27,6 +28,7 @@ use Override;
 
 class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 {
+    public const string CLIENT_BINDING = 'in-app-purchase.apple.client';
     private const string DEFAULT_CURRENCY = 'USD';
 
     public function __construct(
@@ -67,7 +69,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             throw new ValidationException('No Apple Payment Shared Secret Configured');
         }
 
-        $client = $this->runInSandbox ? ClientFactory::createSandbox() : ClientFactory::create();
+        $client = $this->appleClient();
         $verifier = new Verifier($client, $receipt['transactionReceipt'], $sharedSecret);
 
         return $verifier->verify(true, $this->runInSandbox ? $client : null);
@@ -81,12 +83,25 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             throw new ValidationException('No Apple Payment Shared Secret Configured');
         }
 
-        $client = $this->runInSandbox ? ClientFactory::createSandbox() : ClientFactory::create();
+        $client = $this->appleClient();
 
         return Subscription::appStore($client)
             ->receiptData($receipt['transactionReceipt'])
             ->password($sharedSecret)
             ->verifyRenewable($this->runInSandbox ? $client : null);
+    }
+
+    /**
+     * Never bound in production. Tests bind a mocked client here because the order flow is reached
+     * through the GraphQL mutation, and Apple's sandbox answers the same receipt with 0 or 211xx at random.
+     */
+    private function appleClient(): ClientInterface
+    {
+        if (app()->bound(self::CLIENT_BINDING)) {
+            return app(self::CLIENT_BINDING);
+        }
+
+        return $this->runInSandbox ? ClientFactory::createSandbox() : ClientFactory::create();
     }
 
     private function executeProductFlow(): ModelsOrder

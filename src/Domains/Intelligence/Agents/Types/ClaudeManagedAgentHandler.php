@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Types;
 
+use Kanvas\Intelligence\Agents\Contracts\AgentTypeHandler;
 use Kanvas\Intelligence\Agents\Models\Agent;
 
 /**
@@ -19,7 +20,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
  * 2. `instructions()` is snapshotted into `agent_types.instructions` at sync time, which is what
  *    lets a hosted agent's playbook live in a class next to its peers instead of in a DB column.
  */
-class ClaudeManagedAgentHandler
+class ClaudeManagedAgentHandler implements AgentTypeHandler
 {
     protected Agent $agent;
 

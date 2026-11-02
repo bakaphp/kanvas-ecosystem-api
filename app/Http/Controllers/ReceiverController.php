@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use Baka\Support\AllowedClass;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -18,6 +19,28 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 class ReceiverController extends BaseController
 {
     /**
+     * A provider checking the URL is ours before it sends to it. Answered on an inactive receiver
+     * too, for the same reason as the POST handshake: re-verifying must not fail.
+     */
+    public function verify(string $uuid, Request $request): SymfonyResponse
+    {
+        $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
+        $jobClass = $receiver === null ? null : AllowedClass::resolve($receiver->action?->model_name, ProcessWebhookJob::class);
+
+        if ($jobClass === null) {
+            return response()->json(['message' => 'Receiver not found'], 404);
+        }
+
+        $this->scopeToReceiverApp($receiver);
+
+        $challenge = $jobClass::verificationChallenge($request, $receiver);
+
+        return $challenge === null
+            ? response()->json(['message' => 'Unauthorized'], 403)
+            : response($challenge, 200, ['Content-Type' => 'text/plain']);
+    }
+
+    /**
      * Handle webhook receiver based on UUID.
      *
      * @throws BindingResolutionException
@@ -30,29 +53,23 @@ class ReceiverController extends BaseController
             return response()->json(['message' => 'Receiver not found'], 404);
         }
 
-        $app = app(Apps::class);
+        $this->scopeToReceiverApp($receiver);
 
-        if ($app->getId() !== $receiver->apps_id) {
-            App::scoped(Apps::class, fn () => $receiver->app);
+        $jobClass = AllowedClass::resolve($receiver->action?->model_name, ProcessWebhookJob::class);
+        if ($jobClass === null) {
+            return response()->json(['message' => 'Receiver has no webhook job configured'], 500);
         }
 
-        $jobClass = $receiver->action?->model_name;
-        if (! is_string($jobClass)) {
-            return response()->json(['message' => 'Receiver has no action configured'], 500);
+        if (! $jobClass::authenticateRequest($request, $receiver)) {
+            return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        if (is_a($jobClass, ProcessWebhookJob::class, true)) {
-            if (! $jobClass::authenticateRequest($request, $receiver)) {
-                return response()->json(['message' => 'Unauthorized'], 401);
-            }
+        // Answered even on an inactive receiver: a provider re-verifying its endpoint must
+        // succeed, or the customer can't set the integration back up. It's an echo, not work.
+        $handshake = $jobClass::handshakeResponse($request, $receiver);
 
-            // Answered even on an inactive receiver: a provider re-verifying its endpoint must
-            // succeed, or the customer can't set the integration back up. It's an echo, not work.
-            $handshake = $jobClass::handshakeResponse($request, $receiver);
-
-            if ($handshake !== null) {
-                return response()->json($handshake);
-            }
+        if ($handshake !== null) {
+            return response()->json($handshake);
         }
 
         // 200, not 4xx: the receiver was switched off deliberately, and a provider that keeps
@@ -111,5 +128,12 @@ class ReceiverController extends BaseController
             array_merge(['message' => 'Receiver processed'], $response),
             $status
         );
+    }
+
+    private function scopeToReceiverApp(ReceiverWebhook $receiver): void
+    {
+        if (app(Apps::class)->getId() !== $receiver->apps_id) {
+            App::scoped(Apps::class, fn () => $receiver->app);
+        }
     }
 }

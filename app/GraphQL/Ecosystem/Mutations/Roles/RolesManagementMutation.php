@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Redis;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Actions\BulkAllowRoleToPermissionAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
@@ -17,6 +16,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\ModulePermission;
 use Kanvas\AccessControlList\Models\Role as KanvasRole;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\AccessControlList\Support\RoleChangeGuard;
 use Kanvas\AccessControlList\Templates\ModulesRepositories;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
@@ -65,6 +65,17 @@ class RolesManagementMutation
             }
         }
 
+        foreach ($newRoleIds as $roleId) {
+            $role = RolesRepository::getByMixedParamFromCompany(param: $roleId, app: $app);
+            RoleChangeGuard::assertCanChange($auth, $user, $role->name, $app);
+        }
+
+        foreach ($this->getCurrentUserAppRoles($user, $app) as $currentRole) {
+            if (! in_array((int) $currentRole->id, $newRoleIds, true)) {
+                RoleChangeGuard::assertCanChange($auth, $user, $currentRole->name, $app);
+            }
+        }
+
         $this->syncRolesEfficiently($user, $app, $newRoleIds);
 
         foreach ($request['roleIds'] as $roleId) {
@@ -89,11 +100,13 @@ class RolesManagementMutation
             app: $app
         );
 
-        if ($auth->isAdmin()) {
+        if ($auth->isOwnerOf($app)) {
             $user = UsersRepository::getUserOfAppById($userId, $app);
         } else {
             $user = UsersRepository::getUserOfCompanyById($company, $userId);
         }
+
+        RoleChangeGuard::assertCanChange($auth, $user, $role->name, $app);
 
         if ($role->name === RolesEnums::OWNER->value && $auth->getId() === $user->getId()) {
             throw new AuthorizationException('You cannot remove your own Owner role');
@@ -107,22 +120,22 @@ class RolesManagementMutation
 
     public function givePermissionToRole(mixed $rootValue, array $request): bool
     {
-        $systemModule = SystemModulesRepository::getByModelName($request['systemModule'], app(Apps::class));
-        Bouncer::allow($request['role'])->to($request['permission'], $systemModule->model_name);
-
-        $roles = RolesRepository::getMapAbilityInModules($request['role']);
-        Redis::set(RolesEnums::KEY_MAP->value, $roles);
+        $app = app(Apps::class);
+        $role = RolesRepository::getByMixedParamFromCompany(param: $request['role'], app: $app);
+        RoleChangeGuard::assertCanEditRole(auth()->user(), $role->name, $app);
+        $systemModule = SystemModulesRepository::getByModelName($request['systemModule'], $app);
+        Bouncer::allow($role->name)->to($request['permission'], $systemModule->model_name);
 
         return true;
     }
 
     public function removePermissionToRole(mixed $rootValue, array $request): bool
     {
-        $systemModule = SystemModulesRepository::getByModelName($request['systemModule'], app(Apps::class));
-        Bouncer::disallow($request['role'])->to($request['permission'], $systemModule->model_name);
-
-        $roles = RolesRepository::getMapAbilityInModules($request['role']);
-        Redis::set(RolesEnums::KEY_MAP->value, $roles);
+        $app = app(Apps::class);
+        $role = RolesRepository::getByMixedParamFromCompany(param: $request['role'], app: $app);
+        RoleChangeGuard::assertCanEditRole(auth()->user(), $role->name, $app);
+        $systemModule = SystemModulesRepository::getByModelName($request['systemModule'], $app);
+        Bouncer::disallow($role->name)->to($request['permission'], $systemModule->model_name);
 
         return true;
     }
@@ -211,6 +224,10 @@ class RolesManagementMutation
             throw new AuthorizationException('You are not allowed to perform this action');
         }
         $input = $request['input'];
+        $app = app(Apps::class);
+        $existingRole = RolesRepository::getByMixedParamFromCompany(param: (int) $request['id'], app: $app);
+        RoleChangeGuard::assertCanEditRole($user, $existingRole->name, $app);
+        RoleChangeGuard::assertCanEditRole($user, (string) ($input['name'] ?? ''), $app);
 
         $role = new UpdateRoleAction(
             (int) $request['id'],
@@ -335,6 +352,7 @@ class RolesManagementMutation
             param: $request['role'],
             app: app(Apps::class)
         );
+        RoleChangeGuard::assertCanEditRole(auth()->user(), $role->name, app(Apps::class));
 
         // Create compound permission name: e.g., 'view-module-inventory'
         $compoundPermission = ModulePermission::getPermissionName(
@@ -342,9 +360,6 @@ class RolesManagementMutation
             $request['permission']
         );
         Bouncer::allow($role->name)->to($compoundPermission);
-
-        $roles = RolesRepository::getMapAbilityInModules($role->name);
-        Redis::set(RolesEnums::KEY_MAP->value, $roles);
 
         return true;
     }
@@ -355,6 +370,7 @@ class RolesManagementMutation
             param: $request['role'],
             app: app(Apps::class)
         );
+        RoleChangeGuard::assertCanEditRole(auth()->user(), $role->name, app(Apps::class));
 
         // Create compound permission name: e.g., 'view-module-inventory'
         $compoundPermission = ModulePermission::getPermissionName(
@@ -362,9 +378,6 @@ class RolesManagementMutation
             $request['permission']
         );
         Bouncer::disallow($role->name)->to($compoundPermission);
-
-        $roles = RolesRepository::getMapAbilityInModules($role->name);
-        Redis::set(RolesEnums::KEY_MAP->value, $roles);
 
         return true;
     }

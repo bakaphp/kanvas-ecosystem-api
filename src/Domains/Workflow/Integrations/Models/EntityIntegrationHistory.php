@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 
 class EntityIntegrationHistory extends BaseModel
@@ -26,7 +27,8 @@ class EntityIntegrationHistory extends BaseModel
         'response',
         'exception',
         'workflow_id',
-        'rules_id'
+        'rules_id',
+        'actions_id',
     ];
 
     protected $casts = [
@@ -64,6 +66,11 @@ class EntityIntegrationHistory extends BaseModel
     public function rules(): BelongsTo
     {
         return $this->belongsTo(Rule::class, 'rules_id', 'id');
+    }
+
+    public function action(): BelongsTo
+    {
+        return $this->belongsTo(Action::class, 'actions_id', 'id');
     }
 
     public function setStatus(Status $status): void

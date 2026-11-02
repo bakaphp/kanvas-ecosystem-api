@@ -22,6 +22,7 @@ use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChangeListener;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Tests\Connectors\Traits\HasClaudeAgentConfiguration;
 use Tests\TestCase;
+use Tests\Traits\ForcesStoredHandler;
 
 /**
  * The delegation loop: a PM can assign to a hosted agent, the assignment does not read as a
@@ -32,6 +33,7 @@ use Tests\TestCase;
  */
 final class BoardDelegationTest extends TestCase
 {
+    use ForcesStoredHandler;
     use DatabaseTransactions;
     use HasClaudeAgentConfiguration;
 
@@ -94,7 +96,10 @@ final class BoardDelegationTest extends TestCase
      */
     public function testMachineRuntimesAreStillExcluded(): void
     {
-        $type = AgentType::factory()->create(['provider' => 'hermes', 'handler' => 'Some\\Hermes\\Handler']);
+        $type = $this->forceStoredHandler(
+            AgentType::factory()->create(['provider' => 'hermes', 'handler' => null]),
+            'Some\\Hermes\\Handler'
+        );
         $agent = $this->makeClaudeAgent(
             $this->currentApp,
             $this->currentCompany,

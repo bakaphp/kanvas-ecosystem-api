@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
@@ -18,8 +20,8 @@ use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGemini;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGrok;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasMistral;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOllama;
-use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAI;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAILike;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAIResponses;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use NeuronAI\HttpClient\Guzzle\GuzzleHttpClient;
 use NeuronAI\Providers\AIProviderInterface;
@@ -30,7 +32,7 @@ class AgentProviderService
 
     private const array KEYED_PROVIDER_CLASSES = [
         AgentLlmProviderEnum::ANTHROPIC->value => KanvasAnthropic::class,
-        AgentLlmProviderEnum::OPENAI->value => KanvasOpenAI::class,
+        AgentLlmProviderEnum::OPENAI->value => KanvasOpenAIResponses::class,
         AgentLlmProviderEnum::MISTRAL->value => KanvasMistral::class,
         AgentLlmProviderEnum::DEEPSEEK->value => KanvasDeepseek::class,
         AgentLlmProviderEnum::XAI->value => KanvasGrok::class,
@@ -125,9 +127,12 @@ class AgentProviderService
         }
 
         if ($provider === AgentLlmProviderEnum::GEMINI) {
+            $tenantKey = self::tenantKey($source, $agent, $provider);
+            $trialKey = $tenantKey === null ? TrialLlmService::geminiKeyFor($app) : null;
+
             return new KanvasGemini(
-                key: self::requireKey($source, $agent, $provider),
-                model: $model,
+                key: $tenantKey ?? $trialKey ?? self::missingKey($provider),
+                model: $trialKey !== null ? TrialLlmService::model() : $model,
                 parameters: self::withGeminiThinking($parameters, $app),
                 httpClient: $httpClient,
             );
@@ -272,13 +277,41 @@ class AgentProviderService
         return self::activeConfig($agent, (int) $agent->agent_llm_config_id, includeGlobal: false);
     }
 
+    /**
+     * One of the tenant's active LLM configs (its own or a global one), for a caller that has no Agent
+     * row — a structured LLM call such as product enrichment picking a cheaper model by setting.
+     */
+    public static function tenantConfig(AppInterface $app, CompanyInterface $company, int $configId): ?AgentLlmConfig
+    {
+        return self::findActiveConfig(
+            appsId: (int) $app->getId(),
+            companiesId: (int) $company->getId(),
+            configId: $configId,
+            includeGlobal: true,
+        );
+    }
+
     private static function activeConfig(Agent $agent, int $configId, bool $includeGlobal): ?AgentLlmConfig
     {
-        $companies = $includeGlobal ? [0, $agent->companies_id] : [$agent->companies_id];
+        return self::findActiveConfig(
+            appsId: (int) $agent->apps_id,
+            companiesId: (int) $agent->companies_id,
+            configId: $configId,
+            includeGlobal: $includeGlobal,
+        );
+    }
+
+    private static function findActiveConfig(
+        int $appsId,
+        int $companiesId,
+        int $configId,
+        bool $includeGlobal
+    ): ?AgentLlmConfig {
+        $companies = $includeGlobal ? [0, $companiesId] : [$companiesId];
 
         return AgentLlmConfig::query()
             ->where('id', $configId)
-            ->where('apps_id', $agent->apps_id)
+            ->where('apps_id', $appsId)
             ->whereIn('companies_id', $companies)
             ->where('is_deleted', 0)
             ->where('is_active', 1)
@@ -376,20 +409,32 @@ class AgentProviderService
      */
     private static function requireKey(array $source, Agent $agent, AgentLlmProviderEnum $provider): string
     {
-        $appKeySetting = $provider === AgentLlmProviderEnum::GEMINI
+        return self::tenantKey($source, $agent, $provider) ?? self::missingKey($provider);
+    }
+
+    /**
+     * @param array{key: ?string} $source
+     */
+    private static function tenantKey(array $source, Agent $agent, AgentLlmProviderEnum $provider): ?string
+    {
+        $key = $source['key'] ?? $agent->app->get(self::appKeySetting($provider)->value);
+
+        return is_string($key) ? Str::trimToNull($key) : null;
+    }
+
+    private static function missingKey(AgentLlmProviderEnum $provider): never
+    {
+        throw new ValidationException(
+            $provider->value . ' API key is not configured for this agent or app.'
+            . ' Set it on the selected LLM config, agent.config.key, or the app '
+            . self::appKeySetting($provider)->value . ' setting.'
+        );
+    }
+
+    private static function appKeySetting(AgentLlmProviderEnum $provider): ConfigurationEnum
+    {
+        return $provider === AgentLlmProviderEnum::GEMINI
             ? ConfigurationEnum::GEMINI_KEY
             : ConfigurationEnum::AI_PROVIDER_KEY;
-
-        $key = $source['key'] ?? $agent->app->get($appKeySetting->value);
-
-        if (! is_string($key) || $key === '') {
-            throw new ValidationException(
-                $provider->value . ' API key is not configured for this agent or app.'
-                . ' Set it on the selected LLM config, agent.config.key, or the app '
-                . $appKeySetting->value . ' setting.'
-            );
-        }
-
-        return $key;
     }
 }

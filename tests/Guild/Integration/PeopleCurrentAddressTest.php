@@ -105,6 +105,45 @@ final class PeopleCurrentAddressTest extends TestCase
         $this->assertSame(1, $people->address()->where('is_default', 1)->count());
     }
 
+    public function testReplaceDefaultAddressEditsTheCurrentRowInPlace(): void
+    {
+        $people = $this->makePeople();
+
+        $current = $people->addDefaultAddress(AddressData::from([
+            'address' => '1205 Dairy Rd',
+            'city' => 'Parkton',
+            'state' => 'MD',
+            'zip' => '21120',
+        ]));
+
+        $replaced = $people->replaceDefaultAddress(AddressData::from([
+            'address' => '1205 Dairy Road',
+            'city' => 'Parkton',
+            'state' => 'MD',
+            'zip' => '21120',
+        ]));
+
+        $this->assertSame($current->getKey(), $replaced->getKey());
+        $this->assertSame('1205 Dairy Road', $people->getDefaultAddress()?->address);
+        $this->assertSame(1, $people->address()->count());
+    }
+
+    public function testReplaceDefaultAddressCreatesOneWhenThePersonHasNone(): void
+    {
+        $people = $this->makePeople();
+
+        $created = $people->replaceDefaultAddress(AddressData::from([
+            'address' => '1205 Dairy Rd',
+            'city' => 'Parkton',
+            'state' => 'MD',
+            'zip' => '21120',
+        ]));
+
+        $this->assertSame(1, (int) $created->refresh()->is_default);
+        $this->assertSame($created->getKey(), $people->getDefaultAddress()?->getKey());
+        $this->assertSame(1, $people->address()->count());
+    }
+
     public function testMangledFormLineBreaksSplitIntoTheSecondAddressLine(): void
     {
         $address = AddressData::from([

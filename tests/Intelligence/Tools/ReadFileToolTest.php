@@ -7,10 +7,10 @@ namespace Tests\Intelligence\Tools;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
+use Tests\Traits\MakesFilesystemRows;
 
 /**
  * The refusal paths, which are the ones that matter: what a tool says when it cannot read a file is
@@ -22,10 +22,11 @@ use Tests\TestCase;
 class ReadFileToolTest extends TestCase
 {
     use DatabaseTransactions;
+    use MakesFilesystemRows;
 
     public function testAFileFromAnotherCompanyIsNotReadable(): void
     {
-        $foreign = $this->makeFile(Companies::factory()->create()->getId(), 'employees.csv');
+        $foreign = $this->makeFilesystemRow(Companies::factory()->create()->getId(), 'employees.csv');
 
         $result = $this->withTenant(new ReadFileTool())->__invoke(filesystem_id: $foreign->getId());
 
@@ -39,7 +40,7 @@ class ReadFileToolTest extends TestCase
      */
     public function testAUrlOutsideTheCompanyIsRefusedRatherThanFetched(): void
     {
-        $foreign = $this->makeFile(Companies::factory()->create()->getId(), 'employees.csv');
+        $foreign = $this->makeFilesystemRow(Companies::factory()->create()->getId(), 'employees.csv');
 
         $result = $this->withTenant(new ReadFileTool())->__invoke(file_url: $foreign->url);
 
@@ -49,7 +50,7 @@ class ReadFileToolTest extends TestCase
 
     public function testAnUnsupportedTypeNamesWhatIsSupportedInsteadOfGuessing(): void
     {
-        $image = $this->makeFile($this->companyId(), 'logo.png');
+        $image = $this->makeFilesystemRow($this->companyId(), 'logo.png');
 
         $result = $this->withTenant(new ReadFileTool())->__invoke(filesystem_id: $image->getId());
 
@@ -70,7 +71,7 @@ class ReadFileToolTest extends TestCase
     public function testEveryRefusalIsTerminal(): void
     {
         $tool = $this->withTenant(new ReadFileTool());
-        $foreign = $this->makeFile(Companies::factory()->create()->getId(), 'employees.csv');
+        $foreign = $this->makeFilesystemRow(Companies::factory()->create()->getId(), 'employees.csv');
 
         foreach ([$tool->__invoke(), $tool->__invoke(filesystem_id: $foreign->getId())] as $result) {
             $this->assertFalse($result['has_more']);
@@ -95,23 +96,6 @@ class ReadFileToolTest extends TestCase
 
         $this->assertNotSame($first, $second);
         $this->assertNotSame($first, $third);
-    }
-
-    private function makeFile(int $companyId, string $name): Filesystem
-    {
-        $file = new Filesystem();
-        $file->apps_id = app(Apps::class)->getId();
-        $file->companies_id = $companyId;
-        $file->users_id = auth()->user()->getId();
-        $file->name = $name;
-        $file->path = 'test/' . uniqid() . '/' . $name;
-        $file->url = 'https://cdn.example.test/' . uniqid() . '/' . $name;
-        $file->size = '10';
-        $file->file_type = pathinfo($name, PATHINFO_EXTENSION);
-        $file->is_deleted = 0;
-        $file->saveOrFail();
-
-        return $file;
     }
 
     private function companyId(): int

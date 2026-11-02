@@ -17,7 +17,9 @@ use Throwable;
 
 /**
  * The OAuth client Kanvas presents to one MCP server: self-registered (RFC 7591) as a public PKCE client,
- * per app — and per address for a self-hosted server. A client id set by hand is honoured as-is.
+ * per app — and per address for a self-hosted server. A client id set by hand is honoured as-is, and a
+ * row that declares `oauth.client_key` is hand-made by definition: with no client set it refuses rather
+ * than self-registering, so a self-made client never lands under a key other servers share.
  *
  * Re-registered when the callback URL or the authorization server changes: a client exists only at the
  * server that registered it, for its redirect_uri, and a mismatch shows up as an opaque error on the
@@ -45,6 +47,16 @@ class McpOAuthClientService
         // No recorded redirect means the client was set by hand on the app.
         if ($stored !== null && $registeredFor === null) {
             return $stored;
+        }
+
+        if ($stored === null && $this->sharedClientKey() !== null) {
+            throw new ValidationException(sprintf(
+                'MCP server "%s" uses an OAuth client registered with the vendor by hand, and none is set. Create one whose callback is %s, then set %s on the app (and %s if the vendor issued a secret).',
+                $this->integration->name,
+                $redirectUri,
+                $this->key(ConfigurationEnum::OAUTH_CLIENT_ID_PREFIX),
+                $this->key(ConfigurationEnum::OAUTH_CLIENT_SECRET_PREFIX)
+            ));
         }
 
         $endpoint = new McpOAuthDiscoveryService($this->integration, $this->serverUrl)->endpoints()['registration_endpoint'];
@@ -157,11 +169,16 @@ class McpOAuthClientService
      */
     private function key(ConfigurationEnum $key): string
     {
-        $shared = $this->config()->oauth['client_key'] ?? null;
+        $shared = $this->sharedClientKey();
 
-        return is_string($shared) && $shared !== ''
+        return $shared !== null
             ? $key->value . $shared
             : $key->forServer($this->integration->getId(), $this->serverUrl);
+    }
+
+    private function sharedClientKey(): ?string
+    {
+        return Str::trimmedStringOrNull($this->config()->oauth['client_key'] ?? null);
     }
 
     /** Parsed once: `key()` runs up to eight times per `clientFor()`, and the row cannot change mid-call. */

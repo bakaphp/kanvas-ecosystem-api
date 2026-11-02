@@ -55,18 +55,38 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
      */
     protected function buildFormattedNote(Message $message, string $note, bool $fromAgent): string
     {
-        $channelSlug = $message->channels->first()?->slug;
-        $channel = $channelSlug ? ChannelCategoryEnum::getLeadChannelName($channelSlug) : 'sms';
-        $agentChannel = '(' . ucfirst($channel) . ') ';
-
-        $isNote = strtolower((string)$message->messageType?->verb) === 'note';
+        $verb = $message->messageType?->verb;
+        $isNote = strtolower((string) $verb) === 'note';
         $fromWho = match (true) {
             $isNote => 'Agent Note',
-            $fromAgent => $agentChannel . ' ' . ($message->user->firstname . ' ' . $message->user->lastname ?? 'Sally'),
+            $fromAgent => '(' . ucfirst($this->resolveDeliveryChannel($message, $verb)) . ') ' . $this->agentDisplayName($message),
             default => 'Customer',
         };
 
         return $fromWho . ': ' . $note;
+    }
+
+    /**
+     * The verb wins: a follow-up SMS can be filed under the person's email session channel,
+     * and `channels->first()` is unordered (the lead conversation channel would read as "notes").
+     */
+    private function resolveDeliveryChannel(Message $message, ?string $verb): string
+    {
+        $fromVerb = ChannelCategoryEnum::getLeadChannelNameFromVerb($verb);
+        if ($fromVerb !== null) {
+            return $fromVerb;
+        }
+
+        $channelSlug = $message->channels->first()?->slug;
+
+        return $channelSlug ? ChannelCategoryEnum::getLeadChannelName($channelSlug) : ChannelCategoryEnum::SMS->value;
+    }
+
+    private function agentDisplayName(Message $message): string
+    {
+        $name = trim(($message->user?->firstname ?? '') . ' ' . ($message->user?->lastname ?? ''));
+
+        return $name !== '' ? $name : 'Sally';
     }
 
     /**
@@ -108,7 +128,7 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             integration: $this->getIntegration(),
             additionalParams: $params,
             integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams): array {
-                $lead = $message->entity();
+                $lead = $message->entity(Lead::class);
 
                 if (! $lead instanceof Lead) {
                     return $this->failWorkflow([

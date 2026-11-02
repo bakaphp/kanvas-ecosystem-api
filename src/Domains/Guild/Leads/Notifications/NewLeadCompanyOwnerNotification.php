@@ -16,6 +16,7 @@ class NewLeadCompanyOwnerNotification extends Notification
         Lead $lead,
         array $data,
     ) {
+        $lead->loadMissing(['owner', 'company', 'app']);
         parent::__construct($lead, $data);
         $this->setType(EnumsEmailTemplateEnum::BLANK->value);
         $this->setTemplateName(EmailTemplateEnum::NEW_LEAD_COMPANY_ADMIN->value);

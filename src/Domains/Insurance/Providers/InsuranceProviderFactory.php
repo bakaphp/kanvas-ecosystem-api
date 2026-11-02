@@ -6,8 +6,10 @@ namespace Kanvas\Insurance\Providers;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use InvalidArgumentException;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Insurance\Actions\ReadInsuranceOrderAction;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
@@ -15,11 +17,6 @@ use Throwable;
 
 class InsuranceProviderFactory
 {
-    /**
-     * Providers are registered in the service container as "insurance_provider.{name}".
-     *
-     * @throws InvalidArgumentException when no provider is registered for the given name
-     */
     public static function make(string $providerName, AppInterface $app, CompanyInterface $company): InsuranceProviderInterface
     {
         $binding = "insurance_provider.{$providerName}";
@@ -38,9 +35,10 @@ class InsuranceProviderFactory
      */
     public static function forOrder(Order $order): InsuranceProviderInterface
     {
-        $providerName = (string) $order->get(InsuranceCustomFieldEnum::PROVIDER->value);
+        $providerName = Str::trimToNull((string) $order->get(InsuranceCustomFieldEnum::PROVIDER->value))
+            ?? new ReadInsuranceOrderAction($order)->execute()->provider;
 
-        if ($providerName === '') {
+        if ($providerName === null) {
             throw new InvalidArgumentException('Order has no insurance provider — quote it first.');
         }
 
@@ -87,9 +85,6 @@ class InsuranceProviderFactory
         }
     }
 
-    /**
-     * Provider to quote with: explicit choice wins, then the company default.
-     */
     public static function resolveName(CompanyInterface $company, ?string $requested = null): string
     {
         $name = $requested ?: (string) $company->get(InsuranceCustomFieldEnum::PROVIDER->value);

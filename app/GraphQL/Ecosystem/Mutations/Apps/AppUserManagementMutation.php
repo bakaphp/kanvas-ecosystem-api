@@ -29,7 +29,7 @@ class AppUserManagementMutation
         $app = app(Apps::class);
         UsersRepository::belongsToThisApp($user, $app);
 
-        return $user->resetPassword($request['password'], $app);
+        return $user->resetPassword($request['password'], $app, onlyThisApp: true);
     }
 
     public function updateEmail(mixed $root, array $request): bool
@@ -38,7 +38,7 @@ class AppUserManagementMutation
         $app = app(Apps::class);
         UsersRepository::belongsToThisApp($user, $app);
 
-        return $user->updateEmail($request['email'], $app);
+        return $user->updateEmail($request['email'], $app, onlyThisApp: true);
     }
 
     public function createUser(mixed $rootValue, array $request): Users
@@ -93,6 +93,7 @@ class AppUserManagementMutation
         $app = app(Apps::class);
         $userAssociate = UsersRepository::belongsToThisApp($user, $app);
         AuthenticationService::logoutFromAllDevices($userAssociate->user, $app);
+
         return $userAssociate->deActive();
     }
 
@@ -124,7 +125,7 @@ class AppUserManagementMutation
         $app = app(Apps::class);
         UsersRepository::belongsToThisApp($user, $app);
 
-        return $user->resetPassword($request['password'], $app);
+        return $user->resetPassword($request['password'], $app, onlyThisApp: true);
     }
 
     public function appUpdateUserDisplayname(mixed $root, array $request): bool

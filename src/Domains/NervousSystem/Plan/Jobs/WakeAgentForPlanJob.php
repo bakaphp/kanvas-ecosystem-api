@@ -67,6 +67,20 @@ class WakeAgentForPlanJob implements ShouldQueue
      */
     public const string REASON_TASK_REOPENED = 'task_reopened';
 
+    /**
+     * A task this plan's agent delegated from one of its own tasks has finished. The fact rides
+     * `$userMessage`; the agent decides whether the parent task is now done, needs more, or is stuck.
+     */
+    public const string REASON_CHILD_OUTCOME = 'child_outcome';
+
+    /**
+     * Reasons that carry something the agent must answer. The loop may not swallow these into a band
+     * dispatch or a skipped wait: a person asked, or a result landed, and either needs the turn.
+     *
+     * @var list<string>
+     */
+    private const array REASONS_THAT_NEED_A_TURN = [self::REASON_COMMENT, self::REASON_CHILD_OUTCOME];
+
     /** Enough to see a board, short of pasting a long plan into every wake. */
     private const int INVENTORY_LIMIT = 30;
 
@@ -106,8 +120,10 @@ class WakeAgentForPlanJob implements ShouldQueue
 
             // DISPATCH and VERIFY are the two verdicts the loop can act on by itself; the rest are
             // states a human or the agent's own reply resolves. Acting here rather than asking the
-            // agent to is the difference between a decision and a suggestion.
-            if ($decision->verdict === ContinuationDecisionEnum::DISPATCH) {
+            // agent to is the difference between a decision and a suggestion. A child's outcome is
+            // the exception: the parent task is open again and dispatching a band around it would
+            // leave the result nobody has read.
+            if ($decision->verdict === ContinuationDecisionEnum::DISPATCH && $this->reason !== self::REASON_CHILD_OUTCOME) {
                 $band = new DispatchTaskBandAction($this->plan)->execute();
 
                 // The band's workers ARE the assignees, so continuing this turn would put the plan's
@@ -126,6 +142,17 @@ class WakeAgentForPlanJob implements ShouldQueue
                 // there is nothing left for this turn to tell the agent to do.
                 return;
             }
+
+            // A wait with a booked wake needs no turn: the agent would only say "still waiting", paid.
+            // A person writing on the plan, or a delegated result arriving, is the exception. The
+            // re-entry is handed back because no turn ran.
+            if ($decision->verdict === ContinuationDecisionEnum::WAIT
+                && ! in_array($this->reason, self::REASONS_THAT_NEED_A_TURN, true)
+            ) {
+                $this->plan->decrement('wake_count');
+
+                return;
+            }
         }
 
         $failurePayload = [
@@ -134,7 +161,7 @@ class WakeAgentForPlanJob implements ShouldQueue
             'reason' => $this->reason,
         ];
 
-        [$response, $durationMs] = $this->runAgentWake(
+        $wake = $this->runAgentWake(
             $agent,
             $session,
             $owner,
@@ -143,6 +170,14 @@ class WakeAgentForPlanJob implements ShouldQueue
             'plan.agent',
             $failurePayload,
         );
+
+        if ($wake === null) {
+            $this->plan->decrement('wake_count');
+
+            return;
+        }
+
+        [$response, $durationMs] = $wake;
 
         $this->plan->emitLedgerEvent(
             'plan.agent.invoked',
@@ -270,6 +305,20 @@ class WakeAgentForPlanJob implements ShouldQueue
                 . 'whatever blocked it the first time is expected to be fixed now. Do the work or '
                 . 'dispatch it to the assignee. Do not report it as already finished, and do not wait '
                 . 'for anything else to pick it up: nothing else will.',
+                $this->plan->id,
+                $this->plan->uuid,
+                (string) $this->userMessage,
+            );
+        }
+
+        if ($this->reason === self::REASON_CHILD_OUTCOME) {
+            return sprintf(
+                "[NS:child_outcome] plan_id=%d plan_uuid=%s\n\n%s\n\n"
+                . 'Work you delegated from one of your tasks has finished and that task is open again. '
+                . 'Decide what it means for the task you delegated from: if this completes it, mark it '
+                . 'done with the result; if more is needed, dispatch or add exactly that; if it failed '
+                . 'in a way you cannot fix, mark it blocked with the reason. Do not re-dispatch the same '
+                . 'work and do not report it as finished before the parent task is.',
                 $this->plan->id,
                 $this->plan->uuid,
                 (string) $this->userMessage,

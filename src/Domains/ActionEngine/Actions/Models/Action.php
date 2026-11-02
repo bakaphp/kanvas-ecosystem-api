@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Support\LocationContext;
 use Nevadskiy\Tree\AsTree;
 use Override;
 
@@ -102,8 +102,10 @@ class Action extends BaseModel
         $query = self::traitSearch($query, $callback)->whereIn('apps_id', [0, app(Apps::class)->getId()]);
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->whereIn('companies_id', [0, app(CompaniesBranches::class)->company->getId()]);
+        $locationCompany = $user instanceof UserInterface ? LocationContext::readableCompany(static::class, $user) : null;
+
+        if ($locationCompany !== null) {
+            $query->whereIn('companies_id', [0, $locationCompany->getId()]);
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->whereIn('companies_id', [0, $user->getCurrentCompany()->getId()]);
         }

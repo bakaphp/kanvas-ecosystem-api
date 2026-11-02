@@ -9,6 +9,7 @@ use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Companies\Contracts\ReadableAtLocation;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions as ModelsRegions;
@@ -33,7 +34,7 @@ use Override;
  * @property string $created_at
  * @property string $updated_at
  */
-class Regions extends ModelsRegions
+class Regions extends ModelsRegions implements ReadableAtLocation
 {
     use UuidTrait;
     use SlugTrait;

@@ -8,9 +8,12 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Tests\TestCase;
+use Tests\Traits\ActsAsAppOwner;
 
 class RolesTest extends TestCase
 {
+    use ActsAsAppOwner;
+
     public function testCreateRole(): void
     {
         $app = app(Apps::class);
@@ -154,8 +157,8 @@ class RolesTest extends TestCase
 
     public function testAddRoleUser(): void
     {
+        $user = $this->actingAsAppOwner();
         $roles = $this->getRoles()['data'];
-        $user = auth()->user();
 
         $ownerRole = collect($roles)->firstWhere('name', RolesEnums::OWNER->value);
         $roleIds = [$roles[0]['id']];

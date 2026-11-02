@@ -7,6 +7,7 @@ namespace App\GraphQL\Inventory\Builders\Variants;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -19,7 +20,7 @@ class VariantBuilder
         ResolveInfo $resolveInfo
     ): Builder {
         $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $company = LocationContext::shoppingCompany($user);
         $app = app(Apps::class);
 
         if (! $user->isAppOwner()) {

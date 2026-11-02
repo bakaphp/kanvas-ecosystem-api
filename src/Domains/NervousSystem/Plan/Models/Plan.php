@@ -218,6 +218,7 @@ class Plan extends BaseModel implements HandlesAgentMention
             WakeAgentForProjectJob::REASON_MENTION,
             new ProjectMentionTriggerService()->buildTrigger($mention, $focus),
             $threadRootId,
+            mentionMessageId: (int) $mention->getId(),
         );
     }
 
@@ -312,6 +313,23 @@ class Plan extends BaseModel implements HandlesAgentMention
     public function getStringIdAttribute(): string
     {
         return (string) $this->id;
+    }
+
+    /**
+     * The human who asked for this plan, when one was recorded. Not `user`: an agent-owned run's user
+     * is the agent's own account.
+     */
+    public function asker(): ?Users
+    {
+        if ($this->origin_users_id === null) {
+            return null;
+        }
+
+        try {
+            return Users::getById((int) $this->origin_users_id);
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**

@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Actions;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Notifications\AgentReplyNotification;
 use Kanvas\Social\Messages\Actions\PostChannelMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
@@ -65,7 +66,7 @@ abstract class AbstractAgentChannelResponderAction
     {
         $app = $this->message->app;
         $originalPayload = $this->message->getMessage();
-        $entity = $this->message->entity();
+        $entity = $this->message->preferredEntity(Lead::class);
 
         // attachToChannel: false — CREATED must fire after the entity link is attached (so rules
         // see the entity) but before the channel attach, which stays the true last step.

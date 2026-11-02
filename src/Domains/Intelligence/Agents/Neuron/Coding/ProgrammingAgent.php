@@ -95,6 +95,7 @@ class ProgrammingAgent extends SystemUserAgent
             new ListMyCodingJobsTool($app, $company, $agent),
             new CancelCodingJobTool($app, $company, $agent),
             new RetryCodingJobTool($app, $company, $agent),
+            ...$this->followThroughTools($agent),
         ];
 
         return $this->mergeRegisteredTools(

@@ -25,13 +25,15 @@ class UpsertDuplicateReviewGroupAction
     {
         $memberIds = $group->member_ids;
         sort($memberIds);
-        $signature = sha1(implode(',', $memberIds));
+        $signature = DuplicateReviewGroup::signatureFor($memberIds);
 
         $exists = DuplicateReviewGroup::query()
-            ->where('apps_id', $this->appsId)
-            ->where('companies_id', $this->companiesId)
-            ->where('entity_type', $this->entityType)
-            ->where('signature', $signature)
+            ->withSignature(
+                $this->appsId,
+                $this->companiesId,
+                $this->entityType,
+                $signature
+            )
             ->exists();
 
         if ($exists) {

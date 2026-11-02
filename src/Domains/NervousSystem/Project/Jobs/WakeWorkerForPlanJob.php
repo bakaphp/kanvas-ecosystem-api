@@ -127,7 +127,7 @@ class WakeWorkerForPlanJob implements ShouldQueue
 
         $basePayload = ['plan_id' => $this->plan->getId(), 'agent_id' => $agent->getId()];
 
-        [$response, $durationMs] = $this->runAgentWake(
+        $wake = $this->runAgentWake(
             $agent,
             $session,
             $owner,
@@ -137,6 +137,12 @@ class WakeWorkerForPlanJob implements ShouldQueue
             $basePayload,
             $tools,
         );
+
+        if ($wake === null) {
+            return;
+        }
+
+        [$response, $durationMs] = $wake;
 
         $this->plan->emitLedgerEvent(
             'plan.worker.invoked',

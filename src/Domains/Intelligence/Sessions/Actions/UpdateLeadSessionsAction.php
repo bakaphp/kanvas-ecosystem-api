@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Sessions\Actions;
 
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Throwable;
 
 class UpdateLeadSessionsAction
@@ -17,7 +18,11 @@ class UpdateLeadSessionsAction
 
     public function execute(): void
     {
-        $sessions = $this->lead->aiSession()->get();
+        // Neuron/Laravel agents keep lead sessions too; only ADK holds remote session state to push.
+        $sessions = $this->lead->aiSession()
+            ->with('agent.type')
+            ->get()
+            ->filter(fn (Session $session) => $session->agent?->isAdk() === true);
 
         if ($sessions->isEmpty()) {
             return;

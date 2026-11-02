@@ -3,11 +3,15 @@
 namespace Kanvas\Souk\Payments\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\AppInterface;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Companies\Support\LocationContext;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Payments\Actions\LogPaymentEventAction;
@@ -119,6 +123,17 @@ class Payments extends BaseModel
             $context,
             $failure,
         );
+    }
+
+    public static function getForShopper(int $id, UserInterface $user, AppInterface $app): self
+    {
+        $payment = self::getByIdFromCompanyApp($id, LocationContext::shoppingCompany($user), $app);
+
+        if (LocationContext::isShopperOnly($user) && (int) $payment->users_id !== $user->getId()) {
+            throw new ModelNotFoundException('Payment not found');
+        }
+
+        return $payment;
     }
 
     public function isPaid(): bool
