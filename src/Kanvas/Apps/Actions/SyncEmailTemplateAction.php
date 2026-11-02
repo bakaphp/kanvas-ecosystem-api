@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\File;
 use Kanvas\ActionEngine\Engagements\Enums\NotificationTemplateEnum as EngagementsEnumsNotificationTemplateEnum;
+use Kanvas\Approvals\Enums\ApprovalEmailTemplateEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Enums\EmailTemplateEnum as LeadsEnumsEmailTemplateEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpEmailTemplateEnum;
@@ -123,6 +124,12 @@ class SyncEmailTemplateAction
             ], [
                 'name' => FollowUpEmailTemplateEnum::DAILY_SUMMARY->value,
                 'template' => File::get(resource_path('views/emails/leadFollowUpDailySummary.twig')),
+            ], [
+                'name' => ApprovalEmailTemplateEnum::REQUESTED->value,
+                'template' => File::get(resource_path('views/emails/approvalRequested.twig')),
+            ], [
+                'name' => ApprovalEmailTemplateEnum::DIGEST->value,
+                'template' => File::get(resource_path('views/emails/approvalDigest.twig')),
             ],
         ];
 
