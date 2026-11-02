@@ -44,6 +44,11 @@ class ClassifyPeopleJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
      */
     public static function dispatchIfEnabled(People $people): void
     {
+        // Legacy rows (apps 1/2 era) carry no apps_id until the backfill runs; there is no app to read settings from.
+        if ($people->app === null) {
+            return;
+        }
+
         try {
             $settings = PeopleClassificationSettings::for($people->app, $people->company);
 
