@@ -133,7 +133,7 @@ And `executeIntegration` needs an `integrations_companies` row for `INTELLICHECK
 Downstream consumers (CRM push, frontend, checklist) read these:
 
 - **Lead / People:** `id_verification`, `get_docs_drivers_license`, `dont-run-id-verification-manual`, `driver_license_images`
-- **Lead only:** `file-count` — jitsubai's (`FILE_COUNT_FIELD`), `[{name, count}]`, one entry per file-name base
+- **Lead only:** `file-count` — jitsubai's per-lead counter (`FILE_COUNT_FIELD`), `[{name, count}]`, one entry per file-name base
 - **Company:** `company_manager`, `disable_id_verification_email`, `default_checklist_id`
 - **Filesystem:** `id_verify`, `id_expired`, `id_verification_status`, `id_verification_msg`
 - **Message:** `engagement_status`, `hashtagVisited`, `text`, `source`
