@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Salesforce\Actions\PullOrganizationAction;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Tests\TestCase;
 
@@ -108,5 +109,53 @@ final class PullOrganizationActionTest extends TestCase
             "acme-stores-{$suffix}.com",
             "acme-web-{$suffix}.com",
         ], $domains);
+    }
+
+    public function testRerunAddsDomainsToAnExistingOrganizationWithoutDuplicatingThem(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+        $suffix = uniqid();
+        $salesforceId = '001xx00000RERUN' . $suffix;
+
+        $existing = new PullOrganizationAction(
+            $app,
+            $company,
+            ['Name' => 'Acme Corp'],
+            $salesforceId,
+        )->execute();
+        $this->assertSame([], $existing->emailDomains());
+
+        $payload = [
+            'Name' => 'Acme Corp',
+            'Company_Domains__c' => "acme-{$suffix}.com; ACME-{$suffix}.com",
+            'Website' => "https://www.acme-{$suffix}.com",
+            'Contacts' => ['records' => [['Email' => "jane@acme-{$suffix}.com"]]],
+        ];
+
+        $first = new PullOrganizationAction(
+            $app,
+            $company,
+            $payload,
+            $salesforceId,
+        )->execute();
+        $second = new PullOrganizationAction(
+            $app,
+            $company,
+            $payload,
+            $salesforceId,
+        )->execute();
+
+        $this->assertSame($existing->getId(), $first->getId());
+        $this->assertSame($existing->getId(), $second->getId());
+        $this->assertSame(["acme-{$suffix}.com"], $second->fresh()->emailDomains());
+        $this->assertSame(
+            1,
+            Organization::getByCustomFieldBuilderTransactionSafe(
+                CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value,
+                $salesforceId,
+                $company,
+            )->count()
+        );
     }
 }

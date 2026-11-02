@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Agents\Neuron\Exporters\RecordExporterRegistry;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ExportRecordsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPeopleBulkTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPeopleDuplicatesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LinkPersonToOrganizationTool;
@@ -309,6 +310,35 @@ final class PeopleToolsTest extends TestCase
 
         $this->assertSame((int) $target->getId(), $result['person_id']);
         $this->assertTrue((bool) $source->refresh()->is_deleted);
+    }
+
+    public function test_find_people_duplicates_reports_members_with_their_contacts(): void
+    {
+        $lastname = 'Dupreport' . uniqid();
+        $first = $this->makePerson('Ismael', $lastname);
+        $second = $this->makePerson('Ismael', $lastname);
+        $email = 'ismael-' . uniqid() . '@x.test';
+        $first->addEmail($email, 0, 0);
+
+        $result = $this->tool(new FindPeopleDuplicatesTool())->__invoke(max_groups: 100, refresh: true);
+
+        $this->assertTrue($result['success']);
+        $group = collect($result['groups'])->first(
+            fn (array $group): bool => collect($group['members'])->pluck('person_id')->sort()->values()->all()
+                === [(int) $first->getId(), (int) $second->getId()]
+        );
+        $this->assertNotNull($group);
+        $this->assertSame((int) $first->getId(), $group['canonical_id']);
+        $member = collect($group['members'])->firstWhere('person_id', (int) $first->getId());
+        $this->assertSame([$email], $member['emails']);
+    }
+
+    public function test_find_people_duplicates_rejects_an_unknown_reason(): void
+    {
+        $result = $this->tool(new FindPeopleDuplicatesTool())->__invoke(reason: 'same_vibe');
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('exact_name', $result['error']);
     }
 
     public function test_get_person_unknown_id_returns_error(): void
