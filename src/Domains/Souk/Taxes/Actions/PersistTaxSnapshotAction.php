@@ -51,6 +51,7 @@ class PersistTaxSnapshotAction
         $snapshot->remaining_reversible_amount = $this->result->totalTaxable;
         $snapshot->remaining_reversible_tax = $this->result->totalTax;
         $snapshot->provider_transaction_id = $this->result->providerTransactionId;
+        $snapshot->metadata = $this->result->metadata !== [] ? $this->result->metadata : null;
         $snapshot->souk_tax_engine_enabled = true;
         $snapshot->saveOrFail();
 

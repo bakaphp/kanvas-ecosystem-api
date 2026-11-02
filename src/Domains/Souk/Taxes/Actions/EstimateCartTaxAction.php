@@ -6,6 +6,8 @@ namespace Kanvas\Souk\Taxes\Actions;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\LocationContext;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
 use Kanvas\Souk\Taxes\Contracts\TaxProviderInterface;
@@ -15,6 +17,7 @@ use Kanvas\Souk\Taxes\DataTransferObject\TaxContext;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxResult;
 use Kanvas\Souk\Taxes\Enums\ConfigurationEnum;
 use Kanvas\Souk\Taxes\Enums\TaxConditionEnum;
+use Kanvas\Souk\Taxes\Enums\TaxProviderEnum;
 use Kanvas\Souk\Taxes\Enums\TaxTreatmentEnum;
 use Kanvas\Souk\Taxes\Models\CustomerTaxExemption;
 use Kanvas\Souk\Taxes\Providers\TaxProviderResolver;
@@ -69,49 +72,22 @@ class EstimateCartTaxAction
         $context = $this->context = $this->buildContext();
 
         if (! $context->shipTo->country) {
-            $this->writeCondition(
-                conditionValue: '+0',
-                attributes: [
-                    'status' => 'unsupported',
-                    'provider' => null,
-                    'components' => [],
-                    'input_hash' => $context->inputHash(),
-                    'calculated_at' => Carbon::now()->toIso8601String(),
-                ],
-            );
+            $this->writeZeroCondition('unsupported', $context);
 
             return null;
         }
 
         try {
-            $provider = $this->provider = new TaxProviderResolver($this->app)->resolve($context);
+            $provider = $this->provider = $this->resolver()->resolve($context);
             $result = $provider->calculate($context);
         } catch (Throwable) {
-            $this->writeCondition(
-                conditionValue: '+0',
-                attributes: [
-                    'status' => 'failed',
-                    'provider' => null,
-                    'components' => [],
-                    'input_hash' => $context->inputHash(),
-                    'calculated_at' => Carbon::now()->toIso8601String(),
-                ],
-            );
+            $this->writeZeroCondition('failed', $context);
 
             return null;
         }
 
         if ($result->treatment === TaxTreatmentEnum::NOT_COLLECTING || $result->treatment === TaxTreatmentEnum::NO_BASE) {
-            $this->writeCondition(
-                conditionValue: '+0',
-                attributes: [
-                    'status' => 'unsupported',
-                    'provider' => null,
-                    'components' => [],
-                    'input_hash' => $context->inputHash(),
-                    'calculated_at' => Carbon::now()->toIso8601String(),
-                ],
-            );
+            $this->writeZeroCondition('unsupported', $context);
 
             return null;
         }
@@ -134,7 +110,7 @@ class EstimateCartTaxAction
             conditionValue: $conditionValue,
             attributes: [
                 'status' => 'calculated',
-                'provider' => 'manual',
+                'provider' => TaxProviderEnum::of($provider)->value,
                 'amount' => $totalTax,
                 'mode' => $mode,
                 'components' => $components,
@@ -144,6 +120,27 @@ class EstimateCartTaxAction
         );
 
         return $result;
+    }
+
+    private function resolver(): TaxProviderResolver
+    {
+        $company = $this->user !== null ? LocationContext::shoppingCompany($this->user) : null;
+
+        return new TaxProviderResolver($this->app, $company instanceof Companies ? $company : null);
+    }
+
+    private function writeZeroCondition(string $status, TaxContext $context): void
+    {
+        $this->writeCondition(
+            conditionValue: '+0',
+            attributes: [
+                'status' => $status,
+                'provider' => null,
+                'components' => [],
+                'input_hash' => $context->inputHash(),
+                'calculated_at' => Carbon::now()->toIso8601String(),
+            ],
+        );
     }
 
     private function writeCondition(string $conditionValue, array $attributes): void
@@ -197,14 +194,13 @@ class EstimateCartTaxAction
         $shippingCondition = $this->cart->getCondition(ShippingConditionEnum::NAME->value);
 
         if ($shippingCondition === null) {
-            return new TaxAddress(country: null, state: null, city: null, postalCode: null);
+            return new TaxAddress(country: null);
         }
 
         $destination = $shippingCondition->getAttributes()[ShippingConditionEnum::DESTINATION->value] ?? [];
 
         return new TaxAddress(
             country: isset($destination['country']) ? strtoupper((string) $destination['country']) : null,
-            state: null,
             city: isset($destination['city']) ? (string) $destination['city'] : null,
             postalCode: isset($destination['postal_code']) ? (string) $destination['postal_code'] : null,
         );

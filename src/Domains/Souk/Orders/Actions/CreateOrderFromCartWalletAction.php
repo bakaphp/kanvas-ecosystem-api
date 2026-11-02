@@ -50,19 +50,17 @@ class CreateOrderFromCartWalletAction extends CreateBaseOrderAction
         }
 
         $snapshotUuid = $snapshot->uuid;
+        $holdWallet = $order->user->createAppWallet($this->app, ['name' => ConfigurationEnum::WALLET_CHECKOUT_HOLD_NAME->value]);
 
-        $existingTransaction = $order->user
-            ->createAppWallet($this->app, ['name' => 'checkout_hold'])
-            ->transactions()
+        $alreadySettled = $holdWallet->transactions()
             ->where('meta->snapshot_uuid', $snapshotUuid)
             ->where('meta->type', 'order_payment')
-            ->first();
+            ->exists();
 
-        if ($existingTransaction !== null) {
+        if ($alreadySettled) {
             return;
         }
 
-        $holdWallet = $order->user->createAppWallet($this->app, ['name' => 'checkout_hold']);
         $holdWallet->withdrawFloat($walletTender, [
             'snapshot_uuid' => $snapshotUuid,
             'type' => 'order_payment',

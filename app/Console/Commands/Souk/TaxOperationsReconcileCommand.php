@@ -17,6 +17,8 @@ use Kanvas\Souk\Taxes\Jobs\ReverseTaxTransactionJob;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Souk\Taxes\Models\TaxOperation;
 
+use function Sentry\captureMessage;
+
 class TaxOperationsReconcileCommand extends Command
 {
     use KanvasJobsTrait;
@@ -38,7 +40,7 @@ class TaxOperationsReconcileCommand extends Command
         $appsIds = Settings::where([
             'name' => ConfigurationEnum::TAX_ENGINE_ENABLED->value,
             'value' => '1',
-        ])->select('apps_id')->get()->pluck('apps_id');
+        ])->pluck('apps_id');
 
         foreach ($appsIds as $appId) {
             $this->processApp((int) $appId);
@@ -102,7 +104,7 @@ class TaxOperationsReconcileCommand extends Command
             if ($refund === null) {
                 $this->warn("Cannot retry reversal for operation {$operation->idempotency_key}: refund not found");
 
-                \Sentry\captureMessage(
+                captureMessage(
                     "Cannot retry tax reversal for snapshot {$snapshot->uuid}: refund UUID missing from operation metadata"
                 );
 
@@ -138,7 +140,7 @@ class TaxOperationsReconcileCommand extends Command
 
             $this->warn($message);
 
-            \Sentry\captureMessage($message);
+            captureMessage($message);
         }
 
         $reconcileOps = TaxOperation::query()
@@ -155,7 +157,7 @@ class TaxOperationsReconcileCommand extends Command
 
             $this->warn($message);
 
-            \Sentry\captureMessage($message);
+            captureMessage($message);
         }
     }
 }

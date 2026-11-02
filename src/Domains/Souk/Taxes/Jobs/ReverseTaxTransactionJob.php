@@ -11,7 +11,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Payments\Models\PaymentRefund;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxReversal;
@@ -22,6 +21,8 @@ use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Souk\Taxes\Models\TaxOperation;
 use Kanvas\Souk\Taxes\Providers\TaxProviderResolver;
 use Throwable;
+
+use function Sentry\captureMessage;
 
 class ReverseTaxTransactionJob implements ShouldQueue
 {
@@ -63,7 +64,7 @@ class ReverseTaxTransactionJob implements ShouldQueue
             }
 
             if ($this->isFullReversal && $snapshot->status === TaxStatusEnum::CALCULATED->value) {
-                $provider = new TaxProviderResolver($this->app)->resolveFromSnapshot($snapshot);
+                $provider = new TaxProviderResolver($this->app, $snapshot->order?->company)->resolveFromSnapshot($snapshot);
                 $provider->void($snapshot);
                 $snapshot->transition(TaxStatusEnum::CALCULATED->value, TaxStatusEnum::VOIDED->value);
 
@@ -76,14 +77,14 @@ class ReverseTaxTransactionJob implements ShouldQueue
             ];
 
             if (! in_array($snapshot->status, $reversibleStatuses)) {
-                \Sentry\captureMessage(
+                captureMessage(
                     "Tax reversal skipped for snapshot {$snapshot->uuid}: unexpected status '{$snapshot->status}'"
                 );
 
                 return;
             }
 
-            $idempotencyKey = hash('sha256', 'reverse:' . $snapshot->uuid . ':' . $this->refund->uuid);
+            $idempotencyKey = TaxOperation::reversalIdempotencyKey($snapshot, $this->refund->uuid);
 
             $alreadyReversed = TaxOperation::query()
                 ->where('idempotency_key', $idempotencyKey)
@@ -112,7 +113,7 @@ class ReverseTaxTransactionJob implements ShouldQueue
             $operation->status = TaxReversalStatusEnum::REVERSING->value;
             $operation->saveOrFail();
 
-            $provider = new TaxProviderResolver($this->app)->resolveFromSnapshot($snapshot);
+            $provider = new TaxProviderResolver($this->app, $snapshot->order?->company)->resolveFromSnapshot($snapshot);
 
             $reversalDto = new TaxReversal(
                 snapshotUuid: $snapshot->uuid,
@@ -123,7 +124,7 @@ class ReverseTaxTransactionJob implements ShouldQueue
 
             $provider->reverse($snapshot, $reversalDto);
 
-            DB::connection('commerce')->table('order_tax_snapshots')
+            OrderTaxSnapshot::query()
                 ->where('id', $snapshot->id)
                 ->where('remaining_reversible_amount', '>=', $this->amount)
                 ->decrement('remaining_reversible_amount', $this->amount);
@@ -139,7 +140,7 @@ class ReverseTaxTransactionJob implements ShouldQueue
 
             $snapshot->update(['status' => $newStatus]);
         } catch (IllegalTaxTransition $e) {
-            \Sentry\captureMessage(
+            captureMessage(
                 "Tax reversal uncertain outcome for snapshot {$snapshot->uuid}: " . $e->getMessage()
             );
             $snapshot->status = TaxStatusEnum::NEEDS_RECONCILE->value;
@@ -153,7 +154,7 @@ class ReverseTaxTransactionJob implements ShouldQueue
             $snapshot->status = TaxStatusEnum::REVERSAL_FAILED->value;
             $snapshot->saveOrFail();
 
-            \Sentry\captureMessage(
+            captureMessage(
                 "Tax reversal failed for snapshot {$snapshot->uuid}: " . $e->getMessage()
             );
 

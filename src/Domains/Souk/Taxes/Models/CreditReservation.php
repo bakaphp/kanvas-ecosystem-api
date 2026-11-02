@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Taxes\Models;
 
+use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Souk\Discounts\Models\Discount;
@@ -21,14 +22,11 @@ use Kanvas\Souk\Models\BaseModel;
  */
 class CreditReservation extends BaseModel
 {
+    use NoAppRelationshipTrait;
     use UuidTrait;
 
     protected $table = 'credit_reservations';
     protected $guarded = [];
-
-    public static function bootAppsIdTrait(): void
-    {
-    }
 
     protected function casts(): array
     {

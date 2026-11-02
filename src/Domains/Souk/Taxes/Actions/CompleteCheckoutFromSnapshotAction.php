@@ -16,8 +16,6 @@ use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use RuntimeException;
 use Throwable;
 
-use function Sentry\captureMessage;
-
 class CompleteCheckoutFromSnapshotAction
 {
     public function __construct(
@@ -30,10 +28,10 @@ class CompleteCheckoutFromSnapshotAction
     public function execute(): Order
     {
         $result = Cache::lock('checkout:' . $this->snapshot->uuid, 120)->get(function (): Order {
-            $snapshot = OrderTaxSnapshot::query()->findOrFail($this->snapshot->id);
+            $snapshot = OrderTaxSnapshot::getById($this->snapshot->id, $this->app);
 
             if ($snapshot->order_id !== null) {
-                return Order::query()->findOrFail($snapshot->order_id);
+                return Order::getById($snapshot->order_id, $this->app);
             }
 
             return $this->createOrderFromPayload($snapshot);
@@ -57,11 +55,7 @@ class CompleteCheckoutFromSnapshotAction
                 $actualHash = self::linesHash($payload['lines'] ?? []);
 
                 if ($actualHash !== ($payload['lines_hash'] ?? $snapshot->input_hash)) {
-                    $order->tax_status = 'mismatch';
-                    $order->status = 'on_hold';
-                    $order->saveOrFail();
-
-                    captureMessage("Tax hash mismatch on order {$order->id}");
+                    $order->holdForTaxMismatch();
                 }
 
                 $snapshot->order_id = $order->getId();
@@ -86,17 +80,13 @@ class CompleteCheckoutFromSnapshotAction
         $totals = $payload['totals'] ?? [];
         $context = $payload['order_context'] ?? [];
 
-        $chargedOrder = Order::query()
-            ->where('apps_id', $snapshot->apps_id)
-            ->where('payment_intent_id', $this->paymentIntentId)
-            ->first();
+        $chargedOrder = $this->findOrderByPaymentIntent();
 
         if ($chargedOrder !== null) {
             return $chargedOrder;
         }
 
-        $order = Order::query()
-            ->where('apps_id', $snapshot->apps_id)
+        $order = Order::fromApp($this->app)
             ->where('checkout_token', $snapshot->cart_session_id ?? '')
             ->first();
 
@@ -105,7 +95,8 @@ class CompleteCheckoutFromSnapshotAction
         if ($isNew) {
             $order = new Order();
             $order->apps_id = $snapshot->apps_id;
-            $order->companies_id = (int) ($context['companies_id'] ?? $this->resolveCompaniesId($snapshot));
+            $order->companies_id = (int) ($context['companies_id']
+                ?? throw new RuntimeException('Cannot resolve companies_id from snapshot payload'));
             if (isset($context['region_id'])) {
                 $order->region_id = (int) $context['region_id'];
             }
@@ -133,11 +124,14 @@ class CompleteCheckoutFromSnapshotAction
         try {
             $order->saveOrFail();
         } catch (QueryException $e) {
-            if ($e->getCode() === '23000') {
-                return Order::where('payment_intent_id', $this->paymentIntentId)->firstOrFail();
+            // Unique payment_intent_id: a concurrent completion already inserted this order.
+            $existing = $e->getCode() === '23000' ? $this->findOrderByPaymentIntent() : null;
+
+            if ($existing === null) {
+                throw $e;
             }
 
-            throw $e;
+            return $existing;
         }
 
         if ($isNew) {
@@ -145,6 +139,13 @@ class CompleteCheckoutFromSnapshotAction
         }
 
         return $order;
+    }
+
+    private function findOrderByPaymentIntent(): ?Order
+    {
+        return Order::fromApp($this->app)
+            ->where('payment_intent_id', $this->paymentIntentId)
+            ->first();
     }
 
     private function createItemsFromPayload(Order $order, array $lines): void
@@ -180,19 +181,5 @@ class CompleteCheckoutFromSnapshotAction
         usort($normalized, fn ($a, $b): int => $a['variant_id'] <=> $b['variant_id']);
 
         return hash('sha256', json_encode($normalized));
-    }
-
-    private function resolveCompaniesId(OrderTaxSnapshot $snapshot): int
-    {
-        $order = Order::query()
-            ->where('apps_id', $snapshot->apps_id)
-            ->where('id', $snapshot->order_id ?? 0)
-            ->first();
-
-        if ($order === null || (int) $order->companies_id === 0) {
-            throw new RuntimeException('Cannot resolve companies_id from snapshot payload');
-        }
-
-        return (int) $order->companies_id;
     }
 }

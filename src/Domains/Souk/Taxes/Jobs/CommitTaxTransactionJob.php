@@ -57,7 +57,7 @@ class CommitTaxTransactionJob implements ShouldQueue
                 return;
             }
 
-            $provider = new TaxProviderResolver($this->app)->resolveFromSnapshot($snapshot);
+            $provider = new TaxProviderResolver($this->app, $snapshot->order?->company)->resolveFromSnapshot($snapshot);
             $provider->commit($snapshot);
 
             $snapshot->transition(TaxStatusEnum::COMMITTING->value, TaxStatusEnum::COMMITTED->value);

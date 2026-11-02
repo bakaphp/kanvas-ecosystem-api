@@ -5,19 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Taxes\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Kanvas\Souk\Models\BaseModel;
 
 class TaxRoutingRule extends BaseModel
 {
+    use NoCompanyRelationshipTrait;
     use UuidTrait;
 
     protected $table = 'tax_routing_rules';
     protected $guarded = [];
-
-    public static function bootCompaniesIdTrait(): void
-    {
-    }
 
     protected function casts(): array
     {

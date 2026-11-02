@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Taxes\Providers;
 
+use Illuminate\Database\Eloquent\Builder;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -46,13 +47,7 @@ class TaxProviderResolver
             return $this->handleNotCollecting();
         }
 
-        $rules = TaxRoutingRule::query()
-            ->fromApp($this->app)
-            ->notDeleted()
-            ->where('condition_country', $country)
-            ->where('is_active', true)
-            ->orderBy('priority', 'asc')
-            ->get();
+        $rules = $this->activeRulesFor($country)->get();
 
         if ($rules->isEmpty()) {
             return $this->handleNotCollecting();
@@ -82,6 +77,32 @@ class TaxProviderResolver
         };
     }
 
+    public function coverage(TaxAddress $address): TaxCoverage
+    {
+        $country = $address->country ?? '';
+
+        if (! $this->app->get(ConfigurationEnum::TAX_ENGINE_ENABLED->value)) {
+            return TaxCoverage::unsupported($country, $address->state, 'tax_engine_disabled');
+        }
+
+        if (! $this->hasActiveRegistration($country)) {
+            return TaxCoverage::unsupported($country, $address->state, 'no_active_registration');
+        }
+
+        $rule = $this->activeRulesFor($country)->first();
+
+        if ($rule === null) {
+            return TaxCoverage::unsupported($country, $address->state, 'no_routing_rule');
+        }
+
+        return new TaxCoverage(
+            country: $country,
+            state: $address->state,
+            provider: $rule->provider,
+            isSupported: $rule->provider !== TaxProviderEnum::NONE->value,
+        );
+    }
+
     private function resolveStripeTaxProvider(): TaxProviderInterface
     {
         $company = $this->company;
@@ -96,7 +117,7 @@ class TaxProviderResolver
             throw new ValidationException('unsupported_stripe_account_not_owned_by_seller');
         }
 
-        if ($account->sharedAppAccount && ! $this->app->get('stripe_tax_same_legal_entity_as_app_account')) {
+        if ($account->sharedAppAccount && ! $this->app->get(ConfigurationEnum::STRIPE_TAX_SAME_LEGAL_ENTITY_AS_APP_ACCOUNT->value)) {
             throw new ValidationException('unsupported_stripe_account_not_owned_by_seller');
         }
 
@@ -119,6 +140,16 @@ class TaxProviderResolver
             ->exists();
     }
 
+    private function activeRulesFor(string $country): Builder
+    {
+        return TaxRoutingRule::query()
+            ->fromApp($this->app)
+            ->notDeleted()
+            ->where('condition_country', $country)
+            ->where('is_active', true)
+            ->orderBy('priority', 'asc');
+    }
+
     private function handleNotCollecting(): TaxProviderInterface
     {
         if ($this->app->get(ConfigurationEnum::TAX_FAIL_OPEN->value)) {
@@ -128,69 +159,12 @@ class TaxProviderResolver
         throw new ValidationException('tax_not_configured_for_destination');
     }
 
-    public function coverage(TaxAddress $address): TaxCoverage
-    {
-        $country = $address->country ?? '';
-
-        if (! $this->app->get(ConfigurationEnum::TAX_ENGINE_ENABLED->value)) {
-            return new TaxCoverage(
-                country: $country,
-                state: $address->state,
-                provider: TaxProviderEnum::NONE->value,
-                isSupported: false,
-                unsupportedReason: 'tax_engine_disabled',
-            );
-        }
-
-        if (! $this->hasActiveRegistration($country)) {
-            return new TaxCoverage(
-                country: $country,
-                state: $address->state,
-                provider: TaxProviderEnum::NONE->value,
-                isSupported: false,
-                unsupportedReason: 'no_active_registration',
-            );
-        }
-
-        $rule = TaxRoutingRule::query()
-            ->fromApp($this->app)
-            ->notDeleted()
-            ->where('condition_country', $country)
-            ->where('is_active', true)
-            ->orderBy('priority', 'asc')
-            ->first();
-
-        if ($rule === null) {
-            return new TaxCoverage(
-                country: $country,
-                state: $address->state,
-                provider: TaxProviderEnum::NONE->value,
-                isSupported: false,
-                unsupportedReason: 'no_routing_rule',
-            );
-        }
-
-        return new TaxCoverage(
-            country: $country,
-            state: $address->state,
-            provider: $rule->provider,
-            isSupported: $rule->provider !== TaxProviderEnum::NONE->value,
-        );
-    }
-
     private function findExemption(TaxContext $context, string $country): ?CustomerTaxExemption
     {
         if (! $context->customerId) {
             return null;
         }
 
-        return CustomerTaxExemption::query()
-            ->fromApp($this->app)
-            ->notDeleted()
-            ->where('people_id', $context->customerId)
-            ->where('jurisdiction_country', $country)
-            ->where('is_active', true)
-            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>=', today()))
-            ->first();
+        return CustomerTaxExemption::activeForPeople($this->app, (int) $context->customerId, $country);
     }
 }

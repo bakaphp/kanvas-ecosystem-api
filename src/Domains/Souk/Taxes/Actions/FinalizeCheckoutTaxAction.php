@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Services\DiscountService;
 use Kanvas\Souk\Orders\Models\Order;
@@ -37,17 +38,11 @@ class FinalizeCheckoutTaxAction
     public function execute(): array
     {
         if (! $this->app->get(ConfigurationEnum::TAX_ENGINE_ENABLED->value)) {
-            return [
-                'snapshotUuid' => null,
-                'inputHash' => null,
-                'payable' => $this->order->getTotalDueAmount(),
-                'gatewayDue' => $this->order->getTotalDueAmount(),
-                'taxEnabled' => false,
-            ];
+            return $this->untaxedResult(taxEnabled: false);
         }
 
         $context = new BuildTaxContextAction($this->order, $this->app)->execute();
-        $provider = new TaxProviderResolver($this->app)->resolve($context);
+        $provider = new TaxProviderResolver($this->app, $this->order->company)->resolve($context);
         $result = $provider->calculate($context);
 
         if ($result->treatment === TaxTreatmentEnum::NOT_COLLECTING) {
@@ -55,20 +50,14 @@ class FinalizeCheckoutTaxAction
                 throw new ValidationException('tax_not_configured_for_destination');
             }
 
-            return [
-                'snapshotUuid' => null,
-                'inputHash' => null,
-                'payable' => $this->order->getTotalDueAmount(),
-                'gatewayDue' => $this->order->getTotalDueAmount(),
-                'taxEnabled' => true,
-            ];
+            return $this->untaxedResult(taxEnabled: true);
         }
 
         $this->order->tax_amount = (float) $result->totalTax;
         $this->order->tax_source = 'souk';
         $this->order->recomputeTotals(autoSave: false);
 
-        $result2 = DB::connection('commerce')->transaction(function () use ($context, $result, $provider): array {
+        $finalized = DB::connection('commerce')->transaction(function () use ($context, $result, $provider): array {
             $this->order->saveOrFail();
 
             $snapshot = new PersistTaxSnapshotAction(
@@ -110,16 +99,23 @@ class FinalizeCheckoutTaxAction
             ];
         });
 
-        $snapshot = $result2['snapshot'];
-        $payable = $result2['payable'];
-        $gatewayDue = $result2['gatewayDue'];
-
         return [
-            'snapshotUuid' => $snapshot->uuid,
-            'inputHash' => $snapshot->input_hash,
-            'payable' => $payable,
-            'gatewayDue' => $gatewayDue,
+            'snapshotUuid' => $finalized['snapshot']->uuid,
+            'inputHash' => $finalized['snapshot']->input_hash,
+            'payable' => $finalized['payable'],
+            'gatewayDue' => $finalized['gatewayDue'],
             'taxEnabled' => true,
+        ];
+    }
+
+    private function untaxedResult(bool $taxEnabled): array
+    {
+        return [
+            'snapshotUuid' => null,
+            'inputHash' => null,
+            'payable' => $this->order->getTotalDueAmount(),
+            'gatewayDue' => $this->order->getTotalDueAmount(),
+            'taxEnabled' => $taxEnabled,
         ];
     }
 
@@ -133,7 +129,7 @@ class FinalizeCheckoutTaxAction
 
         $walletHolder = $this->getWalletHolder($this->app, $this->order->user);
         $mainWallet = $walletHolder->createAppWallet($this->app, ['name' => WalletConfigurationEnum::WALLET_DEFAULT_NAME->value]);
-        $holdWallet = $walletHolder->createAppWallet($this->app, ['name' => 'checkout_hold']);
+        $holdWallet = $walletHolder->createAppWallet($this->app, ['name' => WalletConfigurationEnum::WALLET_CHECKOUT_HOLD_NAME->value]);
 
         try {
             $transfer = $mainWallet->transferFloat(
@@ -157,15 +153,15 @@ class FinalizeCheckoutTaxAction
 
     private function reserveCredit(OrderTaxSnapshot $snapshot): ?int
     {
-        $credit = $this->resolveApplicableCredit();
+        $applicable = $this->resolveApplicableCredit();
 
-        if ($credit === null) {
+        if ($applicable === null) {
             return null;
         }
 
-        $credit->refresh()->lockForUpdate();
+        $credit = Discount::query()->lockForUpdate()->find($applicable->getId());
 
-        if (! $credit->canBeUsed()) {
+        if ($credit === null || ! $credit->canBeUsed()) {
             return null;
         }
 
@@ -182,7 +178,7 @@ class FinalizeCheckoutTaxAction
 
     private function resolveApplicableCredit(): ?Discount
     {
-        return (new DiscountService($this->app, $this->order->buyerCompany()))
+        return new DiscountService($this->app, $this->order->buyerCompany())
             ->getApplicableCredits()
             ->first();
     }
@@ -204,32 +200,6 @@ class FinalizeCheckoutTaxAction
             ];
         }
 
-        $shippingAddress = null;
-        if ($this->order->shippingAddress !== null) {
-            $addr = $this->order->shippingAddress;
-            $shippingAddress = [
-                'address' => $addr->address,
-                'address_2' => $addr->address_2 ?? null,
-                'city' => $addr->city,
-                'state' => $addr->state,
-                'zip' => $addr->zip,
-                'country_code' => $addr->country?->code,
-            ];
-        }
-
-        $billingAddress = null;
-        if ($this->order->billingAddress !== null) {
-            $addr = $this->order->billingAddress;
-            $billingAddress = [
-                'address' => $addr->address,
-                'address_2' => $addr->address_2 ?? null,
-                'city' => $addr->city,
-                'state' => $addr->state,
-                'zip' => $addr->zip,
-                'country_code' => $addr->country?->code,
-            ];
-        }
-
         $discountAllocation = $this->order->orderDiscounts->map(fn ($od) => [
             'discount_id' => $od->discount_id,
             'amount' => (float) $od->amount,
@@ -237,8 +207,8 @@ class FinalizeCheckoutTaxAction
 
         return [
             'lines' => $lines,
-            'shipping_address' => $shippingAddress,
-            'billing_address' => $billingAddress,
+            'shipping_address' => $this->addressPayload($this->order->shippingAddress),
+            'billing_address' => $this->addressPayload($this->order->billingAddress),
             'discount_allocation' => $discountAllocation,
             'wallet_hold_transfer_id' => $walletHoldTransferId,
             'credit_reservation_id' => $creditReservationId,
@@ -256,6 +226,22 @@ class FinalizeCheckoutTaxAction
                 'wallet_tender' => (float) ($this->order->wallet_tender ?? 0.0),
                 'gateway_due' => (float) $this->order->getTotalDueAmount(),
             ],
+        ];
+    }
+
+    private function addressPayload(?Address $address): ?array
+    {
+        if ($address === null) {
+            return null;
+        }
+
+        return [
+            'address' => $address->address,
+            'address_2' => $address->address_2 ?? null,
+            'city' => $address->city,
+            'state' => $address->state,
+            'zip' => $address->zip,
+            'country_code' => $address->country?->code,
         ];
     }
 }

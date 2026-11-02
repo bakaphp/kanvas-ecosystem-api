@@ -34,13 +34,7 @@ class StripeCheckoutService
     }
 
     /**
-     * Create a Stripe Checkout Session pinned to a tax snapshot.
-     *
-     * - Amount comes from snapshot->gateway_due (checkout_payload.totals.gateway_due)
-     * - Reuses the existing session when the snapshot hasn't changed (stripe_session_id present and status != expired)
-     * - Rejects automatic_tax: Souk owns tax, not Stripe Tax
-     * - Shipping collection is disabled: Souk owns shipping
-     * - Requires a Stripe destination (transfer_data) to be configured
+     * Souk owns tax and shipping, so automatic_tax and shipping collection are never delegated to Stripe.
      */
     public function createSessionFromSnapshot(
         OrderTaxSnapshot $snapshot,
@@ -54,7 +48,7 @@ class StripeCheckoutService
 
         $destination = $this->app->get(ConfigurationEnum::STRIPE_ACCOUNT_CONNECTED->value);
 
-        if (empty($destination) && (bool) $this->app->get('STRIPE_SESSION_REQUIRE_DESTINATION')) {
+        if (empty($destination) && (bool) $this->app->get(ConfigurationEnum::STRIPE_SESSION_REQUIRE_DESTINATION->value)) {
             throw ValidationException::withMessages(['stripe_account' => 'stripe_destination_account_required']);
         }
 
@@ -108,10 +102,6 @@ class StripeCheckoutService
         return $session;
     }
 
-    /**
-     * Expire all open Stripe Checkout Sessions tied to a snapshot.
-     * Called when a snapshot transitions to superseded.
-     */
     public function expireSessionsForSnapshot(OrderTaxSnapshot $snapshot): void
     {
         if (! $snapshot->stripe_session_id) {

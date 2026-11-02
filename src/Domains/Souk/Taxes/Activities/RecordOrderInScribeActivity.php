@@ -61,11 +61,7 @@ class RecordOrderInScribeActivity extends KanvasActivity implements WorkflowActi
     {
         $externalId = $order->uuid;
 
-        $existing = SalesReceipt::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $order->companies_id)
-            ->where('external_id', $externalId)
-            ->first();
+        $existing = $this->findReceipt($order, $app, $externalId);
 
         if ($existing !== null) {
             return [
@@ -102,17 +98,13 @@ class RecordOrderInScribeActivity extends KanvasActivity implements WorkflowActi
 
     private function recordCreditNote(Order $order, AppInterface $app, array $params): array
     {
-        /** @var PaymentRefund $refund */
+        /** @var PaymentRefund|string $refund */
         $refund = $params['refund'];
         $refundUuid = is_string($refund) ? $refund : $refund->uuid;
 
         $externalId = $order->uuid . '-r' . $refundUuid;
 
-        $existing = SalesReceipt::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $order->companies_id)
-            ->where('external_id', $externalId)
-            ->first();
+        $existing = $this->findReceipt($order, $app, $externalId);
 
         if ($existing !== null) {
             return [
@@ -122,11 +114,7 @@ class RecordOrderInScribeActivity extends KanvasActivity implements WorkflowActi
             ];
         }
 
-        $original = SalesReceipt::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $order->companies_id)
-            ->where('external_id', $order->uuid)
-            ->first();
+        $original = $this->findReceipt($order, $app, $order->uuid);
 
         if ($original === null) {
             return $this->failWorkflow([
@@ -145,6 +133,15 @@ class RecordOrderInScribeActivity extends KanvasActivity implements WorkflowActi
             'receipt_id' => $original->id,
             'external_id' => $externalId,
         ];
+    }
+
+    private function findReceipt(Order $order, AppInterface $app, string $externalId): ?SalesReceipt
+    {
+        return SalesReceipt::query()
+            ->fromApp($app)
+            ->fromCompany($order->company)
+            ->where('external_id', $externalId)
+            ->first();
     }
 
     /**

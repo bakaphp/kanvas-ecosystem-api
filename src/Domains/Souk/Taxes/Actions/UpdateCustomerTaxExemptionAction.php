@@ -4,11 +4,21 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Taxes\Actions;
 
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Souk\Taxes\Models\CustomerTaxExemption;
 
 class UpdateCustomerTaxExemptionAction
 {
+    private const array FIELDS = [
+        'exemption_type',
+        'jurisdiction_country',
+        'jurisdiction_state',
+        'certificate_number',
+        'valid_from',
+        'valid_to',
+    ];
+
     public function __construct(
         private readonly CustomerTaxExemption $exemption,
         private readonly array $data,
@@ -18,19 +28,13 @@ class UpdateCustomerTaxExemptionAction
     public function execute(): CustomerTaxExemption
     {
         return DB::connection('commerce')->transaction(function () {
-            if (array_key_exists('exemption_type', $this->data)) {
-                $this->exemption->exemption_type = $this->data['exemption_type'];
-            }
-            if (array_key_exists('certificate_number', $this->data)) {
-                $this->exemption->certificate_number = $this->data['certificate_number'];
-            }
-            if (array_key_exists('valid_from', $this->data)) {
-                $this->exemption->valid_from = $this->data['valid_from'];
-            }
-            if (array_key_exists('valid_to', $this->data)) {
-                $this->exemption->valid_to = $this->data['valid_to'];
+            $data = Arr::only($this->data, self::FIELDS);
+
+            if (isset($data['jurisdiction_country'])) {
+                $data['jurisdiction_country'] = strtoupper($data['jurisdiction_country']);
             }
 
+            $this->exemption->fill($data);
             $this->exemption->saveOrFail();
 
             return $this->exemption;

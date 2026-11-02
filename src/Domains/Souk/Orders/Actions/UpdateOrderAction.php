@@ -13,10 +13,10 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Taxes\Enums\TaxStatusEnum;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
-use Throwable;
 
 class UpdateOrderAction
 {
@@ -74,18 +74,11 @@ class UpdateOrderAction
             $this->order->payment_status = $this->orderData['payment_status'] ?? $this->order->payment_status;
             $this->order->saveOrFail();
 
-            $activeSnapshot = OrderTaxSnapshot::where('order_id', $this->order->id)
-                ->where('status', '!=', 'superseded')
-                ->first();
-
-            if ($activeSnapshot !== null) {
-                try {
-                    $activeSnapshot->transition($activeSnapshot->status, 'superseded');
-                } catch (Throwable) {
-                    $activeSnapshot->status = 'superseded';
-                    $activeSnapshot->save();
-                }
-            }
+            OrderTaxSnapshot::query()
+                ->where('order_id', $this->order->id)
+                ->where('status', '!=', TaxStatusEnum::SUPERSEDED->value)
+                ->first()
+                ?->update(['status' => TaxStatusEnum::SUPERSEDED->value]);
 
             if ($this->order->isFulfilled() && $hasItems) {
                 $this->order->addItems($lineItems);

@@ -23,6 +23,8 @@ class CreateCustomerTaxExemptionAction
             $exemption->apps_id = $this->app->getId();
             $exemption->people_id = $this->data['people_id'];
             $exemption->exemption_type = $this->data['exemption_type'];
+            $exemption->jurisdiction_country = strtoupper($this->data['jurisdiction_country']);
+            $exemption->jurisdiction_state = $this->data['jurisdiction_state'] ?? null;
             $exemption->certificate_number = $this->data['certificate_number'] ?? null;
             $exemption->valid_from = $this->data['valid_from'] ?? null;
             $exemption->valid_to = $this->data['valid_to'] ?? null;
