@@ -29,7 +29,6 @@ class CodingImageService
 {
     /** Local repository name. The upstream image is rebuilt with a toolchain, so it is not upstream's. */
     private const string REPOSITORY = 'kanvas/opencode';
-
     private const string DOCKERFILE = 'docker/opencode/Dockerfile';
 
     /** Used only when the Dockerfile cannot be read or parsed, so a caller still gets a usable tag. */
