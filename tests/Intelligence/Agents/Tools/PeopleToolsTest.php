@@ -331,6 +331,9 @@ final class PeopleToolsTest extends TestCase
         $this->assertSame((int) $first->getId(), $group['canonical_id']);
         $member = collect($group['members'])->firstWhere('person_id', (int) $first->getId());
         $this->assertSame([$email], $member['emails']);
+        $this->assertSame('keep', $member['role']);
+        $this->assertSame('safe_to_merge', $group['recommendation'], 'The second record is an empty copy.');
+        $this->assertSame(['emails'], collect($group['members'])->firstWhere('role', 'merge')['differs_from_keep']);
     }
 
     public function test_find_people_duplicates_rejects_an_unknown_reason(): void
@@ -541,6 +544,7 @@ final class PeopleToolsTest extends TestCase
             [
                 'people',
                 'people_match',
+                'people_duplicates',
                 'organizations',
                 'event_participants',
                 'products',

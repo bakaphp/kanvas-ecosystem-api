@@ -852,6 +852,17 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         );
     }
 
+    /**
+     * Bouncer's role cache is per scope and assign() never clears it, so the refresh must run in here.
+     */
+    public function assignOwnerOf(AppInterface $app): void
+    {
+        Bouncer::scope()->onceTo(RolesEnums::getScope($app), function (): void {
+            $this->assign(RolesEnums::OWNER->value);
+            Bouncer::refreshFor($this);
+        });
+    }
+
     public function isMemberOf(CompanyInterface $company): bool
     {
         return UsersAssociatedCompanies::where('users_id', $this->getId())
