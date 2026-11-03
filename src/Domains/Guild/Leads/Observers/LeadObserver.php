@@ -20,6 +20,8 @@ use Kanvas\Intelligence\FollowUp\Actions\WriteLeadStageChangeThreadMessageAction
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
@@ -176,6 +178,10 @@ class LeadObserver
 
         if ($lead->wasChanged('leads_status_id')) {
             SummarizeLeadConversationJob::dispatchIfEligible($lead);
+
+            if ($this->movedToClosedStatus($lead)) {
+                new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
+            }
         }
 
         if ($lead->wasChanged([
@@ -263,6 +269,19 @@ class LeadObserver
         if ($isCounted && $currentPeopleId !== null) {
             $this->adjustActiveLeadsCount($currentPeopleId, +1);
         }
+    }
+
+    /**
+     * A lead can point at a status that does not exist (`leads_status_id = 0`), and closeSold() /
+     * closeNotSold() load it with firstOrFail().
+     */
+    private function movedToClosedStatus(Lead $lead): bool
+    {
+        if ($lead->status()->doesntExist()) {
+            return false;
+        }
+
+        return $lead->closeSold() || $lead->closeNotSold();
     }
 
     private function isCounted(Lead $lead): bool
