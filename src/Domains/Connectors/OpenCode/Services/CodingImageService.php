@@ -33,7 +33,7 @@ class CodingImageService
     private const string DOCKERFILE = 'docker/opencode/Dockerfile';
 
     /** Used only when the Dockerfile cannot be read or parsed, so a caller still gets a usable tag. */
-    private const string FALLBACK_VERSION = '2.2.0';
+    private const string FALLBACK_VERSION = '2.2.5';
 
     public static function dockerfilePath(): string
     {

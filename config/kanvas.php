@@ -10,6 +10,7 @@ return [
     'app' => [
         'id' => env('KANVAS_APP_ID'),
         'frontend_url' => env('KANVAS_FRONTEND_URL'),
+        'console_url' => env('KANVAS_CONSOLE_URL'),
         'google' => [
             'google_play_credentials_json' => env('GOOGLE_PLAY_CREDENTIALS'),
         ],

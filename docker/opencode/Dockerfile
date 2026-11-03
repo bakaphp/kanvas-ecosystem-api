@@ -6,7 +6,7 @@
 #
 # Pull-only in production: the OpenClaw path builds its image on the machine with a 900s budget, which
 # a per-task container cannot pay. Build this once, push it, and pin the tag.
-FROM ghcr.io/anomalyco/opencode:2.2.0
+FROM ghcr.io/anomalyco/opencode:2.2.5
 
 # git is the deliverable; the rest is what a PHP repo's own tests and linters need.
 RUN apk add --no-cache \
