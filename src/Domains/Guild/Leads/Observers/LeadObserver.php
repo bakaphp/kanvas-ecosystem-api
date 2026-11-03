@@ -179,7 +179,7 @@ class LeadObserver
         if ($lead->wasChanged('leads_status_id')) {
             SummarizeLeadConversationJob::dispatchIfEligible($lead);
 
-            if ($lead->closeSold() || $lead->closeNotSold()) {
+            if ($this->movedToClosedStatus($lead)) {
                 new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
             }
         }
@@ -269,6 +269,19 @@ class LeadObserver
         if ($isCounted && $currentPeopleId !== null) {
             $this->adjustActiveLeadsCount($currentPeopleId, +1);
         }
+    }
+
+    /**
+     * A lead can point at a status that does not exist (`leads_status_id = 0`), and closeSold() /
+     * closeNotSold() load it with firstOrFail().
+     */
+    private function movedToClosedStatus(Lead $lead): bool
+    {
+        if ($lead->status()->doesntExist()) {
+            return false;
+        }
+
+        return $lead->closeSold() || $lead->closeNotSold();
     }
 
     private function isCounted(Lead $lead): bool

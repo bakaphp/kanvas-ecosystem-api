@@ -80,6 +80,16 @@ final class ClosedLeadFollowUpOffTest extends TestCase
         $this->assertSame(FollowUpValueEnum::ON()->value, (int) $lead->get($this->followUpKey($lead)));
     }
 
+    public function testALeadWithoutAStatusRowIsSaved(): void
+    {
+        $lead = $this->createLeadWithFollowUpOn();
+
+        $lead->leads_status_id = 0;
+        $lead->saveOrFail();
+
+        $this->assertSame(FollowUpValueEnum::ON()->value, (int) $lead->get($this->followUpKey($lead)));
+    }
+
     private function changeStatus(Lead $lead, string $statusName): void
     {
         $lead->leads_status_id = LeadStatus::create([
