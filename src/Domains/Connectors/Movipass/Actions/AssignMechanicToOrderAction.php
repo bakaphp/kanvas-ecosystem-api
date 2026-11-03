@@ -65,19 +65,10 @@ class AssignMechanicToOrderAction
         $this->order->saveQuietly();
         $this->order->set(CustomFieldEnum::ORDER_MECHANIC_USERS_ID->value, $mechanic->getId());
 
-        $this->order->transitionToStatus(
-            $this->user,
-            MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug(),
-        );
-
-        $this->order->refresh();
+        $this->transitionTo(MovipassOrderStatusEnum::PROVIDER_ASSIGNED);
         new GenerateRoadsideAssistancePinAction($this->order)->execute();
-
         $this->order->refresh();
-        $this->order->transitionToStatus(
-            $this->user,
-            MovipassOrderStatusEnum::DISPATCHED->slug(),
-        );
+        $this->transitionTo(MovipassOrderStatusEnum::DISPATCHED);
 
         AssistanceAssignedEvent::dispatch($this->order, $mechanic);
 
@@ -96,6 +87,25 @@ class AssignMechanicToOrderAction
         ));
 
         return $mechanic;
+    }
+
+    /**
+     * Order::transitionToStatus() swallows a missing or undeclared transition, so without this check
+     * the order stays in awaiting_operator while the assignment reports success.
+     */
+    protected function transitionTo(MovipassOrderStatusEnum $status): void
+    {
+        $fromSlug = $this->order->orderStatus?->slug;
+
+        $this->order->transitionToStatus($this->user, $status->slug());
+        $this->order->refresh();
+
+        if ($this->order->orderStatus?->slug !== $status->slug()) {
+            throw new ValidationException(
+                'Order ' . $this->order->getId() . ' could not transition from ' . ($fromSlug ?? 'no status')
+                . ' to ' . $status->slug() . ': the transition is not configured for this order type'
+            );
+        }
     }
 
     protected function selectBestMechanic($mechanics, array $assistanceCase): Users

@@ -15,6 +15,7 @@ use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistan
 use Kanvas\Souk\Orders\Actions\CreateOrderStatusesAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
+use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -273,6 +274,64 @@ final class RoadsideAssistanceFlowTest extends TestCase
 
         $this->assertSame('error', $result['status']);
         $this->assertStringContainsString('no incident has been registered', $result['message']);
+    }
+
+    public function testAssigningAMechanicMovesTheCaseToDispatched(): void
+    {
+        $order = $this->walkTo($this->createRoadsideOrder(), MovipassOrderStatusEnum::AWAITING_OPERATOR);
+        $this->setAssistanceCase($order, ['assign_mechanic_id' => $this->authUser->getId()]);
+
+        $result = $this->runUpdate($order);
+
+        $this->assertSame('success', $result['status']);
+
+        $order->refresh();
+        $this->assertSame(MovipassOrderStatusEnum::DISPATCHED->slug(), $order->orderStatus?->slug);
+        $this->assertSame($this->authUser->getId(), $order->metadata['assistance_case']['mechanic']['user_id']);
+        $this->assertArrayNotHasKey('assign_mechanic_id', $order->metadata['assistance_case']);
+    }
+
+    public function testAnAssignmentSentUnderTheDataCopyIsNotIgnored(): void
+    {
+        $order = $this->walkTo($this->createRoadsideOrder(), MovipassOrderStatusEnum::AWAITING_OPERATOR);
+        $metadata = $order->metadata;
+        $metadata['data']['assistance_case'] = [
+            ...$metadata['assistance_case'],
+            'assign_mechanic_id' => $this->authUser->getId(),
+        ];
+        $order->metadata = $metadata;
+        $order->saveQuietly();
+
+        $result = $this->runUpdate($order);
+
+        $this->assertSame('success', $result['status']);
+
+        $order->refresh();
+        $this->assertSame(MovipassOrderStatusEnum::DISPATCHED->slug(), $order->orderStatus?->slug);
+        $this->assertArrayNotHasKey('assign_mechanic_id', $order->metadata['data']['assistance_case']);
+    }
+
+    /**
+     * Regression: an undeclared transition left the order in awaiting_operator while the run
+     * reported success.
+     */
+    public function testAnAssignmentThatCannotTransitionFailsTheRun(): void
+    {
+        $order = $this->walkTo($this->createRoadsideOrder(), MovipassOrderStatusEnum::AWAITING_OPERATOR);
+        $this->setAssistanceCase($order, ['assign_mechanic_id' => $this->authUser->getId()]);
+
+        // setUp recreates the transition, so removing it here does not leak into other tests.
+        OrderStatusTransitions::where('from_status_id', $this->statusId(MovipassOrderStatusEnum::AWAITING_OPERATOR))
+            ->where('to_status_id', $this->statusId(MovipassOrderStatusEnum::PROVIDER_ASSIGNED))
+            ->delete();
+
+        $result = $this->runUpdate($order);
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('could not transition', $result['message']);
+
+        $order->refresh();
+        $this->assertSame(MovipassOrderStatusEnum::AWAITING_OPERATOR->slug(), $order->orderStatus?->slug);
     }
 
     private function runUpdate(Order $order): array
