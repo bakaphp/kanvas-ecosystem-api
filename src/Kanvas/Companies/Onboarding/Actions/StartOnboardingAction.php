@@ -7,7 +7,6 @@ namespace Kanvas\Companies\Onboarding\Actions;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
@@ -17,7 +16,6 @@ use Kanvas\Companies\Onboarding\Services\OnboardingStateService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Users\Models\Users;
-use Silber\Bouncer\BouncerFacade as Bouncer;
 
 /**
  * Self-serve app creation: the person's own app with its owner company, created with a user token
@@ -74,13 +72,6 @@ final class StartOnboardingAction
             ]),
             $this->user,
         )->execute();
-
-        // CreateAppsAction assigns Owner in the caller's Bouncer scope, which is the origin app's;
-        // the person must own the app they just created.
-        Bouncer::scope()->onceTo(
-            RolesEnums::getScope($app),
-            fn () => $this->user->assign(RolesEnums::OWNER->value),
-        );
 
         // Company knowledge (website research, uploads, URLs) only indexes when the app has it on,
         $app->set(KnowledgeConfigurationEnum::ENABLED->value, 1);
