@@ -8,12 +8,15 @@ use Kanvas\Connectors\OpenCode\Client;
 use Kanvas\Connectors\OpenCode\OpenCodeHarness;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\HarnessTransport;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Override;
 use Tests\TestCase;
 
 /**
- * Shapes here are copied from a live opencode 2.0.16, not invented — see the tree's CLAUDE.md.
+ * Shapes here are copied from a live opencode, not invented — the `fixtures/opencode-2.2.0` files are
+ * verbatim `/message`, `/permission` and `/form` responses from the image the Dockerfile builds; the
+ * inline ones are trimmed from the same captures. See the tree's CLAUDE.md.
  */
 class OpenCodeHarnessTest extends TestCase
 {
@@ -157,12 +160,12 @@ class OpenCodeHarnessTest extends TestCase
         $tick = $this->harness([
             'message' => $this->page(
                 [$this->assistantMessage(createdAt: 1000, text: 'tried')],
-                idle: ['type' => 'idle', 'time' => ['created' => 1200], 'outcome' => 'aborted']
+                idle: ['type' => 'idle', 'time' => ['created' => 1200], 'outcome' => 'interrupted']
             ),
         ])->poll($this->taskSession());
 
         $this->assertSame(HarnessStatusEnum::FAILED, $tick->status);
-        $this->assertSame('the run ended as "aborted"', $tick->error);
+        $this->assertSame('the run ended as "interrupted"', $tick->error);
     }
 
     /**
@@ -254,7 +257,7 @@ class OpenCodeHarnessTest extends TestCase
     }
 
     /**
-     * Pausing at a limit aborts the turn. Once resumed, that old `aborted` idle must not be read as the
+     * Pausing at a limit interrupts the turn. Once resumed, that old `interrupted` idle must not be read as the
      * outcome of the new turn, or the run is failed on the first tick after it was told to continue.
      */
     public function testAResumedSessionIgnoresTheTurnItsPauseAborted(): void
@@ -265,7 +268,7 @@ class OpenCodeHarnessTest extends TestCase
         $tick = $this->harness([
             'message' => $this->page([
                 $this->assistantMessage(createdAt: 1000, text: 'working'),
-                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'aborted'],
+                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'interrupted'],
                 $this->assistantMessage(createdAt: 2000, text: 'picking up where I stopped'),
             ], idle: null),
         ])->poll($session);
@@ -284,7 +287,7 @@ class OpenCodeHarnessTest extends TestCase
         $tick = $this->harness([
             'message' => $this->page([
                 $this->assistantMessage(createdAt: 1000, text: 'working'),
-                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'aborted'],
+                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'interrupted'],
                 $this->assistantMessage(createdAt: 2000, text: 'finished'),
             ]),
         ])->poll($session);
@@ -332,6 +335,188 @@ class OpenCodeHarnessTest extends TestCase
         $this->assertSame('cur_3', $page['cursor']);
     }
 
+    public function testASessionThatSucceededOn220ReadsIdleWithItsTokensModelAndLastWords(): void
+    {
+        $tick = $this->harness([
+            'message' => $this->fixture('success.messages'),
+        ])->poll($this->taskSession());
+
+        $this->assertSame(HarnessStatusEnum::IDLE, $tick->status);
+        $this->assertNull($tick->error);
+        $this->assertSame(6, $tick->usage->inputTokens);
+        $this->assertSame(39, $tick->usage->outputTokens);
+        $this->assertSame(3900, $tick->usage->cacheReadTokens);
+        $this->assertSame(3954, $tick->usage->cacheWriteTokens);
+        $this->assertSame(['gpt-6-luna'], $tick->modelsObserved);
+        $this->assertSame('done', $tick->lastSaid);
+        $this->assertSame(1, $tick->closedTurns);
+        $this->assertNotNull($tick->cursor);
+    }
+
+    /**
+     * 2.2.0 puts the structured error on the idle itself (2.0.16 left the idle bare and the error on
+     * the assistant message, which `testAProviderErrorOnTheAssistantMessageIsSurfacedWhenTheIdleCarriesNone`
+     * still covers). Either way the reader learns it was the key, not the run.
+     */
+    public function testAProviderAuthFailureOn220IsReadFromTheIdle(): void
+    {
+        $tick = $this->harness([
+            'message' => $this->fixture('provider-auth-failure.messages'),
+        ])->poll($this->taskSession());
+
+        $this->assertSame(HarnessStatusEnum::FAILED, $tick->status);
+        $this->assertStringStartsWith('provider.auth (HTTP 401): Incorrect API key provided', (string) $tick->error);
+        $this->assertSame(0, $tick->usage->totalTokens());
+    }
+
+    /**
+     * `/interrupt` closes the turn with `outcome: interrupted` and a bare idle; the step it cut carries
+     * `{type: aborted, message: "Step interrupted"}`. Every Kanvas path that interrupts either stops
+     * polling or moves `turn_offset` past this idle, so here it reads as the failure it is.
+     */
+    public function testAnInterruptedTurnOn220IsReportedFromTheStepItCut(): void
+    {
+        $tick = $this->harness([
+            'message' => $this->fixture('interrupted.messages'),
+        ])->poll($this->taskSession());
+
+        $this->assertSame(HarnessStatusEnum::FAILED, $tick->status);
+        $this->assertSame('aborted: Step interrupted', $tick->error);
+        $this->assertSame(3, $tick->closedTurns);
+        $this->assertSame(21, $tick->usage->inputTokens);
+        $this->assertSame(184, $tick->usage->reasoningTokens);
+    }
+
+    public function testAPendingFormOn220ParksTheSessionWithTheQuestionItAsks(): void
+    {
+        $tick = $this->harness([
+            'message' => $this->fixture('form-pending.messages'),
+            'form' => $this->fixture('form-pending.form'),
+        ])->poll($this->taskSession());
+
+        $this->assertSame(HarnessStatusEnum::AWAITING_ANSWER, $tick->status);
+        $this->assertCount(1, $tick->questions);
+        $this->assertSame('frm_1a17abcc8001lKXKsmCJ1HID8x', $tick->questions[0]->id);
+        $this->assertSame('Questions', $tick->questions[0]->title);
+        $this->assertSame(['Color'], $tick->questions[0]->fields);
+    }
+
+    /**
+     * The tool call a permission belongs to moved from `source.callID` to `source.id` in 2.2.0.
+     */
+    public function testAPendingPermissionOn220CarriesItsActionResourcesAndCallId(): void
+    {
+        $tick = $this->harness([
+            'message' => $this->fixture('permission-pending.messages'),
+            'permission' => $this->fixture('permission-pending.permission'),
+        ])->poll($this->taskSession());
+
+        $this->assertSame(HarnessStatusEnum::AWAITING_PERMISSION, $tick->status);
+        $this->assertCount(1, $tick->permissions);
+        $this->assertSame('shell', $tick->permissions[0]->action);
+        $this->assertSame(['ls -la'], $tick->permissions[0]->resources);
+        $this->assertSame('call_GGNNYrU1ijBmjfKvH4pWlhDh', $tick->permissions[0]->callId);
+    }
+
+    /**
+     * 2.2.0: `InvalidCursorError: Cursor cannot be combined with order`. The cursor is an opaque
+     * `{id, order, direction}`, so it already knows the order; naming it again fails the request — and
+     * with it every run longer than one page. The first page must still ask, because the default is
+     * newest-first.
+     */
+    public function testThePageAfterTheFirstIsRequestedByCursorAlone(): void
+    {
+        $sent = [];
+        $client = new Client($this->recordingTransport($sent, ['data' => [], 'cursor' => ['next' => null]]));
+
+        $client->messages('ses_x');
+        $client->messages('ses_x', 'cur_2');
+
+        parse_str(explode('?', $sent[0]['path'], 2)[1], $first);
+        parse_str(explode('?', $sent[1]['path'], 2)[1], $second);
+
+        $this->assertSame(['order' => 'asc', 'limit' => '100'], $first);
+        $this->assertSame(['cursor' => 'cur_2', 'limit' => '100'], $second);
+    }
+
+    public function testAStaleCursorMidReadRestartsFromTheTopOnce(): void
+    {
+        $firstPage = array_map(
+            fn (int $i): array => $this->assistantMessage(createdAt: 1000 + $i, text: 'step ' . $i),
+            range(1, 100)
+        );
+        $lastPage = [
+            'data' => [
+                $this->assistantMessage(createdAt: 2000, text: 'done'),
+                ['type' => 'idle', 'time' => ['created' => 2100], 'outcome' => 'succeeded'],
+            ],
+            'cursor' => ['next' => 'cur_3'],
+        ];
+        $requested = [];
+
+        $harness = new OpenCodeHarness(new Client($this->pagedTransport(
+            ['' => ['data' => $firstPage, 'cursor' => ['next' => 'cur_2']], 'cur_2' => $lastPage],
+            failOnce: 'cur_2',
+            requested: $requested
+        )));
+
+        $tick = $harness->poll($this->taskSession());
+
+        $this->assertSame(HarnessStatusEnum::IDLE, $tick->status);
+        $this->assertSame(1010, $tick->usage->inputTokens, 'the restart must not double-count the first page');
+        $this->assertSame(['', 'cur_2', '', 'cur_2'], $requested);
+    }
+
+    public function testASecondStaleCursorInOneReadIsAFault(): void
+    {
+        $firstPage = array_map(
+            fn (int $i): array => $this->assistantMessage(createdAt: 1000 + $i, text: 'step ' . $i),
+            range(1, 100)
+        );
+        $requested = [];
+
+        $harness = new OpenCodeHarness(new Client($this->pagedTransport(
+            ['' => ['data' => $firstPage, 'cursor' => ['next' => 'cur_2']]],
+            failOnce: 'cur_2',
+            requested: $requested,
+            failAlways: true
+        )));
+
+        $this->expectException(HarnessTransportException::class);
+        $this->expectExceptionMessage('InvalidCursorError');
+
+        $harness->poll($this->taskSession());
+    }
+
+    /**
+     * 409 `FormAlreadySettledError` — the form's twin of `PermissionNotFoundError`. Somebody answered
+     * first; the session has moved on, which is not a failure of this answer.
+     */
+    public function testAnsweringAFormSomebodyAlreadySettledIsNotAnError(): void
+    {
+        $harness = new OpenCodeHarness(new Client($this->transport(
+            ['form' => $this->fixture('form-pending.form')],
+            failing: ['form/frm_1a17abcc8001lKXKsmCJ1HID8x/reply' => 'Harness returned HTTP 409 for POST /api/session/ses_x/form/frm_1a17abcc8001lKXKsmCJ1HID8x/reply: {"_tag":"FormAlreadySettledError","id":"frm_1a17abcc8001lKXKsmCJ1HID8x","message":"Form already settled"}']
+        )));
+
+        $harness->answerQuestion($this->taskSession(), 'frm_1a17abcc8001lKXKsmCJ1HID8x', 'Red');
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testAnyOtherFormReplyFailureStillThrows(): void
+    {
+        $harness = new OpenCodeHarness(new Client($this->transport(
+            ['form' => $this->fixture('form-pending.form')],
+            failing: ['form/frm_1a17abcc8001lKXKsmCJ1HID8x/reply' => 'Harness returned HTTP 400 for POST reply: {"_tag":"FormInvalidAnswerError"}']
+        )));
+
+        $this->expectException(HarnessTransportException::class);
+        $this->expectExceptionMessage('FormInvalidAnswerError');
+
+        $harness->answerQuestion($this->taskSession(), 'frm_1a17abcc8001lKXKsmCJ1HID8x', 'Red');
+    }
+
     private function taskSession(): AgentTaskSession
     {
         $session = new AgentTaskSession();
@@ -372,15 +557,18 @@ class OpenCodeHarnessTest extends TestCase
 
     /**
      * @param array<string, array<string, mixed>> $payloads
+     * @param array<string, string>               $failing  path suffix => the transport error it raises
      */
-    private function transport(array $payloads): HarnessTransport
+    private function transport(array $payloads, array $failing = []): HarnessTransport
     {
-        return new class ($payloads) implements HarnessTransport {
+        return new class ($payloads, $failing) implements HarnessTransport {
             /**
              * @param array<string, array<string, mixed>> $payloads
+             * @param array<string, string>               $failing
              */
             public function __construct(
                 private readonly array $payloads,
+                private readonly array $failing,
             ) {
             }
 
@@ -394,6 +582,12 @@ class OpenCodeHarnessTest extends TestCase
                 // v2 paginates, so the path carries a query string the suffix match must ignore.
                 $route = explode('?', $path)[0];
 
+                foreach ($this->failing as $suffix => $message) {
+                    if (str_ends_with($route, '/' . $suffix)) {
+                        throw new HarnessTransportException($message);
+                    }
+                }
+
                 foreach ($this->payloads as $suffix => $payload) {
                     if (str_ends_with($route, '/' . $suffix)) {
                         return $payload;
@@ -406,16 +600,26 @@ class OpenCodeHarnessTest extends TestCase
     }
 
     /**
-     * @param array<string, array<string, mixed>> $pages message pages keyed by the cursor requested ('' for the first)
+     * @param array<string, array<string, mixed>> $pages      message pages keyed by the cursor requested ('' for the first)
+     * @param string|null                         $failOnce   a cursor that answers InvalidCursorError the first time it is asked for
+     * @param list<string>                        $requested  every cursor asked for, in order
      */
-    private function pagedTransport(array $pages): HarnessTransport
-    {
-        return new class ($pages) implements HarnessTransport {
+    private function pagedTransport(
+        array $pages,
+        ?string $failOnce = null,
+        array &$requested = [],
+        bool $failAlways = false
+    ): HarnessTransport {
+        return new class ($pages, $failOnce, $requested, $failAlways) implements HarnessTransport {
             /**
              * @param array<string, array<string, mixed>> $pages
+             * @param list<string>                        $requested
              */
             public function __construct(
                 private readonly array $pages,
+                private ?string $failOnce,
+                private array &$requested,
+                private readonly bool $failAlways,
             ) {
             }
 
@@ -433,8 +637,20 @@ class OpenCodeHarnessTest extends TestCase
                 }
 
                 parse_str($query, $params);
+                $cursor = (string) ($params['cursor'] ?? '');
+                $this->requested[] = $cursor;
 
-                return $this->pages[(string) ($params['cursor'] ?? '')] ?? ['data' => []];
+                if ($cursor !== '' && $cursor === $this->failOnce) {
+                    if (! $this->failAlways) {
+                        $this->failOnce = null;
+                    }
+
+                    throw new HarnessTransportException(
+                        'Harness returned HTTP 400 for GET ' . $route . ': {"_tag":"InvalidCursorError","message":"Cursor cannot be combined with order"}'
+                    );
+                }
+
+                return $this->pages[$cursor] ?? ['data' => []];
             }
         };
     }
@@ -468,6 +684,18 @@ class OpenCodeHarnessTest extends TestCase
                 return $this->response;
             }
         };
+    }
+
+    /**
+     * A verbatim response from opencode 2.2.0, captured through the image the Dockerfile builds.
+     *
+     * @return array<string, mixed>
+     */
+    private function fixture(string $name): array
+    {
+        $decoded = json_decode((string) file_get_contents(__DIR__ . '/fixtures/opencode-2.2.0/' . $name . '.json'), true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     /**

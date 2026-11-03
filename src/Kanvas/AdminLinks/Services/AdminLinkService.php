@@ -72,20 +72,42 @@ class AdminLinkService
 
     public function resolveHost(Apps $app): ?string
     {
-        $key = AppSettingsEnums::ADMIN_URL->getValue();
-
-        // Settings keys are free-form strings and the lookup is case-sensitive, so an app configured
-        // with ADMIN_URL reads back as "not configured" and the agent tells the user the platform
-        // cannot build links — with the value sitting right there in apps_settings.
-        $host = $app->get($key)
-            ?: $app->get(strtoupper($key))
-            ?: config('kanvas.app.frontend_url');
+        $host = $this->setting($app, AppSettingsEnums::ADMIN_URL) ?: config('kanvas.app.frontend_url');
 
         if (empty($host)) {
             return null;
         }
 
         return rtrim((string) $host, '/');
+    }
+
+    /**
+     * Where a console-sent admin invite lands. Null means there is no console to point at (a frontend
+     * such as localhost has no app. prefix to rewrite), so callers keep the app frontend.
+     */
+    public function consoleHost(Apps $app): ?string
+    {
+        $configured = $this->setting($app, AppSettingsEnums::CONSOLE_URL) ?: config('kanvas.app.console_url');
+
+        if (! empty($configured)) {
+            return rtrim((string) $configured, '/');
+        }
+
+        $frontend = (string) config('kanvas.app.frontend_url');
+        $derived = preg_replace('#^(https?://)app\.#i', '$1console.', $frontend, 1, $replaced);
+
+        return $replaced === 1 ? rtrim($derived, '/') : null;
+    }
+
+    /**
+     * Settings keys are free-form strings and the lookup is case-sensitive: an app that stored the key
+     * in upper case reads back as unconfigured unless both spellings are tried.
+     */
+    private function setting(Apps $app, AppSettingsEnums $key): mixed
+    {
+        $name = $key->getValue();
+
+        return $app->get($name) ?: $app->get(strtoupper($name));
     }
 
     private function isConsoleHost(string $host): bool

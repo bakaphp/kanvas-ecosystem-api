@@ -118,10 +118,12 @@ class BuildCodingImageCommand extends Command
                 $client->writeFile($directory . '/' . $name, $contents);
             }
 
+            // A plain variable, not `${PIPESTATUS[0]}`: that is bash-only and empty under the zsh a Mac
+            // gives an SSH session.
             $result = $client->exec(
                 'cd ' . escapeshellarg($directory)
                 . ' && docker build ' . ($this->option('no-cache') ? '--no-cache ' : '')
-                . '-t ' . escapeshellarg($image) . ' . 2>&1 | tail -5; echo "EXIT:${PIPESTATUS[0]}"',
+                . '-t ' . escapeshellarg($image) . ' . > build.log 2>&1; rc=$?; tail -5 build.log; echo "EXIT:$rc"',
                 1800
             );
 

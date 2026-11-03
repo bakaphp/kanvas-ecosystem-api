@@ -98,7 +98,7 @@ class HarnessFactory
      */
     private static function transportFor(AgentTaskSession $session): HarnessTransport
     {
-        if ($session->endpoint === null || $session->endpoint === '') {
+        if (! $session->isProvisioned()) {
             throw new ValidationException('Session ' . $session->uuid . ' has no endpoint; it was never provisioned');
         }
 

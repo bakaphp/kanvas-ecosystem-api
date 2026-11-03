@@ -53,7 +53,8 @@ class SweepCodingSessionsCommand extends Command
                         $stillborn->whereNull('heartbeat_at')->where('created_at', '<', $staleBefore);
                     });
             })
-            ->get();
+            ->get()
+            ->filter(fn (AgentTaskSession $session): bool => $this->isStale($session));
 
         if ($sessions->isEmpty()) {
             $this->info('Nothing to sweep.');
@@ -62,9 +63,7 @@ class SweepCodingSessionsCommand extends Command
         }
 
         foreach ($sessions as $session) {
-            $reason = $session->heartbeat_at === null
-                ? 'The session never started — it was cleaned up.'
-                : 'No activity for ' . self::STALE_MINUTES . ' minutes — the session was interrupted.';
+            $reason = $this->reasonFor($session);
 
             $this->line(($dryRun ? '[dry-run] ' : '') . $session->uuid . ' · ' . $session->status . ' · ' . $reason);
 
@@ -76,6 +75,39 @@ class SweepCodingSessionsCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * A row that never reached a machine is a queue problem, not a hung runtime, and the PM acts on
+     * the difference: it cancels and re-dispatches a "hung" job, which only restarts the wait.
+     */
+    private function reasonFor(AgentTaskSession $session): string
+    {
+        $stage = $session->launchStage();
+
+        if ($stage !== null && ! $session->isProvisioned()) {
+            return 'The launch stalled while ' . $stage->label() . ' — no progress for '
+                . $stage->staleMinutes(self::STALE_MINUTES) . ' minutes.';
+        }
+
+        if (! $session->isProvisioned()) {
+            return 'The launch never started within ' . self::STALE_MINUTES
+                . ' minutes — the coding queue did not pick it up; nothing ran on a machine.';
+        }
+
+        return 'No activity for ' . self::STALE_MINUTES . ' minutes — the session was interrupted.';
+    }
+
+    /**
+     * The query uses the default window; a launch stage can only lengthen it (a mirror clone is
+     * silent for up to 15 minutes by design), so the stage is checked here rather than in SQL.
+     */
+    private function isStale(AgentTaskSession $session): bool
+    {
+        $minutes = $session->launchStage()?->staleMinutes(self::STALE_MINUTES) ?? self::STALE_MINUTES;
+        $lastSeen = $session->heartbeat_at ?? $session->created_at;
+
+        return $lastSeen === null || $lastSeen->lt(Carbon::now()->subMinutes($minutes));
     }
 
     private function sweep(AgentTaskSession $session, string $reason): void

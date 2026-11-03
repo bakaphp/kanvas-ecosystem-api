@@ -82,6 +82,7 @@ class CheckHarnessCodingJobTool extends Tool implements RequiresSystemAgent
             [
                 'job_id' => $job_id,
                 'job_status' => $session->status,
+                'launch_stage' => $session->launchStage()?->label(),
                 'waiting_on_a_human' => $waiting,
                 ...($waiting ? $this->whatItIsWaitingOn($session) : []),
                 'elapsed_seconds' => $session->elapsedSeconds(),

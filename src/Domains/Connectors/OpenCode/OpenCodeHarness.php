@@ -124,9 +124,26 @@ class OpenCodeHarness implements CodingHarness
     {
         $messages = [];
         $cursor = null;
+        $restarted = false;
 
         for ($pages = 0; $pages < self::MAX_MESSAGE_PAGES; $pages++) {
-            $page = $this->client->messages($sessionId, $cursor, self::MESSAGE_PAGE_SIZE);
+            try {
+                $page = $this->client->messages($sessionId, $cursor, self::MESSAGE_PAGE_SIZE);
+            } catch (HarnessTransportException $e) {
+                // A cursor only goes stale between two pages of one read, when the runtime compacted
+                // or restarted in the gap. The history is still there; it just has to be read from the
+                // top again. Once — a second InvalidCursorError is a real fault.
+                if ($restarted || ! self::isApiError($e, 'InvalidCursor')) {
+                    throw $e;
+                }
+
+                $restarted = true;
+                $messages = [];
+                $cursor = null;
+
+                continue;
+            }
+
             $messages = [...$messages, ...$page['messages']];
 
             if (count($page['messages']) < self::MESSAGE_PAGE_SIZE || $page['cursor'] === $cursor) {
@@ -178,7 +195,7 @@ class OpenCodeHarness implements CodingHarness
         } catch (HarnessTransportException $e) {
             // Answering twice is PermissionNotFoundError. Someone else decided first, which is a race
             // we tolerate rather than an error worth surfacing.
-            if (! str_contains($e->getMessage(), 'PermissionNotFound')) {
+            if (! self::isApiError($e, 'PermissionNotFound')) {
                 throw $e;
             }
         }
@@ -217,7 +234,14 @@ class OpenCodeHarness implements CodingHarness
             );
         }
 
-        $this->client->replyForm($sessionId, $questionId, [$keys[0] => $answer]);
+        try {
+            $this->client->replyForm($sessionId, $questionId, [$keys[0] => $answer]);
+        } catch (HarnessTransportException $e) {
+            // The form's twin of PermissionNotFound: somebody answered first, the session has moved on.
+            if (! self::isApiError($e, 'FormAlreadySettled')) {
+                throw $e;
+            }
+        }
     }
 
     #[Override]
@@ -479,11 +503,43 @@ class OpenCodeHarness implements CodingHarness
                 id: $id,
                 action: (string) ($permission['action'] ?? 'unknown'),
                 resources: is_array($resources) ? array_values(array_filter($resources, 'is_string')) : [],
-                callId: is_string($permission['source']['callID'] ?? null) ? $permission['source']['callID'] : null,
+                callId: $this->permissionCallId($permission),
             );
         }
 
         return $mapped;
+    }
+
+    /**
+     * The transport folds the API's `{_tag: "XError"}` body into the exception message, so the tag is
+     * the only stable thing to match on — status codes differ between the errors that mean "already
+     * decided" (404, 409) and the ones that mean "stop" (400).
+     */
+    private static function isApiError(HarnessTransportException $e, string $tag): bool
+    {
+        return str_contains($e->getMessage(), $tag);
+    }
+
+    /**
+     * `source.id` from 2.2.0; `source.callID` on 2.0.16.
+     *
+     * @param array<string, mixed> $permission
+     */
+    private function permissionCallId(array $permission): ?string
+    {
+        $source = $permission['source'] ?? null;
+
+        if (! is_array($source)) {
+            return null;
+        }
+
+        foreach (['id', 'callID'] as $key) {
+            if (is_string($source[$key] ?? null) && $source[$key] !== '') {
+                return $source[$key];
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -525,10 +581,14 @@ class OpenCodeHarness implements CodingHarness
      * v2 ends every turn with an `idle` message carrying its outcome, so a failure is a fact on the
      * conversation rather than something inferred.
      *
-     * The idle message may carry the error, but on 2.0.16 it does not: a provider that answers 402 leaves
-     * a bare `{outcome: "failed"}` idle and puts the structured error — type, message, HTTP status — on
-     * the assistant message it ended (`finish: "error"`). Without that fallback an out-of-credits run
-     * reads the same as any other failure.
+     * The idle message carries the error from 2.2.0 on; 2.0.16 left a bare `{outcome: "failed"}` idle and
+     * put the structured error — type, message, HTTP status — on the assistant message it ended
+     * (`finish: "error"`). Both are read, idle first, so an out-of-credits run never reads the same as
+     * any other failure on either version.
+     *
+     * `interrupted` is the outcome of a turn Kanvas itself cut short (the time or cost limit, a cancel):
+     * every caller that interrupts either stops polling or moves `turn_offset` past this idle, so it is
+     * reported like any other non-success here rather than special-cased on a guess about who did it.
      *
      * It is still not the whole story: a provider that cannot be resolved never reaches the API at all
      * and appears only in the container log. Absence of an error here is not evidence of health — the
