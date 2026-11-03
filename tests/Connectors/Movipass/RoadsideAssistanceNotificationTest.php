@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Tests\Connectors\Movipass;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Connectors\Movipass\Notifications\Channels\MovipassOneSignalChannel;
 use Kanvas\Connectors\Movipass\Notifications\PendingOrderAssignmentNotification;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
+use Kanvas\Connectors\Movipass\Services\TechniciansOneSignalService;
 use Kanvas\Notifications\Channels\KanvasDatabase;
 use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Models\UsersNotificationsSettings;
+use Kanvas\Notifications\Services\OneSignalService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -48,7 +52,8 @@ final class RoadsideAssistanceNotificationTest extends TestCase
         $this->assertSame(['push', 'database', 'expo'], $notification->channels());
 
         $resolved = $notification->via($this->authUser);
-        $this->assertContains(OneSignalNotificationChannel::class, $resolved);
+        $this->assertContains(MovipassOneSignalChannel::class, $resolved);
+        $this->assertNotContains(OneSignalNotificationChannel::class, $resolved);
         $this->assertContains(ExpoChannel::class, $resolved);
         $this->assertContains(KanvasDatabase::class, $resolved);
     }
@@ -88,7 +93,8 @@ final class RoadsideAssistanceNotificationTest extends TestCase
         );
 
         $resolved = $notification->via($this->authUser);
-        $this->assertContains(OneSignalNotificationChannel::class, $resolved);
+        $this->assertContains(MovipassOneSignalChannel::class, $resolved);
+        $this->assertNotContains(OneSignalNotificationChannel::class, $resolved);
         $this->assertContains(ExpoChannel::class, $resolved);
     }
 
@@ -140,6 +146,61 @@ final class RoadsideAssistanceNotificationTest extends TestCase
         $expo = $notification->toExpo($this->authUser)->toArray();
         $this->assertNotSame('', $expo['title']);
         $this->assertNotSame('', $expo['body']);
+    }
+
+    public function testOrderOwnerPushesThroughUsersOneSignalApp(): void
+    {
+        $notification = $this->createStatusNotification();
+
+        $this->assertFalse($notification->pushesToTechniciansApp($this->authUser));
+        $this->assertSame(
+            OneSignalService::class,
+            $notification->oneSignalServiceFor($this->authUser)::class
+        );
+    }
+
+    public function testMechanicPushesThroughTechniciansOneSignalApp(): void
+    {
+        $notification = $this->createStatusNotification();
+        $mechanic = Users::factory()->create();
+
+        $this->apps->set(ConfigurationEnum::ONE_SIGNAL_TECHNICIANS_APP_ID->value, 'test-technicians-app-id');
+        $this->apps->set(ConfigurationEnum::ONE_SIGNAL_TECHNICIANS_REST_API_KEY->value, 'test-technicians-rest-api-key');
+
+        try {
+            $this->assertTrue($notification->pushesToTechniciansApp($mechanic));
+            $this->assertInstanceOf(
+                TechniciansOneSignalService::class,
+                $notification->oneSignalServiceFor($mechanic)
+            );
+        } finally {
+            $this->apps->del(ConfigurationEnum::ONE_SIGNAL_TECHNICIANS_APP_ID->value);
+            $this->apps->del(ConfigurationEnum::ONE_SIGNAL_TECHNICIANS_REST_API_KEY->value);
+        }
+    }
+
+    public function testMechanicFallsBackToUsersOneSignalAppWithoutTechniciansKeys(): void
+    {
+        $notification = $this->createStatusNotification();
+        $mechanic = Users::factory()->create();
+
+        $this->apps->del(ConfigurationEnum::ONE_SIGNAL_TECHNICIANS_APP_ID->value);
+        $this->apps->del(ConfigurationEnum::ONE_SIGNAL_TECHNICIANS_REST_API_KEY->value);
+
+        $this->assertSame(
+            OneSignalService::class,
+            $notification->oneSignalServiceFor($mechanic)::class
+        );
+    }
+
+    private function createStatusNotification(): RoadsideAssistanceStatusNotification
+    {
+        return new RoadsideAssistanceStatusNotification(
+            $this->createRoadsideOrder(),
+            'Mechanic on site',
+            'The mechanic has arrived at your location.',
+            'on_site',
+        );
     }
 
     private function createRoadsideOrder(): Order

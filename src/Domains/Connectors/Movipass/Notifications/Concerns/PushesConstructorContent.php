@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Notifications\Concerns;
 
+use Kanvas\Connectors\Movipass\Notifications\Channels\MovipassOneSignalChannel;
+use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
 use Kanvas\Notifications\Concerns\PushesTitleAndMessageFromData;
 
 /**
@@ -14,6 +16,19 @@ use Kanvas\Notifications\Concerns\PushesTitleAndMessageFromData;
 trait PushesConstructorContent
 {
     use PushesTitleAndMessageFromData;
+
+    /**
+     * 'push' resolves to the shared OneSignal channel, which only knows the users app keys.
+     */
+    public function via(object $notifiable): array
+    {
+        return array_map(
+            fn (string $channel): string => $channel === OneSignalNotificationChannel::class
+                ? MovipassOneSignalChannel::class
+                : $channel,
+            parent::via($notifiable)
+        );
+    }
 
     protected function getPushTemplate(): string
     {
