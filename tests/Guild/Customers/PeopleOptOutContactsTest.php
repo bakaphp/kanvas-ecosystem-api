@@ -41,8 +41,10 @@ final class PeopleOptOutContactsTest extends TestCase
         $this->contact($people, ContactTypeEnum::CELLPHONE, '7875550103');
 
         $this->assertSame(1, $people->optOutEmailContacts());
+        $this->travel(1)->seconds();
         $this->assertSame(0, $people->optOutEmailContacts(), 'a second call changes nothing');
         $this->assertSame(1, $people->optOutPhoneContacts());
+        $this->travel(1)->seconds();
         $this->assertSame(0, $people->optOutPhoneContacts(), 'neither does a second phone call');
     }
 

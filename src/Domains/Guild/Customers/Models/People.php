@@ -528,12 +528,18 @@ class People extends BaseModel
     }
 
     /**
+     * Returns how many contacts actually changed. Rows already opted out are left out of the
+     * UPDATE on purpose: Eloquent bumps `updated_at` on a bulk update, so without the guard a row
+     * that was already opted out counts as changed whenever the clock has moved a second, and the
+     * callers that act on `> 0` (the Reynolds consent note) would fire again.
+     *
      * @param list<int> $types
      */
     private function optOutContactsOfTypes(array $types): int
     {
         return $this->contacts()
             ->whereIn('contacts_types_id', $types)
+            ->where('is_opt_out', 0)
             ->update(['is_opt_out' => 1]);
     }
 
