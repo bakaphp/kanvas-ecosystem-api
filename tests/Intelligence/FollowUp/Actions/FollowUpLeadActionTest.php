@@ -134,6 +134,8 @@ class FollowUpLeadActionTest extends TestCase
     {
         $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
         $lead->close(); // leads_status_id outside the open set → hasOpenLeadStatus() false
+        // Closing turns the follow-up off (LeadObserver); turn it back on so this hits the status gate.
+        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpValueEnum::ON()->value);
 
         $outcome = new FollowUpLeadAction(
             app: $this->testApp,
@@ -156,6 +158,7 @@ class FollowUpLeadActionTest extends TestCase
         ];
         $lead = $this->seedLeadWithStageConfig($cfg);
         $lead->close();
+        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpValueEnum::ON()->value);
 
         $outcome = new FollowUpLeadAction(
             app: $this->testApp,
