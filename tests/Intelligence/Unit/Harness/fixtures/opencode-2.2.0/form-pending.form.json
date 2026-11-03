@@ -1,0 +1,37 @@
+{
+  "data": [
+    {
+      "id": "frm_1a17abcc8001lKXKsmCJ1HID8x",
+      "sessionID": "ses_e5e855c32ffeykjwXjUIj5hbvR",
+      "title": "Questions",
+      "metadata": {
+        "kind": "question",
+        "tool": {
+          "messageID": "msg_1a17ab56e001EdxcsL4Z8LznYR",
+          "id": "call_RAMYWbYpZ07RJ251pYaUbh7P"
+        }
+      },
+      "fields": [
+        {
+          "key": "q0",
+          "title": "Color",
+          "description": "Which color do you prefer?",
+          "type": "string",
+          "options": [
+            {
+              "value": "Red",
+              "label": "Red",
+              "description": "Choose red"
+            },
+            {
+              "value": "Blue",
+              "label": "Blue",
+              "description": "Choose blue"
+            }
+          ],
+          "custom": true
+        }
+      ]
+    }
+  ]
+}

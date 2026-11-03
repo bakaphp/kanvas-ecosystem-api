@@ -110,6 +110,19 @@ class CodingSmokeTestCommand extends Command
 
             $session->refresh();
 
+            // Launch is a queued job: a failure there lands on the row while this loop is still watching.
+            if ($session->harnessStatus()->isTerminal()) {
+                $this->error('Ended as ' . (string) $session->status . ': ' . (string) $session->error_message);
+
+                return self::FAILURE;
+            }
+
+            if (! $session->isProvisioned()) {
+                $this->line('  [' . $tickNumber . '/' . $maxTicks . '] provisioning…');
+
+                continue;
+            }
+
             try {
                 $tick = HarnessFactory::forSession($session)->poll($session);
             } catch (Throwable $e) {
@@ -145,6 +158,14 @@ class CodingSmokeTestCommand extends Command
 
                 $this->newLine();
                 $this->info('Finished: ' . $finalized->status);
+
+                // "completed" covers a push that failed; the outcome's reason lives on the plan, not the row.
+                $reason = $finalized->plan()->value('error_message');
+
+                if (is_string($reason) && $reason !== '') {
+                    $this->warn($reason);
+                }
+
                 $this->line('Cost: $' . $finalized->estimated_cost);
 
                 if ($finalized->handoff !== null) {
