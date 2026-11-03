@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Services;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -24,6 +27,40 @@ use Kanvas\Social\Messages\Models\Message;
  */
 final class LeadFollowUpEligibilityService
 {
+    /**
+     * Open by `leads_status_id`, the column CRM pulls and the UI write. FollowUpLeadAction's
+     * hasOpenLeadStatus() gate stays the authoritative check.
+     */
+    public function openLeads(Apps $app, Companies $company): Builder
+    {
+        $startDate = new LeadConfigurationService()->getFollowUpStartDate($company);
+
+        return Lead::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->hasOpenLeadStatus($company)
+            ->when($startDate, fn ($query) => $query->where('created_at', '>=', $startDate));
+    }
+
+    public function candidates(Apps $app, Companies $company): Builder
+    {
+        return $this->openLeads($app, $company)
+            ->whereNotNull('pipeline_stage_id')
+            ->whereHas(
+                'stage',
+                fn ($q) => $q
+                    ->where('is_deleted', 0)
+                    ->whereJsonContains('config->follow_up->enabled', true)
+                    ->where(
+                        fn ($inner) => $inner
+                            ->whereJsonDoesntContain('config->stage_meta->is_terminal', true)
+                            ->orWhereNull('config->stage_meta->is_terminal'),
+                    ),
+            )
+            ->with('stage');
+    }
+
     /**
      * Null means queue. Leads due for exhaustion (max retries, handoff) are queued on purpose:
      * only the action marks them exhausted and applies the stage's exhausted action, after which

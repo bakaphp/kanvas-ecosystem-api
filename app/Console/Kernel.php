@@ -11,6 +11,8 @@ use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
 use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
+use App\Console\Commands\Connectors\SalesAssist\Supervisor\DispatchSupervisorReviewsCommand;
+use App\Console\Commands\Connectors\SalesAssist\Supervisor\SendSupervisorDigestCommand;
 use App\Console\Commands\CustomerSuccess\Schedules\CustomerSuccessSchedule;
 use App\Console\Commands\Ecosystem\Companies\FlagOverdueCorporateApplicationsCommand;
 use App\Console\Commands\Ecosystem\Imports\RunImportSourcesCommand;
@@ -123,6 +125,10 @@ class Kernel extends ConsoleKernel
         // Lead follow-up v2 — hourly fan-out + daily summary. Timing map +
         // rationale live in LeadFollowUpSchedule.
         LeadFollowUpSchedule::register($schedule);
+
+        // Each job decides in the dealer's own time whether conversations are reviewed.
+        $schedule->command(DispatchSupervisorReviewsCommand::class)->hourly()->withoutOverlapping(10)->onOneServer()->runInBackground();
+        $schedule->command(SendSupervisorDigestCommand::class)->dailyAt('12:00')->withoutOverlapping(60)->onOneServer()->runInBackground();
 
         // Scribe — daily AR-aging fan-out (per (app, company) tuple with open AR).
         ScribeSchedule::register($schedule);
