@@ -15,6 +15,8 @@ use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
 use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Browser\BrowserSession;
+use Kanvas\Intelligence\Agents\Neuron\Browser\BrowserSessionFactory;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\CancelsOnRequestMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\KanvasToolSearchMiddleware;
@@ -113,6 +115,7 @@ trait HasKanvasAgentBehavior
     private array $toolSearchPool = [];
 
     protected ?Lead $currentLead = null;
+    private ?BrowserSession $browserSession = null;
 
     /**
      * The human this turn is answering, when it can't be read off the session entity — an @mention
@@ -387,6 +390,7 @@ trait HasKanvasAgentBehavior
     public function toolDependencyCandidates(): array
     {
         return array_values(array_filter([
+            $this->browserSession(),
             $this->app,
             $this->company,
             $this->actingUser(),
@@ -396,6 +400,21 @@ trait HasKanvasAgentBehavior
             $this->entity,
             $this->companyScope(),
         ]));
+    }
+
+    /**
+     * One lazily-connected browser session per agent handler instance. Agent handlers are
+     * constructed per run, so long-lived queue workers never share a BrowserContext.
+     */
+    public function browserSession(): BrowserSession
+    {
+        return $this->browserSession ??= app(BrowserSessionFactory::class)->create();
+    }
+
+    public function closeToolResources(): void
+    {
+        $this->browserSession?->close();
+        $this->browserSession = null;
     }
 
     /**

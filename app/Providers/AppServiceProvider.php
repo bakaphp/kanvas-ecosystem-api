@@ -19,6 +19,8 @@ use Kanvas\Social\Messages\Approvals\ChannelMemberApproverResolver;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Laravel\Ai\Contracts\ConversationStore;
 use Laravel\Cashier\Cashier;
+use Laravel\Mcp\Client;
+use Laravel\Mcp\Client\ClientManager;
 use Laravel\Sanctum\Sanctum;
 use Override;
 use Silber\Bouncer\BouncerFacade as Bouncer;
@@ -49,8 +51,12 @@ class AppServiceProvider extends ServiceProvider
      *
      * @return void
      */
-    public function boot()
+    public function boot(ClientManager $mcpClients)
     {
+        $mcpClients->registerClient('playwright', fn (): Client => Client::web(
+            (string) config('services.playwright_mcp.url')
+        )->withTimeout((float) config('services.playwright_mcp.timeout')));
+
         Sanctum::usePersonalAccessTokenModel(Sessions::class);
         Cashier::useCustomerModel(AppsStripeCustomer::class);
         Bouncer::cache(); // Enable caching for Bouncer to use redis

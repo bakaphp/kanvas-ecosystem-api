@@ -60,6 +60,13 @@ RUN ARCH=$(dpkg --print-architecture) && \
     dpkg -i /tmp/wkhtmltox.deb || apt-get install -f -y && \
     rm /tmp/wkhtmltox.deb
 
+# Node runs the lightweight Playwright PHP protocol bridge. Chromium remains in
+# the separate browser container.
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 # --chown here instead of a later `chown -R`/`chmod -R` over the tree: a recursive metadata change
 # rewrites every file into a new layer, which doubled the image (two 14.9 GB layers).
 COPY --chown=www-data:www-data . /var/www/html/
@@ -85,6 +92,9 @@ RUN git config --global --add safe.directory /var/www/html
 
 # Install PHP dependencies for production
 RUN composer install --no-dev --optimize-autoloader
+
+RUN npm install --prefix vendor/playwright-php/playwright/bin \
+    --save-exact --ignore-scripts playwright@1.63.0
 
 # Expose the required port
 EXPOSE 8000
