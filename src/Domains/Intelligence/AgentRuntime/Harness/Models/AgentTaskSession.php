@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Models;
 
+use Baka\Support\Str;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessUsage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\LaunchStageEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Kanvas\Intelligence\Models\BaseModel;
@@ -24,6 +26,7 @@ use Override;
  * @property int $apps_id
  * @property int $companies_id
  * @property int|null $users_id
+ * @property string|null $launch_stage
  * @property int|null $agent_id
  * @property int|null $plan_id
  * @property int $task_id
@@ -125,6 +128,29 @@ class AgentTaskSession extends BaseModel
     public function isLive(): bool
     {
         return ! $this->harnessStatus()->isTerminal();
+    }
+
+    /**
+     * The launch job writes the endpoint last; a row without one never reached a machine.
+     */
+    public function isProvisioned(): bool
+    {
+        return Str::trimToNull($this->endpoint) !== null;
+    }
+
+    public function launchStage(): ?LaunchStageEnum
+    {
+        return $this->launch_stage === null ? null : LaunchStageEnum::tryFrom($this->launch_stage);
+    }
+
+    /**
+     * Saved quietly: a stage change is progress, not an outcome, and nothing should fire on it.
+     */
+    public function markLaunchStage(?LaunchStageEnum $stage): void
+    {
+        $this->launch_stage = $stage?->value;
+        $this->touchHeartbeat();
+        $this->saveQuietly();
     }
 
     public function usage(): HarnessUsage

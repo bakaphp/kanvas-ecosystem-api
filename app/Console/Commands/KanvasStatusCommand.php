@@ -35,6 +35,7 @@ class KanvasStatusCommand extends Command
         'broadcasts',
         'ledger',
         'agent-runtime',
+        'coding',
         'agent-chat',
         'agent-task-worker',
         'nervous-system-project',

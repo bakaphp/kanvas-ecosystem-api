@@ -17,6 +17,7 @@ use Kanvas\Connectors\OpenCode\Services\SessionContextBuilder;
 use Kanvas\Connectors\OpenCode\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\LaunchStageEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
@@ -93,16 +94,17 @@ class ProvisionCodingSessionAction
         $machine = $this->resolveMachine();
 
         // Recorded BEFORE the container exists, not after provisioning succeeds. The reaper finds work
-        // by looking at the machines sessions point at, so a crash between `docker run` and the save
-        // below would otherwise strand a container on a machine nothing knows to sweep.
+        // by looking at the machines sessions point at, so a crash between `docker run` and the final
+        // save would otherwise strand a container on a machine nothing knows to sweep.
         $this->session->agent_machine_id = $machine->getId();
-        $this->session->saveOrFail();
+        $this->session->markLaunchStage(LaunchStageEnum::STARTING_CONTAINER);
 
         $runtime = new EnsureAgentCodingContainerAction($agent, $machine, $this->app)->execute();
 
         $client = SshClient::fromMachine($machine);
 
         try {
+            $this->session->markLaunchStage(LaunchStageEnum::PREPARING_WORKTREE);
             $workspace = $this->prepareWorkspace($client, $runtime['worktreeRoot']);
             $this->writeRuntimeConfig($client, $workspace);
         } finally {
@@ -256,12 +258,7 @@ class ProvisionCodingSessionAction
 
     private function resolveMachine(): AgentMachine
     {
-        $machine = $this->configuredMachine($this->session->agent) ?? AgentMachine::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->where('is_active', 1)
-            ->first();
+        $machine = $this->machineFor($this->session->agent, $this->app, $this->company);
 
         if ($machine === null) {
             throw new ValidationException(

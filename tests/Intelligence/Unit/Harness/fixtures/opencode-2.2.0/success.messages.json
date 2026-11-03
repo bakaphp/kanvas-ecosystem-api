@@ -1,0 +1,146 @@
+{
+  "data": [
+    {
+      "id": "msg_1a17aa43500120oeF7GJLAr7e1",
+      "time": {
+        "created": 1793710531924
+      },
+      "text": "Create a file named hello.txt containing the word hi. Then reply with exactly: done",
+      "type": "user"
+    },
+    {
+      "id": "msg_1a17aa55c001S6Ly23iF5UBL0w",
+      "time": {
+        "created": 1793710531934,
+        "streamed": 1793710534232,
+        "completed": 1793710534261
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "oai",
+        "variant": "default"
+      },
+      "content": [
+        {
+          "type": "tool",
+          "id": "call_EQ2ew0XNXlQN2rCrOsNJrYkd",
+          "name": "patch",
+          "executed": false,
+          "native": {
+            "itemId": "fc_03d40758fdfffac6016ae9d9c5e55c87d1b0ca5f2f67e15aa8"
+          },
+          "state": {
+            "status": "completed",
+            "input": {
+              "patchText": "*** Begin Patch\n*** Add File: hello.txt\n+hi\n*** End Patch"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Success. Updated the following files:\nA hello.txt"
+              }
+            ],
+            "metadata": {
+              "files": [
+                {
+                  "file": "hello.txt",
+                  "patch": "Index: /workspaces/t1/hello.txt\n===================================================================\n--- /workspaces/t1/hello.txt\n+++ /workspaces/t1/hello.txt\n@@ -0,0 +1,1 @@\n+hi\n",
+                  "status": "added",
+                  "additions": 1,
+                  "deletions": 0
+                }
+              ],
+              "truncated": false
+            }
+          },
+          "time": {
+            "created": 1793710533896,
+            "ran": 1793710534196,
+            "completed": 1793710534202
+          }
+        }
+      ],
+      "snapshot": {
+        "start": "f4e0f13b4834679d54b42e607bf566826b560342",
+        "end": "a55bfd6fcd5f9a644657fcec3d33ba23b0b535c5",
+        "files": [
+          "hello.txt"
+        ]
+      },
+      "finish": "tool-calls",
+      "native": {
+        "responseId": "resp_03d40758fdfffac6016ae9d9c4c2b887d1b478157321ad6b45",
+        "serviceTier": "default"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 3,
+        "output": 34,
+        "reasoning": 0,
+        "cache": {
+          "read": 0,
+          "write": 3900
+        }
+      }
+    },
+    {
+      "id": "msg_1a17aae7b001SnVTH89wOdyQWo",
+      "time": {
+        "created": 1793710534269,
+        "streamed": 1793710535888,
+        "completed": 1793710535897
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "oai",
+        "variant": "default"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "done",
+          "native": {
+            "itemId": "msg_03d40758fdfffac6016ae9d9c7d36c87d198b86c51421c7226",
+            "phase": "final_answer"
+          }
+        }
+      ],
+      "snapshot": {
+        "start": "a55bfd6fcd5f9a644657fcec3d33ba23b0b535c5",
+        "end": "a55bfd6fcd5f9a644657fcec3d33ba23b0b535c5",
+        "files": []
+      },
+      "finish": "stop",
+      "native": {
+        "responseId": "resp_03d40758fdfffac6016ae9d9c6904487d1b51cd1be8a0a601d",
+        "serviceTier": "default"
+      },
+      "cost": 0,
+      "tokens": {
+        "input": 3,
+        "output": 5,
+        "reasoning": 0,
+        "cache": {
+          "read": 3900,
+          "write": 54
+        }
+      }
+    },
+    {
+      "id": "msg_1a17ab4db002s6KMkQ8X5d28rj",
+      "time": {
+        "created": 1793710535899
+      },
+      "type": "idle",
+      "outcome": "succeeded"
+    }
+  ],
+  "cursor": {
+    "previous": "eyJpZCI6Im1zZ18xYTE3YWE0MzUwMDEyMG9lRjdHSkxBcjdlMSIsIm9yZGVyIjoiYXNjIiwiZGlyZWN0aW9uIjoicHJldmlvdXMifQ",
+    "next": "eyJpZCI6Im1zZ18xYTE3YWI0ZGIwMDJzNktNa1E4WDVkMjhyaiIsIm9yZGVyIjoiYXNjIiwiZGlyZWN0aW9uIjoibmV4dCJ9"
+  }
+}

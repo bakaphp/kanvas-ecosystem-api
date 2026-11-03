@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\OpenCode;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\HarnessTransport;
 
 /**
- * Thin typed wrapper over the opencode server API, verified against **2.0.16** via `GET /openapi.json`.
+ * Thin typed wrapper over the opencode server API, verified against **2.2.0** via `GET /openapi.json`.
  *
  * v2 is not a compatible successor to 1.18.x and this client will not work against it. What moved:
  *
@@ -99,11 +99,12 @@ class Client
      */
     public function messages(string $sessionId, ?string $cursor = null, int $limit = 100): array
     {
-        $query = ['order' => 'asc', 'limit' => $limit];
-
-        if ($cursor !== null) {
-            $query['cursor'] = $cursor;
-        }
+        // The cursor carries the order (it is an opaque `{id, order, direction}`), and 2.2.0 rejects a
+        // request that names both with `InvalidCursorError: Cursor cannot be combined with order`. The
+        // first page must still ask for `asc`: the default is newest-first.
+        $query = $cursor === null
+            ? ['order' => 'asc', 'limit' => $limit]
+            : ['cursor' => $cursor, 'limit' => $limit];
 
         $response = $this->transport->request(
             'GET',

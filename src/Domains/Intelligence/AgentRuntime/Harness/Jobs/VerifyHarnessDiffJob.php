@@ -40,7 +40,7 @@ class VerifyHarnessDiffJob implements ShouldQueue
         public readonly int $sessionId,
         public readonly int $attempt = 1,
     ) {
-        $this->onQueue('agent-runtime');
+        $this->onQueue('coding');
     }
 
     public function handle(): void

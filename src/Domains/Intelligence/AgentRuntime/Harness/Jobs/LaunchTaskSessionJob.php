@@ -11,6 +11,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\Actions\ProvisionCodingSessionAction;
 use Kanvas\Connectors\OpenCode\Actions\StopCodingSessionRuntimeAction;
@@ -21,6 +23,7 @@ use Kanvas\Connectors\OpenCode\Services\RepoAllowListService;
 use Kanvas\Connectors\OpenCode\Services\SessionAttachmentService;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPrompt;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\LaunchStageEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -54,7 +57,7 @@ class LaunchTaskSessionJob implements ShouldQueue
         public readonly array $referenceSlugs = [],
         public readonly array $attachmentIds = [],
     ) {
-        $this->onQueue('agent-runtime');
+        $this->onQueue('coding');
     }
 
     public function handle(): void
@@ -64,7 +67,13 @@ class LaunchTaskSessionJob implements ShouldQueue
         /** @var AgentTaskSession|null $session */
         $session = AgentTaskSession::query()->where('id', $this->sessionId)->fromApp($this->app)->first();
 
-        if ($session === null || ! $session->isLive()) {
+        if ($session === null) {
+            return;
+        }
+
+        if (! $session->isLive()) {
+            $this->noteLateArrival($session);
+
             return;
         }
 
@@ -80,6 +89,7 @@ class LaunchTaskSessionJob implements ShouldQueue
         try {
             // Inside the try: resolving asks GitHub whether the token can open the repository, and a
             // refusal there has to land on the session row like any other launch failure.
+            $session->markLaunchStage(LaunchStageEnum::RESOLVING_REPOSITORY);
             $repository = $this->resolveRepository();
             $attachments = $this->loadAttachments($company);
 
@@ -94,6 +104,7 @@ class LaunchTaskSessionJob implements ShouldQueue
 
             // No memories here: the launch path writes them into the workspace as `.kanvas/context.md`,
             // where they survive compaction instead of being spent once in the opening prompt.
+            $session->markLaunchStage(LaunchStageEnum::PROMPTING);
             HarnessFactory::forSession($session)->start($session, new HarnessPrompt(
                 task: 'TASK:' . "\n" . $this->brief,
                 policy: CodingPolicy::BLOCK,
@@ -107,6 +118,7 @@ class LaunchTaskSessionJob implements ShouldQueue
             return;
         }
 
+        $session->markLaunchStage(null);
         PollHarnessSessionJob::dispatch($this->app, $session->getId());
     }
 
@@ -165,6 +177,27 @@ class LaunchTaskSessionJob implements ShouldQueue
         // Same resolution as the dispatch that created this job — anything else and a repository that
         // resolved a moment ago silently becomes "no repository" here, which reads as a bare workspace.
         return $agent === null ? null : new RepoAllowListService($agent)->resolveOrFail($this->repoSlug);
+    }
+
+    /**
+     * A launch arriving after the sweeper closed its session is the signature of a queue too busy to
+     * pick the job up in time. The row is terminal, so the note is appended, never a replacement, and
+     * saved quietly so no observer reads it as a new outcome.
+     */
+    private function noteLateArrival(AgentTaskSession $session): void
+    {
+        $now = Carbon::now();
+        $note = 'Launch job ran at ' . $now->toIso8601String() . ', '
+            . (int) $now->diffInMinutes($session->created_at ?? $now) . ' min after dispatch, '
+            . 'but the session was already ' . (string) $session->status . '. The coding queue did not pick it up in time.';
+
+        $session->error_message = trim((string) $session->error_message . "\n" . $note);
+        $session->saveQuietly();
+
+        Log::warning('coding.launch.late', [
+            'session' => $session->getId(),
+            'status' => $session->status,
+        ]);
     }
 
     /**
