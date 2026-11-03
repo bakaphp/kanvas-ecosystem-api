@@ -66,7 +66,7 @@ class CodingLaunchQueueTest extends TestCase
     public function test_a_launch_that_arrives_after_its_session_was_closed_says_so_on_the_row(): void
     {
         [, , $session] = $this->delegatedCodingJob(HarnessStatusEnum::CANCELLED, branch: null, attributes: [
-            'error_message' => 'The launch never started within 10 minutes — the coding queue did not pick it up; nothing ran on a machine.',
+            'error_message' => 'The launch never started within 10 minutes — the launch job never ran or crashed before reaching a machine. Check the coding queue workers and failed_jobs.',
         ]);
         $session->created_at = Carbon::now()->subMinutes(14);
         $session->saveQuietly();

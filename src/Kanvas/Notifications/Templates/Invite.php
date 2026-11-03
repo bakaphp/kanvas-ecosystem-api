@@ -8,7 +8,7 @@ use Kanvas\AdminLinks\Services\AdminLinkService;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Notification;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
-use Kanvas\Templates\Support\PlainData;
+use Kanvas\Templates\Support\TemplateDataOverlay;
 use Kanvas\Users\Models\AdminInvite;
 use Override;
 
@@ -25,12 +25,13 @@ class Invite extends Notification
         ];
 
         // Every stored invite template (per-app rows included) links through app.frontend_url, so a
-        // console-sent invite swaps that host here instead of forking the templates.
+        // console-sent invite swaps that host here instead of forking the templates. It stays an
+        // object: a hand-made blade row reads `$app->name` live and fatals on an array.
         if ($this->isConsoleAdminInvite()) {
             $consoleHost = new AdminLinkService()->consoleHost($this->app);
 
             if ($consoleHost !== null) {
-                $data['app'] = [...PlainData::from($this->app), 'frontend_url' => $consoleHost];
+                $data['app'] = new TemplateDataOverlay($this->app, ['frontend_url' => $consoleHost]);
             }
         }
 
