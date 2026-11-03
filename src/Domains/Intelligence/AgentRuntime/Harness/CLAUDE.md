@@ -96,7 +96,11 @@ Three guards now make that visible, but none of them replaces the worker: a laun
 its session closed appends "Launch job ran at … but the session was already cancelled" to the row, the
 sweeper says "the launch never started" for a row with no endpoint instead of "no activity", and the
 smoke test prints "provisioning" until the row has one. **If no worker consumes `coding`, nothing
-launches at all** — that is the first thing to check when every session sits in `starting`.
+launches at all** — that is the first thing to check when every session sits in `starting`. The second
+is `failed_jobs` on the `coding` queue: a launch that crashes before its first write looks identical
+from the row. The one seen so far was the `launch_stage` migration not having run — the job's first
+write threw, and `fail()` would have died on the same dirty attribute, which is why it now calls
+`discardChanges()` before recording the reason.
 
 ## A launch has stages, and the sweeper's patience depends on them
 

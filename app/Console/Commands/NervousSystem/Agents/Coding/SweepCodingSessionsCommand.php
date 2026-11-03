@@ -78,8 +78,10 @@ class SweepCodingSessionsCommand extends Command
     }
 
     /**
-     * A row that never reached a machine is a queue problem, not a hung runtime, and the PM acts on
-     * the difference: it cancels and re-dispatches a "hung" job, which only restarts the wait.
+     * A row that never reached a machine is not a hung runtime, and the PM acts on the difference:
+     * it cancels and re-dispatches a "hung" job, which only restarts the wait. Whether the launch job
+     * never ran or crashed before its first write cannot be told from the row, so the reason names
+     * both and where to look.
      */
     private function reasonFor(AgentTaskSession $session): string
     {
@@ -92,7 +94,8 @@ class SweepCodingSessionsCommand extends Command
 
         if (! $session->isProvisioned()) {
             return 'The launch never started within ' . self::STALE_MINUTES
-                . ' minutes — the coding queue did not pick it up; nothing ran on a machine.';
+                . ' minutes — the launch job never ran or crashed before reaching a machine. Check the'
+                . ' coding queue workers and failed_jobs.';
         }
 
         return 'No activity for ' . self::STALE_MINUTES . ' minutes — the session was interrupted.';

@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem\Users;
 
 use Illuminate\Support\Facades\Notification;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Templates\Invite as InviteTemplate;
+use Kanvas\Templates\Actions\RenderTemplateAction;
 use Tests\TestCase;
 use Tests\Traits\ActsAsAppOwner;
+use Tests\Traits\MakesTemplates;
 
 final class AdminInviteConsoleLinkTest extends TestCase
 {
     use ActsAsAppOwner;
+    use MakesTemplates;
 
     private const FRONTEND = 'https://app.kanvas.dev';
     private const CONSOLE = 'https://console.kanvas.dev';
@@ -32,8 +36,29 @@ final class AdminInviteConsoleLinkTest extends TestCase
 
         Notification::assertSentOnDemand(
             InviteTemplate::class,
-            fn (InviteTemplate $invite): bool => $invite->getData()['app']['frontend_url'] === self::CONSOLE
+            fn (InviteTemplate $invite): bool => $invite->getData()['app']->toTemplateData()['frontend_url'] === self::CONSOLE
         );
+    }
+
+    public function testAConsoleInviteRendersThroughBladeAndTwigRows(): void
+    {
+        $this->inviteAdmin([['name' => 'console', 'data' => true]]);
+        $invite = $this->sentInvite();
+        $app = app(Apps::class);
+        $renderer = new RenderTemplateAction($app);
+
+        $blade = $renderer->renderBody(
+            $this->makeHandMadeBladeTemplate('{{ $app->name }} {{ $app->frontend_url }} {{ $app->getId() }}'),
+            $invite->getData()
+        );
+        $twig = $renderer->renderBody(
+            $this->makeTemplate('{{ app.name }} {{ app.frontend_url }} {{ app.id }}'),
+            $invite->getData()
+        );
+
+        $expected = $app->name . ' ' . self::CONSOLE . ' ' . $app->getId();
+        $this->assertSame($expected, $blade);
+        $this->assertSame($expected, $twig);
     }
 
     public function testAnAppInviteKeepsTheAppFrontend(): void
@@ -54,6 +79,22 @@ final class AdminInviteConsoleLinkTest extends TestCase
             InviteTemplate::class,
             fn (InviteTemplate $invite): bool => $invite->getData()['app']->toTemplateData()['frontend_url'] === self::FRONTEND
         );
+    }
+
+    private function sentInvite(): InviteTemplate
+    {
+        $sent = null;
+
+        Notification::assertSentOnDemand(
+            InviteTemplate::class,
+            function (InviteTemplate $invite) use (&$sent): bool {
+                $sent = $invite;
+
+                return true;
+            }
+        );
+
+        return $sent;
     }
 
     private function inviteAdmin(array $customFields): void
