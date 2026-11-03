@@ -31,6 +31,10 @@ use Throwable;
 
 class VerifyPeopleIdAction
 {
+    protected const string FILE_COUNT_FIELD = 'file-count';
+
+    protected const string REPORT_FILE_BASE = 'id-verification-report';
+
     public function __construct(
         protected People $people,
         protected Lead $lead
@@ -200,7 +204,8 @@ class VerifyPeopleIdAction
                 $this->people->user,
                 'id-verification-report',
                 $this->people,
-                $this->templateData($reportData, $isShowRoom)
+                $this->templateData($reportData, $isShowRoom),
+                fileName: $this->reserveReportFileName()
             );
 
             $engagement ??= $this->resolveEngagement($parentEngagement, $reuseExistingEngagement);
@@ -224,6 +229,30 @@ class VerifyPeopleIdAction
 
             return null;
         }
+    }
+
+    /**
+     * `file-count` is jitsubai's per-lead counter, one `{name, count}` entry per file-name base. It is
+     * reserved before rendering, as the client does, and unlocked: a concurrent writer can still collide.
+     */
+    protected function reserveReportFileName(): string
+    {
+        $counts = $this->lead->get(self::FILE_COUNT_FIELD);
+        $counts = is_array($counts) ? $counts : [];
+        $names = array_map(fn ($entry) => $entry['name'] ?? null, $counts);
+        $index = array_search(self::REPORT_FILE_BASE, $names, true);
+
+        if ($index === false) {
+            $count = 1;
+            $counts[] = ['name' => self::REPORT_FILE_BASE, 'count' => $count];
+        } else {
+            $count = (int) ($counts[$index]['count'] ?? 0) + 1;
+            $counts[$index]['count'] = $count;
+        }
+
+        $this->lead->set(self::FILE_COUNT_FIELD, $counts);
+
+        return self::REPORT_FILE_BASE . '-' . $count . '.pdf';
     }
 
     protected function templateData(array $reportData, bool $isShowRoom): array

@@ -19,6 +19,8 @@ enum ConfigurationEnum: string
     case CORPORATE_REJECTED_TEMPLATE = 'movipass_corporate_rejected_template';
     case CORPORATE_INVITE_LINK_BASE = 'movipass_corporate_invite_link_base';
     case ROADSIDE_MAX_RESCHEDULES = 'movipass_roadside_max_reschedules';
+    case ONE_SIGNAL_TECHNICIANS_APP_ID = 'one_signal_technicians_app_id';
+    case ONE_SIGNAL_TECHNICIANS_REST_API_KEY = 'one_signal_technicians_rest_api_key';
 
     case ROADSIDE_PROVIDER_BASE_URL = 'movipass_roadside_provider_base_url';
     case ROADSIDE_PROVIDER_API_TOKEN = 'movipass_roadside_provider_api_token';

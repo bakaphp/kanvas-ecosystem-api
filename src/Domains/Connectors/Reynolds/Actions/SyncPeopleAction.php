@@ -50,7 +50,10 @@ class SyncPeopleAction
             $payload['Email'] = $email;
         }
 
-        $payload['Consent'] = $customer->toConsent();
+        $consent = $customer->toConsent();
+        if (! empty($consent)) {
+            $payload['Consent'] = $consent;
+        }
 
         return $payload;
     }

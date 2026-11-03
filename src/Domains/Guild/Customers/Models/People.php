@@ -519,14 +519,21 @@ class People extends BaseModel
 
     public function optOutPhoneContacts(): int
     {
-        $phoneTypes = [
-            ContactTypeEnum::PHONE->value,
-            ContactTypeEnum::CELLPHONE->value,
-            ContactTypeEnum::WORK_PHONE->value,
-        ];
+        return $this->optOutContactsOfTypes(Contact::PHONE_TYPES);
+    }
 
+    public function optOutEmailContacts(): int
+    {
+        return $this->optOutContactsOfTypes(Contact::EMAIL_TYPES);
+    }
+
+    /**
+     * @param list<int> $types
+     */
+    private function optOutContactsOfTypes(array $types): int
+    {
         return $this->contacts()
-            ->whereIn('contacts_types_id', $phoneTypes)
+            ->whereIn('contacts_types_id', $types)
             ->update(['is_opt_out' => 1]);
     }
 
