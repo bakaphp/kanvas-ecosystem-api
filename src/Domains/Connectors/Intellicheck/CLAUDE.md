@@ -133,7 +133,7 @@ And `executeIntegration` needs an `integrations_companies` row for `INTELLICHECK
 Downstream consumers (CRM push, frontend, checklist) read these:
 
 - **Lead / People:** `id_verification`, `get_docs_drivers_license`, `dont-run-id-verification-manual`, `driver_license_images`
-- **Lead only:** `file-count` — jitsubai's per-lead counter (`FILE_COUNT_FIELD`), `[{name, count}]`, one entry per file-name base
+- **Lead only:** `file-count` — jitsubai's per-lead counter (`LeadFileCountService::FILE_COUNT_FIELD`), `[{name, count}]`, one entry per file-name base. Kanvas bases: `id-verification-report`, `drivers-license-front`, `drivers-license-back`, `drivers-license-combined`
 - **Company:** `company_manager`, `disable_id_verification_email`, `default_checklist_id`
 - **Filesystem:** `id_verify`, `id_expired`, `id_verification_status`, `id_verification_msg`
 - **Message:** `engagement_status`, `hashtagVisited`, `text`, `source`
@@ -148,7 +148,7 @@ The email goes to whoever `Kanvas\Companies\Services\CompanyManagerService` reso
 `VerifyPeopleIdAction::sendNotification()` guards on a 3-minute cache keyed by **lead id + verified person id**. Not a persisted flag: a queue retry must not send a second report, but a customer re-scanning after a failed check must get one — a permanent flag silently killed the report, the PDF and the engagement for every later verification of that person. And not keyed by display name: a participant whose document is unreadable resolves the name back to the main buyer's, so a name-keyed guard makes the two skip each other.
 
 The PDF is named `id-verification-report-N.pdf`, N from the **lead's** `file-count` entry for that base
-(`VerifyPeopleIdAction::reserveReportFileName()`), so a co-buyer's report counts on the lead too. It is
+(`VerifyPeopleIdAction::reserveReportFileName()` over `Guild\Leads\Services\LeadFileCountService`), so a co-buyer's report counts on the lead too. It is
 reserved before rendering and unlocked — a concurrent jitsubai upload can collide on a number — and the other
 bases' entries are written back untouched. A failed render burns a number; gaps are fine.
 
@@ -181,6 +181,13 @@ setting `id_verification_files` picks what the lead's files show:
   deprecated `after-id-verification` job can add the other side ~30s later, when `DriverLicenseCombinedPdfService::attach()`
   already returned early. `pdf` then hides that late side although the combined PDF does not contain it.
 - **`face_image` and the `id-verification` report are not part of it** and always show.
+- **File names come from `file-count`.** `VerifyPeopleIdAction` names a side it creates from base64
+  `drivers-license-front-N.jpg` / `drivers-license-back-N.jpg` and the merged PDF `drivers-license-combined-N.pdf`, each from
+  its own counter on the lead, so a rep can tell printed copies apart. A side that is an existing file (a uuid) or already on the
+  message reserves no number, and `face_image` stays `face_image.jpg`. `field_name` never changes, so the mode filter is
+  unaffected. The late `AttachDriverLicenseImagesJob` and `DriverLicenseVerificationService::processDriverLicenseImages`
+  (rule 218, Elead, people-only actions) hold no lead and keep their old names; `DriverLicenseCombinedPdfService` only numbers
+  when it is given one.
 - **Not covered:** repeats across runs (rule 218's second PDF on every lead edit, and the folder per scan that PR #11426
   adds) and non-canonical names such as `AttachIdVerificationFilesToMessageActivity`'s
   `<slug>-N` fallback. Set the key like `disable_id_verification_email`, as a company setting.

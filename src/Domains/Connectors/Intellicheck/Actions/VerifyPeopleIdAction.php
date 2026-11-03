@@ -24,6 +24,7 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadFileCountService;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -31,9 +32,9 @@ use Throwable;
 
 class VerifyPeopleIdAction
 {
-    protected const string FILE_COUNT_FIELD = 'file-count';
-
     protected const string REPORT_FILE_BASE = 'id-verification-report';
+
+    protected const array LICENSE_SIDE_FIELDS = ['drivers_license_front', 'drivers_license_back'];
 
     public function __construct(
         protected People $people,
@@ -231,28 +232,22 @@ class VerifyPeopleIdAction
         }
     }
 
-    /**
-     * `file-count` is jitsubai's per-lead counter, one `{name, count}` entry per file-name base. It is
-     * reserved before rendering, as the client does, and unlocked: a concurrent writer can still collide.
-     */
+    /** Reserved before rendering, as the client does. */
     protected function reserveReportFileName(): string
     {
-        $counts = $this->lead->get(self::FILE_COUNT_FIELD);
-        $counts = is_array($counts) ? $counts : [];
-        $names = array_map(fn ($entry) => $entry['name'] ?? null, $counts);
-        $index = array_search(self::REPORT_FILE_BASE, $names, true);
+        return self::REPORT_FILE_BASE . '-' . new LeadFileCountService($this->lead)->reserve(self::REPORT_FILE_BASE) . '.pdf';
+    }
 
-        if ($index === false) {
-            $count = 1;
-            $counts[] = ['name' => self::REPORT_FILE_BASE, 'count' => $count];
-        } else {
-            $count = (int) ($counts[$index]['count'] ?? 0) + 1;
-            $counts[$index]['count'] = $count;
+    /** Only a license side is numbered, from its own counter; the selfie keeps `face_image.jpg`. */
+    protected function reserveImageFileName(string $fieldName): string
+    {
+        if (! in_array($fieldName, self::LICENSE_SIDE_FIELDS, true)) {
+            return $fieldName . '.jpg';
         }
 
-        $this->lead->set(self::FILE_COUNT_FIELD, $counts);
+        $base = Str::slug($fieldName);
 
-        return self::REPORT_FILE_BASE . '-' . $count . '.pdf';
+        return $base . '-' . new LeadFileCountService($this->lead)->reserve($base) . '.jpg';
     }
 
     protected function templateData(array $reportData, bool $isShowRoom): array
@@ -421,7 +416,7 @@ class VerifyPeopleIdAction
                 continue;
             }
 
-            $file = $this->resolveFile($image, $fieldName . '.jpg');
+            $file = $this->resolveFile($image, $fieldName);
 
             if ($file === null) {
                 continue;
@@ -435,7 +430,7 @@ class VerifyPeopleIdAction
             $file->set('id_verification_status', $verificationResults['status'] ?? 'unknown');
         }
 
-        new DriverLicenseCombinedPdfService($engagement->message)->attach(
+        new DriverLicenseCombinedPdfService($engagement->message, $this->lead)->attach(
             $isIdValid,
             $isExpired,
             (string) ($verificationResults['message'] ?? ''),
@@ -447,10 +442,10 @@ class VerifyPeopleIdAction
      * Tenant-scoped because the uuid comes from a caller: an unscoped lookup would attach another
      * company's file.
      */
-    protected function resolveFile(string $image, string $fileName): ?Filesystem
+    protected function resolveFile(string $image, string $fieldName): ?Filesystem
     {
         if (! Str::isUuid($image)) {
-            return $this->createFileFromBase64($image, $fileName);
+            return $this->createFileFromBase64($image, $this->reserveImageFileName($fieldName));
         }
 
         try {
