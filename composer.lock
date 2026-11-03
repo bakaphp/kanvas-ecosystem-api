@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6052e54b27a8beb96c4cfc720bdb439e",
+    "content-hash": "0468e56be19a04275b660b86435bb355",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -8171,16 +8171,16 @@
         },
         {
             "name": "openai-php/client",
-            "version": "v0.21.0",
+            "version": "v0.22.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/openai-php/client.git",
-                "reference": "ebec896ab0b0dff3917a70d30db67c7a64c548c0"
+                "reference": "23e1da353c02a39be03980ae968fba802cf70555"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/openai-php/client/zipball/ebec896ab0b0dff3917a70d30db67c7a64c548c0",
-                "reference": "ebec896ab0b0dff3917a70d30db67c7a64c548c0",
+                "url": "https://api.github.com/repos/openai-php/client/zipball/23e1da353c02a39be03980ae968fba802cf70555",
+                "reference": "23e1da353c02a39be03980ae968fba802cf70555",
                 "shasum": ""
             },
             "require": {
@@ -8242,7 +8242,7 @@
             ],
             "support": {
                 "issues": "https://github.com/openai-php/client/issues",
-                "source": "https://github.com/openai-php/client/tree/v0.21.0"
+                "source": "https://github.com/openai-php/client/tree/v0.22.0"
             },
             "funding": [
                 {
@@ -8258,7 +8258,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-09-17T11:01:09+00:00"
+            "time": "2026-10-31T15:12:58+00:00"
         },
         {
             "name": "paragonie/constant_time_encoding",
