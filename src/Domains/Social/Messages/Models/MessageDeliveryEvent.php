@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Twilio\Models;
+namespace Kanvas\Social\Messages\Models;
 
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +12,7 @@ class MessageDeliveryEvent extends BaseModel
 {
     use UuidTrait;
 
-    protected $table = 'twilio_message_delivery_events';
+    protected $table = 'message_delivery_events';
     protected $guarded = [];
 
     protected $casts = [

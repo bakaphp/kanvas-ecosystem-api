@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Twilio\Webhooks;
 
 use Baka\Support\Str;
 use Illuminate\Http\Request;
-use Kanvas\Connectors\Twilio\Actions\RecordDeliveryOnMessageAction;
 use Kanvas\Connectors\Twilio\Actions\RecordDeliveryStatusEventAction;
 use Kanvas\Connectors\Twilio\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Twilio\Enums\MessageStatusEnum;
@@ -15,6 +14,7 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\RecordDeliveryOnMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;

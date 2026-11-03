@@ -10,8 +10,6 @@ use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\RecordMessageAttemptAction;
 use Kanvas\Connectors\Twilio\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Twilio\Models\MessageAttempt;
-use Kanvas\Connectors\Twilio\Models\MessageDeliveryEvent;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioMessageStatusWebhookJob;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
 use Kanvas\Guild\Customers\Enums\ContactValidationStatusEnum;
@@ -20,6 +18,8 @@ use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Messages\Events\MessageDeliveryStatusEvent;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Models\MessageAttempt;
+use Kanvas\Social\Messages\Models\MessageDeliveryEvent;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -88,7 +88,7 @@ final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
         $this->assertSame('delivered', $delivery['status']);
         $this->assertSame('SM123', $delivery['message_sid']);
         $this->assertNull($delivery['error_code']);
-        $attempt = MessageAttempt::query()->where('message_sid', 'SM123')->firstOrFail();
+        $attempt = MessageAttempt::query()->where('provider_message_id', 'SM123')->firstOrFail();
         $this->assertSame('delivered', $attempt->current_status);
         $this->assertNotNull($attempt->terminal_at);
         $this->assertSame(1, MessageDeliveryEvent::query()->where('attempt_id', $attempt->getId())->count());
@@ -129,7 +129,7 @@ final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
         Queue::assertPushed(ProcessTwilioWebhookJob::class, 1);
         $this->assertSame(
             0,
-            MessageAttempt::query()->where('message_sid', 'SM-inbound-on-status-receiver')->count(),
+            MessageAttempt::query()->where('provider_message_id', 'SM-inbound-on-status-receiver')->count(),
         );
     }
 
@@ -156,7 +156,7 @@ final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
         Queue::assertNotPushed(ProcessTwilioWebhookJob::class);
         $this->assertSame(
             0,
-            MessageAttempt::query()->where('message_sid', 'SM-inbound-no-receiver')->count(),
+            MessageAttempt::query()->where('provider_message_id', 'SM-inbound-no-receiver')->count(),
         );
     }
 
@@ -181,7 +181,7 @@ final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
         $result = new ProcessTwilioMessageStatusWebhookJob($webhookCall)->execute();
 
         $attempt = MessageAttempt::query()
-            ->where('message_sid', 'SM-orphan-callback')
+            ->where('provider_message_id', 'SM-orphan-callback')
             ->firstOrFail();
         $this->assertNull($attempt->message_id);
         $this->assertSame('sent', $attempt->current_status);
@@ -255,7 +255,7 @@ final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
 
         new ProcessTwilioMessageStatusWebhookJob($webhookCall)->execute();
 
-        $attempt = MessageAttempt::query()->where('message_sid', $sid)->firstOrFail();
+        $attempt = MessageAttempt::query()->where('provider_message_id', $sid)->firstOrFail();
         $this->assertSame('suppress_sms', $attempt->remediation_action);
         $this->assertSame('destination_unreachable', $attempt->classification);
         $this->assertSame(ContactValidationStatusEnum::INVALID, $contact->fresh()->validation_status);

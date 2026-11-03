@@ -6,9 +6,9 @@ namespace Tests\Connectors\Integration\Twilio;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\RecordMessageAttemptAction;
-use Kanvas\Connectors\Twilio\Models\MessageAttempt;
-use Kanvas\Connectors\Twilio\Models\MessageDeliveryEvent;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Models\MessageAttempt;
+use Kanvas\Social\Messages\Models\MessageDeliveryEvent;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
 
@@ -33,10 +33,10 @@ final class RecordMessageAttemptActionTest extends TestCase
         new RecordMessageAttemptAction($message)->execute($response);
         new RecordMessageAttemptAction($message)->execute($response);
 
-        $attempt = MessageAttempt::query()->where('message_sid', 'SM-attempt-1')->firstOrFail();
+        $attempt = MessageAttempt::query()->where('provider_message_id', 'SM-attempt-1')->firstOrFail();
         $this->assertSame($message->getId(), $attempt->message_id);
         $this->assertSame('queued', $attempt->current_status);
-        $this->assertSame('+18095551234', $attempt->to_number);
+        $this->assertSame('+18095551234', $attempt->to_address);
         $this->assertSame(1, MessageDeliveryEvent::query()->where('attempt_id', $attempt->getId())->count());
     }
 
@@ -55,7 +55,7 @@ final class RecordMessageAttemptActionTest extends TestCase
         ]);
 
         $this->assertCount(1, $attempts);
-        $this->assertNull($attempts[0]->message_sid);
+        $this->assertNull($attempts[0]->provider_message_id);
         $this->assertSame(21610, $attempts[0]->last_error_code);
         $this->assertSame('opted_out', $attempts[0]->classification);
         $this->assertSame('suppress_sms', $attempts[0]->remediation_action);

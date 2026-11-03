@@ -21,6 +21,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendEmailTool;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Social\Messages\Models\MessageAttempt;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -36,6 +37,12 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
     private Apps $kanvasApp;
     private Companies $company;
     private Users $user;
+
+    /**
+     * Unique per test: this suite runs without DatabaseTransactions, and the send files a delivery
+     * attempt under this id, so a fixed one would collide with the attempt an earlier run left behind.
+     */
+    private string $mailgunId;
 
     /**
      * Credentials go on `config`, not on the app or the company: LeadObserver creates a channel and
@@ -57,8 +64,9 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
             'services.mailgun.domain' => self::DOMAIN,
         ]);
 
+        $this->mailgunId = 'sent-' . Str::lower(Str::random(12)) . '@' . self::DOMAIN;
         Http::fake([
-            'api.mailgun.net/v3/*/messages' => Http::response(['id' => '<sent@' . self::DOMAIN . '>']),
+            'api.mailgun.net/v3/*/messages' => Http::response(['id' => '<' . $this->mailgunId . '>']),
             '*' => Http::response([]),
         ]);
     }
@@ -97,6 +105,32 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
 
         // The company SMTP identity is the thing being replaced, not doubled up on.
         Notification::assertNothingSent();
+    }
+
+    public function testTheSendIsFiledAsADeliveryAttemptOnTheLead(): void
+    {
+        $agent = $this->agentWithMailbox();
+        $lead = $this->leadWithEmail('prospect@example.com');
+
+        $result = new SendMessageToLeadAction($lead)->execute(
+            channel: LeadCommunicationChannelEnum::EMAIL->value,
+            message: 'Here is the quote.',
+            title: 'Your quote',
+            to: 'prospect@example.com',
+            fromAgent: $agent,
+        );
+
+        // The id the delivery webhook matches on, without the angle brackets the send API wraps it in.
+        $this->assertSame('mailgun', $result['provider']);
+        $this->assertSame($this->mailgunId, $result['provider_message_id']);
+
+        $attempt = MessageAttempt::query()
+            ->where('provider', 'mailgun')
+            ->where('provider_message_id', $result['provider_message_id'])
+            ->where('lead_id', $lead->getId())
+            ->firstOrFail();
+        $this->assertSame('accepted', $attempt->current_status);
+        $this->assertSame('prospect@example.com', $attempt->to_address);
     }
 
     public function testTheAgentAddressIsAlsoTheReplyTo(): void

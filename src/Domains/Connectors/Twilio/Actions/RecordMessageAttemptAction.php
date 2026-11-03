@@ -8,9 +8,9 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\MessageStatusEnum;
-use Kanvas\Connectors\Twilio\Models\MessageAttempt;
-use Kanvas\Connectors\Twilio\Models\MessageDeliveryEvent;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Models\MessageAttempt;
+use Kanvas\Social\Messages\Models\MessageDeliveryEvent;
 
 final class RecordMessageAttemptAction
 {
@@ -58,7 +58,7 @@ final class RecordMessageAttemptAction
             );
 
             $attempt = MessageAttempt::query()->firstOrNew(
-                $sid !== null ? ['message_sid' => $sid] : ['uuid' => $uuid],
+                $sid !== null ? ['provider' => 'twilio', 'provider_message_id' => $sid] : ['uuid' => $uuid],
             );
             $attempt->fill([
                 'uuid' => $attempt->uuid ?: $uuid,
@@ -66,11 +66,12 @@ final class RecordMessageAttemptAction
                 'companies_id' => $this->message?->companies_id ?? $this->company?->getId(),
                 'message_id' => $this->message?->getId() ?? $attempt->message_id,
                 'lead_id' => $this->leadId ?? $attempt->lead_id,
-                'message_sid' => $sid,
-                'account_sid' => self::nullableString($providerMessage['account_sid'] ?? null),
+                'provider' => 'twilio',
+                'provider_message_id' => $sid,
+                'provider_account' => self::nullableString($providerMessage['account_sid'] ?? null),
                 'messaging_service_sid' => self::nullableString($providerMessage['messaging_service_sid'] ?? null),
-                'from_number' => self::nullableString($providerMessage['from'] ?? null),
-                'to_number' => self::nullableString($providerMessage['to'] ?? null),
+                'from_address' => self::nullableString($providerMessage['from'] ?? null),
+                'to_address' => self::nullableString($providerMessage['to'] ?? null),
                 'current_status' => $status,
                 'last_error_code' => $errorCode,
                 'last_error_message' => $errorMessage,
@@ -105,6 +106,7 @@ final class RecordMessageAttemptAction
                     'apps_id' => $attempt->apps_id,
                     'companies_id' => $attempt->companies_id,
                     'attempt_id' => $attempt->getId(),
+                    'provider' => 'twilio',
                     'source' => $eventSource,
                     'status' => $status,
                     'error_code' => $errorCode,

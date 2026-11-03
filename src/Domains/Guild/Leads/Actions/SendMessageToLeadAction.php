@@ -13,7 +13,9 @@ use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\Connectors\Mailgun\Actions\RecordEmailAttemptAction;
 use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
+use Kanvas\Connectors\Mailgun\Enums\DeliveryStatusEnum;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
@@ -76,6 +78,7 @@ class SendMessageToLeadAction
     protected string $attemptUuid;
     protected ?string $attemptedFrom = null;
     protected ?string $attemptedTo = null;
+    protected ?string $attemptedProvider = null;
     protected bool $isOptOutConfirmation = false;
     protected ?Users $signatureOwner = null;
     protected ?CampaignRecipient $campaignRecipient = null;
@@ -186,6 +189,7 @@ class SendMessageToLeadAction
             'account_sid' => $this->lead->company?->get(TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value),
             'from' => $this->attemptedFrom,
             'to' => $this->attemptedTo,
+            'provider' => $this->attemptedProvider,
         ], $classification);
 
         if ($channel === LeadCommunicationChannelEnum::SMS->value) {
@@ -954,7 +958,8 @@ class SendMessageToLeadAction
             : null;
 
         if ($mailboxAddress !== null) {
-            new SendAsAgentMailboxAction(
+            $this->attemptedProvider = DeliveryStatusEnum::ACCEPTED->provider();
+            $mailgunMessageId = new SendAsAgentMailboxAction(
                 agent: $fromAgent,
                 to: $leadEmail,
                 subject: $subject,
@@ -965,6 +970,7 @@ class SendMessageToLeadAction
                 trackingPerson: $this->lead->people,
                 trackingLead: $this->lead,
                 trackingCampaignRecipient: $this->campaignRecipient,
+                attemptUuid: $this->attemptUuid,
             )->execute();
 
             return $this->emailResult(
@@ -976,7 +982,11 @@ class SendMessageToLeadAction
                 template: 'agent-mailbox',
                 signature: false,
                 from: $mailboxAddress,
-            );
+            ) + [
+                'provider' => $this->attemptedProvider,
+                'provider_message_id' => RecordEmailAttemptAction::normalizeMessageId($mailgunMessageId),
+                'attempt_uuid' => $this->attemptUuid,
+            ];
         }
 
         // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.

@@ -7,9 +7,9 @@ namespace Kanvas\Connectors\Twilio\Actions;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Twilio\Models\MessageAttempt;
-use Kanvas\Connectors\Twilio\Models\MessageDeliveryEvent;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Models\MessageAttempt;
+use Kanvas\Social\Messages\Models\MessageDeliveryEvent;
 
 final class RecordDeliveryStatusEventAction
 {
@@ -31,14 +31,15 @@ final class RecordDeliveryStatusEventAction
             : null;
         $errorMessage = self::nullableString($this->payload['ErrorMessage'] ?? null);
 
-        $attempt = MessageAttempt::query()->firstOrNew(['message_sid' => $sid]);
+        $attempt = MessageAttempt::query()->firstOrNew(['provider' => 'twilio', 'provider_message_id' => $sid]);
         if (! $attempt->exists) {
             $attempt->fill([
                 'uuid' => (string) Str::uuid(),
                 'apps_id' => $this->message?->apps_id ?? $this->app?->getId(),
                 'companies_id' => $this->message?->companies_id ?? $this->company?->getId(),
                 'message_id' => $this->message?->getId(),
-                'message_sid' => $sid,
+                'provider' => 'twilio',
+                'provider_message_id' => $sid,
                 'current_status' => $status,
             ]);
             $attempt->saveOrFail();
@@ -61,10 +62,10 @@ final class RecordDeliveryStatusEventAction
         if (self::canAdvanceStatus((string) $attempt->current_status, $status)) {
             $attempt->fill([
                 'current_status' => $status,
-                'account_sid' => self::nullableString($this->payload['AccountSid'] ?? null) ?? $attempt->account_sid,
+                'provider_account' => self::nullableString($this->payload['AccountSid'] ?? null) ?? $attempt->provider_account,
                 'messaging_service_sid' => self::nullableString($this->payload['MessagingServiceSid'] ?? null) ?? $attempt->messaging_service_sid,
-                'from_number' => self::nullableString($this->payload['From'] ?? null) ?? $attempt->from_number,
-                'to_number' => self::nullableString($this->payload['To'] ?? null) ?? $attempt->to_number,
+                'from_address' => self::nullableString($this->payload['From'] ?? null) ?? $attempt->from_address,
+                'to_address' => self::nullableString($this->payload['To'] ?? null) ?? $attempt->to_address,
                 'last_error_code' => $errorCode,
                 'last_error_message' => $errorMessage,
                 'classification' => self::classification($errorCode),
@@ -79,6 +80,7 @@ final class RecordDeliveryStatusEventAction
             'apps_id' => $attempt->apps_id,
             'companies_id' => $attempt->companies_id,
             'attempt_id' => $attempt->getId(),
+            'provider' => 'twilio',
             'event_key' => $eventKey,
             'source' => 'status_callback',
             'status' => $status,

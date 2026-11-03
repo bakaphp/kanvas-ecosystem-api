@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Actions;
 
 use Illuminate\Support\Facades\Notification;
+use Kanvas\Connectors\Mailgun\Actions\RecordEmailAttemptAction;
 use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
+use Kanvas\Connectors\Mailgun\Enums\DeliveryStatusEnum;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
@@ -61,7 +63,7 @@ class SendEmailToPeopleAction
         $ownerSignature = UserEmailSignature::forSender($signatureOwner, $this->people->company, $fromAgent);
 
         if ($mailboxAddress !== null) {
-            new SendAsAgentMailboxAction(
+            $mailgunMessageId = new SendAsAgentMailboxAction(
                 agent: $fromAgent,
                 to: $to,
                 subject: $subject,
@@ -79,6 +81,8 @@ class SendEmailToPeopleAction
                 'template' => 'agent-mailbox',
                 'from' => $mailboxAddress,
                 'people_id' => $this->people->getId(),
+                'provider' => DeliveryStatusEnum::ACCEPTED->provider(),
+                'provider_message_id' => RecordEmailAttemptAction::normalizeMessageId($mailgunMessageId),
             ];
         }
 

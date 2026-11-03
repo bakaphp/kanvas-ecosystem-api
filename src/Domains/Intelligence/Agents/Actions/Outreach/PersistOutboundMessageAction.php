@@ -100,9 +100,7 @@ class PersistOutboundMessageAction
             $message->addEntity($people);
         }
 
-        if ($this->channelType === ChannelCategoryEnum::SMS->value) {
-            new StoreMessageSidAction($message)->execute($providerResponse);
-        }
+        new StoreMessageSidAction($message)->execute($providerResponse);
 
         $message->fireWorkflow(
             WorkflowEnum::CREATED->value,

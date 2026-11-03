@@ -51,7 +51,7 @@ class MergeLeadAction
             ['follow_up_logs', 'leads_id', []],
         ],
         'social' => [
-            ['twilio_message_attempts', 'lead_id', []],
+            ['message_attempts', 'lead_id', []],
         ],
     ];
 
