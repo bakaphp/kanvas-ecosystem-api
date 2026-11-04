@@ -203,9 +203,15 @@ class LaunchTaskSessionJob implements ShouldQueue
     /**
      * The failure has to land on the row rather than in an exception, because nothing is waiting on
      * this job's return value — the tool call that started it finished long ago.
+     *
+     * Dirty attributes are dropped first: when the write that failed was the session's own save (a
+     * column the migration has not added yet), the attribute is still pending on the model and this
+     * save would die on the same error — the job then retries into `failed_jobs` and the row stays
+     * in `starting` with no error.
      */
     private function fail(AgentTaskSession $session, string $reason): void
     {
+        $session->discardChanges();
         $session->status = HarnessStatusEnum::FAILED->value;
         $session->error_message = $reason;
         $session->saveOrFail();
