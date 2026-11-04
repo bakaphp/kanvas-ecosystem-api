@@ -6,11 +6,11 @@ namespace Kanvas\Connectors\Reynolds\Services;
 
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Reynolds\Contracts\CrmLeadDriver;
-use Kanvas\Connectors\Reynolds\DataTransferObject\Crm\CrmCustomer;
-use Kanvas\Connectors\Reynolds\DataTransferObject\Crm\CrmLeadInfo;
+use Kanvas\Connectors\SalesAssist\Contracts\CrmLeadDriver;
+use Kanvas\Connectors\SalesAssist\DataTransferObject\Crm\CrmCustomer;
+use Kanvas\Connectors\SalesAssist\DataTransferObject\Crm\CrmLeadInfo;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Reynolds\Enums\CrmTypeEnum;
+use Kanvas\Connectors\SalesAssist\Enums\CrmTypeEnum;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 
 class ReynoldsCrmDriver implements CrmLeadDriver
