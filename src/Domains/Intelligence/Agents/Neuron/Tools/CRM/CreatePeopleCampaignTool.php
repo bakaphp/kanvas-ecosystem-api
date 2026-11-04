@@ -40,8 +40,10 @@ class CreatePeopleCampaignTool extends Tool
 
     protected string $name = 'create_people_campaign';
 
-    protected ?string $description = 'Send or schedule an email campaign to a list of people where each person can get their '
-        . 'own attachments and template variables (certificates, personalised greetings, ids). Pass recipients as '
+    protected ?string $description = 'Send or schedule an email campaign to a list of people where each person gets something of '
+        . 'their own: their own attachment(s), their own template variables, or files paired to them by name '
+        . '(certificates, personalised greetings, ids). If every recipient gets the identical email and the same '
+        . 'attachments, use create_lead_campaign instead. Pass recipients as '
         . '{person_id, variables, attachment_urls}: variables is a JSON object string whose keys become top-level '
         . 'template values; the template also always sees `people` (name, firstname, lastname, email, phone, '
         . 'custom_fields) and `content` (the message). To pair uploaded files to people without listing them, pass '
