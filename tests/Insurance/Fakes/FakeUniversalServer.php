@@ -15,6 +15,10 @@ class FakeUniversalServer extends UniversalSegurosService
 {
     public const string POLICY = 'A-PA-0000001392';
 
+    public const string POLICY_STARTS = '2026-10-23';
+
+    public const string POLICY_ENDS = '2027-10-23';
+
     private const array REQUIRED_TERMS = [
         'seguroLey',
         'asistenciaVehicular',
@@ -160,7 +164,23 @@ class FakeUniversalServer extends UniversalSegurosService
     {
         $policy = $this->existing($numeroCotizacion);
 
-        return $this->quotes[$policy]['policy'] === null ? [] : ['numeroPoliza' => $this->quotes[$policy]['policy']];
+        if ($this->quotes[$policy]['policy'] === null) {
+            return [];
+        }
+
+        return [
+            'producto' => 'A-PA',
+            'data' => [
+                'estado' => 'ACT',
+                'numeroCotizacion' => $numeroCotizacion,
+                'numeroPoliza' => $this->quotes[$policy]['policy'],
+                'terminos' => [
+                    'inicioVigencia' => self::POLICY_STARTS . 'T00:00:00',
+                    'finVigencia' => self::POLICY_ENDS . 'T00:00:00',
+                ],
+                'pago' => ['pagado' => true],
+            ],
+        ];
     }
 
     public function invoicePolicy(PaymentInformation $payment): array
