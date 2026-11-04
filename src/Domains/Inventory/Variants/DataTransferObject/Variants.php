@@ -52,7 +52,7 @@ class Variants extends Data
             $request['slug'] ?? null,
             $request['files'] ?? [],
             $request['weight'] ?? null,
-            $request['is_published'] ?? true
+            $request['is_published'] ?? null
         );
     }
 
