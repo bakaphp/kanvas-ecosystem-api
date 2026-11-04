@@ -51,7 +51,7 @@ class UpdateVariantsAction
         $this->variant->update(
             [
                 'name' => $this->variantDto->name,
-                'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
+                'slug' => $this->variantDto->slug ?? $this->variant->slug ?? Str::slug($this->variantDto->name),
                 'sku' => $this->variantDto->sku,
                 'users_id' => $this->user->getId(),
                 'description' => $this->variantDto->getDescription() ?? $this->variant->description,
@@ -68,7 +68,7 @@ class UpdateVariantsAction
                 'barcode' => $this->variantDto->barcode ?? $this->variant->barcode,
                 'serial_number' => $this->variantDto->serial_number ?? $this->variant->serial_number,
                 'weight' => $this->variantDto->weight ?? $this->variant->weight ?? 0,
-                'is_published' => $this->variantDto->is_published,
+                'is_published' => $this->variantDto->is_published ?? $this->variant->is_published,
             ]
         );
 

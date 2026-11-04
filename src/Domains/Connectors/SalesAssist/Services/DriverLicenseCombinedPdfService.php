@@ -6,20 +6,27 @@ namespace Kanvas\Connectors\SalesAssist\Services;
 
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\PdfService;
+use Kanvas\Guild\Leads\Enums\IdVerificationFilesModeEnum;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadFileCountService;
 use Kanvas\Social\Messages\Models\Message;
 use Throwable;
 
 class DriverLicenseCombinedPdfService
 {
-    public const string COMBINED_FIELD_NAME = 'drivers_license_combined';
+    public const string COMBINED_FIELD_NAME = IdVerificationFilesModeEnum::COMBINED;
 
     private const array SIDES = [
         'drivers_license_front' => 'Driver License - Front',
         'drivers_license_back' => 'Driver License - Back',
     ];
 
+    private const string FILE_BASE = 'drivers-license-combined';
+
+    /** With a lead the PDF is numbered from its `file-count`; without one it keeps a unique name. */
     public function __construct(
         private readonly Message $message,
+        private readonly ?Lead $lead = null,
     ) {
     }
 
@@ -63,7 +70,7 @@ class DriverLicenseCombinedPdfService
                 $this->message->user,
                 $pages,
                 company: $this->message->company,
-                fileName: 'drivers_license_' . $this->message->getId() . '_' . uniqid() . '.pdf',
+                fileName: $this->pdfFileName(),
             );
         } catch (Throwable $e) {
             report($e);
@@ -82,5 +89,14 @@ class DriverLicenseCombinedPdfService
         }
 
         return $pdf;
+    }
+
+    protected function pdfFileName(): string
+    {
+        if ($this->lead === null) {
+            return 'drivers_license_' . $this->message->getId() . '_' . uniqid() . '.pdf';
+        }
+
+        return new LeadFileCountService($this->lead)->reserveName(self::FILE_BASE, 'pdf');
     }
 }

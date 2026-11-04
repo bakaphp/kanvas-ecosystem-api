@@ -14,11 +14,12 @@ use Kanvas\Workflow\Models\Integrations;
 
 /**
  * The lean counterpart of HasIntegrationCompany::setIntegration(): only the IntegrationsCompany row an
- * INTERNAL activity needs to get past executeIntegration(), no inventory Setup or user association.
+ * activity needs to get past executeIntegration(), no inventory Setup or user association. INTERNAL by
+ * default; a connector activity passes its own integration.
  */
 trait RegistersInternalIntegration
 {
-    protected function registerInternalIntegration(): void
+    protected function registerInternalIntegration(IntegrationsEnum $integration = IntegrationsEnum::INTERNAL): void
     {
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
@@ -34,8 +35,9 @@ trait RegistersInternalIntegration
 
         IntegrationsCompany::firstOrCreate(
             [
+                'apps_id' => $app->getId(),
                 'companies_id' => $company->getId(),
-                'integrations_id' => Integrations::getByName(IntegrationsEnum::INTERNAL->value)->getId(),
+                'integrations_id' => Integrations::getByName($integration->value)->getId(),
                 'region_id' => $region->getId(),
             ],
             [

@@ -36,8 +36,8 @@ class BuildCodingImageCommand extends Command
 
     protected $signature = 'kanvas:coding:build-image
         {--machine= : Agent machine id; omit with --all}
-        {--app= : App whose configured image tag to build}
-        {--image= : Image tag to build, overriding the app setting}
+        {--app= : App whose machines to build on and image setting to update}
+        {--image= : Image tag to build, overriding the pinned Dockerfile tag}
         {--all : Build on every active machine of the app}
         {--no-cache : Build without Docker layer cache}';
 
@@ -55,11 +55,16 @@ class BuildCodingImageCommand extends Command
 
         $this->overwriteAppService($app);
 
-        // Falls back to the tag the Dockerfile builds, so a fresh app needs no --image and cannot be
-        // pointed at a version this connector does not speak.
-        $image = Str::trimToNull((string) $this->option('image'))
-            ?? Str::trimToNull((string) $app->get(ConfigurationEnum::IMAGE->value))
-            ?? CodingImageService::pinnedTag();
+        // Default to this checkout's Dockerfile tag so an older app setting cannot mislabel the build.
+        $image = Str::trimToNull((string) $this->option('image')) ?? CodingImageService::pinnedTag();
+        $configured = Str::trimToNull((string) $app->get(ConfigurationEnum::IMAGE->value));
+
+        if ($configured !== null && $configured !== $image) {
+            $this->warn(
+                'App ' . $app->getId() . ' is on ' . $configured . '; this build moves it to ' . $image
+                . '. Containers still on the old tag roll over on their next task, or now with kanvas:coding:upgrade-image.'
+            );
+        }
 
         $machines = $this->machines($app);
 

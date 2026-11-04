@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Exception;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\IdVerificationFilesModeEnum;
 use Kanvas\Guild\Leads\Exceptions\MissingParticipantPeopleIdException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
@@ -43,6 +44,14 @@ class LeadChannelFilesService
             $participantGroups = $this->getParticipantFileGroups();
             $groups = array_merge($groups, $participantGroups);
         }
+
+        // Every group, not only message folders: AttachMessageFilesToLeadActivity copies message files onto
+        // the lead, so filtering folders alone would bring the hidden license files back under the uploads.
+        $mode = IdVerificationFilesModeEnum::fromCompany($this->lead->company);
+        $groups = array_map(
+            fn (array $group): array => [...$group, 'files' => $mode->filter($group['files'])],
+            $groups
+        );
 
         // Sort by last_message_at desc
         if ($groupByAction) {
