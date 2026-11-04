@@ -31,7 +31,6 @@ final class EleadCrmDriverTest extends TestCase
         $this->assertNull($driver->resolveOwnerId('Perez, Ana', new Companies()));
         $this->assertSame([], $driver->customerCustomFields(new CrmCustomer(firstname: 'Ana')));
         $this->assertSame([], $driver->leadCustomFields(new CrmLeadInfo(status: 'Open')));
-        $this->assertFalse($driver->requestsDoNotContact(new CrmCustomer()));
         $this->assertSame('Open', $driver->resolveStatusName('Open'));
     }
 

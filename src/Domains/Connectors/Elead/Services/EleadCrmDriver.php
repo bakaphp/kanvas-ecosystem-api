@@ -64,11 +64,6 @@ class EleadCrmDriver implements CrmLeadDriver
         return [];
     }
 
-    public function requestsDoNotContact(CrmCustomer $customer): bool
-    {
-        return false;
-    }
-
     public function leadCustomFields(CrmLeadInfo $lead): array
     {
         return [];
