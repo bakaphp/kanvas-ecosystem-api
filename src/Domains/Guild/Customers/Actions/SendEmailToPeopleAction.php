@@ -39,6 +39,9 @@ class SendEmailToPeopleAction
     /**
      * @param  list<string>  $attachmentUrls
      * @param  list<string>  $cc  already filtered by the caller; this action sends to whatever it is given
+     * @param  array<string, mixed>  $variables  Extra template context laid over `content` and `people`;
+     *     the company and the signature keys stay the sender's own.
+     * @param  bool  $trackOpens  Off for a test send to a teammate, so their open never lands on the person.
      */
     public function execute(
         string $to,
@@ -51,6 +54,8 @@ class SendEmailToPeopleAction
         ?Users $signatureOwner = null,
         array $cc = [],
         ?CampaignRecipient $campaignRecipient = null,
+        array $variables = [],
+        bool $trackOpens = true,
     ): array {
         if (trim($to) === '') {
             throw new ValidationException('People has no email address to send to');
@@ -69,8 +74,8 @@ class SendEmailToPeopleAction
                 cc: $cc,
                 attachmentUrls: $attachmentUrls,
                 signature: $ownerSignature,
-                trackingPerson: $this->people,
-                trackingCampaignRecipient: $campaignRecipient,
+                trackingPerson: $trackOpens ? $this->people : null,
+                trackingCampaignRecipient: $trackOpens ? $campaignRecipient : null,
             )->execute();
 
             return [
@@ -89,6 +94,8 @@ class SendEmailToPeopleAction
             $templateName,
             [
                 'content' => $html,
+                'people' => $this->people,
+                ...$variables,
                 'noHi' => true,
                 'company' => $this->people->company,
                 'signature' => false,

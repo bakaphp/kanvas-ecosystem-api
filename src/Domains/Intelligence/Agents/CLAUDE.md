@@ -574,6 +574,7 @@ There is no approved path for a free-text external recipient.
 | `send_lead_email` | **Leads only** — the lead's on-file address (`lead_id` required) | message on the lead's email channel (lead + person entities) + lead note |
 | `send_person_email` | A People with no lead, by `person_id`, at its on-file address. Internal agents only (`RequiresSystemAgent`): it reaches any person in the company. CC from the person's and their organizations' contacts or the domain allowlist | message on the person's email channel + person note |
 | `create_lead_campaign` / `add_people_to_campaign` | People by id, no lead needed, admin-only, via `ProcessLeadCampaignJob` | message on the person's (or lead's) email channel + note |
+| `create_people_campaign` | People by id with per-person `variables` + `attachment_urls`, files paired by name to a custom field, admin-only, same job. `test_to` goes only to a user of the company and creates nothing (`Guild/Campaigns/CLAUDE.md`) | message on the person's email channel + note; a test send leaves none |
 | `send_batch_message` | Leads by id, admin-only, same job | message on the lead's channel + lead note |
 | `send_lead_sms` | **Leads only** — the lead's on-file phone | message on the lead's SMS channel + lead note |
 | `send_email_to_user` | A Kanvas user in the company (internal) | assistant turn in the recipient's own chat with the agent (Social channel **and** `agent_conversation_messages`) + `agent.email.sent_to_user` ledger event |
