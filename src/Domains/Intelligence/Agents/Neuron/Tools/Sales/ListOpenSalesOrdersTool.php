@@ -98,6 +98,7 @@ class ListOpenSalesOrdersTool extends Tool
                 $name = $people !== null ? trim($people->firstname . ' ' . $people->lastname) : '';
 
                 return [
+                    'id' => $order->getId(),
                     'order_number' => $order->order_number,
                     'customer' => $name !== '' ? $name : ($order->user_email ?: null),
                     'status' => $order->status,

@@ -60,6 +60,19 @@ final class HasAdminLinkTest extends TestCase
         $this->assertNull($record->adminUrl());
     }
 
+    /**
+     * A slug or a uuid can be stored empty. That is a record with nothing to open it by, not a
+     * malformed identifier to throw over.
+     */
+    public function testAnEmptyIdentifierIsNoIdentifier(): void
+    {
+        $record = $this->stub(new UuidRecordStub(), ['id' => 7, 'uuid' => ''], app(Apps::class));
+
+        $this->assertSame('', $record->adminLinkIdentifier());
+        $this->assertNull($record->adminUrl());
+        $this->assertTrue($record->adminLinkMeta()->requiresCompany);
+    }
+
     public function testReturnsNullUrlWhenTheRecordHasNoApp(): void
     {
         $record = new UuidRecordStub();

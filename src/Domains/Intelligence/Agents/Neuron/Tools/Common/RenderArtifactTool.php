@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Common;
 
+use Kanvas\AdminLinks\Enums\AdminLinkIdentifierEnum;
+use Kanvas\AdminLinks\Services\AdminLinkRecordResolver;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Enums\ArtifactComponentEnum;
+use Kanvas\Intelligence\Agents\Enums\ArtifactEntityTypeEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\PropertyType;
@@ -21,6 +25,10 @@ use Override;
  *
  * Budgeted per inputs: a rich reply (a quarterly report) renders more than 10 distinct blocks, and a
  * per-name budget aborted the whole turn on the 11th (KANVAS-ECOSYSTEM-6H4).
+ *
+ * Tenant context is optional here, unlike on a tool that reads or writes records: with it an `entity`
+ * card's id is checked against the company's records and rewritten to the one the record's page reads;
+ * without it the block is still validated for shape, which is all a context-free caller can promise.
  */
 #[AgentTool(
     name: 'Render Artifact',
@@ -30,6 +38,7 @@ use Override;
 class RenderArtifactTool extends Tool
 {
     use DecodesJsonObjectParam;
+    use HasKanvasContext;
     use ReportsToolOutcome;
     use TrackByInputs;
 
@@ -88,6 +97,19 @@ class RenderArtifactTool extends Tool
 
         $decoded = $this->decodeJsonObjectParam($props);
         $service = new ArtifactBlockService();
+
+        if ($resolved === ArtifactComponentEnum::ENTITY) {
+            $refusal = $this->useThePageIdentifier($decoded, $service);
+
+            if ($refusal !== null) {
+                return $refusal;
+            }
+        }
+
+        if ($resolved === ArtifactComponentEnum::RECORDS) {
+            $decoded = $service->withoutEmptyFilter($decoded);
+        }
+
         $errors = $service->errors($resolved, $decoded);
 
         if ($errors !== []) {
@@ -98,6 +120,80 @@ class RenderArtifactTool extends Tool
             ['block' => $service->render($resolved, $title, $decoded)],
             'Paste the block into your reply exactly as returned, fences included, where it belongs in the answer.'
         );
+    }
+
+    /**
+     * Swap whatever id the model is holding for the one the record's page reads, or answer why not.
+     *
+     * Every CRM tool hands back the numeric id while the lead page keys on the uuid, a product page
+     * reads only the uuid and a category page only the slug — so a card built from the id as given
+     * often has no link. Looking the record up first also turns an invented id into an error the model
+     * can act on, instead of a card that reads "not found" in front of the person.
+     *
+     * Scoped to the tool's tenant by the resolver: the id is the model's text, and an unscoped lookup
+     * would confirm (and link) another company's record. A type the resolver has no model for, or a
+     * call with no tenant, is left as written for the shape check that follows.
+     *
+     * @param array<string, mixed> $props
+     * @return array<string, mixed>|null The refusal to return, or null when the block can go on.
+     */
+    private function useThePageIdentifier(array &$props, ArtifactBlockService $service): ?array
+    {
+        $type = is_string($props['type'] ?? null) ? ArtifactEntityTypeEnum::tryFrom($props['type']) : null;
+        $id = $props['id'] ?? null;
+        $section = $type?->section();
+        $resolver = new AdminLinkRecordResolver();
+
+        if ($type === null || $section === null || ! $resolver->supports($section)) {
+            return null;
+        }
+
+        if (! $this->hasTenantContext() || ! (is_int($id) || is_string($id))) {
+            return null;
+        }
+
+        $record = $resolver->resolve(
+            $section,
+            (string) $id,
+            $this->app,
+            $this->company
+        );
+
+        if ($record === null) {
+            $error = sprintf(
+                'No %s with id "%s" exists for this company (it may belong to another company of the app). '
+                . 'Use the id a tool returned for it — never a name, an order number, a number from the '
+                . 'conversation or a guess. If you only have its name, look it up first, or show what you '
+                . 'know in a keyvalue block instead.',
+                $type->value,
+                mb_substr((string) $id, 0, 64)
+            );
+
+            return $this->notFound(['success' => false, 'error' => $error]);
+        }
+
+        $page = $type->identifier()->of($record);
+
+        if ($page !== null && $service->cardReads($type, $page)) {
+            $props['id'] = $page;
+
+            return null;
+        }
+
+        // The record is real but what its page reads is not something a card can use: a slug the
+        // client typed with a space, a uuid from before uuids had one shape. Blaming the model's id
+        // would be wrong, and it would get the same answer for any id it retried with.
+        if (in_array(AdminLinkIdentifierEnum::ID, $type->lookups(), true)) {
+            $props['id'] = $record->getKey();
+
+            return null;
+        }
+
+        return $this->invalidArgs(sprintf(
+            'This %s exists, but its slug is not one a card can open. Show what you know about it in a '
+            . 'keyvalue block instead.',
+            $type->value
+        ));
     }
 
     private static function describe(): string
