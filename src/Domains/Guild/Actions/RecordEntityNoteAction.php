@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Actions;
 
+use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
@@ -84,5 +85,16 @@ abstract class RecordEntityNoteAction
 
             return null;
         }
+    }
+
+    public function recordAiControl(string $body): ?Message
+    {
+        return $this->execute(
+            body: $body,
+            tag: LeadMessageTypeEnum::AI_CONTROL->value,
+            actingUser: $this->entity()->user,
+            fromIa: false,
+            messageTypeVerb: LeadMessageTypeEnum::AI_CONTROL->value,
+        );
     }
 }
