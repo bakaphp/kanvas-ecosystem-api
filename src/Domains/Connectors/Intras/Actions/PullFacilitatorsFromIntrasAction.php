@@ -7,11 +7,12 @@ namespace Kanvas\Connectors\Intras\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Intras\Enums\SipgoEntityEnum;
 use Kanvas\Connectors\Intras\Mappers\FacilitatorMapper;
+use Kanvas\Connectors\Intras\Support\LegacyIdMap;
 use Kanvas\Event\Facilitators\Models\Facilitator;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleType;
@@ -73,6 +74,9 @@ class PullFacilitatorsFromIntrasAction
                 );
 
                 $people = $this->resolvePeople($row, $mapped, $facilitatorType);
+                // An import is not an edit: every set() below would otherwise fire CREATE_CUSTOM_FIELD
+                // into the SIPGO sync rules (docs/sipgo/sipgo-push-back-spec.md).
+                $people->disableWorkflows();
 
                 $people->set(CustomFieldEnum::INTRAS_FACILITATOR_ID->value, $row->id);
 
@@ -186,15 +190,7 @@ class PullFacilitatorsFromIntrasAction
 
     protected function preloadFacilitatorIdMap(): void
     {
-        $this->facilitatorIdMap = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
-            ->where('companies_id', $this->company->getId())
-            ->where('model_name', People::class)
-            ->where('name', CustomFieldEnum::INTRAS_FACILITATOR_ID->value)
-            ->where('is_deleted', 0)
-            ->pluck('entity_id', 'value')
-            ->mapWithKeys(fn ($peopleId, $legacyId) => [(int) $legacyId => (int) $peopleId])
-            ->all();
+        $this->facilitatorIdMap = LegacyIdMap::load(People::class, CustomFieldEnum::INTRAS_FACILITATOR_ID, $this->company);
     }
 
     /**
@@ -302,25 +298,6 @@ class PullFacilitatorsFromIntrasAction
      */
     public static function loadFacilitatorContacts(Client $client, array $facilitatorIds): array
     {
-        if ($facilitatorIds === []) {
-            return [];
-        }
-
-        $rows = $client->table('facilitators_custom_fields as fcf')
-            ->join('custom_fields as cf', 'cf.id', '=', 'fcf.custom_fields_id')
-            ->whereIn('fcf.facilitators_id', $facilitatorIds)
-            ->whereIn('cf.name', FacilitatorMapper::contactFieldNames())
-            ->whereNotNull('fcf.value')
-            ->where('fcf.value', '!=', '')
-            ->select('fcf.facilitators_id', 'cf.name', 'fcf.value')
-            ->get();
-
-        $map = [];
-
-        foreach ($rows as $row) {
-            $map[(int) $row->facilitators_id][(string) $row->name] = (string) $row->value;
-        }
-
-        return $map;
+        return SipgoEntityEnum::FACILITATOR->loadCustomFields($client, $facilitatorIds, FacilitatorMapper::contactFieldNames());
     }
 }

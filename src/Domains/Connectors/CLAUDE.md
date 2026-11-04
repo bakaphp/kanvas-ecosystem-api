@@ -190,3 +190,14 @@ VALUES ('{name}', UUID(), 0, '{"api_key": {"type": "text", "required": true}}', 
 ### Register workflow activities
 
 Add `#[WorkflowAction]` (from `Kanvas\Workflow\Attributes\WorkflowAction`) on the class. The `kanvas:workflow-sync-actions` command (runs on deploy) auto-discovers every class that carries the attribute via `WorkflowActionDiscoveryService` — no manual registration needed. If the basename collides with another activity in a different connector, pass `#[WorkflowAction(name: 'Human Name')]` to disambiguate. A coverage test (`tests/Workflow/Integration/WorkflowActionCoverageTest.php`) fails if any `KanvasActivity` / `ProcessWebhookJob` subclass is missing the attribute.
+
+## Intras (SIPGO) write-back
+
+Kanvas → SIPGO goes through the Approvals domain only: an edit to a linked People / Organization
+fires a request activity that freezes a from → to change set (`Support/SipgoChangeSet`), the company
+owner approves, and `WriteSipgoChangeSetAction` writes exactly that set. Catalog columns (nivel,
+sector, ...) are resolved by name through `Support/SipgoCatalog`, which refuses unknown or ambiguous
+names rather than guessing. Every `Pull*FromIntrasAction` calls `disableWorkflows()` on what it
+writes: an import is not an edit, and each `set()` would otherwise fire the sync rules. Wiring:
+`kanvas:intras-setup-sync-rules`. Spec and rollout: `docs/sipgo/sipgo-push-back-spec.md`.
+

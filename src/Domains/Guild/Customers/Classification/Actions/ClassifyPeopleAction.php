@@ -72,18 +72,20 @@ class ClassifyPeopleAction
         $applies = $result['confidence'] >= $settings->minConfidence
             && ($result['level'] !== null || $result['area'] !== null);
 
-        $this->people->set(FieldEnum::NORMALIZED_TITLE->value, $result['normalized_title']);
-        $this->people->set(FieldEnum::CONFIDENCE->value, $result['confidence']);
-        $this->people->set(FieldEnum::HASH->value, $fingerprint);
+        $this->people->withoutWorkflows(function () use ($result, $fingerprint, $applies): void {
+            $this->people->set(FieldEnum::NORMALIZED_TITLE->value, $result['normalized_title']);
+            $this->people->set(FieldEnum::CONFIDENCE->value, $result['confidence']);
+            $this->people->set(FieldEnum::HASH->value, $fingerprint);
 
-        if ($applies) {
-            $this->people->del(FieldEnum::SUGGESTED->value);
-        } else {
-            $this->people->set(FieldEnum::SUGGESTED->value, [
-                'level' => $result['level'],
-                'area' => $result['area'],
-            ]);
-        }
+            if ($applies) {
+                $this->people->del(FieldEnum::SUGGESTED->value);
+            } else {
+                $this->people->set(FieldEnum::SUGGESTED->value, [
+                    'level' => $result['level'],
+                    'area' => $result['area'],
+                ]);
+            }
+        });
 
         new ApplyPeopleClassificationAction(
             people: $this->people,

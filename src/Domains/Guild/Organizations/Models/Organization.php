@@ -21,6 +21,7 @@ use Illuminate\Support\Collection;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Analytics\Reporting\Observers\ReportSourceObserver;
+use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Support\LocationContext;
 use Kanvas\CustomFields\Models\AppsCustomFields;
@@ -65,6 +66,7 @@ use Override;
 class Organization extends BaseModel implements BillableInterface, PayeeInterface, ProvidesAgentContext
 {
     use HasAdminLink;
+    use HasApprovals;
     use IsBillable;
     use CanUseWorkflow;
     use DatabaseSearchableTrait;
@@ -84,6 +86,15 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     public function getGraphTypeName(): string
     {
         return 'Organization';
+    }
+
+    /**
+     * Saved on every custom-field write and import; approvals are opened explicitly by workflow
+     * activities (same reason as People).
+     */
+    protected static function approvalUsesLifecycleTriggers(): bool
+    {
+        return false;
     }
 
     #[Override]
