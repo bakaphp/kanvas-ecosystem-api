@@ -44,9 +44,16 @@ final class ApplyDoNotContactAction
     public function execute(): ConsentOutcome
     {
         if ((bool) $this->people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value)) {
+            // Re-enforced rather than skipped: a contact can be opted back in by hand, or a lead turned
+            // back on, without the person flag ever being cleared. Not `applied`, so callers don't send
+            // a second acknowledgement, and the person-level audit trail stays the original one.
+            [$contactsOptedOut, $leadsFlagged] = $this->flag(stampPeople: false);
+
             return new ConsentOutcome(
                 signal: ConsentSignalEnum::STOP,
                 alreadyOptedOut: true,
+                contactsOptedOut: $contactsOptedOut,
+                leadsFlagged: $leadsFlagged,
                 match: $this->match,
             );
         }
@@ -81,9 +88,11 @@ final class ApplyDoNotContactAction
      *
      * @return array{0: int, 1: int} contacts opted out, leads flagged
      */
-    private function flag(): array
+    private function flag(bool $stampPeople = true): array
     {
-        $this->stamp($this->people);
+        if ($stampPeople) {
+            $this->stamp($this->people);
+        }
 
         $contactsOptedOut = $this->people->contacts()
             ->where('is_opt_out', 0)
@@ -107,19 +116,25 @@ final class ApplyDoNotContactAction
         return [$contactsOptedOut, $leadsFlagged];
     }
 
+    /**
+     * Returns whether the lead was newly flagged. An already-flagged lead keeps its original stamp
+     * but is still silenced and noted: its AI may have been turned back on since.
+     */
     private function flagLead(Lead $lead): bool
     {
-        if ((bool) $lead->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value)) {
-            return false;
+        $isNewlyFlagged = ! (bool) $lead->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value);
+
+        if ($isNewlyFlagged) {
+            $this->stamp($lead);
         }
 
-        $this->stamp($lead);
+        new RecordLeadNoteAction($lead)->recordAiControl('Opt Out');
 
         // AI_MODE alone does not hold: resolveAiMode() lets the lead-type config outrank the stored
         // mode unless the manual flag is set, so a muted lead would quietly start replying again.
         new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
 
-        return true;
+        return $isNewlyFlagged;
     }
 
     private function stamp(People|Lead $entity): void
