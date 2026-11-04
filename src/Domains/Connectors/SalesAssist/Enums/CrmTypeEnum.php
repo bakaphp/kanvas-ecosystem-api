@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Enums;
 
+use Kanvas\Connectors\Elead\Services\EleadCrmDriver;
 use Kanvas\Connectors\Reynolds\Services\ReynoldsCrmDriver;
 use Kanvas\Connectors\SalesAssist\Contracts\CrmLeadDriver;
 
@@ -15,11 +16,13 @@ use Kanvas\Connectors\SalesAssist\Contracts\CrmLeadDriver;
 enum CrmTypeEnum: string
 {
     case REYNOLDS = 'reynolds';
+    case ELEAD = 'elead';
 
     public function driver(): CrmLeadDriver
     {
         return match ($this) {
             self::REYNOLDS => new ReynoldsCrmDriver(),
+            self::ELEAD => new EleadCrmDriver(),
         };
     }
 }

@@ -25,6 +25,11 @@ class ReynoldsCrmDriver implements CrmLeadDriver
         return $company->get(ConfigurationEnum::REYNOLDS_DEALER_NUMBER->value) !== null;
     }
 
+    public function canCreate(): bool
+    {
+        return true;
+    }
+
     public function clientIdField(): string
     {
         return CustomFieldEnum::CLIENT_ID->value;

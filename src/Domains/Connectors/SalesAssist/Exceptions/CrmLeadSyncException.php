@@ -20,6 +20,7 @@ class CrmLeadSyncException extends LightHouseCustomException
     public const string INVALID_PARTICIPANT = 'invalid_participant';
     public const string LOCKED_RETRY = 'locked_retry';
     public const string VALIDATION_FAILED = 'validation_failed';
+    public const string NOT_FOUND = 'not_found';
 
     public function __construct(string $message, string $reason, protected ?string $field = null)
     {
@@ -60,6 +61,11 @@ class CrmLeadSyncException extends LightHouseCustomException
     public static function invalidParticipant(string $message, string $field): self
     {
         return new self($message, self::INVALID_PARTICIPANT, $field);
+    }
+
+    public static function notFound(): self
+    {
+        return new self('Nothing in Kanvas matches this customer, and this CRM does not create', self::NOT_FOUND, 'identity');
     }
 
     public static function lockedRetry(): self

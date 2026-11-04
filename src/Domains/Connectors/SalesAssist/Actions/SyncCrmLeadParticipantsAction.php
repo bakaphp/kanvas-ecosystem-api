@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Actions;
 
+use Kanvas\Connectors\SalesAssist\Contracts\CrmLeadDriver;
 use Kanvas\Connectors\SalesAssist\DataTransferObject\Crm\CrmCustomer;
 use Kanvas\Connectors\SalesAssist\DataTransferObject\Crm\CrmParticipantAdd;
 use Kanvas\Connectors\SalesAssist\DataTransferObject\Crm\CrmPhones;
@@ -34,6 +35,7 @@ class SyncCrmLeadParticipantsAction
 
     public function __construct(
         protected readonly CrmLeadSync $data,
+        protected readonly CrmLeadDriver $driver,
         protected readonly ?Lead $lead
     ) {
     }
@@ -61,15 +63,30 @@ class SyncCrmLeadParticipantsAction
         }
     }
 
-    public function execute(Lead $lead): void
+    /**
+     * @return list<array{code: string, field: string}> warnings
+     */
+    public function execute(Lead $lead): array
     {
+        $warnings = [];
+
         foreach ($this->data->participants?->add ?? [] as $index => $row) {
-            $this->add($lead, $this->resolvePeople($row), $this->relationships[$index]);
+            $people = $this->resolvePeople($row);
+
+            if ($people === null) {
+                $warnings[] = ['code' => 'participant_not_found', 'field' => "participants.add.{$index}"];
+
+                continue;
+            }
+
+            $this->add($lead, $people, $this->relationships[$index]);
         }
 
         foreach ($this->removals as $people) {
             new RemoveLeadParticipantAction($this->participant($lead, $people))->execute();
         }
+
+        return $warnings;
     }
 
     private function add(Lead $lead, People $people, PeopleRelationship $relationship): void
@@ -93,9 +110,9 @@ class SyncCrmLeadParticipantsAction
 
     /**
      * The same name and a shared contact is the same person, so a participant sent twice is not made
-     * twice.
+     * twice. Null when nobody matches and the CRM cannot create.
      */
-    private function resolvePeople(CrmParticipantAdd $row): People
+    private function resolvePeople(CrmParticipantAdd $row): ?People
     {
         $customer = new CrmCustomer(
             firstname: $row->firstname,
@@ -104,13 +121,18 @@ class SyncCrmLeadParticipantsAction
             emails: $row->email === null ? null : [$row->email]
         );
 
-        $people = new NameAndContactPeopleFinder()->find($this->data->app, $this->data->company, $customer)->first()
-            ?? new CreateCrmPeopleAction(
-                $this->data->app,
-                $this->data->company,
-                $this->data->user,
-                $customer
-            )->execute();
+        $people = new NameAndContactPeopleFinder()->find($this->data->app, $this->data->company, $customer)->first();
+
+        if ($people === null && ! $this->driver->canCreate()) {
+            return null;
+        }
+
+        $people ??= new CreateCrmPeopleAction(
+            $this->data->app,
+            $this->data->company,
+            $this->data->user,
+            $customer
+        )->execute();
 
         new ApplyCrmCustomerAction($people, $customer, $this->data->app)->execute();
 

@@ -159,7 +159,10 @@ New connectors put workflow activities in `src/Domains/Connectors/{ConnectorName
 `SalesAssist/Activities/SyncCrmLeadActivity` (called through `runWorkflowFromEntity` with `activity_class`) owns the
 lead sync for every dealer CRM. The request's `identity.type` picks the strategy: a `SalesAssist/Enums/CrmTypeEnum`
 case whose `driver()` builds a `SalesAssist/Contracts/CrmLeadDriver`, which lives in the CRM's own connector
-(`Reynolds/Services/ReynoldsCrmDriver`). To add a CRM, add the enum case and the driver. Do not copy the sync actions.
+(`Reynolds/Services/ReynoldsCrmDriver`, `Elead/Services/EleadCrmDriver`). To add a CRM, add the enum case and the driver.
+Do not copy the sync actions. A driver's `canCreate()` says whether the sync may create what it does not find (people,
+lead, a participant's people, catalog rows): Reynolds creates; eLead only links and updates, and answers `not_found`
+when nothing matches.
 `Reynolds/Activities/SyncCrmLeadActivity` is a deprecated alias for extension builds that still send the old name.
 
 ### `executeIntegration` requires `additionalParams`

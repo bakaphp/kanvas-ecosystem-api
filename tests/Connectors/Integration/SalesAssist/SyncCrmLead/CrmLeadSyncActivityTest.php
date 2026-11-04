@@ -8,9 +8,11 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Elead\Enums\CustomFieldEnum as EleadCustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Activities\SyncCrmLeadActivity as ReynoldsSyncCrmLeadActivity;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Activities\SyncCrmLeadActivity;
+use Kanvas\Connectors\SalesAssist\Exceptions\CrmLeadSyncException;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
@@ -217,6 +219,33 @@ final class CrmLeadSyncActivityTest extends TestCase
         $attribute = new ReflectionClass(SyncCrmLeadActivity::class)->getAttributes(WorkflowAction::class)[0]->newInstance();
 
         $this->assertSame(IntegrationsEnum::SALESASSIST, $attribute->integration);
+    }
+
+    public function testAnEleadRequestThatMatchesNothingIsNotFound(): void
+    {
+        $key = EleadCustomFieldEnum::COMPANY->value;
+        $previous = [];
+
+        foreach ($this->companies() as $company) {
+            $previous[$company->getId()] = $company->get($key);
+            $company->set($key, 'TEST-SUBSCRIPTION');
+        }
+
+        try {
+            $params = $this->params();
+            $params['identity']['type'] = 'elead';
+            unset($params['customer']['phones']);
+
+            $response = $this->callActivity($params);
+
+            $this->assertSame(CrmLeadSyncException::NOT_FOUND, $response->json('errors.0.extensions.reason'));
+            $this->assertSame('identity', $response->json('errors.0.extensions.field'));
+        } finally {
+            foreach ($this->companies() as $company) {
+                $value = $previous[$company->getId()] ?? null;
+                $value === null ? $company->del($key) : $company->set($key, $value);
+            }
+        }
     }
 
     private function callActivity(array $params, string $activityClass = SyncCrmLeadActivity::class)

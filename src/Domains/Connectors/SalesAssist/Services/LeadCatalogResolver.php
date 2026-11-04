@@ -14,12 +14,14 @@ use Kanvas\Guild\Leads\Models\LeadType;
  * Turns the type, status and source names a CRM reports into this company's catalog rows,
  * creating the row the first time a name is seen. A null name keeps the lead's current value:
  * CRMs that publish deltas omit what did not change, and overwriting it with nothing would wipe it.
+ * Without `createMissing` an unknown name is treated like a null one and no row is created.
  */
 final class LeadCatalogResolver
 {
     public function __construct(
         private readonly AppInterface $app,
-        private readonly CompanyInterface $company
+        private readonly CompanyInterface $company,
+        private readonly bool $createMissing = true
     ) {
     }
 
@@ -27,6 +29,10 @@ final class LeadCatalogResolver
     {
         if ($name === null) {
             return (int) ($currentId ?? 0);
+        }
+
+        if (! $this->createMissing) {
+            return $this->existingId(LeadType::class, $name) ?? (int) ($currentId ?? 0);
         }
 
         $type = LeadType::firstOrCreate(
@@ -61,6 +67,10 @@ final class LeadCatalogResolver
             return $default?->getId() ?? 0;
         }
 
+        if (! $this->createMissing) {
+            return $this->existingId(LeadStatus::class, $name) ?? $this->statusId(null, $currentId);
+        }
+
         $status = LeadStatus::firstOrCreate(
             [
                 'apps_id' => $this->app->getId(),
@@ -81,6 +91,10 @@ final class LeadCatalogResolver
             return (int) ($currentId ?? 0);
         }
 
+        if (! $this->createMissing) {
+            return $this->existingId(LeadSource::class, $name) ?? (int) ($currentId ?? 0);
+        }
+
         $source = LeadSource::firstOrCreate(
             [
                 'apps_id' => $this->app->getId(),
@@ -94,5 +108,19 @@ final class LeadCatalogResolver
         );
 
         return $source->getId();
+    }
+
+    /**
+     * @param class-string<LeadType|LeadSource|LeadStatus> $model
+     */
+    private function existingId(string $model, string $name): ?int
+    {
+        $id = $model::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('name', $name)
+            ->value('id');
+
+        return $id === null ? null : (int) $id;
     }
 }

@@ -99,6 +99,29 @@ final class LeadCatalogResolverTest extends TestCase
         $this->assertSame($expected?->getId() ?? 0, $id);
     }
 
+    public function testWithoutCreateAnUnknownNameKeepsTheCurrentIdAndCreatesNoRow(): void
+    {
+        $resolver = new LeadCatalogResolver(app(Apps::class), $this->company(), createMissing: false);
+        $name = $this->uniqueName('Unknown');
+
+        $this->assertSame(42, $resolver->typeId($name, 42));
+        $this->assertSame(7, $resolver->sourceId($name, 7));
+        $this->assertSame(9, $resolver->statusId($name, 9));
+        $this->assertSame(0, LeadType::query()->where('name', $name)->count());
+        $this->assertSame(0, LeadSource::query()->where('name', $name)->count());
+        $this->assertSame(0, LeadStatus::query()->where('name', $name)->count());
+    }
+
+    public function testWithoutCreateAKnownNameIsStillResolved(): void
+    {
+        $name = $this->uniqueName('Walk-In');
+        $id = $this->resolver()->typeId($name);
+
+        $resolver = new LeadCatalogResolver(app(Apps::class), $this->company(), createMissing: false);
+
+        $this->assertSame($id, $resolver->typeId($name, 42));
+    }
+
     private function resolver(): LeadCatalogResolver
     {
         return new LeadCatalogResolver(app(Apps::class), $this->company());

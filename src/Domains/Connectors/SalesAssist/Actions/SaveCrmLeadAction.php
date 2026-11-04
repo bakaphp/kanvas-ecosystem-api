@@ -32,7 +32,7 @@ class SaveCrmLeadAction
         $lead = $this->lead ?? $this->newLead();
         $isNew = ! $lead->exists;
         $info = $this->data->lead;
-        $catalog = new LeadCatalogResolver($this->data->app, $this->data->company);
+        $catalog = new LeadCatalogResolver($this->data->app, $this->data->company, $this->driver->canCreate());
 
         $lead->leads_types_id = $catalog->typeId(
             Str::trimToNull($info?->type?->name),

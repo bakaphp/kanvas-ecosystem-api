@@ -21,6 +21,12 @@ interface CrmLeadDriver
     public function isConfigured(CompanyInterface $company): bool;
 
     /**
+     * Whether the sync may create what it does not find: the people, the lead, a participant's people
+     * and lead type, source or status rows. A CRM that cannot only links and updates what already exists.
+     */
+    public function canCreate(): bool;
+
+    /**
      * Custom field on the people that holds the CRM's customer id. Null for a CRM that only has a
      * lead id, which skips the lookup by client id.
      */

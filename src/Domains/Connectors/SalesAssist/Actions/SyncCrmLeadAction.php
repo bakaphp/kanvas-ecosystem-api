@@ -84,7 +84,7 @@ class SyncCrmLeadAction
     {
         $plan = new ResolveCrmLeadPlanAction($this->data, $this->driver)->execute();
         $followers = $plan->hasLead() ? new SyncCrmLeadFollowersAction($this->data) : null;
-        $participants = $plan->hasLead() ? new SyncCrmLeadParticipantsAction($this->data, $plan->lead) : null;
+        $participants = $plan->hasLead() ? new SyncCrmLeadParticipantsAction($this->data, $this->driver, $plan->lead) : null;
 
         $ownerId = $this->validate($plan);
         $followers?->prepare();
@@ -181,7 +181,7 @@ class SyncCrmLeadAction
                     $plan->lead,
                     $ownerId
                 )->execute();
-                $participants?->execute($lead);
+                $warnings = [...$warnings, ...($participants?->execute($lead) ?? [])];
             }
         });
 
@@ -261,6 +261,8 @@ class SyncCrmLeadAction
 
         if ($this->data->identity->lead_id === null) {
             $warnings[] = ['code' => 'lead_id_missing', 'field' => 'identity.lead_id'];
+        } elseif (! $plan->hasLead()) {
+            $warnings[] = ['code' => 'lead_not_found', 'field' => 'identity.lead_id'];
         }
 
         if (! $plan->hasLead()) {
