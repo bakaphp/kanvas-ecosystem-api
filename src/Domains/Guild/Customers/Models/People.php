@@ -46,6 +46,7 @@ use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Templates\Contracts\ExposesTemplateData;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -75,7 +76,7 @@ use Override;
  * @property string|null $apple_contact_id
  */
 #[ObservedBy([PeopleObserver::class, ReportSourceObserver::class])]
-class People extends BaseModel
+class People extends BaseModel implements ExposesTemplateData
 {
     use HasAdminLink;
     use HasApprovals;
@@ -1056,5 +1057,28 @@ class People extends BaseModel
         $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_USER_AVATAR->getValue());
 
         return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
+    }
+
+    /**
+     * The row also holds a driving licence and third-party contact ids, which an HTML template could
+     * ship to any host through an image URL, so a template sees this list and nothing else.
+     *
+     * @return array<string, mixed>
+     */
+    #[Override]
+    public function toTemplateData(): array
+    {
+        return [
+            'id' => $this->getId(),
+            'uuid' => $this->uuid,
+            'name' => $this->name,
+            'firstname' => $this->firstname,
+            'middlename' => $this->middlename,
+            'lastname' => $this->lastname,
+            'dob' => $this->dob,
+            'email' => $this->getEmails()->first()?->value,
+            'phone' => $this->getAllPhones()->first()?->value,
+            'custom_fields' => $this->getAllCustomFields(),
+        ];
     }
 }

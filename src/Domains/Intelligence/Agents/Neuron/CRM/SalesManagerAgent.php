@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateDealTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateLeadCampaignTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePeopleCampaignTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\DeleteDealTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\DeleteLeadTool;
@@ -146,6 +147,7 @@ class SalesManagerAgent extends SystemUserAgent
         $core[] = new SendBatchMessageTool()->withContext($app, $company, $user)->forRequestingUser($user);
         $core[] = new ImportPeopleListTool()->withContext($app, $company, $user)->forRequestingUser($user);
         $core[] = new CreateLeadCampaignTool()->withContext($app, $company, $user)->forRequestingUser($user);
+        $core[] = new CreatePeopleCampaignTool()->withContext($app, $company, $user)->forRequestingUser($user);
         $core[] = new AddPeopleToCampaignTool()->withContext($app, $company, $user)->forRequestingUser($user);
         $core[] = new CreateTemplateTool()->withContext($app, $company, $user);
         $core[] = new ListTemplatesTool()->withContext($app, $company, $user);
