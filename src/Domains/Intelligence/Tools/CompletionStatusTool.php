@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Tools;
 
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 use Override;
@@ -34,7 +34,7 @@ class CompletionStatusTool implements ContextToolInterface
             'lead' => $this->entity->toArray(),
             'people' => $this->entity->people->toArray(),
             'company' => $this->entity->company->toArray(),
-            'additional_context_information' => $this->entity->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
+            'additional_context_information' => $this->entity instanceof Lead ? $this->entity->getAiContextInfo() : [],
         ];
         /** @var StructuredAgentResponse $response */
         $response = agent(

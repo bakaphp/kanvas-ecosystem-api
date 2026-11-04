@@ -27,6 +27,8 @@ use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Leads\Services\ContactHistoryService;
+use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
@@ -39,8 +41,9 @@ use function Sentry\captureException;
  * lead yet — so they're recognized next time. We PROMOTE to a Lead when they
  * qualify: either a repeat (a People for this number already existed) OR the
  * agent flags clear intent (`interested`). Details the agent learns (name,
- * interest) are backfilled onto the contact and, once promoted, the interest is
- * written to LEAD_CONTEXT_INFO so future calls read it back as context.
+ * interest) are backfilled onto the contact. When the agent sends a call summary it is
+ * appended to the contact history (lead, or People before promotion), which the next
+ * call and the lead's SMS agent session both read back.
  *
  * Reuses the same People/Lead creation scaffolding as the ElevenLabs connector.
  * Best-effort: returns a structured result the LLM can speak; never throws.
@@ -125,9 +128,16 @@ class CaptureVoiceCallerAction
                 $lead = $this->createLeadFromPeople($people, $user);
                 $createdLead = true;
             }
-            $contextInfo = $this->buildContextInfo();
-            if ($lead !== null && $contextInfo !== '') {
-                $lead->set(ConfigurationEnum::LEAD_CONTEXT_INFO->value, $contextInfo);
+            // Only a summary marks the end of a conversation; interest-only mid-call
+            // captures would otherwise add several entries for one call.
+            if (Str::trimToNull($this->summary) !== null) {
+                new ContactHistoryService()->record(
+                    entity: $lead ?? $people,
+                    channel: 'voice',
+                    direction: $this->direction,
+                    summary: $this->buildContextInfo(),
+                );
+                $this->refreshAgentSessions($lead);
             }
 
             return [
@@ -332,15 +342,35 @@ class CaptureVoiceCallerAction
     }
 
     /**
-     * The AI-facing lead context, round-tripped via LEAD_CONTEXT_INFO and read
-     * back on the next call: the caller's interest, the agent's call summary, and
-     * any appointment request. Empty string when nothing was captured.
+     * Custom-field writes don't fire LeadObserver::updated, so the lead's SMS agent would
+     * keep a session state that predates the call. A refresh failure must not turn a
+     * saved capture into an error for the voice agent.
+     */
+    private function refreshAgentSessions(?Lead $lead): void
+    {
+        if ($lead === null || ! $lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
+            return;
+        }
+
+        try {
+            new UpdateLeadSessionsAction($lead)->execute();
+        } catch (Throwable $e) {
+            captureException($e);
+        }
+    }
+
+    /**
+     * What the next agent should know about this call: the call summary, interest and
+     * any appointment request, one per line.
      */
     private function buildContextInfo(): string
     {
+        // Summary first: it carries the runtime's "[voice <direction> <date>, <outcome>]"
+        // header, which ContactHistoryService keeps as the line's header.
+        $interest = Str::trimToNull($this->interest);
         $lines = array_filter([
-            ($this->interest !== null && trim($this->interest) !== '') ? 'Interest: ' . trim($this->interest) : null,
-            ($this->summary !== null && trim($this->summary) !== '') ? trim($this->summary) : null,
+            Str::trimToNull($this->summary),
+            $interest !== null ? "Interest: {$interest}" : null,
             $this->wantsAppointment ? $this->appointmentNote() : null,
         ]);
 
