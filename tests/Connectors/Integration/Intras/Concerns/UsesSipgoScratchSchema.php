@@ -126,15 +126,18 @@ trait UsesSipgoScratchSchema
         $fixture->statement("CREATE DATABASE IF NOT EXISTS `{$db}`");
         $fixture->statement("DROP TABLE IF EXISTS `{$db}`.participants, `{$db}`.custom_fields, `{$db}`.participants_custom_fields, `{$db}`.participants_levels, `{$db}`.participants_statuses, `{$db}`.cities, `{$db}`.facilitators, `{$db}`.facilitators_custom_fields, `{$db}`.facilitators_statuses, `{$db}`.countries, `{$db}`.companies, `{$db}`.companies_custom_fields, `{$db}`.business_sectors, `{$db}`.companies_offices");
         $fixture->statement("CREATE TABLE `{$db}`.participants (
-            id INT UNSIGNED NOT NULL PRIMARY KEY,
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            companies_id INT UNSIGNED NULL,
             first_name VARCHAR(64) NOT NULL,
             last_name VARCHAR(64) NOT NULL,
             full_name VARCHAR(130) NULL,
             position VARCHAR(64) NULL,
             identification VARCHAR(16) NULL,
             participants_levels_id INT UNSIGNED NULL,
-            participants_statuses_id INT UNSIGNED NULL,
+            participants_statuses_id INT UNSIGNED NOT NULL,
             departments_id VARCHAR(254) NULL,
+            is_deleted TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL,
             updated_at DATETIME NULL
         )");
         $fixture->statement("CREATE TABLE `{$db}`.participants_levels (id INT UNSIGNED NOT NULL PRIMARY KEY, name VARCHAR(64) NOT NULL)");
@@ -171,6 +174,7 @@ trait UsesSipgoScratchSchema
             'identification' => '00112345678',
             'participants_levels_id' => 4,
             'participants_statuses_id' => 1,
+            'created_at' => '2020-01-01 00:00:00',
         ]);
 
         $fixture->table("{$db}.custom_fields")->insert([
@@ -179,6 +183,7 @@ trait UsesSipgoScratchSchema
             ['id' => 65, 'modules_id' => 4, 'name' => 'celular_1'],
             ['id' => 66, 'modules_id' => 4, 'name' => 'celular_2'],
             ['id' => 67, 'modules_id' => 4, 'name' => 'email_oficina'],
+            ['id' => 68, 'modules_id' => 4, 'name' => 'email_personal'],
             ['id' => 80, 'modules_id' => 3, 'name' => 'email'],
             ['id' => 81, 'modules_id' => 3, 'name' => 'celular'],
             ['id' => 90, 'modules_id' => 1, 'name' => 'tamano'],

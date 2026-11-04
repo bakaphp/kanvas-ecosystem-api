@@ -17,7 +17,10 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
  */
 trait PushesApprovedChangeSet
 {
-    abstract protected function approvalType(): string;
+    /**
+     * @return list<string>
+     */
+    abstract protected function approvalTypes(): array;
 
     /**
      * @return class-string<Model>
@@ -31,8 +34,8 @@ trait PushesApprovedChangeSet
     {
         $this->overwriteAppService($app);
 
-        if ($approvalRequest->approval_type !== $this->approvalType()) {
-            return ['pushed' => false, 'reason' => 'not a ' . $this->approvalType() . ' approval'];
+        if (! in_array($approvalRequest->approval_type, $this->approvalTypes(), true)) {
+            return ['pushed' => false, 'reason' => 'not a ' . implode(' / ', $this->approvalTypes()) . ' approval'];
         }
 
         $entity = $approvalRequest->resolveEntity();

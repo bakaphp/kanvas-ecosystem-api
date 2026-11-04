@@ -17,6 +17,12 @@ class ParticipantMapper
 {
     use MapsContactSlots;
 
+    /** The People type the pull assigns; only this type is proposed as a new SIPGO participant. */
+    public const string PARTICIPANT_PEOPLE_TYPE = 'Participant';
+
+    /** `participants_statuses.name` a new participant gets when Kanvas holds no `estatus`. */
+    public const string DEFAULT_STATUS = 'ACTIVO';
+
     /**
      * `custom_fields.name` is not unique in SIPGO — `email_oficina` exists under modules 2, 3 and 4 —
      * and every participants_custom_fields row points at module 4. A write that resolved the field by
@@ -187,6 +193,26 @@ class ParticipantMapper
             ],
             'catalog' => $catalog,
         ];
+    }
+
+    /**
+     * Everything a new `participants` row needs that the update mapping does not carry: the SIPGO
+     * company (required for the Gestor to show the person) and a status, which is NOT NULL.
+     *
+     * @return array{row: array<string, string>, custom_fields: array<string, string>, catalog: array<string, array{table: string, name: string}>}
+     */
+    public static function toIntrasForCreate(People $people, int $companyId): array
+    {
+        $desired = self::toIntras($people);
+        $desired['row']['companies_id'] = (string) $companyId;
+        $desired['catalog']['participants_statuses_id'] ??= ['table' => 'participants_statuses', 'name' => self::DEFAULT_STATUS];
+
+        return $desired;
+    }
+
+    public static function isParticipant(People $people): bool
+    {
+        return $people->peopleType?->name === self::PARTICIPANT_PEOPLE_TYPE;
     }
 
     /**

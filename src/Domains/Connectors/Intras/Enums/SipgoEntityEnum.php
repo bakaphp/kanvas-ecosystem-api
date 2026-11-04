@@ -67,9 +67,11 @@ enum SipgoEntityEnum: string
     }
 
     /**
-     * @return array{kind: string, legacy_id: int, changes: array}
+     * `legacy_id` null means "create this row"; the push fills it in.
+     *
+     * @return array{kind: string, legacy_id: ?int, changes: array}
      */
-    public function item(int $legacyId, array $changes): array
+    public function item(?int $legacyId, array $changes): array
     {
         return ['kind' => $this->value, 'legacy_id' => $legacyId, 'changes' => $changes];
     }

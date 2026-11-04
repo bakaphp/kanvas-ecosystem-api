@@ -23,12 +23,14 @@ class WriteSipgoChangeSetAction
     public function __construct(
         protected Client $client,
         protected SipgoEntityEnum $kind,
-        protected int $legacyId,
+        protected ?int $legacyId,
         protected array $changes,
     ) {
     }
 
     /**
+     * A null legacy id inserts the row and reports the id SIPGO assigned.
+     *
      * @return array{kind: string, legacy_id: int, row: list<string>, custom_fields: list<string>}
      */
     public function execute(): array
@@ -36,30 +38,46 @@ class WriteSipgoChangeSetAction
         $columns = array_map(fn (array $change) => $change['to'], $this->changes['row'] ?? []);
         $customFields = array_map(fn (array $change) => $change['to'], $this->changes['custom_fields'] ?? []);
 
-        $result = [
+        if ($this->legacyId !== null && $columns === [] && $customFields === []) {
+            return $this->result($this->legacyId, $columns, $customFields);
+        }
+
+        $legacyId = $this->client->getConnection()->transaction(function () use ($columns, $customFields): int {
+            $now = Carbon::now()->toDateTimeString();
+
+            if ($this->legacyId === null) {
+                $legacyId = (int) $this->client->table($this->kind->table())->insertGetId([
+                    ...$columns,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            } else {
+                $legacyId = $this->legacyId;
+                $row = $this->client->table($this->kind->table())->where('id', $legacyId);
+
+                if (! (clone $row)->exists()) {
+                    throw new ValidationException(sprintf('SIPGO %s %d no longer exists.', $this->kind->value, $legacyId));
+                }
+
+                $row->update([...$columns, 'updated_at' => $now]);
+            }
+
+            $this->writeCustomFields($legacyId, $customFields);
+
+            return $legacyId;
+        });
+
+        return $this->result($legacyId, $columns, $customFields);
+    }
+
+    private function result(int $legacyId, array $columns, array $customFields): array
+    {
+        return [
             'kind' => $this->kind->value,
-            'legacy_id' => $this->legacyId,
+            'legacy_id' => $legacyId,
             'row' => array_keys($columns),
             'custom_fields' => array_keys($customFields),
         ];
-
-        if ($columns === [] && $customFields === []) {
-            return $result;
-        }
-
-        $this->client->getConnection()->transaction(function () use ($columns, $customFields) {
-            $row = $this->client->table($this->kind->table())->where('id', $this->legacyId);
-
-            if (! (clone $row)->exists()) {
-                throw new ValidationException(sprintf('SIPGO %s %d no longer exists.', $this->kind->value, $this->legacyId));
-            }
-
-            $row->update([...$columns, 'updated_at' => Carbon::now()->toDateTimeString()]);
-
-            $this->writeCustomFields($customFields);
-        });
-
-        return $result;
     }
 
     /**
@@ -68,7 +86,7 @@ class WriteSipgoChangeSetAction
      *
      * @param array<string, string> $values
      */
-    protected function writeCustomFields(array $values): void
+    protected function writeCustomFields(int $legacyId, array $values): void
     {
         if ($values === []) {
             return;
@@ -91,7 +109,7 @@ class WriteSipgoChangeSetAction
 
         foreach ($values as $name => $value) {
             $rows = $this->client->table($this->kind->customFieldsTable())
-                ->where($this->kind->foreignKey(), $this->legacyId)
+                ->where($this->kind->foreignKey(), $legacyId)
                 ->where('custom_fields_id', $fieldIds[$name]);
 
             if ((clone $rows)->exists()) {
@@ -101,7 +119,7 @@ class WriteSipgoChangeSetAction
             }
 
             $this->client->table($this->kind->customFieldsTable())->insert([
-                $this->kind->foreignKey() => $this->legacyId,
+                $this->kind->foreignKey() => $legacyId,
                 'custom_fields_id' => $fieldIds[$name],
                 'value' => $value,
             ]);

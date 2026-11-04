@@ -47,9 +47,20 @@ class PushToIntrasAction
                 ));
             }
 
-            $legacyId = (int) ($item['legacy_id'] ?? 0);
+            $legacyId = isset($item['legacy_id']) ? (int) $item['legacy_id'] : null;
+            $linkedId = $kind->legacyIdOf($this->entity);
 
-            if ($legacyId <= 0 || $kind->legacyIdOf($this->entity) !== $legacyId) {
+            if ($legacyId === null && $linkedId !== null) {
+                throw new ValidationException(sprintf(
+                    '%s %d is already linked to SIPGO %s %d; the create request is stale.',
+                    class_basename($this->entity),
+                    $this->entity->getKey(),
+                    $kind->value,
+                    $linkedId,
+                ));
+            }
+
+            if ($legacyId !== null && ($legacyId <= 0 || $linkedId !== $legacyId)) {
                 throw new ValidationException(sprintf(
                     '%s %d is not linked to SIPGO %s %d.',
                     class_basename($this->entity),
@@ -67,8 +78,21 @@ class PushToIntrasAction
             );
         }
 
-        return $client->getConnection()->transaction(
+        $results = $client->getConnection()->transaction(
             fn () => array_map(fn (WriteSipgoChangeSetAction $writer) => $writer->execute(), $writers),
         );
+
+        // Workflows paused: the stamp is bookkeeping, and the sync rules would otherwise fire on it.
+        $this->entity->withoutWorkflows(function () use ($results): void {
+            foreach ($results as $result) {
+                $kind = SipgoEntityEnum::from($result['kind']);
+
+                if ($kind->legacyIdOf($this->entity) === null) {
+                    $this->entity->set($kind->linkField()->value, $result['legacy_id']);
+                }
+            }
+        });
+
+        return $results;
     }
 }

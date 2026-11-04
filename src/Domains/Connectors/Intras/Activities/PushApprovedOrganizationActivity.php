@@ -21,9 +21,9 @@ class PushApprovedOrganizationActivity extends KanvasActivity implements Workflo
 
     public $tries = 3;
 
-    protected function approvalType(): string
+    protected function approvalTypes(): array
     {
-        return OrganizationIntrasSyncApprovalTypeEnum::UPDATE->value;
+        return [OrganizationIntrasSyncApprovalTypeEnum::UPDATE->value];
     }
 
     protected function entityClass(): string

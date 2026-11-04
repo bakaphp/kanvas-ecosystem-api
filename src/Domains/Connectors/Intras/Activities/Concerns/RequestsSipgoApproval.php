@@ -28,6 +28,7 @@ trait RequestsSipgoApproval
     /**
      * @param callable(): (list<array>|null) $diff items, [] when SIPGO matches, null when the linked row is gone
      * @param array<string, mixed> $payload merged with ['items' => ...]
+     * @param string|null $missingReason recorded when $diff returns null; a create diff never does
      */
     protected function requestSipgoApproval(
         Model $entity,
@@ -35,7 +36,7 @@ trait RequestsSipgoApproval
         callable $diff,
         array $payload,
         array $params,
-        string $missingReason
+        ?string $missingReason = null
     ): array {
         try {
             return Cache::lock(self::lockKey($entity), 30)->block(5, function () use ($entity, $approvalType, $diff, $payload, $params, $missingReason): array {
@@ -46,7 +47,7 @@ trait RequestsSipgoApproval
                 }
 
                 if ($items === null) {
-                    return $this->failWorkflow(['requested' => false, 'reason' => $missingReason]);
+                    return $this->failWorkflow(['requested' => false, 'reason' => $missingReason ?? 'linked SIPGO row not found']);
                 }
 
                 if ($items === []) {

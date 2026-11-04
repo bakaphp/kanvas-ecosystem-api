@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Intras;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Kanvas\Approvals\Enums\ApprovalNotifyModeEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Apps\Models\Apps;
@@ -66,38 +67,43 @@ final class SetupSyncRulesCommandTest extends TestCase
             ->where('is_deleted', 0)
             ->get();
 
-        $this->assertCount(10, $rules);
+        $this->assertCount(12, $rules);
 
         $peopleModule = SystemModulesRepository::getByModelName(People::class, $app)->getId();
         $organizationModule = SystemModulesRepository::getByModelName(Organization::class, $app)->getId();
         $requestModule = SystemModulesRepository::getByModelName(ApprovalRequest::class, $app)->getId();
 
-        $this->assertSame(4, $rules->where('systems_modules_id', $peopleModule)->count());
+        $this->assertSame(5, $rules->where('systems_modules_id', $peopleModule)->count());
         $this->assertSame(4, $rules->where('systems_modules_id', $organizationModule)->count());
-        $this->assertSame(2, $rules->where('systems_modules_id', $requestModule)->count());
+        $this->assertSame(3, $rules->where('systems_modules_id', $requestModule)->count());
         $this->assertEqualsCanonicalizing(
-            [WorkflowEnum::UPDATED->value, WorkflowEnum::CREATE_CUSTOM_FIELD->value, WorkflowEnum::CREATE_CUSTOM_FIELDS->value, WorkflowEnum::AGENT_UPDATED->value],
+            [WorkflowEnum::CREATED->value, WorkflowEnum::UPDATED->value, WorkflowEnum::CREATE_CUSTOM_FIELD->value, WorkflowEnum::CREATE_CUSTOM_FIELDS->value, WorkflowEnum::AGENT_UPDATED->value],
             $rules->where('systems_modules_id', $peopleModule)->map(fn (Rule $rule) => $rule->type->name)->all(),
         );
 
         $conditions = RuleCondition::query()->whereIn('rules_id', $rules->pluck('id'))->get();
-        $this->assertCount(2, $conditions);
+        $this->assertCount(3, $conditions);
         $this->assertEqualsCanonicalizing(
-            [PeopleIntrasSyncApprovalTypeEnum::UPDATE->value, OrganizationIntrasSyncApprovalTypeEnum::UPDATE->value],
+            [PeopleIntrasSyncApprovalTypeEnum::UPDATE->value, PeopleIntrasSyncApprovalTypeEnum::CREATE->value, OrganizationIntrasSyncApprovalTypeEnum::UPDATE->value],
             $conditions->pluck('value')->all(),
         );
         $this->assertSame(['approval_type'], $conditions->pluck('attribute_name')->unique()->values()->all());
 
         foreach ([
             [$peopleModule, PeopleIntrasSyncApprovalTypeEnum::UPDATE->value],
+            [$peopleModule, PeopleIntrasSyncApprovalTypeEnum::CREATE->value],
             [$organizationModule, OrganizationIntrasSyncApprovalTypeEnum::UPDATE->value],
+            [$organizationModule, OrganizationIntrasSyncApprovalTypeEnum::CREATE->value],
         ] as [$module, $type]) {
-            $this->assertSame(1, ApprovalPolicy::query()
+            $policies = ApprovalPolicy::query()
                 ->where('apps_id', $app->getId())
                 ->where('companies_id', $company->getId())
                 ->where('system_modules_id', $module)
                 ->where('approval_type', $type)
-                ->count(), $type);
+                ->get();
+
+            $this->assertCount(1, $policies, $type);
+            $this->assertSame(ApprovalNotifyModeEnum::DIGEST->value, $policies->first()->notify, $type);
         }
     }
 

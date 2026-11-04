@@ -6,6 +6,7 @@ namespace App\Console\Commands\Connectors\Intras;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Kanvas\Approvals\Enums\ApprovalNotifyModeEnum;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Approvals\Models\ApprovalRequest;
@@ -29,8 +30,8 @@ use Kanvas\Workflow\Rules\Enums\RuleConditionOperatorEnum;
 /**
  * Wires the approval-gated Kanvas → SIPGO sync for every company with an `intras` integration row
  * (or the companies given). Per company: the People and Organization approval policies, a request
- * rule on each of the four edit events, and a push rule on ApprovalRequest APPROVED conditioned on
- * the connector's approval type. Idempotent.
+ * rule on each edit event (People also on CREATED, for the create lane), and a push rule on
+ * ApprovalRequest APPROVED per approval type. Idempotent.
  *
  * Rollout order: `kanvas:workflow-sync-actions` (Action rows for the four activities) → the `intras`
  * integration row per company → this command. Spec: docs/sipgo/sipgo-push-back-spec.md.
@@ -71,11 +72,12 @@ class SetupSyncRulesCommand extends Command
                 'apps_id' => $app->getId(),
                 'company_id' => $companyId,
                 '--connector' => 'intras',
+                '--notify' => ApprovalNotifyModeEnum::DIGEST->value,
             ]) !== self::SUCCESS) {
                 return self::FAILURE;
             }
 
-            $this->seedOrganizationPolicy($app, $companyId);
+            $this->seedOrganizationPolicies($app, $companyId);
             $wires = $this->rules($app, $companyId);
 
             foreach ($wires as $wire) {
@@ -109,22 +111,30 @@ class SetupSyncRulesCommand extends Command
             ->all();
     }
 
-    private function seedOrganizationPolicy(Apps $app, int $companyId): void
+    /**
+     * `digest`: one Control Center save can open several requests across people, and an import-sized
+     * batch would otherwise mail the owner once per request.
+     */
+    private function seedOrganizationPolicies(Apps $app, int $companyId): void
     {
-        ApprovalPolicy::firstOrCreate([
-            'apps_id' => $app->getId(),
-            'companies_id' => $companyId,
-            'system_modules_id' => SystemModulesRepository::getByModelName(Organization::class, $app)->getId(),
-            'approval_type' => OrganizationIntrasSyncApprovalTypeEnum::UPDATE->value,
-        ], [
-            'steps' => [['step' => 1, 'resolver' => 'company_owner', 'config' => [], 'required_approvals' => 1]],
-            'handler' => null,
-            'trigger' => ApprovalTriggerEnum::MANUAL,
-            'reject_policy' => 'any',
-            'notify' => 'all',
-            'allow_authority_override' => false,
-            'expires_after_hours' => null,
-        ]);
+        $systemModuleId = SystemModulesRepository::getByModelName(Organization::class, $app)->getId();
+
+        foreach (OrganizationIntrasSyncApprovalTypeEnum::cases() as $approvalType) {
+            ApprovalPolicy::firstOrCreate([
+                'apps_id' => $app->getId(),
+                'companies_id' => $companyId,
+                'system_modules_id' => $systemModuleId,
+                'approval_type' => $approvalType->value,
+            ], [
+                'steps' => [['step' => 1, 'resolver' => 'company_owner', 'config' => [], 'required_approvals' => 1]],
+                'handler' => null,
+                'trigger' => ApprovalTriggerEnum::MANUAL,
+                'reject_policy' => 'any',
+                'notify' => ApprovalNotifyModeEnum::DIGEST->value,
+                'allow_authority_override' => false,
+                'expires_after_hours' => null,
+            ]);
+        }
     }
 
     /**
@@ -135,10 +145,10 @@ class SetupSyncRulesCommand extends Command
         $wires = [];
 
         foreach ([
-            [People::class, RequestPeopleApprovalActivity::class, 'People'],
-            [Organization::class, RequestOrganizationApprovalActivity::class, 'Organization'],
-        ] as [$entity, $activity, $label]) {
-            foreach (self::EDIT_EVENTS as $event) {
+            [People::class, RequestPeopleApprovalActivity::class, 'People', [WorkflowEnum::CREATED, ...self::EDIT_EVENTS]],
+            [Organization::class, RequestOrganizationApprovalActivity::class, 'Organization', self::EDIT_EVENTS],
+        ] as [$entity, $activity, $label, $events]) {
+            foreach ($events as $event) {
                 $wires[] = new WireRuleAction(
                     $app,
                     $companyId,
@@ -152,8 +162,9 @@ class SetupSyncRulesCommand extends Command
         }
 
         foreach ([
-            [PushApprovedPeopleActivity::class, PeopleIntrasSyncApprovalTypeEnum::UPDATE->value, 'People'],
-            [PushApprovedOrganizationActivity::class, OrganizationIntrasSyncApprovalTypeEnum::UPDATE->value, 'Organization'],
+            [PushApprovedPeopleActivity::class, PeopleIntrasSyncApprovalTypeEnum::UPDATE->value, 'People update'],
+            [PushApprovedPeopleActivity::class, PeopleIntrasSyncApprovalTypeEnum::CREATE->value, 'People create'],
+            [PushApprovedOrganizationActivity::class, OrganizationIntrasSyncApprovalTypeEnum::UPDATE->value, 'Organization update'],
         ] as [$activity, $approvalType, $label]) {
             $wires[] = new WireRuleAction(
                 $app,

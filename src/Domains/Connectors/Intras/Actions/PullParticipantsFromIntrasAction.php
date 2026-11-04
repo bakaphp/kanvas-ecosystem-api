@@ -86,7 +86,7 @@ class PullParticipantsFromIntrasAction
         }
 
         $participantType = PeopleType::firstOrCreate([
-            'name' => 'Participant',
+            'name' => ParticipantMapper::PARTICIPANT_PEOPLE_TYPE,
             'apps_id' => $this->app->getId(),
             'companies_id' => $this->company->getId(),
         ], [

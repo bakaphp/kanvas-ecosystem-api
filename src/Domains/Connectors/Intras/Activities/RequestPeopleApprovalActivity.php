@@ -7,7 +7,10 @@ namespace Kanvas\Connectors\Intras\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Intras\Actions\DiffPeopleWithIntrasAction;
+use Kanvas\Connectors\Intras\Actions\FindSipgoParticipantAction;
 use Kanvas\Connectors\Intras\Activities\Concerns\RequestsSipgoApproval;
+use Kanvas\Connectors\Intras\Client;
+use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Enums\PeopleIntrasSyncApprovalTypeEnum;
 use Kanvas\Connectors\Intras\Enums\SipgoEntityEnum;
 use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
@@ -50,8 +53,12 @@ class RequestPeopleApprovalActivity extends KanvasActivity implements WorkflowAc
     {
         $this->overwriteAppService($app);
 
-        if (ParticipantMapper::participantId($people) === null && SipgoEntityEnum::FACILITATOR->legacyIdOf($people) === null) {
-            return ['requested' => false, 'reason' => 'people is not linked to a SIPGO participant or facilitator'];
+        if (
+            ParticipantMapper::participantId($people) === null
+            && SipgoEntityEnum::FACILITATOR->legacyIdOf($people) === null
+            && ! ParticipantMapper::isParticipant($people)
+        ) {
+            return ['requested' => false, 'reason' => 'people is not linked to SIPGO and is not a participant'];
         }
 
         return $this->executeIntegration(
@@ -69,6 +76,31 @@ class RequestPeopleApprovalActivity extends KanvasActivity implements WorkflowAc
 
     private function requestApproval(People $people, array $params): array
     {
+        if (ParticipantMapper::participantId($people) === null && SipgoEntityEnum::FACILITATOR->legacyIdOf($people) === null) {
+            $matches = new FindSipgoParticipantAction($people, new Client($people->app))->execute();
+
+            if (count($matches) > 1) {
+                return $this->failWorkflow([
+                    'requested' => false,
+                    'reason' => 'SIPGO has several participants matching this person: ' . implode(', ', $matches) . '; link one by hand',
+                ]);
+            }
+
+            if ($matches === []) {
+                return $this->requestSipgoApproval(
+                    $people,
+                    PeopleIntrasSyncApprovalTypeEnum::CREATE->value,
+                    fn () => [new DiffPeopleWithIntrasAction($people)->createItem()],
+                    ['people_id' => $people->getId()],
+                    $params,
+                );
+            }
+
+            // One participant already carries this identification or email: adopt it, then sync
+            // as an update. Paused so the stamp does not re-fire the request rules.
+            $people->withoutWorkflows(fn () => $people->set(CustomFieldEnum::INTRAS_PARTICIPANT_ID->value, $matches[0]));
+        }
+
         return $this->requestSipgoApproval(
             $people,
             PeopleIntrasSyncApprovalTypeEnum::UPDATE->value,

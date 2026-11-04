@@ -7,11 +7,15 @@ namespace Kanvas\Connectors\Intras\Actions;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\SipgoEntityEnum;
 use Kanvas\Connectors\Intras\Mappers\FacilitatorMapper;
+use Kanvas\Connectors\Intras\Mappers\OrganizationMapper;
 use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
 use Kanvas\Connectors\Intras\Support\SipgoCatalog;
 use Kanvas\Connectors\Intras\Support\SipgoChangeSet;
 use Kanvas\Event\Facilitators\Models\Facilitator;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Organizations\Models\Organization;
+use stdClass;
 
 class DiffPeopleWithIntrasAction
 {
@@ -89,6 +93,35 @@ class DiffPeopleWithIntrasAction
         }
 
         return array_values(array_filter($items));
+    }
+
+    /**
+     * The item that creates a SIPGO participant for an unlinked People: every value from null. Throws
+     * ValidationException when the person's Organization is not in SIPGO or a catalog name fails.
+     *
+     * @return array{kind: string, legacy_id: null, changes: array}
+     */
+    public function createItem(): array
+    {
+        $companyId = $this->people->organizations()->get()
+            ->map(fn (Organization $organization) => OrganizationMapper::companyId($organization))
+            ->first(fn (?int $id) => $id !== null);
+
+        if ($companyId === null) {
+            throw new ValidationException(sprintf(
+                'People %d: its organization is not in SIPGO yet; create the organization first.',
+                $this->people->getId(),
+            ));
+        }
+
+        $client = new Client($this->people->app);
+
+        return SipgoEntityEnum::PARTICIPANT->item(null, SipgoChangeSet::build(
+            ParticipantMapper::toIntrasForCreate($this->people, $companyId),
+            new stdClass(),
+            [],
+            new SipgoCatalog($client),
+        ));
     }
 
     private function item(SipgoEntityEnum $kind, int $legacyId, array $changes): ?array

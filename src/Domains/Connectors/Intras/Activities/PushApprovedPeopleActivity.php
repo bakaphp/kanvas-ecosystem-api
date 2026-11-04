@@ -13,7 +13,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 #[WorkflowAction(
     name: 'IntrasPushApprovedPeopleActivity',
-    description: 'Writes the change set of an approved approve_people_intras_update request to SIPGO.',
+    description: 'Writes the change set of an approved approve_people_intras_update or approve_people_intras_create request to SIPGO.',
 )]
 class PushApprovedPeopleActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -21,9 +21,9 @@ class PushApprovedPeopleActivity extends KanvasActivity implements WorkflowActiv
 
     public $tries = 3;
 
-    protected function approvalType(): string
+    protected function approvalTypes(): array
     {
-        return PeopleIntrasSyncApprovalTypeEnum::UPDATE->value;
+        return array_column(PeopleIntrasSyncApprovalTypeEnum::cases(), 'value');
     }
 
     protected function entityClass(): string
