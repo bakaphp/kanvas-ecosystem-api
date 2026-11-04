@@ -70,6 +70,12 @@ class SyncLeadToZohoAction
                     $zohoData['Owner'] = $lead->owner->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value) ?? $company->get(CustomFieldEnum::DEFAULT_OWNER->value);
                 }
 
+                $duplicateOwner = Str::trimToNull((string) $lead->get(CustomFieldEnum::ZOHO_DUPLICATE_OWNER_ID->value));
+                if ($duplicateOwner !== null) {
+                    unset($zohoData['Lead_Source']);
+                    $zohoData['Owner'] = $duplicateOwner;
+                }
+
                 if (! isset($zohoData['Lead_Status'])) {
                     $zohoData['Lead_Status'] = 'New Lead';
                 }

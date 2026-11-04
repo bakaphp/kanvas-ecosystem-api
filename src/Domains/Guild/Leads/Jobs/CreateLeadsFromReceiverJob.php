@@ -160,7 +160,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         )->execute();
     }
 
-    private function buildPayload(LeadReceiver $leadReceiver): array
+    protected function buildPayload(LeadReceiver $leadReceiver): array
     {
         $payload = $this->webhookRequest->payload;
 
@@ -245,7 +245,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
     /**
      * @return array{0: ?Users, 1: array}
      */
-    private function resolveOwner(LeadReceiver $leadReceiver, array $payload): array
+    protected function resolveOwner(LeadReceiver $leadReceiver, array $payload): array
     {
         $user = $this->getUserByMemberNumber($payload, $this->receiver->company);
 
@@ -331,7 +331,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         }
     }
 
-    private function buildResponse(
+    protected function buildResponse(
         LeadReceiver $leadReceiver,
         Lead $lead,
         array $sentEmail,
