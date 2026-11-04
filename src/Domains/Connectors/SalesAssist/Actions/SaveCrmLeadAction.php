@@ -12,7 +12,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 
 /**
- * Creates the lead of a CRM prospect, or brings an existing one up to date. Only what the CRM gave is
+ * Creates the Kanvas lead for a CRM lead, or brings an existing one up to date. Only what the CRM gave is
  * touched, and the lead's own title is never rewritten. Workflows stay off: the caller fires the
  * ones it wants once everything is saved.
  */

@@ -154,6 +154,14 @@ If you genuinely need to cache something heavy, key on a credential fingerprint 
 
 New connectors put workflow activities in `src/Domains/Connectors/{ConnectorName}/Activities/`. The older nested `Workflows/Activities/` shape is deprecated.
 
+### The CRM lead sync lives in SalesAssist; a new CRM is a driver, not a new activity
+
+`SalesAssist/Activities/SyncCrmLeadActivity` (called through `runWorkflowFromEntity` with `activity_class`) owns the
+lead sync for every dealer CRM. The request's `identity.type` picks the strategy: a `SalesAssist/Enums/CrmTypeEnum`
+case whose `driver()` builds a `SalesAssist/Contracts/CrmLeadDriver`, which lives in the CRM's own connector
+(`Reynolds/Services/ReynoldsCrmDriver`). To add a CRM, add the enum case and the driver. Do not copy the sync actions.
+`Reynolds/Activities/SyncCrmLeadActivity` is a deprecated alias for extension builds that still send the old name.
+
 ### `executeIntegration` requires `additionalParams`
 
 All calls to `$this->executeIntegration()` in workflow activities must include `additionalParams: $params`. Without it, the system cannot retry the activity with the correct parameters.

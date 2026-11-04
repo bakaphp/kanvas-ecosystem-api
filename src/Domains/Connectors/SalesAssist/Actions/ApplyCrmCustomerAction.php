@@ -72,8 +72,7 @@ class ApplyCrmCustomerAction
 
     /**
      * A number already on the people under any phone type is not added again under another.
-     */
-    /**
+     *
      * @param Collection<int, Contact> $contacts the people's contacts before anything is added
      */
     private function addPhones(Collection $contacts): void

@@ -23,7 +23,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 /**
- * Brings a CRM customer and prospect into Kanvas in one call: finds the people and the lead the CRM's
+ * Brings a CRM customer and lead into Kanvas in one call: finds the people and the lead the CRM's
  * ids point at, adopts or creates what is missing, and applies what the CRM sent.
  *
  * Everything that can be refused is checked before the first write, so a refusal leaves nothing behind.
@@ -490,7 +490,7 @@ class SyncCrmLeadAction
 
     /**
      * The webhook's own lock for a lead, built the way its sync builds it (ids concatenated with no
-     * separator), so a webhook for this prospect waits for this request and the reverse. Changing this
+     * separator), so a webhook for this lead waits for this request and the reverse. Changing this
      * string stops them excluding each other.
      */
     private function leadLockKey(string $leadId): string

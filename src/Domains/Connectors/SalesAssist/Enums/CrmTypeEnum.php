@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Enums;
 
-use Kanvas\Connectors\SalesAssist\Contracts\CrmLeadDriver;
 use Kanvas\Connectors\Reynolds\Services\ReynoldsCrmDriver;
+use Kanvas\Connectors\SalesAssist\Contracts\CrmLeadDriver;
 
 /**
  * The CRMs a lead sync can talk about. A new CRM is a case here, which is the value a request sends as

@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Reynolds;
+namespace Tests\Connectors\Integration\SalesAssist\SyncCrmLead;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Reynolds\Services\ReynoldsCrmDriver;
 use Kanvas\Connectors\SalesAssist\Actions\FindCrmPeopleAction;
 use Kanvas\Connectors\SalesAssist\DataTransferObject\CrmLeadSync;
 use Kanvas\Connectors\SalesAssist\DataTransferObject\CrmPeopleMatch;
 use Kanvas\Connectors\SalesAssist\Enums\CrmPeopleMatchEnum;
-use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Reynolds\Services\ReynoldsCrmDriver;
 use Kanvas\Guild\Customers\Models\People;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;

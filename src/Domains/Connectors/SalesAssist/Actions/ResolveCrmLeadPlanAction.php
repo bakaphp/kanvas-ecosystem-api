@@ -114,7 +114,7 @@ class ResolveCrmLeadPlanAction
     /**
      * The most recently updated active lead of the people, "active" being the company's own
      * `mapping_status_crm` list. With a CRM lead id in hand, a lead that already carries a different one
-     * is another prospect and is skipped; without one there is nothing to contradict.
+     * is another CRM lead and is skipped; without one there is nothing to contradict.
      */
     private function activeLead(People $people): ?Lead
     {

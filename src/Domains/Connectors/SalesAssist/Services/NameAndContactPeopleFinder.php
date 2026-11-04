@@ -48,7 +48,7 @@ final class NameAndContactPeopleFinder
     }
 
     /**
-     * Stored phones carry a leading +1 or 1 as often as not, and Focus sends ten digits, so each
+     * Stored phones carry a leading +1 or 1 as often as not, and a CRM may send ten digits, so each
      * number is looked up with and without the country code.
      *
      * @param list<string> $digits

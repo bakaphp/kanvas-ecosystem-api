@@ -17,7 +17,7 @@ use Kanvas\Workflow\KanvasActivity;
 use Override;
 
 /**
- * Brings a CRM customer and prospect into Kanvas. Called through `runWorkflowFromEntity` with this
+ * Brings a CRM customer and lead into Kanvas. Called through `runWorkflowFromEntity` with this
  * class as `activity_class` and no entity (`entity_id` 0); the request is the `params`:
  *
  *   request_id   string, required. The same id sent twice gives the same result.
@@ -47,7 +47,7 @@ use Override;
     description: 'Finds or creates the customer and the lead a CRM\'s own ids point at, then applies what the CRM '
         . 'sent: contacts, address, consent, owner, participants and followers. Meant to be called by a client '
         . 'with the request as params; the entity it runs on is ignored.',
-    integration: IntegrationsEnum::REYNOLDS,
+    integration: IntegrationsEnum::SALESASSIST,
 )]
 class SyncCrmLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {

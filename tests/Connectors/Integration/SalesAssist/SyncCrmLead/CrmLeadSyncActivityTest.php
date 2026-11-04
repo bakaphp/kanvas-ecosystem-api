@@ -2,18 +2,22 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Reynolds;
+namespace Tests\Connectors\Integration\SalesAssist\SyncCrmLead;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\SalesAssist\Activities\SyncCrmLeadActivity;
+use Kanvas\Connectors\Reynolds\Activities\SyncCrmLeadActivity as ReynoldsSyncCrmLeadActivity;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Activities\SyncCrmLeadActivity;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use PHPUnit\Framework\Attributes\Group;
+use ReflectionClass;
 use Tests\TestCase;
 use Workflow\Models\StoredWorkflow;
 
@@ -183,7 +187,39 @@ final class CrmLeadSyncActivityTest extends TestCase
         $activity->execute(new Lead(), app(Apps::class), $this->params(auth()->user()));
     }
 
-    private function callActivity(array $params)
+    /**
+     * Released extension builds still send the Reynolds class name.
+     */
+    public function testTheReynoldsClassNameStillAnswers(): void
+    {
+        $data = $this->callActivity($this->params(), ReynoldsSyncCrmLeadActivity::class)->json('data.runWorkflowFromEntity');
+
+        $this->assertSame('created_all', $data['outcome']);
+        $this->assertNotEmpty($data['lead']['uuid']);
+    }
+
+    /**
+     * Both names run one sync, so a request first sent under one name is replayed under the other.
+     */
+    public function testTheReplayIsServedAcrossTheMove(): void
+    {
+        $params = $this->params();
+
+        $first = $this->callActivity($params)->json('data.runWorkflowFromEntity');
+        $second = $this->callActivity($params, ReynoldsSyncCrmLeadActivity::class)->json('data.runWorkflowFromEntity');
+
+        $this->assertTrue($second['replayed']);
+        $this->assertSame($first['lead']['id'], $second['lead']['id']);
+    }
+
+    public function testTheSyncBelongsToSalesAssist(): void
+    {
+        $attribute = new ReflectionClass(SyncCrmLeadActivity::class)->getAttributes(WorkflowAction::class)[0]->newInstance();
+
+        $this->assertSame(IntegrationsEnum::SALESASSIST, $attribute->integration);
+    }
+
+    private function callActivity(array $params, string $activityClass = SyncCrmLeadActivity::class)
     {
         return $this->graphQL('
             mutation($input: runWorkflowEntityInput!) {
@@ -194,7 +230,7 @@ final class CrmLeadSyncActivityTest extends TestCase
                 'entity_namespace' => Lead::class,
                 'entity_id' => '0',
                 'action' => 'pull',
-                'activity_class' => SyncCrmLeadActivity::class,
+                'activity_class' => $activityClass,
                 'params' => $params,
             ],
         ], [], [

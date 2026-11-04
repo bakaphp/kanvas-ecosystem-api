@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Reynolds;
+namespace Tests\Connectors\Integration\SalesAssist\SyncCrmLead;
 
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Foundation\Testing\DatabaseTransactions;

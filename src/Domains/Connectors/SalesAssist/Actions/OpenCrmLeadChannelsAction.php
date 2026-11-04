@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Kanvas\Connectors\SalesAssist\DataTransferObject\CrmLeadSync;
-use Kanvas\Connectors\SalesAssist\Enums\CrmLeadSyncSettingEnum;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Enums\CrmLeadSyncSettingEnum;
 use Kanvas\Guild\Customers\Actions\CreateLeadSocialChannelsAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
