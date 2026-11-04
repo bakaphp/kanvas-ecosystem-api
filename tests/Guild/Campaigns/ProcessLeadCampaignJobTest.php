@@ -304,4 +304,72 @@ class ProcessLeadCampaignJobTest extends TestCase
         $this->assertSame('Spring offer', $message->get('title'));
         $this->assertFalse((bool) $message->message['from_ia'], 'A campaign is sent by the manager, not the AI');
     }
+
+    public function testPeopleRecipientGetsItsOwnAttachmentsAndVariablesOnTopOfTheCampaignOnes(): void
+    {
+        Notification::fake();
+        $company = Companies::factory()->create();
+
+        $person = People::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(auth()->user()->getId())
+            ->create(['firstname' => 'Adimedys']);
+        $person->addEmail('certificate@example.com');
+
+        $campaign = $this->campaignFor($company, 'email', 'Certificado');
+        $campaign->attachment_urls = ['https://example.test/shared.pdf'];
+        $campaign->saveOrFail();
+
+        $recipient = $this->addPeopleRecipient($campaign, $person);
+        $recipient->attachment_urls = ['https://example.test/PA1.pdf', 'https://example.test/shared.pdf'];
+        $recipient->variables = ['Saludo' => 'Hola', 'company' => 'OVERRIDE'];
+        $recipient->saveOrFail();
+
+        new ProcessLeadCampaignJob(app(Apps::class), $campaign)->handle();
+
+        $this->assertSame(CampaignRecipientStatusEnum::SENT->value, $recipient->refresh()->status);
+        Notification::assertSentOnDemand(
+            Blank::class,
+            function (Blank $notification, array $channels, object $notifiable): bool {
+                $this->assertSame(
+                    ['https://example.test/shared.pdf', 'https://example.test/PA1.pdf'],
+                    $notification->pathAttachment
+                );
+                $data = $notification->getData();
+                $this->assertSame('Hola', $data['Saludo']);
+                $this->assertInstanceOf(People::class, $data['people']);
+                $this->assertSame('Adimedys', $data['people']->firstname);
+                $this->assertInstanceOf(Companies::class, $data['company']);
+
+                return $notifiable->routes['mail'] === 'certificate@example.com';
+            }
+        );
+    }
+
+    public function testPeopleRecipientWithoutOwnAttachmentsSendsTheCampaignOnesOnly(): void
+    {
+        Notification::fake();
+        $company = Companies::factory()->create();
+
+        $person = People::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(auth()->user()->getId())
+            ->create();
+        $person->addEmail('shared-only@example.com');
+
+        $campaign = $this->campaignFor($company, 'email', 'Certificado');
+        $campaign->attachment_urls = ['https://example.test/shared.pdf'];
+        $campaign->saveOrFail();
+        $this->addPeopleRecipient($campaign, $person);
+
+        new ProcessLeadCampaignJob(app(Apps::class), $campaign)->handle();
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification, array $channels, object $notifiable): bool => $notification->pathAttachment === ['https://example.test/shared.pdf']
+                && $notifiable->routes['mail'] === 'shared-only@example.com'
+        );
+    }
 }
