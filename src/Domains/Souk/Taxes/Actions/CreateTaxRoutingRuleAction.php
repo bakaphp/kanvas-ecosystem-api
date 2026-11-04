@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Taxes\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Souk\Taxes\Models\TaxCategory;
 use Kanvas\Souk\Taxes\Models\TaxRoutingRule;
 
 class CreateTaxRoutingRuleAction
@@ -18,6 +19,8 @@ class CreateTaxRoutingRuleAction
 
     public function execute(): TaxRoutingRule
     {
+        TaxCategory::assertCodesExist($this->app, $this->data['category_codes'] ?? null);
+
         return DB::connection('commerce')->transaction(function () {
             $rule = new TaxRoutingRule();
             $rule->apps_id = $this->app->getId();

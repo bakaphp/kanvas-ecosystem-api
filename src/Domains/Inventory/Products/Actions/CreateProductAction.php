@@ -15,6 +15,7 @@ use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Recommendations\Enrichment\Jobs\EnrichProductJob;
 use Kanvas\Inventory\Variants\Services\VariantService;
+use Kanvas\Souk\Taxes\Models\TaxCategory;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateProductAction
@@ -34,6 +35,8 @@ class CreateProductAction
             $this->productDto->company,
             $this->user
         );
+
+        TaxCategory::assertCodesExist($this->productDto->app, $this->productDto->tax_category);
 
         $products = DB::connection('inventory')->transaction(function () {
             $productType = $this->productDto?->productsType?->getId();

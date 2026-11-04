@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Taxes\Actions;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Souk\Taxes\Models\TaxCategory;
 use Kanvas\Souk\Taxes\Models\TaxRoutingRule;
 
 class UpdateTaxRoutingRuleAction
@@ -30,6 +31,10 @@ class UpdateTaxRoutingRuleAction
 
     public function execute(): TaxRoutingRule
     {
+        if (array_key_exists('category_codes', $this->data)) {
+            TaxCategory::assertCodesExist($this->rule->app, $this->data['category_codes']);
+        }
+
         return DB::connection('commerce')->transaction(function () {
             $this->rule->fill(Arr::only($this->data, self::FIELDS));
             $this->rule->saveOrFail();

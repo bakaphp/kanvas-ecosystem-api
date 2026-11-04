@@ -12,6 +12,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Validations\UniqueSkuRule;
+use Kanvas\Souk\Taxes\Models\TaxCategory;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateVariantsAction
@@ -43,6 +44,8 @@ class CreateVariantsAction
             $this->variantDto->product->company,
             $this->user
         );
+
+        TaxCategory::assertCodesExist($this->variantDto->product->app, $this->variantDto->tax_category);
 
         $search = [
             'products_id' => $this->variantDto->product->getId(),

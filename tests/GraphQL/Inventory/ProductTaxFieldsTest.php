@@ -5,13 +5,22 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Inventory;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Souk\Taxes\Models\TaxRoutingRule;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Souk\Taxes\Actions\CreateTaxCategoryAction;
+use Kanvas\Souk\Taxes\Models\TaxCategory;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 final class ProductTaxFieldsTest extends TestCase
 {
     use InventoryCases;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->ensureTaxCategories('general_tangible', 'digital_goods');
+    }
 
     public function testCreateAndUpdateProductPersistTaxColumns(): void
     {
@@ -104,34 +113,57 @@ final class ProductTaxFieldsTest extends TestCase
         $response->assertJsonPath('data.variants.data.0.tax_category', null);
     }
 
-    public function testTaxCategoriesReturnsDistinctCodesFromActiveRules(): void
+    public function testProductRejectsATaxCategoryOutsideTheCatalog(): void
+    {
+        $response = $this->createProduct([
+            'name' => fake()->name,
+            'sku' => fake()->unique()->uuid(),
+            'tax_category' => 'not_in_catalog_' . uniqid(),
+        ]);
+
+        $this->assertStringContainsString('Unknown tax category', $response->json('errors.0.message'));
+    }
+
+    public function testVariantRejectsATaxCategoryOutsideTheCatalog(): void
+    {
+        $region = $this->graphQLData($this->createRegion(), 'createRegion');
+        $warehouse = $this->graphQLData($this->createWarehouses($region['id']), 'createWarehouse');
+        $product = $this->graphQLData($this->createProduct(), 'createProduct');
+
+        $response = $this->createVariant(
+            productId: $product['id'],
+            warehouseData: ['id' => $warehouse['id']],
+            data: [
+                'name' => fake()->name,
+                'products_id' => $product['id'],
+                'sku' => fake()->unique()->uuid(),
+                'warehouses' => [['id' => $warehouse['id']]],
+                'tax_category' => 'not_in_catalog_' . uniqid(),
+            ]
+        );
+
+        $this->assertStringContainsString('Unknown tax category', $response->json('errors.0.message'));
+    }
+
+    public function testNonTaxableNeedsNoCatalogRow(): void
+    {
+        $product = $this->graphQLData($this->createProduct([
+            'name' => fake()->name,
+            'sku' => fake()->unique()->uuid(),
+            'tax_category' => 'non_taxable',
+        ]), 'createProduct');
+
+        $this->assertSame('non_taxable', Products::findOrFail($product['id'])->tax_category);
+    }
+
+    private function ensureTaxCategories(string ...$codes): void
     {
         $app = app(Apps::class);
 
-        $this->createRule($app, ['general_tangible', 'digital_goods'], true);
-        $this->createRule($app, ['digital_goods', 'food'], true);
-        $this->createRule($app, ['inactive_only'], false);
-
-        $categories = $this->graphQL('{ taxCategories }')->json('data.taxCategories');
-
-        $this->assertContains('general_tangible', $categories);
-        $this->assertContains('digital_goods', $categories);
-        $this->assertContains('food', $categories);
-        $this->assertNotContains('inactive_only', $categories);
-        $this->assertSame($categories, array_values(array_unique($categories)));
-    }
-
-    private function createRule(Apps $app, array $categoryCodes, bool $isActive): TaxRoutingRule
-    {
-        $rule = new TaxRoutingRule();
-        $rule->apps_id = $app->getId();
-        $rule->name = fake()->words(3, true);
-        $rule->condition_country = 'DO';
-        $rule->provider = 'manual';
-        $rule->category_codes = $categoryCodes;
-        $rule->is_active = $isActive;
-        $rule->save();
-
-        return $rule;
+        foreach ($codes as $code) {
+            if (TaxCategory::findByCode($app, $code) === null) {
+                new CreateTaxCategoryAction($app, ['code' => $code, 'name' => $code])->execute();
+            }
+        }
     }
 }

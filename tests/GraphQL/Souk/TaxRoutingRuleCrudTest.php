@@ -6,6 +6,8 @@ namespace Tests\GraphQL\Souk;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Souk\Taxes\Actions\CreateTaxCategoryAction;
+use Kanvas\Souk\Taxes\Models\TaxCategory;
 use Kanvas\Souk\Taxes\Models\TaxRoutingRule;
 use Tests\TestCase;
 
@@ -22,6 +24,10 @@ final class TaxRoutingRuleCrudTest extends TestCase
         parent::setUp();
 
         $this->kanvasApp = app(Apps::class);
+
+        if (TaxCategory::findByCode($this->kanvasApp, 'general') === null) {
+            new CreateTaxCategoryAction($this->kanvasApp, ['code' => 'general', 'name' => 'General'])->execute();
+        }
     }
 
     public function testCreateAppliesDefaultsForOmittedFields(): void
@@ -136,6 +142,36 @@ final class TaxRoutingRuleCrudTest extends TestCase
         $this->assertStringContainsString('TaxProviderEnum', (string) $error);
 
         $this->assertFalse(TaxRoutingRule::query()->fromApp($this->kanvasApp)->where('name', 'Typo')->exists());
+    }
+
+    public function testCategoryCodeOutsideTheCatalogIsRejected(): void
+    {
+        $error = $this->graphQL('
+            mutation($input: TaxRoutingRuleInput!) {
+                createTaxRoutingRule(input: $input) { id }
+            }
+        ', ['input' => [
+            'name' => 'Typo category',
+            'provider' => 'MANUAL',
+            'category_codes' => ['general', 'tabacco'],
+            'rate' => 0.18,
+        ]])->json('errors.0.message');
+
+        $this->assertSame('Unknown tax category: tabacco', $error);
+    }
+
+    public function testUpdateRejectsACategoryCodeOutsideTheCatalog(): void
+    {
+        $rule = $this->createRule(['category_codes' => ['general']]);
+
+        $error = $this->graphQL('
+            mutation($id: ID!, $input: UpdateTaxRoutingRuleInput!) {
+                updateTaxRoutingRule(id: $id, input: $input) { id }
+            }
+        ', ['id' => $rule->getId(), 'input' => ['category_codes' => ['tabacco']]])->json('errors.0.message');
+
+        $this->assertSame('Unknown tax category: tabacco', $error);
+        $this->assertSame(['general'], $rule->refresh()->category_codes);
     }
 
     private function createRule(array $overrides = []): TaxRoutingRule
