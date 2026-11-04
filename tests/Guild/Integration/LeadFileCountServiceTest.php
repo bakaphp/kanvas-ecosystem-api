@@ -36,6 +36,15 @@ final class LeadFileCountServiceTest extends TestCase
         ], $lead->get('file-count'));
     }
 
+    public function testReserveNameJoinsTheBaseTheNumberAndTheExtension(): void
+    {
+        $lead = $this->makeLead();
+        $service = new LeadFileCountService($lead);
+
+        $this->assertSame('drivers-license-combined-1.pdf', $service->reserveName('drivers-license-combined', 'pdf'));
+        $this->assertSame('drivers-license-combined-2.pdf', $service->reserveName('drivers-license-combined', 'pdf'));
+    }
+
     public function testANonArrayValueStartsAtOne(): void
     {
         $lead = $this->makeLead();

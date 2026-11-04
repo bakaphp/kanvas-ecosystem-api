@@ -19,6 +19,12 @@ class LeadFileCountService
     ) {
     }
 
+    /** `<base>-<next number>.<extension>`, the way every Kanvas-made file of a lead is named. */
+    public function reserveName(string $base, string $extension): string
+    {
+        return $base . '-' . $this->reserve($base) . '.' . $extension;
+    }
+
     /** The next number of `$base`; the other bases' entries are written back untouched. */
     public function reserve(string $base): int
     {

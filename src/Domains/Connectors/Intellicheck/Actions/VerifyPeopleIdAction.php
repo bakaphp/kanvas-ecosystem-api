@@ -235,7 +235,7 @@ class VerifyPeopleIdAction
     /** Reserved before rendering, as the client does. */
     protected function reserveReportFileName(): string
     {
-        return self::REPORT_FILE_BASE . '-' . new LeadFileCountService($this->lead)->reserve(self::REPORT_FILE_BASE) . '.pdf';
+        return new LeadFileCountService($this->lead)->reserveName(self::REPORT_FILE_BASE, 'pdf');
     }
 
     /** Only a license side is numbered, from its own counter; the selfie keeps `face_image.jpg`. */
@@ -245,9 +245,7 @@ class VerifyPeopleIdAction
             return $fieldName . '.jpg';
         }
 
-        $base = Str::slug($fieldName);
-
-        return $base . '-' . new LeadFileCountService($this->lead)->reserve($base) . '.jpg';
+        return new LeadFileCountService($this->lead)->reserveName(Str::slug($fieldName), 'jpg');
     }
 
     protected function templateData(array $reportData, bool $isShowRoom): array

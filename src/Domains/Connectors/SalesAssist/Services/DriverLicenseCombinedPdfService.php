@@ -96,6 +96,6 @@ class DriverLicenseCombinedPdfService
             return 'drivers_license_' . $this->message->getId() . '_' . uniqid() . '.pdf';
         }
 
-        return self::FILE_BASE . '-' . new LeadFileCountService($this->lead)->reserve(self::FILE_BASE) . '.pdf';
+        return new LeadFileCountService($this->lead)->reserveName(self::FILE_BASE, 'pdf');
     }
 }
