@@ -153,7 +153,7 @@ final class GatewayAttemptRecoveryTest extends TestCase
         $intentId = 'pi_recovery_canceled_' . uniqid();
         $snapshot = $this->makeSnapshot([
             'payment_intent_id' => $intentId,
-            'gateway_attempt_status' => GatewayAttemptStatusEnum::PENDING_GATEWAY->value,
+            'gateway_attempt_status' => GatewayAttemptStatusEnum::PENDING->value,
         ]);
 
         $call = $this->buildWebhookCall('payment_intent.canceled', [
@@ -177,7 +177,7 @@ final class GatewayAttemptRecoveryTest extends TestCase
 
         $snapshot = $this->makeSnapshot([
             'payment_intent_id' => $intentId,
-            'gateway_attempt_status' => GatewayAttemptStatusEnum::PENDING_GATEWAY->value,
+            'gateway_attempt_status' => GatewayAttemptStatusEnum::PENDING->value,
         ]);
 
         $reservation = CreditReservation::create([
@@ -249,7 +249,7 @@ final class GatewayAttemptRecoveryTest extends TestCase
         $intentId = 'pi_txn_fail_recovery_' . uniqid();
         $snapshot = $this->makeSnapshot([
             'payment_intent_id' => $intentId,
-            'gateway_attempt_status' => GatewayAttemptStatusEnum::PENDING_GATEWAY->value,
+            'gateway_attempt_status' => GatewayAttemptStatusEnum::PENDING->value,
         ]);
 
         $call = $this->buildWebhookCall('payment_intent.canceled', [

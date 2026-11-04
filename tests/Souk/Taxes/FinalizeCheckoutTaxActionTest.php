@@ -89,7 +89,7 @@ final class FinalizeCheckoutTaxActionTest extends TestCase
 
         $order = $this->createOrderWithTaxableItems();
 
-        $result = new FinalizeCheckoutTaxAction($order, $this->kanvasApp)->execute();
+        $result = new FinalizeCheckoutTaxAction($order)->execute();
 
         $this->assertFalse($result['taxEnabled']);
         $this->assertNull($result['snapshotUuid']);
@@ -105,7 +105,7 @@ final class FinalizeCheckoutTaxActionTest extends TestCase
 
     private function tryFinalize(Order $order): ?array
     {
-        return new FinalizeCheckoutTaxAction($order, $this->kanvasApp)->execute();
+        return new FinalizeCheckoutTaxAction($order)->execute();
     }
 
     public function testWritesAttemptKeyAndStatusAndPayloadBeforeGateway(): void
@@ -177,7 +177,7 @@ final class FinalizeCheckoutTaxActionTest extends TestCase
             'total_net_amount' => 150.00,
         ]);
 
-        $result = new FinalizeCheckoutTaxAction($order, $this->kanvasApp)->execute();
+        $result = new FinalizeCheckoutTaxAction($order)->execute();
 
         $this->assertSame(150.0, $result['gatewayDue']);
         $this->assertSame(150.0, $result['payable']);

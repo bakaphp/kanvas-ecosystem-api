@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Taxes\Actions;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxableLine;
@@ -18,19 +17,18 @@ class BuildTaxContextAction
 {
     public function __construct(
         private readonly Order $order,
-        private readonly Apps $app,
     ) {
     }
 
     public function execute(): TaxContext
     {
         $shipTo = $this->buildShipTo();
-        $shipFrom = TaxAddress::shipFromConfig($this->app);
+        $shipFrom = TaxAddress::shipFromConfig($this->order->app);
         $lines = $this->buildLines();
         $exemption = $this->resolveExemption();
 
         return new TaxContext(
-            appId: (string) $this->app->getId(),
+            appId: (string) $this->order->app->getId(),
             shipTo: $shipTo,
             shipFrom: $shipFrom,
             lines: $lines,
@@ -71,7 +69,7 @@ class BuildTaxContextAction
 
     private function buildLines(): array
     {
-        $creditReplacesPrice = (bool) $this->app->get(
+        $creditReplacesPrice = (bool) $this->order->app->get(
             WalletConfigurationEnum::USE_VARIANT_CREDIT_INSTEAD_OF_VARIANT_PRICE_SLUG->value
         );
 
@@ -98,6 +96,6 @@ class BuildTaxContextAction
 
     private function resolveExemption(): ?CustomerTaxExemption
     {
-        return CustomerTaxExemption::activeForPeople($this->app, $this->order->people_id);
+        return CustomerTaxExemption::activeForPeople($this->order->app, $this->order->people_id);
     }
 }

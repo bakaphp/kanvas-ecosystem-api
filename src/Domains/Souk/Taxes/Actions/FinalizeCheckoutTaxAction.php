@@ -8,7 +8,6 @@ use Bavix\Wallet\Exceptions\BalanceIsEmpty;
 use Bavix\Wallet\Exceptions\InsufficientFunds;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Souk\Discounts\Models\Discount;
@@ -30,23 +29,22 @@ class FinalizeCheckoutTaxAction
 
     public function __construct(
         private readonly Order $order,
-        private readonly Apps $app,
         private readonly bool $reservesCredit = true,
     ) {
     }
 
     public function execute(): array
     {
-        if (! $this->app->get(ConfigurationEnum::TAX_ENGINE_ENABLED->value)) {
+        if (! $this->order->app->get(ConfigurationEnum::TAX_ENGINE_ENABLED->value)) {
             return $this->untaxedResult(taxEnabled: false);
         }
 
-        $context = new BuildTaxContextAction($this->order, $this->app)->execute();
-        $provider = new TaxProviderResolver($this->app, $this->order->company)->resolve($context);
+        $context = new BuildTaxContextAction($this->order)->execute();
+        $provider = new TaxProviderResolver($this->order->app, $this->order->company)->resolve($context);
         $result = $provider->calculate($context);
 
         if ($result->treatment === TaxTreatmentEnum::NOT_COLLECTING) {
-            if (! $this->app->get(ConfigurationEnum::TAX_FAIL_OPEN->value)) {
+            if (! $this->order->app->get(ConfigurationEnum::TAX_FAIL_OPEN->value)) {
                 throw new ValidationException('tax_not_configured_for_destination');
             }
 
@@ -63,7 +61,7 @@ class FinalizeCheckoutTaxAction
             $snapshot = new PersistTaxSnapshotAction(
                 context: $context,
                 result: $result,
-                app: $this->app,
+                app: $this->order->app,
                 provider: TaxProviderEnum::of($provider)->value,
                 orderId: $this->order->id,
                 cartSessionId: $this->order->checkout_token,
@@ -127,9 +125,9 @@ class FinalizeCheckoutTaxAction
             return null;
         }
 
-        $walletHolder = $this->getWalletHolder($this->app, $this->order->user);
-        $mainWallet = $walletHolder->createAppWallet($this->app, ['name' => WalletConfigurationEnum::WALLET_DEFAULT_NAME->value]);
-        $holdWallet = $walletHolder->createAppWallet($this->app, ['name' => WalletConfigurationEnum::WALLET_CHECKOUT_HOLD_NAME->value]);
+        $walletHolder = $this->getWalletHolder($this->order->app, $this->order->user);
+        $mainWallet = $walletHolder->createAppWallet($this->order->app, ['name' => WalletConfigurationEnum::WALLET_DEFAULT_NAME->value]);
+        $holdWallet = $walletHolder->createAppWallet($this->order->app, ['name' => WalletConfigurationEnum::WALLET_CHECKOUT_HOLD_NAME->value]);
 
         try {
             $transfer = $mainWallet->transferFloat(
@@ -178,7 +176,7 @@ class FinalizeCheckoutTaxAction
 
     private function resolveApplicableCredit(): ?Discount
     {
-        return new DiscountService($this->app, $this->order->buyerCompany())
+        return new DiscountService($this->order->app, $this->order->buyerCompany())
             ->getApplicableCredits()
             ->first();
     }

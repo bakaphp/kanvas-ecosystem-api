@@ -35,14 +35,4 @@ class TaxAddress extends Data
             line1: isset($raw['line1']) ? (string) $raw['line1'] : null,
         );
     }
-
-    public function isSufficientFor(string $country): bool
-    {
-        return match (strtoupper($country)) {
-            'DO' => $this->country !== null,
-            'US' => $this->country !== null && $this->state !== null && $this->postalCode !== null,
-            'MX' => $this->country !== null && $this->postalCode !== null,
-            default => $this->country !== null,
-        };
-    }
 }

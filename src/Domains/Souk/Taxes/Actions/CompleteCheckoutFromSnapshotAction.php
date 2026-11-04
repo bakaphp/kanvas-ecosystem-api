@@ -7,7 +7,6 @@ namespace Kanvas\Souk\Taxes\Actions;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
@@ -21,17 +20,16 @@ class CompleteCheckoutFromSnapshotAction
     public function __construct(
         private readonly OrderTaxSnapshot $snapshot,
         private readonly string $paymentIntentId,
-        private readonly Apps $app,
     ) {
     }
 
     public function execute(): Order
     {
         $result = Cache::lock('checkout:' . $this->snapshot->uuid, 120)->get(function (): Order {
-            $snapshot = OrderTaxSnapshot::getById($this->snapshot->id, $this->app);
+            $snapshot = OrderTaxSnapshot::getById($this->snapshot->id, $this->snapshot->app);
 
             if ($snapshot->order_id !== null) {
-                return Order::getById($snapshot->order_id, $this->app);
+                return Order::getById($snapshot->order_id, $this->snapshot->app);
             }
 
             return $this->createOrderFromPayload($snapshot);
@@ -86,7 +84,7 @@ class CompleteCheckoutFromSnapshotAction
             return $chargedOrder;
         }
 
-        $order = Order::fromApp($this->app)
+        $order = Order::fromApp($this->snapshot->app)
             ->where('checkout_token', $snapshot->cart_session_id ?? '')
             ->first();
 
@@ -143,7 +141,7 @@ class CompleteCheckoutFromSnapshotAction
 
     private function findOrderByPaymentIntent(): ?Order
     {
-        return Order::fromApp($this->app)
+        return Order::fromApp($this->snapshot->app)
             ->where('payment_intent_id', $this->paymentIntentId)
             ->first();
     }

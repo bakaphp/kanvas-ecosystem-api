@@ -28,7 +28,7 @@ class TaxRegistrationCrudTest extends TestCase
         $input = [
             'jurisdiction_country' => 'DO',
             'registration_number' => 'RNC-' . uniqid(),
-            'provider' => 'manual',
+            'provider' => 'MANUAL',
             'is_active' => true,
         ];
 
@@ -51,7 +51,7 @@ class TaxRegistrationCrudTest extends TestCase
                 'createTaxRegistration' => [
                     'jurisdiction_country' => 'DO',
                     'registration_number' => $input['registration_number'],
-                    'provider' => 'manual',
+                    'provider' => 'MANUAL',
                     'is_active' => true,
                 ],
             ],
@@ -62,7 +62,7 @@ class TaxRegistrationCrudTest extends TestCase
     {
         $firstInput = [
             'jurisdiction_country' => 'US',
-            'provider' => 'manual',
+            'provider' => 'MANUAL',
             'effective_from' => '2024-01-01',
             'effective_to' => '2024-12-31',
         ];
@@ -75,7 +75,7 @@ class TaxRegistrationCrudTest extends TestCase
 
         $overlapInput = [
             'jurisdiction_country' => 'US',
-            'provider' => 'manual',
+            'provider' => 'MANUAL',
             'effective_from' => '2024-06-01',
             'effective_to' => '2025-06-30',
         ];
@@ -94,7 +94,7 @@ class TaxRegistrationCrudTest extends TestCase
         $createInput = [
             'jurisdiction_country' => 'MX',
             'registration_number' => 'RFC-' . uniqid(),
-            'provider' => 'manual',
+            'provider' => 'MANUAL',
         ];
 
         $createResponse = $this->graphQL('
@@ -132,7 +132,7 @@ class TaxRegistrationCrudTest extends TestCase
     {
         $createInput = [
             'jurisdiction_country' => 'CO',
-            'provider' => 'manual',
+            'provider' => 'MANUAL',
         ];
 
         $createResponse = $this->graphQL('
@@ -164,7 +164,7 @@ class TaxRegistrationCrudTest extends TestCase
             mutation($input: TaxRegistrationInput!) {
                 createTaxRegistration(input: $input) { id }
             }
-        ', ['input' => ['jurisdiction_country' => 'ZZ', 'provider' => 'manual']])
+        ', ['input' => ['jurisdiction_country' => 'ZZ', 'provider' => 'MANUAL']])
         ->assertGraphQLErrorFree();
 
         $queryResponse = $this->graphQL('

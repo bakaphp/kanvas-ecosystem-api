@@ -235,7 +235,7 @@ final class ShippingCartTaxTest extends ShippingOrderBase
         $intentId = 'pi_test_' . uniqid();
         $snapshot->update(['payment_intent_id' => $intentId]);
 
-        $order = new CompleteCheckoutFromSnapshotAction($snapshot, $intentId, $this->apps)->execute();
+        $order = new CompleteCheckoutFromSnapshotAction($snapshot, $intentId)->execute();
 
         $this->assertCount(1, $order->allItems);
         $this->assertSame(2, (int) $order->allItems->first()->quantity);
@@ -254,7 +254,7 @@ final class ShippingCartTaxTest extends ShippingOrderBase
         $frontEndOrder = $this->orderFromResponse($this->placeOrderFromCart(metadata: ['paymentIntent' => ['id' => $intentId]]));
         OrderTaxSnapshot::query()->where('id', $snapshot->id)->update(['order_id' => null]);
 
-        $recovered = new CompleteCheckoutFromSnapshotAction($snapshot->refresh(), $intentId, $this->apps)->execute();
+        $recovered = new CompleteCheckoutFromSnapshotAction($snapshot->refresh(), $intentId)->execute();
 
         $this->assertSame($frontEndOrder->getId(), $recovered->getId());
     }

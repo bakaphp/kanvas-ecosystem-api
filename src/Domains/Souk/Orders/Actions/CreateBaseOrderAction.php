@@ -227,7 +227,6 @@ class CreateBaseOrderAction
 
             new FinalizeCheckoutTaxAction(
                 order: $order,
-                app: $this->app,
                 reservesCredit: false,
             )->execute();
 

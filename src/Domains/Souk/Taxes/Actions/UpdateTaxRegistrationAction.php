@@ -6,7 +6,6 @@ namespace Kanvas\Souk\Taxes\Actions;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Taxes\Models\TaxRegistration;
 
 class UpdateTaxRegistrationAction
@@ -28,42 +27,35 @@ class UpdateTaxRegistrationAction
 
     public function execute(): TaxRegistration
     {
-        return DB::connection('commerce')->transaction(function () {
-            $this->assertNoOverlap();
+        $country = $this->data['jurisdiction_country'] ?? $this->registration->jurisdiction_country;
+        $state = $this->valueFor('jurisdiction_state');
 
-            $this->registration->fill(Arr::only($this->data, self::FIELDS));
-            $this->registration->saveOrFail();
+        return TaxRegistration::withJurisdictionLock(
+            $this->registration->app,
+            $country,
+            $state,
+            fn () => DB::connection('commerce')->transaction(function () use ($country, $state) {
+                TaxRegistration::assertNoOverlap(
+                    app: $this->registration->app,
+                    country: $country,
+                    state: $state,
+                    from: $this->valueFor('effective_from'),
+                    to: $this->valueFor('effective_to'),
+                    exceptId: $this->registration->id,
+                );
 
-            return $this->registration;
-        });
+                $this->registration->fill(Arr::only($this->data, self::FIELDS));
+                $this->registration->saveOrFail();
+
+                return $this->registration;
+            })
+        );
     }
 
-    private function assertNoOverlap(): void
+    private function valueFor(string $field): ?string
     {
-        $country = $this->data['jurisdiction_country'] ?? $this->registration->jurisdiction_country;
-        $state = array_key_exists('jurisdiction_state', $this->data)
-            ? $this->data['jurisdiction_state']
-            : $this->registration->jurisdiction_state;
-        $newFrom = array_key_exists('effective_from', $this->data)
-            ? $this->data['effective_from']
-            : $this->registration->effective_from;
-        $newTo = array_key_exists('effective_to', $this->data)
-            ? $this->data['effective_to']
-            : $this->registration->effective_to;
-
-        $overlaps = TaxRegistration::query()
-            ->fromApp($this->registration->app)
-            ->notDeleted()
-            ->forJurisdiction($country, $state)
-            ->where('id', '!=', $this->registration->id)
-            ->lockForUpdate()
-            ->get()
-            ->contains(fn (TaxRegistration $other) => $other->overlaps($newFrom, $newTo));
-
-        if ($overlaps) {
-            throw new ValidationException(
-                'A tax registration for this jurisdiction already exists in the specified date range.'
-            );
-        }
+        return array_key_exists($field, $this->data)
+            ? $this->data[$field]
+            : $this->registration->{$field};
     }
 }

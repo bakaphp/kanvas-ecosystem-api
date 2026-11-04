@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Souk\Taxes;
 
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Taxes\Actions\CreateTaxRegistrationAction;
@@ -146,6 +148,49 @@ final class TaxRegistrationTest extends TestCase
                 'effective_to' => null,
             ],
         )->execute();
+    }
+
+    public function testCreateWaitsForTheJurisdictionLockInsteadOfRacingIt(): void
+    {
+        $lock = Cache::lock('tax_registration:' . $this->kanvasApp->getId() . ':CO:', 10);
+        $lock->get();
+
+        try {
+            $this->expectException(LockTimeoutException::class);
+
+            new CreateTaxRegistrationAction(
+                $this->kanvasApp,
+                [
+                    'jurisdiction_country' => 'CO',
+                    'effective_from' => '2026-01-01',
+                ],
+            )->execute();
+        } finally {
+            $lock->release();
+            $this->assertFalse(
+                TaxRegistration::query()->fromApp($this->kanvasApp)->forJurisdiction('CO', null)->exists()
+            );
+        }
+    }
+
+    public function testLowercaseCountryWaitsForTheSameJurisdictionLock(): void
+    {
+        $lock = Cache::lock('tax_registration:' . $this->kanvasApp->getId() . ':PE:', 10);
+        $lock->get();
+
+        try {
+            $this->expectException(LockTimeoutException::class);
+
+            new CreateTaxRegistrationAction(
+                $this->kanvasApp,
+                [
+                    'jurisdiction_country' => 'pe',
+                    'effective_from' => '2026-01-01',
+                ],
+            )->execute();
+        } finally {
+            $lock->release();
+        }
     }
 
     public function testUpdateDoesNotConflictWithItself(): void

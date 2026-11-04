@@ -12,6 +12,7 @@ use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Support\StripeAccount;
 use Kanvas\Exceptions\ValidationException as KanvasValidationException;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Support\Money;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Stripe\Checkout\Session;
 use Stripe\StripeClient;
@@ -75,7 +76,7 @@ class StripeCheckoutService
                         'product_data' => [
                             'name' => $options['product_name'] ?? "Order #{$snapshot->merchant_reference}",
                         ],
-                        'unit_amount' => $this->convertToStripeAmount($gatewayDue, $currency),
+                        'unit_amount' => Money::minorUnits($gatewayDue, $currency),
                     ],
                     'quantity' => 1,
                 ],
@@ -132,7 +133,7 @@ class StripeCheckoutService
                             'name' => "Order #{$order->getOrderNumber()}",
                             'description' => $this->getOrderDescription($order),
                         ],
-                        'unit_amount' => $this->convertToStripeAmount($order->total_net_amount, $order->currency),
+                        'unit_amount' => Money::minorUnits($order->total_net_amount, $order->currency),
                     ],
                     'quantity' => 1,
                 ],
@@ -174,7 +175,7 @@ class StripeCheckoutService
                         'name' => $item->product_name,
                         'description' => "SKU: {$item->product_sku}",
                     ],
-                    'unit_amount' => $this->convertToStripeAmount($item->unit_price_gross_amount, $item->currency),
+                    'unit_amount' => Money::minorUnits($item->unit_price_gross_amount, $item->currency),
                 ],
                 'quantity' => $item->quantity,
             ];
@@ -187,7 +188,7 @@ class StripeCheckoutService
                     'product_data' => [
                         'name' => $order->shipping_method_name ?? 'Shipping',
                     ],
-                    'unit_amount' => $this->convertToStripeAmount($order->shipping_price_gross_amount, $order->currency),
+                    'unit_amount' => Money::minorUnits($order->shipping_price_gross_amount, $order->currency),
                 ],
                 'quantity' => 1,
             ];
@@ -225,16 +226,6 @@ class StripeCheckoutService
         $itemText = $itemCount === 1 ? 'item' : 'items';
 
         return "Order containing {$itemCount} {$itemText}";
-    }
-
-    protected function convertToStripeAmount(float $amount, ?string $currency = 'USD'): int
-    {
-        $zeroDecimalCurrencies = ['jpy', 'krw', 'vnd', 'clp'];
-        $currency = strtolower($currency ?? 'usd');
-
-        return in_array($currency, $zeroDecimalCurrencies)
-            ? (int) round($amount)
-            : (int) round($amount * 100);
     }
 
     protected function validateOrder(Order $order): void

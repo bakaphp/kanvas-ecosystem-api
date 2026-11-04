@@ -242,7 +242,7 @@ class StripeOrderPaymentWebhookJobTest extends TestCase
         $snapshot->remaining_reversible_amount = 100.00;
         $snapshot->remaining_reversible_tax = 18.00;
         $snapshot->gateway_attempt_key = hash('sha256', uniqid());
-        $snapshot->gateway_attempt_status = GatewayAttemptStatusEnum::PENDING_GATEWAY->value;
+        $snapshot->gateway_attempt_status = GatewayAttemptStatusEnum::PENDING->value;
         $snapshot->souk_tax_engine_enabled = true;
         $snapshot->checkout_payload = [
             'lines' => [

@@ -39,7 +39,7 @@ class CustomerTaxExemptionCrudTest extends TestCase
             }
         ', ['input' => [
             'people_id' => $peopleId,
-            'exemption_type' => 'resale',
+            'exemption_type' => 'RESALE',
             'jurisdiction_country' => 'do',
             'certificate_number' => 'CERT-' . uniqid(),
         ]]);
@@ -49,7 +49,7 @@ class CustomerTaxExemptionCrudTest extends TestCase
             'data' => [
                 'createCustomerTaxExemption' => [
                     'people_id' => (string) $peopleId,
-                    'exemption_type' => 'resale',
+                    'exemption_type' => 'RESALE',
                     'jurisdiction_country' => 'DO',
                     'jurisdiction_state' => null,
                 ],
@@ -71,7 +71,7 @@ class CustomerTaxExemptionCrudTest extends TestCase
             }
         ', ['input' => [
             'people_id' => random_int(900000000, 999999999),
-            'exemption_type' => 'government',
+            'exemption_type' => 'GOVERNMENT',
             'jurisdiction_country' => 'US',
             'jurisdiction_state' => 'TX',
         ]]);
@@ -104,5 +104,47 @@ class CustomerTaxExemptionCrudTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testDeactivatingAnExemptionStopsItFromApplying(): void
+    {
+        $peopleId = random_int(900000000, 999999999);
+
+        $createResponse = $this->graphQL('
+            mutation($input: CustomerTaxExemptionInput!) {
+                createCustomerTaxExemption(input: $input) { id is_active }
+            }
+        ', ['input' => [
+            'people_id' => $peopleId,
+            'exemption_type' => 'NONPROFIT',
+            'jurisdiction_country' => 'DO',
+        ]]);
+        $createResponse->assertJson(['data' => ['createCustomerTaxExemption' => ['is_active' => true]]]);
+
+        $this->graphQL('
+            mutation($id: ID!, $input: UpdateCustomerTaxExemptionInput!) {
+                updateCustomerTaxExemption(id: $id, input: $input) { is_active }
+            }
+        ', [
+            'id' => $createResponse->json('data.createCustomerTaxExemption.id'),
+            'input' => ['is_active' => false],
+        ])->assertJson(['data' => ['updateCustomerTaxExemption' => ['is_active' => false]]]);
+
+        $this->assertNull(CustomerTaxExemption::activeForPeople($this->kanvasApp, $peopleId, 'DO'));
+    }
+
+    public function testUnknownExemptionTypeIsRejected(): void
+    {
+        $error = $this->graphQL('
+            mutation($input: CustomerTaxExemptionInput!) {
+                createCustomerTaxExemption(input: $input) { id }
+            }
+        ', ['input' => [
+            'people_id' => random_int(900000000, 999999999),
+            'exemption_type' => 'friends_and_family',
+            'jurisdiction_country' => 'DO',
+        ]])->json('errors.0.message');
+
+        $this->assertStringContainsString('TaxExemptionTypeEnum', (string) $error);
     }
 }

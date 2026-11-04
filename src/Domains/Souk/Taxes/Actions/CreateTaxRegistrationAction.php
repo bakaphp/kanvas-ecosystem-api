@@ -6,7 +6,6 @@ namespace Kanvas\Souk\Taxes\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Taxes\Models\TaxRegistration;
 
 class CreateTaxRegistrationAction
@@ -19,41 +18,36 @@ class CreateTaxRegistrationAction
 
     public function execute(): TaxRegistration
     {
-        $this->assertNoOverlap();
+        $country = $this->data['jurisdiction_country'];
+        $state = $this->data['jurisdiction_state'] ?? null;
 
-        return DB::connection('commerce')->transaction(function () {
-            $registration = new TaxRegistration();
-            $registration->apps_id = $this->app->getId();
-            $registration->jurisdiction_country = $this->data['jurisdiction_country'];
-            $registration->jurisdiction_state = $this->data['jurisdiction_state'] ?? null;
-            $registration->registration_number = $this->data['registration_number'] ?? null;
-            $registration->provider = $this->data['provider'] ?? 'manual';
-            $registration->effective_from = $this->data['effective_from'] ?? null;
-            $registration->effective_to = $this->data['effective_to'] ?? null;
-            $registration->is_active = $this->data['is_active'] ?? true;
-            $registration->metadata = $this->data['metadata'] ?? null;
-            $registration->saveOrFail();
+        return TaxRegistration::withJurisdictionLock(
+            $this->app,
+            $country,
+            $state,
+            fn () => DB::connection('commerce')->transaction(function () use ($country, $state) {
+                TaxRegistration::assertNoOverlap(
+                    $this->app,
+                    $country,
+                    $state,
+                    $this->data['effective_from'] ?? null,
+                    $this->data['effective_to'] ?? null,
+                );
 
-            return $registration;
-        });
-    }
+                $registration = new TaxRegistration();
+                $registration->apps_id = $this->app->getId();
+                $registration->jurisdiction_country = $country;
+                $registration->jurisdiction_state = $state;
+                $registration->registration_number = $this->data['registration_number'] ?? null;
+                $registration->provider = $this->data['provider'] ?? 'manual';
+                $registration->effective_from = $this->data['effective_from'] ?? null;
+                $registration->effective_to = $this->data['effective_to'] ?? null;
+                $registration->is_active = $this->data['is_active'] ?? true;
+                $registration->metadata = $this->data['metadata'] ?? null;
+                $registration->saveOrFail();
 
-    private function assertNoOverlap(): void
-    {
-        $newFrom = $this->data['effective_from'] ?? null;
-        $newTo = $this->data['effective_to'] ?? null;
-
-        $overlaps = TaxRegistration::query()
-            ->fromApp($this->app)
-            ->notDeleted()
-            ->forJurisdiction($this->data['jurisdiction_country'], $this->data['jurisdiction_state'] ?? null)
-            ->get()
-            ->contains(fn (TaxRegistration $registration) => $registration->overlaps($newFrom, $newTo));
-
-        if ($overlaps) {
-            throw new ValidationException(
-                'A tax registration for this jurisdiction already exists in the specified date range.'
-            );
-        }
+                return $registration;
+            })
+        );
     }
 }

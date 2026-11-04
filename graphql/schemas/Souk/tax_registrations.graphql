@@ -4,7 +4,7 @@ type TaxRegistration {
     jurisdiction_country: String!
     jurisdiction_state: String
     registration_number: String
-    provider: String!
+    provider: TaxProviderEnum!
     effective_from: String
     effective_to: String
     is_active: Boolean!
@@ -17,7 +17,7 @@ input TaxRegistrationInput {
     jurisdiction_country: String!
     jurisdiction_state: String
     registration_number: String
-    provider: String
+    provider: TaxProviderEnum = MANUAL
     effective_from: String
     effective_to: String
     is_active: Boolean

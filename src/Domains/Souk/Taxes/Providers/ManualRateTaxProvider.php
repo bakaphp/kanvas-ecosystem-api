@@ -10,10 +10,8 @@ use Kanvas\Souk\Taxes\Contracts\TaxProviderInterface;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxableLine;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxComponent;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxContext;
-use Kanvas\Souk\Taxes\DataTransferObject\TaxCoverage;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxResult;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxReversal;
-use Kanvas\Souk\Taxes\Enums\TaxProviderEnum;
 use Kanvas\Souk\Taxes\Enums\TaxTreatmentEnum;
 use Kanvas\Souk\Taxes\Models\CustomerTaxExemption;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
@@ -159,15 +157,5 @@ class ManualRateTaxProvider implements TaxProviderInterface
 
     public function reverse(OrderTaxSnapshot $snapshot, TaxReversal $reversal): void
     {
-    }
-
-    public function coverage(string $country, ?string $state = null): TaxCoverage
-    {
-        return new TaxCoverage(
-            country: $country,
-            state: $state,
-            provider: TaxProviderEnum::MANUAL->value,
-            isSupported: true,
-        );
     }
 }

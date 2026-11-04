@@ -4,24 +4,22 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Souk;
 
-use Baka\Traits\KanvasJobsTrait;
+use App\Console\Commands\Souk\Concerns\IteratesTaxEnabledApps;
+use Baka\Support\Str;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Apps\Models\Settings;
-use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as StripeConfigurationEnum;
+use Kanvas\Connectors\Stripe\Support\StripeAccount;
 use Kanvas\Souk\Taxes\Actions\CompleteCheckoutFromSnapshotAction;
 use Kanvas\Souk\Taxes\Actions\ReleaseCheckoutHoldsAction;
-use Kanvas\Souk\Taxes\Enums\ConfigurationEnum as TaxConfigurationEnum;
 use Kanvas\Souk\Taxes\Enums\GatewayAttemptStatusEnum;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
-use Stripe\StripeClient;
 use Throwable;
 
 use function Sentry\captureMessage;
 
 class CheckoutReconcileCommand extends Command
 {
-    use KanvasJobsTrait;
+    use IteratesTaxEnabledApps;
 
     protected $signature = 'souk:checkout-reconcile {app_id?}';
 
@@ -35,33 +33,10 @@ class CheckoutReconcileCommand extends Command
 
     public function handle(): void
     {
-        $appsId = $this->argument('app_id');
-
-        if ($appsId) {
-            $this->processApp((int) $appsId);
-
-            return;
-        }
-
-        $appsIds = Settings::where([
-            'name' => TaxConfigurationEnum::TAX_ENGINE_ENABLED->value,
-            'value' => '1',
-        ])->pluck('apps_id');
-
-        $this->info("Checking {$appsIds->count()} apps for stale snapshots");
-
-        foreach ($appsIds as $appId) {
-            $this->processApp((int) $appId);
-        }
-    }
-
-    protected function processApp(int $appsId): void
-    {
-        $app = Apps::getById($appsId);
-        $this->overwriteAppService($app);
-
-        $this->reconcileStaleGatewaySnapshots($app);
-        $this->retryCleanupPending($app);
+        $this->eachTaxEnabledApp(function (Apps $app): void {
+            $this->reconcileStaleGatewaySnapshots($app);
+            $this->retryCleanupPending($app);
+        });
     }
 
     private function reconcileStaleGatewaySnapshots(Apps $app): void
@@ -91,17 +66,16 @@ class CheckoutReconcileCommand extends Command
 
     private function reconcileSnapshot(OrderTaxSnapshot $snapshot, Apps $app): void
     {
-        $secretKey = (string) $app->get(StripeConfigurationEnum::STRIPE_SECRET_KEY->value);
+        $account = StripeAccount::resolve($app, $snapshot->checkoutCompany());
 
-        if ($secretKey === '') {
+        if (Str::trimToNull((string) $account->secretKey) === null) {
             $this->reconcileWalletOnlySnapshot($snapshot);
 
             return;
         }
 
         try {
-            $stripe = new StripeClient($secretKey);
-            $intent = $stripe->paymentIntents->retrieve((string) $snapshot->payment_intent_id);
+            $intent = $account->client()->paymentIntents->retrieve((string) $snapshot->payment_intent_id);
         } catch (Throwable $e) {
             captureMessage("CheckoutReconcile: failed to retrieve PaymentIntent {$snapshot->payment_intent_id} for snapshot {$snapshot->uuid}: {$e->getMessage()}");
 
@@ -130,7 +104,6 @@ class CheckoutReconcileCommand extends Command
             new CompleteCheckoutFromSnapshotAction(
                 $snapshot,
                 (string) $snapshot->payment_intent_id,
-                $app,
             )->execute();
 
             OrderTaxSnapshot::query()

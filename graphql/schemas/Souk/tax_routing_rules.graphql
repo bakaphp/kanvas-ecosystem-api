@@ -2,7 +2,7 @@ type TaxRoutingRule {
     id: ID!
     uuid: String!
     name: String!
-    provider: String!
+    provider: TaxProviderEnum!
     condition_country: String
     condition_state: String
     category_codes: Mixed
@@ -16,7 +16,7 @@ type TaxRoutingRule {
 
 input TaxRoutingRuleInput {
     name: String!
-    provider: String!
+    provider: TaxProviderEnum!
     condition_country: String
     condition_state: String
     category_codes: Mixed
@@ -28,7 +28,7 @@ input TaxRoutingRuleInput {
 
 input UpdateTaxRoutingRuleInput {
     name: String
-    provider: String
+    provider: TaxProviderEnum
     condition_country: String
     condition_state: String
     category_codes: Mixed

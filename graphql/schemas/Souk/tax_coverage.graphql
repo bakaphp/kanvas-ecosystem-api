@@ -1,7 +1,7 @@
 type TaxCoverage {
     country: String!
     state: String
-    provider: String!
+    provider: TaxProviderEnum!
     isSupported: Boolean!
     unsupportedReason: String
 }

@@ -12,6 +12,7 @@ use Kanvas\Connectors\Stripe\Services\StripeTaxService;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxableLine;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxAddress;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxContext;
+use Kanvas\Souk\Taxes\DataTransferObject\TaxReversal;
 use Kanvas\Souk\Taxes\Enums\TaxTreatmentEnum;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Mockery;
@@ -297,6 +298,64 @@ final class StripeTaxProviderTest extends TestCase
         $this->expectExceptionMessage('account_mismatch');
 
         $provider->commit($snapshot);
+    }
+
+    public function testFullReversalSendsFullModeWithoutAnAmount(): void
+    {
+        $client = new FakeStripeClient();
+        $client->getTax()->transactions->queueResponse('createReversal', $this->fakeTransaction('tax_rev_full'));
+
+        $snapshot = $this->buildSnapshot('snap-full', ['transaction_id' => 'tax_txn_001', 'currency' => 'usd']);
+
+        $this->makeProvider($client)->reverse($snapshot, $this->reversal('118.00', '18.00', isFullReversal: true));
+
+        $params = $client->getTax()->transactions->getCalls('createReversal')[0]['params'];
+        $this->assertSame('full', $params['mode']);
+        $this->assertArrayNotHasKey('flat_amount', $params);
+        $this->assertSame('tax_rev_full', $snapshot->metadata['reversal_id_refund-1']);
+    }
+
+    public function testPartialReversalSendsTheRefundedTotalAsANegativeFlatAmount(): void
+    {
+        $client = new FakeStripeClient();
+        $client->getTax()->transactions->queueResponse('createReversal', $this->fakeTransaction('tax_rev_partial'));
+
+        $snapshot = $this->buildSnapshot('snap-partial', ['transaction_id' => 'tax_txn_001', 'currency' => 'usd']);
+
+        $this->makeProvider($client)->reverse($snapshot, $this->reversal('59.00', '9.00', isFullReversal: false));
+
+        $params = $client->getTax()->transactions->getCalls('createReversal')[0]['params'];
+        $this->assertSame('partial', $params['mode']);
+        $this->assertSame(-5900, $params['flat_amount']);
+    }
+
+    public function testFinalRefundAfterAPartialOneStaysPartial(): void
+    {
+        $client = new FakeStripeClient();
+        $client->getTax()->transactions->queueResponse('createReversal', $this->fakeTransaction('tax_rev_last'));
+
+        $snapshot = $this->buildSnapshot('snap-rest', [
+            'transaction_id' => 'tax_txn_001',
+            'currency' => 'usd',
+            'reversal_id_earlier-refund' => 'tax_rev_earlier',
+        ]);
+
+        $this->makeProvider($client)->reverse($snapshot, $this->reversal('59.00', '9.00', isFullReversal: true));
+
+        $params = $client->getTax()->transactions->getCalls('createReversal')[0]['params'];
+        $this->assertSame('partial', $params['mode']);
+        $this->assertSame(-5900, $params['flat_amount']);
+    }
+
+    private function reversal(string $amount, string $taxAmount, bool $isFullReversal): TaxReversal
+    {
+        return new TaxReversal(
+            snapshotUuid: 'snap',
+            amount: $amount,
+            taxAmount: $taxAmount,
+            refundUuid: 'refund-1',
+            isFullReversal: $isFullReversal,
+        );
     }
 
     private function buildSnapshot(string $uuid, array $metadata): OrderTaxSnapshot

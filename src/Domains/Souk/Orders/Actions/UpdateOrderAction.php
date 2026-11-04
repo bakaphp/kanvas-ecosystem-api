@@ -8,6 +8,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Kanvas\Connectors\Stripe\Services\StripeCheckoutService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
@@ -74,11 +75,23 @@ class UpdateOrderAction
             $this->order->payment_status = $this->orderData['payment_status'] ?? $this->order->payment_status;
             $this->order->saveOrFail();
 
-            OrderTaxSnapshot::query()
+            $supersededSnapshot = OrderTaxSnapshot::query()
                 ->where('order_id', $this->order->id)
                 ->where('status', '!=', TaxStatusEnum::SUPERSEDED->value)
-                ->first()
-                ?->update(['status' => TaxStatusEnum::SUPERSEDED->value]);
+                ->first();
+
+            if ($supersededSnapshot !== null) {
+                $supersededSnapshot->update(['status' => TaxStatusEnum::SUPERSEDED->value]);
+
+                if ($supersededSnapshot->stripe_session_id) {
+                    DB::afterCommit(
+                        fn () => app(StripeCheckoutService::class, [
+                            'app' => $this->order->app,
+                            'company' => $this->order->company,
+                        ])->expireSessionsForSnapshot($supersededSnapshot)
+                    );
+                }
+            }
 
             if ($this->order->isFulfilled() && $hasItems) {
                 $this->order->addItems($lineItems);

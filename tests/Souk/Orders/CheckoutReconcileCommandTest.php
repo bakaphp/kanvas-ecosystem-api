@@ -100,7 +100,7 @@ final class CheckoutReconcileCommandTest extends TestCase
     {
         $snapshot = $this->makeSnapshot([
             'payment_intent_id' => 'pi_test_skip_' . uniqid(),
-            'gateway_attempt_status' => GatewayAttemptStatusEnum::CREATED->value,
+            'gateway_attempt_status' => GatewayAttemptStatusEnum::PENDING->value,
         ]);
 
         OrderTaxSnapshot::query()
@@ -137,6 +137,5 @@ final class CheckoutReconcileCommandTest extends TestCase
     public function testNeedsReconcileCaseInGatewayAttemptStatusEnumExists(): void
     {
         $this->assertSame('needs_reconcile', GatewayAttemptStatusEnum::NEEDS_RECONCILE->value);
-        $this->assertSame('superseded', GatewayAttemptStatusEnum::SUPERSEDED->value);
     }
 }

@@ -120,6 +120,7 @@ class ReverseTaxTransactionJob implements ShouldQueue
                 amount: (string) $this->amount,
                 taxAmount: (string) $this->computeProportionalTax($snapshot, $this->amount),
                 refundUuid: $this->refund->uuid,
+                isFullReversal: $this->isFullReversal,
             );
 
             $provider->reverse($snapshot, $reversalDto);

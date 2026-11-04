@@ -123,7 +123,6 @@ final class CompleteCheckoutFromSnapshotTest extends TestCase
         $result = new CompleteCheckoutFromSnapshotAction(
             snapshot: $snapshot,
             paymentIntentId: 'pi_test_idempotent_' . uniqid(),
-            app: $this->kanvasApp,
         )->execute();
 
         $this->assertSame($order->getId(), $result->getId());
@@ -138,7 +137,6 @@ final class CompleteCheckoutFromSnapshotTest extends TestCase
         $result = new CompleteCheckoutFromSnapshotAction(
             snapshot: $snapshot,
             paymentIntentId: $paymentIntentId,
-            app: $this->kanvasApp,
         )->execute();
 
         $this->assertSame($order->getId(), $result->getId());
@@ -165,7 +163,6 @@ final class CompleteCheckoutFromSnapshotTest extends TestCase
         new CompleteCheckoutFromSnapshotAction(
             snapshot: $snapshot,
             paymentIntentId: 'pi_credit_consume_' . uniqid(),
-            app: $this->kanvasApp,
         )->execute();
 
         $reservation->refresh();
@@ -181,7 +178,6 @@ final class CompleteCheckoutFromSnapshotTest extends TestCase
         $order = new CompleteCheckoutFromSnapshotAction(
             snapshot: $snapshot,
             paymentIntentId: $paymentIntentId,
-            app: $this->kanvasApp,
         )->execute();
 
         $snapshot->refresh();
@@ -198,7 +194,6 @@ final class CompleteCheckoutFromSnapshotTest extends TestCase
         new CompleteCheckoutFromSnapshotAction(
             snapshot: $snapshot,
             paymentIntentId: 'pi_hash_mismatch_' . uniqid(),
-            app: $this->kanvasApp,
         )->execute();
 
         $snapshot->refresh();
@@ -212,7 +207,6 @@ final class CompleteCheckoutFromSnapshotTest extends TestCase
         $order = new CompleteCheckoutFromSnapshotAction(
             snapshot: $snapshot,
             paymentIntentId: 'pi_hash_mismatch2_' . uniqid(),
-            app: $this->kanvasApp,
         )->execute();
 
         $this->assertSame('mismatch', $order->tax_status);
@@ -227,7 +221,6 @@ final class CompleteCheckoutFromSnapshotTest extends TestCase
         $firstOrder = new CompleteCheckoutFromSnapshotAction(
             snapshot: $snapshot,
             paymentIntentId: $paymentIntentId,
-            app: $this->kanvasApp,
         )->execute();
 
         $snapshot->refresh();
@@ -238,7 +231,6 @@ final class CompleteCheckoutFromSnapshotTest extends TestCase
         $secondOrder = new CompleteCheckoutFromSnapshotAction(
             snapshot: $snapshot,
             paymentIntentId: $paymentIntentId,
-            app: $this->kanvasApp,
         )->execute();
 
         $this->assertSame($firstOrder->getId(), $secondOrder->getId());
@@ -290,7 +282,6 @@ final class CompleteCheckoutFromSnapshotTest extends TestCase
             new CompleteCheckoutFromSnapshotAction(
                 snapshot: $snapshot,
                 paymentIntentId: 'pi_fail_' . uniqid(),
-                app: $this->kanvasApp,
             )->execute();
         } catch (\Throwable) {
         }

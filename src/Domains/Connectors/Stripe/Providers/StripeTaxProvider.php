@@ -9,16 +9,15 @@ use Carbon\Carbon;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\StripeTaxCodeMap;
 use Kanvas\Connectors\Stripe\Services\StripeTaxService;
+use Kanvas\Souk\Support\Money;
 use Kanvas\Souk\Taxes\Contracts\TaxProviderInterface;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxableLine;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxAddress;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxComponent;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxContext;
-use Kanvas\Souk\Taxes\DataTransferObject\TaxCoverage;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxResult;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxReversal;
 use Kanvas\Souk\Taxes\Enums\TaxCategoryEnum;
-use Kanvas\Souk\Taxes\Enums\TaxProviderEnum;
 use Kanvas\Souk\Taxes\Enums\TaxTreatmentEnum;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use RuntimeException;
@@ -27,10 +26,7 @@ use Throwable;
 
 class StripeTaxProvider implements TaxProviderInterface
 {
-    private const EU_COUNTRIES = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK'];
-    private const SUPPORTED_NON_EU = ['US', 'CA', 'MX', 'GB'];
     private const TAX_DATE_WINDOW_DAYS = 31;
-    private const ZERO_DECIMAL_CURRENCIES = ['jpy', 'krw', 'bif', 'clp', 'gnf', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'xaf', 'xof'];
 
     public function __construct(
         private readonly AppInterface $app,
@@ -88,8 +84,8 @@ class StripeTaxProvider implements TaxProviderInterface
 
             return new TaxResult(
                 treatment: TaxTreatmentEnum::TAXED,
-                totalTax: $this->fromMinorUnits($calculation->tax_amount_exclusive ?? 0, $ctx->currency),
-                totalTaxable: $this->fromMinorUnits($calculation->taxable_amount ?? 0, $ctx->currency),
+                totalTax: Money::fromMinorUnits($calculation->tax_amount_exclusive ?? 0, $ctx->currency),
+                totalTaxable: Money::fromMinorUnits($calculation->taxable_amount ?? 0, $ctx->currency),
                 components: $this->buildComponents($calculation, $ctx),
                 providerTransactionId: $calculation->id,
                 metadata: [
@@ -150,13 +146,20 @@ class StripeTaxProvider implements TaxProviderInterface
             return;
         }
 
-        $flatAmountMinor = $this->toMinorUnits((string) $reversal->taxAmount, $metadata['currency'] ?? 'usd');
+        $hasPriorReversal = collect(array_keys($metadata))
+            ->contains(fn (string $key) => str_starts_with($key, 'reversal_id_'));
+
+        $modeParams = $reversal->isFullReversal && ! $hasPriorReversal
+            ? ['mode' => 'full']
+            : [
+                'mode' => 'partial',
+                'flat_amount' => -Money::minorUnits($reversal->amount, $metadata['currency'] ?? 'usd'),
+            ];
 
         $stripeReversal = $this->client()->tax->transactions->createReversal([
             'original_transaction' => $transactionId,
             'reference' => $reversalRef,
-            'mode' => 'full',
-            'flat_amount' => $flatAmountMinor,
+            ...$modeParams,
         ]);
 
         $snapshot->metadata = array_merge($metadata, [$alreadyReversedKey => $stripeReversal->id]);
@@ -170,25 +173,10 @@ class StripeTaxProvider implements TaxProviderInterface
     {
     }
 
-    public function coverage(string $country, ?string $state = null): TaxCoverage
-    {
-        $countryUpper = strtoupper($country);
-        $isSupported = in_array($countryUpper, self::SUPPORTED_NON_EU, true)
-            || in_array($countryUpper, self::EU_COUNTRIES, true);
-
-        return new TaxCoverage(
-            country: $country,
-            state: $state,
-            provider: TaxProviderEnum::STRIPE_TAX->value,
-            isSupported: $isSupported,
-            unsupportedReason: $isSupported ? null : 'country_not_supported',
-        );
-    }
-
     private function buildLineItems(TaxContext $ctx, ?string $globalTaxCodeOverride): array
     {
         return array_map(fn (TaxableLine $line): array => [
-            'amount' => $this->toMinorUnits($line->subtotal(), $ctx->currency),
+            'amount' => Money::minorUnits($line->subtotal(), $ctx->currency),
             'reference' => $line->lineId,
             'tax_code' => $this->taxCodeFor($line, $globalTaxCodeOverride),
         ], $ctx->lines);
@@ -242,8 +230,8 @@ class StripeTaxProvider implements TaxProviderInterface
                     taxType: $breakdown->tax_rate_details->type ?? 'sales_tax',
                     jurisdiction: $breakdown->jurisdiction->display_name ?? null,
                     rate: (string) (($breakdown->tax_rate_details->percentage_decimal ?? 0) / 100),
-                    taxableAmount: $this->fromMinorUnits($taxableAmountMinor, $ctx->currency),
-                    taxAmount: $this->fromMinorUnits($taxAmountMinor, $ctx->currency),
+                    taxableAmount: Money::fromMinorUnits($taxableAmountMinor, $ctx->currency),
+                    taxAmount: Money::fromMinorUnits($taxAmountMinor, $ctx->currency),
                     taxabilityReason: $breakdown->taxability_reason ?? 'taxable',
                     sourcing: $breakdown->sourcing ?? null,
                 );
@@ -267,23 +255,5 @@ class StripeTaxProvider implements TaxProviderInterface
     private function isValidPtcCode(string $code): bool
     {
         return preg_match('/^txcd_\d{8}$/', $code) === 1;
-    }
-
-    private function toMinorUnits(string $amount, string $currencyHint = 'usd'): int
-    {
-        if (in_array(strtolower($currencyHint), self::ZERO_DECIMAL_CURRENCIES, true)) {
-            return (int) round((float) $amount);
-        }
-
-        return (int) round((float) $amount * 100);
-    }
-
-    private function fromMinorUnits(int $minor, string $currencyHint = 'usd'): string
-    {
-        if (in_array(strtolower($currencyHint), self::ZERO_DECIMAL_CURRENCIES, true)) {
-            return (string) $minor;
-        }
-
-        return number_format($minor / 100, 2, '.', '');
     }
 }

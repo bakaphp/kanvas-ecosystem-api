@@ -7,6 +7,7 @@ namespace Tests\Souk\Taxes;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Validation\ValidationException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Stripe\Services\StripeCheckoutService;
 use Kanvas\Souk\Orders\Actions\UpdateOrderAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
@@ -16,6 +17,7 @@ use Kanvas\Souk\Taxes\Enums\TaxStatusEnum;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Kanvas\Souk\Taxes\Providers\NullTaxProvider;
 use Kanvas\Souk\Taxes\Providers\TaxProviderResolver;
+use Mockery;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
@@ -139,6 +141,63 @@ final class OrderTaxTest extends TestCase
         $snapshot->refresh();
 
         $this->assertSame('superseded', $snapshot->status);
+    }
+
+    public function testSupersedingASnapshotExpiresItsOpenStripeSession(): void
+    {
+        $order = $this->createOrder([
+            'payment_status' => 'unpaid',
+            'checkout_token' => 'cart-expire-' . uniqid(),
+        ]);
+
+        $snapshot = $this->makeSnapshot($order);
+        $snapshot->stripe_session_id = 'cs_test_superseded';
+        $snapshot->saveOrFail();
+
+        $expired = [];
+        $checkout = Mockery::mock(StripeCheckoutService::class);
+        $checkout->shouldReceive('expireSessionsForSnapshot')
+            ->andReturnUsing(function (OrderTaxSnapshot $target) use (&$expired): void {
+                $expired[] = $target->stripe_session_id;
+            });
+        $this->app->bind(StripeCheckoutService::class, fn () => $checkout);
+
+        $updateAction = new UpdateOrderAction(
+            $order,
+            ['fulfillment_status' => $order->fulfillment_status],
+            auth()->user(),
+        );
+        $updateAction->disableWorkflow();
+        $updateAction->execute();
+
+        $this->assertSame(['cs_test_superseded'], $expired);
+    }
+
+    public function testSupersedingASnapshotWithoutASessionDoesNotCallStripe(): void
+    {
+        $order = $this->createOrder([
+            'payment_status' => 'unpaid',
+            'checkout_token' => 'cart-no-session-' . uniqid(),
+        ]);
+
+        $this->makeSnapshot($order);
+
+        $checkout = Mockery::mock(StripeCheckoutService::class);
+        $checkout->shouldNotReceive('expireSessionsForSnapshot');
+        $this->app->bind(StripeCheckoutService::class, fn () => $checkout);
+
+        $updateAction = new UpdateOrderAction(
+            $order,
+            ['fulfillment_status' => $order->fulfillment_status],
+            auth()->user(),
+        );
+        $updateAction->disableWorkflow();
+        $updateAction->execute();
+
+        $this->assertSame(
+            TaxStatusEnum::SUPERSEDED->value,
+            OrderTaxSnapshot::query()->where('order_id', $order->id)->value('status')
+        );
     }
 
     public function testFreeOrderUsesNullTaxProvider(): void

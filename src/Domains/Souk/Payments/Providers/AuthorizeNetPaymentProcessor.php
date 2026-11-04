@@ -140,11 +140,7 @@ class AuthorizeNetPaymentProcessor
         $request->setRefId($this->refId);
         $request->setTransactionRequest($transactionRequestType);
 
-        $controller = new AnetController\CreateTransactionController($request);
-
-        $response = $controller->executeWithApiResponse(
-            $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
-        );
+        $response = $this->sendTransaction($request);
 
         if ($snapshot !== null && $response->getMessages()->getResultCode() === 'Ok') {
             $transResponse = $response->getTransactionResponse();
@@ -156,6 +152,13 @@ class AuthorizeNetPaymentProcessor
         }
 
         return $response;
+    }
+
+    protected function sendTransaction(AnetAPI\CreateTransactionRequest $request): ANetApiResponseType
+    {
+        return new AnetController\CreateTransactionController($request)->executeWithApiResponse(
+            $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
+        );
     }
 
     private function resolveSnapshot(DirectOrder $orderInput): ?OrderTaxSnapshot

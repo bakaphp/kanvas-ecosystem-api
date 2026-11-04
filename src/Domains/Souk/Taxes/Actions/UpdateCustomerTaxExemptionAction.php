@@ -17,6 +17,7 @@ class UpdateCustomerTaxExemptionAction
         'certificate_number',
         'valid_from',
         'valid_to',
+        'is_active',
     ];
 
     public function __construct(

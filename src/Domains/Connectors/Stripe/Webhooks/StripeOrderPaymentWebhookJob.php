@@ -339,7 +339,6 @@ class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
         $order = new CompleteCheckoutFromSnapshotAction(
             $snapshot,
             $intentId,
-            $this->receiver->app,
         )->execute();
 
         return ['message' => 'snapshot checkout completed', 'order_id' => $order->getId()];

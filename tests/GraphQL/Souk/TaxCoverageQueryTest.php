@@ -73,7 +73,7 @@ class TaxCoverageQueryTest extends TestCase
             'data' => [
                 'taxCoverage' => [
                     'country' => 'DO',
-                    'provider' => 'manual',
+                    'provider' => 'MANUAL',
                     'isSupported' => true,
                 ],
             ],

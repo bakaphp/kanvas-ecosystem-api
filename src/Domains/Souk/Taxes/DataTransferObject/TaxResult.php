@@ -20,17 +20,6 @@ class TaxResult extends Data
     ) {
     }
 
-    public static function blocked(string $reason): self
-    {
-        return new self(
-            treatment: TaxTreatmentEnum::NOT_COLLECTING,
-            totalTax: '0',
-            totalTaxable: '0',
-            components: [],
-            failureReason: $reason,
-        );
-    }
-
     public static function nullResult(): self
     {
         return new self(

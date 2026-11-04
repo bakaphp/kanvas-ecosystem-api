@@ -15,6 +15,7 @@ use Kanvas\Exceptions\ValidationException as KanvasValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Support\Money;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Stripe\PaymentLink;
 use Stripe\StripeClient;
@@ -129,7 +130,7 @@ class StripePaymentLinkService
                             'name' => $options['product_name'] ?? 'Payment',
                             'description' => $options['product_description'] ?? '',
                         ],
-                        'unit_amount' => $this->convertToStripeAmount($amount),
+                        'unit_amount' => Money::minorUnits($amount, 'USD'),
                     ],
                     'quantity' => 1,
                 ],
@@ -247,7 +248,7 @@ class StripePaymentLinkService
 
         $price = $this->stripe()->prices->create([
             'currency' => strtolower($orderItem->currency ?? 'usd'),
-            'unit_amount' => $this->convertToStripeAmount($orderItem->unit_price_gross_amount, $orderItem->currency),
+            'unit_amount' => Money::minorUnits($orderItem->unit_price_gross_amount, $orderItem->currency),
             'product_data' => [
                 'name' => $orderItem->product_name,
                 'metadata' => [
@@ -277,7 +278,7 @@ class StripePaymentLinkService
         }
 
         $coupon = $this->stripe()->coupons->create([
-            'amount_off' => $this->convertToStripeAmount($discountAmount, $order->currency),
+            'amount_off' => Money::minorUnits($discountAmount, $order->currency),
             'currency' => strtolower($order->currency ?? 'usd'),
             'duration' => 'once',
             'name' => $order->translated_discount_name ?? $order->discount_name ?? 'Discount',
@@ -297,7 +298,7 @@ class StripePaymentLinkService
                 'shipping_rate_data' => [
                     'type' => 'fixed_amount',
                     'fixed_amount' => [
-                        'amount' => $this->convertToStripeAmount($order->shipping_price_gross_amount, $order->currency),
+                        'amount' => Money::minorUnits($order->shipping_price_gross_amount, $order->currency),
                         'currency' => strtolower($order->currency ?? 'usd'),
                     ],
                     'display_name' => $order->shipping_method_name ?? 'Standard Shipping',
@@ -309,19 +310,6 @@ class StripePaymentLinkService
     protected function orderRequiresShipping(Order $order): bool
     {
         return $order->items->where('is_shipping_required', true)->count() > 0;
-    }
-
-    protected function convertToStripeAmount(float $amount, ?string $currency = 'USD'): int
-    {
-        $zeroDecimalCurrencies = ['jpy', 'krw', 'vnd', 'clp', 'gnf', 'kmf', 'mga', 'pyg', 'rwf', 'ugx', 'vuv', 'xaf', 'xof', 'xpf'];
-
-        $currency = strtolower($currency ?? 'usd');
-
-        if (in_array($currency, $zeroDecimalCurrencies)) {
-            return (int) round($amount);
-        }
-
-        return (int) round($amount * 100);
     }
 
     protected function validateOrder(Order $order): void
@@ -420,7 +408,7 @@ class StripePaymentLinkService
                         'product_data' => [
                             'name' => $options['product_name'] ?? "Order #{$snapshot->merchant_reference}",
                         ],
-                        'unit_amount' => $this->convertToStripeAmount($gatewayDue, $currency),
+                        'unit_amount' => Money::minorUnits($gatewayDue, $currency),
                     ],
                     'quantity' => 1,
                 ],

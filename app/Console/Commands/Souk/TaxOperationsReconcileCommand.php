@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Souk;
 
-use Baka\Traits\KanvasJobsTrait;
+use App\Console\Commands\Souk\Concerns\IteratesTaxEnabledApps;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Apps\Models\Settings;
 use Kanvas\Souk\Payments\Models\PaymentRefund;
-use Kanvas\Souk\Taxes\Enums\ConfigurationEnum;
 use Kanvas\Souk\Taxes\Enums\TaxReversalStatusEnum;
 use Kanvas\Souk\Taxes\Enums\TaxStatusEnum;
 use Kanvas\Souk\Taxes\Jobs\CommitTaxTransactionJob;
@@ -21,7 +19,7 @@ use function Sentry\captureMessage;
 
 class TaxOperationsReconcileCommand extends Command
 {
-    use KanvasJobsTrait;
+    use IteratesTaxEnabledApps;
 
     protected $signature = 'souk:tax-operations-reconcile {app_id?}';
 
@@ -29,32 +27,11 @@ class TaxOperationsReconcileCommand extends Command
 
     public function handle(): void
     {
-        $appsId = $this->argument('app_id');
-
-        if ($appsId) {
-            $this->processApp((int) $appsId);
-
-            return;
-        }
-
-        $appsIds = Settings::where([
-            'name' => ConfigurationEnum::TAX_ENGINE_ENABLED->value,
-            'value' => '1',
-        ])->pluck('apps_id');
-
-        foreach ($appsIds as $appId) {
-            $this->processApp((int) $appId);
-        }
-    }
-
-    protected function processApp(int $appsId): void
-    {
-        $app = Apps::getById($appsId);
-        $this->overwriteAppService($app);
-
-        $this->retryFailedCommits($app);
-        $this->retryFailedReversals($app);
-        $this->reportNeedsReconcile($app);
+        $this->eachTaxEnabledApp(function (Apps $app): void {
+            $this->retryFailedCommits($app);
+            $this->retryFailedReversals($app);
+            $this->reportNeedsReconcile($app);
+        });
     }
 
     private function retryFailedCommits(Apps $app): void

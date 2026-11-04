@@ -13,6 +13,7 @@ class TaxReversal extends Data
         public readonly string $amount,
         public readonly string $taxAmount,
         public readonly ?string $refundUuid = null,
+        public readonly bool $isFullReversal = false,
     ) {
     }
 }

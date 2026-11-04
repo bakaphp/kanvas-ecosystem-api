@@ -28,6 +28,7 @@ class CreateCustomerTaxExemptionAction
             $exemption->certificate_number = $this->data['certificate_number'] ?? null;
             $exemption->valid_from = $this->data['valid_from'] ?? null;
             $exemption->valid_to = $this->data['valid_to'] ?? null;
+            $exemption->is_active = $this->data['is_active'] ?? true;
             $exemption->saveOrFail();
 
             return $exemption;

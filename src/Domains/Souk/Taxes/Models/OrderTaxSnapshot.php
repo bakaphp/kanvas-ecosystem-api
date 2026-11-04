@@ -10,6 +10,7 @@ use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Taxes\Exceptions\IllegalTaxTransition;
@@ -46,6 +47,17 @@ class OrderTaxSnapshot extends BaseModel
     public function operations(): HasMany
     {
         return $this->hasMany(TaxOperation::class, 'snapshot_id', 'id');
+    }
+
+    public function checkoutCompany(): ?Companies
+    {
+        if ($this->order !== null) {
+            return $this->order->company;
+        }
+
+        $companyId = $this->checkout_payload['order_context']['companies_id'] ?? null;
+
+        return $companyId !== null ? Companies::find((int) $companyId) : null;
     }
 
     public function transition(string $from, string $to): void
