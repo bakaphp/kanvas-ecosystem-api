@@ -42,11 +42,9 @@ class UpdateProductAction
         try {
             DB::connection('inventory')->beginTransaction();
 
-            $productType = $this->productDto?->productsType?->getId();
-
             $this->product->update(
                 [
-                    'products_types_id' => $productType,
+                    'products_types_id' => $this->productDto->productsType?->getId() ?? $this->product->products_types_id,
                     'name' => $this->productDto->name,
                     'slug' => $this->productDto->slug ?? $this->product->slug,
                     'description' => $this->productDto->getDescription() ?? $this->product->description,
