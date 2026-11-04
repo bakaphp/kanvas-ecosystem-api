@@ -23,6 +23,7 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\IdVerificationFilesModeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadFileCountService;
 use Kanvas\Notifications\Templates\Blank;
@@ -33,8 +34,6 @@ use Throwable;
 class VerifyPeopleIdAction
 {
     protected const string REPORT_FILE_BASE = 'id-verification-report';
-
-    protected const array LICENSE_SIDE_FIELDS = ['drivers_license_front', 'drivers_license_back'];
 
     public function __construct(
         protected People $people,
@@ -241,7 +240,7 @@ class VerifyPeopleIdAction
     /** Only a license side is numbered, from its own counter; the selfie keeps `face_image.jpg`. */
     protected function reserveImageFileName(string $fieldName): string
     {
-        if (! in_array($fieldName, self::LICENSE_SIDE_FIELDS, true)) {
+        if (! in_array($fieldName, IdVerificationFilesModeEnum::SIDES, true)) {
             return $fieldName . '.jpg';
         }
 

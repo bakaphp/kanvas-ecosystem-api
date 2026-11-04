@@ -18,9 +18,9 @@ enum IdVerificationFilesModeEnum: string
 
     public const string COMPANY_KEY = 'id_verification_files';
 
-    private const string COMBINED = 'drivers_license_combined';
+    public const string COMBINED = 'drivers_license_combined';
 
-    private const array SIDES = ['drivers_license_front', 'drivers_license_back'];
+    public const array SIDES = ['drivers_license_front', 'drivers_license_back'];
 
     /** An unset or unrecognised value is `both`: the behaviour of a company that never set the key. */
     public static function fromCompany(Companies $company): self

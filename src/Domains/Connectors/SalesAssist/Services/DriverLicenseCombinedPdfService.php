@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\SalesAssist\Services;
 
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\PdfService;
+use Kanvas\Guild\Leads\Enums\IdVerificationFilesModeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadFileCountService;
 use Kanvas\Social\Messages\Models\Message;
@@ -13,7 +14,7 @@ use Throwable;
 
 class DriverLicenseCombinedPdfService
 {
-    public const string COMBINED_FIELD_NAME = 'drivers_license_combined';
+    public const string COMBINED_FIELD_NAME = IdVerificationFilesModeEnum::COMBINED;
 
     private const array SIDES = [
         'drivers_license_front' => 'Driver License - Front',
