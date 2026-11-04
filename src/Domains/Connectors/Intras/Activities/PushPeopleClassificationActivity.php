@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\Intras\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Connectors\Intras\Actions\PushPeopleToIntrasAction;
+use Kanvas\Connectors\Intras\Actions\PushToIntrasAction;
 use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -37,7 +37,7 @@ class PushPeopleClassificationActivity extends KanvasActivity implements Workflo
 
         $changes = ParticipantMapper::classificationChanges($people);
 
-        if ($changes === [] || ParticipantMapper::participantId($people) === null) {
+        if ($changes === []) {
             return ['pushed' => false, 'reason' => 'nothing to push'];
         }
 
@@ -46,7 +46,7 @@ class PushPeopleClassificationActivity extends KanvasActivity implements Workflo
             app: $app,
             integration: IntegrationsEnum::INTRAS,
             additionalParams: $params,
-            integrationOperation: fn () => new PushPeopleToIntrasAction($people, $changes)->execute(),
+            integrationOperation: fn () => new PushToIntrasAction($people, $changes)->execute(),
             company: $people->company,
         );
     }

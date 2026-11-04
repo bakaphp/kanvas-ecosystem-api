@@ -120,6 +120,10 @@ class BackfillParticipantProfileFieldsFromIntrasAction
             ->fromCompany($this->company)
             ->get();
 
-        return $people->keyBy(fn (People $p) => $p->getId())->all();
+        // Same reason as the pulls: a backfill is an import, not an edit.
+        return $people
+            ->each(fn (People $p) => $p->disableWorkflows())
+            ->keyBy(fn (People $p) => $p->getId())
+            ->all();
     }
 }

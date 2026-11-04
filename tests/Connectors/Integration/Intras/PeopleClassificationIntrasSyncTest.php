@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Intras\Actions\DiffPeopleWithIntrasAction;
 use Kanvas\Connectors\Intras\Actions\PullParticipantsFromIntrasAction;
-use Kanvas\Connectors\Intras\Actions\PushPeopleToIntrasAction;
+use Kanvas\Connectors\Intras\Actions\PushToIntrasAction;
 use Kanvas\Connectors\Intras\Actions\SetupPeopleClassificationInIntrasAction;
 use Kanvas\Connectors\Intras\Activities\PushPeopleClassificationActivity;
 use Kanvas\Connectors\Intras\Client;
@@ -83,7 +83,7 @@ final class PeopleClassificationIntrasSyncTest extends TestCase
         new SetupPeopleClassificationInIntrasAction(app(Apps::class))->execute();
         $people = $this->classifiedPeople();
 
-        new PushPeopleToIntrasAction($people, ParticipantMapper::classificationChanges($people))->execute();
+        new PushToIntrasAction($people, ParticipantMapper::classificationChanges($people))->execute();
 
         $sipgo = $this->sipgo();
         $values = $sipgo->table('participants_custom_fields as pcf')

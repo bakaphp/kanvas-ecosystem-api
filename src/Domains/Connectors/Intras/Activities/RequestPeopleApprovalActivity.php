@@ -6,10 +6,10 @@ namespace Kanvas\Connectors\Intras\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Arr;
-use Kanvas\Approvals\Concerns\OpensApprovalWithSupersede;
 use Kanvas\Connectors\Intras\Actions\DiffPeopleWithIntrasAction;
+use Kanvas\Connectors\Intras\Activities\Concerns\RequestsSipgoApproval;
 use Kanvas\Connectors\Intras\Enums\PeopleIntrasSyncApprovalTypeEnum;
+use Kanvas\Connectors\Intras\Enums\SipgoEntityEnum;
 use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -19,7 +19,9 @@ use Kanvas\Workflow\KanvasActivity;
 use Override;
 
 /**
- * Runs on People::UPDATED. The SIPGO counterpart of Salesforce's RequestPeopleApprovalActivity, with
+ * Runs on People UPDATED, CREATE_CUSTOM_FIELD, CREATE_CUSTOM_FIELDS (Control Center) and AGENT_UPDATED
+ * (agent tools); one save may fire two of them, and the identical-pending check below collapses that
+ * to one request. The SIPGO counterpart of Salesforce's RequestPeopleApprovalActivity, with
  * one difference: the request freezes the from → to change set in its payload, and the push writes
  * exactly that. An approver signs off on values they can see, and a SIPGO pull landing before the
  * decision cannot change what goes out.
@@ -31,12 +33,12 @@ use Override;
  */
 #[WorkflowAction(
     name: 'IntrasRequestPeopleApprovalActivity',
-    description: 'Opens approve_people_intras_update on a People linked to a SIPGO participant when its '
-        . 'synced fields differ from SIPGO. The request carries the from → to change set the push will write.',
+    description: 'Opens approve_people_intras_update on a People linked to a SIPGO participant or facilitator '
+        . 'when its synced fields differ from SIPGO. The request carries the from → to change set the push will write.',
 )]
 class RequestPeopleApprovalActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    use OpensApprovalWithSupersede;
+    use RequestsSipgoApproval;
 
     public $tries = 3;
 
@@ -48,8 +50,8 @@ class RequestPeopleApprovalActivity extends KanvasActivity implements WorkflowAc
     {
         $this->overwriteAppService($app);
 
-        if (ParticipantMapper::participantId($people) === null) {
-            return ['requested' => false, 'reason' => 'people is not linked to a SIPGO participant'];
+        if (ParticipantMapper::participantId($people) === null && SipgoEntityEnum::FACILITATOR->legacyIdOf($people) === null) {
+            return ['requested' => false, 'reason' => 'people is not linked to a SIPGO participant or facilitator'];
         }
 
         return $this->executeIntegration(
@@ -67,38 +69,17 @@ class RequestPeopleApprovalActivity extends KanvasActivity implements WorkflowAc
 
     private function requestApproval(People $people, array $params): array
     {
-        $changes = new DiffPeopleWithIntrasAction($people)->execute();
-        $participantId = ParticipantMapper::participantId($people);
-
-        if ($changes === null) {
-            return $this->failWorkflow([
-                'requested' => false,
-                'reason' => 'SIPGO participant ' . $participantId . ' not found',
-            ]);
-        }
-
-        if ($changes === []) {
-            return ['requested' => false, 'reason' => 'SIPGO already matches'];
-        }
-
-        $approvalType = PeopleIntrasSyncApprovalTypeEnum::UPDATE->value;
-        $pendingChanges = $people->pendingApproval($approvalType)?->payload['changes'] ?? null;
-
-        // Key-sorted, then strict: the JSON column reorders keys, and `==` would compare numeric strings
-        // as numbers — "0112345678" == "112345678" — dropping a real edit as already pending.
-        if ($pendingChanges !== null && Arr::sortRecursive($pendingChanges) === Arr::sortRecursive($changes)) {
-            return ['requested' => false, 'reason' => 'already pending'];
-        }
-
-        return $this->openOrSupersede(
+        return $this->requestSipgoApproval(
             $people,
-            $approvalType,
-            [
-                'people_id' => $people->getId(),
-                'intras_participant_id' => $participantId,
-                'changes' => $changes,
-            ],
-            ['auto_reject_stale_pending' => true, ...$params],
+            PeopleIntrasSyncApprovalTypeEnum::UPDATE->value,
+            fn () => new DiffPeopleWithIntrasAction($people)->execute(),
+            ['people_id' => $people->getId()],
+            $params,
+            sprintf(
+                'SIPGO participant %s / facilitator %s not found',
+                ParticipantMapper::participantId($people) ?? '-',
+                SipgoEntityEnum::FACILITATOR->legacyIdOf($people) ?? '-',
+            ),
         );
     }
 }
