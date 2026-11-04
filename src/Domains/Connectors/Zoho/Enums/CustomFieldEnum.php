@@ -36,4 +36,11 @@ enum CustomFieldEnum: string
      */
     case ZOHO_LEAD_ID_LINK_FIELDS = 'ZOHO_LEAD_ID_LINK_FIELDS';
     case ZOHO_DEAL_ID_LINK_FIELDS = 'ZOHO_DEAL_ID_LINK_FIELDS';
+
+    /**
+     * Set on a lead by CreateLeadWithZohoDuplicateCheckJob when the contact already had a lead. The
+     * owner id overrides the Zoho owner on create and suppresses Lead_Source.
+     */
+    case ZOHO_DUPLICATE_OF = 'ZOHO_DUPLICATE_OF';
+    case ZOHO_DUPLICATE_OWNER_ID = 'ZOHO_DUPLICATE_OWNER_ID';
 }
