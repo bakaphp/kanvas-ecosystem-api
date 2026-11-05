@@ -26,7 +26,6 @@ class TaxCategoryMutation
     {
         $ctx = $this->actingContext();
 
-        /** @var TaxCategory $category */
         $category = TaxCategory::getById((int) $request['id'], $ctx->app);
 
         return new UpdateTaxCategoryAction($category, $request['input'])->execute();
@@ -36,7 +35,6 @@ class TaxCategoryMutation
     {
         $ctx = $this->actingContext();
 
-        /** @var TaxCategory $category */
         $category = TaxCategory::getById((int) $request['id'], $ctx->app);
 
         return new DeleteTaxCategoryAction($category)->execute();

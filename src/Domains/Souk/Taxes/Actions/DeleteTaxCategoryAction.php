@@ -30,21 +30,21 @@ class DeleteTaxCategoryAction
 
     private function isInUse(): bool
     {
-        $appId = $this->category->apps_id;
+        $app = $this->category->app;
         $code = $this->category->code;
 
         return TaxRoutingRule::query()
-            ->where('apps_id', $appId)
+            ->fromApp($app)
             ->notDeleted()
             ->whereJsonContains('category_codes', $code)
             ->exists()
             || Products::query()
-                ->where('apps_id', $appId)
+                ->fromApp($app)
                 ->notDeleted()
                 ->where('tax_category', $code)
                 ->exists()
             || Variants::query()
-                ->where('apps_id', $appId)
+                ->fromApp($app)
                 ->notDeleted()
                 ->where('tax_category', $code)
                 ->exists();
