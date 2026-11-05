@@ -6,12 +6,12 @@ namespace Kanvas\Connectors\Reynolds\Services;
 
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Reynolds\Contracts\CrmLeadDriver;
-use Kanvas\Connectors\Reynolds\DataTransferObject\Crm\CrmCustomer;
-use Kanvas\Connectors\Reynolds\DataTransferObject\Crm\CrmLeadInfo;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Reynolds\Enums\CrmTypeEnum;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\Contracts\CrmLeadDriver;
+use Kanvas\Connectors\SalesAssist\DataTransferObject\Crm\CrmCustomer;
+use Kanvas\Connectors\SalesAssist\DataTransferObject\Crm\CrmLeadInfo;
+use Kanvas\Connectors\SalesAssist\Enums\CrmTypeEnum;
 
 class ReynoldsCrmDriver implements CrmLeadDriver
 {
@@ -23,6 +23,11 @@ class ReynoldsCrmDriver implements CrmLeadDriver
     public function isConfigured(CompanyInterface $company): bool
     {
         return $company->get(ConfigurationEnum::REYNOLDS_DEALER_NUMBER->value) !== null;
+    }
+
+    public function canCreate(): bool
+    {
+        return true;
     }
 
     public function clientIdField(): string
