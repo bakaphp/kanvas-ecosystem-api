@@ -39,6 +39,8 @@ enum MediaTypeEnum: string
         'm4v',
         '3gp',
         'ogg',
+        'mpg',
+        'mpeg',
     ];
 
     private const AUDIO_EXTENSIONS = [
@@ -91,6 +93,7 @@ enum MediaTypeEnum: string
             'video/webm' => 'webm',
             'video/3gpp' => '3gp',
             'video/x-matroska' => 'mkv',
+            'video/mpeg' => 'mpg',
             'audio/mpeg' => 'mp3',
             'audio/mp4' => 'm4a',
             'application/pdf' => 'pdf',
