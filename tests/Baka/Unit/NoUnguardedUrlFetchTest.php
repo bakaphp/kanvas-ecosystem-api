@@ -74,6 +74,8 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         // Legacy AZUL_*_PATH fallback: relative paths are forced under base_path(), the file must
         // exist and must contain PEM material — never a URL.
         'src/Domains/Connectors/Azul/Services/AzulCertificate.php',
+        // Reads back a tempnam() file it created itself (OneDrive document zip round trips).
+        'src/Domains/Connectors/Microsoft/OneDrive/Documents/Support/TemporaryFile.php',
     ];
 
     public function testNoUnguardedRemoteUrlFetch(): void
