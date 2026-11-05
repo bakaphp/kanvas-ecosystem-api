@@ -9,8 +9,8 @@ use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\Services\ZohoLeadDuplicateService;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -25,16 +25,16 @@ use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
 
 /**
  * A receiver for forms that reach leads living only in Zoho. When the contact already has a lead in
- * Kanvas or in the Zoho Leads module, the new lead is still created, but with no source and owned by
- * the configured user instead of the rotation; the old lead is never updated. A Zoho-only match is
- * pulled into Kanvas first, so it is tracked from then on like any other synced lead. Without
- * `duplicate_zoho_owner_id` in the webhook configuration it behaves exactly like the standard receiver.
+ * Kanvas or in the Zoho Leads module, no lead is created: the most recent existing one is reassigned
+ * to the configured owner with its source cleared, in Kanvas and in Zoho, and nothing else on it
+ * changes. A Zoho-only match is pulled into Kanvas first, so it is tracked from then on like any other
+ * synced lead. Without `duplicate_zoho_owner_id` in the webhook configuration it is the standard receiver.
  */
 #[WorkflowAction(
     name: 'Zoho Lead Receiver With Duplicate Check',
     description: 'Creates a lead from a form, first checking Kanvas and the Zoho Leads module for an existing '
-        . 'lead with the same email or phone. A duplicate is still created, with no lead source and owned by '
-        . 'the configured user instead of the rotation. Only useful if this company runs Zoho.',
+        . 'lead with the same email or phone. On a match no lead is created: the existing lead is reassigned to '
+        . 'the configured owner and its lead source cleared. Only useful if this company runs Zoho.',
     integration: IntegrationsEnum::ZOHO,
 )]
 class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
@@ -49,53 +49,23 @@ class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
     private ?array $duplicateCheck = null;
 
     #[Override]
-    protected function buildPayload(LeadReceiver $leadReceiver): array
+    public function execute(): array
     {
-        $payload = parent::buildPayload($leadReceiver);
         $zohoOwnerId = $this->duplicateZohoOwnerId();
 
         if ($zohoOwnerId === null) {
-            return $payload;
+            return parent::execute();
         }
 
-        [$email, $phones] = $this->contactsFromPayload($payload);
-        $this->duplicateCheck = $this->checkForDuplicates(
-            $leadReceiver,
-            $email,
-            $phones
-        );
+        $leadReceiver = $this->loadReceiver();
+        [$email, $phones] = $this->contactsFromPayload($this->buildPayload($leadReceiver));
+        $this->duplicateCheck = $this->checkForDuplicates($leadReceiver, $email, $phones);
 
-        if (! $this->isDuplicate()) {
-            return $payload;
+        if ($this->duplicateCheck['status'] !== self::STATUS_MATCHED) {
+            return parent::execute();
         }
 
-        $payload['source_id'] = 0;
-        $payload['description'] = trim(($payload['description'] ?? '') . "\n\nPossible duplicate of " . implode(', ', $this->duplicateRefs()));
-        $payload['custom_fields'] = $this->withCustomFields(
-            $payload['custom_fields'] ?? [],
-            [
-                CustomFieldEnum::ZOHO_DUPLICATE_OF->value => implode(',', $this->duplicateRefs()),
-                CustomFieldEnum::ZOHO_DUPLICATE_OWNER_ID->value => $zohoOwnerId,
-            ]
-        );
-
-        return $payload;
-    }
-
-    #[Override]
-    protected function resolveOwner(LeadReceiver $leadReceiver, array $payload): array
-    {
-        if (! $this->isDuplicate()) {
-            return parent::resolveOwner($leadReceiver, $payload);
-        }
-
-        $owner = $this->duplicateOwner();
-
-        if ($owner !== null) {
-            $payload['leads_owner_id'] = $owner->getId();
-        }
-
-        return [$owner, $payload];
+        return $this->reassignExistingLead($leadReceiver, $zohoOwnerId);
     }
 
     #[Override]
@@ -122,8 +92,80 @@ class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
     }
 
     /**
+     * Only the owner and the source change. The update runs without workflows: the regular Zoho push
+     * would rewrite every mapped field on the Zoho record from the Kanvas copy, and the Zoho lead may
+     * have been edited since. The custom field covers a matched lead whose first push is still queued.
+     */
+    private function reassignExistingLead(LeadReceiver $leadReceiver, string $zohoOwnerId): array
+    {
+        $attempt = $this->createAttempt($leadReceiver);
+        $lead = $this->mostRecentMatchedLead();
+
+        if ($lead !== null) {
+            $owner = $this->duplicateOwner();
+
+            if ($owner !== null) {
+                $lead->leads_owner_id = $owner->getId();
+            }
+
+            $lead->leads_sources_id = 0;
+            $lead->disableWorkflows();
+            $lead->saveOrFail();
+            $lead->set(CustomFieldEnum::ZOHO_DUPLICATE_OWNER_ID->value, $zohoOwnerId);
+
+            $attempt->leads_id = $lead->getId();
+            $attempt->processed = 1;
+            $attempt->saveOrFail();
+        }
+
+        $zohoLeadId = Str::trimToNull((string) $lead?->get(CustomFieldEnum::ZOHO_LEAD_ID->value))
+            ?? ($this->duplicateCheck['zoho_ids'][0] ?? null);
+        $zohoUpdated = $zohoLeadId !== null && $this->reassignInZoho($zohoLeadId, $zohoOwnerId);
+
+        return [
+            'message' => 'Existing lead reassigned via receiver ' . $leadReceiver->uuid,
+            'receiver' => $leadReceiver->getId(),
+            'lead_id' => $lead?->getId(),
+            'lead' => $lead?->toArray(),
+            'zoho_lead_id' => $zohoLeadId,
+            'zoho_updated' => $zohoUpdated,
+            'duplicate_check' => $this->duplicateCheck,
+        ];
+    }
+
+    private function reassignInZoho(string $zohoLeadId, string $zohoOwnerId): bool
+    {
+        try {
+            $this->zohoLeadsModule()->update($zohoLeadId, [
+                'Owner' => $zohoOwnerId,
+                'Lead_Source' => null,
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private function mostRecentMatchedLead(): ?Lead
+    {
+        $ids = [
+            ...$this->duplicateCheck['kanvas_lead_ids'],
+            ...$this->duplicateCheck['pulled_lead_ids'],
+        ];
+
+        if ($ids === []) {
+            return null;
+        }
+
+        return Lead::getByIdFromCompanyApp(max($ids), $this->receiver->company, $this->receiver->app);
+    }
+
+    /**
      * Kanvas first: it is a local query and catches leads whose Zoho push is still queued. Zoho is only
-     * asked when Kanvas has nothing.
+     * searched when Kanvas has nothing; a Kanvas match carries its ZOHO_LEAD_ID for the update.
      *
      * @param string[] $phones
      * @return array{status: string, kanvas_lead_ids: int[], zoho_ids: string[], pulled_lead_ids: int[]}
@@ -158,8 +200,8 @@ class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
     /**
      * A lead that lived only in Zoho is brought into Kanvas, so Zoho's update webhooks find it by
      * ZOHO_LEAD_ID from now on and the next submission matches it locally. The pull runs without
-     * workflows, so the old Zoho lead is never written back to. A failed pull is reported and skipped:
-     * the new lead is still routed as a duplicate.
+     * workflows, so nothing is written back to Zoho. A failed pull is reported and skipped: the Zoho
+     * record is still reassigned.
      *
      * @param array<string, Record> $zohoLeads
      * @return int[]
@@ -191,38 +233,37 @@ class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
     }
 
     /**
+     * Matches on the lead's own email and phone columns, not People contacts: matching a phone there is
+     * a REGEXP over every contact of the company. The lead's phone is its first phone contact, stored
+     * normalized, so the incoming numbers are normalized the same way.
+     *
      * @param string[] $phones
      * @return int[]
      */
     private function findKanvasLeadIds(?string $email, array $phones): array
     {
-        $company = $this->receiver->company;
-        $app = $this->receiver->app;
-        $people = People::getAllByPhoneOrEmail(
-            null,
-            $email,
-            $company,
-            $app
-        );
+        $phones = array_values(array_filter(array_map(
+            fn (string $phone) => Contact::normalizeValue($phone, ContactTypeEnum::PHONE->value),
+            $phones
+        )));
 
-        foreach ($phones as $phone) {
-            $people = $people->merge(People::getAllByPhoneOrEmail(
-                $phone,
-                null,
-                $company,
-                $app
-            ));
-        }
-
-        if ($people->isEmpty()) {
+        if ($email === null && $phones === []) {
             return [];
         }
 
         return Lead::query()
-            ->fromApp($app)
-            ->fromCompany($company)
-            ->whereIn('people_id', $people->pluck('id')->unique()->all())
+            ->fromApp($this->receiver->app)
+            ->fromCompany($this->receiver->company)
             ->notDeleted()
+            ->where(function ($query) use ($email, $phones) {
+                if ($email !== null) {
+                    $query->orWhere('email', $email);
+                }
+
+                if ($phones !== []) {
+                    $query->orWhereIn('phone', $phones);
+                }
+            })
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
@@ -255,7 +296,7 @@ class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
     }
 
     /**
-     * A misconfigured user id must not lose the lead: it falls back to the receiver's user.
+     * A misconfigured user id must not lose the reassignment: the lead keeps its current owner.
      */
     private function duplicateOwner(): ?Users
     {
@@ -277,43 +318,6 @@ class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
     private function duplicateZohoOwnerId(): ?string
     {
         return Str::trimToNull((string) ($this->receiver->configuration['duplicate_zoho_owner_id'] ?? ''));
-    }
-
-    private function isDuplicate(): bool
-    {
-        return ($this->duplicateCheck['status'] ?? null) === self::STATUS_MATCHED;
-    }
-
-    /**
-     * @return string[]
-     */
-    private function duplicateRefs(): array
-    {
-        return [
-            ...array_map(fn (int $id) => 'kanvas:' . $id, $this->duplicateCheck['kanvas_lead_ids']),
-            ...array_map(fn (string $id) => 'zoho:' . $id, $this->duplicateCheck['zoho_ids']),
-        ];
-    }
-
-    /**
-     * The payload's custom fields arrive either as a key => value map or as a list of `{name, data}` /
-     * `{key, value}` entries. `setCustomFields()` reads the entry keys off the first item, so the extra
-     * fields have to copy that shape or they are dropped.
-     */
-    private function withCustomFields(array $customFields, array $extra): array
-    {
-        if ($customFields === [] || ! array_is_list($customFields)) {
-            return [...$customFields, ...$extra];
-        }
-
-        $keyField = array_key_exists('name', $customFields[0]) ? 'name' : 'key';
-        $valueField = array_key_exists('data', $customFields[0]) ? 'data' : 'value';
-
-        foreach ($extra as $name => $data) {
-            $customFields[] = [$keyField => $name, $valueField => $data];
-        }
-
-        return $customFields;
     }
 
     /**
