@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Movipass\Notifications;
+namespace Kanvas\Souk\Payments\Notifications;
 
-use Kanvas\Connectors\Movipass\Enums\EmailTemplateEnum;
 use Kanvas\Notifications\Notification;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Templates\Enums\EmailTemplateEnum;
 
 class PaymentReceiptNotification extends Notification
 {
@@ -17,8 +18,8 @@ class PaymentReceiptNotification extends Notification
         array $data,
     ) {
         parent::__construct($order, $data);
-        $this->setType(EmailTemplateEnum::TYPE_BLANK->value);
-        $this->setTemplateName(EmailTemplateEnum::PAYMENT_RECEIPT->value);
+        $this->setType(EmailTemplateEnum::BLANK->value);
+        $this->setTemplateName(OrderTypes::DEFAULT_PAYMENT_RECEIPT_TEMPLATE);
         $this->setData($data);
     }
 }

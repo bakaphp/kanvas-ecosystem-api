@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\Movipass;
 
+use App\Console\Commands\Concerns\WiresAppWorkflowRules;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
@@ -20,15 +21,11 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Workflow\Rules\Models\Action;
-use Kanvas\Workflow\Rules\Models\Rule;
-use Kanvas\Workflow\Rules\Models\RuleAction;
-use Kanvas\Workflow\Rules\Models\RuleType;
-use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
 
 class SetupParkingApplicationRulesCommand extends Command
 {
     use KanvasJobsTrait;
+    use WiresAppWorkflowRules;
 
     protected $signature = 'kanvas:movipass-setup-parking-application-rules {app_id} {--receiver= : LeadReceiver id that takes parking applications}';
 
@@ -41,7 +38,7 @@ class SetupParkingApplicationRulesCommand extends Command
 
         $leadModule = SystemModulesRepository::getByModelName(Lead::class, $app);
 
-        $this->wireRule(
+        $this->wireAppRule(
             $app,
             $leadModule->getId(),
             WorkflowEnum::CREATED->value,
@@ -49,7 +46,7 @@ class SetupParkingApplicationRulesCommand extends Command
             [AutoApproveCorporateLeadActivity::class],
         );
 
-        $this->wireRule(
+        $this->wireAppRule(
             $app,
             $leadModule->getId(),
             WorkflowEnum::CORPORATE_APPLICATION_APPROVED->value,
@@ -62,54 +59,6 @@ class SetupParkingApplicationRulesCommand extends Command
         }
 
         return self::SUCCESS;
-    }
-
-    private function wireRule(
-        Apps $app,
-        int $systemModuleId,
-        string $event,
-        string $name,
-        array $activities
-    ): void {
-        $ruleType = RuleType::firstOrCreate(['name' => $event], ['is_deleted' => 0]);
-
-        $rule = Rule::firstOrCreate(
-            [
-                'name' => $name,
-                'rules_types_id' => $ruleType->getId(),
-                'systems_modules_id' => $systemModuleId,
-                'apps_id' => $app->getId(),
-                'companies_id' => 0,
-            ],
-            [
-                'description' => 'Wired by kanvas:movipass-setup-parking-application-rules',
-                'pattern' => 1,
-                'params' => [],
-                'is_deleted' => 0,
-            ]
-        );
-
-        foreach ($activities as $weight => $activity) {
-            $action = Action::where('model_name', $activity)->first();
-
-            if ($action === null) {
-                $this->error(class_basename($activity) . ' has no action row; run `php artisan kanvas:workflow-sync-actions` first');
-
-                continue;
-            }
-
-            $ruleWorkflowAction = RuleWorkflowAction::firstOrCreate(
-                ['system_modules_id' => $systemModuleId, 'actions_id' => $action->getId()],
-                ['is_deleted' => 0]
-            );
-
-            RuleAction::firstOrCreate(
-                ['rules_id' => $rule->getId(), 'rules_workflow_actions_id' => $ruleWorkflowAction->getId()],
-                ['weight' => $weight, 'is_deleted' => 0]
-            );
-        }
-
-        $this->info("Rule #{$rule->getId()} on Lead/{$event}: " . implode(', ', array_map('class_basename', $activities)));
     }
 
     private function wireReceiver(Apps $app, int $receiverId): void

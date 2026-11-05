@@ -16,4 +16,14 @@ enum PaymentStatusEnum: string
     case FAILED = 'failed';
     case REVERSED = 'refunded';
     case CANCELLED = 'cancelled';
+
+    public function isFinal(): bool
+    {
+        return in_array($this, [self::PAID, self::FAILED, self::REVERSED, self::CANCELLED], true);
+    }
+
+    public static function isFinalValue(mixed $status): bool
+    {
+        return is_string($status) && self::tryFrom($status)?->isFinal() === true;
+    }
 }

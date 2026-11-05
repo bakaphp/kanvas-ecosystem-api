@@ -15,6 +15,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Payments\Infrastructure\Processors\Azul\AzulProcessor;
 use Kanvas\Souk\Payments\Infrastructure\Processors\CardNet\CardNetProcessor;
 use Kanvas\Souk\Payments\Infrastructure\Processors\PayWay\PayWayProcessor;
+use Kanvas\Souk\Payments\Infrastructure\Processors\Portal\PortalProcessor;
 use Kanvas\Souk\Payments\Infrastructure\Processors\Stripe\StripeProcessor;
 use Override;
 use Stripe\StripeClient;
@@ -74,6 +75,13 @@ class PaymentProcessorServiceProvider extends ServiceProvider
             return new AzulProcessor(
                 $params['app'] ?? $app->make(Apps::class),
                 $params['company'] ?? request()->user()->getCurrentCompany(),
+            );
+        });
+
+        $this->app->bind('payment_processor.portal', function ($app, array $params) {
+            return new PortalProcessor(
+                app: $params['app'] ?? $app->make(Apps::class),
+                company: $params['company'] ?? request()->user()->getCurrentCompany(),
             );
         });
 

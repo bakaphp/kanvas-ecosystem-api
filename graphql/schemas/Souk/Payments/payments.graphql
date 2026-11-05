@@ -221,14 +221,17 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@addPaymentToOrder"
         )
     initiatePayerAuthentication(orderId: ID!): PayerAuthResponse!
+        @deprecated(reason: "Use addPaymentToOrder + startPaymentChallenge")
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@initiatePayerAuthentication"
         )
     completeDeviceData(orderId: ID!): PayerAuthStatus!
+        @deprecated(reason: "Use finalizePaymentChallenge")
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@completeDeviceData"
         )
     validatePayerAuthResult(orderId: ID!): PayerAuthStatus!
+        @deprecated(reason: "Use finalizePaymentChallenge")
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePayerAuthResult"
         )
@@ -245,6 +248,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@capturePayment"
         )
     reversePayment(paymentId: ID!, reason: String): PaymentActionResult!
+        @deprecated(reason: "Use voidPayment for authorized payments or refundPayment for paid ones")
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@reversePayment"
         )

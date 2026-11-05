@@ -11,6 +11,7 @@ class VoidResult
         public readonly string $message,
         public readonly string $transactionId,
         public readonly array $raw = [],
+        public readonly bool $skipped = false,
     ) {
     }
 }
