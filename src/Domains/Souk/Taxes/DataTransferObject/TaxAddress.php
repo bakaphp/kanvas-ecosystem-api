@@ -1,0 +1,38 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Souk\Taxes\DataTransferObject;
+
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Souk\Taxes\Enums\ConfigurationEnum;
+use Spatie\LaravelData\Data;
+
+class TaxAddress extends Data
+{
+    public function __construct(
+        public readonly ?string $country,
+        public readonly ?string $state = null,
+        public readonly ?string $city = null,
+        public readonly ?string $postalCode = null,
+        public readonly ?string $line1 = null,
+    ) {
+    }
+
+    public static function shipFromConfig(Apps $app): ?self
+    {
+        $raw = $app->get(ConfigurationEnum::SHIP_FROM->value);
+
+        if (! is_array($raw) || empty($raw['country'])) {
+            return null;
+        }
+
+        return new self(
+            country: (string) $raw['country'],
+            state: isset($raw['state']) ? (string) $raw['state'] : null,
+            city: isset($raw['city']) ? (string) $raw['city'] : null,
+            postalCode: isset($raw['postal_code']) ? (string) $raw['postal_code'] : null,
+            line1: isset($raw['line1']) ? (string) $raw['line1'] : null,
+        );
+    }
+}

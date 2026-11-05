@@ -45,6 +45,8 @@ class Product extends Data
         public array $files = [],
         public ?string $slug = null,
         public ?float $weight = null,
+        public ?string $tax_category = null,
+        public ?string $tax_code_override = null,
     ) {
     }
 
@@ -76,7 +78,9 @@ class Product extends Data
             productType: $request['productType'] ?? [],
             files: $request['files'] ?? [],
             slug: $request['slug'] ?? null,
-            weight: $request['weight'] ?? null
+            weight: $request['weight'] ?? null,
+            tax_category: $request['tax_category'] ?? null,
+            tax_code_override: $request['tax_code_override'] ?? null,
         );
     }
 

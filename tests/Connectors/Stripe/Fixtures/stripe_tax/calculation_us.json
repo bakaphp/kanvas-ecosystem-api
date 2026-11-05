@@ -1,0 +1,89 @@
+{
+    "id": "taxcalc_test_us_123",
+    "object": "tax.calculation",
+    "currency": "usd",
+    "customer": null,
+    "customer_details": {
+        "address": {
+            "city": "San Francisco",
+            "country": "US",
+            "line1": null,
+            "line2": null,
+            "postal_code": "94105",
+            "state": "CA"
+        },
+        "address_source": "shipping",
+        "ip_address": null,
+        "tax_ids": [],
+        "taxability_override": "none"
+    },
+    "expires_at": 1800000000,
+    "line_items": {
+        "object": "list",
+        "data": [
+            {
+                "id": "tax_li_test_001",
+                "object": "tax.calculation_line_item",
+                "amount": 10000,
+                "amount_tax": 975,
+                "livemode": false,
+                "product": null,
+                "quantity": 1,
+                "reference": "line-1",
+                "tax_behavior": "exclusive",
+                "tax_breakdown": [
+                    {
+                        "amount": 975,
+                        "jurisdiction": {
+                            "country": "US",
+                            "display_name": "California",
+                            "level": "state",
+                            "state": "CA"
+                        },
+                        "sourcing": "destination",
+                        "tax_rate_details": {
+                            "display_name": "CA Sales Tax",
+                            "percentage_decimal": "9.75",
+                            "tax_type": "sales_tax"
+                        },
+                        "taxability_reason": "standard_rated",
+                        "taxable_amount": 10000
+                    }
+                ],
+                "tax_code": "txcd_99999999"
+            }
+        ],
+        "has_more": false,
+        "url": "/v1/tax/calculations/taxcalc_test_us_123/line_items"
+    },
+    "livemode": false,
+    "ship_from_details": {
+        "address": {
+            "city": "New York",
+            "country": "US",
+            "line1": null,
+            "line2": null,
+            "postal_code": "10001",
+            "state": "NY"
+        }
+    },
+    "shipping_cost": null,
+    "tax_amount_exclusive": 975,
+    "tax_amount_inclusive": 0,
+    "tax_breakdown": [
+        {
+            "amount": 975,
+            "inclusive": false,
+            "tax_rate_details": {
+                "country": "US",
+                "percentage_decimal": "9.75",
+                "state": "CA",
+                "tax_type": "sales_tax"
+            },
+            "sourcing": "destination",
+            "taxability_reason": "standard_rated",
+            "taxable_amount": 10000
+        }
+    ],
+    "tax_date": 1730000000
+}

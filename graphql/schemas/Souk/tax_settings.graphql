@@ -1,0 +1,23 @@
+enum TaxProviderEnum {
+    MANUAL @enum(value: "manual")
+    STRIPE_TAX @enum(value: "stripe_tax")
+    NONE @enum(value: "none")
+}
+
+enum TaxExemptionTypeEnum {
+    RESALE @enum(value: "resale")
+    GOVERNMENT @enum(value: "government")
+    NONPROFIT @enum(value: "nonprofit")
+    DIPLOMATIC @enum(value: "diplomatic")
+    MEDICAL @enum(value: "medical")
+}
+
+type TaxSettings {
+    enabled: Boolean!
+    fail_open: Boolean!
+}
+
+extend type Query @guardByAdmin {
+    taxSettings: TaxSettings!
+        @field(resolver: "App\\GraphQL\\Souk\\Queries\\Taxes\\TaxSettingsQuery@resolve")
+}
