@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Actions;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Intelligence\AgentRuntime\Harness\Concerns\PostsSessionActivity;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\CodingOutcome;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingOutcomeEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
@@ -12,7 +13,6 @@ use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
-use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Throwable;
@@ -29,7 +29,7 @@ use Throwable;
  */
 class RecordCodingOutcomeAction
 {
-    use AnnouncesPlanOutcome;
+    use PostsSessionActivity;
 
     public function __construct(
         private readonly AgentTaskSession $session,
@@ -135,15 +135,7 @@ class RecordCodingOutcomeAction
         }
 
         $title = $this->outcome->kind->headline();
-        $body = $title . "\n\n" . $this->outcome->line();
 
-        $this->postToPlanBoard(
-            $plan,
-            $body,
-            'coding_job_result',
-            'coding-job-alert',
-        );
-        $this->alsoPostToOriginConversation($plan, $body, 'coding_job_result');
-        $this->notifyTheAsker($plan, $title, $body);
+        $this->announceCodingResult($plan, $title, $title . "\n\n" . $this->outcome->line());
     }
 }

@@ -29,12 +29,22 @@ final readonly class CodingOutcome
 
     public static function awaitingPush(HarnessDiff $diff, ApprovalRequest $approval, ?string $branch): self
     {
-        return new self(CodingOutcomeEnum::AWAITING_PUSH, $diff, branch: $branch, approval: $approval);
+        return new self(
+            CodingOutcomeEnum::AWAITING_PUSH,
+            $diff,
+            branch: $branch,
+            approval: $approval
+        );
     }
 
     public static function reviewOnly(HarnessDiff $diff): self
     {
         return new self(CodingOutcomeEnum::REVIEW_ONLY, $diff);
+    }
+
+    public static function ran(HarnessDiff $diff): self
+    {
+        return new self(CodingOutcomeEnum::RAN, $diff);
     }
 
     /**
@@ -135,6 +145,7 @@ final readonly class CodingOutcome
             CodingOutcomeEnum::AWAITING_PUSH => 'Waiting on your approval to push `' . (string) $this->branch . '`.',
             CodingOutcomeEnum::PUSHED => $this->pushedLine(),
             CodingOutcomeEnum::REVIEW_ONLY => 'Nothing has been pushed — the diff is waiting on the workspace for review.',
+            CodingOutcomeEnum::RAN => 'The job was run-only: no files were meant to change, and none did. The handoff has what it found.',
             default => (string) $this->reason,
         };
     }

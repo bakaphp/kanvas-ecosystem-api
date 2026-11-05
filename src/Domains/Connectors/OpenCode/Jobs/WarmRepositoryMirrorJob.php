@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\OpenCode\Actions\EnsureRepositoryMirrorAction;
 use Kanvas\Connectors\OpenCode\Concerns\PreparesHostDirectory;
 use Kanvas\Connectors\OpenCode\Concerns\ResolvesAgentMachine;
-use Kanvas\Connectors\OpenCode\Services\CodingRuntimeReadinessService;
+use Kanvas\Connectors\OpenCode\Services\CodingWorkspaceService;
 use Kanvas\Connectors\OpenCode\Services\RepoAllowListService;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -56,7 +56,7 @@ final class WarmRepositoryMirrorJob implements ShouldQueue
             return;
         }
 
-        $root = new CodingRuntimeReadinessService()->workspaceRoot($app);
+        $root = CodingWorkspaceService::rootFor($app);
         $mirror = EnsureRepositoryMirrorAction::pathFor($root, (int) $this->agent->companies_id, $repository->slug);
 
         try {

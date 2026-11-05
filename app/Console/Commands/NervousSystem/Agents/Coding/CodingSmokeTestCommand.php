@@ -39,7 +39,8 @@ class CodingSmokeTestCommand extends Command
         {--provider= : Provider id as declared in the runtime config, e.g. oai}
         {--model= : Model id, e.g. gpt-4.1}
         {--ticks=20 : How many times to poll before giving up}
-        {--sleep=10 : Seconds between polls}';
+        {--sleep=10 : Seconds between polls}
+        {--no-changes : The task is run-only (build, test, screenshot); an empty diff completes instead of failing}';
 
     protected $description = 'Run one coding task through the harness in the foreground and print the result.';
 
@@ -76,6 +77,7 @@ class CodingSmokeTestCommand extends Command
                 referenceSlugs: array_values(array_filter(
                     array_map(strval(...), (array) $this->option('reference'))
                 )),
+                expectsChanges: ! (bool) $this->option('no-changes'),
             )->execute();
         } catch (Throwable $e) {
             $this->error('Dispatch failed: ' . $e->getMessage());
@@ -184,7 +186,7 @@ class CodingSmokeTestCommand extends Command
         $session->status = HarnessStatusEnum::CANCELLED->value;
         $session->error_message = 'The foreground smoke test stopped watching before it finished.';
         $session->saveOrFail();
-        new FinalizeHarnessSessionAction($session, null, (string) $session->error_message)->execute();
+        new FinalizeHarnessSessionAction($session, failureReason: (string) $session->error_message)->execute();
 
         return self::FAILURE;
     }

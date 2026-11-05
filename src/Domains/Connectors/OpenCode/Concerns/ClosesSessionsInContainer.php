@@ -10,19 +10,27 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Throwable;
 
 /**
- * Sessions in a container that has just been removed are closed, not abandoned.
+ * Sessions in a runtime that has just been removed are closed, not abandoned.
  *
- * Removing the container under a running session would leave a row that says "running" forever,
+ * Removing the runtime under a running session would leave a row that says "running" forever,
  * holding a concurrency slot nothing will ever release and telling everyone the work is still in
  * progress. Each one is finalised with a reason instead.
+ *
+ * Scoped to the machine: the handle is derived from the agent id, so the same agent on another
+ * machine carries the same name for a runtime that is still very much alive.
  */
 trait ClosesSessionsInContainer
 {
-    private function closeSessionsIn(string $container, int $agentId, string $reason): int
-    {
+    private function closeSessionsIn(
+        string $handle,
+        int $agentId,
+        int $machineId,
+        string $reason
+    ): int {
         $sessions = AgentTaskSession::query()
-            ->where('container_name', $container)
+            ->where('container_name', $handle)
             ->where('agent_id', $agentId)
+            ->where('agent_machine_id', $machineId)
             ->live()
             ->get();
 
@@ -30,7 +38,7 @@ trait ClosesSessionsInContainer
             try {
                 new FinalizeHarnessSessionAction($session, failureReason: $reason)->execute();
             } catch (Throwable $e) {
-                // The container is already gone, so the finalizer cannot read a diff or a handoff out of
+                // The runtime is already gone, so the finalizer cannot read a diff or a handoff out of
                 // it and may well throw on the way past. The row must still stop saying "running".
                 report($e);
 

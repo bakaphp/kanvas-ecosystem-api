@@ -262,8 +262,9 @@ class FetchHarnessCodingArtifactTool extends Tool implements RequiresSystemAgent
 
     private function remoteSize(object $client, string $remote): ?int
     {
+        // `wc -c <`, not `stat`: the size flag is `-c` on GNU and `-f` on BSD, and the host runtime is a Mac.
         $output = trim((string) $client->exec(
-            'stat -c %s ' . escapeshellarg($remote) . ' 2>/dev/null || echo MISSING',
+            'wc -c < ' . escapeshellarg($remote) . ' 2>/dev/null || echo MISSING',
             30
         ));
 
