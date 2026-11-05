@@ -45,9 +45,20 @@ class CreateTemplateAction
         }
 
         if ($overwrite) {
-            return Templates::updateOrCreate($query, $attributes);
+            $template = Templates::updateOrCreate($query, $attributes);
+        } else {
+            $template = Templates::firstOrCreate($query, $attributes);
         }
 
-        return Templates::firstOrCreate($query, $attributes);
+        if (! empty($this->template->tags)) {
+            $template->syncTags(
+                $this->template->tags,
+                $this->template->app,
+                $this->template->user,
+                $this->template->company
+            );
+        }
+
+        return $template;
     }
 }
