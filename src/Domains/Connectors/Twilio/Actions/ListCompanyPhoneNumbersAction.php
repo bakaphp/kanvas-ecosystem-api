@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Twilio\Actions;
 
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Client as TwilioClient;
+use Throwable;
 use Twilio\Rest\Client as TwilioRestClient;
 
 /**
@@ -35,6 +36,28 @@ class ListCompanyPhoneNumbersAction
             ],
             $this->twilio()->incomingPhoneNumbers->read([], $limit),
         );
+    }
+
+    /**
+     * Which Twilio account the numbers come from, without exposing the full SID. The name is
+     * best-effort: a failed lookup only loses the label, never the numbers.
+     *
+     * @return array{sid_suffix: string, friendly_name: string|null}
+     */
+    public function account(): array
+    {
+        $twilio = $this->twilio();
+
+        try {
+            $friendlyName = $twilio->api->v2010->account->fetch()->friendlyName;
+        } catch (Throwable) {
+            $friendlyName = null;
+        }
+
+        return [
+            'sid_suffix' => substr((string) $twilio->getAccountSid(), -4),
+            'friendly_name' => $friendlyName,
+        ];
     }
 
     protected function twilio(): TwilioRestClient

@@ -409,6 +409,47 @@ class AgentInboundWebhookTest extends TestCase
         ], $numbers);
     }
 
+    public function testThePickerSourceNamesTheAccountWithoutItsFullSid(): void
+    {
+        $twilio = new FakeTwilioNumbersClient();
+
+        $account = new class ($this->company, $twilio) extends ListCompanyPhoneNumbersAction {
+            public function __construct(Companies $company, private FakeTwilioNumbersClient $fake)
+            {
+                parent::__construct($company);
+            }
+
+            protected function twilio(): Client
+            {
+                return $this->fake;
+            }
+        }->account();
+
+        $this->assertSame(['sid_suffix' => 'fake', 'friendly_name' => null], $account);
+    }
+
+    public function testThePickerSourceSaysWhichCompanyAndAccountOrWhyNot(): void
+    {
+        $response = $this->graphQL('
+            query {
+                agentPhoneNumberSource {
+                    provider
+                    company_name
+                    account_sid_suffix
+                    number_count
+                    error
+                }
+            }
+        ');
+
+        $this->assertNull($response->json('errors'), (string) json_encode($response->json('errors')));
+        $source = $response->json('data.agentPhoneNumberSource');
+        $this->assertSame('twilio', $source['provider']);
+        $this->assertSame($this->company->name, $source['company_name']);
+        // Either the account answered (suffix set) or the reason it didn't is reported.
+        $this->assertTrue(($source['error'] === null) === ($source['account_sid_suffix'] !== null));
+    }
+
     private function setPhoneNumber(Agent $agent, ?string $number)
     {
         return $this->graphQL('

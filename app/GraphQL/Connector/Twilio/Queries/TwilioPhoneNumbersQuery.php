@@ -48,6 +48,42 @@ class TwilioPhoneNumbersQuery
     }
 
     /**
+     * Where the number picker's list comes from, and why it is empty when it is — the picker
+     * itself stays best-effort and silent.
+     *
+     * @param array<string, mixed> $args
+     *
+     * @return array<string, mixed>
+     */
+    public function source(mixed $root, array $args): array
+    {
+        $ctx = $this->actingContext();
+        $source = [
+            'provider' => 'twilio',
+            'company_name' => $ctx->company->name,
+            'account_name' => null,
+            'account_sid_suffix' => null,
+            'number_count' => 0,
+            'error' => null,
+        ];
+
+        try {
+            $action = new ListCompanyPhoneNumbersAction($ctx->company);
+            $account = $action->account();
+            $numbers = $action->execute();
+        } catch (Throwable $e) {
+            return [...$source, 'error' => $e->getMessage()];
+        }
+
+        return [
+            ...$source,
+            'account_name' => $account['friendly_name'],
+            'account_sid_suffix' => $account['sid_suffix'],
+            'number_count' => count($numbers),
+        ];
+    }
+
+    /**
      * @return array<string, true> keyed by normalized number
      */
     private function numbersAssignedToOtherAgents(Apps $app, CompanyInterface $company, ?int $exceptAgentId): array
