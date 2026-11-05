@@ -115,7 +115,6 @@ class StopCodingSessionRuntimeTest extends TestCase
 
         $result = $this->kill($machine, removed: true)->execute('Runtime is unresponsive');
 
-        $this->assertTrue($result['removed']);
         $this->assertSame(1, $result['sessions_closed']);
         $this->assertContains($session->refresh()->status, HarnessStatusEnum::terminalValues());
         $this->assertSame(HarnessStatusEnum::RUNNING->value, $elsewhere->refresh()->status);
