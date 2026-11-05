@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Knowledge;
 
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -13,6 +14,8 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Enums\AgentMessageTypeEnum;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;
 use Kanvas\Intelligence\Knowledge\Sources\LeadKnowledgeSource;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Mockery;
@@ -38,16 +41,42 @@ class LeadKnowledgeSourceTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * Agent 1292: staff asking the agent "Shepard Select lot" on every lead were indexed as record
+     * history and outscored the lot guide on the very question they asked.
      */
-    private function message(array $payload, int $isPublic = 1, ?string $verb = null): Message
+    public function testStaffTalkingToTheAgentInAiAssistIsNotIndexed(): void
     {
+        $this->assertFalse(LeadKnowledgeSource::isIndexable($this->message(
+            ['content' => 'you know the address for Shepard select'],
+            verb: 'ai-assist',
+            channels: [ChannelNameEnum::AI_ASSIST->value],
+        )));
+        $this->assertTrue(
+            LeadKnowledgeSource::isIndexable($this->message(['content' => 'whats your address?'], channels: ['SMS'])),
+            'The conversation with the customer stays indexed'
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @param list<string> $channels
+     */
+    private function message(
+        array $payload,
+        int $isPublic = 1,
+        ?string $verb = null,
+        array $channels = []
+    ): Message {
         $message = new Message();
         $message->setRawAttributes(['message' => json_encode($payload), 'is_public' => $isPublic], true);
 
         $type = new MessageType();
         $type->setRawAttributes(['verb' => $verb ?? 'twilio-sms'], true);
         $message->setRelation('messageType', $type);
+        $message->setRelation('channels', new EloquentCollection(array_map(
+            static fn (string $name): Channel => new Channel()->setRawAttributes(['name' => $name], true),
+            $channels
+        )));
 
         return $message;
     }

@@ -166,10 +166,19 @@ final class LeadKnowledgeSource implements KnowledgeSource
      * (tool calls, tool results, summaries, notes) carry the tool vocabulary of every question, so once
      * indexed they outscore any real document on any question; and a payload with no text key renders
      * as its raw JSON, which is the same noise by another route.
+     *
+     * The AI Assist channel is staff talking to the agent about the lead, stored public with the
+     * `ai-assist` verb that INTERNAL_VERBS (`ai_assist`) never matched. Indexed one line at a time,
+     * "Shepard Select lot" from every lead outscored the lot guide it was asking about (agent 1292,
+     * 2026-11-05); those turns already reach company memory whole.
      */
     public static function isIndexable(Message $message): bool
     {
         if (! (bool) $message->is_public) {
+            return false;
+        }
+
+        if ($message->channels->isNotEmpty() && $message->channels->every(fn (Channel $channel): bool => $channel->isAiAssistChannel())) {
             return false;
         }
 
