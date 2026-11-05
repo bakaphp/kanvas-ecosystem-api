@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\PasoRapido;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
@@ -15,6 +16,7 @@ use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmResponse;
 use Kanvas\Connectors\PasoRapido\Enums\ConfigurationEnum;
 use Kanvas\Connectors\PasoRapido\Enums\CustomFieldEnum;
 use Kanvas\Connectors\PasoRapido\Handlers\PasoRapidoHandler;
+use Kanvas\Connectors\PasoRapido\Jobs\StorePasoRapidoInvoicePdfJob;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Regions\Models\Regions;
@@ -262,11 +264,14 @@ final class PasoRapidoOrderTest extends TestCase
                 ),
             ));
 
+        Bus::fake([StorePasoRapidoInvoicePdfJob::class]);
+
         $result = new CreatePasoRapidoOrderAction($app, $order, $serviceMock)->execute();
 
         $this->assertSame('success', $result['status']);
         $this->assertInstanceOf(PaymentConfirmData::class, $capturedConfirmData);
         $this->assertTrue($capturedConfirmData->fiscalCredit);
+        Bus::assertDispatched(StorePasoRapidoInvoicePdfJob::class, fn (StorePasoRapidoInvoicePdfJob $job) => $job->order->is($order));
         $this->assertSame($rnc, $capturedConfirmData->dni);
 
         $order->refresh();
