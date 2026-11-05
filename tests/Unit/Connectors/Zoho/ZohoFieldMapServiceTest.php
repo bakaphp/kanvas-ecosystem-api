@@ -47,6 +47,36 @@ final class ZohoFieldMapServiceTest extends TestCase
         $this->assertSame('680-719', $data['Credit_Score']);
     }
 
+    public function testMapKeysMatchTheEntityRegardlessOfCase(): void
+    {
+        $data = ZohoFieldMapService::map(
+            [
+                'Nerdwallet_ID' => ['name' => 'Nerdwallet_ID', 'type' => 'string'],
+                'member' => 'Member',
+            ],
+            [
+                'nerdwallet_id' => 'ec3c489c-7fd8-43fc',
+                'MEMBER' => '4530',
+            ]
+        );
+
+        $this->assertSame('ec3c489c-7fd8-43fc', $data['Nerdwallet_ID']);
+        $this->assertSame('4530', $data['Member']);
+    }
+
+    public function testAnExactKeyMatchWinsOverADifferentlyCasedOne(): void
+    {
+        $data = ZohoFieldMapService::map(
+            ['SubID' => 'SubID'],
+            [
+                'subid' => 'lowercase',
+                'SubID' => 'exact',
+            ]
+        );
+
+        $this->assertSame('exact', $data['SubID']);
+    }
+
     public function testExtractReadsTheSameMapInThePullDirection(): void
     {
         $map = [

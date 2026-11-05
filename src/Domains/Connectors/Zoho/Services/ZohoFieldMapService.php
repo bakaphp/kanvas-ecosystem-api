@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Services;
 
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Arr;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -50,13 +51,15 @@ final class ZohoFieldMapService
      * entity's values into a Zoho payload. Numbers and dates go through the caster because
      * settype('$50,000', 'double') is 0.0 and Carbon::parse(null) is today — both send Zoho a value
      * that is wrong rather than absent; the caster yields null instead and the field is skipped.
+     * Map keys find the entity's field ignoring case: `Nerdwallet_ID` reads `nerdwallet_id`.
      */
     public static function map(array $map, array $entity): array
     {
         $data = [];
 
         foreach ($map as $key => $name) {
-            $value = $entity[$key] ?? null;
+            $entityKey = Arr::keyIgnoringCase($entity, (string) $key);
+            $value = $entityKey !== null ? $entity[$entityKey] : null;
 
             if (is_array($name)) {
                 $type = (string) $name['type'];
