@@ -18,7 +18,7 @@ enum LaunchStageEnum: string
     {
         return match ($this) {
             self::RESOLVING_REPOSITORY => 'resolving the repository',
-            self::STARTING_CONTAINER => 'starting the container',
+            self::STARTING_CONTAINER => 'starting the runtime',
             self::PREPARING_WORKTREE => 'preparing the worktree',
             self::PROMPTING => 'sending the prompt',
         };

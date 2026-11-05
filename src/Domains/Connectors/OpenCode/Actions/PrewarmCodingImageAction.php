@@ -5,17 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenCode\Actions;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Connectors\OpenCode\Services\CodingImageService;
+use Kanvas\Connectors\OpenCode\Runtime\CodingRuntimeDriverFactory;
 use Kanvas\Connectors\OpenCode\SshClient;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
 /**
- * Pulls the coding image onto a machine ahead of time.
- *
- * Pull-only by design: the older runtime *builds* its image on the machine with a 900-second budget,
- * which a per-task container cannot pay. Without a prewarm the first task on a fresh machine still
- * waits for a ~500 MB pull inside its own launch, which reads to a user as a hung job.
+ * Installs the coding runtime onto a machine ahead of time, so the first task on a fresh machine does
+ * not pay for it inside its own launch — which reads to a user as a hung job.
  */
 class PrewarmCodingImageAction
 {
@@ -27,19 +23,12 @@ class PrewarmCodingImageAction
 
     public function execute(): string
     {
-        $image = CodingImageService::configuredFor($this->app);
         $client = SshClient::fromMachine($this->machine);
 
         try {
-            $result = $client->exec('docker pull ' . escapeshellarg($image) . ' 2>&1; echo "EXIT_CODE:$?"', 900);
-
-            if (! str_contains($result, 'EXIT_CODE:0')) {
-                throw new ValidationException('Could not pull ' . $image . ': ' . trim($result));
-            }
+            return CodingRuntimeDriverFactory::forMachine($this->machine)->prewarm($this->app, $client);
         } finally {
             $client->disconnect();
         }
-
-        return $image;
     }
 }

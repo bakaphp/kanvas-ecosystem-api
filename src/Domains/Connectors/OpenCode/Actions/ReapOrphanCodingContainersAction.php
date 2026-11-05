@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\OpenCode\Concerns\ListsAgentCodingContainers;
+use Kanvas\Connectors\OpenCode\Runtime\CodingRuntimeDriverFactory;
+use Kanvas\Connectors\OpenCode\SshClient as CodingSshClient;
+use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\CodingRuntimeDriver;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
@@ -38,8 +41,8 @@ class ReapOrphanCodingContainersAction
     /** Capped so one machine cannot hold the sweep open; the order is what makes the cap safe. */
     private const int BATCH = 200;
 
-    /** @var array{home: int, total: int, available: int} */
-    private const array UNMEASURED = ['home' => 0, 'total' => 0, 'available' => 0];
+    /** @var array{home: int, total: int, available: int, xcode: int} */
+    private const array UNMEASURED = ['home' => 0, 'total' => 0, 'available' => 0, 'xcode' => 0];
 
     public function __construct(
         private readonly AgentMachine $machine,
@@ -48,21 +51,21 @@ class ReapOrphanCodingContainersAction
     }
 
     /**
-     * @return array{containers: list<string>, workspaces: list<string>, disk: array{home: int, total: int, available: int}}
+     * @return array{containers: list<string>, workspaces: list<string>, housekeeping: list<string>, disk: array{home: int, total: int, available: int, xcode: int}}
      */
     public function execute(): array
     {
-        $client = $this->machine->connectSsh();
+        $client = $this->openSshClient();
+        $driver = $this->driver();
         $removedContainers = [];
         $removedWorkspaces = [];
+        $housekeeping = [];
         $disk = self::UNMEASURED;
 
         try {
-            foreach ($this->orphanContainers($client) as $containerName) {
-                $removedContainers[] = $containerName;
-
-                if (! $this->dryRun) {
-                    $client->exec('docker rm -f ' . escapeshellarg($containerName) . ' 2>&1 || true', 120);
+            foreach ($this->orphanContainers($client) as $handle) {
+                if ($this->dryRun || $driver->remove($handle, $client)) {
+                    $removedContainers[] = $handle;
                 }
             }
 
@@ -84,7 +87,14 @@ class ReapOrphanCodingContainersAction
                     $session->saveQuietly();
                 }
             }
-            $disk = $this->measureDisk($client, $this->agentDirectories());
+
+            $app = $this->machine->app;
+
+            if (! $this->dryRun && $app !== null) {
+                $housekeeping = $driver->housekeep($app, $client);
+            }
+
+            $disk = $this->measureDisk($client, $this->agentDirectories(), $driver->extraDiskPaths($client));
         } catch (Throwable $e) {
             report($e);
         } finally {
@@ -94,8 +104,19 @@ class ReapOrphanCodingContainersAction
         return [
             'containers' => $removedContainers,
             'workspaces' => $removedWorkspaces,
+            'housekeeping' => $housekeeping,
             'disk' => $disk,
         ];
+    }
+
+    protected function openSshClient(): SshClient
+    {
+        return CodingSshClient::fromMachine($this->machine);
+    }
+
+    protected function driver(): CodingRuntimeDriver
+    {
+        return CodingRuntimeDriverFactory::forMachine($this->machine);
     }
 
     /**
@@ -103,7 +124,7 @@ class ReapOrphanCodingContainersAction
      * that one task ended. A container whose agent finished recently is also kept, so the next task
      * does not pay a cold start.
      *
-     * @return list<string> container names
+     * @return list<string> runtime handles
      */
     private function orphanContainers(SshClient $client): array
     {
@@ -111,7 +132,7 @@ class ReapOrphanCodingContainersAction
         $busy = $this->busyAgentIds(array_keys($found), self::IDLE_GRACE_MINUTES);
 
         return array_values(array_map(
-            static fn (array $container): string => $container['name'],
+            static fn (array $runtime): string => $runtime['handle'],
             array_diff_key($found, array_flip($busy))
         ));
     }
@@ -127,9 +148,10 @@ class ReapOrphanCodingContainersAction
      * Best-effort. A failure to measure must never fail a sweep that already did its work.
      *
      * @param list<string> $agentDirs
-     * @return array{home: int, total: int, available: int}
+     * @param array<string, list<string>> $extraPaths runtime-owned directories outside the agent tree, by label
+     * @return array{home: int, total: int, available: int, xcode: int}
      */
-    private function measureDisk(SshClient $client, array $agentDirs): array
+    private function measureDisk(SshClient $client, array $agentDirs, array $extraPaths = []): array
     {
         if ($agentDirs === []) {
             return self::UNMEASURED;
@@ -144,12 +166,25 @@ class ReapOrphanCodingContainersAction
         // Labelled, not positional. A `du` that prints nothing would shift every later reading up a
         // line, and this number is meant to be trusted across weeks of samples — a silently wrong
         // series is worse than a missing one.
+        //
+        // Kilobytes, because `-k` is the one unit GNU and BSD `du`/`df` agree on; `-b`/`-B1` are GNU
+        // only and print nothing on a Mac. Block size rather than apparent size is the accepted cost.
+        $sum = '| awk \'{s+=$1} END {print s+0}\'';
+        $extra = '';
+
+        foreach ($extraPaths as $label => $paths) {
+            if ($paths !== [] && array_key_exists($label, self::UNMEASURED)) {
+                $extra .= '; echo "' . $label . ':$(( $(du -sk ' . implode(' ', array_map('escapeshellarg', $paths))
+                    . ' 2>/dev/null ' . $sum . ') * 1024 ))"';
+            }
+        }
+
         try {
             $output = (string) $client->exec(
-                'echo "total:$(du -sbc ' . $quoted . ' 2>/dev/null | tail -1 | cut -f1)"; '
-                . 'echo "home:$(du -sbc ' . $homes . ' 2>/dev/null | tail -1 | cut -f1)"; '
-                . 'echo "available:$(df -B1 --output=avail ' . escapeshellarg($agentDirs[0])
-                . ' 2>/dev/null | tail -1 | tr -d \' \')"',
+                'echo "total:$(( $(du -sk ' . $quoted . ' 2>/dev/null ' . $sum . ') * 1024 ))"; '
+                . 'echo "home:$(( $(du -sk ' . $homes . ' 2>/dev/null ' . $sum . ') * 1024 ))"; '
+                . 'echo "available:$(( $(df -k ' . escapeshellarg($agentDirs[0])
+                . ' 2>/dev/null | tail -1 | awk \'{print $4}\') * 1024 ))"' . $extra,
                 120
             );
         } catch (Throwable $e) {

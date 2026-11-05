@@ -61,6 +61,7 @@ use Override;
  * @property string|null $handoff
  * @property string|null $error_message
  * @property int $agent_steer_count
+ * @property bool $expects_changes
  * @property Carbon|null $started_at
  * @property Carbon|null $heartbeat_at
  * @property Carbon|null $completed_at
@@ -82,6 +83,7 @@ class AgentTaskSession extends BaseModel
             'completed_at' => 'datetime',
             'workspace_reaped_at' => 'datetime',
             'is_deleted' => 'boolean',
+            'expects_changes' => 'boolean',
         ];
     }
 
@@ -113,6 +115,15 @@ class AgentTaskSession extends BaseModel
     public function isRetry(): bool
     {
         return $this->retry_of_session_id !== null;
+    }
+
+    /**
+     * False for a job dispatched to run, test, screenshot or inspect: an empty diff is then its
+     * result, not the "answered in prose" failure the finalizer records otherwise.
+     */
+    public function expectsChanges(): bool
+    {
+        return (bool) ($this->expects_changes ?? true);
     }
 
     public function harnessName(): HarnessEnum

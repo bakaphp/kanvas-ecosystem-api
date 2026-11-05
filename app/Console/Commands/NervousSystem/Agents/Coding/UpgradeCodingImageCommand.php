@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Console\Commands\NervousSystem\Agents\Coding;
 
 use App\Console\Commands\NervousSystem\Agents\Coding\Concerns\SelectsAppMachines;
-use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Connectors\OpenCode\Actions\ReplaceStaleCodingContainersAction;
@@ -20,7 +19,7 @@ use Throwable;
  * `build-image` alone is not an upgrade. A coding container lives for as long as its agent keeps
  * getting work, and is created with whatever image was configured at the time — so after a build the
  * old opencode keeps serving every agent that already has a container, for days. The reuse check in
- * `EnsureAgentCodingContainerAction` rolls one over on its agent's next task; this does it for the
+ * `ContainerRuntimeDriver` rolls one over on its agent's next task; this does it for the
  * whole machine now, and says which containers it could not touch and why.
  */
 class UpgradeCodingImageCommand extends Command
@@ -52,7 +51,7 @@ class UpgradeCodingImageCommand extends Command
         $this->overwriteAppService($app);
 
         // The Dockerfile, not the app setting: the setting is the version being left behind.
-        $image = Str::trimToNull((string) $this->option('image')) ?? CodingImageService::pinnedTag();
+        $image = CodingImageService::resolveTag($this->option('image'));
         $machines = $this->machines($app);
 
         if ($machines === []) {

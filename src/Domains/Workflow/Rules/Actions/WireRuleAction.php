@@ -61,6 +61,7 @@ final class WireRuleAction
                 'description' => $this->description,
                 // pattern '1' with no conditions evaluates truthy — the activity self-guards on entity/type.
                 'pattern' => 1,
+                'params' => [],
                 'is_deleted' => 0,
             ]
         );

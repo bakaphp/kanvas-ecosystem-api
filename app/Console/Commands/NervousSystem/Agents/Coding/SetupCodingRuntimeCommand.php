@@ -5,23 +5,24 @@ declare(strict_types=1);
 namespace App\Console\Commands\NervousSystem\Agents\Coding;
 
 use App\Console\Commands\Concerns\ResolvesAppOption;
+use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\OpenCode\Actions\ConfigureCodingMachineAction;
 use Kanvas\Connectors\OpenCode\Actions\PrewarmCodingImageAction;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenCode\Services\CodingImageService;
 use Kanvas\Connectors\OpenCode\Services\CodingRuntimeReadinessService;
-use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineNetworkModeEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineRuntimeEnum;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
 
 /**
  * Configures an app (and optionally a machine) to run coding sessions, and says what is still missing.
- *
- * It exists because the alternative was tinker. Everything it writes is a setting or a machine row —
- * nothing here is state the application could not be told through its own surfaces later.
+ * Everything it writes is a setting or a machine row — nothing here is state the application could not
+ * be told through its own surfaces later.
  */
 class SetupCodingRuntimeCommand extends Command
 {
@@ -30,7 +31,9 @@ class SetupCodingRuntimeCommand extends Command
 
     protected $signature = 'kanvas:coding:setup
         {--app= : App id to configure}
-        {--machine= : Agent machine id that will run the containers}
+        {--machine= : Agent machine id that will run the coding runtime}
+        {--runtime= : container (one Docker container per agent) or host (one native opencode process per agent, under launchd on a Mac); omitted keeps the machine\'s current runtime}
+        {--host-tools= : Comma list of tool sets a host advertises, e.g. xcode}
         {--image= : Pinned runtime image; defaults to the tag the Dockerfile builds}
         {--network= : Docker network the app can reach containers on, e.g. kanvas-ecosystem-api_sail}
         {--provider=oai : Provider id, as declared in the project config}
@@ -59,7 +62,7 @@ class SetupCodingRuntimeCommand extends Command
         $this->overwriteAppService($app);
 
         $this->writeSettings($app);
-        $machine = $this->configureMachine();
+        $machine = $this->configureMachine($app);
 
         if ($this->option('prewarm') && $machine !== null) {
             $this->prewarm($machine, $app);
@@ -71,7 +74,7 @@ class SetupCodingRuntimeCommand extends Command
     private function writeSettings(Apps $app): void
     {
         $settings = [
-            ConfigurationEnum::IMAGE->value => $this->option('image') ?: CodingImageService::pinnedTag(),
+            ConfigurationEnum::IMAGE->value => CodingImageService::resolveTag($this->option('image')),
             ConfigurationEnum::NETWORK->value => $this->option('network'),
             ConfigurationEnum::PROVIDER_ID->value => $this->option('provider'),
             ConfigurationEnum::MODEL->value => $this->option('model'),
@@ -98,7 +101,7 @@ class SetupCodingRuntimeCommand extends Command
         }
     }
 
-    private function configureMachine(): ?AgentMachine
+    private function configureMachine(Apps $app): ?AgentMachine
     {
         $machineId = $this->option('machine');
 
@@ -107,7 +110,7 @@ class SetupCodingRuntimeCommand extends Command
         }
 
         /** @var AgentMachine|null $machine */
-        $machine = AgentMachine::query()->where('id', (int) $machineId)->first();
+        $machine = AgentMachine::query()->where('id', (int) $machineId)->fromApp($app)->notDeleted()->first();
 
         if ($machine === null) {
             $this->error('Machine ' . $machineId . ' not found.');
@@ -115,18 +118,27 @@ class SetupCodingRuntimeCommand extends Command
             return null;
         }
 
-        $network = (string) $this->option('network');
+        $runtimeOption = Str::trimToNull((string) $this->option('runtime'));
+        $runtime = $runtimeOption === null ? null : MachineRuntimeEnum::tryFrom($runtimeOption);
 
-        // shared_network is the "host it next to us" shape: nothing is published, and the app reaches
-        // the container by name. Without a network there is nothing to join, so it stays ssh_exec.
-        $machine->network_mode = $network !== ''
-            ? MachineNetworkModeEnum::SHARED_NETWORK->value
-            : MachineNetworkModeEnum::SSH_EXEC->value;
-        $machine->docker_network = $network !== '' ? $network : null;
-        $machine->saveOrFail();
+        if ($runtimeOption !== null && $runtime === null) {
+            $this->error('--runtime must be container or host.');
 
-        $this->line('Machine ' . $machine->name . ' set to ' . $machine->network_mode
-            . ($network !== '' ? ' on ' . $network : ''));
+            return null;
+        }
+
+        $hostTools = Str::trimToNull((string) $this->option('host-tools'));
+
+        new ConfigureCodingMachineAction(
+            $machine,
+            runtime: $runtime,
+            dockerNetwork: Str::trimToNull((string) $this->option('network')),
+            hostTools: $hostTools === null ? null : array_values(array_filter(array_map('trim', explode(',', $hostTools)))),
+        )->execute();
+
+        $this->line('Machine ' . $machine->name . ' set to ' . $machine->runtime . ' runtime, ' . $machine->network_mode
+            . ($machine->docker_network !== null ? ' on ' . $machine->docker_network : '')
+            . ($hostTools !== null ? ', host tools ' . $hostTools : ''));
 
         return $machine;
     }
@@ -135,7 +147,7 @@ class SetupCodingRuntimeCommand extends Command
     {
         try {
             $image = new PrewarmCodingImageAction($machine, $app)->execute();
-            $this->info('Pulled ' . $image . ' onto ' . $machine->name);
+            $this->info('Installed ' . $image . ' onto ' . $machine->name);
         } catch (Throwable $e) {
             $this->warn('Prewarm failed: ' . $e->getMessage());
         }
@@ -169,7 +181,7 @@ class SetupCodingRuntimeCommand extends Command
         $this->line('  model      ' . (string) $app->get(ConfigurationEnum::PROVIDER_ID->value)
             . '/' . (string) $app->get(ConfigurationEnum::MODEL->value));
         $this->line('  mode       ' . ($staticEndpoint !== '' ? 'attach → ' . $staticEndpoint : 'launch'));
-        $this->line('  machine    ' . ($machine?->name ?? '—'));
+        $this->line('  machine    ' . ($machine === null ? '—' : $machine->name . ' (' . $machine->runtimeMode()->value . ')'));
 
         foreach ($missing as $problem) {
             $this->warn('  ⚠ ' . $problem);
