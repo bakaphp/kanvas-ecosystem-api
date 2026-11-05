@@ -116,12 +116,8 @@ final class CreateLeadWithZohoDuplicateCheckJobTest extends TestCase
             ->company($company->getId())
             ->create([
                 'action_id' => $action->getId(),
-                'configuration' => [
-                    'receiver_id' => $this->leadReceiver->getId(),
-                    'duplicate_owner_users_id' => $user->getId(),
-                    'duplicate_zoho_owner_id' => self::ZOHO_OWNER_ID,
-                ],
             ]);
+        $this->setUpDuplicateConfiguration();
     }
 
     public function testANewContactFollowsTheStandardFlow(): void
@@ -135,57 +131,118 @@ final class CreateLeadWithZohoDuplicateCheckJobTest extends TestCase
         $this->assertNull($lead->get(CustomFieldEnum::ZOHO_DUPLICATE_OWNER_ID->value));
     }
 
-    public function testALeadThatOnlyExistsInZohoIsRoutedToTheDuplicateOwner(): void
-    {
-        $email = $this->uniqueEmail();
-        $module = $this->module();
-        $module->method('searchEmail')->with($email)->willReturn($this->records($module, ['id' => 'zl-1', 'Email' => strtoupper($email)]));
-        $module->expects($this->never())->method('searchPhone');
-
-        $result = $this->runReceiver($this->payload($email), $module);
-
-        $lead = Lead::find($result['lead_id']);
-        $this->assertSame(CreateLeadWithZohoDuplicateCheckJob::STATUS_MATCHED, $result['duplicate_check']['status']);
-        $this->assertSame(['zl-1'], $result['duplicate_check']['zoho_ids']);
-        $this->assertSame(0, (int) $lead->leads_sources_id);
-        $this->assertSame(auth()->user()->getId(), $lead->leads_owner_id);
-        $this->assertSame(self::ZOHO_OWNER_ID, (string) $lead->get(CustomFieldEnum::ZOHO_DUPLICATE_OWNER_ID->value));
-        $this->assertSame('zoho:zl-1', $lead->get(CustomFieldEnum::ZOHO_DUPLICATE_OF->value));
-        $this->assertStringContainsString('Possible duplicate of zoho:zl-1', (string) $lead->description);
-        $this->assertSame(0, (int) $this->rotation->fresh()->hits);
-    }
-
-    public function testAZohoOnlyMatchIsPulledIntoKanvasSoTheNextSubmissionMatchesLocally(): void
+    public function testAZohoOnlyMatchIsPulledAndReassignedWithoutCreatingALead(): void
     {
         $email = $this->uniqueEmail();
         $zohoLeadId = '5725' . random_int(100000000000, 999999999999);
         $module = $this->module();
         $module->expects($this->once())
             ->method('searchEmail')
+            ->with($email)
             ->willReturn($this->records($module, [
                 'id' => $zohoLeadId,
                 'First_Name' => 'Dana',
                 'Last_Name' => 'Original',
-                'Email' => $email,
+                'Email' => strtoupper($email),
                 'Lead_Status' => 'Contacted',
             ]));
+        $module->expects($this->never())->method('searchPhone');
+        $module->expects($this->once())
+            ->method('update')
+            ->with($zohoLeadId, ['Owner' => self::ZOHO_OWNER_ID, 'Lead_Source' => null]);
 
         $result = $this->runReceiver($this->payload($email), $module);
 
+        $this->assertSame(CreateLeadWithZohoDuplicateCheckJob::STATUS_MATCHED, $result['duplicate_check']['status']);
         $this->assertSame([$zohoLeadId], $result['duplicate_check']['zoho_ids']);
-        $this->assertCount(1, $result['duplicate_check']['pulled_lead_ids']);
+        $this->assertSame([$result['lead_id']], $result['duplicate_check']['pulled_lead_ids']);
+        $this->assertTrue($result['zoho_updated']);
+        $this->assertSame(1, $this->receiverLeadCount());
+        $this->assertReassigned(Lead::find($result['lead_id']));
+        $this->assertSame($zohoLeadId, (string) Lead::find($result['lead_id'])->get(CustomFieldEnum::ZOHO_LEAD_ID->value));
+        $this->assertSame(0, (int) $this->rotation->fresh()->hits);
+    }
 
-        $pulled = Lead::find($result['duplicate_check']['pulled_lead_ids'][0]);
-        $this->assertSame($zohoLeadId, (string) $pulled->get(CustomFieldEnum::ZOHO_LEAD_ID->value));
-        $this->assertSame($pulled->people_id, Lead::find($result['lead_id'])->people_id);
+    public function testAnExistingKanvasLeadIsReassignedInKanvasAndZohoWithoutAskingZoho(): void
+    {
+        $email = $this->uniqueEmail();
+        $first = $this->runReceiver($this->payload($email), $this->zohoWithNoMatches());
+        $existing = Lead::find($first['lead_id']);
+        $existing->set(CustomFieldEnum::ZOHO_LEAD_ID->value, 'zl-9');
+        $existing->close();
 
-        $again = $this->module();
-        $again->expects($this->never())->method('searchEmail');
+        $module = $this->module();
+        $module->expects($this->never())->method('searchEmail');
+        $module->expects($this->once())
+            ->method('update')
+            ->with('zl-9', ['Owner' => self::ZOHO_OWNER_ID, 'Lead_Source' => null]);
 
-        $second = $this->runReceiver($this->payload($email), $again);
+        $result = $this->runReceiver($this->payload($email), $module);
 
-        $this->assertSame(CreateLeadWithZohoDuplicateCheckJob::STATUS_MATCHED, $second['duplicate_check']['status']);
-        $this->assertContains($pulled->getId(), $second['duplicate_check']['kanvas_lead_ids']);
+        $this->assertSame([$first['lead_id']], $result['duplicate_check']['kanvas_lead_ids']);
+        $this->assertSame($first['lead_id'], $result['lead_id']);
+        $this->assertSame('zl-9', $result['zoho_lead_id']);
+        $this->assertSame(1, $this->receiverLeadCount());
+        $this->assertReassigned($existing->fresh());
+    }
+
+    public function testAKanvasPhoneMatchIgnoresFormatting(): void
+    {
+        $digits = $this->uniquePhoneDigits();
+        $first = $this->runReceiver($this->payload($this->uniqueEmail(), $digits), $this->zohoWithNoMatches());
+
+        $module = $this->module();
+        $module->expects($this->never())->method('searchPhone');
+
+        $formatted = '+1 (' . substr($digits, 0, 3) . ') ' . substr($digits, 3, 3) . '-' . substr($digits, 6);
+        $result = $this->runReceiver($this->payload($this->uniqueEmail(), $formatted), $module);
+
+        $this->assertSame([$first['lead_id']], $result['duplicate_check']['kanvas_lead_ids']);
+        $this->assertReassigned(Lead::find($first['lead_id']));
+    }
+
+    public function testTheMostRecentMatchIsTheOneReassigned(): void
+    {
+        $email = $this->uniqueEmail();
+        $older = $this->runReceiver($this->payload($email), $this->zohoWithNoMatches());
+        $this->receiver->update(['configuration' => ['receiver_id' => $this->leadReceiver->getId()]]);
+        $newer = $this->runReceiver($this->payload($email), $this->zohoWithNoMatches());
+        $this->setUpDuplicateConfiguration();
+
+        $result = $this->runReceiver($this->payload($email), $this->zohoWithNoMatches());
+
+        $this->assertSame($newer['lead_id'], $result['lead_id']);
+        $this->assertSame($this->rotationAgent->getId(), Lead::find($older['lead_id'])->leads_owner_id);
+    }
+
+    public function testAKanvasMatchNotYetInZohoKeepsTheOwnerForItsQueuedPush(): void
+    {
+        $email = $this->uniqueEmail();
+        $first = $this->runReceiver($this->payload($email), $this->zohoWithNoMatches());
+
+        $module = $this->module();
+        $module->expects($this->never())->method('update');
+
+        $result = $this->runReceiver($this->payload($email), $module);
+
+        $this->assertNull($result['zoho_lead_id']);
+        $this->assertFalse($result['zoho_updated']);
+        $this->assertReassigned(Lead::find($first['lead_id']));
+    }
+
+    public function testAFailedZohoUpdateStillReassignsTheKanvasLead(): void
+    {
+        $email = $this->uniqueEmail();
+        $first = $this->runReceiver($this->payload($email), $this->zohoWithNoMatches());
+        Lead::find($first['lead_id'])->set(CustomFieldEnum::ZOHO_LEAD_ID->value, 'zl-10');
+
+        $module = $this->stub();
+        $module->method('update')->willThrowException(new RuntimeException('Zoho is down'));
+
+        $result = $this->runReceiver($this->payload($email), $module);
+
+        $this->assertFalse($result['zoho_updated']);
+        $this->assertReassigned(Lead::find($first['lead_id']));
     }
 
     public function testAZohoPhoneStoredInAnotherFormatStillMatches(): void
@@ -221,22 +278,6 @@ final class CreateLeadWithZohoDuplicateCheckJobTest extends TestCase
         $this->assertSame($this->rotationAgent->getId(), Lead::find($result['lead_id'])->leads_owner_id);
     }
 
-    public function testAnyExistingKanvasLeadCountsWithoutAskingZoho(): void
-    {
-        $email = $this->uniqueEmail();
-        $first = $this->runReceiver($this->payload($email), $this->zohoWithNoMatches());
-        Lead::find($first['lead_id'])->close();
-
-        $module = $this->module();
-        $module->expects($this->never())->method('searchEmail');
-
-        $result = $this->runReceiver($this->payload($email), $module);
-
-        $this->assertSame(CreateLeadWithZohoDuplicateCheckJob::STATUS_MATCHED, $result['duplicate_check']['status']);
-        $this->assertSame([$first['lead_id']], $result['duplicate_check']['kanvas_lead_ids']);
-        $this->assertSame(auth()->user()->getId(), Lead::find($result['lead_id'])->leads_owner_id);
-    }
-
     public function testAFailedZohoSearchStillCreatesTheLeadTheStandardWay(): void
     {
         $module = $this->stub();
@@ -260,6 +301,29 @@ final class CreateLeadWithZohoDuplicateCheckJobTest extends TestCase
 
         $this->assertNull($result['duplicate_check']);
         $this->assertSame($this->rotationAgent->getId(), Lead::find($result['lead_id'])->leads_owner_id);
+    }
+
+    private function setUpDuplicateConfiguration(): void
+    {
+        $this->receiver->update([
+            'configuration' => [
+                'receiver_id' => $this->leadReceiver->getId(),
+                'duplicate_owner_users_id' => auth()->user()->getId(),
+                'duplicate_zoho_owner_id' => self::ZOHO_OWNER_ID,
+            ],
+        ]);
+    }
+
+    private function assertReassigned(Lead $lead): void
+    {
+        $this->assertSame(auth()->user()->getId(), $lead->leads_owner_id);
+        $this->assertSame(0, (int) $lead->leads_sources_id);
+        $this->assertSame(self::ZOHO_OWNER_ID, (string) $lead->get(CustomFieldEnum::ZOHO_DUPLICATE_OWNER_ID->value));
+    }
+
+    private function receiverLeadCount(): int
+    {
+        return Lead::query()->where('leads_receivers_id', $this->leadReceiver->getId())->notDeleted()->count();
     }
 
     private function runReceiver(array $payload, ZohoRecordsModule $module): array

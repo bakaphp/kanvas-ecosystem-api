@@ -132,7 +132,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         return $finalJson;
     }
 
-    private function loadReceiver(): LeadReceiver
+    protected function loadReceiver(): LeadReceiver
     {
         return LeadReceiver::getByIdFromCompanyApp(
             $this->receiver->configuration['receiver_id'],
@@ -148,7 +148,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         return is_array($ipAddresses) && ! empty($ipAddresses) ? reset($ipAddresses) : '127.0.0.1';
     }
 
-    private function createAttempt(LeadReceiver $leadReceiver): LeadAttempt
+    protected function createAttempt(LeadReceiver $leadReceiver): LeadAttempt
     {
         return new CreateLeadAttemptAction(
             $this->webhookRequest->payload,
@@ -245,7 +245,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
     /**
      * @return array{0: ?Users, 1: array}
      */
-    protected function resolveOwner(LeadReceiver $leadReceiver, array $payload): array
+    private function resolveOwner(LeadReceiver $leadReceiver, array $payload): array
     {
         $user = $this->getUserByMemberNumber($payload, $this->receiver->company);
 
