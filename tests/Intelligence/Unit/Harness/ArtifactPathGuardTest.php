@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\FetchHarnessCodingArtifactTo
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
 use ReflectionMethod;
+use Tests\Intelligence\Integration\Harness\Fakes\FakeCodingSshClient;
 use Tests\TestCase;
 
 /**
@@ -57,6 +58,21 @@ class ArtifactPathGuardTest extends TestCase
     public function testResolvesOrdinaryPathsUnderTheWorkspace(string $path, string $expectedSuffix): void
     {
         $this->assertSame(self::WORKSPACE . $expectedSuffix, $this->resolve($path));
+    }
+
+    /**
+     * `stat` spells the size flag `-c` on GNU and `-f` on BSD; on the Mac runtime the GNU form fails,
+     * the fallback prints MISSING, and every artifact reads as "no file at that path".
+     */
+    public function testTheSizeProbeIsPortableToBsd(): void
+    {
+        $ssh = new FakeCodingSshClient(['wc -c <' => '   12345']);
+        $method = new ReflectionMethod(FetchHarnessCodingArtifactTool::class, 'remoteSize');
+
+        $size = $method->invoke($this->toolWithoutConstructor(), $ssh, self::WORKSPACE . '/.kanvas/shots/home.png');
+
+        $this->assertSame(12345, $size);
+        $this->assertStringNotContainsString('stat -c', $ssh->commands[0]);
     }
 
     private function resolve(string $path): ?string

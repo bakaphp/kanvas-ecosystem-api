@@ -16,11 +16,12 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MemoryCategoryEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\CodingRepositoryMemory;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Users\Models\Users;
+use Tests\Intelligence\Integration\Harness\Concerns\CreatesHarnessAgents;
 use Tests\TestCase;
 
 class ExtractSessionMemoriesActionTest extends TestCase
 {
+    use CreatesHarnessAgents;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = ['mysql', 'ecosystem', 'intelligence', 'social'];
@@ -239,35 +240,5 @@ class ExtractSessionMemoriesActionTest extends TestCase
         $session->saveOrFail();
 
         return $session;
-    }
-
-    /**
-     * @param array<string, mixed> $attributes
-     */
-    private function makeAgent(
-        Apps $app,
-        CompanyInterface $company,
-        Users $user,
-        array $attributes = []
-    ): Agent {
-        return Agent::factory()
-            ->withAppId($app->getId())
-            ->withCompanyId($company->getId())
-            ->create([
-                'user_id' => $user->getId(),
-                'is_active' => true,
-                ...$attributes,
-            ]);
-    }
-
-    /**
-     * @return array{0: Apps, 1: CompanyInterface, 2: Users}
-     */
-    private function context(): array
-    {
-        /** @var Users $user */
-        $user = auth()->user();
-
-        return [app(Apps::class), $user->getCurrentCompany(), $user];
     }
 }
