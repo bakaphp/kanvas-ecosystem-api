@@ -71,6 +71,12 @@ class SessionConfigBuilderTest extends TestCase
 
         $this->assertSame('deny', $bash['*']);
         $this->assertSame('allow', $bash['git *']);
+
+        // A JavaScript repository's toolchain is whichever package manager it uses: a job on a yarn
+        // repository was denied `yarn test` while `npm test` would have run (job 2403, 2026-11-05).
+        foreach (['npm *', 'npx *', 'yarn *', 'pnpm *'] as $packageManager) {
+            $this->assertSame('allow', $bash[$packageManager], $packageManager);
+        }
     }
 
     public function testProviderIsDeclaredOpenAiCompatibleAndTheApiKeyNeverReachesTheFile(): void
