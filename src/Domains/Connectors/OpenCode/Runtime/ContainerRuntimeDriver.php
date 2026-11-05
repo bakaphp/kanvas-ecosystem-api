@@ -194,7 +194,7 @@ class ContainerRuntimeDriver extends AbstractCodingRuntimeDriver
         $this->assertCapacityFor($agent, $client);
 
         $password = bin2hex(random_bytes(16));
-        $port = $this->networkMode()->needsPublishedPort() ? $this->allocatePort($client) : null;
+        $port = $this->machine->networkMode()->needsPublishedPort() ? $this->allocatePort($client) : null;
 
         $this->prepareHostDirectory($client, $worktreeRoot, $this->machine->name);
         $client->exec('mkdir -p ' . escapeshellarg($worktreeRoot . '/.home'), 30);
@@ -236,9 +236,6 @@ class ContainerRuntimeDriver extends AbstractCodingRuntimeDriver
      * container, so a mismatch means one of them cannot write — and on a box where Kanvas is not root
      * there is no `chown` available to paper over it. Matching the uid removes the problem instead of
      * escalating around it, which is what makes a customer-hosted machine workable.
-     *
-     * HOME has to move with it: the image's own home belongs to `kanvasrun`, so opencode's store would
-     * be unwritable. Pointing it inside the mount also means that store survives the container.
      */
     private function hostIdentity(SshClient $client): string
     {
@@ -299,12 +296,14 @@ class ContainerRuntimeDriver extends AbstractCodingRuntimeDriver
             '--user ' . escapeshellarg($hostIdentity),
             '-e ' . escapeshellarg('OPENCODE_SERVER_PASSWORD=' . $password),
             '-e ' . escapeshellarg($resolver->envVar() . '=' . $resolver->apiKey()),
+            // The image's own home belongs to `kanvasrun`, so under the host uid opencode's store would
+            // be unwritable; inside the mount it is writable and survives the container.
             '-e ' . escapeshellarg('HOME=/workspaces/.home'),
             // The whole worktree root, so each task gets a directory inside one runtime.
             '-v ' . escapeshellarg($worktreeRoot . ':/workspaces'),
         ];
 
-        if ($this->networkMode() === MachineNetworkModeEnum::SHARED_NETWORK && $this->machine->docker_network !== null) {
+        if ($this->machine->networkMode() === MachineNetworkModeEnum::SHARED_NETWORK && $this->machine->docker_network !== null) {
             $parts[] = '--network ' . escapeshellarg((string) $this->machine->docker_network);
         }
 
@@ -319,7 +318,7 @@ class ContainerRuntimeDriver extends AbstractCodingRuntimeDriver
 
     private function endpoint(string $handle, ?int $port): string
     {
-        return match ($this->networkMode()) {
+        return match ($this->machine->networkMode()) {
             MachineNetworkModeEnum::SHARED_NETWORK => 'http://' . $handle . ':4096',
             MachineNetworkModeEnum::PRIVATE_IP => 'http://' . $this->privateHost() . ':' . (int) $port,
             MachineNetworkModeEnum::SSH_EXEC => 'http://127.0.0.1:4096',
@@ -359,11 +358,5 @@ class ContainerRuntimeDriver extends AbstractCodingRuntimeDriver
     private function privateHost(): string
     {
         return Str::trimToNull($this->machine->private_host) ?? $this->machine->host;
-    }
-
-    private function networkMode(): MachineNetworkModeEnum
-    {
-        return MachineNetworkModeEnum::tryFrom((string) $this->machine->network_mode)
-            ?? MachineNetworkModeEnum::SSH_EXEC;
     }
 }

@@ -6,7 +6,6 @@ namespace Tests\Intelligence\Integration\Harness;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Connectors\OpenCode\Actions\ReplaceStaleCodingContainersAction;
-use Kanvas\Connectors\OpenCode\Runtime\ContainerRuntimeDriver;
 use Kanvas\Connectors\OpenCode\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\CodingRuntimeDriver;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
@@ -14,6 +13,7 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Tests\Intelligence\Integration\Harness\Concerns\CreatesAgentMachines;
 use Tests\Intelligence\Integration\Harness\Concerns\CreatesTaskSessions;
 use Tests\Intelligence\Integration\Harness\Fakes\FakeCodingSshClient;
+use Tests\Intelligence\Integration\Harness\Fakes\ImpatientContainerRuntimeDriver;
 use Tests\TestCase;
 
 /**
@@ -199,18 +199,11 @@ class ReplaceStaleCodingContainersTest extends TestCase
         bool $force = false,
         bool $dryRun = false
     ): ReplaceStaleCodingContainersAction {
-        $driver = new class ($machine) extends ContainerRuntimeDriver {
-            protected function pollDelaySeconds(): int
-            {
-                return 0;
-            }
-        };
-
         return new class (
             $machine,
             self::NEW_IMAGE,
             $ssh,
-            $driver,
+            new ImpatientContainerRuntimeDriver($machine),
             $force,
             $dryRun
         ) extends ReplaceStaleCodingContainersAction {

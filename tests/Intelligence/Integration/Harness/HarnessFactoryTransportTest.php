@@ -51,7 +51,7 @@ class HarnessFactoryTransportTest extends TestCase
         $this->assertInstanceOf(HttpHarnessTransport::class, HarnessFactory::transportFor($session));
     }
 
-    public function testAHostMachineUsesSshWithTheSessionsPort(): void
+    public function testAHostMachineUsesSshExec(): void
     {
         $session = $this->sessionOn(
             $this->machine(network: 'private_ip', runtime: 'host'),

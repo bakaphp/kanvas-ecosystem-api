@@ -27,7 +27,7 @@ class CodingHostToolsService
     /** Where the agent keeps the logs and pid files of what it runs in the background. */
     public const string LOGS_DIRECTORY = '.kanvas/logs';
 
-    private const array KNOWN = [self::XCODE];
+    public const array KNOWN = [self::XCODE];
 
     private const string SIMULATOR_PREFIX = 'Kanvas-';
 
@@ -97,12 +97,27 @@ class CodingHostToolsService
             return [];
         }
 
-        $tools = array_map(static fn (mixed $tool): string => strtolower(trim((string) $tool)), $stored);
+        return array_values(array_diff(self::normalize($stored), self::unknown(self::normalize($stored))));
+    }
 
-        return array_values(array_unique(array_filter(
-            $tools,
-            static fn (string $tool): bool => in_array($tool, self::KNOWN, true)
-        )));
+    /**
+     * @param array<mixed> $tools
+     * @return list<string>
+     */
+    public static function normalize(array $tools): array
+    {
+        $tools = array_map(static fn (mixed $tool): string => strtolower(trim((string) $tool)), $tools);
+
+        return array_values(array_unique(array_filter($tools, static fn (string $tool): bool => $tool !== '')));
+    }
+
+    /**
+     * @param list<string> $tools
+     * @return list<string>
+     */
+    public static function unknown(array $tools): array
+    {
+        return array_values(array_filter($tools, static fn (string $tool): bool => ! in_array($tool, self::KNOWN, true)));
     }
 
     /**

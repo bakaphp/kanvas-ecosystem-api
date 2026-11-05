@@ -122,7 +122,7 @@ class HarnessFactory
             );
         }
 
-        if ($machine !== null && $machine->network_mode === MachineNetworkModeEnum::SSH_EXEC->value) {
+        if ($machine !== null && $machine->networkMode() === MachineNetworkModeEnum::SSH_EXEC) {
             if ($session->container_name === null || $session->container_name === '') {
                 throw new ValidationException(
                     'Session ' . $session->uuid . ' runs over ssh but has no container to exec into.'

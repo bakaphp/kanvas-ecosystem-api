@@ -9,7 +9,6 @@ use Illuminate\Support\Carbon;
 use Kanvas\Connectors\OpenCode\Actions\ReapOrphanCodingContainersAction;
 use Kanvas\Connectors\OpenCode\Enums\MachineCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\Runtime\CodingRuntimeDriverFactory;
-use Kanvas\Connectors\OpenCode\Runtime\ContainerRuntimeDriver;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\CodingRuntimeDriver;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineRuntimeEnum;
@@ -18,6 +17,7 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Tests\Intelligence\Integration\Harness\Concerns\CreatesAgentMachines;
 use Tests\Intelligence\Integration\Harness\Concerns\CreatesTaskSessions;
 use Tests\Intelligence\Integration\Harness\Fakes\FakeCodingSshClient;
+use Tests\Intelligence\Integration\Harness\Fakes\ImpatientContainerRuntimeDriver;
 use Tests\TestCase;
 
 /**
@@ -43,7 +43,7 @@ class ReapOrphanCodingContainersTest extends TestCase
         $this->assertSame(['home' => 1024, 'total' => 2048, 'available' => 4096, 'xcode' => 0], $result['disk']);
         $disk = $ssh->commandStartingWith('echo "total:');
         $this->assertStringContainsString('du -sk', $disk);
-        $this->assertStringContainsString('df -k', $disk);
+        $this->assertStringContainsString('df -kP', $disk);
         $this->assertStringNotContainsString('du -sbc', $disk);
     }
 
@@ -81,6 +81,26 @@ class ReapOrphanCodingContainersTest extends TestCase
         $disk = $ssh->commandStartingWith('echo "total:');
         $this->assertStringContainsString('echo "xcode:', $disk);
         $this->assertStringContainsString('/Users/kanvasrun/Library/Developer/Xcode/DerivedData', $disk);
+    }
+
+    /**
+     * A host records what a session left running in pid files inside its workspace, so the sweep that
+     * stops those processes has to run before the workspace is removed.
+     */
+    public function testHousekeepingRunsBeforeExpiredWorkspacesAreRemoved(): void
+    {
+        $machine = $this->createAgentMachine(runtime: 'host');
+        $this->sessionOn($machine, hoursAgo: 48);
+        $ssh = new FakeCodingSshClient(['echo "$HOME|' => '/Users/kanvasrun|501|kanvasrun']);
+
+        $result = $this->reap($machine, $ssh)->execute();
+
+        $this->assertSame(['/srv/kanvas/agents/7/worktrees/u1'], $result['workspaces']);
+        $sweep = array_search(true, array_map(static fn (string $c): bool => str_starts_with($c, 'find '), $ssh->commands), true);
+        $removal = array_search(true, array_map(static fn (string $c): bool => str_starts_with($c, 'rm -rf '), $ssh->commands), true);
+        $this->assertNotFalse($sweep);
+        $this->assertNotFalse($removal);
+        $this->assertLessThan($removal, $sweep);
     }
 
     public function testAContainerMachineHasNoLogsToTruncate(): void
@@ -159,11 +179,6 @@ class ReapOrphanCodingContainersTest extends TestCase
             return CodingRuntimeDriverFactory::forMachine($machine);
         }
 
-        return new class ($machine) extends ContainerRuntimeDriver {
-            protected function pollDelaySeconds(): int
-            {
-                return 0;
-            }
-        };
+        return new ImpatientContainerRuntimeDriver($machine);
     }
 }

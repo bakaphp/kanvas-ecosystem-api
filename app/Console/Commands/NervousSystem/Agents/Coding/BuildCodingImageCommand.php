@@ -8,7 +8,6 @@ use App\Console\Commands\NervousSystem\Agents\Coding\Concerns\SelectsAppMachines
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\Actions\PrewarmCodingImageAction;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenCode\Enums\MachineCustomFieldEnum;
@@ -84,12 +83,7 @@ class BuildCodingImageCommand extends Command
         $failed = 0;
 
         foreach ($machines as $machine) {
-            if (! $this->buildOn(
-                $machine,
-                $image,
-                $context,
-                $app
-            )) {
+            if (! $this->buildOn($machine, $image, $context)) {
                 $failed++;
             }
         }
@@ -108,16 +102,12 @@ class BuildCodingImageCommand extends Command
     /**
      * @param array<string, string> $context filename => contents
      */
-    private function buildOn(
-        AgentMachine $machine,
-        string $image,
-        array $context,
-        Apps $app
-    ): bool {
+    private function buildOn(AgentMachine $machine, string $image, array $context): bool
+    {
         $this->line('<info>' . $machine->name . '</info> (' . $machine->host . ')');
 
         if ($machine->runtimeMode() === MachineRuntimeEnum::HOST) {
-            return $this->installOn($machine, $image, $app);
+            return $this->installOn($machine, $image);
         }
 
         $directory = '/tmp/kanvas-opencode-build-' . $machine->getId();
@@ -182,7 +172,7 @@ class BuildCodingImageCommand extends Command
      * verifies it against the published checksum. The version is the Dockerfile's, always — a
      * `--image` naming another version is a container concern and is said so, not honoured.
      */
-    private function installOn(AgentMachine $machine, string $image, Apps $app): bool
+    private function installOn(AgentMachine $machine, string $image): bool
     {
         $pinned = CodingRuntimeVersionService::upstreamVersion();
 
@@ -191,7 +181,7 @@ class BuildCodingImageCommand extends Command
         }
 
         try {
-            $binary = new PrewarmCodingImageAction($machine, $app)->execute();
+            $binary = new PrewarmCodingImageAction($machine)->execute();
             $this->info('  installed ' . $binary . ' → ' . mb_substr((string) $machine->get(MachineCustomFieldEnum::IMAGE_DIGEST->value), 0, 19));
 
             return true;

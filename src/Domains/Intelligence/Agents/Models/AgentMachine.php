@@ -11,6 +11,7 @@ use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineNetworkModeEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineRuntimeEnum;
 use Kanvas\Intelligence\Models\BaseModel;
 
@@ -147,6 +148,11 @@ class AgentMachine extends BaseModel
     public function runtimeMode(): MachineRuntimeEnum
     {
         return MachineRuntimeEnum::tryFrom((string) $this->runtime) ?? MachineRuntimeEnum::CONTAINER;
+    }
+
+    public function networkMode(): MachineNetworkModeEnum
+    {
+        return MachineNetworkModeEnum::tryFrom((string) $this->network_mode) ?? MachineNetworkModeEnum::SSH_EXEC;
     }
 
     public function searchableAs(): string

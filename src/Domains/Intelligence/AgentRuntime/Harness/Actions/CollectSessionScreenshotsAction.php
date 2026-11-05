@@ -76,12 +76,15 @@ class CollectSessionScreenshotsAction
         foreach ($this->listScreenshots($client, $workspace) as $remote) {
             $local = TempFile::path('png');
 
+            // Per file: one upload that fails must not discard the ones already stored.
             try {
                 if (! $client->downloadToFile($remote, $local)) {
                     continue;
                 }
 
                 $stored[] = $this->store($local, basename($remote), $user);
+            } catch (Throwable $e) {
+                report($e);
             } finally {
                 TempFile::delete($local);
             }

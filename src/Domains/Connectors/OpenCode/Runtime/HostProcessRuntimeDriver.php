@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\OpenCode\Runtime;
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\OpenCode\Concerns\PreparesHostDirectory;
+use Kanvas\Connectors\OpenCode\Concerns\RunsCheckedSshCommands;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\Enums\MachineCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\Services\CodingHostToolsService;
@@ -37,6 +38,7 @@ use Override;
 class HostProcessRuntimeDriver extends AbstractCodingRuntimeDriver
 {
     use PreparesHostDirectory;
+    use RunsCheckedSshCommands;
 
     public const string PATH = '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
 
@@ -124,7 +126,8 @@ class HostProcessRuntimeDriver extends AbstractCodingRuntimeDriver
             ? 'false'
             : 'printf ' . escapeshellarg('%s  ' . $archive . "\n") . ' ' . escapeshellarg($recorded) . ' > ' . CodingRuntimeVersionService::CHECKSUMS;
 
-        $result = $client->exec(
+        $this->runChecked(
+            $client,
             'mkdir -p ' . escapeshellarg($root . '/bin') . ' ' . escapeshellarg($staging)
             . ' && { cd ' . escapeshellarg($staging)
             . ' && curl -fsSL -o ' . $archive . ' ' . escapeshellarg(CodingRuntimeVersionService::archiveUrl($version))
@@ -134,16 +137,10 @@ class HostProcessRuntimeDriver extends AbstractCodingRuntimeDriver
             . ' && rm -rf x && mkdir x && unzip -q -o ' . $archive . ' -d x'
             . ' && mv x/opencode ' . escapeshellarg($binary) . ' && chmod 755 ' . escapeshellarg($binary)
             . ' && cd / && rm -rf ' . escapeshellarg($staging)
-            . '; } 2>&1; echo "EXIT_CODE:$?"',
+            . '; }',
+            'install opencode ' . $version . ' on ' . $this->machine->name,
             900
         );
-
-        if (! str_contains($result, 'EXIT_CODE:0')) {
-            throw new ValidationException(
-                'Could not install opencode ' . $version . ' on ' . $this->machine->name . ': '
-                . trim(str_replace('EXIT_CODE:', 'exit ', $result))
-            );
-        }
 
         $digest = strtok(trim($client->exec('shasum -a 256 ' . escapeshellarg($binary), 60)), ' ');
         $this->machine->set(MachineCustomFieldEnum::IMAGE_DIGEST->value, 'sha256:' . $digest);
@@ -224,10 +221,14 @@ class HostProcessRuntimeDriver extends AbstractCodingRuntimeDriver
         return CodingHostToolsService::hasXcode(CodingHostToolsService::forMachine($this->machine));
     }
 
+    /**
+     * The Dockerfile's version, whatever the tag says: it is the only one `prewarm()` installs, so
+     * honouring a different `--image` here would mark every job stale and replace it with its twin.
+     */
     #[Override]
     public function versionFor(string $imageTag): string
     {
-        return CodingRuntimeVersionService::versionOf($imageTag);
+        return CodingRuntimeVersionService::upstreamVersion();
     }
 
     /**
@@ -485,18 +486,17 @@ class HostProcessRuntimeDriver extends AbstractCodingRuntimeDriver
 
         $client->exec('chmod 600 ' . escapeshellarg($plist), 30);
 
-        $result = $client->exec(
-            'launchctl bootstrap gui/' . $identity['uid'] . ' ' . escapeshellarg($plist) . ' 2>&1; echo "EXIT_CODE:$?"',
-            60
-        );
-
-        if (! str_contains($result, 'EXIT_CODE:0')) {
+        try {
+            $this->runChecked(
+                $client,
+                'launchctl bootstrap gui/' . $identity['uid'] . ' ' . escapeshellarg($plist),
+                'start opencode for agent ' . $agent->name . ' on ' . $this->machine->name,
+                60
+            );
+        } catch (ValidationException $e) {
             $client->exec('rm -f ' . escapeshellarg($plist), 30);
 
-            throw new ValidationException(
-                'Could not start opencode for agent ' . $agent->name . ' on ' . $this->machine->name . ': '
-                . trim(str_replace('EXIT_CODE:', 'exit ', $result))
-            );
+            throw $e;
         }
 
         if (! $this->answers(

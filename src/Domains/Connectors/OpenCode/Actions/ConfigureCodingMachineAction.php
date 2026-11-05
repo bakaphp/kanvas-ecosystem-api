@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\OpenCode\Actions;
 
 use Baka\Support\Str;
 use Kanvas\Connectors\OpenCode\Enums\MachineCustomFieldEnum;
+use Kanvas\Connectors\OpenCode\Services\CodingHostToolsService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineNetworkModeEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineRuntimeEnum;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -36,6 +38,17 @@ class ConfigureCodingMachineAction
      */
     public function execute(): AgentMachine
     {
+        $hostTools = $this->hostTools === null ? null : CodingHostToolsService::normalize($this->hostTools);
+        $unknown = CodingHostToolsService::unknown($hostTools ?? []);
+
+        // Refused rather than dropped: `forMachine()` ignores a tool it does not know, so a typo would
+        // save, print back, and advertise nothing.
+        if ($unknown !== []) {
+            throw new ValidationException(
+                'Unknown host tools ' . implode(', ', $unknown) . '; known: ' . implode(', ', CodingHostToolsService::KNOWN) . '.'
+            );
+        }
+
         $runtime = $this->runtime ?? $this->machine->runtimeMode();
         $this->machine->runtime = $runtime->value;
 
@@ -49,8 +62,8 @@ class ConfigureCodingMachineAction
 
         $this->machine->saveOrFail();
 
-        if ($this->hostTools !== null) {
-            $this->machine->set(MachineCustomFieldEnum::HOST_TOOLS->value, array_values($this->hostTools));
+        if ($hostTools !== null) {
+            $this->machine->set(MachineCustomFieldEnum::HOST_TOOLS->value, $hostTools);
         }
 
         return $this->machine;

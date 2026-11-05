@@ -297,15 +297,7 @@ class FinalizeHarnessSessionAction
         $screenshots = new CollectSessionScreenshotsAction($this->session)->execute();
         $body = $title . "\n\n" . $detail . $this->screenshotLines($screenshots) . "\n\n" . $this->costLine();
 
-        $message = $this->postToPlanBoard(
-            $plan,
-            $body,
-            'coding_job_result',
-            'coding-job-alert',
-        );
-        $this->attachScreenshots($message, $screenshots);
-        $this->alsoPostToOriginConversation($plan, $body, 'coding_job_result');
-        $this->notifyTheAsker($plan, $title, $body);
+        $this->attachScreenshots($this->announceCodingResult($plan, $title, $body), $screenshots);
     }
 
     /**

@@ -10,6 +10,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\Social\Messages\Models\Message;
 use Throwable;
 
 /**
@@ -57,6 +58,24 @@ trait PostsSessionActivity
             'coding_permission',
             'Coding job waiting on a permission',
         );
+    }
+
+    /**
+     * A finished job, said everywhere `AnnouncesPlanOutcome` reaches. The board message comes back so
+     * the caller can attach to it; the other two deliveries have nothing to attach to.
+     */
+    protected function announceCodingResult(Plan $plan, string $title, string $body): ?Message
+    {
+        $message = $this->postToPlanBoard(
+            $plan,
+            $body,
+            'coding_job_result',
+            'coding-job-alert',
+        );
+        $this->alsoPostToOriginConversation($plan, $body, 'coding_job_result');
+        $this->notifyTheAsker($plan, $title, $body);
+
+        return $message;
     }
 
     /**

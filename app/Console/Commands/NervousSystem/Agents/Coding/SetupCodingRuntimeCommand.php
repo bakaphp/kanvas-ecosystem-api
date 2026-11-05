@@ -65,7 +65,7 @@ class SetupCodingRuntimeCommand extends Command
         $machine = $this->configureMachine($app);
 
         if ($this->option('prewarm') && $machine !== null) {
-            $this->prewarm($machine, $app);
+            $this->prewarm($machine);
         }
 
         return $this->report($app, $machine);
@@ -133,7 +133,7 @@ class SetupCodingRuntimeCommand extends Command
             $machine,
             runtime: $runtime,
             dockerNetwork: Str::trimToNull((string) $this->option('network')),
-            hostTools: $hostTools === null ? null : array_values(array_filter(array_map('trim', explode(',', $hostTools)))),
+            hostTools: $hostTools === null ? null : Str::commaList($hostTools),
         )->execute();
 
         $this->line('Machine ' . $machine->name . ' set to ' . $machine->runtime . ' runtime, ' . $machine->network_mode
@@ -143,10 +143,10 @@ class SetupCodingRuntimeCommand extends Command
         return $machine;
     }
 
-    private function prewarm(AgentMachine $machine, Apps $app): void
+    private function prewarm(AgentMachine $machine): void
     {
         try {
-            $image = new PrewarmCodingImageAction($machine, $app)->execute();
+            $image = new PrewarmCodingImageAction($machine)->execute();
             $this->info('Installed ' . $image . ' onto ' . $machine->name);
         } catch (Throwable $e) {
             $this->warn('Prewarm failed: ' . $e->getMessage());

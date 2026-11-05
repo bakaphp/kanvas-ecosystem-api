@@ -37,7 +37,7 @@ class KillAgentCodingContainerAction
     }
 
     /**
-     * @return array{runtime: string, removed: bool, sessions_closed: int}
+     * @return array{runtime: string, sessions_closed: int}
      */
     public function execute(string $reason): array
     {
@@ -67,7 +67,6 @@ class KillAgentCodingContainerAction
 
         return [
             'runtime' => $handle,
-            'removed' => $removed,
             // After the runtime is gone, so a session cannot be finalised and then keep running.
             'sessions_closed' => $this->closeSessionsIn(
                 $handle,

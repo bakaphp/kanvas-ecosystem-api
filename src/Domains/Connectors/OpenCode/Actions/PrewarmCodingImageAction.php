@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenCode\Actions;
 
-use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\OpenCode\Runtime\CodingRuntimeDriverFactory;
 use Kanvas\Connectors\OpenCode\SshClient;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
 /**
@@ -17,16 +17,21 @@ class PrewarmCodingImageAction
 {
     public function __construct(
         private readonly AgentMachine $machine,
-        private readonly AppInterface $app,
     ) {
     }
 
     public function execute(): string
     {
+        $app = $this->machine->app;
+
+        if ($app === null) {
+            throw new ValidationException('Machine ' . $this->machine->name . ' belongs to no app.');
+        }
+
         $client = SshClient::fromMachine($this->machine);
 
         try {
-            return CodingRuntimeDriverFactory::forMachine($this->machine)->prewarm($this->app, $client);
+            return CodingRuntimeDriverFactory::forMachine($this->machine)->prewarm($app, $client);
         } finally {
             $client->disconnect();
         }

@@ -69,6 +69,14 @@ class ReapOrphanCodingContainersAction
                 }
             }
 
+            $app = $this->machine->app;
+
+            // Before the workspaces go: a host records what a session left running in pid files inside
+            // its workspace, and `rm -rf` would take those with it.
+            if (! $this->dryRun && $app !== null) {
+                $housekeeping = $driver->housekeep($app, $client);
+            }
+
             foreach ($this->expiredSessions() as $session) {
                 // Only `workspace_path` — a HOST path we created. `session_data_path` is the same
                 // directory as the CONTAINER sees it (`/workspaces/<uuid>`), and running that through
@@ -86,12 +94,6 @@ class ReapOrphanCodingContainersAction
                     $session->workspace_reaped_at = Carbon::now();
                     $session->saveQuietly();
                 }
-            }
-
-            $app = $this->machine->app;
-
-            if (! $this->dryRun && $app !== null) {
-                $housekeeping = $driver->housekeep($app, $client);
             }
 
             $disk = $this->measureDisk($client, $this->agentDirectories(), $driver->extraDiskPaths($client));
@@ -169,6 +171,8 @@ class ReapOrphanCodingContainersAction
         //
         // Kilobytes, because `-k` is the one unit GNU and BSD `du`/`df` agree on; `-b`/`-B1` are GNU
         // only and print nothing on a Mac. Block size rather than apparent size is the accepted cost.
+        // `-P` because GNU `df` wraps a long device name onto its own line, and `$4` of the last line
+        // is then the use percentage.
         $sum = '| awk \'{s+=$1} END {print s+0}\'';
         $extra = '';
 
@@ -183,7 +187,7 @@ class ReapOrphanCodingContainersAction
             $output = (string) $client->exec(
                 'echo "total:$(( $(du -sk ' . $quoted . ' 2>/dev/null ' . $sum . ') * 1024 ))"; '
                 . 'echo "home:$(( $(du -sk ' . $homes . ' 2>/dev/null ' . $sum . ') * 1024 ))"; '
-                . 'echo "available:$(( $(df -k ' . escapeshellarg($agentDirs[0])
+                . 'echo "available:$(( $(df -kP ' . escapeshellarg($agentDirs[0])
                 . ' 2>/dev/null | tail -1 | awk \'{print $4}\') * 1024 ))"' . $extra,
                 120
             );

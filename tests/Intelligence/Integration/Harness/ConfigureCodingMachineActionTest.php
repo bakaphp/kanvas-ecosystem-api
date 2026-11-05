@@ -7,6 +7,7 @@ namespace Tests\Intelligence\Integration\Harness;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Connectors\OpenCode\Actions\ConfigureCodingMachineAction;
 use Kanvas\Connectors\OpenCode\Enums\MachineCustomFieldEnum;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineRuntimeEnum;
 use Tests\Intelligence\Integration\Harness\Concerns\CreatesAgentMachines;
 use Tests\TestCase;
@@ -79,7 +80,25 @@ class ConfigureCodingMachineActionTest extends TestCase
         $this->assertSame('shared_network', $machine->network_mode);
     }
 
-    public function testHostToolsAreStoredAsAList(): void
+    /**
+     * `forMachine()` drops a tool it does not know, so a typo that was saved would print back and
+     * advertise nothing. Refused before the runtime is touched, so the typo re-platforms nothing.
+     */
+    public function testAnUnknownHostToolIsRefusedBeforeAnythingIsSaved(): void
+    {
+        $machine = $this->createAgentMachine();
+
+        try {
+            new ConfigureCodingMachineAction($machine, runtime: MachineRuntimeEnum::HOST, hostTools: ['xcod'])->execute();
+            $this->fail('An unknown host tool must be refused.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('xcod', $e->getMessage());
+            $this->assertSame('container', $machine->fresh()->runtime);
+            $this->assertNull($machine->get(MachineCustomFieldEnum::HOST_TOOLS->value));
+        }
+    }
+
+    public function testHostToolsSurviveARunThatDoesNotPassThem(): void
     {
         $machine = $this->createAgentMachine();
 

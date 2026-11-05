@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Intelligence\Unit\Harness;
+namespace Tests\Intelligence\Integration\Harness;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Connectors\OpenCode\Enums\MachineCustomFieldEnum;

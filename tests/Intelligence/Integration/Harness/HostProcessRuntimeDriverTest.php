@@ -20,6 +20,7 @@ use Tests\Intelligence\Integration\Harness\Concerns\CreatesAgentMachines;
 use Tests\Intelligence\Integration\Harness\Concerns\CreatesTaskSessions;
 use Tests\Intelligence\Integration\Harness\Concerns\MocksCodingApp;
 use Tests\Intelligence\Integration\Harness\Fakes\FakeCodingSshClient;
+use Tests\Intelligence\Integration\Harness\Fakes\ImpatientHostProcessRuntimeDriver;
 use Tests\TestCase;
 
 /**
@@ -179,6 +180,7 @@ class HostProcessRuntimeDriverTest extends TestCase
             $this->fail('A job that never answers must throw.');
         } catch (ValidationException $e) {
             $this->assertStringContainsString('opencode.err.log', $e->getMessage());
+            // Once to clear the name before the launch, once to tear the dead job down after it.
             $this->assertCount(2, $ssh->commandsStartingWith('launchctl bootout'));
         }
     }
@@ -279,9 +281,13 @@ class HostProcessRuntimeDriverTest extends TestCase
         );
     }
 
-    public function testVersionForStripsTheTag(): void
+    /**
+     * `prewarm()` only ever installs the Dockerfile's version, so a tag naming another one must not
+     * make the replacer treat every job as stale.
+     */
+    public function testVersionForIsTheDockerfilesVersionWhateverTheTagSays(): void
     {
-        $this->assertSame('2.2.5', $this->driver()->versionFor('kanvas/opencode:2.2.5'));
+        $this->assertSame($this->version(), $this->driver()->versionFor('kanvas/opencode:0.0.1'));
     }
 
     public function testPrewarmInstallsTheVerifiedBinary(): void
@@ -537,17 +543,7 @@ class HostProcessRuntimeDriverTest extends TestCase
 
     private function driver(?AgentMachine $machine = null): HostProcessRuntimeDriver
     {
-        return new class ($machine ?? $this->machine()) extends HostProcessRuntimeDriver {
-            protected function pollDelaySeconds(): int
-            {
-                return 0;
-            }
-
-            protected function probeAttempts(): int
-            {
-                return 2;
-            }
-        };
+        return new ImpatientHostProcessRuntimeDriver($machine ?? $this->machine());
     }
 
     private function codingAgent(): Agent
@@ -578,9 +574,6 @@ class HostProcessRuntimeDriverTest extends TestCase
         return 'com.kanvas.coding-agent-1|' . $this->version() . "\ncom.kanvas.coding-agent-2|" . $this->version();
     }
 
-    /**
-     * @param array<string, string> $overrides
-     */
     /**
      * A Mac that passes every host check, for the tests that take one row away.
      *

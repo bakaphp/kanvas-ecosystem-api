@@ -8,12 +8,12 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\Runtime\ContainerRuntimeDriver;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\RuntimeHandle;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineRuntimeEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Tests\Intelligence\Integration\Harness\Concerns\MocksCodingApp;
 use Tests\Intelligence\Integration\Harness\Fakes\FakeCodingSshClient;
+use Tests\Intelligence\Integration\Harness\Fakes\ImpatientContainerRuntimeDriver;
 use Tests\TestCase;
 
 /**
@@ -142,14 +142,6 @@ class ContainerRuntimeDriverTest extends TestCase
         $this->assertTrue($this->started($ssh));
     }
 
-    public function testSessionDirectoryIsTheMountedPathInAContainerAndTheHostPathOnAHost(): void
-    {
-        $workspace = '/srv/kanvas/agents/1/worktrees/abc';
-
-        $this->assertSame('/workspaces/abc', $this->handleFor(MachineRuntimeEnum::CONTAINER)->sessionDirectory($workspace));
-        $this->assertSame($workspace, $this->handleFor(MachineRuntimeEnum::HOST)->sessionDirectory($workspace));
-    }
-
     public function testListParsesEveryLabelledContainer(): void
     {
         $ssh = new FakeCodingSshClient(['docker ps -a' => "a|7|img\nnot-ours||img\nb|9|sha256:0f"]);
@@ -179,12 +171,7 @@ class ContainerRuntimeDriverTest extends TestCase
         $machine->name = 'box';
         $machine->max_agents = 2;
 
-        return new class ($machine) extends ContainerRuntimeDriver {
-            protected function pollDelaySeconds(): int
-            {
-                return 0;
-            }
-        };
+        return new ImpatientContainerRuntimeDriver($machine);
     }
 
     private function codingAgent(): Agent
@@ -217,17 +204,5 @@ class ContainerRuntimeDriverTest extends TestCase
     private function started(FakeCodingSshClient $ssh): bool
     {
         return $ssh->commandStartingWith('docker run') !== '';
-    }
-
-    private function handleFor(MachineRuntimeEnum $runtime): RuntimeHandle
-    {
-        return new RuntimeHandle(
-            runtime: $runtime,
-            handle: 'c',
-            endpoint: 'http://127.0.0.1:4096',
-            port: null,
-            password: 'pw',
-            worktreeRoot: '/srv/kanvas/agents/1/worktrees',
-        );
     }
 }

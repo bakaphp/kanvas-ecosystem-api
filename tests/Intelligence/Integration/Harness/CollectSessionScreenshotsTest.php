@@ -35,6 +35,8 @@ class CollectSessionScreenshotsTest extends TestCase
     /** @var list<string> */
     private array $storedBytes = [];
 
+    private ?string $failUploadOf = null;
+
     public function testScreenshotsAreStoredUnderTheSessionsUser(): void
     {
         $ssh = new FakeCodingSshClient([
@@ -80,6 +82,24 @@ class CollectSessionScreenshotsTest extends TestCase
         $this->assertStringContainsString('head -n ' . CollectSessionScreenshotsAction::MAX_FILES, $find);
     }
 
+    /**
+     * The upload before the failed one is already in the Filesystem; dropping the whole list would
+     * leave it orphaned and announce nothing.
+     */
+    public function testOneFailedUploadDoesNotDiscardTheOthers(): void
+    {
+        $ssh = new FakeCodingSshClient([
+            'find ' => self::WORKSPACE . "/.kanvas/shots/home.png\n" . self::WORKSPACE . '/.kanvas/shots/login.png',
+        ]);
+        $ssh->files[self::WORKSPACE . '/.kanvas/shots/home.png'] = 'PNG-home';
+        $ssh->files[self::WORKSPACE . '/.kanvas/shots/login.png'] = 'PNG-login';
+        $this->failUploadOf = 'home.png';
+
+        $stored = $this->collect($ssh)->execute();
+
+        $this->assertSame(['login.png'], array_map(static fn (Filesystem $f): string => $f->name, $stored));
+    }
+
     public function testAnSshFailureIsReportedNotThrown(): void
     {
         $ssh = new class () extends FakeCodingSshClient {
@@ -98,7 +118,10 @@ class CollectSessionScreenshotsTest extends TestCase
      */
     public function testAnUnreachableMachineIsReportedNotThrown(): void
     {
-        $session = $this->createTaskSession(attributes: ['workspace_path' => self::WORKSPACE]);
+        $session = $this->createTaskSession(attributes: [
+            'workspace_path' => self::WORKSPACE,
+            'users_id' => auth()->user()->getId(),
+        ]);
 
         $action = new class ($session) extends CollectSessionScreenshotsAction {
             protected function openSshClient(): ?SshClient
@@ -163,6 +186,10 @@ class CollectSessionScreenshotsTest extends TestCase
 
     private function fakeStore(string $localPath, string $name, Users $user): Filesystem
     {
+        if ($name === $this->failUploadOf) {
+            throw new RuntimeException('upload failed');
+        }
+
         $this->storedBytes[] = (string) file_get_contents($localPath);
 
         $filesystem = new Filesystem();
