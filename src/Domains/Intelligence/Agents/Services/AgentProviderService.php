@@ -127,9 +127,12 @@ class AgentProviderService
         }
 
         if ($provider === AgentLlmProviderEnum::GEMINI) {
+            $tenantKey = self::tenantKey($source, $agent, $provider);
+            $trialKey = $tenantKey === null ? TrialLlmService::geminiKeyFor($app) : null;
+
             return new KanvasGemini(
-                key: self::requireKey($source, $agent, $provider),
-                model: $model,
+                key: $tenantKey ?? $trialKey ?? self::missingKey($provider),
+                model: $trialKey !== null ? TrialLlmService::model() : $model,
                 parameters: self::withGeminiThinking($parameters, $app),
                 httpClient: $httpClient,
             );
@@ -406,20 +409,32 @@ class AgentProviderService
      */
     private static function requireKey(array $source, Agent $agent, AgentLlmProviderEnum $provider): string
     {
-        $appKeySetting = $provider === AgentLlmProviderEnum::GEMINI
+        return self::tenantKey($source, $agent, $provider) ?? self::missingKey($provider);
+    }
+
+    /**
+     * @param array{key: ?string} $source
+     */
+    private static function tenantKey(array $source, Agent $agent, AgentLlmProviderEnum $provider): ?string
+    {
+        $key = $source['key'] ?? $agent->app->get(self::appKeySetting($provider)->value);
+
+        return is_string($key) ? Str::trimToNull($key) : null;
+    }
+
+    private static function missingKey(AgentLlmProviderEnum $provider): never
+    {
+        throw new ValidationException(
+            $provider->value . ' API key is not configured for this agent or app.'
+            . ' Set it on the selected LLM config, agent.config.key, or the app '
+            . self::appKeySetting($provider)->value . ' setting.'
+        );
+    }
+
+    private static function appKeySetting(AgentLlmProviderEnum $provider): ConfigurationEnum
+    {
+        return $provider === AgentLlmProviderEnum::GEMINI
             ? ConfigurationEnum::GEMINI_KEY
             : ConfigurationEnum::AI_PROVIDER_KEY;
-
-        $key = $source['key'] ?? $agent->app->get($appKeySetting->value);
-
-        if (! is_string($key) || $key === '') {
-            throw new ValidationException(
-                $provider->value . ' API key is not configured for this agent or app.'
-                . ' Set it on the selected LLM config, agent.config.key, or the app '
-                . $appKeySetting->value . ' setting.'
-            );
-        }
-
-        return $key;
     }
 }

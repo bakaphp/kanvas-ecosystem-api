@@ -87,7 +87,12 @@ class TakeDealMessageTool extends Tool
         $callback = $this->normalizeOptional($callback_number);
 
         $body = $this->receptionistMessageBody($message, $forWhom, $callback);
-        $recorded = new RecordDealNoteAction($deal)->execute($body, 'receptionist-note', $this->actingNoteUser()) !== null;
+        $recorded = new RecordDealNoteAction($deal)->execute(
+            $body,
+            'receptionist-note',
+            $this->actingNoteUser(),
+            isPublic: true,
+        ) !== null;
 
         return $this->finalizeTakenMessage($deal, 'deal_id', $message, $forWhom, $callback, $recorded);
     }

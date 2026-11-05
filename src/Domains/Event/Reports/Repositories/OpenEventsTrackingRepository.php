@@ -11,6 +11,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Event\Reports\DataTransferObject\OpenEventTrackingRow;
 use Kanvas\Event\Reports\Services\GoalTrackingService;
 
@@ -33,7 +34,7 @@ class OpenEventsTrackingRepository
      */
     public static function forCompany(
         AppInterface $app,
-        Companies $company,
+        Companies|CompanyScope $company,
         array $filters = [],
         ?GoalTrackingService $goalService = null,
     ): Collection {
@@ -57,7 +58,6 @@ class OpenEventsTrackingRepository
             )
             ->join('events', 'event_versions.event_id', '=', 'events.id')
             ->where('event_versions.apps_id', $app->getId())
-            ->where('event_versions.companies_id', $company->getId())
             ->where('event_versions.is_deleted', 0)
             ->where('events.is_deleted', 0)
             ->where(function (Builder $q) use ($now, $endDate) {
@@ -65,6 +65,7 @@ class OpenEventsTrackingRepository
                     ->orWhereBetween('first_date.first_event_date', [$now->toDateString(), $endDate->toDateString()]);
             });
 
+        CompanyScope::applyToQuery($query, 'event_versions.companies_id', $company);
         self::applyDomainFilters($query, $filters);
 
         $versions = $query
@@ -74,6 +75,7 @@ class OpenEventsTrackingRepository
                 'event_versions.name',
                 'event_versions.start_at',
                 'event_versions.metadata',
+                'event_versions.companies_id',
                 'first_date.first_event_date',
             ]);
 
@@ -184,6 +186,7 @@ class OpenEventsTrackingRepository
             goal_to_date: $expected,
             goal_percentage: $goalService->getAchievementPercentage($total, $expected),
             color: $goalService->getColor($total, $expected),
+            companies_id: (int) $version->companies_id,
         );
     }
 }

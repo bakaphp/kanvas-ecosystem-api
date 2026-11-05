@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\Traits\ReadsExportFilters;
 use Kanvas\Souk\Affiliates\Models\Affiliate;
@@ -57,7 +58,7 @@ class AffiliateCommissionsRecordExporter implements RecordExporterInterface
     }
 
     #[Override]
-    public function rows(Apps $app, Companies $company, array $filters): array
+    public function rows(Apps $app, Companies|CompanyScope $company, array $filters): array
     {
         $affiliateIds = $this->resolveAffiliateIds($app, $company, $this->filterString($filters, 'affiliate'));
         $status = $this->filterString($filters, 'status');
@@ -65,11 +66,11 @@ class AffiliateCommissionsRecordExporter implements RecordExporterInterface
         $to = $this->filterString($filters, 'to_date');
 
         $conversions = AffiliateConversion::query()
-            ->where('apps_id', $app->getId())
+            ->fromApp($app)
             // A conversion carries no companies_id — anchor the tenant on the ORDER it belongs to, so an
             // order in this company always surfaces its commission even if the affiliate row is filed
             // under a different company. The affiliate filter only narrows within that.
-            ->whereHas('order', fn (Builder $order) => $order->where('companies_id', $company->getId()))
+            ->whereHas('order', fn (Builder $order) => $order->fromCompany($company))
             ->when($affiliateIds !== null, fn (Builder $q) => $q->whereIn('affiliates_id', $affiliateIds))
             ->when($status !== null, fn (Builder $q) => $q->where('status', $status))
             ->when($from !== null, fn (Builder $q) => $q->where('converted_at', '>=', Carbon::parse((string) $from)->startOfDay()))
@@ -114,16 +115,16 @@ class AffiliateCommissionsRecordExporter implements RecordExporterInterface
      *
      * @return list<int>|null
      */
-    private function resolveAffiliateIds(Apps $app, Companies $company, ?string $affiliate): ?array
+    private function resolveAffiliateIds(Apps $app, Companies|CompanyScope $company, ?string $affiliate): ?array
     {
         if ($affiliate === null) {
             return null;
         }
 
         $byAffiliate = Affiliate::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', false)
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
             ->where(function (Builder $query) use ($affiliate) {
                 $query->where('unique_identifier', $affiliate)
                     ->orWhere('email', $affiliate)
@@ -133,8 +134,8 @@ class AffiliateCommissionsRecordExporter implements RecordExporterInterface
             ->all();
 
         $byLink = AffiliateLink::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
+            ->fromApp($app)
+            ->fromCompany($company)
             ->where('short_code', $affiliate)
             ->pluck('affiliates_id')
             ->all();

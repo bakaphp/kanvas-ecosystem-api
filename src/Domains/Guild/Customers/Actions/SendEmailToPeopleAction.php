@@ -8,10 +8,13 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
+use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Users\Models\Users;
 
 /**
  * The People-only counterpart of SendMessageToLeadAction's email path, for a recipient that has no
@@ -35,6 +38,10 @@ class SendEmailToPeopleAction
 
     /**
      * @param  list<string>  $attachmentUrls
+     * @param  list<string>  $cc  already filtered by the caller; this action sends to whatever it is given
+     * @param  array<string, mixed>  $variables  Extra template context laid over `content` and `people`;
+     *     the company and the signature keys stay the sender's own.
+     * @param  bool  $trackOpens  Off for a test send to a teammate, so their open never lands on the person.
      */
     public function execute(
         string $to,
@@ -44,6 +51,11 @@ class SendEmailToPeopleAction
         ?string $templateName = null,
         bool $important = false,
         ?Agent $fromAgent = null,
+        ?Users $signatureOwner = null,
+        array $cc = [],
+        ?CampaignRecipient $campaignRecipient = null,
+        array $variables = [],
+        bool $trackOpens = true,
     ): array {
         if (trim($to) === '') {
             throw new ValidationException('People has no email address to send to');
@@ -51,6 +63,7 @@ class SendEmailToPeopleAction
 
         $subject ??= 'Message from ' . $this->people->company->name;
         $mailboxAddress = $fromAgent !== null ? new AgentMailboxService()->addressFor($fromAgent) : null;
+        $ownerSignature = UserEmailSignature::forSender($signatureOwner, $this->people->company, $fromAgent);
 
         if ($mailboxAddress !== null) {
             new SendAsAgentMailboxAction(
@@ -58,8 +71,11 @@ class SendEmailToPeopleAction
                 to: $to,
                 subject: $subject,
                 markdownBody: $message,
+                cc: $cc,
                 attachmentUrls: $attachmentUrls,
-                trackingPerson: $this->people,
+                signature: $ownerSignature,
+                trackingPerson: $trackOpens ? $this->people : null,
+                trackingCampaignRecipient: $trackOpens ? $campaignRecipient : null,
             )->execute();
 
             return [
@@ -78,6 +94,8 @@ class SendEmailToPeopleAction
             $templateName,
             [
                 'content' => $html,
+                'people' => $this->people,
+                ...$variables,
                 'noHi' => true,
                 'company' => $this->people->company,
                 'signature' => false,
@@ -87,8 +105,12 @@ class SendEmailToPeopleAction
             $attachmentUrls !== [] ? $attachmentUrls : null,
         );
         $notification->setSubject($subject);
+        $notification->setUserSignature($ownerSignature);
         if ($important) {
             $notification->setImportant();
+        }
+        if ($cc !== []) {
+            $notification->setCc($cc);
         }
 
         Notification::route('mail', $to)->notify($notification);

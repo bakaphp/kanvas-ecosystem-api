@@ -121,15 +121,7 @@ class Setup
 
         (new CreateSystemModule($this->app))->run();
 
-        foreach ($this->leadTypes as $key => $value) {
-            LeadType::firstOrCreate([
-                'name' => $key,
-                'companies_id' => $this->company->getId(),
-                'apps_id' => $this->app->getId(),
-            ], [
-               'description' => $value,
-            ]);
-        }
+        $this->setupLeadTypes();
 
         foreach ($this->peopleTypes as $name => $isDefault) {
             PeopleType::firstOrCreate([
@@ -214,5 +206,18 @@ class Setup
             Pipeline::fromCompany($this->company)->count() > 0 &&
             LeadStatus::count() > 0 &&
             PipelineStage::where('pipelines_id', $defaultPipeline->getId())->count() == count($this->defaultStages);
+    }
+
+    public function setupLeadTypes(): void
+    {
+        foreach ($this->leadTypes as $key => $value) {
+            LeadType::firstOrCreate([
+                'name' => $key,
+                'companies_id' => $this->company->getId(),
+                'apps_id' => $this->app->getId(),
+            ], [
+               'description' => $value,
+            ]);
+        }
     }
 }

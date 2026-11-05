@@ -29,6 +29,8 @@ class CreateMessageTypeAction
             'verb' => $this->messageTypeInput->verb,
             'template' => $this->messageTypeInput->template,
             'templates_plura' => $this->messageTypeInput->templates_plura,
+            'is_public' => $this->messageTypeInput->is_public
+                ?? MessageType::isPublicByDefaultForVerb($this->messageTypeInput->verb),
         ]
         );
     }

@@ -9,6 +9,10 @@ use Illuminate\Http\Request;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Mailgun\Webhooks\EmailOpenedWebhookJob;
+use Kanvas\Guild\Campaigns\Enums\CampaignRecipientStatusEnum;
+use Kanvas\Guild\Campaigns\Enums\CampaignStatusEnum;
+use Kanvas\Guild\Campaigns\Models\Campaign;
+use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -67,6 +71,7 @@ final class EmailOpenedWebhookJobTest extends TestCase
         $note = $people->notes->messages()->latest('id')->first();
         $this->assertNotNull($note, 'The open must land a note in the people notes channel');
         $this->assertStringContainsString('prospect@example.com', (string) ($note->message['content'] ?? ''));
+        $this->assertSame(1, $note->is_public);
     }
 
     public function testNonOpenedEventsAreIgnored(): void
@@ -84,6 +89,45 @@ final class EmailOpenedWebhookJobTest extends TestCase
 
         $this->assertSame('Not an opened event, ignored', $result['message']);
         $this->assertSame($before, $people->notes->messages()->count());
+    }
+
+    public function testAnOpenMailgunFlagsAsABotPrefetchRecordsNothing(): void
+    {
+        $people = $this->seedPeople();
+        $before = $people->notes->messages()->count();
+
+        foreach (['apple', 'gmail', 'generic'] as $bot) {
+            $result = $this->deliver([
+                'event-data' => [
+                    'id' => 'evt-' . uniqid(),
+                    'event' => 'opened',
+                    'recipient' => 'prospect@example.com',
+                    'client-info' => ['bot' => $bot],
+                    'user-variables' => ['people_id' => (string) $people->getId()],
+                ],
+            ]);
+
+            $this->assertSame('Automated open (' . $bot . '), ignored', $result['message']);
+        }
+
+        $this->assertSame($before, $people->notes->messages()->count());
+    }
+
+    public function testAnOpenWithAnEmptyBotFieldIsAHumanAndIsRecorded(): void
+    {
+        $people = $this->seedPeople();
+
+        $result = $this->deliver([
+            'event-data' => [
+                'id' => 'evt-' . uniqid(),
+                'event' => 'opened',
+                'recipient' => 'prospect@example.com',
+                'client-info' => ['bot' => '', 'client-type' => 'browser'],
+                'user-variables' => ['people_id' => (string) $people->getId()],
+            ],
+        ]);
+
+        $this->assertSame($people->getId(), $result['people_id']);
     }
 
     public function testAnEventWithNoPeopleIdVariableIsIgnored(): void
@@ -158,9 +202,96 @@ final class EmailOpenedWebhookJobTest extends TestCase
         $leadNote = ($lead->systemNotes ?? $lead->notes)->messages()->latest('id')->first();
         $this->assertNotNull($leadNote, 'The open must land a note on the lead\'s own activity feed');
         $this->assertStringContainsString('prospect@example.com', (string) ($leadNote->message['content'] ?? ''));
+        $this->assertSame(1, $leadNote->is_public);
 
         // Went to the Lead's feed, not the underlying People's notes channel — the two must not merge.
         $this->assertSame($peopleNotesBefore, $lead->people->notes->messages()->count());
+    }
+
+    public function testTheFirstOpenOfACampaignEmailMarksTheSlotOpenedAndCountsOnTheCampaign(): void
+    {
+        $people = $this->seedPeople();
+        $recipient = $this->seedCampaignRecipient($people, $this->company);
+
+        $result = $this->deliver($this->campaignOpen($people, $recipient));
+
+        $this->assertSame($recipient->getId(), $result['campaign_recipient_id']);
+        $this->assertTrue($result['campaign_first_open']);
+        $this->assertSame($people->getId(), $result['people_id'], 'The people note must still be recorded');
+
+        $recipient->refresh();
+        $this->assertSame(CampaignRecipientStatusEnum::OPENED->value, $recipient->status);
+        $this->assertNotNull($recipient->opened_at);
+        $this->assertSame(1, $recipient->open_count);
+        $this->assertSame(1, $recipient->campaign->opened_count);
+    }
+
+    public function testALaterOpenOnlyBumpsTheSlotsOpenCountNotTheCampaignsOpenedCount(): void
+    {
+        $people = $this->seedPeople();
+        $recipient = $this->seedCampaignRecipient($people, $this->company);
+
+        $this->deliver($this->campaignOpen($people, $recipient));
+        $firstOpenedAt = $recipient->refresh()->opened_at;
+        $result = $this->deliver($this->campaignOpen($people, $recipient));
+
+        $this->assertFalse($result['campaign_first_open']);
+
+        $recipient->refresh();
+        $this->assertSame(2, $recipient->open_count);
+        $this->assertEquals($firstOpenedAt, $recipient->opened_at);
+        $this->assertSame(1, $recipient->campaign->opened_count);
+    }
+
+    public function testACampaignRecipientFromAnotherCompanyIsNotTouched(): void
+    {
+        $people = $this->seedPeople();
+        $recipient = $this->seedCampaignRecipient($people, Companies::factory()->create());
+
+        $result = $this->deliver($this->campaignOpen($people, $recipient));
+
+        $this->assertArrayNotHasKey('campaign_recipient_id', $result);
+        $this->assertStringContainsString('not found in this tenant', $result['campaign_recipient']);
+
+        $recipient->refresh();
+        $this->assertSame(CampaignRecipientStatusEnum::SENT->value, $recipient->status);
+        $this->assertSame(0, $recipient->open_count);
+        $this->assertSame(0, $recipient->campaign->opened_count);
+    }
+
+    private function seedCampaignRecipient(People $people, Companies $company): CampaignRecipient
+    {
+        $campaign = new Campaign();
+        $campaign->apps_id = $this->kanvasApp->getId();
+        $campaign->companies_id = $company->getId();
+        $campaign->users_id = $this->user->getId();
+        $campaign->channel = 'email';
+        $campaign->message = 'Batch body';
+        $campaign->status = CampaignStatusEnum::SENT->value;
+        $campaign->total_recipients = 1;
+        $campaign->sent_count = 1;
+        $campaign->saveOrFail();
+
+        $recipient = CampaignRecipient::pending($campaign, leadId: null, peopleId: $people->getId());
+        $recipient->status = CampaignRecipientStatusEnum::SENT->value;
+        $recipient->saveOrFail();
+
+        return $recipient;
+    }
+
+    private function campaignOpen(People $people, CampaignRecipient $recipient): array
+    {
+        return [
+            'event-data' => [
+                'id' => 'evt-' . uniqid(),
+                'event' => 'opened',
+                'recipient' => 'prospect@example.com',
+                'user-variables' => [
+                    'people_id' => (string) $people->getId(),
+                    'campaign_recipient_id' => (string) $recipient->getId(),
+                ],
+            ],
+        ];
     }
 
     private function seedPeople(): People

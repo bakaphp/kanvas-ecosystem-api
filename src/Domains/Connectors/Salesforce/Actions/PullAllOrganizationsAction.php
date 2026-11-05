@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Salesforce\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Salesforce\Client;
+use Kanvas\Connectors\Salesforce\Services\SalesforceApiClient;
 
 /**
  * Bulk-pulls every Account from the Salesforce org, paginating through
@@ -16,7 +17,14 @@ use Kanvas\Connectors\Salesforce\Client;
  */
 class PullAllOrganizationsAction
 {
-    private const string SOQL = 'SELECT Id, Name, Phone, NumberOfEmployees FROM Account';
+    private const array BASE_FIELDS = ['Id', 'Name', 'Phone', 'NumberOfEmployees'];
+
+    /**
+     * Where an org may keep the Account's domains. Company_Domains__c is a GAGroup custom field, so
+     * these are only selected when the org's describe has them — naming a missing field fails the
+     * whole query.
+     */
+    private const array DOMAIN_FIELDS = ['Website', 'Company_URL__c', 'Company_Domains__c'];
 
     public function __construct(
         protected AppInterface $app,
@@ -28,7 +36,7 @@ class PullAllOrganizationsAction
     {
         $client = Client::getInstance($this->app, $this->company);
 
-        $response = $client->query(self::SOQL);
+        $response = $client->query($this->soql($client));
         $records = $response['records'] ?? [];
 
         while (($response['done'] ?? true) === false && ! empty($response['nextRecordsUrl'])) {
@@ -37,5 +45,14 @@ class PullAllOrganizationsAction
         }
 
         return $records;
+    }
+
+    private function soql(SalesforceApiClient $client): string
+    {
+        $available = array_column($client->describeObject('Account')['fields'] ?? [], 'name');
+        $fields = [...self::BASE_FIELDS, ...array_values(array_intersect(self::DOMAIN_FIELDS, $available))];
+
+        return 'SELECT ' . implode(', ', $fields)
+            . ', (SELECT Email FROM Contacts WHERE Email != null) FROM Account';
     }
 }

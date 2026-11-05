@@ -164,6 +164,23 @@ class Str extends IlluminateStr
     }
 
     /**
+     * A configured recipient list — an env value, an app setting, or a JSON array — split on commas,
+     * semicolons or whitespace, keeping only what is actually an address.
+     *
+     * @param string|array<array-key, mixed>|null $value
+     * @return list<string>
+     */
+    public static function emailList(string|array|null $value): array
+    {
+        $candidates = is_array($value) ? $value : (preg_split('/[\s,;]+/', (string) $value) ?: []);
+
+        return array_values(array_filter(
+            array_map(static fn (mixed $email): string => trim(is_scalar($email) ? (string) $email : ''), $candidates),
+            static fn (string $email): bool => filter_var($email, FILTER_VALIDATE_EMAIL) !== false
+        ));
+    }
+
+    /**
      * Drops a leading UTF-8 byte-order mark, which Excel writes into CSV exports and which otherwise
      * sticks to the first header name ("\xEF\xBB\xBFVIN" never matches "VIN").
      */

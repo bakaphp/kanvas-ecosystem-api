@@ -12,14 +12,17 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\SendEmailToPeopleAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\CreateTemplateTool;
+use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
 use Tests\TestCase;
+use Tests\Traits\MakesAgents;
 
 final class SendEmailToPeopleActionTest extends TestCase
 {
     use DatabaseTransactions;
+    use MakesAgents;
 
-    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem', 'intelligence'];
 
     private function freshPerson(Companies $company): People
     {
@@ -114,6 +117,29 @@ final class SendEmailToPeopleActionTest extends TestCase
         );
     }
 
+    public function testAnAgentGrantedSigningSignsWithTheOwnersSignatureForThePeoplesCompany(): void
+    {
+        $this->assertStringContainsString('Company Owner', (string) $this->sentSignature(agentSigns: true));
+    }
+
+    public function testAnAgentWithoutTheSigningGrantSendsUnsignedEvenWhenTheOwnerHasOne(): void
+    {
+        $this->assertNull($this->sentSignature(agentSigns: false));
+    }
+
+    public function testNoSignatureOwnerSendsUnsigned(): void
+    {
+        Notification::fake();
+        $person = $this->freshPerson(Companies::factory()->create());
+
+        new SendEmailToPeopleAction($person)->execute(to: 'test@example.test', message: 'Hi there');
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => ! isset($notification->getData()['user_signature']),
+        );
+    }
+
     public function testThrowsWhenThereIsNoDestinationAddress(): void
     {
         $person = $this->freshPerson(Companies::factory()->create());
@@ -121,5 +147,39 @@ final class SendEmailToPeopleActionTest extends TestCase
         $this->expectException(ValidationException::class);
 
         new SendEmailToPeopleAction($person)->execute(to: '   ', message: 'Hi there');
+    }
+
+    /**
+     * @return string|null the user signature the email carried, null when unsigned
+     */
+    private function sentSignature(bool $agentSigns): ?string
+    {
+        Notification::fake();
+        $company = Companies::factory()->create();
+        $owner = auth()->user();
+        $owner->set(UserEmailSignature::companySettingKey($company), ['append' => true, 'text' => "Company Owner\nDirector"]);
+
+        try {
+            new SendEmailToPeopleAction($this->freshPerson($company))->execute(
+                to: 'test@example.test',
+                message: 'Hi there',
+                fromAgent: $this->makeSigningAgent($company, $agentSigns),
+                signatureOwner: $owner,
+            );
+        } finally {
+            $owner->del(UserEmailSignature::companySettingKey($company));
+        }
+
+        $signature = null;
+        Notification::assertSentOnDemand(
+            Blank::class,
+            function (Blank $notification) use (&$signature): bool {
+                $signature = $notification->getData()['user_signature'] ?? null;
+
+                return true;
+            }
+        );
+
+        return $signature;
     }
 }

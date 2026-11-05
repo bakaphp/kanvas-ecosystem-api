@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Approvals\Models;
 
 use Baka\Casts\Json;
+use Baka\Support\Str;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -366,14 +367,37 @@ class ApprovalRequest extends BaseModel
             return null;
         }
 
+        $moduleName = $this->systemModule?->name;
+
         return [
             'id' => $entity->getKey(),
-            'type' => $this->systemModule?->name ?? class_basename($entity),
+            // Some apps store the model class as the module name.
+            'type' => $moduleName === null || str_contains($moduleName, '\\') ? class_basename($entity) : $moduleName,
             'label' => $entity->name
                 ?? $entity->bill_number
                 ?? $entity->invoice_number
                 ?? $entity->expense_number
                 ?? (string) $entity->getKey(),
+        ];
+    }
+
+    /**
+     * What the approval emails print for one request, as plain values: the template sandbox reads
+     * attributes, not methods.
+     *
+     * @return array{id: int, name: string, type: string, action: string, approval_type: string, requested_at: ?string}
+     */
+    public function emailSummary(): array
+    {
+        $summary = $this->entitySummary();
+
+        return [
+            'id' => $this->getId(),
+            'name' => $summary !== null ? (string) $summary['label'] : '#' . $this->entity_id,
+            'type' => $summary['type'] ?? '',
+            'action' => Str::headline($this->approval_type),
+            'approval_type' => $this->approval_type,
+            'requested_at' => $this->created_at?->toDateTimeString(),
         ];
     }
 

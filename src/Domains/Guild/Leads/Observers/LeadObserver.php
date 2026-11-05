@@ -20,6 +20,8 @@ use Kanvas\Intelligence\FollowUp\Actions\WriteLeadStageChangeThreadMessageAction
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
@@ -176,6 +178,10 @@ class LeadObserver
 
         if ($lead->wasChanged('leads_status_id')) {
             SummarizeLeadConversationJob::dispatchIfEligible($lead);
+
+            if ($this->movedToClosedStatus($lead)) {
+                new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
+            }
         }
 
         if ($lead->wasChanged([
@@ -225,13 +231,20 @@ class LeadObserver
 
     /**
      * Maintains the active_leads_count counter cache on People. "Counted"
-     * mirrors Lead::hasOpenLeadStatus() (the global open ids plus the
-     * company's `guild_open_leads_status_ids` setting) — NOT Lead::isOpen()'s
-     * `status` int column, which no app code writes and is stuck at its DB
-     * default.
+     * mirrors Lead::hasOpenLeadStatus() (the status row's `is_open`, plus the
+     * company's legacy `guild_open_leads_status_ids` setting), never the `status`
+     * int column, which no app code writes and is stuck at its DB default.
+     * Flipping `is_open` on a status does not touch the counters; run
+     * RecalculateActiveLeadsCountCommand afterwards.
      */
     private function syncActiveLeadsCount(Lead $lead): void
     {
+        // Counted state depends only on these columns; checking them first skips two status
+        // lookups on every other save.
+        if (! $lead->wasChanged(['leads_status_id', 'people_id', 'is_deleted'])) {
+            return;
+        }
+
         $originalPeopleId = $lead->getOriginal('people_id') ? (int) $lead->getOriginal('people_id') : null;
         $currentPeopleId = $lead->people_id ? (int) $lead->people_id : null;
         $wasCounted = $this->wasCounted($lead);
@@ -256,6 +269,19 @@ class LeadObserver
         if ($isCounted && $currentPeopleId !== null) {
             $this->adjustActiveLeadsCount($currentPeopleId, +1);
         }
+    }
+
+    /**
+     * A lead can point at a status that does not exist (`leads_status_id = 0`), and closeSold() /
+     * closeNotSold() load it with firstOrFail().
+     */
+    private function movedToClosedStatus(Lead $lead): bool
+    {
+        if ($lead->status()->doesntExist()) {
+            return false;
+        }
+
+        return $lead->closeSold() || $lead->closeNotSold();
     }
 
     private function isCounted(Lead $lead): bool

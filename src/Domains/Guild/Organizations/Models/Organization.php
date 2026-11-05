@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Organizations\Models;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\BillableInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Contracts\PayeeInterface;
+use Baka\Enums\StateEnums;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
-use Baka\Users\Contracts\UserInterface;
+use Baka\Validations\EmailDomain;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -18,7 +21,10 @@ use Illuminate\Support\Collection;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Analytics\Reporting\Observers\ReportSourceObserver;
+use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Support\LocationContext;
+use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Event\Events\Concerns\HasEventResources;
 use Kanvas\Filesystem\Models\FilesystemEntities;
@@ -60,6 +66,7 @@ use Override;
 class Organization extends BaseModel implements BillableInterface, PayeeInterface, ProvidesAgentContext
 {
     use HasAdminLink;
+    use HasApprovals;
     use IsBillable;
     use CanUseWorkflow;
     use DatabaseSearchableTrait;
@@ -70,6 +77,8 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     use IsPayee;
     use UuidTrait;
 
+    public const string EMAIL_DOMAINS_CUSTOM_FIELD = 'email_domains';
+
     protected $table = 'organizations';
     protected $guarded = [];
 
@@ -77,6 +86,15 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     public function getGraphTypeName(): string
     {
         return 'Organization';
+    }
+
+    /**
+     * Saved on every custom-field write and import; approvals are opened explicitly by workflow
+     * activities (same reason as People).
+     */
+    protected static function approvalUsesLifecycleTriggers(): bool
+    {
+        return false;
     }
 
     #[Override]
@@ -202,6 +220,109 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     }
 
     /**
+     * @return list<string>
+     */
+    public function emailDomains(): array
+    {
+        return array_values((array) ($this->get(self::EMAIL_DOMAINS_CUSTOM_FIELD) ?? []));
+    }
+
+    /**
+     * Additive on purpose: domains reach an organization from several places (the CRM's own domain
+     * field, its website, its contacts' emails), so a sync of one source must not drop the others.
+     *
+     * @param iterable<string|null> $values emails, URLs or bare domains
+     *
+     * @return list<string> the domains this organization now answers to
+     */
+    public function addEmailDomains(iterable $values): array
+    {
+        $current = $this->emailDomains();
+        $domains = $current;
+
+        foreach ($values as $value) {
+            $domain = EmailDomain::companyDomain($value);
+            if ($domain !== null && ! in_array($domain, $domains, true)) {
+                $domains[] = $domain;
+            }
+        }
+
+        if ($domains !== $current) {
+            $this->set(self::EMAIL_DOMAINS_CUSTOM_FIELD, $domains);
+        }
+
+        return $domains;
+    }
+
+    /**
+     * More than one result is a real answer, not noise: two organizations sharing a domain (a
+     * duplicate pair, a parent and its brand) can't be told apart from the email alone, so callers
+     * must not pick one for the person.
+     *
+     * The field holds a JSON array, so the domain is matched with its quotes: `"acme.com"` can't
+     * match `xacme.com`. A normalized domain is only [a-z0-9.-], so it carries no LIKE wildcard.
+     *
+     * @return Collection<int, Organization>
+     */
+    public static function findByEmailDomain(AppInterface $app, CompanyInterface $company, string $email): Collection
+    {
+        $domain = EmailDomain::companyDomain($email);
+        if ($domain === null) {
+            return collect();
+        }
+
+        $ids = AppsCustomFields::query()
+            ->whereIn('model_name', static::customFieldModelNames())
+            ->where('companies_id', $company->getId())
+            ->where('name', self::EMAIL_DOMAINS_CUSTOM_FIELD)
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->where('value', 'like', '%"' . $domain . '"%')
+            ->pluck('entity_id')
+            ->all();
+
+        return self::query()
+            ->whereIn('id', $ids)
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->limit(10)
+            ->get()
+            ->collect();
+    }
+
+    /**
+     * A person who already belongs to an organization is left alone: the domain is a guess, the
+     * existing link was a decision.
+     *
+     * @return Collection<int, Organization> the one organization the person was linked to, or the
+     *                                       candidates of the first ambiguous domain (nothing linked)
+     */
+    public static function linkPersonByEmailDomain(People $people): Collection
+    {
+        if ($people->organizations()->exists()) {
+            return collect();
+        }
+
+        $candidates = collect();
+
+        foreach ($people->getEmails() as $email) {
+            $matches = self::findByEmailDomain($people->app, $people->company, (string) $email->value);
+
+            if ($matches->count() === 1) {
+                $matches->first()->addPeople($people);
+
+                return $matches;
+            }
+
+            if ($candidates->isEmpty()) {
+                $candidates = $matches;
+            }
+        }
+
+        return $candidates;
+    }
+
+    /**
      * @psalm-suppress MixedReturnStatement
      */
     public function addPeople(People $people): OrganizationPeople
@@ -253,9 +374,10 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     public static function search($query = '', $callback = null)
     {
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
-        $user = auth()->user();
-        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
-            $query->where('companies_id', $user->getCurrentCompany()->getId());
+
+        $company = LocationContext::searchCompany(static::class, auth()->user());
+        if ($company !== null) {
+            $query->where('companies_id', $company->getId());
         }
 
         return $query;

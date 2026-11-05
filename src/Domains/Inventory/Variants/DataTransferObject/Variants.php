@@ -56,7 +56,7 @@ class Variants extends Data
             slug: $request['slug'] ?? null,
             files: $request['files'] ?? [],
             weight: $request['weight'] ?? null,
-            is_published: $request['is_published'] ?? true,
+            is_published: $request['is_published'] ?? null,
             is_taxable: $request['is_taxable'] ?? null,
             tax_category: $request['tax_category'] ?? null,
             tax_code_override: $request['tax_code_override'] ?? null,

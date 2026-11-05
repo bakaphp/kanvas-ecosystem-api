@@ -120,6 +120,35 @@ skipped and needs no bypass code.
 - **Commands iterating apps must `overwriteAppService($app)` per iteration** — `RoleApproverResolver`
   reads Bouncer-scoped roles.
 
+## Notifying approvers — the policy's `notify`
+
+`NotifyApproversAction` mails the live step's approvers when a request opens or a step advances.
+`ApprovalNotifyModeEnum`: `all` (default), `first`, `none`, `digest`.
+
+`digest` exists for bulk sources — a 15-row people import opened 15 requests and sent 15 emails. Instead
+of mailing, it calls `SendApprovalDigestJob::schedule()`, which debounces per (app, company, approver)
+with a `Cache::add` key and a job delayed `WINDOW_MINUTES` (5). The job sends ONE
+`ApprovalDigestNotification` listing every still-pending, un-notified request of a digest policy at the
+approver's live step, or the regular `ApprovalRequestedNotification` when there is only one.
+
+- The key is released when the job **starts**, not when it ends, so a request opened while a digest is
+  being built opens the next window instead of being dropped.
+- Requests stay individual: digest groups the email, never the decision.
+
+### The email body is a named template, with a built-in fallback
+
+Both emails render `approval-requested` / `approval-digest` (`ApprovalEmailTemplateEnum`) through
+`RendersApprovalEmail`. Lookup is by name, **company first, then app**, so a company that saves its own
+template under that name (an admin in the UI, or an agent with `create_template`) replaces the app's
+copy with no other wiring. An app that never ran `kanvas:email-template-sync` still gets readable
+built-in HTML, never an empty body.
+
+Template variables, all plain values: `heading`, `count`, `approvals` (list), `approval` (the first),
+`company_name`, `review_url`. Each approval: `id`, `name`, `type`, `action`, `approval_type`,
+`requested_at` (`ApprovalRequest::emailSummary()`). `review_url` is the app setting
+`approvals_review_url` (`ApprovalConfigurationEnum::REVIEW_URL`); the repo templates show the review
+button only when it is set.
+
 ## Every decision goes to the ledger
 
 `ApprovalWorkflowService::fire()` is the single announcement point: it writes a NervousSystem ledger

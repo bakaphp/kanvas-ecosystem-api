@@ -6,22 +6,18 @@ namespace Kanvas\Inventory\Recommendations\Enrichment\Agents;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Baka\Support\Str;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
+use Kanvas\Intelligence\Agents\Laravel\Concerns\ResolvesTenantLlmWithoutAgent;
+use Kanvas\Intelligence\Agents\Laravel\Concerns\SetsGeminiThinkingLevel;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
-use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
-use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Inventory\Recommendations\Enrichment\DataTransferObject\EnrichmentConfig;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum as RecommendationConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SemanticProfileStrategyEnum;
 use Kanvas\Inventory\Recommendations\Services\ProductDiscoverySettings;
 use Laravel\Ai\Contracts\HasProviderOptions;
 use Laravel\Ai\Contracts\HasStructuredOutput;
-use Laravel\Ai\Enums\Lab;
 use Override;
 use Stringable;
 
@@ -38,90 +34,27 @@ use Stringable;
 )]
 class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasProviderOptions, HasStructuredOutput
 {
+    use ResolvesTenantLlmWithoutAgent;
+    use SetsGeminiThinkingLevel;
+
     public const string DEFAULT_MODEL = 'gemini-2.5-flash-lite';
 
-    private ?AgentLlmConfig $tenantLlmConfig = null;
-    private bool $tenantLlmConfigResolved = false;
-
-    public function setConfigurationWithoutAgent(Apps $app, Companies $company): void
-    {
-        $this->app = $app;
-        $this->company = $company;
-    }
-
-    /**
-     * Not a real agent: one structured call. An Agent row only exists to edit the prompt or pick a
-     * provider from the agents UI, and wins when present. Without one, the company (then app) setting
-     * `product_enrichment_llm_config_id` may name any of the tenant's LLM configs — DeepSeek, Mistral,
-     * an OpenAI-compatible endpoint — so a cheaper model needs no Agent row. Provider, model and key
-     * then flow through KanvasLaravelAgent exactly as for a configured agent.
-     */
     #[Override]
-    protected function selectedLlmConfig(): ?AgentLlmConfig
+    protected function llmConfigSettingKey(): string
     {
-        if ($this->agentRecord !== null) {
-            return parent::selectedLlmConfig();
-        }
-
-        if (! $this->tenantLlmConfigResolved) {
-            $this->tenantLlmConfigResolved = true;
-            $configId = (int) ($this->company?->get(RecommendationConfigurationEnum::ENRICHMENT_LLM_CONFIG->value)
-                ?? $this->app?->get(RecommendationConfigurationEnum::ENRICHMENT_LLM_CONFIG->value)
-                ?? 0);
-
-            $this->tenantLlmConfig = $configId > 0 && $this->app !== null && $this->company !== null
-                ? AgentProviderService::tenantConfig($this->app, $this->company, $configId)
-                : null;
-        }
-
-        return $this->tenantLlmConfig;
+        return RecommendationConfigurationEnum::ENRICHMENT_LLM_CONFIG->value;
     }
 
     #[Override]
-    protected function getProvider(): ?Lab
+    protected function modelSettingKey(): string
     {
-        return parent::getProvider() ?? Lab::Gemini;
+        return RecommendationConfigurationEnum::ENRICHMENT_MODEL->value;
     }
 
     #[Override]
-    protected function getModel(): ?string
+    protected function defaultModel(): string
     {
-        return parent::getModel()
-            ?? Str::trimToNull((string) $this->app?->get(RecommendationConfigurationEnum::ENRICHMENT_MODEL->value))
-            ?? self::DEFAULT_MODEL;
-    }
-
-    /**
-     * laravel/ai talks to Gemini through the Interactions API, which has no `thinkingBudget`: a
-     * budget of 0 is rejected as an unknown parameter. The only switch it exposes is
-     * `thinking_level`, and what a model accepts differs. Thought tokens bill as output, so on
-     * gemini-2.5-flash they are most of the cost (measured: 1,904 thought tokens for a 3-token answer).
-     *
-     * @return array<string, mixed>
-     */
-    #[Override]
-    public function providerOptions(Lab|string $provider): array
-    {
-        if ($provider !== Lab::Gemini && $provider !== Lab::Gemini->value) {
-            return [];
-        }
-
-        $level = $this->thinkingLevelFor((string) $this->getModel());
-
-        return $level === null ? [] : ['generation_config' => ['thinking_level' => $level]];
-    }
-
-    /**
-     * Flash-Lite does not think and answers 400 to any level; Gemini 3 models take `minimal`; the
-     * 2.5 models reject `minimal`, and `low` is the cheapest level they accept.
-     */
-    private function thinkingLevelFor(string $model): ?string
-    {
-        return match (true) {
-            str_contains($model, 'flash-lite') => null,
-            str_starts_with($model, 'gemini-3') => 'minimal',
-            default => 'low',
-        };
+        return self::DEFAULT_MODEL;
     }
 
     #[Override]

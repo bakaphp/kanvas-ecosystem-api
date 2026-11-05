@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Actions;
 
 use Kanvas\Companies\Enums\ConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelForContactAction;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum as SalesAssistConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -44,7 +45,16 @@ class CreatePeopleSocialChannelsAction
                 ?? LeadsRepository::getPeopleActiveLead($this->people)
                 ?? LeadsRepository::getPeopleLastLead($this->people);
 
+            // The lead's channels need a lead; the person's WhatsApp conversation does not.
             if ($lead === null) {
+                foreach ($this->people->contacts as $contact) {
+                    new CreateSocialChannelForContactAction(
+                        $contact,
+                        $this->people->app,
+                        ['agent_id' => $defaultAgentId]
+                    )->execute();
+                }
+
                 return;
             }
 
@@ -60,16 +70,19 @@ class CreatePeopleSocialChannelsAction
     }
 
     /**
-     * The app turns it on for everyone; a company can only opt out.
+     * On by default; the setting only exists to switch it off, for the whole app or one company.
      */
     private function isEnabled(): bool
     {
         $setting = ConfigurationEnum::CREATE_SOCIAL_CHANNELS_ON_CONTACT_SAVE->value;
 
-        $companyValue = $this->people->company->get($setting);
-        $companyOptedOut = $companyValue !== null && ! filter_var($companyValue, FILTER_VALIDATE_BOOL);
+        foreach ([$this->people->app->get($setting), $this->people->company->get($setting)] as $value) {
+            if ($value !== null && ! filter_var($value, FILTER_VALIDATE_BOOL)) {
+                return false;
+            }
+        }
 
-        return $this->people->app->getBool($setting) && ! $companyOptedOut;
+        return true;
     }
 
     /**

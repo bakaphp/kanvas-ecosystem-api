@@ -45,6 +45,7 @@ final class AddOrganizationNoteToolTest extends TestCase
         $this->assertNotNull($note);
         $this->assertSame(auth()->user()->getId(), (int) $note->users_id);
         $this->assertTrue($note->tags()->where('name', 'agent-note')->exists());
+        $this->assertSame(1, $note->is_public, 'A note a person asked for stays visible');
     }
 
     public function testTheAccountCanBeIdentifiedByName(): void

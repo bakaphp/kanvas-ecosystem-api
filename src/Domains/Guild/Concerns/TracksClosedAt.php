@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Concerns;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 
 /**
  * `closed_at` is the moment the named status crossed from open to closed; it is cleared again
@@ -13,7 +13,7 @@ use Kanvas\Guild\Leads\Models\Lead;
  * no table recorded a status change, so any date put on an older row would be a guess.
  *
  * Lead keeps its status on `leads_status_id` and Deal on `status_id`, which is why the column
- * name is passed in. Open ids come from the company's configuration (Lead::openLeadsStatusIds),
+ * name is passed in. Open state comes from the status row's `is_open` (LeadStatus::isOpenId),
  * shared by both models.
  */
 trait TracksClosedAt
@@ -26,7 +26,7 @@ trait TracksClosedAt
     {
         $statusId = (int) $this->getAttribute($statusColumn);
 
-        if ($this->closed_at === null && ! in_array($statusId, Lead::openLeadsStatusIds($this->company), true)) {
+        if ($this->closed_at === null && ! LeadStatus::isOpenId($statusId, $this->company)) {
             $this->closed_at = Carbon::now();
         }
     }
@@ -45,12 +45,10 @@ trait TracksClosedAt
 
         $fromId = (int) $this->getOriginal($statusColumn);
         $toId = (int) $this->getAttribute($statusColumn);
-        $openIds = Lead::openLeadsStatusIds($this->company);
-
         // A row with no status yet has never been closed; treat the missing original as open so
         // its first real status still stamps the column.
-        $wasOpen = $fromId === 0 || in_array($fromId, $openIds, true);
-        $isOpen = in_array($toId, $openIds, true);
+        $wasOpen = $fromId === 0 || LeadStatus::isOpenId($fromId, $this->company);
+        $isOpen = LeadStatus::isOpenId($toId, $this->company);
 
         if ($wasOpen === $isOpen) {
             return null;

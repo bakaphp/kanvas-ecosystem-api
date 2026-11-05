@@ -10,7 +10,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderFulfillmentStatsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderPaymentStatsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderProviderStatsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderTrendTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RunsOrderReports;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\PropertyType;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCaseUnit;
@@ -39,34 +40,33 @@ final class OrderReportToolSchemaTest extends TestCaseUnit
      * @param class-string $toolClass
      */
     #[DataProvider('toolProvider')]
-    public function testOrderTypesIsScalarStringNotArray(string $toolClass): void
+    public function testOrderTypesAndTagsAreScalarStringsNotArrays(string $toolClass): void
     {
         $tool = new $toolClass();
 
-        $orderTypes = null;
+        $byName = [];
         foreach ($tool->getProperties() as $property) {
-            if ($property->getName() === 'order_types') {
-                $orderTypes = $property;
-
-                break;
-            }
+            $byName[$property->getName()] = $property;
         }
 
-        $this->assertNotNull($orderTypes, 'order_types property is missing');
-        $this->assertSame(PropertyType::STRING, $orderTypes->getType());
+        foreach (['order_types', 'tags'] as $name) {
+            $this->assertArrayHasKey($name, $byName, $name . ' property is missing');
+            $this->assertSame(PropertyType::STRING, $byName[$name]->getType());
+        }
     }
 
-    public function testParseOrderTypesSplitsTrimsAndNormalizesEmpty(): void
+    public function testParseNamesSplitsTrimsAndNormalizesEmpty(): void
     {
         $parser = new class () {
-            use ParsesOrderTypesFilter;
+            use ReportsToolOutcome;
+            use RunsOrderReports;
 
             /**
              * @return list<string>|null
              */
             public function parse(?string $value): ?array
             {
-                return $this->parseOrderTypes($value);
+                return $this->parseNames($value);
             }
         };
 

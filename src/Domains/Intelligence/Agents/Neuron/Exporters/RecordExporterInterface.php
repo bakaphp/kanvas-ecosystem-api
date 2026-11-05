@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Exporters;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 
 /**
  * A per-domain source for the general export_records tool. Each record type (people, products,
@@ -34,5 +35,5 @@ interface RecordExporterInterface
      *
      * @return list<array<int, mixed>>
      */
-    public function rows(Apps $app, Companies $company, array $filters): array;
+    public function rows(Apps $app, Companies|CompanyScope $company, array $filters): array;
 }

@@ -36,6 +36,7 @@ class AddLeadNoteToolTest extends TestCase
             'Closed per Max - no response after 4 attempts.',
             $this->latestLeadNoteContent($lead),
         );
+        $this->assertSame(1, $this->latestLeadNote($lead)?->is_public, 'A note a person asked for stays visible');
     }
 
     public function testTheNoteIsAttributedToTheActingAgentUser(): void

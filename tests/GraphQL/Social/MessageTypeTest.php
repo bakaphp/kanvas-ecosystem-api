@@ -43,6 +43,37 @@ class MessageTypeTest extends TestCase
         ]);
     }
 
+    public function testMessageTypeVisibilityDefaultsToPublicAndCanBeSetOnCreate()
+    {
+        $language = Languages::factory()->create();
+        $name = fake()->name();
+        $mutation = /** @lang GRAPHQL */ '
+            mutation createMessageType($input: CreateMessageTypeInput!) {
+                createMessageType(input: $input) {
+                    id
+                    is_public
+                }
+            }
+        ';
+
+        $this->graphQL($mutation, [
+            'input' => [
+                'name' => $name,
+                'languages_id' => $language->id,
+                'verb' => 'test-public-' . $name,
+            ],
+        ])->assertJson(['data' => ['createMessageType' => ['is_public' => true]]]);
+
+        $this->graphQL($mutation, [
+            'input' => [
+                'name' => $name,
+                'languages_id' => $language->id,
+                'verb' => 'test-private-' . $name,
+                'is_public' => false,
+            ],
+        ])->assertJson(['data' => ['createMessageType' => ['is_public' => false]]]);
+    }
+
     public function testUpdateMessageType()
     {
         $language = Languages::factory()->create();

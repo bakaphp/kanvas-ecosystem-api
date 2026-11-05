@@ -45,6 +45,7 @@ final class LeadFollowUpJob implements ShouldQueue
         public readonly Companies $company,
         public readonly Lead $lead,
         public readonly bool $force = false,
+        public readonly bool $openSessionIfMissing = false,
     ) {
     }
 
@@ -72,6 +73,7 @@ final class LeadFollowUpJob implements ShouldQueue
             agent: $agent,
             force: $this->force,
             synchronizer: $synchronizer,
+            openSessionIfMissing: $this->openSessionIfMissing,
         )->execute();
     }
 

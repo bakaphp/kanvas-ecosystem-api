@@ -131,6 +131,18 @@ final class LeadFollowUpEligibilityService
             && ! $lead->isAiFollowUpEnabled();
     }
 
+    /**
+     * Not one of the engine's gates: there a reply only restarts the interval. For callers whose
+     * sequence ends on any reply.
+     */
+    public function customerRepliedSinceLastTouch(Lead $lead): bool
+    {
+        $lastInboundAt = $this->getLastInboundAt($lead);
+        $lastTouchAt = $lead->getFollowUpLastAt() ?? $lead->getFollowUpStageEnteredAt() ?? $lead->created_at;
+
+        return $lastInboundAt !== null && $lastInboundAt->gt($lastTouchAt);
+    }
+
     public function getLastInboundAt(Lead $lead): ?Carbon
     {
         return $this->lastPersonMessageAt($lead, inboundOnly: true);

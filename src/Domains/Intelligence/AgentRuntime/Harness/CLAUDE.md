@@ -47,10 +47,14 @@ parent keeps waiting. Same model unless the tenant set `coding_fallback_model`.
   own hosted model, reports `cost: 0`, and logs nothing the API can see. `PollHarnessSessionJob`
   compares `message.model.id` against the pinned model every tick and kills the session on a mismatch.
   That check is a tenant-data-egress control, not a nicety.
-- **Failures are only sometimes visible.** A streaming fault shows up in `history` as
-  `session.next.step.failed`; a provider that cannot be resolved shows up **only** in the container log.
-  So: run the server with `--print-logs`, and never treat "no error" as "healthy" — the wall clock and
-  the heartbeat are what actually catch a wedged run.
+- **Failures are only sometimes visible, and not where you expect.** A provider fault (402 out of
+  credits, 401, 429) closes the turn with `{outcome: "failed"}`. On 2.2.0 the structured error —
+  `{type: "provider.auth", message, status: 401}` — is on that idle **and** on the assistant message it
+  ended (`finish: "error"`); on 2.0.16 the idle was bare and only the assistant message carried it.
+  `OpenCodeHarness::lastError()` reads the idle first and falls back to that message; before it did,
+  every provider fault surfaced as `the run ended as "failed"`. A provider that cannot be resolved at
+  all shows up **only** in the container log. So: run the server with `--print-logs`, and never treat
+  "no error" as "healthy" — the wall clock and the heartbeat are what actually catch a wedged run.
 - **Cost must be computed here.** A custom (openai-compatible) provider reports `cost: 0` and leaves
   the session's own totals at zero. `SessionCostService` sums the per-message tokens and prices them
   through `ModelPricingCalculator`. Trusting the runtime's numbers means every coding job looks free.
@@ -78,6 +82,43 @@ parent keeps waiting. Same model unless the tenant set `coding_fallback_model`.
   the pause produced is read as the resumed turn's outcome.
 - **`from_ia => true` on every plan post.** Otherwise an @mention inside the agent's own narration wakes
   the agent it names and two agents talk until the budget is gone.
+
+## The `coding` queue is not optional
+
+`LaunchTaskSessionJob`, `PollHarnessSessionJob` and `VerifyHarnessDiffJob` ride a queue of their own,
+`coding`, with its own worker service in all three compose files. They used to share `agent-runtime`
+with 21 other job types — deployment image builds with a 900s budget, config backups, telemetry — and
+on 2026-11-03 three production tasks in a row were swept as "no activity" at ten minutes because their
+launch job was still queued behind a build. The launch then ran, found its session closed, and returned
+without a word: rows with no machine, no container and no error, which the PM read as a hung runtime.
+
+Three guards now make that visible, but none of them replaces the worker: a launch that arrives after
+its session closed appends "Launch job ran at … but the session was already cancelled" to the row, the
+sweeper says "the launch never started" for a row with no endpoint instead of "no activity", and the
+smoke test prints "provisioning" until the row has one. **If no worker consumes `coding`, nothing
+launches at all** — that is the first thing to check when every session sits in `starting`. The second
+is `failed_jobs` on the `coding` queue: a launch that crashes before its first write looks identical
+from the row. The one seen so far was the `launch_stage` migration not having run — the job's first
+write threw, and `fail()` would have died on the same dirty attribute, which is why it now calls
+`discardChanges()` before recording the reason.
+
+## A launch has stages, and the sweeper's patience depends on them
+
+`agent_task_sessions.launch_stage` (`LaunchStageEnum`) is written by the launch job as it moves —
+resolving the repository, starting the container, preparing the worktree, sending the prompt — and
+cleared once the prompt is out. Each write touches the heartbeat. A live row with a stage and no
+endpoint is still launching; the PM's status tool shows the stage's label instead of "starting".
+
+The sweeper's ten-minute rule is the default, not the whole rule: `LaunchStageEnum::staleMinutes()`
+lets a stage ask for more, and `preparing the worktree` asks for 16 because a first mirror clone runs
+with a 900-second allowance during which git reports nothing. Do not "fix" that by touching the
+heartbeat from inside the clone — the exec is blocking, so there is nothing to touch it from. A row
+swept mid-launch says which stage it stalled in; one that never got a stage says the queue never ran it.
+
+**Mirrors are warmed when a repository is allowed.** `kanvas:coding:allow-repo` dispatches
+`WarmRepositoryMirrorJob` on the `coding` queue, which clones the bare mirror onto the agent's machine
+through `EnsureRepositoryMirrorAction` — the same action `PrepareSessionWorktreeAction` uses — so the
+first task starts from a fetch. Best-effort: a failure is a log warning, and the launch clones anyway.
 
 ## Disk: what is reclaimed, and the one thing that is not
 
@@ -107,9 +148,25 @@ machine on every run — revisit with a few weeks of that series rather than ano
 
 ## The opencode API, as it actually is
 
-Verified against **2.0.16** via `GET /openapi.json` (`/doc` now serves the web UI). **v2 is not
+Verified against **2.2.0** via `GET /openapi.json` and live turns through the image the Dockerfile builds
+(`tests/Intelligence/Unit/Harness/fixtures/opencode-2.2.0/` are those captures, verbatim). **v2 is not
 compatible with 1.18.x** and the connector will not work against it — 1.18.32 notes are kept below only
-where they explain a decision.
+where they explain a decision. 2.0.16 → 2.2.0 changed four things the harness depends on:
+
+- **A cursor must travel alone.** `GET /message?cursor=…&order=asc` is `400 InvalidCursorError: Cursor
+  cannot be combined with order`. The cursor is an opaque `{id, order, direction}`, so it already knows.
+  `Client::messages()` sends `order=asc` on the first page only (the default is newest-first) and the
+  cursor by itself after that. Before the fix every run longer than one page died on page two.
+- **Idle `outcome` is `succeeded | failed | interrupted`.** There is no `aborted`. `/interrupt` produces
+  `interrupted` with a bare idle; the step it cut carries `{type: "aborted", message: "Step interrupted"}`.
+- **A permission's tool call is `source.id`**, not `source.callID`. `permissionCallId()` reads both.
+- **Answering a settled form is `409 FormAlreadySettledError`**, the twin of `PermissionNotFoundError`;
+  `answerQuestion()` tolerates it the same way.
+
+Also observed on 2.2.0: a plain `/prompt` while a turn runs is **not** `SessionBusyError` — it is
+accepted with `delivery: "steer"`; `--print-logs` says server logs need `--standalone`, but the
+container's `serve` still prints its listen line and faults without it; and the message list now holds
+`compaction`, `synthetic`, `system`, `skill`, `shell` and `*_selected` types the poller filters past.
 
 - **A session is pinned to a directory: `location: {directory}` at create.** This is the field the whole
   design rests on — one container per agent, tasks isolated by directory, each resolving its own project
@@ -253,7 +310,7 @@ not on that image. A container with a live session or a pending push approval is
 agent's next task anyway. `--force` removes those too and closes their sessions with a reason.
 
 The smoke test polls in the foreground and prints each tick. **Launch is asynchronous** — provisioning
-happens in `LaunchTaskSessionJob` on the `agent-runtime` queue, so the first few ticks print nothing
+happens in `LaunchTaskSessionJob` on the **`coding` queue**, so the first few ticks print "provisioning"
 while the container comes up, and a launch failure lands on the session row rather than in the
 command's output. When a run ends badly, read `agent_task_sessions.error_message`; the agent's own
 account of why is frequently invented.

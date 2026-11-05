@@ -49,17 +49,22 @@ class FindPeopleBulkTool extends Tool
                 description: 'How many candidate matches to return per name. Defaults to 3, max 10.',
                 required: false,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $names, ?int $max_matches_per_name = null): array
+    public function __invoke(string $names, ?int $max_matches_per_name = null, ?int $tenant_company_id = null): array
     {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         $results = $this->matchPeopleByName(
             $this->app,
-            $this->company,
+            $this->auditedReadScope(),
             $names,
             $max_matches_per_name
         );

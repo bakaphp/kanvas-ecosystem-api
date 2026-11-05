@@ -72,6 +72,7 @@ class ParticipationStatsTool extends Tool
                 required: false,
             ),
             new ToolProperty(name: 'limit', type: PropertyType::INTEGER, description: 'Máximo de filas del desglose. Por defecto 25.', required: false),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
@@ -87,8 +88,13 @@ class ParticipationStatsTool extends Tool
         ?string $desde = null,
         ?string $hasta = null,
         ?string $breakdown_by = null,
-        ?int $limit = null
+        ?int $limit = null,
+        ?int $tenant_company_id = null
     ): array {
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
         if (! $this->hasTenantContext()) {
             return $this->tenantContextMissingError('participation stats');
         }
@@ -119,7 +125,7 @@ class ParticipationStatsTool extends Tool
             $totals = $service->aggregate(
                 $definition,
                 $this->app,
-                $this->company,
+                $this->auditedReadScope(),
                 AggregateRequest::fromInput(aggregates: $aggregates, limit: 1),
                 $filters
             );
@@ -141,7 +147,7 @@ class ParticipationStatsTool extends Tool
                 $result['breakdown'] = $service->aggregate(
                     $definition,
                     $this->app,
-                    $this->company,
+                    $this->auditedReadScope(),
                     AggregateRequest::fromInput(
                         aggregates: $aggregates,
                         groupBy: [$breakdown_by],

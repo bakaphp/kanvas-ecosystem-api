@@ -20,6 +20,9 @@ use NeuronAI\Tools\ToolInterface;
  */
 class FakeNeuronProvider implements AIProviderInterface
 {
+    /** The instructions text of the last request, so a test can assert what the model was told. */
+    public ?string $instructions = null;
+
     public function __construct(
         protected readonly string $response = 'Hola Mundo',
     ) {
@@ -32,6 +35,8 @@ class FakeNeuronProvider implements AIProviderInterface
 
     public function systemPrompt(SystemMessage|string|null $prompt): AIProviderInterface
     {
+        $this->instructions = $prompt instanceof SystemMessage ? $prompt->getContent() : $prompt;
+
         return $this;
     }
 

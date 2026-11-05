@@ -14,9 +14,9 @@ use Kanvas\Connectors\Reynolds\DataTransferObject\CrmLeadSync;
 use Kanvas\Connectors\Reynolds\DataTransferObject\CrmLeadSyncResult;
 use Kanvas\Connectors\Reynolds\Enums\CrmLeadSyncOutcomeEnum;
 use Kanvas\Connectors\Reynolds\Exceptions\CrmLeadSyncException;
-use Kanvas\Guild\Customers\Actions\ApplyDoNotContactAction;
-use Kanvas\Guild\Customers\Enums\ConsentMatchEnum;
+use Kanvas\Guild\Customers\Actions\RecordPeopleNoteAction;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -191,7 +191,7 @@ class SyncCrmLeadAction
                 $followers?->execute($lead);
             }
 
-            $this->applyDoNotContact($people, $lead);
+            $this->applyChannelOptOuts($people);
         } catch (Throwable $exception) {
             $this->compensate($plan, $people, $lead);
 
@@ -218,26 +218,34 @@ class SyncCrmLeadAction
     }
 
     /**
-     * An opt-out reported by the CRM is honored person-wide like any other, and before the workflows
-     * fire so a new lead is never contacted. It runs after the lead exists so that lead is flagged
-     * too, and it only ever silences: nothing here lifts one. A failure is not swallowed, since a
-     * missed opt-out leaves the person contactable; the request can be sent again.
+     * A channel the CRM says the customer declined opts out that channel's contacts and nothing else:
+     * not the person, not their leads. It runs after the contacts exist so one this same request added
+     * is covered, and it only ever opts out: a channel the CRM does not flag is left as it is. A
+     * failure is not swallowed, since a missed opt-out leaves that channel contactable; the request
+     * can be sent again.
      */
-    private function applyDoNotContact(People $people, ?Lead $lead): void
+    private function applyChannelOptOuts(People $people): void
     {
-        $customer = $this->data->customer;
+        $optOut = $this->data->customer?->consent?->opt_out;
 
-        if ($customer === null || ! $this->driver->requestsDoNotContact($customer)) {
-            return;
+        if ($optOut?->email && $people->optOutEmailContacts() > 0) {
+            $this->recordChannelOptOut($people, 'email', 'email');
         }
 
-        new ApplyDoNotContactAction(
-            people: $people,
-            sourceChannel: 'crm_sync:' . $this->data->identity->type->value,
-            lead: $lead,
-            reason: 'The CRM reports the customer opted out',
-            match: ConsentMatchEnum::EXACT
-        )->execute();
+        if ($optOut?->phone && $people->optOutPhoneContacts() > 0) {
+            $this->recordChannelOptOut($people, 'text messages', 'phone');
+        }
+    }
+
+    private function recordChannelOptOut(People $people, string $declined, string $contacts): void
+    {
+        new RecordPeopleNoteAction($people)->execute(
+            body: sprintf('The CRM reports the customer declined %s: their %s contacts were opted out.', $declined, $contacts),
+            tag: LeadMessageTypeEnum::AI_CONTROL->value,
+            actingUser: $people->user,
+            fromIa: false,
+            messageTypeVerb: LeadMessageTypeEnum::AI_CONTROL->value,
+        );
     }
 
     /**

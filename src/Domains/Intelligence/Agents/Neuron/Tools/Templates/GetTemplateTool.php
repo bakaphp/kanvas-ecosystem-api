@@ -22,7 +22,8 @@ class GetTemplateTool extends Tool
 
     protected ?string $description = 'Get a single template by id, including its full HTML body — use this to inspect the current '
         . 'markup before fixing it with update_template. Returns an "owned" flag: when it is false you '
-        . 'CANNOT edit or delete that template, so check it before telling the user you will change it.';
+        . 'CANNOT edit or delete that template. When "editable_here" is present and false, the template is also '
+        . 'read-only in this company even if owned. Check these flags before promising a change.';
 
     /**
      * @return array<int, ToolProperty>
@@ -37,14 +38,24 @@ class GetTemplateTool extends Tool
                 description: 'The ID of the template to fetch (from list_templates or create_template).',
                 required: true,
             ),
+            ...$this->tenantCompanyProperty(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $template_id): array
+    public function __invoke(int $template_id, ?int $tenant_company_id = null): array
     {
-        return $this->getTemplate($this->app, $this->company, $this->user, $template_id);
+        if (($refusal = $this->narrowReadScope($tenant_company_id)) !== null) {
+            return $refusal;
+        }
+
+        return $this->getTemplate(
+            $this->app,
+            $this->auditedReadScope(),
+            $this->user,
+            $template_id
+        );
     }
 }

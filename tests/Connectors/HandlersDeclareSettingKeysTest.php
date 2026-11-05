@@ -49,16 +49,16 @@ final class HandlersDeclareSettingKeysTest extends TestCaseUnit
      */
     private function handlerFiles(): iterable
     {
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator(
-                base_path('src/Domains/Connectors'),
-                FilesystemIterator::SKIP_DOTS
-            )
-        );
+        // Messaging providers live under Communication, with their handlers.
+        foreach (['src/Domains/Connectors', 'src/Domains/Communication/Channels'] as $root) {
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator(base_path($root), FilesystemIterator::SKIP_DOTS)
+            );
 
-        foreach ($iterator as $file) {
-            if ($file->isFile() && str_ends_with($file->getFilename(), '.php')) {
-                yield $file->getPathname();
+            foreach ($iterator as $file) {
+                if ($file->isFile() && str_ends_with($file->getFilename(), '.php')) {
+                    yield $file->getPathname();
+                }
             }
         }
     }

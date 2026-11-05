@@ -117,7 +117,7 @@ class SendDelayMessageCommand extends Command
         }
 
         if ($lead instanceof People) {
-            $lead = $lead->leads()->isOpen()->first();
+            $lead = $lead->leads()->isOpen($lead->company)->first();
         }
 
         if (! $lead instanceof Lead) {

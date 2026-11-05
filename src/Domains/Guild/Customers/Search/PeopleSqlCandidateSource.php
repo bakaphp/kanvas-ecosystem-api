@@ -8,6 +8,7 @@ use Illuminate\Contracts\Database\Query\Builder as BuilderContract;
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Guild\Customers\Contracts\PeopleCandidateSourceInterface;
 use Kanvas\Guild\Search\MatchesBulkNameTerms;
 use Override;
@@ -23,7 +24,7 @@ class PeopleSqlCandidateSource implements PeopleCandidateSourceInterface
     use MatchesBulkNameTerms;
 
     #[Override]
-    public function candidatesFor(Apps $app, Companies $company, array $terms): Collection
+    public function candidatesFor(Apps $app, Companies|CompanyScope $company, array $terms): Collection
     {
         if ($terms === []) {
             return new Collection();

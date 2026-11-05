@@ -186,6 +186,34 @@ final class AssignCorporateOrderOwnerActionTest extends TestCase
         Log::shouldNotHaveReceived('warning', [self::WARNING, Mockery::any()]);
     }
 
+    public function testTagsCorporateOrderOnceAcrossReRuns(): void
+    {
+        $order = $this->makeOrder(['data' => $this->corporateData($this->creator->getId())]);
+
+        new AssignCorporateOrderOwnerAction($order)->execute();
+        new AssignCorporateOrderOwnerAction($order->refresh())->execute();
+
+        $this->assertSame(1, $order->tags()->where('name', AssignCorporateOrderOwnerAction::CORPORATE_TAG)->count());
+    }
+
+    public function testTagsCorporateOrderEvenWhenItsCreatorIsRejected(): void
+    {
+        $order = $this->makeOrder(['data' => $this->corporateData(Users::factory()->create()->getId())]);
+
+        $this->assertNull(new AssignCorporateOrderOwnerAction($order)->execute());
+
+        $this->assertTrue($order->hasTag([AssignCorporateOrderOwnerAction::CORPORATE_TAG]));
+    }
+
+    public function testDoesNotTagNonCorporateOrders(): void
+    {
+        $order = $this->makeOrder([]);
+
+        new AssignCorporateOrderOwnerAction($order)->execute();
+
+        $this->assertFalse($order->hasTag([AssignCorporateOrderOwnerAction::CORPORATE_TAG]));
+    }
+
     public function testIsIdempotentAndDoesNotOverwriteTheCapturedActorOnReRun(): void
     {
         $order = $this->makeOrder(['data' => $this->corporateData($this->creator->getId())]);

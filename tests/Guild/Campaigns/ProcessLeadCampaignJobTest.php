@@ -16,15 +16,19 @@ use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Notifications\Support\UserEmailSignature;
+use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
+use Tests\Traits\MakesAgents;
 
 class ProcessLeadCampaignJobTest extends TestCase
 {
     use DatabaseTransactions;
+    use MakesAgents;
 
-    protected array $connectionsToTransact = ['mysql', 'crm', 'social', 'ecosystem'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'social', 'ecosystem', 'intelligence'];
 
     private function campaignFor(Companies $company, string $channel, ?string $subject = null): Campaign
     {
@@ -131,6 +135,77 @@ class ProcessLeadCampaignJobTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function testAnAgentGrantedSigningSignsLeadAndPeopleRecipientsWithTheManagersSignature(): void
+    {
+        $signatures = $this->runSignatureCampaign(agentSigns: true);
+
+        $this->assertStringContainsString('Campaign Manager', $signatures['signed-lead@example.com']);
+        $this->assertStringContainsString('Campaign Manager', $signatures['signed-people@example.com']);
+    }
+
+    public function testAnAgentWithoutTheSigningGrantSendsUnsigned(): void
+    {
+        $signatures = $this->runSignatureCampaign(agentSigns: false);
+
+        $this->assertSame(['signed-lead@example.com' => '', 'signed-people@example.com' => ''], $signatures);
+    }
+
+    /**
+     * The manager has a signature for the company either way; only the sending agent's grant differs.
+     *
+     * @return array<string, string> recipient => the user_signature its email carried
+     */
+    private function runSignatureCampaign(bool $agentSigns): array
+    {
+        Notification::fake();
+        $company = Companies::factory()->create();
+        $manager = auth()->user();
+        $manager->set(UserEmailSignature::companySettingKey($company), [
+            'append' => true,
+            'text' => "Campaign Manager\nRegional Sales",
+        ]);
+
+        try {
+            $lead = Lead::factory()
+                ->withAppId(app(Apps::class)->getId())
+                ->withCompanyId($company->getId())
+                ->withUserId($manager->getId())
+                ->create();
+            $lead->people->contacts()->delete();
+            $lead->people->addEmail('signed-lead@example.com');
+
+            $person = People::factory()
+                ->withAppId(app(Apps::class)->getId())
+                ->withCompanyId($company->getId())
+                ->withUserId($manager->getId())
+                ->create();
+            $person->addEmail('signed-people@example.com');
+
+            $campaign = $this->campaignFor($company, 'email', 'Hello');
+            $campaign->criteria = ['agents_id' => $this->makeSigningAgent($company, $agentSigns)->getId()];
+            $campaign->saveOrFail();
+            $this->addRecipient($campaign, $lead);
+            $this->addPeopleRecipient($campaign, $person);
+
+            new ProcessLeadCampaignJob(app(Apps::class), $campaign)->handle();
+        } finally {
+            $manager->del(UserEmailSignature::companySettingKey($company));
+        }
+
+        $signatures = [];
+        Notification::assertSentOnDemand(
+            Blank::class,
+            function (Blank $notification, array $channels, object $notifiable) use (&$signatures): bool {
+                $signatures[$notifiable->routes['mail']] = (string) ($notification->getData()['user_signature'] ?? '');
+
+                return true;
+            }
+        );
+        ksort($signatures);
+
+        return $signatures;
+    }
+
     public function testMixedCampaignSendsBothLeadAndPeopleOnlyRecipients(): void
     {
         Notification::fake();
@@ -228,5 +303,73 @@ class ProcessLeadCampaignJobTest extends TestCase
         $this->assertStringContainsString('Batch body', $message->contentText());
         $this->assertSame('Spring offer', $message->get('title'));
         $this->assertFalse((bool) $message->message['from_ia'], 'A campaign is sent by the manager, not the AI');
+    }
+
+    public function testPeopleRecipientGetsItsOwnAttachmentsAndVariablesOnTopOfTheCampaignOnes(): void
+    {
+        Notification::fake();
+        $company = Companies::factory()->create();
+
+        $person = People::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(auth()->user()->getId())
+            ->create(['firstname' => 'Adimedys']);
+        $person->addEmail('certificate@example.com');
+
+        $campaign = $this->campaignFor($company, 'email', 'Certificado');
+        $campaign->attachment_urls = ['https://example.test/shared.pdf'];
+        $campaign->saveOrFail();
+
+        $recipient = $this->addPeopleRecipient($campaign, $person);
+        $recipient->attachment_urls = ['https://example.test/PA1.pdf', 'https://example.test/shared.pdf'];
+        $recipient->variables = ['Saludo' => 'Hola', 'company' => 'OVERRIDE'];
+        $recipient->saveOrFail();
+
+        new ProcessLeadCampaignJob(app(Apps::class), $campaign)->handle();
+
+        $this->assertSame(CampaignRecipientStatusEnum::SENT->value, $recipient->refresh()->status);
+        Notification::assertSentOnDemand(
+            Blank::class,
+            function (Blank $notification, array $channels, object $notifiable): bool {
+                $this->assertSame(
+                    ['https://example.test/shared.pdf', 'https://example.test/PA1.pdf'],
+                    $notification->pathAttachment
+                );
+                $data = $notification->getData();
+                $this->assertSame('Hola', $data['Saludo']);
+                $this->assertInstanceOf(People::class, $data['people']);
+                $this->assertSame('Adimedys', $data['people']->firstname);
+                $this->assertInstanceOf(Companies::class, $data['company']);
+
+                return $notifiable->routes['mail'] === 'certificate@example.com';
+            }
+        );
+    }
+
+    public function testPeopleRecipientWithoutOwnAttachmentsSendsTheCampaignOnesOnly(): void
+    {
+        Notification::fake();
+        $company = Companies::factory()->create();
+
+        $person = People::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(auth()->user()->getId())
+            ->create();
+        $person->addEmail('shared-only@example.com');
+
+        $campaign = $this->campaignFor($company, 'email', 'Certificado');
+        $campaign->attachment_urls = ['https://example.test/shared.pdf'];
+        $campaign->saveOrFail();
+        $this->addPeopleRecipient($campaign, $person);
+
+        new ProcessLeadCampaignJob(app(Apps::class), $campaign)->handle();
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification, array $channels, object $notifiable): bool => $notification->pathAttachment === ['https://example.test/shared.pdf']
+                && $notifiable->routes['mail'] === 'shared-only@example.com'
+        );
     }
 }

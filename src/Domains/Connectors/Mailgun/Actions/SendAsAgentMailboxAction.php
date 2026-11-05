@@ -9,6 +9,7 @@ use Baka\Support\Str;
 use Kanvas\Connectors\Mailgun\Client;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -50,6 +51,10 @@ class SendAsAgentMailboxAction
         // a standalone People) — stamps a second `v:lead_id` variable so the open lands on the
         // Lead's own activity feed (RecordLeadNoteAction) instead of only the underlying People's.
         private readonly ?Lead $trackingLead = null,
+        // Set when the mail is one slot of a batch campaign — stamps `v:campaign_recipient_id` so the
+        // open also marks that exact slot opened; people_id alone is ambiguous once the same person
+        // sits in several campaigns.
+        private readonly ?CampaignRecipient $trackingCampaignRecipient = null,
     ) {
     }
 
@@ -100,6 +105,10 @@ class SendAsAgentMailboxAction
 
         if ($this->trackingLead !== null) {
             $variables['lead_id'] = (string) $this->trackingLead->getId();
+        }
+
+        if ($this->trackingCampaignRecipient !== null) {
+            $variables['campaign_recipient_id'] = (string) $this->trackingCampaignRecipient->getId();
         }
 
         return $variables;

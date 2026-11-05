@@ -42,3 +42,6 @@ each one from the data its notification passes.
   lists its fields (`Users`, `Apps`, `Companies`, `Order`). An HTML template can send anything it prints
   to any host through an image URL, so a new model with secrets in its row needs the same.
 - Dates: use `|date(format, false)` to keep the value's own timezone, the way `Carbon::format()` did.
+- A notification that swaps one field of a model for its template (the console invite's
+  `frontend_url`) hands the template a `TemplateDataOverlay`, never a plain array: a hand-made blade
+  row for the same key still reads the model live, and `$app->name` on an array is a fatal at send time.

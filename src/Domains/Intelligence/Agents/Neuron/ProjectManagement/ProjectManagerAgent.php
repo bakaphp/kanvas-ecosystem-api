@@ -458,7 +458,7 @@ class ProjectManagerAgent extends SystemUserAgent
         ]);
 
         $core[] = new CapabilityLookupTool($agent);
-        $core[] = new ReportCapabilityGapTool($agent);
+        $core[] = new ReportCapabilityGapTool($agent, $requestingHuman, $this->session);
 
         foreach ([
             new ListAgentsTool($agent),

@@ -8,7 +8,6 @@ use Baka\Casts\Json;
 use Baka\Support\Str;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -56,7 +55,6 @@ use Silber\Bouncer\Database\Ability;
  */
 class SystemModules extends BaseModel
 {
-    use Cachable;
     use SlugTrait;
     use UuidTrait;
 

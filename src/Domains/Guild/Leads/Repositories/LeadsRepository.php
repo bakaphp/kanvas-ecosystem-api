@@ -97,8 +97,8 @@ class LeadsRepository
 
     /**
      * @todo The default misses terminal names like 'Won', 'Duplicate' and 'Inactive', and they
-     * are per-tenant, so widening the list won't fix it — the `is_closed` column on
-     * leads_status that Lead's TODO calls for will.
+     * are per-tenant, so widening the list won't fix it — reading `is_open` from
+     * leads_status, as Lead::hasOpenLeadStatus() does, will.
      *
      * @return array<int, string>
      */

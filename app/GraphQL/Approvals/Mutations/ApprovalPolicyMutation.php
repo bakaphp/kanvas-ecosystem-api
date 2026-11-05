@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Approvals\Mutations;
 
 use App\GraphQL\Concerns\ResolvesActingContext;
+use Kanvas\Approvals\Enums\ApprovalNotifyModeEnum;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Approvals\Services\ApproverResolverRegistryService;
@@ -74,7 +75,7 @@ class ApprovalPolicyMutation
                 : 'any',
             'fallback_resolver' => $input['fallback_resolver'] ?? null,
             'fallback_config' => $input['fallback_config'] ?? null,
-            'notify' => (string) ($input['notify'] ?? 'all'),
+            'notify' => ApprovalNotifyModeEnum::fromSetting($input['notify'] ?? null)->value,
             'expires_after_hours' => $input['expires_after_hours'] ?? null,
             'allow_authority_override' => (bool) ($input['allow_authority_override'] ?? false),
         ];

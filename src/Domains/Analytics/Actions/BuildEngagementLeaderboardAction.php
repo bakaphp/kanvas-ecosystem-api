@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Analytics\DataTransferObject\AnalyticsRequest;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -56,7 +57,7 @@ class BuildEngagementLeaderboardAction
 
     public function __construct(
         protected readonly AppInterface $app,
-        protected readonly Companies $company,
+        protected readonly Companies|CompanyScope $company,
         protected readonly AnalyticsRequest $request,
         protected readonly MessageChannelEnum $channel = MessageChannelEnum::ALL,
     ) {
@@ -209,12 +210,12 @@ class BuildEngagementLeaderboardAction
         $ids = [
             ...ReceiverWebhook::query()
                 ->where('apps_id', $this->app->getId())
-                ->where('companies_id', $this->company->getId())
+                ->whereIn('companies_id', CompanyScope::companyIdsOf($this->company))
                 ->pluck('users_id')
                 ->all(),
             ...Agent::query()
                 ->where('apps_id', $this->app->getId())
-                ->where('companies_id', $this->company->getId())
+                ->whereIn('companies_id', CompanyScope::companyIdsOf($this->company))
                 ->pluck('user_id')
                 ->all(),
         ];
@@ -248,7 +249,7 @@ class BuildEngagementLeaderboardAction
         $this->aiAgentUserResolved = true;
 
         try {
-            $this->aiAgentUserId = $this->company->getAiAgentUser()?->getId();
+            $this->aiAgentUserId = ($this->company instanceof CompanyScope ? $this->company->ownCompany : $this->company)->getAiAgentUser()?->getId();
         } catch (ModelNotFoundException | EloquentModelNotFoundException) {
             $this->aiAgentUserId = null;
         }
@@ -377,7 +378,7 @@ class BuildEngagementLeaderboardAction
         if ($rows->count() === self::MAX_RESPONSE_PAIRS) {
             Log::warning('Engagement leaderboard: response-pair cap reached, median is computed on a truncated set', [
                 'app_id' => $this->app->getId(),
-                'company_id' => $this->company->getId(),
+                'company_ids' => CompanyScope::companyIdsOf($this->company),
                 'cap' => self::MAX_RESPONSE_PAIRS,
             ]);
         }
@@ -408,7 +409,7 @@ class BuildEngagementLeaderboardAction
     {
         return Message::query()
             ->where('messages.apps_id', $this->app->getId())
-            ->where('messages.companies_id', $this->company->getId())
+            ->whereIn('messages.companies_id', CompanyScope::companyIdsOf($this->company))
             ->where('messages.is_deleted', 0)
             ->notLocked()
             ->whereBetween('messages.created_at', $this->range())
@@ -426,7 +427,7 @@ class BuildEngagementLeaderboardAction
     {
         $rows = Event::query()
             ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
+            ->whereIn('companies_id', CompanyScope::companyIdsOf($this->company))
             ->where('is_deleted', 0)
             ->whereBetween('created_at', $this->range())
             ->where('resources_type', Lead::class)
@@ -460,7 +461,7 @@ class BuildEngagementLeaderboardAction
             $rows = Lead::query()
                 ->whereIn('people_id', $chunk)
                 ->where('apps_id', $this->app->getId())
-                ->where('companies_id', $this->company->getId())
+                ->whereIn('companies_id', CompanyScope::companyIdsOf($this->company))
                 ->where('is_deleted', 0)
                 ->whereNotNull('leads_owner_id')
                 ->orderBy('id')

@@ -251,6 +251,67 @@ class CreateLeadsFromReceiverJobTest extends TestCase
         $this->assertNotNull(Lead::find($result['lead_id']));
     }
 
+    public function testTemplateReceiverMapsFlatFormPostIntoPeopleAndCustomFields(): void
+    {
+        $this->leadReceiver->update([
+            'template' => [
+                'Member' => ['name' => 'member', 'type' => 'customField'],
+                'First_Name' => ['name' => 'firstname', 'type' => 'string'],
+                'Last_Name' => ['name' => 'lastname', 'type' => 'string'],
+                'Phone' => ['name' => 'phone', 'type' => 'string'],
+                'Email' => ['name' => 'email', 'type' => 'string'],
+                'zip' => ['name' => 'zip', 'type' => 'customField'],
+                'Company' => ['name' => 'Company', 'type' => 'customField'],
+                'Lead_Source' => ['name' => 'Lead_Source', 'type' => 'customField'],
+                'SMS_Opt_Out' => ['name' => 'sms_opt_out', 'type' => 'customField'],
+                'Credit_Score' => ['name' => 'Credit_Score', 'type' => 'customField'],
+            ],
+        ]);
+
+        $email = 'flat-post-' . Str::random(8) . '@example.com';
+        $payload = [
+            'consentAuthorizedAt' => '2026-11-04T01:54:45.936Z',
+            'Email' => $email,
+            'email' => $email,
+            'Phone' => '(390) 239-4230',
+            'phone' => '(390) 239-4230',
+            'clean_phone' => '3902394230',
+            'First_Name' => 'Flat',
+            'first_name' => 'Flat',
+            'Last_Name' => 'Post',
+            'last_name' => 'Post',
+            'Company' => 'Acme Lending',
+            'Company_Name' => 'Acme Lending',
+            'Lead_Source' => 'Apply Landing Page',
+            'Credit_Pull_Approved' => 'false',
+            'Do_you_have_a_Co_Applicant_1' => 'No',
+        ];
+
+        $result = $this->dispatchWebhookJob($payload);
+
+        $lead = Lead::find($result['lead_id']);
+        $this->assertNotNull($lead);
+        $this->assertSame('Flat Post', trim($lead->title));
+        $this->assertSame('Flat', $lead->people->firstname);
+        $this->assertSame('Post', $lead->people->lastname);
+        $this->assertSame($email, $lead->email);
+        $this->assertSame('3902394230', $lead->phone);
+
+        $contactsByType = $lead->people->contacts
+            ->groupBy('contacts_types_id')
+            ->map(fn ($group) => $group->pluck('value')->all());
+
+        $this->assertContains($email, $contactsByType[ContactTypeEnum::EMAIL->value] ?? []);
+        $this->assertContains('3902394230', $contactsByType[ContactTypeEnum::PHONE->value] ?? []);
+
+        $this->assertSame('Acme Lending', $lead->get('Company'));
+        $this->assertSame('Apply Landing Page', $lead->get('Lead_Source'));
+        $this->assertSame('2026-11-04T01:54:45.936Z', $lead->get('consentAuthorizedAt'));
+        $this->assertSame('No', $lead->get('Do_you_have_a_Co_Applicant_1'));
+        $this->assertNull($lead->get('people'));
+        $this->assertEmpty($lead->organization_id);
+    }
+
     private function dispatchWebhookJob(array $payload): array
     {
         $request = Request::create(

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Traits;
 
+use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 
 /**
@@ -24,12 +25,23 @@ trait ManagesAppSettings
         $app = app(Apps::class);
 
         foreach ($this->originalAppSettings as $key => $value) {
-            $value === null ? $app->del($key) : $app->set($key, $value);
+            $value === null ? self::forgetAppSetting($app, $key) : $app->set($key, $value);
         }
 
         $this->originalAppSettings = [];
 
         parent::tearDown();
+    }
+
+    /**
+     * del() only touches Redis when the row is still in the database; a test that transacts the
+     * `ecosystem` connection rolled that row back already, and the Redis copy would stay live for the
+     * rest of the run.
+     */
+    private static function forgetAppSetting(Apps $app, string $key): void
+    {
+        $app->del($key);
+        Redis::hDel($app->getSettingsRedisPrimaryKey(), $key);
     }
 
     /**

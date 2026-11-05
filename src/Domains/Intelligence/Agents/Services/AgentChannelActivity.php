@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Services;
 
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Intelligence\Agents\Enums\AgentMessageTypeEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
@@ -50,6 +51,9 @@ class AgentChannelActivity
      * in the same seconds; the author alone would count a human, because agents share users with real
      * people — one production user backs 28 agents, and a PM writes as the same user as the person it
      * is talking to.
+     *
+     * The compaction note (`agent_summary`) is agent-authored but is bookkeeping, not an answer: history
+     * summarization writes it to the channel mid-turn, so counting it would swallow the real reply.
      */
     public static function agentPostedSince(?Channel $channel, ?int $sinceMessageId, ?Users $author): bool
     {
@@ -58,12 +62,20 @@ class AgentChannelActivity
         }
 
         return $channel->messages()
+            ->with('messageType')
             ->when(
                 $sinceMessageId !== null,
                 fn (Builder $query): Builder => $query->where('messages.id', '>', $sinceMessageId),
             )
             ->where('messages.users_id', $author->getId())
             ->get()
-            ->contains(fn (Message $message): bool => self::isAgentAuthored($message));
+            ->contains(
+                fn (Message $message): bool => self::isAgentAuthored($message) && ! self::isCompactionNote($message)
+            );
+    }
+
+    public static function isCompactionNote(Message $message): bool
+    {
+        return $message->messageType?->verb === AgentMessageTypeEnum::AGENT_SUMMARY->value;
     }
 }

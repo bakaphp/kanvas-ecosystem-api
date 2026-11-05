@@ -27,12 +27,14 @@ enum ConfigurationEnum: string
     case ADK_AI_ASSIST_APP_NAME = 'google_orchestrator_ai_assist_app_name';
     case ADK_AI_ASSIST_BASE_URL = 'google_orchestrator_ai_assist_base_url';
     case AI_ASSIST_ENABLED = 'sales_assist_ai_assist_enabled';
+    case AI_NOTES_CHANNEL_ENABLED = 'enable_ai_notes_channel';
     case AI_ASSIST_GREETING_MSG = 'ai_assist_greeting_msg';
     case AI_ASSIST_AGENT_ID = 'ai_assist_agent';
     case AGENT_HAND_OFF = 'agent_hand_off';
     case AGENT_HAND_OFF_TYPE = 'agent_hand_off_type';
     case AGENT_CHANNEL_TYPE = 'agent_channel_type';
     case LEAD_CONTEXT_INFO = 'lead_ai_agent_context_info';
+    case LEAD_CONTACT_HISTORY = 'lead_ai_agent_contact_history';
     case LAST_MESSAGE_TIME = 'last_message_time';
     case LAST_MESSAGE = 'last_message';
     case MUTE_AI_AGENT = 'ai_control';
@@ -51,9 +53,13 @@ enum ConfigurationEnum: string
     // apps (voiceAgentSpec by uuid, ignoring apps_id). Enable ONLY on the
     // trusted voice-runtime app; every other app-key stays app-scoped.
     case VOICE_RUNTIME_CROSS_APP = 'kanvas-intelligence-voice-runtime-cross-app';
+    // App setting: the follow-up v2 engine runs for this app's companies.
+    case USE_LEAD_FOLLOW_UP_V2 = 'use_lead_follow_up_v2';
     case LEAD_FOLLOW_UP_DISABLED = 'lead_follow_up_disabled';
     // Company setting: minutes a CRM pull stays fresh before the follow-up engine pulls again.
     case LEAD_FOLLOW_UP_SYNC_INTERVAL_MINUTES = 'lead_follow_up_sync_interval_minutes';
     // Company setting: leads created before this date are never followed up. Unset = all leads.
     case LEAD_FOLLOW_UP_START_DATE = 'lead_follow_up_start_date';
+    // Agent setting: company ids the agent may READ besides its own; writes stay on the home company.
+    case AGENT_READ_ACCESS_COMPANIES = 'agent-read-access-companies';
 }

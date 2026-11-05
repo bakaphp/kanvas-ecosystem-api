@@ -10,6 +10,7 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
+use Kanvas\Guild\Customers\Actions\ApplyDoNotContactAction;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -200,12 +201,22 @@ class PeopleManagementMutation
             throw new Exception('You do not have permission to update this contact');
         }
 
+        $isOptingOut = ($input['is_opt_out'] ?? null) === true && ! $contact->isOptedOut();
+
         $contact->update([
             'value' => $input['value'] ?? $contact->value,
             'contacts_types_id' => $input['contacts_types_id'] ?? $contact->contacts_types_id,
             'weight' => $input['weight'] ?? $contact->weight,
             'is_opt_out' => $input['is_opt_out'] ?? $contact->is_opt_out,
         ]);
+
+        if ($isOptingOut) {
+            new ApplyDoNotContactAction(
+                people: $people,
+                sourceChannel: 'manual',
+                reason: 'Contact marked as opted out by ' . $user->displayname,
+            )->execute();
+        }
 
         $people->fireWorkflow(
             WorkflowEnum::UPDATED->value,

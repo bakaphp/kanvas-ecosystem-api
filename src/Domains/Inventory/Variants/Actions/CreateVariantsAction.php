@@ -79,7 +79,7 @@ class CreateVariantsAction
                 'barcode' => $this->variantDto->barcode,
                 'serial_number' => $this->variantDto->serial_number,
                 'weight' => $this->variantDto->weight ?? 0,
-                'is_published' => $this->variantDto->is_published,
+                'is_published' => $this->variantDto->is_published ?? true,
                 'is_taxable' => $this->variantDto->is_taxable ?? $existingVariant?->is_taxable ?? true,
                 'tax_category' => $this->variantDto->tax_category ?? $existingVariant?->tax_category,
                 'tax_code_override' => $this->variantDto->tax_code_override ?? $existingVariant?->tax_code_override,

@@ -23,6 +23,13 @@ final class VoiceRuntimeConfig
         return self::resolve($app, ConfigurationEnum::VOICE_RUNTIME_URL->value, 'kanvas.voice_runtime.url');
     }
 
+    public static function inboundWebhookUrl(?AppInterface $app = null): string
+    {
+        $url = self::url($app);
+
+        return $url !== '' ? rtrim($url, '/') . '/twilio/incoming' : '';
+    }
+
     public static function apiToken(?AppInterface $app = null): string
     {
         return self::resolve($app, ConfigurationEnum::VOICE_RUNTIME_API_TOKEN->value, 'kanvas.voice_runtime.api_token');

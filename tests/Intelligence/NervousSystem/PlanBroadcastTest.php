@@ -18,6 +18,7 @@ use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class PlanBroadcastTest extends TestCase
@@ -137,6 +138,11 @@ class PlanBroadcastTest extends TestCase
      * The flag lives in a Redis hash keyed by app id alone, shared by every parallel test process, so
      * an un-restored write here silences broadcasts for the rest of the run — and the assertion throws.
      */
+    /**
+     * `$app->set()` writes Redis first, which every paratest process shares, so a sibling creating a
+     * plan while this flag is off sees no broadcast and this test can see a sibling's reset.
+     */
+    #[Group('serial')]
     public function testNoBroadcastWhenAppFlagOff(): void
     {
         $app = app(Apps::class);

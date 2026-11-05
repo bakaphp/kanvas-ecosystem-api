@@ -109,11 +109,12 @@ allowed to speak for a lead whose AI is off.
 ## "Open" means `leads_status_id`, never the `status` column
 
 Both the fan-out query and the action's `lead_not_active` gate use `hasOpenLeadStatus()` /
-`scopeHasOpenLeadStatus($company)`: the global open ids plus the company's
-`guild_open_leads_status_ids`. `Lead::isOpen()` reads the `status` integer column, which no app
-code writes (758k of 759k local rows sit at the default `0`) — a gate on it passes everyone. CRM
-pulls and the UI write `leads_status_id` (`close()` / `open()`), so that is the only column that
-reflects a close.
+`scopeHasOpenLeadStatus($company)`: the lead's status row has `is_open` (plus the company's legacy
+`guild_open_leads_status_ids`). `Lead::isOpen()` and the `isOpen` scope delegate to those. Never gate
+on the `status` integer column: no app code writes it (758k of 759k local rows sit at the default
+`0`), so a gate on it passes everyone. CRM pulls and the UI write `leads_status_id` (`close()` /
+`open()`), so that is the only column that reflects a close. A status row created without an explicit
+`is_open` is open when its name is in `LeadStatus::OPEN_STATUS_NAMES` or it is the company default.
 
 ## Third-party leads are pulled from their CRM before the follow-up runs
 
@@ -339,6 +340,8 @@ Stage `channels[].template_name` resolves to a `Templates` row. How it gets used
 
 The agent prompt shows the rendered body either way — with `[agent message slot]` substituted into the placeholder so the LLM understands where its content lands.
 
+**A link that must arrive intact goes in the template as `{{ follow_up_links.name|raw }}`, never in the agent's text.** Whoever triggers the touch calls `$lead->setFollowUpLinks(['name' => $url])` first; every touch replaces the whole map, so a link the caller stopped sending cannot go out, and only `https` is kept. A new link needs the caller and a template, no code here. It is the only custom field a follow-up template sees, because a template can print whatever reaches it and lead custom fields hold personal data. A template naming a link the lead lacks skips with `link_missing: name` before the agent is paid for; the check reads the dotted form only, so `follow_up_links[key]` gets past it. One that fails to render skips with `template_render_failed` and reports to Sentry. Both count as failed; on a forced run they also leave a private note on the lead, since nothing will retry that touch.
+
 **The agent prompt ALWAYS has a tone reference.** When the stage has no `template_name` configured, [`renderDefaultStyleReference($channelType)`](Actions/FollowUpLeadAction.php) returns channel-specific neutral default copy (email gets a `"Best, {company}"` sign-off; sms/whatsapp gets a shorter inline one). This is critical — a "no template configured" prompt with no tone anchor was provoking Gemini to bail with canned fallback text (`"I ran into a hiccup processing that..."`). The agent never sees an empty reference block.
 
 **The reference is for STYLE only, never for body content.** The prompt explicitly tells the agent: "Use the reference for HOW to write — NOT for WHAT to write." The BODY must come from the conversation history (prior questions, offers made, specific topics discussed). The prompt also bans generic phrases like `"wanted to circle back"` / `"anything I can help clarify"` when prior conversation context exists — those are reserved for genuinely cold leads. This explicit split was added after the agent was producing bland reminders that ignored real conversation context (e.g. a customer who got a concrete "10-min whiteboard session" offer 13h ago received a generic "wanted to circle back" follow-up). The fix is on the prompt-instruction side, not the template-rendering side.
@@ -347,15 +350,13 @@ The agent prompt shows the rendered body either way — with `[agent message slo
 
 The verb filter (`whatsapp-text`) was dropped from the inbound query. `from_me = false` on a People-keyed channel is the only test; this catches email/SMS/WhatsApp inbound uniformly.
 
-## Only open leads are nudged (`isOpen()` / status < 2)
+## Only open leads are nudged (`hasOpenLeadStatus()`)
 
-Follow-up (and the outbound outreach in `AgentReachOutAction`) only act on **open** leads — `Lead::isOpen()` (`status < 2`). A closed lead (won/lost/inactive) sitting in a non-terminal nudge stage is excluded two ways:
-- [`DispatchAppLeadFollowUpsJob`](Jobs/DispatchAppLeadFollowUpsJob.php) SQL-filters candidates to `status IS NULL OR status < 2` (null = open, matching the model; the column is nullable default 0) so closed leads never spawn a job.
-- [`FollowUpLeadAction`](Actions/FollowUpLeadAction.php) re-checks `isOpen()` as a hard gate → `skip('lead_not_active')`. **Not bypassed by `force`** — force only relaxes the silence gate.
+Follow-up (and the outbound outreach in `AgentReachOutAction`) only act on **open** leads — the named status, see "Open means `leads_status_id`" above. A closed lead (won/lost/inactive) sitting in a non-terminal nudge stage is excluded two ways:
+- [`DispatchAppLeadFollowUpsJob`](Jobs/DispatchAppLeadFollowUpsJob.php) SQL-filters candidates with the `hasOpenLeadStatus($company)` scope so closed leads never spawn a job.
+- [`FollowUpLeadAction`](Actions/FollowUpLeadAction.php) re-checks `hasOpenLeadStatus()` as a hard gate → `skip('lead_not_active')`. **Not bypassed by `force`** — force only relaxes the silence gate.
 
 Inbound agent **replies** are intentionally NOT gated on status — if a customer writes back even on a closed lead, the agent still answers. Only proactive touches (outreach + follow-up) require an open lead.
-
-`Lead::isOpen()` reads the `status` column explicitly (`getAttributeValue`) because `status` is both a column and a `status()` relation — `$this->status` on a partially-hydrated model resolves to the `LeadStatus` object and TypeErrors on `< 2`.
 
 ## Email follow-ups thread under the original outreach (`title_email_follow_up`)
 
@@ -396,7 +397,7 @@ Within each type, ordered by `weight DESC`, then `id DESC`. Opt-outs (`is_opt_ou
 | `agent_picks` | **v1: aliases to `priority_only`.** Future agent-aware routing — see v1.5 TODO. |
 | `fan_out_all` | **All reachable channels per touch.** Same agent message dispatched to every candidate. One touch = one bump (does NOT consume N retry slots for N channels). Same template + same body across channels — if you need per-channel templates, use a pick-one strategy instead. Reserved for high-urgency stages (demo reminder, deal closing). Tenants opt in per stage; default stays pick-one to avoid accidental cross-channel spam / TCPA-class compliance exposure. |
 
-**Skip reasons:** `no_session` (no Session row for the person), `no_reachable_channel` (no stage-enabled channel has a matching non-opted-out contact). The old `channel_not_configured` skip is dead — was a session-driven false positive.
+**Skip reasons:** `no_session` (no Session row for the person; a caller that owns first contact, like the Zoho receiver, passes `openSessionIfMissing` and opens one instead), `no_reachable_channel` (no stage-enabled channel has a matching non-opted-out contact). The old `channel_not_configured` skip is dead — was a session-driven false positive.
 
 **Opt-out behavior change:** leads who unsubscribed but were still being nudged on opted-out contacts will now skip with `no_reachable_channel` if no other channel is reachable. Pre-fix the action didn't consult opt-outs at all.
 

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence;
 
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Factories\AgentLlmConfigFactory;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAIResponses;
 use Kanvas\Intelligence\Agents\Neuron\Providers\RecoversUnknownToolCalls;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
@@ -59,6 +62,7 @@ final class AgentProviderServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        Carbon::setTestNow();
         $app = app(Apps::class);
         foreach ($this->originalSettings as $key => $value) {
             if ($value === null || $value === '') {
@@ -288,6 +292,70 @@ final class AgentProviderServiceTest extends TestCase
         );
 
         $this->assertSame(['store' => false], KanvasOpenAIResponses::toResponsesParameters([]));
+    }
+
+    public function testAFreshAppWithoutAGeminiKeyRunsOnThePlatformTrialKey(): void
+    {
+        $app = $this->appInItsFirstDays(1);
+        config(['kanvas.agents.trial_llm_days' => 14, 'kanvas.agents.trial_llm_model' => 'trial-flash', 'ai.providers.gemini.key' => 'platform-key']);
+
+        $provider = AgentProviderService::resolve($this->geminiAgent($app, ['model' => 'gemini-2.5-pro']));
+
+        $this->assertInstanceOf(Gemini::class, $provider);
+        $this->assertSame('platform-key', new ReflectionProperty($provider, 'key')->getValue($provider));
+        $this->assertSame('trial-flash', new ReflectionProperty($provider, 'model')->getValue($provider));
+    }
+
+    public function testTheTenantKeyWinsOverTheTrial(): void
+    {
+        $app = $this->appInItsFirstDays(1);
+        $app->set(ConfigurationEnum::GEMINI_KEY->value, 'tenant-key');
+        config(['kanvas.agents.trial_llm_days' => 14, 'kanvas.agents.trial_llm_model' => 'trial-flash', 'ai.providers.gemini.key' => 'platform-key']);
+
+        $provider = AgentProviderService::resolve($this->geminiAgent($app, ['model' => 'gemini-2.5-pro']));
+
+        $this->assertSame('tenant-key', new ReflectionProperty($provider, 'key')->getValue($provider));
+        $this->assertSame('gemini-2.5-pro', new ReflectionProperty($provider, 'model')->getValue($provider));
+    }
+
+    public function testTheTrialEndsAfterTheConfiguredDays(): void
+    {
+        $app = $this->appInItsFirstDays(15);
+        config(['kanvas.agents.trial_llm_days' => 14, 'ai.providers.gemini.key' => 'platform-key']);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('not configured');
+
+        AgentProviderService::resolve($this->geminiAgent($app));
+    }
+
+    public function testTheTrialIsOffWhenDaysIsZero(): void
+    {
+        $app = $this->appInItsFirstDays(1);
+        config(['kanvas.agents.trial_llm_days' => 0, 'ai.providers.gemini.key' => 'platform-key']);
+
+        $this->expectException(ValidationException::class);
+
+        AgentProviderService::resolve($this->geminiAgent($app));
+    }
+
+    private function appInItsFirstDays(int $daysOld): Apps
+    {
+        $app = app(Apps::class);
+        Carbon::setTestNow(Carbon::parse((string) $app->created_at)->addDays($daysOld));
+
+        return $app;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function geminiAgent(Apps $app, array $config = []): Agent
+    {
+        return AgentFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId(0)
+            ->create(['config' => $config]);
     }
 
     public function testDefaultsToGeminiWhenNoProviderConfigured(): void

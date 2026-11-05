@@ -1,0 +1,61 @@
+{
+  "data": [
+    {
+      "id": "msg_1a16e2b52001uH7LRNepvdTTBb",
+      "time": {
+        "created": 1793709714994
+      },
+      "text": "Create a file named hello.txt containing the word hi.",
+      "type": "user"
+    },
+    {
+      "id": "msg_1a16e2e3c001Was07Y1DupCncU",
+      "time": {
+        "created": 1793709715007,
+        "completed": 1793709715844
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-4.1-mini",
+        "providerID": "oai",
+        "variant": "default"
+      },
+      "content": [],
+      "snapshot": {
+        "start": "f434389727db9ed77afde515c45087076c47fec3",
+        "end": "f434389727db9ed77afde515c45087076c47fec3",
+        "files": []
+      },
+      "finish": "error",
+      "error": {
+        "type": "provider.auth",
+        "message": "Incorrect API key provided: sk-bogus. You can find your API key at https://platform.openai.com/account/api-keys.",
+        "status": 401,
+        "response": {
+          "body": "{\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-bogus. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+        }
+      }
+    },
+    {
+      "id": "msg_1a16e3188001bMuRsJPWE8YrQ3",
+      "time": {
+        "created": 1793709715848
+      },
+      "type": "idle",
+      "outcome": "failed",
+      "error": {
+        "type": "provider.auth",
+        "message": "Incorrect API key provided: sk-bogus. You can find your API key at https://platform.openai.com/account/api-keys.",
+        "status": 401,
+        "response": {
+          "body": "{\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-bogus. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+        }
+      }
+    }
+  ],
+  "cursor": {
+    "previous": "eyJpZCI6Im1zZ18xYTE2ZTJiNTIwMDF1SDdMUk5lcHZkVFRCYiIsIm9yZGVyIjoiYXNjIiwiZGlyZWN0aW9uIjoicHJldmlvdXMifQ",
+    "next": "eyJpZCI6Im1zZ18xYTE2ZTMxODgwMDFiTXVSc0pQV0U4WXJRMyIsIm9yZGVyIjoiYXNjIiwiZGlyZWN0aW9uIjoibmV4dCJ9"
+  }
+}
