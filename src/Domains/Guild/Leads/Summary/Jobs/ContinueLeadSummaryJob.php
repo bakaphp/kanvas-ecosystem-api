@@ -58,7 +58,11 @@ class ContinueLeadSummaryJob implements ShouldBeUniqueUntilProcessing, ShouldQue
         $provider = AgentProviderService::summaryProviderOrOwn($this->agent);
 
         for ($chunk = 0; $chunk < self::CHUNKS_PER_RUN; $chunk++) {
-            $progress = new UpdateLeadSummaryAction($this->lead, $provider, microtime(true) + self::SECONDS_PER_CHUNK)->execute();
+            $progress = new UpdateLeadSummaryAction(
+                $this->lead,
+                $provider,
+                microtime(true) + self::SECONDS_PER_CHUNK
+            )->execute();
 
             if ($progress->state->coveredThrough() >= $this->target || ! $progress->saved) {
                 if ($progress->failure !== null) {
@@ -77,6 +81,10 @@ class ContinueLeadSummaryJob implements ShouldBeUniqueUntilProcessing, ShouldQue
             }
         }
 
-        self::dispatch($this->lead, $this->agent, $this->target)->delay(5);
+        self::dispatch(
+            $this->lead,
+            $this->agent,
+            $this->target
+        )->delay(5);
     }
 }

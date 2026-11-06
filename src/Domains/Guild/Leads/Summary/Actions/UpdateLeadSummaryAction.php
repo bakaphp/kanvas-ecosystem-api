@@ -12,6 +12,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Summary\LeadConversationMessages;
 use Kanvas\Guild\Leads\Summary\LeadSummaryAgent;
 use Kanvas\Guild\Leads\Summary\LeadSummaryBatch;
+use Kanvas\Guild\Leads\Summary\LeadSummaryContext;
 use Kanvas\Guild\Leads\Summary\LeadSummaryFold;
 use Kanvas\Guild\Leads\Summary\LeadSummaryProgress;
 use Kanvas\Guild\Leads\Summary\LeadSummaryRepository;
@@ -39,6 +40,8 @@ final class UpdateLeadSummaryAction
     public const int CHUNK_TOKENS = 12_000;
 
     private const int LOCK_SECONDS = 120;
+
+    private ?string $context = null;
 
     public function __construct(
         private readonly Lead $lead,
@@ -93,6 +96,7 @@ final class UpdateLeadSummaryAction
                     $state,
                     $batch,
                     $rejections,
+                    $this->context ??= LeadSummaryContext::for($this->lead),
                 ));
             } catch (Throwable $e) {
                 Log::warning('Lead summary update failed', [

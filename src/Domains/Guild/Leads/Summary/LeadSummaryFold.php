@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Leads\Summary;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Kanvas\Guild\Leads\Summary\Output\CommitmentOperation;
+use Kanvas\Guild\Leads\Summary\Output\LeadSummarySections;
 use Kanvas\Guild\Leads\Summary\Output\LeadSummaryUpdate;
 use LogicException;
 
@@ -26,7 +27,8 @@ final class LeadSummaryFold
         string $title,
         LeadSummaryState $state,
         LeadSummaryBatch $batch,
-        array $rejections = []
+        array $rejections = [],
+        string $context = ''
     ): string {
         $items = array_map(
             static fn (array $item): string => sprintf(
@@ -40,6 +42,7 @@ final class LeadSummaryFold
         );
 
         $parts = [
+            ...($context === '' ? [] : [$context]),
             "Lead: {$title}",
             "Current summary:\n" . ($state->sections === [] ? '(none yet)' : (string) json_encode($state->sections, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)),
             "Open items:\n" . ($items === [] ? '(none)' : implode("\n", $items)),
@@ -113,14 +116,32 @@ final class LeadSummaryFold
     /**
      * Models write an empty field as the word "null" often enough that it would reach the prompt as a fact.
      *
-     * @return array<string, string|null>
+     * @return array<string, mixed>
      */
     private static function sections(LeadSummaryUpdate $update): array
     {
-        return array_map(
-            static fn (?string $value): ?string => in_array(Str::lower(trim((string) $value)), ['', 'null', 'none', 'n/a'], true) ? null : trim((string) $value),
-            $update->sections->toArray(),
+        $sections = $update->sections->toArray();
+        $facts = $sections[LeadSummarySections::KEY_FACTS];
+        unset($sections[LeadSummarySections::KEY_FACTS]);
+
+        $sections = array_map(
+            static fn (?string $value): ?string => self::isBlank($value) ? null : trim((string) $value),
+            $sections,
         );
+        $sections[LeadSummarySections::KEY_FACTS] = array_values(array_filter(
+            array_map(
+                static fn (array $fact): array => ['key' => Str::snake(trim($fact['key'])), 'value' => trim($fact['value'])],
+                $facts,
+            ),
+            static fn (array $fact): bool => $fact['key'] !== '' && ! self::isBlank($fact['value']),
+        ));
+
+        return $sections;
+    }
+
+    private static function isBlank(?string $value): bool
+    {
+        return in_array(Str::lower(trim((string) $value)), ['', 'null', 'none', 'n/a'], true);
     }
 
     /**

@@ -25,6 +25,7 @@ the one company setting is `$company->set()`; unset means the default.
 | `agent_summary_llm_config_id` | **company** | `AgentRunConfigurationEnum::SUMMARY_LLM_CONFIG` | none | one of the company's LLM configs writes summaries; wins over the two app settings |
 | `agent_tool_search_enabled` | app | `AgentRunConfigurationEnum::TOOL_SEARCH` | **on** | `0` sends every granted tool and MCP toolkit on every round again; see "Tool search" below |
 | `agent_lead_summary_enabled` | app | `AgentRunConfigurationEnum::LEAD_SUMMARY` | **on** | `0` turns off the rolling coverage-tracked summary on a lead's rollup, caught up before the reply; `Guild/Leads/Summary/CLAUDE.md` |
+| `agent_lead_summary_keys` | app, or **company** (wins) | `AgentRunConfigurationEnum::LEAD_SUMMARY_KEYS` | none | facts the lead summary tracks beyond its generic sections, named after lead custom fields; `Guild/Leads/Summary/CLAUDE.md` |
 | `agent_gemini_thinking` | app | `AgentRunConfigurationEnum::GEMINI_THINKING` | model default | `minimal` / `low` / `medium` / `high` sets Gemini's `thinkingLevel` on every chat step, an integer sets `thinkingBudget`; thought tokens land in the step's usage as `reasoning_tokens`, so compare before and after on one agent |
 
 Add a row here whenever a new `*ConfigurationEnum` case lands.

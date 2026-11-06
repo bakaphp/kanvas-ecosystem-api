@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Summary;
 
 use Illuminate\Support\Str;
+use Kanvas\Guild\Leads\Summary\Output\LeadSummarySections;
 
 /**
  * The rolling summary of one lead, as stored on its summary note under `lead_summary`: the sections the
@@ -25,17 +26,16 @@ final class LeadSummaryState
     public const string REPLACED = 'replaced';
 
     private const array SECTION_LABELS = [
-        'vehicle_of_interest' => 'Looking for',
-        'budget_financing' => 'Budget / financing',
-        'trade_in' => 'Trade-in',
-        'lot' => 'Lot / location',
+        'interest' => 'Looking for',
+        'budget_payment' => 'Budget / payment',
+        'location' => 'Location',
         'appointments' => 'Appointments',
         'objections' => 'Objections',
         'current_state' => 'Where it stands',
     ];
 
     /**
-     * @param array<string, string|null> $sections
+     * @param array<string, mixed> $sections the six text sections plus `key_facts`, a list of {key, value}
      * @param list<array{id: string, kind: string, text: string, status: string, citations: list<int>, created_at: string, closed_at?: string|null, closed_by?: list<int>, replaces?: string|null, replaced_by?: string|null, source_changed_at?: string|null}> $items
      */
     public function __construct(
@@ -146,6 +146,12 @@ final class LeadSummaryState
 
             if ($value !== '') {
                 $lines[] = "- {$label}: {$value}";
+            }
+        }
+
+        foreach ((array) ($this->sections[LeadSummarySections::KEY_FACTS] ?? []) as $fact) {
+            if (is_array($fact) && trim((string) ($fact['value'] ?? '')) !== '') {
+                $lines[] = '- ' . Str::headline((string) $fact['key']) . ': ' . trim((string) $fact['value']);
             }
         }
 

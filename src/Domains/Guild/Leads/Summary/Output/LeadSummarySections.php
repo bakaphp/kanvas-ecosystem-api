@@ -5,24 +5,25 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Summary\Output;
 
 use NeuronAI\StructuredOutput\SchemaProperty;
+use NeuronAI\StructuredOutput\Validation\Rules\ArrayOf;
 
 /**
- * The free-text part of the summary. The model may rewrite every section on every update; what must
- * survive a rewrite lives in the items instead.
+ * The free-text part of the summary, the same six sections for every business, plus key facts for what
+ * only this business tracks. The model may rewrite every section on every update; what must survive a
+ * rewrite lives in the items instead.
  */
 final class LeadSummarySections
 {
-    #[SchemaProperty(description: 'vehicle, product or service they want')]
-    public ?string $vehicle_of_interest = null;
+    public const string KEY_FACTS = 'key_facts';
 
-    #[SchemaProperty(description: 'budget, financing and down payment')]
-    public ?string $budget_financing = null;
+    #[SchemaProperty(description: 'the product, service or property they want')]
+    public ?string $interest = null;
 
-    #[SchemaProperty(description: 'trade-in details')]
-    public ?string $trade_in = null;
+    #[SchemaProperty(description: 'budget, payment terms, financing, down payment')]
+    public ?string $budget_payment = null;
 
-    #[SchemaProperty(description: 'location or lot they were sent to')]
-    public ?string $lot = null;
+    #[SchemaProperty(description: 'the location, branch or site involved')]
+    public ?string $location = null;
 
     #[SchemaProperty(description: 'appointments set, moved or cancelled, with dates')]
     public ?string $appointments = null;
@@ -33,11 +34,22 @@ final class LeadSummarySections
     #[SchemaProperty(description: 'where the conversation stands now', required: true)]
     public string $current_state;
 
+    /** @var KeyFact[] */
+    #[SchemaProperty(description: 'facts this business tracks that fit no section above', anyOf: [KeyFact::class])]
+    #[ArrayOf(KeyFact::class, allowEmpty: true)]
+    public array $key_facts = [];
+
     /**
-     * @return array<string, string|null>
+     * @return array<string, mixed>
      */
     public function toArray(): array
     {
-        return get_object_vars($this);
+        $sections = get_object_vars($this);
+        $sections[self::KEY_FACTS] = array_map(
+            static fn (KeyFact $fact): array => ['key' => $fact->key, 'value' => $fact->value],
+            $this->key_facts,
+        );
+
+        return $sections;
     }
 }

@@ -84,7 +84,15 @@ class LeadSummaryEvaluator extends BaseEvaluator
             /** @var LeadSummaryUpdate $update */
             $update = $this->metered(LeadSummaryAgent::make()->setAiProvider($this->provider))
                 ->setThreadId('lead-summary-eval-' . Str::uuid7())
-                ->structured(new UserMessage(LeadSummaryFold::prompt($datasetItem['title'], $state, $batch)), LeadSummaryUpdate::class);
+                ->structured(
+                    new UserMessage(LeadSummaryFold::prompt(
+                        $datasetItem['title'],
+                        $state,
+                        $batch,
+                        context: (string) ($datasetItem['context'] ?? ''),
+                    )),
+                    LeadSummaryUpdate::class,
+                );
 
             if (new LeadSummaryUpdateValidator($state, $batch)->violations($update) !== []) {
                 $rejected++;

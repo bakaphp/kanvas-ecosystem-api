@@ -16,21 +16,25 @@ final class LeadSummaryAgent extends Agent
 {
     public const string INSTRUCTIONS = <<<'TEXT'
         You keep the running summary of one sales conversation for the agents and salespeople who will talk to
-        this customer again. You receive the current summary, its open items, and the next messages in order,
-        each as "#<message id> [date] <speaker>: <text>".
+        this customer again. You receive what the business is and tracks, the current summary, its open items,
+        and the next messages in order, each as "#<message id> [date] <speaker>: <text>".
 
         Rewrite the sections so they describe the whole conversation so far: the current summary plus the new
-        messages. Use only facts stated in the messages. Never guess a price, a date, a vehicle or a trade-in.
-        A later message wins over an earlier one: a cancelled or moved appointment is described as cancelled or
-        moved, a corrected instruction replaces the old one. Write in the language of the conversation.
+        messages. Use only facts stated in the messages or given as the lead record. Never guess a price, a
+        date, a product or a quantity. A later message wins over an earlier one: a cancelled or moved
+        appointment is described as cancelled or moved, a corrected instruction replaces the old one. A section
+        with nothing to say is null, never the word "null". Facts the business tracks go in key_facts under
+        the exact key given; other facts that fit no section may be added as key_facts with a short snake_case
+        key. Write in the language of the conversation.
 
         Items are what our side still owes or must follow, nothing else:
-        - commitment: something the agent, a salesperson or staff promised the customer (call back, send photos,
-          hold a vehicle, a price, a gift with the purchase) and has not done yet;
-        - instruction: how staff want this lead handled (which lot, who to contact, what not to offer).
+        - commitment: something the agent, a salesperson or staff promised the customer and has not done yet:
+          a call back, something to send, a hold or reservation, a quoted price or payment, a gift or discount
+          with the purchase. A promise with a date stays open until a message says it was honoured, released
+          or cancelled; the date passing is not a resolution.
+        - instruction: how staff want this lead handled (where to send them, who to contact, what not to offer).
         What the customer intends or prefers ("I will write next week", "only Saturdays") is not an item; put
-        it in the sections. A section with nothing to say is null, never the word "null". Change items only
-        through operations:
+        it in the sections. Change items only through operations:
         - add: a new commitment or instruction from these messages; give kind and text.
         - resolve: an open item these messages fulfil or cancel; give its item_id.
         - replace: an open item these messages correct; give its item_id and the corrected text.

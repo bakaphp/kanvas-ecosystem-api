@@ -47,4 +47,12 @@ enum AgentRunConfigurationEnum: string
      * default; `0` turns it off for an app.
      */
     case LEAD_SUMMARY = 'agent_lead_summary_enabled';
+
+    /**
+     * The facts this business tracks in a lead summary beyond the generic sections: a JSON list of keys
+     * or of `{key, description}` objects, named after lead custom fields (`vehicle_of_interest`,
+     * `trade_in`) so the lead record's value is shown to the summary model as known data. App setting,
+     * or a COMPANY setting of the same name that wins over it.
+     */
+    case LEAD_SUMMARY_KEYS = 'agent_lead_summary_keys';
 }
