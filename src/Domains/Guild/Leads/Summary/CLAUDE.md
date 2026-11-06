@@ -31,9 +31,12 @@ and the lead never reads as current.
 1. Load the history, then `KanvasChatHistory::window()`: the loaded and retained row ids. Retained includes
    rows folded into a survivor. Past the fold cap a newer turn **replaces** an older one, which drops a row
    from the middle, so never reduce this to "the oldest kept row" (`LeadHistoryWindowTest`).
-2. `PrepareLeadTurnMemoryAction`: `uncovered` = dropped counted ids above the marker. An update runs when
-   that is non-empty, or when the summary plus what it does not cover passes 80% of the history budget and
-   there is an older portion beyond the 8-message tail (D1). Nothing else triggers one: no timer, no count.
+2. `PrepareLeadTurnMemoryAction`: `uncovered` = every counted id above the marker that is not retained,
+   whether the rollup dropped it or never loaded it (a customer-facing rollup never loads staff notes).
+   An update runs when that is non-empty, when a rebuild is pending, or when the summary plus what it
+   does not cover passes 80% of the history budget and there is an older portion beyond the 8-message
+   tail (D1). Nothing else triggers one: no timer, no count. `LeadHistoryWindow::withCoverage()` narrows
+   that same set after the catch-up; it never recomputes it from `dropped`.
 3. One chunk inside the turn, 15 s including the lock wait and the retry (D9). What is left goes to
    `ContinueLeadSummaryJob`, unique per lead until processing, which stops at its target. The summary
    provider is a closure resolved inside that step, never before: resolving it reads the agent's LLM

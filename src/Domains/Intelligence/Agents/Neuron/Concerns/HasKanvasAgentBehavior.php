@@ -12,6 +12,7 @@ use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Summary\Actions\PrepareLeadTurnMemoryAction;
+use Kanvas\Guild\Leads\Summary\LeadSummaryRepository;
 use Kanvas\Guild\Leads\Summary\LeadTurnMemory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
@@ -500,13 +501,14 @@ trait HasKanvasAgentBehavior
     {
         // History first: on a lead, what the window drops decides the summary the instructions carry,
         // and the retrieval built after this reads the same window.
+        $contextWindow = $this->contextWindow ?? $this->contextWindow();
         $history = new KanvasChatHistory(
             $this->resolveMessageStore(),
             $this->requireWorkflowId(),
-            $this->contextWindow ?? $this->contextWindow(),
+            $contextWindow,
             KanvasHistoryTrimmer::make(),
         );
-        $this->leadTurnMemory = $this->prepareLeadTurnMemory($history);
+        $this->leadTurnMemory = $this->prepareLeadTurnMemory($history, $contextWindow);
 
         [$instructions, $tools] = $this->resolveTools();
         [$tools, $this->toolSearchPool] = $this->splitForToolSearch($tools);
@@ -528,7 +530,7 @@ trait HasKanvasAgentBehavior
      * The rolling lead summary, when this turn reads a lead's rollup and the app has it on. Off the
      * lead path it costs nothing: no load, no query.
      */
-    private function prepareLeadTurnMemory(KanvasChatHistory $history): ?LeadTurnMemory
+    private function prepareLeadTurnMemory(KanvasChatHistory $history, int $historyBudget): ?LeadTurnMemory
     {
         $lead = $this->entity;
 
@@ -547,7 +549,7 @@ trait HasKanvasAgentBehavior
             agent: $this->agent,
             lead: $lead,
             window: $history->window(),
-            historyBudget: $this->contextWindow ?? $this->contextWindow(),
+            historyBudget: $historyBudget,
             customerFacing: $this instanceof ConversesWithCustomer,
             summaryProvider: fn (): AIProviderInterface => $this->leadSummaryProvider(),
         )->execute();
@@ -555,7 +557,7 @@ trait HasKanvasAgentBehavior
 
     protected function leadSummaryActive(): bool
     {
-        return $this->app?->getBool(AgentRunConfigurationEnum::LEAD_SUMMARY->value, default: true) ?? false;
+        return $this->app !== null && LeadSummaryRepository::enabledFor($this->app);
     }
 
     protected function leadSummaryProvider(): AIProviderInterface

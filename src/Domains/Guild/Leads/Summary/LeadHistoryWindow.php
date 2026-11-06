@@ -58,7 +58,10 @@ final readonly class LeadHistoryWindow
             loaded: $this->loaded,
             retained: $this->retained,
             dropped: $this->dropped,
-            uncovered: self::above($this->dropped, $state->coveredThrough()),
+            uncovered: array_values(array_filter(
+                $this->uncovered,
+                static fn (int $id): bool => $id > $state->coveredThrough(),
+            )),
         );
     }
 
@@ -79,14 +82,5 @@ final readonly class LeadHistoryWindow
         }
 
         return $ids;
-    }
-
-    /**
-     * @param list<int> $ids
-     * @return list<int>
-     */
-    private static function above(array $ids, int $coveredThrough): array
-    {
-        return array_values(array_filter($ids, static fn (int $id): bool => $id > $coveredThrough));
     }
 }
