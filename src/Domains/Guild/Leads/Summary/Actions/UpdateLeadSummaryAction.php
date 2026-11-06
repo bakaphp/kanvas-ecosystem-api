@@ -20,8 +20,10 @@ use Kanvas\Guild\Leads\Summary\LeadSummaryState;
 use Kanvas\Guild\Leads\Summary\LeadSummaryUpdateValidator;
 use Kanvas\Guild\Leads\Summary\Output\LeadSummaryUpdate;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Exceptions\AgentException;
 use NeuronAI\HttpClient\Guzzle\GuzzleHttpClient;
 use NeuronAI\Providers\AIProviderInterface;
+use NeuronAI\StructuredOutput\Deserializer\DeserializerException;
 use Throwable;
 
 /**
@@ -46,7 +48,7 @@ final class UpdateLeadSummaryAction
     public function __construct(
         private readonly Lead $lead,
         private readonly AIProviderInterface $provider,
-        private readonly float $deadline,
+        private readonly float $deadline
     ) {
     }
 
@@ -70,7 +72,12 @@ final class UpdateLeadSummaryAction
     private function step(LeadSummaryState $state): LeadSummaryProgress
     {
         $after = $state->rebuildFrom === null ? $state->through : $state->rebuildFrom - 1;
-        $batch = LeadSummaryBatch::fromMessages(LeadConversationMessages::after($this->lead, $after, self::CHUNK_TOKENS));
+        $batch = LeadSummaryBatch::fromMessages(LeadConversationMessages::after(
+            $this->lead,
+            $after,
+            self::CHUNK_TOKENS,
+            withTombstones: $state->rebuildFrom !== null,
+        ));
 
         if ($batch->isEmpty()) {
             return $state->rebuildFrom === null
@@ -98,6 +105,17 @@ final class UpdateLeadSummaryAction
                     $rejections,
                     $this->context ??= LeadSummaryContext::for($this->lead),
                 ));
+            } catch (AgentException|DeserializerException $e) {
+                // Malformed output is retried here, not by Neuron: its own retry reuses the request
+                // timeout, so two attempts could run past the turn's deadline.
+                $rejections = ['Your previous answer did not match the schema: ' . $e->getMessage()];
+                Log::warning('Lead summary update malformed', [
+                    'lead_id' => $this->lead->getId(),
+                    'attempt' => $attempt,
+                    'error' => $e->getMessage(),
+                ]);
+
+                continue;
             } catch (Throwable $e) {
                 Log::warning('Lead summary update failed', [
                     'lead_id' => $this->lead->getId(),
@@ -132,7 +150,7 @@ final class UpdateLeadSummaryAction
         return LeadSummaryAgent::make()
             ->setAiProvider($this->provider)
             ->setThreadId('lead-summary-' . Str::uuid7())
-            ->structured(new UserMessage($prompt), LeadSummaryUpdate::class, maxRetries: 1);
+            ->structured(new UserMessage($prompt), LeadSummaryUpdate::class, maxRetries: 0);
     }
 
     private function save(LeadSummaryState $state): LeadSummaryProgress

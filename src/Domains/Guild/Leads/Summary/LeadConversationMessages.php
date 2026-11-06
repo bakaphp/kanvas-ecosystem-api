@@ -53,16 +53,22 @@ final class LeadConversationMessages
 
     /**
      * The counted messages after `$afterId`, oldest first, as many as fit `$tokenBudget` (always at
-     * least one, or a single long message would stall coverage forever).
+     * least one, or a single long message would stall coverage forever). A rebuild also wants the
+     * messages deleted since, as tombstones: the model has to see that a fact's source is gone to drop
+     * it, and an item citing it can only be resolved by citing the tombstone.
      *
      * @return list<Message>
      */
-    public static function after(Lead $lead, int $afterId, int $tokenBudget): array
-    {
+    public static function after(
+        Lead $lead,
+        int $afterId,
+        int $tokenBudget,
+        bool $withTombstones = false
+    ): array {
         $batch = [];
         $spent = 0;
 
-        foreach (self::countedAfter($lead, $afterId) as $message) {
+        foreach (self::conversationAfter($lead, $afterId, $withTombstones) as $message) {
             $tokens = self::tokens($message);
 
             if ($batch !== [] && $spent + $tokens > $tokenBudget) {
@@ -84,7 +90,7 @@ final class LeadConversationMessages
     {
         $spent = 0;
 
-        foreach (self::countedAfter($lead, $afterId) as $message) {
+        foreach (self::conversationAfter($lead, $afterId) as $message) {
             $spent += self::tokens($message);
 
             if ($spent > $cap) {
@@ -96,15 +102,50 @@ final class LeadConversationMessages
     }
 
     /**
+     * The counted ids above `$afterId`: what the summary does not cover yet, whether or not the agent's
+     * window loaded them.
+     *
+     * @return list<int>
+     */
+    public static function idsAfter(Lead $lead, int $afterId): array
+    {
+        $ids = [];
+
+        foreach (self::conversationAfter($lead, $afterId) as $message) {
+            $ids[] = (int) $message->getId();
+        }
+
+        return $ids;
+    }
+
+    /**
      * @return Generator<int, Message>
      */
-    private static function countedAfter(Lead $lead, int $afterId): Generator
+    private static function conversationAfter(Lead $lead, int $afterId, bool $withTombstones = false): Generator
     {
-        foreach (self::query($lead)->where('message_id', '>', $afterId)->lazyById(200, 'message_id') as $row) {
-            if ($row->message !== null && self::counts($row->message)) {
-                yield $row->message;
+        $query = self::query($lead)->where('message_id', '>', $afterId);
+
+        if ($withTombstones) {
+            // The message relation carries the soft-delete scope; a tombstone is exactly a deleted row.
+            $query->with(['message' => static fn ($message) => $message->withTrashed()]);
+        }
+
+        foreach ($query->lazyById(200, 'message_id') as $row) {
+            $message = $row->message;
+
+            if ($message === null) {
+                continue;
+            }
+
+            if (self::counts($message) || ($withTombstones && self::isTombstone($message))) {
+                yield $message;
             }
         }
+    }
+
+    public static function isTombstone(Message $message): bool
+    {
+        return (int) $message->is_deleted === 1 && self::isConversationKind($message);
     }
 
     /**
@@ -132,7 +173,9 @@ final class LeadConversationMessages
             (int) $message->getId(),
             $message->created_at?->format('Y-m-d H:i') ?? 'unknown date',
             self::speaker($message),
-            $message->contentText(),
+            self::isTombstone($message)
+                ? '[deleted message] what only this message supported no longer holds'
+                : $message->contentText(),
         );
     }
 

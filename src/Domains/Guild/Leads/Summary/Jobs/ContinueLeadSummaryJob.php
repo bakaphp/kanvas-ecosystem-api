@@ -14,8 +14,10 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Summary\Actions\UpdateLeadSummaryAction;
+use Kanvas\Guild\Leads\Summary\LeadSummaryRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
+use NeuronAI\Providers\AIProviderInterface;
 
 /**
  * Finishes catch-up a turn started and could not finish in its budget. Only ever queued by a turn
@@ -35,14 +37,20 @@ class ContinueLeadSummaryJob implements ShouldBeUniqueUntilProcessing, ShouldQue
 
     private const int SECONDS_PER_CHUNK = 60;
 
+    public const int MAX_RUNS = 20;
+
     public int $tries = 3;
     public int $timeout = 400;
     public int $uniqueFor = 600;
 
+    // Defaults also apply to jobs serialized before continuation limits were introduced.
+    public int $continuations = 0;
+    public int $previousCoveredThrough = 0;
+
     public function __construct(
         public readonly Lead $lead,
         public readonly Agent $agent,
-        public readonly int $target,
+        public readonly int $target
     ) {
     }
 
@@ -55,7 +63,20 @@ class ContinueLeadSummaryJob implements ShouldBeUniqueUntilProcessing, ShouldQue
     {
         $this->overwriteAppService($this->lead->app);
 
-        $provider = AgentProviderService::summaryProviderOrOwn($this->agent);
+        $coveredThrough = LeadSummaryRepository::state($this->lead)->coveredThrough();
+
+        if ($coveredThrough >= $this->target) {
+            return;
+        }
+
+        if ($this->continuations >= self::MAX_RUNS) {
+            $this->logStopped('chain_limit', $coveredThrough);
+
+            return;
+        }
+
+        $coveredThrough = max($coveredThrough, $this->previousCoveredThrough);
+        $provider = $this->summaryProvider();
 
         for ($chunk = 0; $chunk < self::CHUNKS_PER_RUN; $chunk++) {
             $progress = new UpdateLeadSummaryAction(
@@ -66,12 +87,7 @@ class ContinueLeadSummaryJob implements ShouldBeUniqueUntilProcessing, ShouldQue
 
             if ($progress->state->coveredThrough() >= $this->target || ! $progress->saved) {
                 if ($progress->failure !== null) {
-                    Log::warning('Lead summary continuation stopped', [
-                        'lead_id' => $this->lead->getId(),
-                        'target' => $this->target,
-                        'covered_through' => $progress->state->coveredThrough(),
-                        'reason' => $progress->failure,
-                    ]);
+                    $this->logStopped($progress->failure, $progress->state->coveredThrough());
 
                     // A provider or validation failure is worth a retry with backoff; the target stands.
                     $this->release(120 * $this->attempts());
@@ -79,12 +95,41 @@ class ContinueLeadSummaryJob implements ShouldBeUniqueUntilProcessing, ShouldQue
 
                 return;
             }
+
+            if ($progress->state->coveredThrough() <= $coveredThrough) {
+                $this->logStopped('no_progress', $progress->state->coveredThrough());
+
+                return;
+            }
+
+            $coveredThrough = $progress->state->coveredThrough();
         }
 
-        self::dispatch(
-            $this->lead,
-            $this->agent,
-            $this->target
-        )->delay(5);
+        if ($this->continuations + 1 >= self::MAX_RUNS) {
+            $this->logStopped('chain_limit', $coveredThrough);
+
+            return;
+        }
+
+        $next = new self($this->lead, $this->agent, $this->target);
+        $next->continuations = $this->continuations + 1;
+        $next->previousCoveredThrough = $coveredThrough;
+        dispatch($next)->delay(5);
+    }
+
+    protected function summaryProvider(): AIProviderInterface
+    {
+        return AgentProviderService::summaryProviderOrOwn($this->agent);
+    }
+
+    private function logStopped(string $reason, int $coveredThrough): void
+    {
+        Log::warning('Lead summary continuation stopped', [
+            'lead_id' => $this->lead->getId(),
+            'target' => $this->target,
+            'covered_through' => $coveredThrough,
+            'continuations' => $this->continuations,
+            'reason' => $reason,
+        ]);
     }
 }

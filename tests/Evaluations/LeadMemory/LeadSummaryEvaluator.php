@@ -22,6 +22,7 @@ use NeuronAI\Evaluation\BaseEvaluator;
 use NeuronAI\Evaluation\Contracts\DatasetInterface;
 use NeuronAI\Evaluation\Dataset\JsonDataset;
 use NeuronAI\Providers\AIProviderInterface;
+use Tests\Evaluations\LeadMemory\Assertions\NoRejectedChunks;
 
 /**
  * What the shape checks cannot prove: that the rolling summary keeps a commitment it saw, closes an item
@@ -59,12 +60,12 @@ class LeadSummaryEvaluator extends BaseEvaluator
 
     /**
      * @param array<string, mixed> $datasetItem
-     * @return array{state: LeadSummaryState, rejected: int}
+     * @return array{state: LeadSummaryState, rejected: list<list<string>>} the validator's reasons per rejected chunk
      */
     public function run(array $datasetItem): array
     {
         $state = new LeadSummaryState();
-        $rejected = 0;
+        $rejected = [];
 
         foreach (array_chunk($datasetItem['messages'], self::MESSAGES_PER_CHUNK) as $chunk) {
             $batch = new LeadSummaryBatch(array_column(array_map(
@@ -81,21 +82,36 @@ class LeadSummaryEvaluator extends BaseEvaluator
                 $chunk,
             ), null, 'id'));
 
-            /** @var LeadSummaryUpdate $update */
-            $update = $this->metered(LeadSummaryAgent::make()->setAiProvider($this->provider))
-                ->setThreadId('lead-summary-eval-' . Str::uuid7())
-                ->structured(
-                    new UserMessage(LeadSummaryFold::prompt(
-                        $datasetItem['title'],
-                        $state,
-                        $batch,
-                        context: (string) ($datasetItem['context'] ?? ''),
-                    )),
-                    LeadSummaryUpdate::class,
-                );
+            // The same two attempts production makes: the second carries the validator's reasons.
+            $rejections = [];
+            $update = null;
 
-            if (new LeadSummaryUpdateValidator($state, $batch)->violations($update) !== []) {
-                $rejected++;
+            foreach ([1, 2] as $attempt) {
+                /** @var LeadSummaryUpdate $candidate */
+                $candidate = $this->metered(LeadSummaryAgent::make()->setAiProvider($this->provider))
+                    ->setThreadId('lead-summary-eval-' . Str::uuid7())
+                    ->structured(
+                        new UserMessage(LeadSummaryFold::prompt(
+                            $datasetItem['title'],
+                            $state,
+                            $batch,
+                            $rejections,
+                            (string) ($datasetItem['context'] ?? ''),
+                        )),
+                        LeadSummaryUpdate::class,
+                        maxRetries: 0,
+                    );
+                $rejections = new LeadSummaryUpdateValidator($state, $batch)->violations($candidate);
+
+                if ($rejections === []) {
+                    $update = $candidate;
+
+                    break;
+                }
+            }
+
+            if ($update === null) {
+                $rejected[] = $rejections;
 
                 continue;
             }
@@ -107,7 +123,7 @@ class LeadSummaryEvaluator extends BaseEvaluator
     }
 
     /**
-     * @param array{state: LeadSummaryState, rejected: int} $output
+     * @param array{state: LeadSummaryState, rejected: list<list<string>>} $output
      * @param array<string, mixed> $datasetItem
      */
     public function evaluate(mixed $output, array $datasetItem): void
@@ -117,6 +133,8 @@ class LeadSummaryEvaluator extends BaseEvaluator
             $datasetItem['messages'],
         ));
         $openItems = Str::lower(implode("\n", array_column($output['state']->openItems(), 'text')));
+
+        $this->assert(new NoRejectedChunks(), $output['rejected'], 'every chunk applied');
 
         if ($datasetItem['expect_open'] !== []) {
             $this->assert(new StringContainsAll(array_map(Str::lower(...), $datasetItem['expect_open'])), $openItems, 'commitment recall');

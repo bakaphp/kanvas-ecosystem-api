@@ -147,7 +147,7 @@ final class LeadSummaryFold
     /**
      * The next state's coverage. A rebuild ends once it has re-read everything the summary covered.
      *
-     * @param array<string, string|null> $sections
+     * @param array<string, mixed> $sections
      * @param list<array<string, mixed>> $items
      */
     public static function covered(

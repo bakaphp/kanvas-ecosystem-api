@@ -14,15 +14,14 @@ use Kanvas\Guild\Leads\Summary\Jobs\ContinueLeadSummaryJob;
 use Kanvas\Guild\Leads\Summary\LeadSummaryRepository;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Providers\AIProviderInterface;
+use Tests\Stubs\Intelligence\ScriptedStructuredNeuronProvider;
 use Tests\TestCase;
 use Tests\Traits\MakesAgents;
 use Tests\Traits\MakesLeadConversations;
 
 /**
  * Resolving the summary provider reads the agent's LLM configuration and fails on an app with no key.
- * That must cost nothing on a turn that needs no catch-up, and never fail the turn when one does: the
- * WaSender receptionist test answered "What do you mean?" in CI because the provider was resolved
- * before the action knew whether it had anything to summarize.
+ * That must cost nothing on a turn that needs no catch-up, and never fail the turn when one does.
  */
 final class PrepareLeadTurnMemoryActionTest extends TestCase
 {
@@ -46,11 +45,16 @@ final class PrepareLeadTurnMemoryActionTest extends TestCase
         $message = $this->leadMessage($lead, 'hi, is the Tacoma available?');
         $resolved = 0;
 
-        $memory = $this->prepare($lead, [$message], [$message], function () use (&$resolved): AIProviderInterface {
-            $resolved++;
+        $memory = $this->prepare(
+            $lead,
+            [$message],
+            [$message],
+            function () use (&$resolved): AIProviderInterface {
+                $resolved++;
 
-            throw new ValidationException('gemini API key is not configured for this agent or app.');
-        })->execute();
+                throw new ValidationException('gemini API key is not configured for this agent or app.');
+            },
+        )->execute();
 
         $this->assertSame(0, $resolved);
         $this->assertSame('', $memory->block);
@@ -63,9 +67,14 @@ final class PrepareLeadTurnMemoryActionTest extends TestCase
         $dropped = $this->leadMessage($lead, 'Can you hold the white Tacoma for me until Friday?');
         $kept = $this->leadMessage($lead, 'Yes, I will hold it for you until Friday.', fromAgent: true);
 
-        $memory = $this->prepare($lead, [$dropped, $kept], [$kept], static function (): AIProviderInterface {
-            throw new ValidationException('gemini API key is not configured for this agent or app.');
-        })->execute();
+        $memory = $this->prepare(
+            $lead,
+            [$dropped, $kept],
+            [$kept],
+            static function (): AIProviderInterface {
+                throw new ValidationException('gemini API key is not configured for this agent or app.');
+            },
+        )->execute();
 
         $this->assertSame([$dropped->getId()], $memory->window->uncovered);
         $this->assertStringContainsString('Earlier messages not yet summarized', $memory->block);
@@ -75,11 +84,41 @@ final class PrepareLeadTurnMemoryActionTest extends TestCase
     }
 
     /**
+     * An edited or deleted covered message leaves the summary possibly wrong; that alone has to run the
+     * catch-up, whatever the window dropped.
+     */
+    public function testAPendingRebuildRunsTheCatchUpEvenWhenNothingWasDropped(): void
+    {
+        $lead = $this->makeLead();
+        $first = $this->leadMessage($lead, 'price locked at 30k');
+        $second = $this->leadMessage($lead, 'great');
+        $this->updateSummary($lead, [$this->summaryAnswer([])]);
+        LeadSummaryRepository::save($lead, LeadSummaryRepository::state($lead)->withChangedMessage($first->getId(), '2026-11-06'));
+        $summaries = new ScriptedStructuredNeuronProvider([$this->summaryAnswer([], 'rebuilt')]);
+
+        $memory = $this->prepare(
+            $lead,
+            [$first, $second],
+            [$first, $second],
+            static fn (): AIProviderInterface => $summaries,
+        )->execute();
+
+        $this->assertCount(1, $summaries->prompts, 'The rebuild ran in the turn');
+        $this->assertNull($memory->state->rebuildFrom);
+        $this->assertSame('rebuilt', $memory->state->sections['current_state']);
+        Bus::assertNotDispatched(ContinueLeadSummaryJob::class);
+    }
+
+    /**
      * @param list<Message> $loaded
      * @param list<Message> $retained
      */
-    private function prepare(Lead $lead, array $loaded, array $retained, callable $provider): PrepareLeadTurnMemoryAction
-    {
+    private function prepare(
+        Lead $lead,
+        array $loaded,
+        array $retained,
+        callable $provider
+    ): PrepareLeadTurnMemoryAction {
         $ids = static fn (array $messages): array => array_map(
             static fn (Message $message): string => 'social:' . $message->getId(),
             $messages,

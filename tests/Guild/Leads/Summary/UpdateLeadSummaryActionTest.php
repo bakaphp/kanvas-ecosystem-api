@@ -135,16 +135,61 @@ final class UpdateLeadSummaryActionTest extends TestCase
         $this->assertNull(LeadSummaryRepository::note($lead));
     }
 
-    public function testMalformedOutputWritesNothing(): void
+    /**
+     * Neuron's own retry would reuse the request timeout and could run past the turn's deadline, so a
+     * malformed answer is retried here, once, with the error, inside the same budget.
+     */
+    public function testMalformedOutputIsRetriedOnceWithTheErrorThenWritesNothing(): void
     {
         $lead = $this->makeLead();
         $this->leadMessage($lead, 'hello');
+        $provider = new ScriptedStructuredNeuronProvider(['not json at all', '{"operations": "nope"}']);
 
-        $progress = $this->updateSummary($lead, ['not json at all', '{"operations": "nope"}']);
+        $progress = new UpdateLeadSummaryAction($lead, $provider, microtime(true) + 15)->execute();
 
         $this->assertFalse($progress->saved);
-        $this->assertSame('provider', $progress->failure);
+        $this->assertSame('rejected', $progress->failure);
         $this->assertNull(LeadSummaryRepository::note($lead));
+        $this->assertCount(2, $provider->prompts);
+        $this->assertStringContainsString('did not match the schema', $provider->prompts[1]);
+    }
+
+    public function testAMalformedFirstAnswerStillSavesWhenTheRetryIsValid(): void
+    {
+        $lead = $this->makeLead();
+        $last = $this->leadMessage($lead, 'hello');
+
+        $progress = $this->updateSummary($lead, ['not json at all', $this->summaryAnswer([])]);
+
+        $this->assertTrue($progress->saved);
+        $this->assertSame($last->getId(), LeadSummaryRepository::state($lead)->through);
+    }
+
+    /**
+     * A fact whose only source was deleted has to leave the summary: the rebuild shows the model the
+     * deleted message as a tombstone it can cite, and an item citing it stays flagged until it does.
+     */
+    public function testADeletedMessageReachesTheRebuildAsATombstone(): void
+    {
+        $lead = $this->makeLead();
+        $promise = $this->leadMessage($lead, 'I will hold the truck until Friday', fromAgent: true);
+        $this->leadMessage($lead, 'thanks');
+        $this->updateSummary($lead, [$this->summaryAnswer([['op' => 'add', 'kind' => 'commitment', 'text' => 'Hold the truck until Friday', 'citations' => [$promise->getId()]]])]);
+        $itemId = LeadSummaryRepository::state($lead)->openItems()[0]['id'];
+
+        $promise->is_deleted = 1;
+        $promise->saveOrFail();
+        $this->assertSame($promise->getId(), LeadSummaryRepository::state($lead)->rebuildFrom);
+
+        $provider = new ScriptedStructuredNeuronProvider([$this->summaryAnswer([['op' => 'resolve', 'item_id' => $itemId, 'citations' => [$promise->getId()]]], 'no hold any more')]);
+        $progress = new UpdateLeadSummaryAction($lead, $provider, microtime(true) + 15)->execute();
+
+        $this->assertTrue($progress->saved);
+        $this->assertStringContainsString('[deleted message]', $provider->prompts[0]);
+        $state = LeadSummaryRepository::state($lead);
+        $this->assertNull($state->rebuildFrom);
+        $this->assertSame(LeadSummaryState::RESOLVED, $state->findItem($itemId)['status']);
+        $this->assertSame([], $state->openItems());
     }
 
     public function testTheSummaryNoteAndTelemetryNeverMakeTheLeadStale(): void
