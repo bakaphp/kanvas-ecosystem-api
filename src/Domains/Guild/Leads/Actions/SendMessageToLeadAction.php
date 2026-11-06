@@ -13,9 +13,8 @@ use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
-use Kanvas\Connectors\Mailgun\Actions\RecordEmailAttemptAction;
+use Kanvas\Connectors\Mailgun\Actions\FileEmailDeliveryAction;
 use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
-use Kanvas\Connectors\Mailgun\Enums\DeliveryStatusEnum;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
@@ -44,6 +43,7 @@ use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Ramsey\Uuid\Uuid;
 use Throwable;
@@ -958,7 +958,7 @@ class SendMessageToLeadAction
             : null;
 
         if ($mailboxAddress !== null) {
-            $this->attemptedProvider = DeliveryStatusEnum::ACCEPTED->provider();
+            $this->attemptedProvider = IntegrationsEnum::MAILGUN->value;
             $mailgunMessageId = new SendAsAgentMailboxAction(
                 agent: $fromAgent,
                 to: $leadEmail,
@@ -984,7 +984,7 @@ class SendMessageToLeadAction
                 from: $mailboxAddress,
             ) + [
                 'provider' => $this->attemptedProvider,
-                'provider_message_id' => RecordEmailAttemptAction::normalizeMessageId($mailgunMessageId),
+                'provider_message_id' => FileEmailDeliveryAction::normalizeMessageId($mailgunMessageId),
                 'attempt_uuid' => $this->attemptUuid,
             ];
         }

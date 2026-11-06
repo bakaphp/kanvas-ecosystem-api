@@ -4,18 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Enums;
 
-use Kanvas\Social\Messages\Contracts\DeliveryStatus;
-use Override;
+use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum as CommunicationDeliveryStatusEnum;
 
 /**
- * What an outbound email's Mailgun event says about its delivery. Mailgun reports both kinds of
- * failure as `failed` and tells them apart by `severity`: a temporary one is retried by Mailgun
- * itself, a permanent one is final.
- *
- * `complained` and `unsubscribed` arrive after delivery and say nothing new about it, so they never
- * move the attempt's status; they only drive the remediation.
+ * A Mailgun event about an outbound email's delivery. Mailgun reports both kinds of failure as `failed`
+ * and tells them apart by `severity`: a temporary one is retried by Mailgun itself, a permanent one is
+ * final. The value is what the delivery event stores as the provider's own status.
  */
-enum DeliveryStatusEnum: string implements DeliveryStatus
+enum DeliveryStatusEnum: string
 {
     case ACCEPTED = 'accepted';
     case TEMPORARY_FAILURE = 'temporary_failure';
@@ -36,70 +32,30 @@ enum DeliveryStatusEnum: string implements DeliveryStatus
         };
     }
 
-    public static function tryFromStatus(?string $status): ?self
+    /**
+     * A temporary failure is Mailgun still trying, so it stays `accepted`. A complaint or an unsubscribe
+     * can only come from someone who received the email, so it reads as `delivered`; the delivery only
+     * moves forward, so neither undoes a later outcome.
+     */
+    public function toDeliveryStatus(): CommunicationDeliveryStatusEnum
     {
-        return self::tryFrom(strtolower(trim((string) $status)));
+        return match ($this) {
+            self::ACCEPTED, self::TEMPORARY_FAILURE => CommunicationDeliveryStatusEnum::ACCEPTED,
+            self::DELIVERED, self::COMPLAINED, self::UNSUBSCRIBED => CommunicationDeliveryStatusEnum::DELIVERED,
+            self::FAILED => CommunicationDeliveryStatusEnum::FAILED,
+        };
     }
 
-    #[Override]
-    public function provider(): string
+    public function isFailure(): bool
     {
-        return 'mailgun';
-    }
-
-    #[Override]
-    public function isDeliveryOutcome(): bool
-    {
-        return in_array($this, [self::DELIVERED, self::FAILED], true);
-    }
-
-    public function changesDeliveryStatus(): bool
-    {
-        return ! in_array($this, [self::COMPLAINED, self::UNSUBSCRIBED], true);
+        return in_array($this, [self::TEMPORARY_FAILURE, self::FAILED], true);
     }
 
     /**
-     * An attempt only moves forward: a late `accepted` or a temporary failure Mailgun already
-     * recovered from must not overwrite `delivered`, and nothing overwrites a final outcome.
+     * A spam complaint or an unsubscribe is the person asking us to stop.
      */
-    public function canFollow(?self $current): bool
+    public function isStopRequest(): bool
     {
-        if ($current === null) {
-            return true;
-        }
-
-        if ($current->isDeliveryOutcome()) {
-            return false;
-        }
-
-        return $this->rank() >= $current->rank();
-    }
-
-    public function classification(): ?string
-    {
-        return match ($this) {
-            self::TEMPORARY_FAILURE => 'temporary_failure',
-            self::FAILED => 'hard_bounce',
-            self::COMPLAINED => 'complained',
-            self::UNSUBSCRIBED => 'unsubscribed',
-            default => null,
-        };
-    }
-
-    public function remediationAction(): ?string
-    {
-        return match ($this) {
-            self::FAILED, self::COMPLAINED, self::UNSUBSCRIBED => 'suppress_email',
-            default => null,
-        };
-    }
-
-    private function rank(): int
-    {
-        return match ($this) {
-            self::ACCEPTED => 10,
-            self::TEMPORARY_FAILURE => 20,
-            default => 100,
-        };
+        return in_array($this, [self::COMPLAINED, self::UNSUBSCRIBED], true);
     }
 }

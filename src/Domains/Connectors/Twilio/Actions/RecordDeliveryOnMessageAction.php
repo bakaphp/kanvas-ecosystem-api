@@ -2,20 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\Actions;
+namespace Kanvas\Connectors\Twilio\Actions;
 
+use Kanvas\Connectors\Twilio\Enums\MessageStatusEnum;
 use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Contracts\DeliveryStatus;
 use Kanvas\Social\Messages\Events\MessageDeliveryStatusEvent;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
- * Mirrors the provider's delivery state into the message body under `delivery`, so a client reading the
+ * Mirrors the Twilio delivery state into the message body under `delivery`, so a client reading the
  * message sees it without the custom fields, and pushes the outcome to the message's channels once it
  * is known (delivered, or failed with its error).
- *
- * `message_sid` holds the provider's own message id for every provider (a Twilio SID, a Mailgun
- * Message-Id): clients already read that key for SMS.
  *
  * Saved quietly: a status callback is bookkeeping, and a normal save fires the message's UPDATED
  * workflow rules once per callback (queued, sent, delivered...).
@@ -28,19 +25,19 @@ class RecordDeliveryOnMessageAction
     }
 
     public function execute(
-        DeliveryStatus $status,
-        ?string $providerMessageId = null,
+        MessageStatusEnum $status,
+        ?string $messageSid = null,
         ?string $errorCode = null,
         ?string $errorMessage = null,
     ): void {
         $payload = $this->message->getMessage();
 
         $delivery = [
-            'provider' => $status->provider(),
+            'provider' => 'twilio',
             'status' => $status->value,
             'error_code' => $errorCode,
             'error_message' => $errorMessage,
-            'message_sid' => $providerMessageId ?? ($payload['delivery']['message_sid'] ?? null),
+            'message_sid' => $messageSid ?? ($payload['delivery']['message_sid'] ?? null),
             'updated_at' => now()->toAtomString(),
         ];
 

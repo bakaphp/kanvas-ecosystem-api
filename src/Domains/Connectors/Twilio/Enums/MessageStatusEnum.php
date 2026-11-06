@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Enums;
 
-use Kanvas\Social\Messages\Contracts\DeliveryStatus;
-use Override;
-
 /**
  * Twilio's Message `status` values, as the Messages API and the status callback spell them.
  */
-enum MessageStatusEnum: string implements DeliveryStatus
+enum MessageStatusEnum: string
 {
     case ACCEPTED = 'accepted';
     case SCHEDULED = 'scheduled';
@@ -36,13 +33,7 @@ enum MessageStatusEnum: string implements DeliveryStatus
         return in_array($this, [self::DELIVERED, self::UNDELIVERED, self::FAILED, self::CANCELED], true);
     }
 
-    #[Override]
-    public function provider(): string
-    {
-        return 'twilio';
-    }
-
-    #[Override]
+    /** Whether the text reached the handset or definitively did not — what a client is told live. */
     public function isDeliveryOutcome(): bool
     {
         return in_array($this, [self::DELIVERED, self::UNDELIVERED, self::FAILED], true);

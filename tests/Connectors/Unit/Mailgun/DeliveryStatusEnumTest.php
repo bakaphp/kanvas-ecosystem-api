@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Unit\Mailgun;
 
+use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum as CommunicationDeliveryStatusEnum;
 use Kanvas\Connectors\Mailgun\Enums\DeliveryStatusEnum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCaseUnit;
@@ -29,30 +30,31 @@ final class DeliveryStatusEnumTest extends TestCaseUnit
         ];
     }
 
-    public function testOnlyDeliveredAndPermanentFailureAreOutcomes(): void
+    #[DataProvider('deliveryStatuses')]
+    public function testMapsOntoTheCommunicationDeliveryStatus(DeliveryStatusEnum $event, CommunicationDeliveryStatusEnum $expected): void
     {
-        $outcomes = array_values(array_filter(
+        $this->assertSame($expected, $event->toDeliveryStatus());
+    }
+
+    public static function deliveryStatuses(): array
+    {
+        return [
+            'accepted' => [DeliveryStatusEnum::ACCEPTED, CommunicationDeliveryStatusEnum::ACCEPTED],
+            'a temporary failure is still being retried' => [DeliveryStatusEnum::TEMPORARY_FAILURE, CommunicationDeliveryStatusEnum::ACCEPTED],
+            'delivered' => [DeliveryStatusEnum::DELIVERED, CommunicationDeliveryStatusEnum::DELIVERED],
+            'permanent failure' => [DeliveryStatusEnum::FAILED, CommunicationDeliveryStatusEnum::FAILED],
+            'a complaint proves delivery' => [DeliveryStatusEnum::COMPLAINED, CommunicationDeliveryStatusEnum::DELIVERED],
+            'an unsubscribe proves delivery' => [DeliveryStatusEnum::UNSUBSCRIBED, CommunicationDeliveryStatusEnum::DELIVERED],
+        ];
+    }
+
+    public function testOnlyComplaintsAndUnsubscribesAreStopRequests(): void
+    {
+        $stops = array_values(array_filter(
             DeliveryStatusEnum::cases(),
-            static fn (DeliveryStatusEnum $status): bool => $status->isDeliveryOutcome(),
+            static fn (DeliveryStatusEnum $event): bool => $event->isStopRequest(),
         ));
 
-        $this->assertSame([DeliveryStatusEnum::DELIVERED, DeliveryStatusEnum::FAILED], $outcomes);
-    }
-
-    public function testAStatusOnlyMovesForward(): void
-    {
-        $this->assertTrue(DeliveryStatusEnum::ACCEPTED->canFollow(null));
-        $this->assertTrue(DeliveryStatusEnum::DELIVERED->canFollow(DeliveryStatusEnum::TEMPORARY_FAILURE));
-        $this->assertFalse(DeliveryStatusEnum::ACCEPTED->canFollow(DeliveryStatusEnum::TEMPORARY_FAILURE));
-        $this->assertFalse(DeliveryStatusEnum::TEMPORARY_FAILURE->canFollow(DeliveryStatusEnum::DELIVERED));
-        $this->assertFalse(DeliveryStatusEnum::FAILED->canFollow(DeliveryStatusEnum::DELIVERED));
-    }
-
-    public function testComplaintsAndUnsubscribesDoNotChangeTheDeliveryStatus(): void
-    {
-        $this->assertFalse(DeliveryStatusEnum::COMPLAINED->changesDeliveryStatus());
-        $this->assertFalse(DeliveryStatusEnum::UNSUBSCRIBED->changesDeliveryStatus());
-        $this->assertSame('suppress_email', DeliveryStatusEnum::COMPLAINED->remediationAction());
-        $this->assertSame('mailgun', DeliveryStatusEnum::DELIVERED->provider());
+        $this->assertSame([DeliveryStatusEnum::COMPLAINED, DeliveryStatusEnum::UNSUBSCRIBED], $stops);
     }
 }

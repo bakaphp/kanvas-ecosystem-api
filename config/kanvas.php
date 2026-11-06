@@ -1,17 +1,6 @@
 <?php
 
-use Kanvas\Connectors\Mailgun\Enums\DeliveryStatusEnum as MailgunDeliveryStatusEnum;
-use Kanvas\Connectors\Twilio\Enums\MessageStatusEnum as TwilioMessageStatusEnum;
-
 return [
-    /*
-     * Each provider's delivery status enum, keyed by `message_attempts.provider`, so a shared attempt row
-     * can say what its status means without the messaging core importing a connector.
-     */
-    'message_delivery_statuses' => [
-        'twilio' => TwilioMessageStatusEnum::class,
-        'mailgun' => MailgunDeliveryStatusEnum::class,
-    ],
     'application' => [ //@todo migration to app
         'routes' => [
             'prefix' => 'v1',

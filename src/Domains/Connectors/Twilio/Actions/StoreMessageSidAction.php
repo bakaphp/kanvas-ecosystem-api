@@ -5,16 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio\Actions;
 
 use Baka\Support\Str;
+use Kanvas\Communication\Messages\Actions\LinkDeliveryMessageAction;
 use Kanvas\Connectors\Twilio\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Twilio\Enums\MessageStatusEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
-use Kanvas\Social\Messages\Actions\LinkMessageAttemptAction;
-use Kanvas\Social\Messages\Actions\RecordDeliveryOnMessageAction;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
  * Every lead send hands its result here once the message is written, whatever the channel. Only an
- * SMS result is Twilio's to record; any other channel only links the attempt its provider filed at
+ * SMS result is Twilio's to record; any other channel only links the delivery its provider filed at
  * send time (a Mailgun email) to the message.
  */
 class StoreMessageSidAction
@@ -28,7 +27,9 @@ class StoreMessageSidAction
     {
         $channel = $providerResponse['channel'] ?? LeadCommunicationChannelEnum::SMS->value;
         if ($channel !== LeadCommunicationChannelEnum::SMS->value) {
-            $this->linkProviderAttempt($providerResponse);
+            if ($this->message->exists) {
+                new LinkDeliveryMessageAction($this->message)->execute($providerResponse);
+            }
 
             return null;
         }
@@ -72,15 +73,6 @@ class StoreMessageSidAction
         }
 
         return $sid;
-    }
-
-    private function linkProviderAttempt(array $providerResponse): void
-    {
-        if (! $this->message->exists) {
-            return;
-        }
-
-        new LinkMessageAttemptAction($this->message)->execute($providerResponse);
     }
 
     private function recordDelivery(

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Mailgun\Webhooks;
 
 use Illuminate\Http\Request;
-use Kanvas\Connectors\Mailgun\Actions\RecordEmailAttemptAction;
-use Kanvas\Connectors\Mailgun\Actions\RecordEmailDeliveryEventAction;
+use Kanvas\Communication\Messages\Actions\RecordDeliveryEventAction;
+use Kanvas\Communication\Messages\Actions\RecordDeliveryOnMessageAction;
+use Kanvas\Communication\Messages\Models\Delivery;
+use Kanvas\Connectors\Mailgun\Actions\FileEmailDeliveryAction;
 use Kanvas\Connectors\Mailgun\Actions\VerifyMailgunWebhookSignatureAction;
 use Kanvas\Connectors\Mailgun\Enums\DeliveryStatusEnum;
 use Kanvas\Connectors\Mailgun\Services\MailgunEngagementPayloadService;
@@ -15,9 +17,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Social\Messages\Actions\RecordDeliveryOnMessageAction;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Models\MessageAttempt;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
@@ -28,10 +28,11 @@ use Override;
  * Mailgun's delivery events for outbound email — the email side of what
  * ProcessTwilioMessageStatusWebhookJob does for SMS. Opens stay with EmailOpenedWebhookJob.
  *
- * The event is matched to the attempt RecordEmailAttemptAction filed at send time by its Message-Id,
- * and the tenant comes from that attempt, not the receiver: one sending domain can serve several
- * companies, and Mailgun calls a single webhook URL per domain. An event for mail we have no attempt
- * for (sent by another system, or before this existed) is ignored rather than guessed onto a tenant.
+ * The event is matched by its Message-Id to the communication delivery FileEmailDeliveryAction filed at
+ * send time, and the tenant comes from that delivery, not the receiver: one sending domain can serve
+ * several companies, and Mailgun calls a single webhook URL per domain. An event for mail we have no
+ * delivery for (sent by another system, or before this existed) is ignored rather than guessed onto a
+ * tenant.
  */
 #[WorkflowAction(
     name: 'Mailgun Email Delivery Status',
@@ -48,47 +49,52 @@ class EmailDeliveryWebhookJob extends ProcessWebhookJob
     public function execute(): array
     {
         $payload = new MailgunEngagementPayloadService($this->webhookRequest->payload);
-        $status = DeliveryStatusEnum::fromEvent($payload->event(), $payload->severity());
+        $event = DeliveryStatusEnum::fromEvent($payload->event(), $payload->severity());
 
-        if ($status === null) {
+        if ($event === null) {
             return ['message' => 'Event ' . ($payload->event() ?: 'without a name') . ' is not a delivery event, ignored'];
         }
 
-        $messageId = RecordEmailAttemptAction::normalizeMessageId($payload->messageId());
-        $attempt = $messageId === '' ? null : MessageAttempt::query()
+        $messageId = FileEmailDeliveryAction::normalizeMessageId($payload->messageId());
+        $delivery = $messageId === '' ? null : Delivery::query()
             ->fromApp($this->receiver->app)
-            ->where('provider', $status->provider())
-            ->where('provider_message_id', $messageId)
+            ->where('provider', IntegrationsEnum::MAILGUN->value)
+            ->where('external_id', $messageId)
             ->first();
 
-        if (! $attempt instanceof MessageAttempt) {
+        if (! $delivery instanceof Delivery) {
             return ['message' => 'No outbound email on record for this Message-Id, ignored', 'message_id' => $messageId];
         }
 
-        $recorded = new RecordEmailDeliveryEventAction($attempt, $payload)->execute($status);
+        $statusBefore = $delivery->status;
+        $errorCode = $event->isFailure() ? $payload->deliveryStatusCode() : null;
 
-        if (! $recorded['created']) {
-            return ['message' => 'Mailgun event already recorded', 'attempt_id' => $attempt->getId()];
+        $recorded = new RecordDeliveryEventAction(
+            delivery: $delivery,
+            status: $event->toDeliveryStatus(),
+            providerStatus: $event->value,
+            payload: $payload->eventData(),
+            occurredAt: $payload->occurredAt(),
+            errorCode: $errorCode !== null ? (string) $errorCode : null,
+            error: $event->isFailure() ? $payload->deliveryStatusMessage() : null,
+        )->execute();
+
+        if (! $recorded) {
+            return ['message' => 'Mailgun event already recorded', 'delivery_id' => $delivery->getId()];
         }
 
-        $message = $attempt->message;
-        if ($recorded['advanced'] && $message instanceof Message) {
-            new RecordDeliveryOnMessageAction($message)->execute(
-                $status,
-                $attempt->provider_message_id,
-                $attempt->last_error_code !== null ? (string) $attempt->last_error_code : null,
-                $attempt->last_error_message,
-            );
+        if ($delivery->status !== $statusBefore) {
+            new RecordDeliveryOnMessageAction($delivery)->execute();
         }
 
-        $this->applyDestinationRemediation($attempt, $status, $payload->recipient());
+        $this->applyDestinationRemediation($delivery, $event, $payload->recipient());
 
         return [
             'message' => 'Mailgun delivery event recorded',
-            'status' => $status->value,
-            'attempt_id' => $attempt->getId(),
-            'event_id' => $recorded['event']->getId(),
-            'message_id' => $message?->getId(),
+            'status' => $delivery->status->value,
+            'event' => $event->value,
+            'delivery_id' => $delivery->getId(),
+            'message_id' => $delivery->message_id,
         ];
     }
 
@@ -98,33 +104,29 @@ class EmailDeliveryWebhookJob extends ProcessWebhookJob
      * (see Guild/Customers/CLAUDE.md), so it goes through the same action a STOP text does.
      */
     protected function applyDestinationRemediation(
-        MessageAttempt $attempt,
-        DeliveryStatusEnum $status,
+        Delivery $delivery,
+        DeliveryStatusEnum $event,
         string $recipient,
     ): void {
-        if ($status->remediationAction() === null) {
+        if ($event !== DeliveryStatusEnum::FAILED && ! $event->isStopRequest()) {
             return;
         }
 
-        $recipient = $recipient !== '' ? $recipient : strtolower(trim((string) $attempt->to_address));
+        $recipient = $recipient !== '' ? $recipient : (string) $delivery->to_address;
         if ($recipient === '') {
             return;
         }
 
         $people = PeoplesRepository::getByAnyContact(
-            app: $attempt->app,
-            company: $attempt->company,
+            app: $delivery->app,
+            company: $delivery->company,
             emails: [$recipient],
         )->get();
-        $lead = $attempt->lead_id === null ? null : Lead::query()
-            ->fromApp($attempt->app)
-            ->fromCompany($attempt->company)
-            ->whereKey($attempt->lead_id)
-            ->first();
+        $lead = $this->leadOf($delivery);
 
         foreach ($people as $person) {
             /** @var People $person */
-            if ($status === DeliveryStatusEnum::FAILED) {
+            if ($event === DeliveryStatusEnum::FAILED) {
                 $person->markEmailBounced($recipient);
 
                 continue;
@@ -134,11 +136,23 @@ class EmailDeliveryWebhookJob extends ProcessWebhookJob
                 people: $person,
                 sourceChannel: LeadCommunicationChannelEnum::EMAIL->value,
                 lead: $lead?->peoples_id === $person->getId() ? $lead : null,
-                reason: $status === DeliveryStatusEnum::COMPLAINED
+                reason: $event === DeliveryStatusEnum::COMPLAINED
                     ? 'Marked our email as spam (Mailgun complaint)'
                     : 'Unsubscribed through Mailgun',
             )->execute();
         }
+    }
+
+    /**
+     * A delivery is filed per person; the lead it was sent about hangs off its message.
+     */
+    private function leadOf(Delivery $delivery): ?Lead
+    {
+        $message = $delivery->message_id !== null ? Message::query()->find($delivery->message_id) : null;
+
+        $lead = $message?->entity(Lead::class);
+
+        return $lead instanceof Lead ? $lead : null;
     }
 
     #[Override]

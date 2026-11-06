@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Mailgun\Actions;
 use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
 use Closure;
+use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Connectors\Mailgun\Client;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
@@ -61,7 +62,8 @@ class SendAsAgentMailboxAction
         // The stored message this mail ships, when the caller wrote it before sending (an agent's
         // reply); its `delivery` is written right away, accepted or refused.
         private readonly ?Message $trackingMessage = null,
-        // The sender's own attempt id, so a send Mailgun refuses (no Message-Id) can still be found later.
+        // The sender's own id for this send, used as the delivery's uuid so a send Mailgun refuses
+        // (no Message-Id) can still be linked to the message written afterwards.
         private readonly ?string $attemptUuid = null,
     ) {
     }
@@ -83,12 +85,11 @@ class SendAsAgentMailboxAction
             throw new ValidationException('Outbound email has no recipient');
         }
 
-        $domain = $mailboxService->domainFor($this->agent);
         $attachments = $this->fetchAttachments();
 
         try {
             $messageId = new Client($this->agent->app)->sendMessage(
-                domain: $domain,
+                domain: $mailboxService->domainFor($this->agent),
                 from: $this->agent->name . ' <' . $address . '>',
                 to: $this->to,
                 subject: $this->subject,
@@ -105,44 +106,33 @@ class SendAsAgentMailboxAction
         } catch (ValidationException $exception) {
             // Mailgun answered and refused (Client::assertOk); a connection error is not a verdict on
             // the email and stays unrecorded, so the caller's retry is not shown as a failure.
-            $this->recordAttempt(
-                fn (RecordEmailAttemptAction $record) => $record->executeRejected(
-                    $exception->getMessage(),
-                    $domain,
-                    $address,
-                    $this->to,
-                )
-            );
+            $this->fileDelivery(fn (FileEmailDeliveryAction $file) => $file->refused($exception->getMessage()));
 
             throw $exception;
         }
 
         if ($messageId !== '') {
-            $this->recordAttempt(
-                fn (RecordEmailAttemptAction $record) => $record->execute(
-                    $messageId,
-                    $domain,
-                    $address,
-                    $this->to,
-                )
-            );
+            $this->fileDelivery(fn (FileEmailDeliveryAction $file) => $file->accepted($messageId));
         }
 
         return $messageId;
     }
 
     /**
-     * Filing the attempt is bookkeeping: a failure here must not read as a failed send, or a caller that
-     * retries on failure mails the person twice.
+     * Filing the delivery is bookkeeping: a failure here must not read as a failed send, or a caller
+     * that retries on failure mails the person twice.
      */
-    private function recordAttempt(Closure $record): void
+    private function fileDelivery(Closure $file): void
     {
         try {
-            $record(new RecordEmailAttemptAction(
+            $file(new FileEmailDeliveryAction(
                 agent: $this->agent,
-                lead: $this->trackingLead,
+                to: $this->to,
+                content: Content::text($this->markdownBody)->withSubject($this->subject),
+                people: $this->trackingPerson,
                 message: $this->trackingMessage,
-                attemptUuid: $this->attemptUuid,
+                campaignRecipient: $this->trackingCampaignRecipient,
+                uuid: $this->attemptUuid,
             ));
         } catch (Throwable $exception) {
             report($exception);

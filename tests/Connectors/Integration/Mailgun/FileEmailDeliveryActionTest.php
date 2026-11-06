@@ -8,20 +8,22 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
 use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
+use Kanvas\Connectors\Twilio\Models\MessageAttempt;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Campaigns\Models\CampaignRecipient;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Models\MessageAttempt;
 use Tests\TestCase;
 
 /**
- * The send side of email delivery tracking: what Mailgun accepted is filed under its Message-Id, and
- * the send result links that attempt to the message written afterwards.
+ * The send side of email delivery tracking: what Mailgun accepted is filed in the communication ledger
+ * under its Message-Id, and the send result links that delivery to the message written afterwards.
  */
-final class RecordEmailAttemptActionTest extends TestCase
+final class FileEmailDeliveryActionTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -52,14 +54,14 @@ final class RecordEmailAttemptActionTest extends TestCase
         ]);
     }
 
-    public function testAMailboxSendFilesAnAcceptedAttemptOnTheMessageItShips(): void
+    public function testAMailboxSendFilesAnAcceptedDeliveryOnTheMessageItShips(): void
     {
         $agent = $this->agentWithMailbox();
         $message = $this->createMessage();
 
         $returned = new SendAsAgentMailboxAction(
             agent: $agent,
-            to: 'prospect@example.com',
+            to: 'Prospect@Example.com',
             subject: 'Your quote',
             markdownBody: 'Here is the quote.',
             trackingMessage: $message,
@@ -67,19 +69,42 @@ final class RecordEmailAttemptActionTest extends TestCase
 
         $this->assertSame('<' . $this->mailgunId . '>', $returned);
 
-        $attempt = $this->attempt();
-        $this->assertSame($message->getId(), (int) $attempt->message_id);
-        $this->assertSame('accepted', $attempt->current_status);
-        $this->assertSame('prospect@example.com', $attempt->to_address);
-        $this->assertNotNull($attempt->sent_at);
+        $delivery = $this->delivery();
+        $this->assertSame($message->getId(), (int) $delivery->message_id);
+        $this->assertSame('accepted', $delivery->status->value);
+        $this->assertSame('email', $delivery->channel->value);
+        $this->assertSame('prospect@example.com', $delivery->to_address);
+        $this->assertNotNull($delivery->accepted_at);
 
-        $delivery = $message->fresh()->getMessage()['delivery'];
-        $this->assertSame('mailgun', $delivery['provider']);
-        $this->assertSame('accepted', $delivery['status']);
-        $this->assertSame($this->mailgunId, $delivery['message_sid']);
+        $request = $delivery->request;
+        $this->assertEquals(['type' => 'agent', 'id' => $agent->getId()], $request->sender);
+        $this->assertSame('Your quote', $request->content['subject']);
+        $this->assertSame($message->getId(), (int) $request->filed_message_id);
+
+        $onMessage = $message->fresh()->getMessage()['delivery'];
+        $this->assertSame('mailgun', $onMessage['provider']);
+        $this->assertSame('accepted', $onMessage['status']);
+        $this->assertSame($this->mailgunId, $onMessage['message_sid']);
     }
 
-    public function testTheSendResultLinksTheAttemptToTheMessageWrittenAfterwards(): void
+    public function testACampaignSendKeepsItsRecipientSlotOnTheRequest(): void
+    {
+        // Only the id is read, so the slot is never written to lead_campaign_recipients.
+        $recipient = new CampaignRecipient();
+        $recipient->id = 987654321;
+
+        new SendAsAgentMailboxAction(
+            agent: $this->agentWithMailbox(),
+            to: 'prospect@example.com',
+            subject: 'Batch',
+            markdownBody: 'Batch body',
+            trackingCampaignRecipient: $recipient,
+        )->execute();
+
+        $this->assertSame(987654321, (int) $this->delivery()->request->campaign_recipient_id);
+    }
+
+    public function testTheSendResultLinksTheDeliveryToTheMessageWrittenAfterwards(): void
     {
         new SendAsAgentMailboxAction(
             agent: $this->agentWithMailbox(),
@@ -87,7 +112,7 @@ final class RecordEmailAttemptActionTest extends TestCase
             subject: 'Your quote',
             markdownBody: 'Here is the quote.',
         )->execute();
-        $this->assertNull($this->attempt()->message_id);
+        $this->assertNull($this->delivery()->message_id);
 
         $message = $this->createMessage();
         new StoreMessageSidAction($message)->execute([
@@ -96,33 +121,9 @@ final class RecordEmailAttemptActionTest extends TestCase
             'provider_message_id' => $this->mailgunId,
         ]);
 
-        $this->assertSame($message->getId(), (int) $this->attempt()->message_id);
-        $this->assertSame(
-            0,
-            MessageAttempt::query()->where('message_id', $message->getId())->where('provider', 'twilio')->count(),
-        );
-    }
-
-    public function testLinkingCopiesTheAcceptedStateOntoTheMessage(): void
-    {
-        new SendAsAgentMailboxAction(
-            agent: $this->agentWithMailbox(),
-            to: 'prospect@example.com',
-            subject: 'Your quote',
-            markdownBody: 'Here is the quote.',
-        )->execute();
-        $message = $this->createMessage();
-
-        new StoreMessageSidAction($message)->execute([
-            'channel' => 'email',
-            'provider' => 'mailgun',
-            'provider_message_id' => $this->mailgunId,
-        ]);
-
-        $delivery = $message->fresh()->getMessage()['delivery'];
-        $this->assertSame('mailgun', $delivery['provider']);
-        $this->assertSame('accepted', $delivery['status']);
-        $this->assertSame($this->mailgunId, $delivery['message_sid']);
+        $this->assertSame($message->getId(), (int) $this->delivery()->message_id);
+        $this->assertSame('accepted', $message->fresh()->getMessage()['delivery']['status']);
+        $this->assertSame(0, MessageAttempt::query()->where('message_id', $message->getId())->count());
     }
 
     public function testASendMailgunRefusesIsFiledAsFailedAndStillThrows(): void
@@ -145,19 +146,19 @@ final class RecordEmailAttemptActionTest extends TestCase
             $this->assertStringContainsString('HTTP 400', $exception->getMessage());
         }
 
-        $attempt = MessageAttempt::query()->where('uuid', $attemptUuid)->firstOrFail();
-        $this->assertSame('mailgun', $attempt->provider);
-        $this->assertSame('failed', $attempt->current_status);
-        $this->assertNull($attempt->provider_message_id);
-        $this->assertStringContainsString('not a valid address', (string) $attempt->last_error_message);
-        $this->assertNotNull($attempt->terminal_at);
+        $delivery = Delivery::query()->where('uuid', $attemptUuid)->firstOrFail();
+        $this->assertSame('mailgun', $delivery->provider);
+        $this->assertSame('failed', $delivery->status->value);
+        $this->assertNull($delivery->external_id);
+        $this->assertStringContainsString('not a valid address', (string) $delivery->error);
+        $this->assertNotNull($delivery->events_closed_at);
 
-        $delivery = $message->fresh()->getMessage()['delivery'];
-        $this->assertSame('failed', $delivery['status']);
-        $this->assertStringContainsString('not a valid address', (string) $delivery['error_message']);
+        $onMessage = $message->fresh()->getMessage()['delivery'];
+        $this->assertSame('failed', $onMessage['status']);
+        $this->assertStringContainsString('not a valid address', (string) $onMessage['error_message']);
     }
 
-    public function testAFailedSendResultFindsItsAttemptByUuid(): void
+    public function testAFailedSendResultFindsItsDeliveryByUuid(): void
     {
         $this->sendResponse = [['message' => 'Domain not verified'], 400];
         $attemptUuid = (string) Str::uuid();
@@ -183,11 +184,11 @@ final class RecordEmailAttemptActionTest extends TestCase
             'error' => 'Mailgun could not send mail',
         ]);
 
-        $this->assertSame($message->getId(), (int) MessageAttempt::query()->where('uuid', $attemptUuid)->value('message_id'));
+        $this->assertSame($message->getId(), (int) Delivery::query()->where('uuid', $attemptUuid)->value('message_id'));
         $this->assertSame('failed', $message->fresh()->getMessage()['delivery']['status']);
     }
 
-    public function testAnEmailResultNoLongerFilesAFailedTwilioAttempt(): void
+    public function testAnEmailResultDoesNotFileAFailedTwilioAttempt(): void
     {
         $message = $this->createMessage();
 
@@ -201,11 +202,11 @@ final class RecordEmailAttemptActionTest extends TestCase
         $this->assertArrayNotHasKey('delivery', $message->fresh()->getMessage());
     }
 
-    private function attempt(): MessageAttempt
+    private function delivery(): Delivery
     {
-        return MessageAttempt::query()
+        return Delivery::query()
             ->where('provider', 'mailgun')
-            ->where('provider_message_id', $this->mailgunId)
+            ->where('external_id', $this->mailgunId)
             ->firstOrFail();
     }
 

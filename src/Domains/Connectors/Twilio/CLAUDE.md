@@ -78,18 +78,12 @@ opts out the phone contacts rather than retrying 3× into Sentry.
 **Outbound delivery status is a separate webhook.** `ProcessTwilioMessageStatusWebhookJob` handles
 carrier failures; it does not touch bursts.
 
-**Attempts live in the shared `message_attempts` / `message_delivery_events` tables** (`Social\Messages\Models`),
-`provider = 'twilio'`; the SID is `provider_message_id`. `StoreMessageSidAction` receives every lead send's
-result whatever the channel and only records an SMS one — any other result just links the attempt its
-provider filed (see `Mailgun/CLAUDE.md`), so an email or WhatsApp result never becomes a failed Twilio
-attempt.
-
 **A carrier failure is never retried.** `21610` opts the phone out; `30003`, `30005` and `30006` mark
 the matching phone contacts invalid on the first failure (`suppress_sms`). Don't add a delayed retry for
 `30003`/`30005`. A person can resend a failed text with the `twilioResendMessage` mutation
 (`ResendFailedMessageAction`): same message, same number, every send guard still applies.
 
-**A delivery outcome is pushed, not polled.** `Social\Messages\Actions\RecordDeliveryOnMessageAction` (shared with Mailgun) writes `delivery` into the
+**A delivery outcome is pushed, not polled.** `RecordDeliveryOnMessageAction` writes `delivery` into the
 message body and, for `delivered` / `undelivered` / `failed`, broadcasts `message.delivery.updated`
 (`MessageDeliveryStatusEvent`) on the same Pusher channels as `message.channel.added`. It only fires
 when the status advances, so a replayed callback does not push twice.

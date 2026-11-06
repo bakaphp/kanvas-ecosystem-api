@@ -9,19 +9,22 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Messages\DataTransferObject\Content;
+use Kanvas\Communication\Messages\Models\Delivery;
+use Kanvas\Communication\Messages\Models\DeliveryEvent;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Mailgun\Actions\FileEmailDeliveryAction;
 use Kanvas\Connectors\Mailgun\Webhooks\EmailDeliveryWebhookJob;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Enums\ContactValidationStatusEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Messages\Events\MessageDeliveryStatusEvent;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Models\MessageAttempt;
-use Kanvas\Social\Messages\Models\MessageDeliveryEvent;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
@@ -62,25 +65,23 @@ final class EmailDeliveryWebhookJobTest extends TestCase
             ->create(['action_id' => $action->getId()]);
     }
 
-    public function testDeliveredMarksTheAttemptAndTheMessageAndPushesIt(): void
+    public function testDeliveredMarksTheDeliveryAndTheMessageAndPushesIt(): void
     {
         Event::fake([MessageDeliveryStatusEvent::class]);
         $message = $this->createMessage();
         $this->attachToChannel($message);
-        $attempt = $this->attemptFor($message);
+        $delivery = $this->deliveryFor($message);
 
-        $result = $this->deliver($this->event('delivered', $attempt->provider_message_id));
+        $result = $this->deliver($this->event('delivered', $delivery->external_id));
 
         $this->assertSame('delivered', $result['status']);
-        $attempt->refresh();
-        $this->assertSame('delivered', $attempt->current_status);
-        $this->assertNotNull($attempt->terminal_at);
+        $this->assertSame('delivered', $delivery->fresh()->status->value);
 
-        $delivery = $message->fresh()->getMessage()['delivery'];
-        $this->assertSame('mailgun', $delivery['provider']);
-        $this->assertSame('delivered', $delivery['status']);
-        $this->assertSame($attempt->provider_message_id, $delivery['message_sid']);
-        $this->assertNull($delivery['error_code']);
+        $onMessage = $message->fresh()->getMessage()['delivery'];
+        $this->assertSame('mailgun', $onMessage['provider']);
+        $this->assertSame('delivered', $onMessage['status']);
+        $this->assertSame($delivery->external_id, $onMessage['message_sid']);
+        $this->assertNull($onMessage['error_code']);
 
         Event::assertDispatched(
             MessageDeliveryStatusEvent::class,
@@ -93,25 +94,23 @@ final class EmailDeliveryWebhookJobTest extends TestCase
     {
         $people = $this->seedPeople();
         $message = $this->createMessage();
-        $attempt = $this->attemptFor($message);
+        $delivery = $this->deliveryFor($message);
 
-        $this->deliver($this->event('failed', $attempt->provider_message_id, [
+        $this->deliver($this->event('failed', $delivery->external_id, [
             'severity' => 'permanent',
             'reason' => 'bounce',
             'delivery-status' => ['code' => 550, 'description' => 'No such user'],
         ]));
 
-        $attempt->refresh();
-        $this->assertSame('failed', $attempt->current_status);
-        $this->assertSame(550, (int) $attempt->last_error_code);
-        $this->assertSame('No such user', $attempt->last_error_message);
-        $this->assertSame('hard_bounce', $attempt->classification);
-        $this->assertSame('suppress_email', $attempt->remediation_action);
+        $delivery->refresh();
+        $this->assertSame('failed', $delivery->status->value);
+        $this->assertSame('550', $delivery->error_code);
+        $this->assertSame('No such user', $delivery->error);
 
-        $delivery = $message->fresh()->getMessage()['delivery'];
-        $this->assertSame('failed', $delivery['status']);
-        $this->assertSame('550', $delivery['error_code']);
-        $this->assertSame('No such user', $delivery['error_message']);
+        $onMessage = $message->fresh()->getMessage()['delivery'];
+        $this->assertSame('failed', $onMessage['status']);
+        $this->assertSame('550', $onMessage['error_code']);
+        $this->assertSame('No such user', $onMessage['error_message']);
 
         $this->assertSame(ContactValidationStatusEnum::HARD_BOUNCE, $this->emailContact($people)->validation_status);
         $this->assertFalse((bool) $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
@@ -121,45 +120,58 @@ final class EmailDeliveryWebhookJobTest extends TestCase
     {
         $people = $this->seedPeople();
         $message = $this->createMessage();
-        $attempt = $this->attemptFor($message);
+        $delivery = $this->deliveryFor($message);
 
-        $this->deliver($this->event('delivered', $attempt->provider_message_id));
-        $this->deliver($this->event('failed', $attempt->provider_message_id, [
+        $this->deliver($this->event('delivered', $delivery->external_id));
+        $this->deliver($this->event('failed', $delivery->external_id, [
             'severity' => 'temporary',
             'delivery-status' => ['code' => 421, 'message' => 'Try again later'],
         ]));
 
-        $this->assertSame('delivered', $attempt->fresh()->current_status);
+        $this->assertSame('delivered', $delivery->fresh()->status->value);
         $this->assertSame('delivered', $message->fresh()->getMessage()['delivery']['status']);
         $this->assertSame(ContactValidationStatusEnum::VALID, $this->emailContact($people)->validation_status);
-        $this->assertSame(2, MessageDeliveryEvent::query()->where('attempt_id', $attempt->getId())->count());
+
+        $events = DeliveryEvent::query()->where('delivery_id', $delivery->getId())->pluck('provider_status')->all();
+        $this->assertEqualsCanonicalizing(['delivered', 'temporary_failure'], $events);
     }
 
     public function testAReplayedEventIsRecordedOnce(): void
     {
-        $attempt = $this->attemptFor($this->createMessage());
-        $event = $this->event('delivered', $attempt->provider_message_id);
+        $delivery = $this->deliveryFor($this->createMessage());
+        $event = $this->event('delivered', $delivery->external_id);
 
         $this->deliver($event);
         $result = $this->deliver($event);
 
         $this->assertSame('Mailgun event already recorded', $result['message']);
-        $this->assertSame(1, MessageDeliveryEvent::query()->where('attempt_id', $attempt->getId())->count());
+        $this->assertSame(1, DeliveryEvent::query()->where('delivery_id', $delivery->getId())->count());
     }
 
     public function testASpamComplaintIsAStopRequestForThePerson(): void
     {
         $people = $this->seedPeople();
-        $attempt = $this->attemptFor($this->createMessage());
+        $delivery = $this->deliveryFor($this->createMessage());
 
-        $this->deliver($this->event('delivered', $attempt->provider_message_id));
-        $this->deliver($this->event('complained', $attempt->provider_message_id));
+        $this->deliver($this->event('delivered', $delivery->external_id));
+        $this->deliver($this->event('complained', $delivery->external_id));
 
-        $attempt->refresh();
-        $this->assertSame('delivered', $attempt->current_status);
-        $this->assertSame('complained', $attempt->classification);
+        $this->assertSame('delivered', $delivery->fresh()->status->value);
+        $this->assertTrue(
+            DeliveryEvent::query()->where('delivery_id', $delivery->getId())->where('provider_status', 'complained')->exists()
+        );
         $this->assertTrue((bool) $people->fresh()->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
         $this->assertSame(1, (int) $this->emailContact($people)->is_opt_out);
+    }
+
+    public function testAnEventForAnotherAppsEmailIsIgnored(): void
+    {
+        $delivery = $this->deliveryFor($this->createMessage());
+        $delivery->forceFill(['apps_id' => $this->kanvasApp->getId() + 100000])->saveOrFail();
+
+        $result = $this->deliver($this->event('delivered', $delivery->external_id));
+
+        $this->assertSame('No outbound email on record for this Message-Id, ignored', $result['message']);
     }
 
     public function testAnEmailWeNeverSentIsIgnored(): void
@@ -171,12 +183,12 @@ final class EmailDeliveryWebhookJobTest extends TestCase
 
     public function testOpensAreLeftToTheOpenedReceiver(): void
     {
-        $attempt = $this->attemptFor($this->createMessage());
+        $delivery = $this->deliveryFor($this->createMessage());
 
-        $result = $this->deliver($this->event('opened', $attempt->provider_message_id));
+        $result = $this->deliver($this->event('opened', $delivery->external_id));
 
         $this->assertSame('Event opened is not a delivery event, ignored', $result['message']);
-        $this->assertSame('accepted', $attempt->fresh()->current_status);
+        $this->assertSame('accepted', $delivery->fresh()->status->value);
     }
 
     private function event(string $event, string $messageId, array $extra = []): array
@@ -193,17 +205,19 @@ final class EmailDeliveryWebhookJobTest extends TestCase
         ];
     }
 
-    private function attemptFor(Message $message): MessageAttempt
+    private function deliveryFor(Message $message): Delivery
     {
-        return MessageAttempt::query()->create([
-            'apps_id' => $this->kanvasApp->getId(),
-            'companies_id' => $this->company->getId(),
-            'message_id' => $message->getId(),
-            'provider' => 'mailgun',
-            'provider_message_id' => Str::random(20) . '@mg.example.com',
-            'to_address' => $this->email,
-            'current_status' => 'accepted',
-        ]);
+        $agent = Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['user_id' => $this->user->getId()]);
+
+        return new FileEmailDeliveryAction(
+            agent: $agent,
+            to: $this->email,
+            content: Content::text('Here is your quote')->withSubject('Your quote'),
+            message: $message,
+        )->accepted('<' . Str::random(20) . '@mg.example.com>');
     }
 
     private function seedPeople(): People

@@ -7,12 +7,12 @@ namespace Kanvas\Connectors\Twilio\Actions;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\Twilio\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Twilio\Enums\MessageStatusEnum;
+use Kanvas\Connectors\Twilio\Models\MessageAttempt;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Models\MessageAttempt;
 
 /**
  * Sends a failed outbound SMS again, as the same message: same body and attachments, to the number and
@@ -62,16 +62,15 @@ class ResendFailedMessageAction
 
             $lastAttempt = MessageAttempt::query()
                 ->where('message_id', $this->message->getId())
-                ->where('provider', 'twilio')
                 ->latest('id')
                 ->first();
 
             $result = $this->sender($lead)->execute(
                 channel: LeadCommunicationChannelEnum::SMS->value,
                 message: $content,
-                from: $lastAttempt?->from_address,
+                from: $lastAttempt?->from_number,
                 files: $files->isNotEmpty() ? $files : null,
-                to: $lastAttempt?->to_address,
+                to: $lastAttempt?->to_number,
             );
 
             new StoreMessageSidAction($this->message)->execute($result);

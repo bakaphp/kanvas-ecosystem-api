@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
@@ -21,7 +22,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendEmailTool;
 use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Social\Messages\Models\MessageAttempt;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -107,7 +107,7 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    public function testTheSendIsFiledAsADeliveryAttemptOnTheLead(): void
+    public function testTheSendIsFiledAsADeliveryForTheLeadsPerson(): void
     {
         $agent = $this->agentWithMailbox();
         $lead = $this->leadWithEmail('prospect@example.com');
@@ -124,13 +124,14 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
         $this->assertSame('mailgun', $result['provider']);
         $this->assertSame($this->mailgunId, $result['provider_message_id']);
 
-        $attempt = MessageAttempt::query()
+        $delivery = Delivery::query()
             ->where('provider', 'mailgun')
-            ->where('provider_message_id', $result['provider_message_id'])
-            ->where('lead_id', $lead->getId())
+            ->where('external_id', $result['provider_message_id'])
             ->firstOrFail();
-        $this->assertSame('accepted', $attempt->current_status);
-        $this->assertSame('prospect@example.com', $attempt->to_address);
+        $this->assertSame('accepted', $delivery->status->value);
+        $this->assertSame('prospect@example.com', $delivery->to_address);
+        $this->assertSame($lead->people->getId(), (int) $delivery->request->people_id);
+        $this->assertSame($result['attempt_uuid'], $delivery->uuid);
     }
 
     public function testTheAgentAddressIsAlsoTheReplyTo(): void
