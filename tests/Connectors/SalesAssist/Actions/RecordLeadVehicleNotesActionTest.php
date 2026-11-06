@@ -112,6 +112,52 @@ final class RecordLeadVehicleNotesActionTest extends TestCase
         );
     }
 
+    public function testAFreshMileageOnTheSameVehicleIsNotAnnouncedAgain(): void
+    {
+        $lead = $this->createLead();
+        $tradeIn = ['id' => '5264344a', 'year' => 2024, 'make' => 'Nissan', 'model' => 'Sentra', 'vin' => '3N1AB8CV8RY348235'];
+
+        $this->save($lead, LeadVehicleNoteEnum::TRADE_IN, $tradeIn + ['estimatedMileage' => 59354]);
+        $this->save($lead, LeadVehicleNoteEnum::TRADE_IN, $tradeIn + ['estimatedMileage' => 59611]);
+
+        $this->assertCount(2, $this->notes($lead));
+    }
+
+    public function testVehiclesSentInTurnsAreEachAnnouncedOnce(): void
+    {
+        $lead = $this->createLead();
+        $audi = ['make' => 'Audi', 'model' => 'Q5', 'vin' => 'WA1ANAFY0K2101825', 'maxMileage' => 81523];
+        $civic = ['make' => 'Honda', 'model' => 'Civic', 'vin' => 'SHHFK7H66MU223008', 'maxMileage' => 72115];
+
+        foreach ([$audi, $civic, $audi, $civic, ['maxMileage' => 81531] + $audi] as $vehicle) {
+            $this->save($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST, $vehicle);
+        }
+
+        $this->assertCount(4, $this->notes($lead));
+    }
+
+    public function testTheSameVehicleWithItsKeysReorderedIsNotAnnouncedAgain(): void
+    {
+        $lead = $this->createLead();
+
+        $this->save($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST, ['year' => 2024, 'make' => 'Honda', 'model' => 'Civic']);
+        $this->save($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST, ['model' => 'Civic', 'make' => 'Honda', 'year' => 2024]);
+
+        $this->assertCount(2, $this->notes($lead));
+    }
+
+    public function testAVehicleAnnouncedBeforeFingerprintsIsNotAnnouncedAgain(): void
+    {
+        $lead = $this->createLead();
+        $vehicle = ['year' => 2024, 'make' => 'Honda', 'model' => 'Civic', 'mileage' => 100];
+        $lead->set(LeadVehicleNoteEnum::VEHICLE_OF_INTEREST->noteHashKey(), md5((string) json_encode($vehicle)));
+
+        $this->save($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST, $vehicle);
+        $this->save($lead, LeadVehicleNoteEnum::VEHICLE_OF_INTEREST, ['mileage' => 250] + $vehicle);
+
+        $this->assertCount(0, $this->notes($lead));
+    }
+
     public function testAnEmptyValueIsNotAnnounced(): void
     {
         $lead = $this->createLead();
