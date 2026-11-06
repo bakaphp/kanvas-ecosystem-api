@@ -61,43 +61,56 @@ class KnowledgeRetrieval implements RetrievalInterface
             return [];
         }
 
-        $store = KnowledgeComponents::store($this->app);
+        return $this->retrieveFrom(
+            KnowledgeComponents::store($this->app),
+            KnowledgeComponents::embedder($this->app)->embed($question),
+            $question,
+        );
+    }
+
+    /**
+     * The agent's own documents always get a search of their own, organization-wide included: a
+     * company's lead rows repeat the words of the question, so a single company-wide search filled
+     * every slot with them and the lot guide (0.747) never made the top eight on "Shepard Select lot
+     * address" (Polly, agent 1292, 2026-11-05). A global row like a Users (apps_id/companies_id = 0)
+     * can't form a KnowledgeEntity, so it's skipped.
+     *
+     * @param array<int, float> $embedding
+     * @return list<Document>
+     */
+    public function retrieveFrom(TypesenseKnowledgeStore $store, array $embedding, string $question): array
+    {
         $topK = KnowledgeComponents::resultLimit($this->app);
         $minScore = KnowledgeComponents::minScore($this->app);
-        $embedding = KnowledgeComponents::embedder($this->app)->embed($question);
+
+        $documentHits = $this->agent === null ? [] : $this->searchScoped(
+            $store,
+            $embedding,
+            $this->agent,
+            $topK,
+            $minScore,
+        );
 
         if ($this->organizationWide) {
-            $hits = $store->search(
+            $otherHits = $store->search(
                 $embedding,
                 KnowledgeScope::forOrganization($this->app->getId(), $this->company->getId()),
                 $topK,
                 $minScore,
             );
-
-            return self::rank(
-                [],
-                $hits,
-                $topK,
-                $question,
-            );
-        }
-
-        // The agent's own docs, then the record in scope (a Lead). A global row like
-        // a Users (apps_id/companies_id = 0) can't form a KnowledgeEntity, so it's skipped.
-        $byScope = [];
-        foreach ([$this->agent, $this->entity] as $scopeEntity) {
-            $byScope[] = $scopeEntity === null ? [] : $this->searchScoped(
+        } else {
+            $otherHits = $this->entity === null ? [] : $this->searchScoped(
                 $store,
                 $embedding,
-                $scopeEntity,
+                $this->entity,
                 $topK,
                 $minScore,
             );
         }
 
         return self::rank(
-            $byScope[0],
-            $byScope[1],
+            $documentHits,
+            $otherHits,
             $topK,
             $question,
         );
