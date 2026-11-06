@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Exports;
 
-use Baka\Http\SafeUrlFetcher;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Kanvas\Souk\Orders\Exports\Concerns\DrawsHeaderLogos;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithDrawings;
@@ -17,12 +17,12 @@ use Override;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use Throwable;
 
 class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAutoSize, WithDrawings
 {
+    use DrawsHeaderLogos;
+
     private const DEFAULT_HEADER_BG = '5D8A66';
     private const HEADER_FG = 'FFFFFF';
     private const BORDER_COLOR = 'CCCCCC';
@@ -147,33 +147,7 @@ class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAuto
 
     public function drawings(): array
     {
-        $logos = $this->metadata['headerImages'] ?? [];
-        $drawings = [];
-
-        foreach ($logos as $index => $logoUrl) {
-            try {
-                $content = SafeUrlFetcher::fetch($logoUrl);
-                if ($content === '') {
-                    continue;
-                }
-
-                $tempPath = storage_path('app/temp_payments_logo_' . $index . '.png');
-                file_put_contents($tempPath, $content);
-
-                $drawing = new Drawing();
-                $drawing->setName('Logo ' . ($index + 1));
-                $drawing->setDescription('Header Logo');
-                $drawing->setPath($tempPath);
-                $drawing->setHeight(50);
-                $drawing->setCoordinates($this->columnLetter($index * 2) . '1');
-
-                $drawings[] = $drawing;
-            } catch (Throwable $e) {
-                continue;
-            }
-        }
-
-        return $drawings;
+        return $this->headerLogoDrawings($this->metadata['headerImages'] ?? []);
     }
 
     private function hasHeaderMetadata(): bool
