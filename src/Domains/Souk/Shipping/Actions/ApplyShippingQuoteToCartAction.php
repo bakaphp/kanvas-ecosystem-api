@@ -29,6 +29,7 @@ class ApplyShippingQuoteToCartAction
         protected string $service,
         protected ShippingDestination $destination,
         protected string $unavailableMessage = self::UNAVAILABLE_MESSAGE,
+        protected bool $fallBackToCheapest = false,
     ) {
     }
 
@@ -66,6 +67,10 @@ class ApplyShippingQuoteToCartAction
             if ($quote->provider === $this->provider && $quote->serviceCode === $this->service) {
                 return $quote;
             }
+        }
+
+        if ($this->fallBackToCheapest && $quotes !== []) {
+            return $quotes[0];
         }
 
         throw new ValidationException($this->unavailableMessage);
