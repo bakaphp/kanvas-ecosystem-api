@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Souk\Orders\Actions\Concerns\StoresExcelExport;
 use Kanvas\Souk\Orders\Exports\OrderPaymentsStatsExportExcel;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
-use Maatwebsite\Excel\Facades\Excel;
 
 class ExportOrderPaymentsAction
 {
+    use StoresExcelExport;
+
     public function __construct(
         protected readonly Apps $app,
         protected readonly Users $user,
@@ -87,11 +86,7 @@ class ExportOrderPaymentsAction
             ->orderBy('orders.created_at', 'asc')
             ->get();
 
-        $timestamp    = Carbon::now()->format('Y-m-d');
-        $filename     = "order_payments_export_{$timestamp}";
-        $tempFilePath = "exports/{$filename}.xlsx";
-
-        Excel::store(
+        $result = $this->storeExcelExport(
             new OrderPaymentsStatsExportExcel(
                 $stats,
                 $orders,
@@ -101,46 +96,13 @@ class ExportOrderPaymentsAction
                 $this->metadata,
                 $this->includeSummary,
             ),
-            $tempFilePath,
-            'public'
+            'order_payments_export_' . Carbon::now()->format('Y-m-d'),
+            $this->app,
+            $this->user,
         );
 
-        $fullTempPath = Storage::disk('public')->path($tempFilePath);
+        OrderPaymentsStatsExportExcel::cleanupHeaderLogoFiles();
 
-        $uploadedFile = new UploadedFile(
-            $fullTempPath,
-            "{$filename}.xlsx",
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            null,
-            true
-        );
-
-        $filesystem        = new FilesystemServices($this->app);
-        $uploadedFileEntry = $filesystem->upload($uploadedFile, $this->user);
-
-        $isSavedInFileSystem = ! empty($uploadedFileEntry->url) && $uploadedFileEntry->url !== '/';
-        if ($isSavedInFileSystem && file_exists($fullTempPath)) {
-            unlink($fullTempPath);
-            Storage::disk('public')->delete($tempFilePath);
-        }
-
-        $this->cleanupTempImages();
-
-        return [
-            'status'       => 'success',
-            'download_url' => $isSavedInFileSystem ? $uploadedFileEntry->url : Storage::disk('public')->url($tempFilePath),
-            'file_name'    => "{$filename}.xlsx",
-            'file_path'    => $uploadedFileEntry->url ?? $tempFilePath,
-            'message'      => 'Excel export completed successfully',
-        ];
-    }
-
-    private function cleanupTempImages(): void
-    {
-        foreach (glob(storage_path('app/temp_payments_logo_*.png')) ?: [] as $file) {
-            if (file_exists($file)) {
-                unlink($file);
-            }
-        }
+        return $result;
     }
 }

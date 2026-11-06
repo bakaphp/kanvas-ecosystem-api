@@ -470,6 +470,8 @@ input ExportMetadataInput {
     headerImages: [String!]
     dateField: String
     headerColor: String # Hex color (with or without leading #) for header/total cells; defaults to green 5D8A66
+    currency_symbol: String
+    beneficiary: String
 }
 
 extend type Mutation @guard {
