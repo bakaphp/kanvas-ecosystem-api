@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\FollowUp\Integration;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -13,6 +14,8 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Intelligence\FollowUp\Actions\SetLeadFollowUpPlanAction;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Social\Channels\Models\Channel;
@@ -96,6 +99,40 @@ class BaseAgentChannelReplyActionReengagementTest extends TestCase
 
         $fixtures['lead']->refresh();
         $this->assertTrue($fixtures['lead']->isFollowUpExhausted(), 'Non-agent exhaustion should persist on inbound.');
+    }
+
+    public function testInboundEndsAStopOnReplyPlanOnTheReplyItself(): void
+    {
+        $fixtures = $this->seedFixtures();
+        $setAt = Carbon::now()->subMinute();
+        new SetLeadFollowUpPlanAction(
+            $fixtures['lead'],
+            new ManualFollowUpPlan(
+                channel: 'sms',
+                body: 'Still available, want to come see it?',
+                intervalMinutes: 1440,
+                maxAttempts: 7,
+                startAt: $setAt,
+                setAt: $setAt,
+                setByUsersId: auth()->user()->getId(),
+            ),
+            auth()->user(),
+        )->execute();
+
+        try {
+            new AgentChannelResponderAction(
+                $fixtures['channel'],
+                $fixtures['inbound'],
+                $fixtures['agent'],
+                $fixtures['session'],
+            );
+        } catch (Throwable) {
+            // Downstream guards are not under test; the hook runs before them.
+        }
+
+        $fixtures['lead']->refresh();
+        $this->assertNull($fixtures['lead']->getFollowUpPlan(), 'The reply ends the plan.');
+        $this->assertSame(ManualFollowUpPlan::REASON_REPLIED, $fixtures['lead']->getLastFollowUpPlan()->doneReason);
     }
 
     /**

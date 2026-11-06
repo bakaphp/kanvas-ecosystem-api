@@ -99,6 +99,29 @@ class FollowUpConfig extends Data
         );
     }
 
+    /**
+     * A person's plan on one entity, in the shape every engine reader already understands: one
+     * channel, a fixed cadence, stop when the attempts run out, never a stage advance.
+     */
+    public static function fromPlan(ManualFollowUpPlan $plan): self
+    {
+        return new self(
+            enabled: true,
+            mode: FollowUpModeEnum::TIME_BASED,
+            timeBased: new TimeBasedConfig(intervalMinutes: $plan->intervalMinutes),
+            goalBased: null,
+            maxRetries: $plan->maxAttempts,
+            exhaustedAction: ExhaustedActionEnum::STOP,
+            agentName: null,
+            promptTemplate: null,
+            channels: [new ChannelConfig(type: $plan->channel, enabled: true)],
+            channelSelection: ChannelSelectionEnum::PRIORITY_ONLY,
+            respectWorkHours: $plan->respectWorkHours,
+            respectLeadOptOuts: true,
+            writeSystemMessageOnStageChange: false,
+        );
+    }
+
     public function channelByType(string $type): ?ChannelConfig
     {
         foreach ($this->channels as $channel) {

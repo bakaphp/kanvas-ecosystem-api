@@ -43,6 +43,7 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\FollowUp\Concerns\HasManualFollowUpPlan;
 use Kanvas\Intelligence\FollowUp\Traits\HasFollowUpState;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -103,6 +104,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     use HasLightHouseCache;
     use HasEventResources;
     use HasFollowUpState;
+    use HasManualFollowUpPlan;
     use EmitsLedgerEventsForEntity;
     use TracksClosedAt;
 

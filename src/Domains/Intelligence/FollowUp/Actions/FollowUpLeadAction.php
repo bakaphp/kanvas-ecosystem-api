@@ -28,6 +28,7 @@ use Kanvas\Intelligence\FollowUp\DataTransferObject\AgentFollowUpResult;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ChannelConfig;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpOutcome;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ResolvedChannel;
 use Kanvas\Intelligence\FollowUp\Enums\ChannelSelectionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\ExhaustedActionEnum;
@@ -78,13 +79,23 @@ final class FollowUpLeadAction
     public function execute(): FollowUpOutcome
     {
         $eligibility = new LeadFollowUpEligibilityService();
-        $config = FollowUpConfig::fromStage($this->lead->stage);
+        $repliedReason = $eligibility->concludeRepliedPlan($this->lead);
+        if ($repliedReason !== null) {
+            return $this->skip($repliedReason);
+        }
+
+        $plan = $this->lead->getFollowUpPlan();
+        $config = $eligibility->configFor($this->lead);
         $skipReason = $eligibility->skipReason($this->lead, $config);
         if ($skipReason !== null) {
             return $this->skip($skipReason);
         }
 
         if ($this->lead->getFollowUpStateCount() >= $config->maxRetries) {
+            if ($plan !== null) {
+                return $this->exhaustPlan();
+            }
+
             if ($config->exhaustedAction === ExhaustedActionEnum::ADVANCE && $this->advanceLeadStage()) {
                 // The stage observer resets the count and wait window. Do not exhaust the new stage.
                 return $this->skip('max_retries_stage_advanced');
@@ -96,6 +107,10 @@ final class FollowUpLeadAction
         // Handoff is terminal — operator must reset follow_up_state to bring
         // the lead back into the automated flow even if the handoff clears.
         if ($eligibility->isHandedOff($this->lead)) {
+            if ($plan !== null) {
+                new EndLeadFollowUpPlanAction($this->lead, ManualFollowUpPlan::REASON_HANDED_OFF)->execute();
+            }
+
             return $this->exhaust('handed_off');
         }
 
@@ -132,10 +147,16 @@ final class FollowUpLeadAction
         $channelType = $primary->channelType;
         $channelConfig = $config->channelByType($channelType);
 
-        $silenceMin = $eligibility->silenceMinutes($this->lead);
+        if (! $this->force) {
+            $waitReason = $eligibility->tooSoonReason($this->lead, $config)
+                ?? $eligibility->outsideWorkHoursReason($this->lead, $config);
+            if ($waitReason !== null) {
+                return $this->skip($waitReason);
+            }
+        }
 
-        if (! $this->force && $silenceMin < $config->timeBased->intervalMinutes) {
-            return $this->skip('too_soon');
+        if ($plan !== null) {
+            return $this->sendPlanTouch($plan, $config, $session, $targets, $primary);
         }
 
         [$template, $metaTemplate, $skipReason] = $this->resolveTemplateForChannel(
@@ -160,6 +181,7 @@ final class FollowUpLeadAction
             return $sourceOutcome;
         }
 
+        $silenceMin = $eligibility->silenceMinutes($this->lead);
         $prompt = $this->buildAgentPrompt(
             $config,
             $channelType,
@@ -225,38 +247,22 @@ final class FollowUpLeadAction
             return $this->skip('agent: ' . ($result->reason ?? 'declined'));
         }
 
-        $sentBody = null;
-        $primaryMessage = null;
-        $channelsForBump = [];
+        $sent = null;
         if ($result->shouldRespond && $result->message !== null) {
             $resolvedBody = $this->resolveOutboundBody($template, $result->message);
             if ($resolvedBody === null) {
                 return $this->skipWithNote(FollowUpFailureReasonEnum::TEMPLATE_RENDER_FAILED->value, 'Follow-up not sent: its template failed to render.');
             }
 
-            foreach ($targets as $target) {
-                $body = $this->withSmsOptOutNotice($target, $resolvedBody);
-                $message = $this->persistMessage($session, $target, $body);
-                $this->dispatchOutbound(
-                    $target->channelType,
-                    $body,
-                    $target->contact,
-                    $message
-                );
-                $channelsForBump[] = $target->channelType;
-                // The outcome reports the primary target's body as it actually shipped.
-                $sentBody ??= $body;
-                $primaryMessage ??= $message;
-            }
-
+            $sent = $this->dispatchToTargets($session, $targets, $resolvedBody);
             // One touch = one bump regardless of N channels dispatched.
-            $this->lead->bumpFollowUp($channelsForBump, $template?->name);
+            $this->lead->bumpFollowUp($sent['channels'], $template?->name);
         }
 
         $advanced = $result->advanceStage && $this->advanceLeadStage();
 
         $this->emitSent(
-            $channelsForBump !== [] ? $channelsForBump : [$channelType],
+            $sent['channels'] ?? [$channelType],
             $template?->name,
             $metaTemplate,
             $result->reason,
@@ -265,17 +271,93 @@ final class FollowUpLeadAction
             $config->channelSelection,
         );
 
-        if ($primaryMessage !== null) {
+        if ($sent !== null) {
             $this->fireAfterFollowUpWorkflow(
-                $primaryMessage,
-                (string) $sentBody,
-                $channelsForBump,
+                $sent['message'],
+                $sent['body'],
+                $sent['channels'],
                 $template?->name,
                 $advanced,
             );
         }
 
-        return FollowUpOutcome::sent($sentBody);
+        return FollowUpOutcome::sent($sent['body'] ?? null);
+    }
+
+    /**
+     * The person wrote the body, so no template, no link check and no agent call: the CRM pull, the
+     * send, the bump, the ledger and the tenant workflow are the stage path's. The last attempt ends
+     * the plan on the spot so the person hears about it now, not at the next pass.
+     *
+     * @param ResolvedChannel[] $targets
+     */
+    private function sendPlanTouch(
+        ManualFollowUpPlan $plan,
+        FollowUpConfig $config,
+        Session $session,
+        array $targets,
+        ResolvedChannel $primary,
+    ): FollowUpOutcome {
+        $sourceOutcome = $this->syncLeadSource();
+        if ($sourceOutcome !== null) {
+            return $sourceOutcome;
+        }
+
+        $sent = $this->dispatchToTargets($session, $targets, $plan->body);
+        $this->lead->bumpFollowUp($sent['channels'], null);
+
+        $this->emitSent(
+            $sent['channels'],
+            null,
+            null,
+            'plan',
+            false,
+            $primary,
+            $config->channelSelection,
+        );
+        $this->fireAfterFollowUpWorkflow(
+            $sent['message'],
+            $sent['body'],
+            $sent['channels'],
+            null,
+            false,
+        );
+
+        if ($this->lead->getFollowUpStateCount() >= $plan->maxAttempts) {
+            new EndLeadFollowUpPlanAction($this->lead, ManualFollowUpPlan::REASON_EXHAUSTED)->execute();
+        }
+
+        return FollowUpOutcome::sent($sent['body']);
+    }
+
+    /**
+     * Persists and sends one body to every target. The primary target's body is the one reported,
+     * as it actually shipped (the SMS opt-out clause may have been added).
+     *
+     * @param ResolvedChannel[] $targets
+     * @return array{body: string, message: Message, channels: string[]}
+     */
+    private function dispatchToTargets(Session $session, array $targets, string $resolvedBody): array
+    {
+        $sentBody = null;
+        $primaryMessage = null;
+        $channels = [];
+
+        foreach ($targets as $target) {
+            $body = $this->withSmsOptOutNotice($target, $resolvedBody);
+            $message = $this->persistMessage($session, $target, $body);
+            $this->dispatchOutbound(
+                $target->channelType,
+                $body,
+                $target->contact,
+                $message
+            );
+            $channels[] = $target->channelType;
+            $sentBody ??= $body;
+            $primaryMessage ??= $message;
+        }
+
+        return ['body' => (string) $sentBody, 'message' => $primaryMessage, 'channels' => $channels];
     }
 
     /**
@@ -851,6 +933,21 @@ final class FollowUpLeadAction
         return FollowUpOutcome::skipped($reason);
     }
 
+    /**
+     * A plan that ran out of attempts never advances the stage, and its state is reset by the end
+     * action so the stage config applies again; the ledger keeps the exhaustion itself.
+     */
+    private function exhaustPlan(): FollowUpOutcome
+    {
+        $this->lead->emitLedgerEvent('lead.follow_up.exhausted', payload: [
+            'stage_id' => $this->lead->pipeline_stage_id,
+            'reason' => 'plan_max_attempts',
+        ]);
+        new EndLeadFollowUpPlanAction($this->lead, ManualFollowUpPlan::REASON_EXHAUSTED)->execute();
+
+        return FollowUpOutcome::exhausted('plan_max_attempts');
+    }
+
     private function exhaust(string $reason): FollowUpOutcome
     {
         $this->lead->markFollowUpExhausted($reason);
@@ -886,6 +983,7 @@ final class FollowUpLeadAction
             'channel_selection_strategy' => $strategy->value,
             'channel_selection_reason' => $primary->reason,
             'contact_id' => $primary->contact->getKey(),
+            'source' => $this->lead->getFollowUpPlan() !== null ? 'plan' : 'stage',
         ]);
     }
 }
