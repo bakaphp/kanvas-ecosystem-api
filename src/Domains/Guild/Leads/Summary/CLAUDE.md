@@ -66,8 +66,9 @@ It skips summary notes and telemetry before taking the lock: the summary note is
 
 ## Switch, rollout, evaluation
 
-- `agent_lead_summary_enabled` (`AgentRunConfigurationEnum::LEAD_SUMMARY`), per app, off by default. Shepard
-  Auto (app 2) first, at least a day (D5); further only when the D11 thresholds hold.
+- `agent_lead_summary_enabled` (`AgentRunConfigurationEnum::LEAD_SUMMARY`), per app, **on by default**; `0`
+  turns it off for an app (Max, 2026-11-06). The D11 thresholds are watched on every tenant from deploy,
+  not on one tenant first.
 - `vendor/bin/neuron evaluation tests/Evaluations/LeadMemory` runs the production fold against the real
   model (`GEMINI_API_KEY`). The four committed scenarios are synthetic; add anonymised real transcripts
   before widening the rollout (`datasets/README.md`).

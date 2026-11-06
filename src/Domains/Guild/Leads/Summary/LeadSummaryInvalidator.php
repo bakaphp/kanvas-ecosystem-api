@@ -83,7 +83,7 @@ final class LeadSummaryInvalidator
     {
         // Almost every attach is a new message above the marker; settle that without the lock.
         if (
-            ! $lead->app->getBool(AgentRunConfigurationEnum::LEAD_SUMMARY->value, default: false)
+            ! $lead->app->getBool(AgentRunConfigurationEnum::LEAD_SUMMARY->value, default: true)
             || $messageId > LeadSummaryRepository::state($lead)->through
         ) {
             return;

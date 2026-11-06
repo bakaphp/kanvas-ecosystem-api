@@ -555,7 +555,7 @@ trait HasKanvasAgentBehavior
 
     protected function leadSummaryActive(): bool
     {
-        return $this->app?->getBool(AgentRunConfigurationEnum::LEAD_SUMMARY->value, default: false) ?? false;
+        return $this->app?->getBool(AgentRunConfigurationEnum::LEAD_SUMMARY->value, default: true) ?? false;
     }
 
     protected function leadSummaryProvider(): AIProviderInterface

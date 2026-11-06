@@ -43,8 +43,8 @@ enum AgentRunConfigurationEnum: string
 
     /**
      * The rolling lead summary: a lead's older history is kept as a coverage-tracked summary with open
-     * commitments, caught up before the reply whenever the window drops a row it does not cover. Off by
-     * default; rolled out per app (Shepard Auto first) behind the evaluation gate.
+     * commitments, caught up before the reply whenever the window drops a row it does not cover. On by
+     * default; `0` turns it off for an app.
      */
     case LEAD_SUMMARY = 'agent_lead_summary_enabled';
 }

@@ -5,40 +5,16 @@ declare(strict_types=1);
 namespace Tests\Guild\Leads\Summary;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Summary\LeadSummaryRepository;
-use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
-use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 use Tests\Traits\MakesLeadConversations;
 
-/**
- * Serial: the lead summary switch is an app setting, in Redis, seen by every process.
- */
-#[Group('serial')]
 final class LeadSummaryInvalidationTest extends TestCase
 {
     use DatabaseTransactions;
     use MakesLeadConversations;
 
     protected $connectionsToTransact = [null, 'crm', 'social'];
-
-    private Apps $kanvasApp;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->kanvasApp = app(Apps::class);
-        $this->kanvasApp->set(AgentRunConfigurationEnum::LEAD_SUMMARY->value, 1);
-    }
-
-    protected function tearDown(): void
-    {
-        $this->kanvasApp->del(AgentRunConfigurationEnum::LEAD_SUMMARY->value);
-
-        parent::tearDown();
-    }
 
     public function testAnEditedNoteIsRebuiltAndADeliveryStatusIsNot(): void
     {
