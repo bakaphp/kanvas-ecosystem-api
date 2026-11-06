@@ -13,7 +13,9 @@ use Kanvas\Guild\Leads\Models\Lead;
  * - `loaded`: what the rollup returned;
  * - `retained`: what is still in the window after fold and cut, folded-in rows included;
  * - `dropped`: loaded minus retained, holes in the middle included;
- * - `uncovered`: dropped and above what the summary covers, so known to nobody this turn.
+ * - `uncovered`: every counted message above what the summary covers that is not retained, so known to
+ *   nobody this turn. Not only `dropped`: a customer-facing rollup never loads staff notes, and a note
+ *   the summary has not read yet is exactly the instruction that must reach it.
  */
 final readonly class LeadHistoryWindow
 {
@@ -38,13 +40,15 @@ final readonly class LeadHistoryWindow
     {
         $loaded = LeadConversationMessages::countedAmong($lead, self::socialIds($window['loaded']));
         $retained = array_values(array_intersect($loaded, self::socialIds($window['retained'])));
-        $dropped = array_values(array_diff($loaded, $retained));
 
         return new self(
             loaded: $loaded,
             retained: $retained,
-            dropped: $dropped,
-            uncovered: self::above($dropped, $state->coveredThrough()),
+            dropped: array_values(array_diff($loaded, $retained)),
+            uncovered: array_values(array_diff(
+                LeadConversationMessages::idsAfter($lead, $state->coveredThrough()),
+                $retained,
+            )),
         );
     }
 

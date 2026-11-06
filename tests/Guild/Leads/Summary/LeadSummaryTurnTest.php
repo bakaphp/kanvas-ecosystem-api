@@ -14,6 +14,7 @@ use Kanvas\Guild\Leads\Summary\Notifications\LeadMemoryGapNotification;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\KanvasGenericNeuronAgent;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use NeuronAI\Chat\Messages\UserMessage;
 use Tests\Stubs\Intelligence\LeadSummaryCustomerAgentStub;
 use Tests\Stubs\Intelligence\LeadSummaryInternalAgentStub;
@@ -102,6 +103,33 @@ final class LeadSummaryTurnTest extends TestCase
         $this->assertStringContainsString('read_lead_activity', $instructions);
         $this->assertStringNotContainsString(self::PROMISE, $instructions);
         Notification::assertNothingSent();
+    }
+
+    /**
+     * A customer-facing agent never loads staff notes into its window, so a note is never "dropped";
+     * it still has to reach the summary, which is the only way the instruction reaches the agent.
+     */
+    public function testAStaffNoteTheCustomerAgentNeverSeesStillReachesItsSummary(): void
+    {
+        $lead = $this->makeLead();
+        $this->leadMessage($lead, 'hi, is the Tacoma available?');
+        $note = Message::factory()
+            ->withAppId($lead->apps_id)
+            ->withCompanyId($lead->companies_id)
+            ->withMessageType(MessageTypeService::getOrCreate($lead->app, 'notes'))
+            ->create(['users_id' => auth()->user()->getId(), 'message' => ['content' => 'Staff: send him to the CDJR lot, not Select']]);
+        $note->addEntity($lead);
+        LeadSummaryStubProviders::$window = 50_000;
+        $summaries = new ScriptedStructuredNeuronProvider([
+            $this->summaryAnswer([['op' => 'add', 'kind' => 'instruction', 'text' => 'Send him to the CDJR lot, not Select', 'citations' => [$note->getId()]]]),
+        ]);
+        LeadSummaryStubProviders::$summaries = $summaries;
+
+        $this->chat(new LeadSummaryCustomerAgentStub(), $lead, 'where do I go?');
+
+        $this->assertCount(1, $summaries->prompts, 'The note is uncovered even though the window never loaded it');
+        $this->assertStringContainsString('send him to the CDJR lot', $summaries->prompts[0]);
+        $this->assertStringContainsString('Send him to the CDJR lot, not Select', (string) LeadSummaryStubProviders::$chats->instructions);
     }
 
     /**

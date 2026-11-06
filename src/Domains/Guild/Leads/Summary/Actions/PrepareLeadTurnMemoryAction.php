@@ -24,9 +24,10 @@ use Throwable;
  * Runs once per turn, before the instructions are built, so the first request of the turn already
  * carries a summary that covers what the window dropped.
  *
- * Two things trigger an update, nothing else (D1): token pressure (the summary plus what it does not
- * cover passes 80% of the history budget and there is an older portion beyond the kept tail), and a
- * coverage gap (the window dropped a counted message the summary does not cover). One chunk runs
+ * Three things trigger an update, nothing else (D1): token pressure (the summary plus what it does not
+ * cover passes 80% of the history budget and there is an older portion beyond the kept tail), a
+ * coverage gap (a counted message the summary does not cover is not in the window), and a pending
+ * rebuild (a covered message was edited or deleted, so the summary may state what is no longer so). One chunk runs
  * inside the turn, within 15 seconds including the lock wait and the retry (D9); what is left goes to
  * the continuation job. A gap that survives that is never silent: an internal agent is told the dates
  * and the tool, a customer-facing agent gets the messages themselves (D10).
@@ -64,10 +65,16 @@ final class PrepareLeadTurnMemoryAction
 
         $pressureTarget = $this->pressureTarget($state, $window);
         $gapTarget = $window->uncovered === [] ? null : max($window->uncovered);
-        $target = max($pressureTarget ?? 0, $gapTarget ?? 0);
+        $rebuildTarget = $state->rebuildFrom === null ? null : $state->through;
+        $target = max($pressureTarget ?? 0, $gapTarget ?? 0, $rebuildTarget ?? 0);
 
         if ($target > $state->coveredThrough()) {
-            $state = $this->catchUp($target, reason: $gapTarget !== null ? 'coverage_gap' : 'token_pressure');
+            $reason = match (true) {
+                $gapTarget !== null => 'coverage_gap',
+                $rebuildTarget !== null => 'rebuild',
+                default => 'token_pressure',
+            };
+            $state = $this->catchUp($target, $reason);
             $window = $window->withCoverage($state);
         }
 
@@ -108,7 +115,7 @@ final class PrepareLeadTurnMemoryAction
             $progress = new UpdateLeadSummaryAction(
                 $this->lead,
                 ($this->summaryProvider)(),
-                $started + self::TURN_BUDGET_SECONDS,
+                $started + self::TURN_BUDGET_SECONDS
             )->execute();
             $state = $progress->state;
             $failure = $progress->failure;
