@@ -11,8 +11,11 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Support\CompanyScope;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Summary\Actions\PrepareLeadTurnMemoryAction;
+use Kanvas\Guild\Leads\Summary\LeadTurnMemory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasChatHistory;
 use Kanvas\Intelligence\Agents\ChatHistory\KanvasHistoryTrimmer;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
@@ -43,6 +46,7 @@ use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Chat\History\InMemoryMessageStore;
 use NeuronAI\Chat\History\MessageStoreInterface;
 use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\SystemMessage;
 use NeuronAI\Exceptions\ToolException;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Tools\ProviderToolInterface;
@@ -125,6 +129,10 @@ trait HasKanvasAgentBehavior
     protected array $turnMedia = [];
     protected bool $privateUserTurn = false;
     protected bool $rendersArtifacts = false;
+    protected ?int $inboundMessageId = null;
+
+    /** Set by resources() when the turn runs on a lead with the rolling summary on; read by the recall. */
+    protected ?LeadTurnMemory $leadTurnMemory = null;
 
     /**
      * Built lazily at tool wiring: the mention job names the human after setConfiguration().
@@ -281,6 +289,11 @@ trait HasKanvasAgentBehavior
     public function setTurnMedia(array $media): void
     {
         $this->turnMedia = array_values($media);
+    }
+
+    public function setInboundMessageId(?int $messageId): void
+    {
+        $this->inboundMessageId = $messageId;
     }
 
     public function setPrivateUserTurn(bool $private): void
@@ -485,16 +498,23 @@ trait HasKanvasAgentBehavior
     #[Override]
     protected function resources(): AgentResources
     {
-        [$instructions, $tools] = $this->resolveTools();
-        [$tools, $this->toolSearchPool] = $this->splitForToolSearch($tools);
-        $this->registeredToolNames = self::toolNames($tools);
-
+        // History first: on a lead, what the window drops decides the summary the instructions carry,
+        // and the retrieval built after this reads the same window.
         $history = new KanvasChatHistory(
             $this->resolveMessageStore(),
             $this->requireWorkflowId(),
             $this->contextWindow ?? $this->contextWindow(),
             KanvasHistoryTrimmer::make(),
         );
+        $this->leadTurnMemory = $this->prepareLeadTurnMemory($history);
+
+        [$instructions, $tools] = $this->resolveTools();
+        [$tools, $this->toolSearchPool] = $this->splitForToolSearch($tools);
+        $this->registeredToolNames = self::toolNames($tools);
+
+        if ($this->leadTurnMemory !== null && $this->leadTurnMemory->block !== '') {
+            $instructions = new SystemMessage($instructions->getContent() . "\n\n" . $this->leadTurnMemory->block);
+        }
 
         return new AgentResources(
             $this->getProvider(),
@@ -502,6 +522,45 @@ trait HasKanvasAgentBehavior
             $instructions,
             new ToolRegistry($tools),
         );
+    }
+
+    /**
+     * The rolling lead summary, when this turn reads a lead's rollup and the app has it on. Off the
+     * lead path it costs nothing: no load, no query.
+     */
+    private function prepareLeadTurnMemory(KanvasChatHistory $history): ?LeadTurnMemory
+    {
+        $lead = $this->entity;
+
+        if (
+            ! $lead instanceof Lead
+            || $this->agent === null
+            || ! $this->resolveMessageStore() instanceof EntityRollupMessageStore
+            || ! $this->leadSummaryActive()
+        ) {
+            return null;
+        }
+
+        $history->getMessages();
+
+        return new PrepareLeadTurnMemoryAction(
+            agent: $this->agent,
+            lead: $lead,
+            window: $history->window(),
+            historyBudget: $this->contextWindow ?? $this->contextWindow(),
+            customerFacing: $this instanceof ConversesWithCustomer,
+            summaryProvider: fn (): AIProviderInterface => $this->leadSummaryProvider(),
+        )->execute();
+    }
+
+    protected function leadSummaryActive(): bool
+    {
+        return $this->app?->getBool(AgentRunConfigurationEnum::LEAD_SUMMARY->value, default: true) ?? false;
+    }
+
+    protected function leadSummaryProvider(): AIProviderInterface
+    {
+        return AgentProviderService::summaryProviderOrOwn($this->requireAgent());
     }
 
     /**

@@ -6,14 +6,17 @@ namespace Kanvas\Intelligence\Knowledge\DataTransferObject;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Intelligence\Agents\Neuron\Memory\ConversationMemoryNode;
+use Kanvas\Intelligence\Knowledge\Research\Actions\ResearchCompanyWebsiteAction;
+use Kanvas\Intelligence\Knowledge\Services\CompanyKnowledgeService;
 use Kanvas\Intelligence\Knowledge\Sources\LedgerKnowledgeSource;
+use Kanvas\Intelligence\Knowledge\Workflows\IndexKnowledgeDocumentActivity;
 
 final readonly class KnowledgeScope
 {
     /**
      * The document kinds that are memory, not uploaded knowledge. They share the collection, and a
      * knowledge read must leave them out: memory is recalled under an audience scope
-     * (CompanyMemoryRetrieval), while an organization-wide knowledge read sees the whole company.
+     * (CompanyMemoryRetrieval), while a knowledge read has none.
      */
     public const array MEMORY_SOURCE_TYPES = [
         ConversationMemoryNode::SOURCE_TYPE,
@@ -22,20 +25,30 @@ final readonly class KnowledgeScope
     ];
 
     /**
+     * What a tenant gave its agents to read, by `sourceType`: an agent's own uploads and the
+     * company's (files, pages, its researched website). An agent's knowledge base is its own
+     * documents plus these company ones; another agent's files are reached only through a tool.
+     */
+    public const array DOCUMENT_SOURCE_TYPES = [
+        IndexKnowledgeDocumentActivity::SOURCE_TYPE,
+        CompanyKnowledgeService::SOURCE_TYPE_DOCUMENT,
+        CompanyKnowledgeService::SOURCE_TYPE_URL,
+        ResearchCompanyWebsiteAction::SOURCE_TYPE,
+    ];
+
+    /**
      * A scope filters the shared knowledge collection down to one tenant, and
-     * optionally one entity. Organization-wide reads keep only the tenant pair.
-     * Entity-scoped docs (a Lead and its messages) carry
+     * optionally one entity. Entity-scoped docs (a Lead's cards, an agent's uploads) carry
      * a real entity_type/entity_id; tenant-scoped docs (a company's uploaded
      * policy/FAQ files) carry none and are stored with entity_id = 0.
      *
-     * @param class-string|null $entityType FQCN of the owning model; null = tenant/organization-scoped
+     * @param class-string|null $entityType FQCN of the owning model; null = tenant-scoped
      */
     public function __construct(
         public int $appId,
         public int $companyId,
         public ?string $entityType = null,
         public ?int $entityId = null,
-        public bool $organizationWide = false,
     ) {
     }
 
@@ -61,15 +74,6 @@ final readonly class KnowledgeScope
         return new self(appId: $appId, companyId: $companyId);
     }
 
-    public static function forOrganization(int $appId, int $companyId): self
-    {
-        return new self(
-            appId: $appId,
-            companyId: $companyId,
-            organizationWide: true,
-        );
-    }
-
     public function isEntityScoped(): bool
     {
         return $this->entityType !== null && $this->entityId !== null;
@@ -77,17 +81,12 @@ final readonly class KnowledgeScope
 
     /**
      * Typesense filter_by. companies_id is ALWAYS present — this is what closes
-     * the cross-company leak. Organization-wide reads stop at that tenant pair;
-     * tenant-document searches pin entity_id = 0, and entity searches add both
-     * entity_type and entity_id.
+     * the cross-company leak. Tenant-document searches pin entity_id = 0, and
+     * entity searches add both entity_type and entity_id.
      */
     public function filter(): string
     {
         $filter = sprintf('apps_id:=%d && companies_id:=%d', $this->appId, $this->companyId);
-
-        if ($this->organizationWide) {
-            return $filter;
-        }
 
         if ($this->isEntityScoped()) {
             return $filter . sprintf(
@@ -106,6 +105,19 @@ final readonly class KnowledgeScope
         return $this->filter() . ' && source_type:!=['
             . implode(', ', array_map(self::escapeFilterValue(...), self::MEMORY_SOURCE_TYPES))
             . ']';
+    }
+
+    /** The filter for a read of uploaded documents only: this scope, no record rows, no memory. */
+    public function documentFilter(): string
+    {
+        return $this->filter() . ' && sourceType:=['
+            . implode(', ', array_map(self::escapeFilterValue(...), self::DOCUMENT_SOURCE_TYPES))
+            . ']';
+    }
+
+    public static function isDocument(string $sourceType): bool
+    {
+        return in_array($sourceType, self::DOCUMENT_SOURCE_TYPES, true);
     }
 
     /** Backtick-guard a Typesense filter value (FQCNs and source names carry special chars). */

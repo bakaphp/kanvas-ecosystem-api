@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Observers;
 
 use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
+use Kanvas\Guild\Leads\Summary\LeadSummaryInvalidator;
 use Kanvas\Intelligence\Agents\Services\AgentChannelActivity;
 use Kanvas\Social\Channels\Events\ChannelMessageChangedEvent;
 use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
@@ -82,6 +83,7 @@ class MessageObserver
     {
         $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
         $message->clearLightHouseCacheJob();
+        LeadSummaryInvalidator::messageUpdated($message);
 
         if ($message->isIndexedMessageType()) {
             $message->searchableSync();
@@ -108,6 +110,8 @@ class MessageObserver
 
     public function deleted(Message $message): void
     {
+        LeadSummaryInvalidator::messageDeleted($message);
+
         if ($this->isBroadcastableNote($message)) {
             $this->broadcastChange($message, ChannelMessageRemovedEvent::class);
         }
