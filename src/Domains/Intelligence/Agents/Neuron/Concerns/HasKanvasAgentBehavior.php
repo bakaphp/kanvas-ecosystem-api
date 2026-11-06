@@ -549,7 +549,7 @@ trait HasKanvasAgentBehavior
             window: $history->window(),
             historyBudget: $this->contextWindow ?? $this->contextWindow(),
             customerFacing: $this instanceof ConversesWithCustomer,
-            summaryProvider: $this->leadSummaryProvider(),
+            summaryProvider: fn (): AIProviderInterface => $this->leadSummaryProvider(),
         )->execute();
     }
 

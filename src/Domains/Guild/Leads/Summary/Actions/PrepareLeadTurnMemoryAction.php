@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Summary\Actions;
 
+use Closure;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -43,6 +44,8 @@ final class PrepareLeadTurnMemoryAction
 
     /**
      * @param array{loaded: list<string>, retained: list<string>} $window from KanvasChatHistory::window()
+     * @param Closure(): AIProviderInterface $summaryProvider called only when an update runs: resolving a
+     *   provider can fail (no key for the app), and a turn that needs no catch-up must not pay for that
      */
     public function __construct(
         private readonly Agent $agent,
@@ -50,7 +53,7 @@ final class PrepareLeadTurnMemoryAction
         private readonly array $window,
         private readonly int $historyBudget,
         private readonly bool $customerFacing,
-        private readonly AIProviderInterface $summaryProvider,
+        private readonly Closure $summaryProvider,
     ) {
     }
 
@@ -104,7 +107,7 @@ final class PrepareLeadTurnMemoryAction
         try {
             $progress = new UpdateLeadSummaryAction(
                 $this->lead,
-                $this->summaryProvider,
+                ($this->summaryProvider)(),
                 $started + self::TURN_BUDGET_SECONDS,
             )->execute();
             $state = $progress->state;

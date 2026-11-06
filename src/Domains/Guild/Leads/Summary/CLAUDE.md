@@ -35,7 +35,10 @@ and the lead never reads as current.
    that is non-empty, or when the summary plus what it does not cover passes 80% of the history budget and
    there is an older portion beyond the 8-message tail (D1). Nothing else triggers one: no timer, no count.
 3. One chunk inside the turn, 15 s including the lock wait and the retry (D9). What is left goes to
-   `ContinueLeadSummaryJob`, unique per lead until processing, which stops at its target.
+   `ContinueLeadSummaryJob`, unique per lead until processing, which stops at its target. The summary
+   provider is a closure resolved inside that step, never before: resolving it reads the agent's LLM
+   setup and throws on an app with no key, which must cost a turn nothing when there is nothing to
+   catch up and must not fail the reply when there is (`PrepareLeadTurnMemoryActionTest`).
 4. The instructions get the summary block. A gap that survived step 3 is never silent:
    - internal agent: the date range and `read_lead_activity`;
    - customer-facing agent (that tool refuses customer surfaces): the missing messages verbatim, newest
