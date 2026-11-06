@@ -44,6 +44,7 @@ class RequoteShippingListener
                 company: $context->company,
                 region: $context->region,
                 cart: $cart,
+                fallBackToCheapest: true,
             )->execute();
         } catch (Throwable $exception) {
             if (! $exception instanceof ValidationException) {

@@ -44,6 +44,7 @@ final class GetShippingQuotesActionTest extends TestCase
 
     public static array $quotesByProvider = [];
     public static array $callsByCompany = [];
+    public static bool $failingProviderIsDown = false;
 
     protected function setUp(): void
     {
@@ -51,6 +52,7 @@ final class GetShippingQuotesActionTest extends TestCase
 
         self::$quotesByProvider = [];
         self::$callsByCompany = [];
+        self::$failingProviderIsDown = false;
         Cache::flush();
 
         foreach (['fake-a', 'fake-b', 'fake-failing'] as $name) {
@@ -81,6 +83,7 @@ final class GetShippingQuotesActionTest extends TestCase
 
     public function testAFailingProviderDoesNotDropTheOthers(): void
     {
+        self::$failingProviderIsDown = true;
         $company = $this->companyWithApiIntegration();
         self::$quotesByProvider['fake-a'] = [$this->quote('fake-a', 90.0)];
 
@@ -114,17 +117,59 @@ final class GetShippingQuotesActionTest extends TestCase
         $this->assertSame('fake-a', $quotes[0]->provider);
     }
 
-    public function testACartLineWithoutWeightYieldsNoRequestAndNoQuotes(): void
+    public function testACartLineWithoutWeightIsQuotedAtTheMissingWeight(): void
     {
         $company = $this->companyWithApiIntegration();
         self::$quotesByProvider['fake-a'] = [$this->quote('fake-a', 90.0)];
 
-        $request = $this->buildRequest([[1, 0.5, 1], [2, 0, 1]], new ShippingDestination(countryCode: 'us'));
+        $request = $this->buildRequest([[1, 0.5, 1], [2, 0, 2]], new ShippingDestination(countryCode: 'us'));
         $quotes = $this->runAction($company, $request);
 
-        $this->assertNull($request);
-        $this->assertSame([], $quotes);
-        $this->assertSame([], self::$callsByCompany);
+        $this->assertEqualsWithDelta(0.5 + 2 * BuildShipmentRequestAction::MISSING_WEIGHT, $request->totalWeight(), 0.0001);
+        $this->assertSame('fake-a', $quotes[0]->provider);
+    }
+
+    public function testNoProviderQuoteForTheDestinationShipsFree(): void
+    {
+        $quotes = $this->quotesFor($this->companyWithApiIntegration(), 0.5);
+
+        $this->assertFreeQuote($quotes);
+    }
+
+    public function testQuotesOnlyInAnotherCurrencyFallBackToFreeInTheRegionCurrency(): void
+    {
+        $company = $this->companyWithApiIntegration();
+        self::$quotesByProvider['fake-a'] = [$this->quote('fake-a', 90.0, 'USD')];
+
+        $quotes = $this->quotesFor($company, 0.5);
+
+        $this->assertFreeQuote($quotes);
+        $this->assertSame('DOP', $quotes[0]->currency);
+    }
+
+    public function testAProviderQuoteReplacesTheFreeDefault(): void
+    {
+        $company = $this->companyWithApiIntegration();
+        self::$quotesByProvider['fake-a'] = [$this->quote('fake-a', 90.0)];
+
+        $quotes = $this->quotesFor($company, 0.5);
+
+        $this->assertCount(1, $quotes);
+        $this->assertSame('fake-a', $quotes[0]->provider);
+    }
+
+    public function testAFailingProviderWithNoOtherQuoteGetsNoFreeDefault(): void
+    {
+        self::$failingProviderIsDown = true;
+
+        $this->assertSame([], $this->quotesFor($this->companyWithApiIntegration(), 0.5));
+    }
+
+    public function testAnUnknownDestinationGetsNoFreeDefault(): void
+    {
+        $request = $this->buildRequest([[1, 0.5, 1]], new ShippingDestination(countryCode: 'zz-unknown'));
+
+        $this->assertSame([], $this->runAction($this->companyWithApiIntegration(), $request));
     }
 
     public function testVariantWeightIsReadInKilograms(): void
@@ -134,11 +179,11 @@ final class GetShippingQuotesActionTest extends TestCase
         $this->assertSame(0.17, $request->totalWeight());
     }
 
-    public function testANullWeightYieldsNoRequest(): void
+    public function testANullWeightCountsAsTheMissingWeight(): void
     {
         $request = $this->buildRequest([[1, null, 1]], new ShippingDestination(countryCode: 'us'));
 
-        $this->assertNull($request);
+        $this->assertSame(BuildShipmentRequestAction::MISSING_WEIGHT, $request->totalWeight());
     }
 
     public function testAnUnknownDestinationCountryYieldsNoRequest(): void
@@ -186,7 +231,7 @@ final class GetShippingQuotesActionTest extends TestCase
 
         $this->assertSame('us', $request->destinationCountry->code);
         $this->assertSame('33101', $request->destinationPostalCode);
-        $this->assertSame([], $quotes);
+        $this->assertFreeQuote($quotes);
     }
 
     public function testTwoCompaniesOnTheSameLaneGetSeparateCacheEntries(): void
@@ -336,6 +381,14 @@ final class GetShippingQuotesActionTest extends TestCase
         ];
     }
 
+    private function assertFreeQuote(array $quotes): void
+    {
+        $this->assertCount(1, $quotes);
+        $this->assertSame(ShippingQuote::FREE, $quotes[0]->provider);
+        $this->assertSame(ShippingQuote::FREE, $quotes[0]->serviceCode);
+        $this->assertSame(0.0, $quotes[0]->amount);
+    }
+
     private function quote(string $provider, float $amount, string $currency = 'DOP'): ShippingQuote
     {
         return new ShippingQuote(
@@ -379,7 +432,7 @@ final class GetShippingQuotesActionTest extends TestCase
                         (GetShippingQuotesActionTest::$callsByCompany[$companyId] ?? 0) + 1;
                 }
 
-                if ($this->name === 'fake-failing') {
+                if ($this->name === 'fake-failing' && GetShippingQuotesActionTest::$failingProviderIsDown) {
                     throw new RuntimeException('carrier down');
                 }
 

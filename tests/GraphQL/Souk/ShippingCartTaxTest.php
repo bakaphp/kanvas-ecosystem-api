@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Queue;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Shipping\DataTransferObject\ShippingQuote;
 use Kanvas\Souk\Taxes\Actions\CompleteCheckoutFromSnapshotAction;
 use Kanvas\Souk\Taxes\Actions\FreezeCartTaxAction;
 use Kanvas\Souk\Taxes\Enums\ConfigurationEnum;
@@ -71,6 +72,48 @@ final class ShippingCartTaxTest extends ShippingOrderBase
         $cart = $this->cartTax();
         $this->assertSame('calculated', $cart['tax']['status']);
         $this->assertGreaterThan(0.0, (float) $cart['total_tax']);
+    }
+
+    public function testAnUncoveredDestinationShipsFreeAndCalculatesTax(): void
+    {
+        $this->stopShippingToTheUs();
+        $this->addToCart()->assertSuccessful();
+
+        $quotes = $this->shippingQuotes();
+        $this->assertSame([ShippingQuote::FREE], array_keys($quotes));
+        $this->assertSame(0.0, (float) $quotes[ShippingQuote::FREE]['amount']);
+
+        $this->applyShippingQuote(ShippingQuote::FREE, 'US', ShippingQuote::FREE)->assertSuccessful();
+
+        $cart = $this->cartTax();
+        $this->assertSame('calculated', $cart['tax']['status']);
+        $this->assertGreaterThan(0.0, (float) $cart['total_tax']);
+    }
+
+    public function testACarrierQuoteReplacesAFreeShipmentWithoutLosingTheDestination(): void
+    {
+        $this->stopShippingToTheUs();
+        $this->addToCart()->assertSuccessful();
+        $this->applyShippingQuote(ShippingQuote::FREE, 'US', ShippingQuote::FREE)->assertSuccessful();
+
+        $this->configureRateCards();
+        $this->updateCartQuantity(2)->assertSuccessful();
+
+        $shipping = $this->cartShipping();
+        $this->assertSame('inposdom', $shipping['attributes']['provider']);
+        $this->assertSame('US', $shipping['attributes']['destination']['country']);
+        $this->assertSame('calculated', $this->cartTax()['tax']['status']);
+    }
+
+    public function testAProductWithoutWeightIsChargedTheMinimumShipping(): void
+    {
+        $this->setVariantWeight(0.0);
+        $this->addToCart()->assertSuccessful();
+
+        $quotes = $this->shippingQuotes();
+
+        $this->assertArrayNotHasKey(ShippingQuote::FREE, $quotes);
+        $this->assertGreaterThan(0.0, (float) $quotes['ems']['amount']);
     }
 
     public function testChangingQuantityRecalculatesTax(): void
