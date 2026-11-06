@@ -26,6 +26,7 @@ use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
 use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum as WaSenderConfigurationEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService;
+use Kanvas\Exceptions\ModelNotFoundException as TemplateNotFoundException;
 use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -41,6 +42,7 @@ use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Templates\Repositories\TemplatesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Ramsey\Uuid\Uuid;
@@ -71,6 +73,8 @@ class SendMessageToLeadAction
      */
     private const int DEFAULT_MMS_MAX_TOTAL_MEDIA = 30;
 
+    private const string DEFAULT_EMAIL_TEMPLATE = 'first-time-agent-engagement';
+
     protected array $processedFiles = [];
     protected array $videoEngagements = [];
     protected string $attemptUuid;
@@ -79,10 +83,18 @@ class SendMessageToLeadAction
     protected bool $isOptOutConfirmation = false;
     protected ?Users $signatureOwner = null;
     protected ?CampaignRecipient $campaignRecipient = null;
+    protected string $emailTemplate = self::DEFAULT_EMAIL_TEMPLATE;
 
     public function withSignatureOwner(?Users $user): self
     {
         $this->signatureOwner = $user;
+
+        return $this;
+    }
+
+    public function withEmailTemplate(string $template): self
+    {
+        $this->emailTemplate = $template;
 
         return $this;
     }
@@ -981,9 +993,10 @@ class SendMessageToLeadAction
 
         // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
         $message = MarkdownEmailRenderer::toEmailHtml($message);
+        $template = $this->resolveEmailTemplate();
 
         $notification = new Blank(
-            'first-time-agent-engagement',
+            $template,
             [
                 'content' => $message,
                 'lead' => $this->lead,
@@ -1009,9 +1022,28 @@ class SendMessageToLeadAction
             body: $message,
             attachments: $attachments,
             engagementUrls: $engagementUrls,
-            template: 'first-time-agent-engagement',
+            template: $template,
             signature: $signature,
         );
+    }
+
+    /**
+     * Resolved here, not in the queued notification: a company that never got the requested
+     * template would otherwise lose the email in the worker instead of sending the default one.
+     */
+    private function resolveEmailTemplate(): string
+    {
+        if ($this->emailTemplate === self::DEFAULT_EMAIL_TEMPLATE) {
+            return self::DEFAULT_EMAIL_TEMPLATE;
+        }
+
+        try {
+            TemplatesRepository::getByName($this->emailTemplate, $this->lead->app, $this->lead->company);
+        } catch (TemplateNotFoundException) {
+            return self::DEFAULT_EMAIL_TEMPLATE;
+        }
+
+        return $this->emailTemplate;
     }
 
     /**
