@@ -14,7 +14,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
-use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Throwable;
 
 /**
@@ -45,33 +44,9 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
-        $startDate = new LeadConfigurationService()->getFollowUpStartDate($this->company);
-
-        $leads = Lead::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            // Open leads only, by `leads_status_id` — the column CRM pulls and the UI write. The
-            // authoritative check is FollowUpLeadAction's hasOpenLeadStatus() gate; this just
-            // avoids spawning jobs for already-closed leads.
-            ->hasOpenLeadStatus($this->company)
-            ->when($startDate, fn ($query) => $query->where('created_at', '>=', $startDate))
-            ->whereNotNull('pipeline_stage_id')
-            ->whereHas(
-                'stage',
-                fn ($q) => $q
-                    ->where('is_deleted', 0)
-                    ->whereJsonContains('config->follow_up->enabled', true)
-                    ->where(
-                        fn ($inner) => $inner
-                            ->whereJsonDoesntContain('config->stage_meta->is_terminal', true)
-                            ->orWhereNull('config->stage_meta->is_terminal'),
-                    ),
-            )
-            ->with('stage')
-            ->lazyById(500);
-
         $eligibility = new LeadFollowUpEligibilityService();
+        $leads = $eligibility->candidates($this->app, $this->company)->lazyById(500);
+
         foreach ($leads as $lead) {
             $skipReason = $eligibility->dispatchSkipReason($lead);
             if ($skipReason !== null) {
