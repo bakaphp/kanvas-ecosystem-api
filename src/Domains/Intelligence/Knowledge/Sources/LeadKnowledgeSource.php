@@ -9,16 +9,15 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadVariantInterestProjectionService;
-use Kanvas\Intelligence\Agents\Neuron\Stores\EntityRollupMessageStore;
 use Kanvas\Intelligence\Knowledge\Contracts\KnowledgeSource;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;
-use Kanvas\Intelligence\Knowledge\Enums\LeadRagConfigurationEnum;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
-use Kanvas\Social\Channels\Enums\ChannelNameEnum;
-use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Models\Message;
 use Override;
 
+/**
+ * Message and person rows crowd out reference documents with repeated words and surnames.
+ * Conversation belongs in the history window and rolling summary; this source indexes record cards.
+ */
 final class LeadKnowledgeSource implements KnowledgeSource
 {
     public function __construct(
@@ -54,34 +53,41 @@ final class LeadKnowledgeSource implements KnowledgeSource
             throw new InvalidArgumentException('LeadKnowledgeSource only supports Lead entities.');
         }
 
-        $entity->loadMissing(['app', 'company', 'organization', 'people', 'socialChannels']);
-        $documents = array_values(array_filter([
-            $this->document($entity, 'lead', (string) $entity->getId(), $this->join([
-                'Lead: ' . trim($entity->firstname . ' ' . $entity->lastname),
-                'Title: ' . $entity->title,
-                'Email: ' . $entity->email,
-                'Phone: ' . $entity->phone,
-                'Description: ' . $entity->description,
-            ])),
-            $entity->people === null ? null : $this->document($entity, 'people', (string) $entity->people->getId(), $this->join([
-                'Person: ' . trim((string) $entity->people->name),
-                'First name: ' . $entity->people->firstname,
-                'Last name: ' . $entity->people->lastname,
-                'Email: ' . $entity->people->email,
-                'Phone: ' . $entity->people->phone,
-            ])),
-            $this->document($entity, 'company', (string) $entity->company->getId(), $this->join([
-                'Company: ' . $entity->company->name,
-                'Website: ' . $entity->company->website,
-            ])),
-            $entity->organization === null ? null : $this->document($entity, 'organization', (string) $entity->organization->getId(), $this->join([
-                'Organization: ' . $entity->organization->name,
-                'Description: ' . $entity->organization->description,
-            ])),
+        $entity->loadMissing(['app', 'company', 'organization']);
+
+        return array_values(array_filter([
+            $this->document(
+                $entity,
+                'lead',
+                (string) $entity->getId(),
+                $this->join([
+                    'Lead: ' . trim($entity->firstname . ' ' . $entity->lastname),
+                    'Title: ' . $entity->title,
+                    'Email: ' . $entity->email,
+                    'Phone: ' . $entity->phone,
+                    'Description: ' . $entity->description,
+                ]),
+            ),
+            $this->document(
+                $entity,
+                'company',
+                (string) $entity->company->getId(),
+                $this->join([
+                    'Company: ' . $entity->company->name,
+                    'Website: ' . $entity->company->website,
+                ]),
+            ),
+            $entity->organization === null ? null : $this->document(
+                $entity,
+                'organization',
+                (string) $entity->organization->getId(),
+                $this->join([
+                    'Organization: ' . $entity->organization->name,
+                    'Description: ' . $entity->organization->description,
+                ]),
+            ),
             $this->variantInterestDocument($entity),
         ]));
-
-        return [...$documents, ...$this->messageDocuments($entity)];
     }
 
     private function variantInterestDocument(Lead $lead): ?KnowledgeDocument
@@ -117,92 +123,11 @@ final class LeadKnowledgeSource implements KnowledgeSource
         );
     }
 
-    /** @return list<KnowledgeDocument> */
-    private function messageDocuments(Lead $lead): array
-    {
-        $channelIds = $lead->socialChannels
-            ->map(fn (Channel $channel): int => (int) $channel->getKey())
-            ->filter(fn (int $channelId): bool => $channelId > 0)
-            ->unique()
-            ->values()
-            ->all();
-        if ($channelIds === []) {
-            return [];
-        }
-
-        $maximum = max(1, (int) ($lead->app->get(LeadRagConfigurationEnum::MAX_MESSAGES->value) ?? 500));
-
-        return Message::query()
-            ->where('messages.apps_id', $lead->apps_id)
-            ->where('messages.companies_id', $lead->companies_id)
-            ->where('messages.is_deleted', 0)
-            ->whereHas('channels', fn ($query) => $query->whereIn('channels.id', $channelIds))
-            ->with(['messageType', 'channels' => fn ($query) => $query->whereIn('channels.id', $channelIds)])
-            ->latest('messages.id')
-            ->limit($maximum)
-            ->get()
-            ->filter(self::isIndexable(...))
-            ->map(function (Message $message) use ($lead): KnowledgeDocument {
-                $content = trim($message->contentText());
-                $channels = $message->channels
-                    ->map(fn (Channel $channel): string => (string) $channel->name)
-                    ->filter()->unique()->values()->all();
-
-                return $this->document(
-                    $lead,
-                    in_array(ChannelNameEnum::NOTES->value, $channels, true) ? 'note' : 'message',
-                    (string) $message->getId(),
-                    $content,
-                    implode(',', $channels),
-                    $message->created_at?->timestamp ?? 0,
-                );
-            })
-            ->values()
-            ->all();
-    }
-
-    /**
-     * Only what a person wrote or read on the record is knowledge about it. The agent's private rows
-     * (tool calls, tool results, summaries, notes) carry the tool vocabulary of every question, so once
-     * indexed they outscore any real document on any question; and a payload with no text key renders
-     * as its raw JSON, which is the same noise by another route.
-     *
-     * The AI Assist channel is staff talking to the agent about the lead, stored public with the
-     * `ai-assist` verb that INTERNAL_VERBS (`ai_assist`) never matched. Indexed one line at a time,
-     * "Shepard Select lot" from every lead outscored the lot guide it was asking about (agent 1292,
-     * 2026-11-05); those turns already reach company memory whole.
-     */
-    public static function isIndexable(Message $message): bool
-    {
-        if (! (bool) $message->is_public) {
-            return false;
-        }
-
-        if ($message->channels->isNotEmpty() && $message->channels->every(fn (Channel $channel): bool => $channel->isAiAssistChannel())) {
-            return false;
-        }
-
-        if (in_array($message->messageType?->verb, EntityRollupMessageStore::INTERNAL_VERBS, true)) {
-            return false;
-        }
-
-        $payload = $message->getMessage();
-        if (isset($payload['tool_calls']) || isset($payload['tool_results'])) {
-            return false;
-        }
-
-        $content = trim($message->contentText());
-
-        return $content !== '' && ! is_array(json_decode($content, true));
-    }
-
     private function document(
         Lead $lead,
         string $type,
         string $id,
         string $content,
-        string $channels = '',
-        int $createdAt = 0,
     ): KnowledgeDocument {
         return new KnowledgeDocument(
             id: implode('-', ['lead', $lead->getId(), $type, $id]),
@@ -214,8 +139,6 @@ final class LeadKnowledgeSource implements KnowledgeSource
                 'entity_id' => $lead->getId(),
                 'source_type' => $type,
                 'source_id' => $id,
-                'channel_names' => $channels,
-                'created_at' => $createdAt,
             ],
         );
     }

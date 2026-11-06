@@ -260,6 +260,7 @@ class AgentChatKernel
             $handler->setThreadId($this->threadId($entity));
             $handler->setSession($this->session);
             $handler->setCurrentLead($this->currentLead);
+            $handler->setInboundMessageId($this->sourceMessage?->getId());
             // Plumb the turn's attachment URLs so the conversation history can persist a reference
             // for describing — the handler itself only ever sees the base64 content blocks.
             $handler->setTurnMedia($this->nativeMedia());

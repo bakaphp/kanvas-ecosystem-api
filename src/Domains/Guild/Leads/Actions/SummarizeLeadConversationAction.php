@@ -9,6 +9,7 @@ use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadConversationSummaryRepository;
 use Kanvas\Guild\Leads\Services\LeadConversationTranscriptService;
+use Kanvas\Guild\Leads\Summary\LeadSummaryRepository;
 use Kanvas\Social\Messages\Models\Message;
 use Laravel\Ai\Enums\Lab;
 
@@ -32,7 +33,12 @@ class SummarizeLeadConversationAction
 
     public function execute(): ?Message
     {
-        if (LeadConversationSummaryRepository::hasUpToDateSummary($this->lead)) {
+        // A lead with a rolling summary already has its summary note; rewriting it from the trimmed
+        // transcript would lose what the rolling one kept past the window.
+        if (
+            LeadConversationSummaryRepository::hasUpToDateSummary($this->lead)
+            || LeadSummaryRepository::state($this->lead)->through > 0
+        ) {
             return null;
         }
 

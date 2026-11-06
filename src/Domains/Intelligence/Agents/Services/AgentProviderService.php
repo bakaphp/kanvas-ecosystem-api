@@ -181,6 +181,11 @@ class AgentProviderService
         ]);
     }
 
+    public static function summaryProviderOrOwn(Agent $agent): AIProviderInterface
+    {
+        return self::summaryProvider($agent) ?? self::resolve($agent);
+    }
+
     /**
      * The provider that rewrites a customer message into a search query before retrieval: the agent's
      * own model and credentials with thinking low (the one level every Gemini 3 model accepts). The job

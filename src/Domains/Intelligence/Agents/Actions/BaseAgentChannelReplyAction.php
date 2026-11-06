@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Actions;
 
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
@@ -17,6 +18,7 @@ use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -209,7 +211,37 @@ class BaseAgentChannelReplyAction
             }
         }
 
+        $this->stampReplyOnMemory($message, $newMessage);
+
         return $newMessage;
+    }
+
+    /**
+     * The turn wrote its memory before this reply row existed; give it the reply's id so recall can
+     * tell when the exchange is still in the window. Recall works without it, so a failure is logged.
+     */
+    private function stampReplyOnMemory(Message $inbound, Message $reply): void
+    {
+        $app = $this->agent->app;
+
+        if (! KnowledgeComponents::memoryEnabled($app)) {
+            return;
+        }
+
+        try {
+            KnowledgeComponents::store($app)->stampReplyMessageId(
+                (int) $app->getId(),
+                (int) $reply->companies_id,
+                (int) $inbound->getId(),
+                (int) $reply->getId(),
+            );
+        } catch (Throwable $e) {
+            Log::warning('Could not stamp the reply id on the turn memory', [
+                'inbound_message_id' => $inbound->getId(),
+                'reply_message_id' => $reply->getId(),
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
