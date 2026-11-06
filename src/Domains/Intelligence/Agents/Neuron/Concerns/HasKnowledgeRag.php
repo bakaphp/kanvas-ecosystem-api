@@ -25,8 +25,8 @@ use NeuronAI\RAG\VectorStore\VectorStoreInterface;
 use Override;
 
 /**
- * RAG wiring for a Neuron agent: the agent's knowledge (KnowledgeRetrieval, scoped to the agent and
- * the record in scope this turn) plus, when the agent remembers for the company, company memory
+ * RAG wiring for a Neuron agent: the agent's knowledge (KnowledgeRetrieval: its own and the company's
+ * documents, plus the record in scope for a customer-facing agent) plus, when the agent remembers for the company, company memory
  * narrowed by recallMemoryScope(). The chain itself (pre-process, retrieve, post-process, inject) is
  * Neuron's stock RAG entry chain built from these hooks.
  */
@@ -39,8 +39,7 @@ trait HasKnowledgeRag
             $this->app,
             $this->company,
             $this->agent,
-            $this->resolveEntityForTurn(),
-            organizationWide: $this->usesOrganizationWideKnowledge(),
+            $this instanceof ConversesWithCustomer ? $this->resolveEntityForTurn() : null,
         );
 
         if (! $this->companyMemoryActive()) {
@@ -68,6 +67,7 @@ trait HasKnowledgeRag
                 inContextSince: $threadId !== null && $store instanceof KanvasMessageStore
                     ? $store->activeWindowStartedAt($threadId)
                     : null,
+                retainedMessageIds: $this->leadTurnMemory?->window->retained ?? [],
             ),
         ]);
     }

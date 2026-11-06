@@ -388,7 +388,8 @@ Trimming forgets; summarizing keeps. Agents on `ConversationMessageStore` regist
 summary the model reads, their rows are stamped `archived_at` (never deleted, so the transcript and the
 spend rollup keep them), and the summary itself is written to Social as a private `agent_summary`
 message so a human can see what the agent kept. Rollup and channel stores never summarize: their rows
-belong to other writers. Detail in [`Neuron/CLAUDE.md`](Neuron/CLAUDE.md).
+belong to other writers. Detail in [`Neuron/CLAUDE.md`](Neuron/CLAUDE.md). A lead's rollup gets the
+rolling lead summary instead, per app: [`Guild/Leads/Summary/CLAUDE.md`](../../Guild/Leads/Summary/CLAUDE.md).
 
 ### When the tool-output budget runs out: refuse, then continue
 

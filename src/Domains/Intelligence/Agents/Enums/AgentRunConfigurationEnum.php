@@ -40,4 +40,11 @@ enum AgentRunConfigurationEnum: string
      * leaves the model's default. An LLM config that carries its own `thinkingConfig` wins.
      */
     case GEMINI_THINKING = 'agent_gemini_thinking';
+
+    /**
+     * The rolling lead summary: a lead's older history is kept as a coverage-tracked summary with open
+     * commitments, caught up before the reply whenever the window drops a row it does not cover. Off by
+     * default; rolled out per app (Shepard Auto first) behind the evaluation gate.
+     */
+    case LEAD_SUMMARY = 'agent_lead_summary_enabled';
 }
