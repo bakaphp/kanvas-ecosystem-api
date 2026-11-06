@@ -40,13 +40,14 @@ class AgentManagementMutation
         $parentAgent = isset($input['parent_agent_id'])
             ? Agent::getByIdFromCompanyApp((int) $input['parent_agent_id'], $company, $app)
             : null;
-        $llmConfig = $this->resolveLlmConfig($input, $company, $app);
+        $llmConfig = $this->resolveLlmConfig($input['agent_llm_config_id'] ?? null, $company, $app);
 
         $input = $this->mapRoleToFields($input);
 
         $voiceConfig = $this->normalizeConfigPhone($input['voice_config'] ?? null);
         $smsConfig = $this->normalizeConfigPhone($input['sms_config'] ?? null);
         $this->assertPhoneNumbersAvailable($voiceConfig, $smsConfig);
+        $this->resolveLlmConfig($voiceConfig['llm_config_id'] ?? null, $company, $app);
 
         $personaUser = isset($input['user_id'])
             ? UsersRepository::getUserOfAppById((int) $input['user_id'], $app)
@@ -133,7 +134,7 @@ class AgentManagementMutation
         $parentAgent = isset($input['parent_agent_id'])
             ? Agent::getByIdFromCompanyApp((int) $input['parent_agent_id'], $company, $app)
             : null;
-        $llmConfig = $this->resolveLlmConfig($input, $company, $app);
+        $llmConfig = $this->resolveLlmConfig($input['agent_llm_config_id'] ?? null, $company, $app);
 
         $input = $this->mapRoleToFields($input);
 
@@ -142,6 +143,7 @@ class AgentManagementMutation
             ? $this->normalizeConfigPhone($input['sms_config'])
             : $agent->sms_config;
         $this->assertPhoneNumbersAvailable($voiceConfig, $smsConfig, $agent);
+        $this->resolveLlmConfig($voiceConfig['llm_config_id'] ?? null, $company, $app);
 
         $personaUser = isset($input['user_id'])
             ? UsersRepository::getUserOfAppById((int) $input['user_id'], $app)
@@ -222,13 +224,18 @@ class AgentManagementMutation
         return (bool) $agent->delete();
     }
 
-    private function resolveLlmConfig(array $input, CompanyInterface $company, AppInterface $app): ?AgentLlmConfig
+    /**
+     * One of the company's LLM configs, for chat (agent_llm_config_id) or calls
+     * (voice_config.llm_config_id); empty — null, '' or 0 — means none. Throws for another
+     * company's config.
+     */
+    private function resolveLlmConfig(mixed $configId, CompanyInterface $company, AppInterface $app): ?AgentLlmConfig
     {
-        if (empty($input['agent_llm_config_id'])) {
+        if (empty($configId)) {
             return null;
         }
 
-        return AgentLlmConfig::getByIdFromCompanyApp((int) $input['agent_llm_config_id'], $company, $app);
+        return AgentLlmConfig::getByIdFromCompanyApp((int) $configId, $company, $app);
     }
 
     /**

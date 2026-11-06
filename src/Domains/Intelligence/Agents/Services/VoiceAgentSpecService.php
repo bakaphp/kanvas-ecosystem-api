@@ -60,10 +60,7 @@ class VoiceAgentSpecService
                     'model' => $stt['model'] ?? null,
                     'language' => $stt['language'] ?? $language,
                 ],
-                'llm' => [
-                    'provider' => 'google',
-                    'model' => $this->resolvedModelName(),
-                ],
+                'llm' => $this->llm(),
                 'tts' => [
                     'provider' => $tts['provider'] ?? 'elevenlabs',
                     'voice_id' => $tts['voice_id'] ?? ($voice['voice_id'] ?? null),
@@ -153,8 +150,29 @@ class VoiceAgentSpecService
     }
 
     /**
-     * Per-agent model override → app default → hardcoded default. Mirrors
-     * BaseKanvasAgent::resolvedModelName().
+     * The call's LLM: the agent's voice LLM config when one is set — provider, model and base URL,
+     * never its API key (the runtime holds its own provider keys) — otherwise Gemini as before.
+     * The chat config (agent_llm_config_id) deliberately doesn't apply to calls.
+     *
+     * @return array{provider: string, model: string, base_url: string|null}
+     */
+    private function llm(): array
+    {
+        $config = AgentProviderService::voiceConfig($this->agent);
+        if ($config === null || empty($config->model)) {
+            return ['provider' => 'google', 'model' => $this->resolvedModelName(), 'base_url' => null];
+        }
+
+        return [
+            'provider' => (string) $config->provider,
+            'model' => (string) $config->model,
+            'base_url' => $config->base_uri ?: null,
+        ];
+    }
+
+    /**
+     * Gemini model for agents without a voice LLM config: per-agent override → app default →
+     * hardcoded default.
      */
     private function resolvedModelName(): string
     {
