@@ -21,11 +21,8 @@ use Kanvas\Users\Models\Users;
  */
 final class SetLeadFollowUpPlanAction
 {
-    public function __construct(
-        private readonly Lead $lead,
-        private readonly ManualFollowUpPlan $plan,
-        private readonly Users $setBy
-    ) {
+    public function __construct(private readonly Lead $lead, private readonly ManualFollowUpPlan $plan, private readonly Users $setBy)
+    {
     }
 
     public function execute(): ManualFollowUpPlan

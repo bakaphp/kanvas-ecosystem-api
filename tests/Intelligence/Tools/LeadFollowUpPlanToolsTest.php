@@ -81,6 +81,31 @@ final class LeadFollowUpPlanToolsTest extends TestCase
         $this->assertNull($lead->refresh()->getFollowUpPlan());
     }
 
+    public function testARegistryToolCreditsTheRequestingHumanForThePlan(): void
+    {
+        $lead = $this->seedLead();
+        $agentUser = Users::factory()->create();
+        $tool = $this->setTool($agentUser)->forRequestingUser($this->user());
+
+        $result = $tool->__invoke(lead_id: $lead->getId(), channel: 'sms', message: self::BODY);
+
+        $this->assertSame('ok', $result['outcome'], json_encode($result));
+        $this->assertSame($this->user()->getId(), $lead->refresh()->getFollowUpPlan()->setByUsersId);
+        $this->assertSame($this->user()->getId(), $this->ledger($lead, 'lead.follow_up.plan.set')->payload['set_by_users_id']);
+    }
+
+    public function testARegistryToolCreditsTheRequestingHumanForTheToggle(): void
+    {
+        $lead = $this->seedLead();
+        $agentUser = Users::factory()->create();
+        $tool = $this->enabledTool($agentUser)->forRequestingUser($this->user());
+
+        $result = $tool->__invoke(lead_id: $lead->getId(), enabled: false);
+
+        $this->assertSame('ok', $result['outcome']);
+        $this->assertSame($this->user()->getId(), $this->ledger($lead, 'lead.follow_up.toggled')->payload['by_users_id']);
+    }
+
     public function testAMutedLeadIsRefusedWithTheReason(): void
     {
         $lead = $this->seedLead();

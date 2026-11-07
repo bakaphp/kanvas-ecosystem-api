@@ -96,7 +96,7 @@ class SetLeadFollowUpEnabledTool extends Tool implements RequiresSystemAgent
         $lead->emitLedgerEvent('lead.follow_up.toggled', payload: [
             'stage_id' => $lead->pipeline_stage_id,
             'enabled' => $enabled,
-            'by_users_id' => $this->user->getId(),
+            'by_users_id' => ($this->actingHuman() ?? $this->user)->getId(),
         ]);
 
         return $this->ok($payload, guidance: $enabled

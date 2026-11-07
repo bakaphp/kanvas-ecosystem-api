@@ -119,6 +119,8 @@ final class FollowUpLeadAction
             return $this->skip($pausedReason);
         }
 
+        // The stage path meets a deactivated agent inside the kernel call; a plan never calls it, so the
+        // same refusal, with the same `agent_skipped:` reason, has to happen here.
         if ($plan !== null && ! $this->agent->is_active) {
             return $this->skip(sprintf('agent_skipped: Agent %d is deactivated', $this->agent->getId()));
         }

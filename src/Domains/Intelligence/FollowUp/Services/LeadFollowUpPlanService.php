@@ -8,9 +8,8 @@ use Kanvas\Guild\Leads\Models\Lead;
 
 final class LeadFollowUpPlanService
 {
-    public function __construct(
-        private readonly LeadFollowUpEligibilityService $eligibility = new LeadFollowUpEligibilityService()
-    ) {
+    public function __construct(private readonly LeadFollowUpEligibilityService $eligibility = new LeadFollowUpEligibilityService())
+    {
     }
 
     /**

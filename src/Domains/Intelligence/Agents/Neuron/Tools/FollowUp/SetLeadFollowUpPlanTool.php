@@ -186,6 +186,7 @@ class SetLeadFollowUpPlanTool extends Tool implements RequiresSystemAgent
             return $startAt;
         }
 
+        $actor = $this->actingHuman() ?? $this->user;
         $plan = new ManualFollowUpPlan(
             channel: $channelEnum->value,
             body: $body,
@@ -193,7 +194,7 @@ class SetLeadFollowUpPlanTool extends Tool implements RequiresSystemAgent
             maxAttempts: min(max(1, $max_attempts ?? 7), ManualFollowUpPlan::MAX_ATTEMPTS_CAP),
             startAt: $startAt,
             setAt: Carbon::now(),
-            setByUsersId: $this->user->getId(),
+            setByUsersId: $actor->getId(),
             stopOnReply: $stop_on_reply ?? true,
         );
 
@@ -216,7 +217,7 @@ class SetLeadFollowUpPlanTool extends Tool implements RequiresSystemAgent
         }
 
         try {
-            new SetLeadFollowUpPlanAction($lead, $plan, $this->user)->execute();
+            new SetLeadFollowUpPlanAction($lead, $plan, $actor)->execute();
         } catch (Throwable $e) {
             report($e);
 
