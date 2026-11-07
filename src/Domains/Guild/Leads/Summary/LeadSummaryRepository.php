@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Summary;
 
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
 use RuntimeException;
@@ -19,6 +21,12 @@ use RuntimeException;
  */
 final class LeadSummaryRepository
 {
+    /** The per-app switch, on by default; the one predicate every reader and writer of the summary uses. */
+    public static function enabledFor(Apps $app): bool
+    {
+        return $app->getBool(AgentRunConfigurationEnum::LEAD_SUMMARY->value, default: true);
+    }
+
     /** One lock for everything that writes a lead's summary: the update and the invalidation. */
     public static function lockKey(Lead $lead): string
     {

@@ -120,7 +120,7 @@ on the `status` integer column: no app code writes it (758k of 759k local rows s
 
 A dealer CRM without webhooks never tells us a lead was closed or sold, so the action asks it —
 **after every free gate has passed** (stage config, `ai_follow_up`, lead type, open status,
-exhaustion, hand-off, manual, mute, reachable channel, session, `too_soon`, template) and right
+exhaustion, hand-off, manual, mute, reachable channel, `too_soon`, session, template) and right
 before the agent call. CRM calls are billed per request (Elead), so a lead that would skip anyway
 must never cost one. `FollowUpLeadAction::syncLeadSource()` runs
 `SyncLeadSourceBeforeFollowUpAction` and then re-runs the three gates a pull can flip (open
@@ -192,6 +192,54 @@ stage advancement. `LeadConfigurationService::allowsContinuedFollowUp()` reads
 remaining gates to run; explicit false values skip with
 `lead_type_follow_up_disabled`, even for forced runs. First-message defaults are
 independent. This veto does not override the engine's open-leads-only restriction.
+
+## A person's own plan on one lead (`follow_up_plan`)
+
+A rep can ask an internal agent "text this lead daily for 7 days until they answer". That is not a
+scheduled agent task: it is the follow-up engine with a per-lead config and a fixed body. Same fan-out,
+same `LeadFollowUpJob`, same `FollowUpLeadAction` send path (opt-out clause on the first SMS, filed on
+the channel it went through, `after-follow-up` workflow, `lead.follow_up.*` ledger).
+
+- **Data.** `ManualFollowUpPlan` (generic DTO) in two lead custom fields, read and written only through
+  `Concerns/HasManualFollowUpPlan`: `follow_up_plan` is the running one and is **deleted** when it ends,
+  `follow_up_plan_last` keeps the ended one with `done_reason` and `attempts_sent`. Two fields because the
+  fan-out finds active plans with `name = follow_up_plan` on `apps_custom_fields` alone; a JSON path on
+  that text column was the alternative and it is not indexable. Attempts stay in `follow_up_state`.
+- **Precedence.** `LeadFollowUpEligibilityService::configFor()` = `FollowUpConfig::fromPlan($plan) ??
+  fromStage($stage)`. The three readers (`DispatchAppLeadFollowUpsJob`, `dispatchSkipReason()`,
+  `FollowUpLeadAction::execute()`) use it; never call `fromStage` on a lead directly again.
+- **What a plan replaces:** `follow_up_disabled` (stage without config), `unsupported_mode_v1`, the
+  lead-type continued-follow-up default and `lead_follow_up_start_date`. Those are admin config for the
+  automatic follow-up; a plan is a person's explicit instruction for one lead.
+- **What a plan keeps:** the lead's follow-up toggle (`ai_follow_up`, the UI switch, **the master
+  switch**: off pauses the plan, on resumes it), `hasOpenLeadStatus`, the AI mute (`ai_mode_off`,
+  `ai_mode_manual`), the agent's active flag, opt-outs and `do_not_contact`, hand-off, the CRM pull before the send. Setting a plan
+  on a lead whose toggle is off turns the toggle on; the tool asks the person once before doing that.
+- **Timing.** First touch at `start_at` (default: the next hourly pass), then one interval after the
+  previous touch (`tooSoonReason`). Work hours are honoured for plans only, and only when the company
+  has `work_hours` configured: with none, `CompanyWorkHoursTool` answers "after hours" around the clock.
+  Stage follow-ups carry `respect_work_hours` too but never enforced it; switching that on would silence
+  every tenant's night sends, so it stays plan-only until someone decides otherwise.
+- **Progress.** A stage change preserves an active plan's count and last-touch time. A due plan opens
+  its first session when needed. A rejected or thrown send records `lead.follow_up.send_failed` and
+  returns an error without consuming an attempt or ending the plan; the next pass can retry it.
+- **Ending.** Every end goes through `EndLeadFollowUpPlanAction` (state reset, so the stage config
+  applies again from zero, ledger `lead.follow_up.plan.ended`, private note). Reasons: `replied` (a
+  stop-on-reply plan, judged against `set_at`, not `start_at`: a lead who answers before a delayed first
+  touch has answered; from the gate and from the inbound hook in `BaseAgentChannelReplyAction`),
+  `exhausted` (the last attempt ends it on the spot and notifies the person who set it,
+  `LeadFollowUpPlanEndedNotification`), `cancelled`, `replaced` (a new plan on the same lead),
+  `handed_off`. A plan never advances the stage.
+- **Tools** (internal agents only, `RequiresSystemAgent`): `set_lead_follow_up_plan`,
+  `get_lead_follow_up_plan`, `cancel_lead_follow_up_plan`, `set_lead_follow_up_enabled` (the UI toggle;
+  pauses, never cancels). Baseline on `SalesManagerAgent` only (`leadFollowUpPlanTools()`): a drip on a
+  lead is a sales-manager capability, not teammate plumbing, so no other system-user agent carries them
+  unless granted from the catalog.
+  The lead's owner or an admin (`GuardsLeadOwnerForTool`). The recipient is never a parameter: the
+  engine resolves the contact from the lead, so a prompt cannot redirect the message.
+- **UI.** `Lead.followUpPlan` (read only, `LeadFollowUpPlanService::status()`): channel, text, cadence,
+  attempts sent / max, next due, `paused_reason`, `done_reason`. No mutation yet; the toggle and the chat
+  are the controls.
 
 ## The fan-out runs the lead gates before queueing
 

@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\FollowUp\Services;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\FollowUp\Actions\EndLeadFollowUpPlanAction;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
+use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 
@@ -31,14 +35,57 @@ final class LeadFollowUpEligibilityService
      */
     public function dispatchSkipReason(Lead $lead): ?string
     {
-        $config = FollowUpConfig::fromStage($lead->stage);
+        $reason = $this->concludeRepliedPlan($lead);
+        if ($reason !== null) {
+            return $reason;
+        }
+
+        $config = $this->configFor($lead);
 
         $reason = $this->skipReason($lead, $config);
         if ($reason !== null || $this->isDueForExhaustion($lead, $config)) {
             return $reason;
         }
 
-        return $this->pausedReason($lead) ?? $this->tooSoonReason($lead, $config);
+        return $this->pausedReason($lead)
+            ?? $this->tooSoonReason($lead, $config)
+            ?? $this->outsideWorkHoursReason($lead, $config);
+    }
+
+    /**
+     * A person's plan on the lead replaces the stage config while it runs; a lead with no stage can
+     * still carry one.
+     */
+    public function configFor(Lead $lead): ?FollowUpConfig
+    {
+        $plan = $lead->getFollowUpPlan();
+        if ($plan !== null) {
+            return FollowUpConfig::fromPlan($plan);
+        }
+
+        return $lead->stage !== null ? FollowUpConfig::fromStage($lead->stage) : null;
+    }
+
+    /**
+     * Ends a stop-on-reply plan on the first inbound since it was set, and names it. Judged on the
+     * time the plan was set, not its start: a lead who answers before a delayed first touch has
+     * answered.
+     */
+    public function concludeRepliedPlan(Lead $lead, ?Carbon $inboundAt = null): ?string
+    {
+        $plan = $lead->getFollowUpPlan();
+        if ($plan === null || ! $plan->stopOnReply) {
+            return null;
+        }
+
+        $inboundAt ??= $this->getLastInboundAt($lead);
+        if ($inboundAt === null || ! $inboundAt->greaterThan($plan->setAt)) {
+            return null;
+        }
+
+        new EndLeadFollowUpPlanAction($lead, ManualFollowUpPlan::REASON_REPLIED)->execute();
+
+        return 'plan_replied';
     }
 
     /**
@@ -59,15 +106,18 @@ final class LeadFollowUpEligibilityService
             return 'lead_follow_up_disabled';
         }
 
-        // Lead-type defaults can veto v2, including manual/forced runs.
-        // Check before retries so disabled types cannot advance stages either.
-        $leadConfiguration = new LeadConfigurationService();
-        if (! $leadConfiguration->allowsContinuedFollowUp($lead)) {
-            return 'lead_type_follow_up_disabled';
-        }
+        // Lead-type defaults and the company's start date are admin config for the automatic
+        // follow-up; a person's plan on one lead is an explicit instruction and is not vetoed by
+        // them. Checked before retries so disabled types cannot advance stages either.
+        if ($config->plan === null) {
+            $leadConfiguration = new LeadConfigurationService();
+            if (! $leadConfiguration->allowsContinuedFollowUp($lead)) {
+                return 'lead_type_follow_up_disabled';
+            }
 
-        if ($leadConfiguration->isCreatedBeforeFollowUpStartDate($lead)) {
-            return 'lead_created_before_follow_up_start_date';
+            if ($leadConfiguration->isCreatedBeforeFollowUpStartDate($lead)) {
+                return 'lead_created_before_follow_up_start_date';
+            }
         }
 
         // Judged on `leads_status_id`, the column CRM pulls and the UI write — not `isOpen()`'s
@@ -107,9 +157,43 @@ final class LeadFollowUpEligibilityService
         return $lead->isAiMuted() ? 'ai_mode_off' : null;
     }
 
+    /**
+     * A plan's first touch goes out at its start, whatever was said before; later ones wait the
+     * interval after the previous touch only, since a reply ends the plan instead of restarting it.
+     */
     public function tooSoonReason(Lead $lead, FollowUpConfig $config): ?string
     {
-        return $this->silenceMinutes($lead) < $config->timeBased->intervalMinutes ? 'too_soon' : null;
+        $plan = $config->plan;
+        if ($plan === null) {
+            return $this->silenceMinutes($lead) < $config->timeBased->intervalMinutes ? 'too_soon' : null;
+        }
+
+        if ($plan->startAt->isFuture()) {
+            return 'plan_not_started';
+        }
+
+        return $plan->nextDueAt($lead->getFollowUpLastAt())->isFuture() ? 'too_soon' : null;
+    }
+
+    /**
+     * Enforced for plans only, and only when the company has work hours set: without them the
+     * work-hours tool answers "after hours" around the clock. Stage follow-ups carry the same flag
+     * but never honoured it, and switching that on here would silence every tenant's night sends.
+     */
+    public function outsideWorkHoursReason(Lead $lead, FollowUpConfig $config): ?string
+    {
+        if ($config->plan === null || ! $config->respectWorkHours) {
+            return null;
+        }
+
+        $company = $lead->company;
+        if (empty($company->get(CompanyConfigurationEnum::WORKING_HOURS->value))) {
+            return null;
+        }
+
+        $hours = new CompanyWorkHoursTool($company)->execute();
+
+        return $hours['status'] === 'work_hours' ? null : 'outside_work_hours';
     }
 
     /**
@@ -175,7 +259,7 @@ final class LeadFollowUpEligibilityService
 
         // No verb filter — `from_me = false` on a People-keyed channel is a strong-enough signal
         // that this is the customer's inbound, whatever channel it landed on.
-        $message = Message::query()
+        $lastMessageAt = Message::query()
             ->when($inboundOnly, fn ($query) => $query->where('message->from_me', false))
             ->where('is_deleted', 0)
             ->whereHas(
@@ -183,8 +267,8 @@ final class LeadFollowUpEligibilityService
                 fn ($q) => $q->whereIn('channels.id', $channelIds),
             )
             ->latest('created_at')
-            ->first();
+            ->value('created_at');
 
-        return $message?->created_at ? Carbon::parse($message->created_at) : null;
+        return $lastMessageAt !== null ? Carbon::parse($lastMessageAt) : null;
     }
 }

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
+use Baka\Support\DateHelper;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
@@ -18,6 +20,7 @@ use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -76,6 +79,12 @@ class BaseAgentChannelReplyAction
                     'reason' => 'inbound_reply',
                 ]);
             }
+        }
+
+        // A person's plan ends on the reply itself, not an hour later at the next pass.
+        if ($lead instanceof Lead) {
+            $inboundAt = DateHelper::tryParseCarbon($this->message->created_at) ?? Carbon::now();
+            new LeadFollowUpEligibilityService()->concludeRepliedPlan($lead, $inboundAt);
         }
 
         if ($this->respectsLeadAiMode) {

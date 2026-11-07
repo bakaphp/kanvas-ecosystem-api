@@ -53,6 +53,10 @@ type Lead {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getEntityFollowers"
         )
+    followUpPlan: LeadFollowUpPlan
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Queries\\Leads\\LeadFollowUpPlanQuery@get"
+        )
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25

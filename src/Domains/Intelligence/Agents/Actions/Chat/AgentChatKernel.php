@@ -93,6 +93,16 @@ class AgentChatKernel
             );
         }
 
+        // A turn with no text and nothing attached has nothing to answer, and Gemini refuses it outright:
+        // a user content whose only part is empty text is ignored, so the request ends on the previous
+        // model turn and comes back 400 "Requests ending with a model turn are not supported"
+        // (KANVAS-ECOSYSTEM-6QC, a connector delivering an empty body).
+        if (trim($this->message) === '' && $this->nativeMedia() === [] && $this->attachments === []) {
+            throw new AgentReplySkippedException(
+                sprintf('Empty inbound message for agent %d: nothing to answer', $this->agent->getId())
+            );
+        }
+
         $startTime = microtime(true);
         $sessionId = $this->session?->uuid ?? '';
 
