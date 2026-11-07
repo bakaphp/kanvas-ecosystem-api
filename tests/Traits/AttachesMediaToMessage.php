@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Traits;
 
+use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Chat\Messages\ContentBlocks\AudioContent;
 use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
@@ -50,8 +52,11 @@ trait AttachesMediaToMessage
         string $fileType,
         string $bytes,
     ): Filesystem {
-        // So the assertions below can only be satisfied by the turn this test runs.
+        // So the assertions below can only be satisfied by the turn this test runs. The caption job is
+        // dispatched by every channel responder and runs inline on CI's sync queue, where its own
+        // "describe this image" call would overwrite the turn the test is asserting on.
         FakeNeuronProvider::$lastMessages = [];
+        Bus::fake([DescribeMessageAttachmentsJob::class]);
 
         $path = sys_get_temp_dir() . '/' . uniqid('kanvas-inbound-', true) . '.' . $fileType;
         file_put_contents($path, $bytes);
