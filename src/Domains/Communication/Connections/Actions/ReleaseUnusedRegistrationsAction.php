@@ -40,50 +40,70 @@ final class ReleaseUnusedRegistrationsAction
         ];
     }
 
+    /**
+     * Now, for a disconnect whose credentials are about to be deleted: what these connections leave
+     * unused is released while the vendor can still be reached, at the cost of a status still on its
+     * way, which no longer has anywhere to arrive.
+     *
+     * @param list<int> $connectionIds
+     */
+    public function releaseLeftBy(array $connectionIds): int
+    {
+        if ($connectionIds === []) {
+            return 0;
+        }
+
+        $candidates = SharedRegistration::query()
+            ->where('status', SharedRegistration::ACTIVE)
+            ->whereHas('dependents', fn (Builder $query) => $query->whereIn('connection_id', $connectionIds))
+            ->whereDoesntHave('liveDependents')
+            ->get();
+
+        return $candidates->sum(fn (SharedRegistration $registration): int => (int) $this->release($registration, waitForDeliveries: false));
+    }
+
     private function releaseSharedRegistrations(): int
     {
-        $released = 0;
-
         $candidates = SharedRegistration::query()
             ->where('status', SharedRegistration::ACTIVE)
             ->whereHas('dependents', fn (Builder $query) => $query->where('apps_id', $this->app->getId()))
             ->whereDoesntHave('liveDependents')
             ->get();
 
-        foreach ($candidates as $registration) {
-            $released += (int) Cache::lock($registration->lockKey(), 120)->block(30, function () use ($registration): bool {
-                $registration->refresh();
-                $connectionIds = $registration->dependents()->pluck('connection_id');
+        return $candidates->sum(fn (SharedRegistration $registration): int => (int) $this->release($registration, waitForDeliveries: true));
+    }
 
-                if ($registration->status !== SharedRegistration::ACTIVE
-                    || $registration->liveDependents()->exists()
-                    || $this->hasOutstandingDeliveries($connectionIds->all())
-                ) {
-                    return false;
-                }
+    private function release(SharedRegistration $registration, bool $waitForDeliveries): bool
+    {
+        return Cache::lock($registration->lockKey(), 120)->block(30, function () use ($registration, $waitForDeliveries): bool {
+            $registration->refresh();
 
-                try {
-                    $outcome = new ProviderRegistry()->provisioner($registration->provider)->releaseShared($registration);
-                } catch (Throwable $exception) {
-                    report($exception);
+            if ($registration->status !== SharedRegistration::ACTIVE
+                || $registration->liveDependents()->exists()
+                || ($waitForDeliveries && $this->hasOutstandingDeliveries($registration->dependents()->pluck('connection_id')->all()))
+            ) {
+                return false;
+            }
 
-                    return false;
-                }
+            try {
+                $outcome = new ProviderRegistry()->provisioner($registration->provider)->releaseShared($registration);
+            } catch (Throwable $exception) {
+                report($exception);
 
-                if (! $outcome->isFinished()) {
-                    return false;
-                }
+                return false;
+            }
 
-                $registration->forceFill([
-                    'status' => SharedRegistration::RELEASED,
-                    'released_at' => now(),
-                ])->saveOrFail();
+            if (! $outcome->isFinished()) {
+                return false;
+            }
 
-                return true;
-            });
-        }
+            $registration->forceFill([
+                'status' => SharedRegistration::RELEASED,
+                'released_at' => now(),
+            ])->saveOrFail();
 
-        return $released;
+            return true;
+        });
     }
 
     /**
