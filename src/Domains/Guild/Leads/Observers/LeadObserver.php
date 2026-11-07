@@ -87,7 +87,9 @@ class LeadObserver
             $fromStageId = $lead->getOriginal('pipeline_stage_id');
             $toStageId = $lead->pipeline_stage_id;
 
-            $lead->resetFollowUpState();
+            if ($lead->getFollowUpPlan() === null) {
+                $lead->resetFollowUpState();
+            }
             $lead->emitLedgerEvent('lead.stage.changed', payload: [
                 'from_stage_id' => $fromStageId,
                 'to_stage_id' => $toStageId,

@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -39,6 +40,8 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
+use Mockery;
+use RuntimeException;
 use Tests\Intelligence\Tools\ReadsLeadNotes;
 use Tests\Stubs\FollowUp\FollowUpAgentStub;
 use Tests\TestCase;
@@ -69,6 +72,10 @@ class FollowUpLeadPlanActionTest extends TestCase
         Notification::fake();
         EventFacade::fake([KnowledgeIndexRequested::class]);
         FollowUpAgentStub::reset();
+
+        $sender = Mockery::mock(SendMessageToLeadAction::class);
+        $sender->shouldReceive('execute')->andReturn(['success' => true]);
+        $this->app->bind(SendMessageToLeadAction::class, fn () => $sender);
 
         $this->testApp = app(Apps::class);
         $this->user = auth()->user();
@@ -157,10 +164,15 @@ class FollowUpLeadPlanActionTest extends TestCase
     {
         $lead = $this->seedLead(stageConfig: null);
         $this->setPlan($lead, startAt: Carbon::now()->addDay());
-        $this->seedSession($lead);
 
         $outcome = $this->followUp($lead);
         $this->assertSame('plan_not_started', $outcome->reason);
+        $this->assertFalse(Session::query()
+            ->fromApp($this->testApp)
+            ->fromCompany($this->company)
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', $lead->people_id)
+            ->exists());
 
         $this->setPlan($lead);
         $this->assertSame(FollowUpOutcomeKindEnum::SENT, $this->followUp($lead)->kind);
@@ -218,13 +230,111 @@ class FollowUpLeadPlanActionTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    private function followUp(Lead $lead): FollowUpOutcome
+    public function testStageChangesPreserveThePlanAttemptsAndNextDueTime(): void
+    {
+        $lead = $this->seedLead(stageConfig: null);
+        $this->setPlan($lead);
+        for ($attempt = 0; $attempt < 6; $attempt++) {
+            $lead->bumpFollowUp(['sms'], null);
+        }
+        $nextDueAt = $lead->getFollowUpPlan()->nextDueAt($lead->getFollowUpLastAt());
+        $stage = PipelineStage::create([
+            'pipelines_id' => $lead->pipeline_id,
+            'name' => 'Next stage',
+            'weight' => 2,
+            'config' => null,
+        ]);
+
+        $lead->pipeline_stage_id = $stage->getId();
+        $lead->saveOrFail();
+        $lead->refresh();
+
+        $this->assertSame(6, $lead->getFollowUpStateCount());
+        $this->assertTrue($nextDueAt->equalTo($lead->getFollowUpPlan()->nextDueAt($lead->getFollowUpLastAt())));
+        $this->assertSame('too_soon', new LeadFollowUpEligibilityService()->dispatchSkipReason($lead));
+    }
+
+    public function testAnInactiveAgentCannotSendAPlanTouch(): void
+    {
+        $lead = $this->seedLead(stageConfig: null);
+        $this->setPlan($lead);
+        $this->seedSession($lead);
+        $agent = $this->seedFollowUpAgent();
+        $agent->is_active = false;
+        $agent->saveOrFail();
+
+        $outcome = $this->followUp($lead, $agent);
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertStringContainsString('deactivated', $outcome->reason);
+        $this->assertSame(0, $lead->refresh()->getFollowUpStateCount());
+        $this->assertNotNull($lead->getFollowUpPlan());
+    }
+
+    public function testAPlanBootstrapsItsFirstSession(): void
+    {
+        $lead = $this->seedLead(stageConfig: null);
+        $this->setPlan($lead);
+
+        $outcome = $this->followUp($lead);
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind, $outcome->reason ?? '');
+        $this->assertTrue(Session::query()
+            ->fromApp($this->testApp)
+            ->fromCompany($this->company)
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', $lead->people_id)
+            ->exists());
+        $this->assertSame(1, $lead->refresh()->getFollowUpStateCount());
+    }
+
+    public function testARejectedSendDoesNotCompleteThePlan(): void
+    {
+        // Exercise the real sender's missing-route rejection, not the success fake.
+        $this->app->offsetUnset(SendMessageToLeadAction::class);
+        $lead = $this->seedLead(stageConfig: null);
+        $this->setPlan($lead, maxAttempts: 1);
+        $this->seedSession($lead);
+
+        $outcome = $this->followUp($lead);
+
+        $this->assertSame(FollowUpOutcomeKindEnum::ERROR, $outcome->kind);
+        $this->assertSame('send_failed', $outcome->reason);
+        $this->assertSame(0, $lead->refresh()->getFollowUpStateCount());
+        $this->assertNotNull($lead->getFollowUpPlan());
+        $this->assertNull($lead->getLastFollowUpPlan());
+        $this->assertNotNull($this->ledger($lead, 'lead.follow_up.send_failed'));
+        $this->assertSame(0, Event::query()
+            ->where('source_entity_id', $lead->getId())
+            ->where('event_type', 'lead.follow_up.sent')
+            ->count());
+        Notification::assertNothingSent();
+    }
+
+    public function testAThrownSendFailureLeavesThePlanRetryable(): void
+    {
+        $sender = Mockery::mock(SendMessageToLeadAction::class);
+        $sender->shouldReceive('execute')->once()->andThrow(new RuntimeException('Provider unavailable'));
+        $this->app->bind(SendMessageToLeadAction::class, fn () => $sender);
+        $lead = $this->seedLead(stageConfig: null);
+        $this->setPlan($lead, maxAttempts: 1);
+        $this->seedSession($lead);
+
+        $outcome = $this->followUp($lead);
+
+        $this->assertSame(FollowUpOutcomeKindEnum::ERROR, $outcome->kind);
+        $this->assertSame(0, $lead->refresh()->getFollowUpStateCount());
+        $this->assertNotNull($lead->getFollowUpPlan());
+        Notification::assertNothingSent();
+    }
+
+    private function followUp(Lead $lead, ?Agent $agent = null): FollowUpOutcome
     {
         return new FollowUpLeadAction(
             app: $this->testApp,
             company: $this->company,
             lead: $lead,
-            agent: $this->seedFollowUpAgent(),
+            agent: $agent ?? $this->seedFollowUpAgent(),
         )->execute();
     }
 

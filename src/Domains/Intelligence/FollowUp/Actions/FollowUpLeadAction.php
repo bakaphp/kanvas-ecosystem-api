@@ -119,14 +119,26 @@ final class FollowUpLeadAction
             return $this->skip($pausedReason);
         }
 
+        if ($plan !== null && ! $this->agent->is_active) {
+            return $this->skip(sprintf('agent_skipped: Agent %d is deactivated', $this->agent->getId()));
+        }
+
         // Channel resolution lives on the Lead's contacts
         $candidates = new LeadOutboundChannelResolver()->resolve($this->lead, $config);
         if ($candidates === []) {
             return $this->skip(FollowUpFailureReasonEnum::NO_REACHABLE_CHANNEL->value);
         }
 
+        $waitReason = $this->force ? null : (
+            $eligibility->tooSoonReason($this->lead, $config)
+            ?? $eligibility->outsideWorkHoursReason($this->lead, $config)
+        );
+        if ($plan !== null && $waitReason !== null) {
+            return $this->skip($waitReason);
+        }
+
         $session = $this->resolveSession();
-        if (! $session && $this->openSessionIfMissing) {
+        if (! $session && ($this->openSessionIfMissing || $plan !== null)) {
             [, $session] = new BootstrapChannelForLeadAction(
                 $this->lead,
                 $candidates[0]->channelType,
@@ -147,16 +159,18 @@ final class FollowUpLeadAction
         $channelType = $primary->channelType;
         $channelConfig = $config->channelByType($channelType);
 
-        if (! $this->force) {
-            $waitReason = $eligibility->tooSoonReason($this->lead, $config)
-                ?? $eligibility->outsideWorkHoursReason($this->lead, $config);
-            if ($waitReason !== null) {
-                return $this->skip($waitReason);
-            }
+        if ($waitReason !== null) {
+            return $this->skip($waitReason);
         }
 
         if ($plan !== null) {
-            return $this->sendPlanTouch($plan, $config, $session, $targets, $primary);
+            return $this->sendPlanTouch(
+                $plan,
+                $config,
+                $session,
+                $targets,
+                $primary,
+            );
         }
 
         [$template, $metaTemplate, $skipReason] = $this->resolveTemplateForChannel(
@@ -304,23 +318,27 @@ final class FollowUpLeadAction
         }
 
         $sent = $this->dispatchToTargets($session, $targets, $plan->body);
+        if (! $sent['all_succeeded']) {
+            return FollowUpOutcome::error(FollowUpFailureReasonEnum::SEND_FAILED->value);
+        }
+
         $this->lead->bumpFollowUp($sent['channels'], null);
 
         $this->emitSent(
-            $sent['channels'],
-            null,
-            null,
-            'plan',
-            false,
-            $primary,
-            $config->channelSelection,
+            channels: $sent['channels'],
+            templateName: null,
+            metaTemplate: null,
+            reason: 'plan',
+            advanced: false,
+            primary: $primary,
+            strategy: $config->channelSelection,
         );
         $this->fireAfterFollowUpWorkflow(
-            $sent['message'],
-            $sent['body'],
-            $sent['channels'],
-            null,
-            false,
+            message: $sent['message'],
+            body: $sent['body'],
+            channels: $sent['channels'],
+            templateName: null,
+            advancedStage: false,
         );
 
         if ($this->lead->getFollowUpStateCount() >= $plan->maxAttempts) {
@@ -335,29 +353,31 @@ final class FollowUpLeadAction
      * as it actually shipped (the SMS opt-out clause may have been added).
      *
      * @param ResolvedChannel[] $targets
-     * @return array{body: string, message: Message, channels: string[]}
+     * @return array{body: string, message: Message, channels: string[], all_succeeded: bool}
      */
     private function dispatchToTargets(Session $session, array $targets, string $resolvedBody): array
     {
         $sentBody = null;
         $primaryMessage = null;
         $channels = [];
+        $allSucceeded = true;
 
         foreach ($targets as $target) {
             $body = $this->withSmsOptOutNotice($target, $resolvedBody);
             $message = $this->persistMessage($session, $target, $body);
-            $this->dispatchOutbound(
+            $succeeded = $this->dispatchOutbound(
                 $target->channelType,
                 $body,
                 $target->contact,
                 $message
             );
+            $allSucceeded = $allSucceeded && $succeeded;
             $channels[] = $target->channelType;
             $sentBody ??= $body;
             $primaryMessage ??= $message;
         }
 
-        return ['body' => (string) $sentBody, 'message' => $primaryMessage, 'channels' => $channels];
+        return ['body' => (string) $sentBody, 'message' => $primaryMessage, 'channels' => $channels, 'all_succeeded' => $allSucceeded];
     }
 
     /**
@@ -859,13 +879,13 @@ final class FollowUpLeadAction
         string $body,
         Contact $outboundContact,
         Message $message,
-    ): void {
+    ): bool {
         $twilioFrom = (string) $this->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value);
 
         $providerResponse = null;
 
         try {
-            $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
+            $providerResponse = app(SendMessageToLeadAction::class, ['lead' => $this->lead])->execute(
                 channel: $channelType,
                 message: $body,
                 from: $twilioFrom,
@@ -889,7 +909,11 @@ final class FollowUpLeadAction
                 'reason' => FollowUpFailureReasonEnum::SEND_FAILED->value,
                 'error' => mb_substr((string) ($providerResponse['error'] ?? ''), 0, 500),
             ]);
+
+            return false;
         }
+
+        return true;
     }
 
     // Reuse the original outreach subject (anchored on the lead by

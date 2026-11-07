@@ -213,13 +213,16 @@ the channel it went through, `after-follow-up` workflow, `lead.follow_up.*` ledg
   automatic follow-up; a plan is a person's explicit instruction for one lead.
 - **What a plan keeps:** the lead's follow-up toggle (`ai_follow_up`, the UI switch, **the master
   switch**: off pauses the plan, on resumes it), `hasOpenLeadStatus`, the AI mute (`ai_mode_off`,
-  `ai_mode_manual`), opt-outs and `do_not_contact`, hand-off, the CRM pull before the send. Setting a plan
+  `ai_mode_manual`), the agent's active flag, opt-outs and `do_not_contact`, hand-off, the CRM pull before the send. Setting a plan
   on a lead whose toggle is off turns the toggle on; the tool asks the person once before doing that.
 - **Timing.** First touch at `start_at` (default: the next hourly pass), then one interval after the
   previous touch (`tooSoonReason`). Work hours are honoured for plans only, and only when the company
   has `work_hours` configured: with none, `CompanyWorkHoursTool` answers "after hours" around the clock.
   Stage follow-ups carry `respect_work_hours` too but never enforced it; switching that on would silence
   every tenant's night sends, so it stays plan-only until someone decides otherwise.
+- **Progress.** A stage change preserves an active plan's count and last-touch time. A due plan opens
+  its first session when needed. A rejected or thrown send records `lead.follow_up.send_failed` and
+  returns an error without consuming an attempt or ending the plan; the next pass can retry it.
 - **Ending.** Every end goes through `EndLeadFollowUpPlanAction` (state reset, so the stage config
   applies again from zero, ledger `lead.follow_up.plan.ended`, private note). Reasons: `replied` (a
   stop-on-reply plan, judged against `set_at`, not `start_at`: a lead who answers before a delayed first
@@ -227,9 +230,11 @@ the channel it went through, `after-follow-up` workflow, `lead.follow_up.*` ledg
   `exhausted` (the last attempt ends it on the spot and notifies the person who set it,
   `LeadFollowUpPlanEndedNotification`), `cancelled`, `replaced` (a new plan on the same lead),
   `handed_off`. A plan never advances the stage.
-- **Tools** (internal agents only, `RequiresSystemAgent`, registered by
-  `SystemUserAgent::leadFollowUpPlanTools()`): `set_lead_follow_up_plan`, `get_lead_follow_up_plan`,
-  `cancel_lead_follow_up_plan`, `set_lead_follow_up_enabled` (the UI toggle; pauses, never cancels).
+- **Tools** (internal agents only, `RequiresSystemAgent`): `set_lead_follow_up_plan`,
+  `get_lead_follow_up_plan`, `cancel_lead_follow_up_plan`, `set_lead_follow_up_enabled` (the UI toggle;
+  pauses, never cancels). Baseline on `SalesManagerAgent` only (`leadFollowUpPlanTools()`): a drip on a
+  lead is a sales-manager capability, not teammate plumbing, so no other system-user agent carries them
+  unless granted from the catalog.
   The lead's owner or an admin (`GuardsLeadOwnerForTool`). The recipient is never a parameter: the
   engine resolves the contact from the lead, so a prompt cannot redirect the message.
 - **UI.** `Lead.followUpPlan` (read only, `LeadFollowUpPlanService::status()`): channel, text, cadence,

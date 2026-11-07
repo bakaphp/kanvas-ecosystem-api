@@ -8,7 +8,6 @@ use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -157,7 +156,8 @@ class SetLeadFollowUpPlanTool extends Tool implements RequiresSystemAgent
             return $this->invalidArgs(sprintf('The message is too long: keep it under %d characters.', ManualFollowUpPlan::MAX_BODY_LENGTH));
         }
 
-        $pausedReason = new LeadFollowUpEligibilityService()->pausedReason($lead);
+        $eligibility = new LeadFollowUpEligibilityService();
+        $pausedReason = $eligibility->pausedReason($lead);
         if ($pausedReason !== null) {
             return $this->denied(
                 $pausedReason === 'ai_mode_manual'
@@ -205,7 +205,7 @@ class SetLeadFollowUpPlanTool extends Tool implements RequiresSystemAgent
             );
         }
 
-        $followUpOff = new LeadFollowUpEligibilityService()->aiFollowUpDisabled($lead);
+        $followUpOff = $eligibility->aiFollowUpDisabled($lead);
         if ($followUpOff && ! $confirm_enable_follow_up) {
             return $this->noop(
                 ['lead_id' => $lead->getId(), 'needs_confirmation' => true, 'reason' => 'lead_follow_up_disabled'],
@@ -235,9 +235,9 @@ class SetLeadFollowUpPlanTool extends Tool implements RequiresSystemAgent
                 'follow_up_turned_on' => $followUpOff,
                 'first_sms_carries_opt_out_notice' => $plan->channel === LeadCommunicationChannelEnum::SMS->value,
             ],
-            guidance: 'Confirm to the person: the channel, the exact text, the cadence, the attempt cap, the start, that '
-                . 'it stops when the lead replies, and that they can cancel by asking you or by switching follow-up '
-                . 'off on the lead.',
+            guidance: 'Confirm to the person: the channel, the exact text, the cadence, the attempt cap, the start, '
+                . ($plan->stopOnReply ? 'and that it stops when the lead replies. ' : 'and that it continues even if the lead replies. ')
+                . 'They can cancel the plan by asking you, or pause it by switching follow-up off on the lead.',
         );
     }
 

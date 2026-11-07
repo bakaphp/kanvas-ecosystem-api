@@ -20,10 +20,8 @@ use Throwable;
  */
 final class EndLeadFollowUpPlanAction
 {
-    public function __construct(
-        private readonly Lead $lead,
-        private readonly string $reason,
-    ) {
+    public function __construct(private readonly Lead $lead, private readonly string $reason)
+    {
     }
 
     public function execute(): ?ManualFollowUpPlan

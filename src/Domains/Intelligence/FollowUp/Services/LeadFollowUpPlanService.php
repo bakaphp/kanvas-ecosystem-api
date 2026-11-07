@@ -6,20 +6,14 @@ namespace Kanvas\Intelligence\FollowUp\Services;
 
 use Kanvas\Guild\Leads\Models\Lead;
 
-/**
- * The read side of a plan, for the lead view and the agent tools: what runs, where it is, and why
- * it is not sending right now.
- */
 final class LeadFollowUpPlanService
 {
     public function __construct(
-        private readonly LeadFollowUpEligibilityService $eligibility = new LeadFollowUpEligibilityService(),
+        private readonly LeadFollowUpEligibilityService $eligibility = new LeadFollowUpEligibilityService()
     ) {
     }
 
     /**
-     * The active plan, else the last ended one, else null.
-     *
      * @return array<string, mixed>|null
      */
     public function status(Lead $lead): ?array

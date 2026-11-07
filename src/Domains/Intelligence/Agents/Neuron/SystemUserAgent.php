@@ -16,10 +16,6 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Stores\ChannelMessageStore;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\FollowUp\CancelLeadFollowUpPlanTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\FollowUp\GetLeadFollowUpPlanTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\FollowUp\SetLeadFollowUpEnabledTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\FollowUp\SetLeadFollowUpPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetNervousSystemTaskTool;
@@ -363,7 +359,6 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             new AttachFileToNervousSystemTaskTool()->withContext($this->app, $this->company, $human),
             new ListNervousSystemTaskFilesTool()->withContext($this->app, $this->company, $human),
             ...$this->scheduleTools($agent, $human),
-            ...$this->leadFollowUpPlanTools($agent, $human),
         ];
 
         if ((string) ($agent->get(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value) ?? '') !== '') {
@@ -376,22 +371,6 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
         }
 
         return $tools;
-    }
-
-    /**
-     * A person's own drip on a lead, run by the follow-up engine. Registered here and not on the
-     * customer-facing agents: the recipient is the lead, the person giving the instruction is staff.
-     *
-     * @return list<Tool>
-     */
-    protected function leadFollowUpPlanTools(Agent $agent, Users $human): array
-    {
-        return [
-            new SetLeadFollowUpPlanTool()->withContext($this->app, $this->company, $human, $agent),
-            new GetLeadFollowUpPlanTool()->withContext($this->app, $this->company, $human, $agent),
-            new CancelLeadFollowUpPlanTool()->withContext($this->app, $this->company, $human, $agent),
-            new SetLeadFollowUpEnabledTool()->withContext($this->app, $this->company, $human, $agent),
-        ];
     }
 
     /**

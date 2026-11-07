@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsLeadOwnerForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
+use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -83,7 +84,8 @@ class SetLeadFollowUpEnabledTool extends Tool implements RequiresSystemAgent
             'plan_active' => $lead->getFollowUpPlan() !== null,
         ];
 
-        if ($lead->isAiFollowUpEnabled() === $enabled) {
+        $currentlyEnabled = ! new LeadFollowUpEligibilityService()->aiFollowUpDisabled($lead);
+        if ($currentlyEnabled === $enabled) {
             return $this->noop($payload, guidance: $enabled ? 'Follow-up was already on for this lead.' : 'Follow-up was already off for this lead.');
         }
 

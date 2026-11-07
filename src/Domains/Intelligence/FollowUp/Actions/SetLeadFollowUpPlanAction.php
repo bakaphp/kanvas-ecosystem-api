@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Actions;
 
+use Carbon\CarbonInterface;
+use Carbon\CarbonInterval;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
+use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -21,7 +24,7 @@ final class SetLeadFollowUpPlanAction
     public function __construct(
         private readonly Lead $lead,
         private readonly ManualFollowUpPlan $plan,
-        private readonly Users $setBy,
+        private readonly Users $setBy
     ) {
     }
 
@@ -32,7 +35,8 @@ final class SetLeadFollowUpPlanAction
         $this->lead->resetFollowUpState();
         $this->lead->setFollowUpPlan($this->plan);
 
-        $followUpTurnedOn = ! $this->lead->isAiFollowUpEnabled();
+        // Absent `ai_follow_up` already counts as on for the engine, so only an explicit off is a change.
+        $followUpTurnedOn = new LeadFollowUpEligibilityService()->aiFollowUpDisabled($this->lead);
         if ($followUpTurnedOn) {
             $this->lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::LEAD_FOLLOW_UP->value);
         }
@@ -53,7 +57,7 @@ final class SetLeadFollowUpPlanAction
                 'Manual follow-up plan set by %s: %s every %s, up to %d attempts, starting %s%s. Message: "%s"',
                 $this->setBy->displayname,
                 $this->plan->channel,
-                $this->cadence(),
+                CarbonInterval::minutes($this->plan->intervalMinutes)->cascade()->forHumans(['syntax' => CarbonInterface::DIFF_ABSOLUTE]),
                 $this->plan->maxAttempts,
                 $this->plan->startAt->toDayDateTimeString(),
                 $this->plan->stopOnReply ? ', stops when the lead replies' : '',
@@ -65,14 +69,5 @@ final class SetLeadFollowUpPlanAction
         );
 
         return $this->plan;
-    }
-
-    private function cadence(): string
-    {
-        $minutes = $this->plan->intervalMinutes;
-
-        return $minutes % 1440 === 0
-            ? sprintf('%d day(s)', intdiv($minutes, 1440))
-            : ($minutes % 60 === 0 ? sprintf('%d hour(s)', intdiv($minutes, 60)) : sprintf('%d minute(s)', $minutes));
     }
 }

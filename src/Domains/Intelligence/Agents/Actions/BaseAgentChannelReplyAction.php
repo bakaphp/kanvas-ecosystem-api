@@ -83,10 +83,8 @@ class BaseAgentChannelReplyAction
 
         // A person's plan ends on the reply itself, not an hour later at the next pass.
         if ($lead instanceof Lead) {
-            new LeadFollowUpEligibilityService()->concludeRepliedPlan(
-                $lead,
-                DateHelper::tryParseCarbon($this->message->created_at) ?? Carbon::now(),
-            );
+            $inboundAt = DateHelper::tryParseCarbon($this->message->created_at) ?? Carbon::now();
+            new LeadFollowUpEligibilityService()->concludeRepliedPlan($lead, $inboundAt);
         }
 
         if ($this->respectsLeadAiMode) {

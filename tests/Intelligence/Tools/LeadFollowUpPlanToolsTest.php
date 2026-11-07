@@ -20,6 +20,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
+use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Users\Models\Users;
 use Tests\Stubs\FollowUp\FollowUpAgentStub;
@@ -123,7 +124,12 @@ final class LeadFollowUpPlanToolsTest extends TestCase
 
         $this->assertSame('invalid_args', $tool->__invoke(lead_id: $lead->getId(), channel: 'fax', message: self::BODY)['outcome']);
         $this->assertSame('invalid_args', $tool->__invoke(lead_id: $lead->getId(), channel: 'sms', message: '  ')['outcome']);
-        $this->assertSame('invalid_args', $tool->__invoke(lead_id: $lead->getId(), channel: 'sms', message: self::BODY, start_at: 'next tuesday-ish')['outcome']);
+        $this->assertSame('invalid_args', $tool->__invoke(
+            lead_id: $lead->getId(),
+            channel: 'sms',
+            message: self::BODY,
+            start_at: 'next tuesday-ish',
+        )['outcome']);
         $this->assertSame('error', $tool->__invoke(lead_id: 999999999, channel: 'sms', message: self::BODY)['status']);
     }
 
@@ -182,6 +188,20 @@ final class LeadFollowUpPlanToolsTest extends TestCase
     public function testGetWithoutAnyPlanIsNotFound(): void
     {
         $this->assertSame('not_found', $this->getTool()->__invoke(lead_id: $this->seedLead()->getId())['outcome']);
+    }
+
+    public function testSwitchingOffAnUnconfiguredLeadDisablesTheEngine(): void
+    {
+        $lead = $this->seedLead();
+        $lead->del(IntelligenceModeEnum::AI_FOLLOW_UP->value);
+        $eligibility = new LeadFollowUpEligibilityService();
+        $this->assertFalse($eligibility->aiFollowUpDisabled($lead));
+
+        $result = $this->enabledTool($this->user())->__invoke(lead_id: $lead->getId(), enabled: false);
+
+        $this->assertSame('ok', $result['outcome']);
+        $this->assertTrue($eligibility->aiFollowUpDisabled($lead->refresh()));
+        $this->assertNotNull($this->ledger($lead, 'lead.follow_up.toggled'));
     }
 
     private function setTool(Users $actor): SetLeadFollowUpPlanTool
