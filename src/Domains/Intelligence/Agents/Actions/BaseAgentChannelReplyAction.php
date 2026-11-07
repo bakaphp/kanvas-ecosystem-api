@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions;
 
 use Baka\Support\DateHelper;
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -102,6 +103,22 @@ class BaseAgentChannelReplyAction
         }
 
         $this->dispatchAttachmentDescription($this->message, $this->agent, $this->channel);
+    }
+
+    /**
+     * @return array{text: string, images: list<string>, documents: list<string>}
+     */
+    protected function inboundContent(?string $text): array
+    {
+        $media = $this->message->attachmentUrls();
+        $text = Str::trimToNull($text) ?? '';
+
+        // Gemini requires a non-empty text part alongside attachments (KANVAS-ECOSYSTEM-6QC).
+        if ($text === '' && ($media['images'] !== [] || $media['documents'] !== [])) {
+            $text = 'The customer sent an attachment without any text. Look at it and answer about it.';
+        }
+
+        return ['text' => $text, ...$media];
     }
 
     /**

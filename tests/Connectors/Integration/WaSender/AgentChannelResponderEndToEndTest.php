@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
+use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
@@ -25,6 +26,7 @@ use Laravel\Ai\Embeddings;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\Stubs\Intelligence\StructuredNeuronAgentStub;
 use Tests\TestCase;
+use Tests\Traits\AttachesMediaToMessage;
 use Throwable;
 
 /**
@@ -34,6 +36,7 @@ use Throwable;
  */
 class AgentChannelResponderEndToEndTest extends TestCase
 {
+    use AttachesMediaToMessage;
     use DatabaseTransactions;
 
     public function testInboundWhatsAppTriggersAgentReplyPersistedOnChannel(): void
@@ -74,11 +77,50 @@ class AgentChannelResponderEndToEndTest extends TestCase
         $this->assertSame('draft', $envelope['status']);
     }
 
+    public function testAnImageWithACaptionReachesTheAgentWithBoth(): void
+    {
+        [$channel, $inbound, $agent, $session] = $this->bootScenario(
+            SalesNeuronAgentStub::class,
+            ['imageMessage' => ['caption' => 'Is this the one you have in stock?', 'mimetype' => 'image/png']],
+        );
+        $this->attachImage($inbound);
+
+        $this->runResponder(
+            $channel,
+            $inbound->fresh(),
+            $agent,
+            $session,
+        );
+
+        $this->assertModelSawAnImageWithText('Is this the one you have in stock?');
+        $this->assertNotNull($this->latestAgentReply($channel));
+    }
+
+    public function testAnImageWithoutACaptionStillGetsAnAnswer(): void
+    {
+        [$channel, $inbound, $agent, $session] = $this->bootScenario(
+            SalesNeuronAgentStub::class,
+            ['imageMessage' => ['mimetype' => 'image/png']],
+        );
+        $this->attachImage($inbound);
+
+        $this->runResponder(
+            $channel,
+            $inbound->fresh(),
+            $agent,
+            $session,
+        );
+
+        $this->assertModelSawAnImageWithText('attachment');
+        $this->assertNotNull($this->latestAgentReply($channel));
+    }
+
     /**
      * @return array{0: Channel, 1: Message, 2: Agent, 3: Session}
      */
-    private function bootScenario(string $handler): array
+    private function bootScenario(string $handler, ?array $rawMessage = null): array
     {
+        $rawMessage ??= ['conversation' => 'Hello, I am interested in a car'];
         Http::fake(); // any outbound HTTP (WaSender send) becomes a no-op
         Embeddings::fake(); // the lead's knowledge index runs on the sync queue, never hit a real provider
 
@@ -120,11 +162,11 @@ class AgentChannelResponderEndToEndTest extends TestCase
             ->withMessageType($messageType)
             ->create([
                 'message' => [
-                    'content' => 'Hello, I am interested in a car',
+                    'content' => MessageTypeEnum::extractText($rawMessage) ?? '',
                     'from_me' => false,
                     'chat_jid' => '19999999999@s.whatsapp.net',
                     'raw_data' => [
-                        'message' => ['conversation' => 'Hello, I am interested in a car'],
+                        'message' => $rawMessage,
                     ],
                 ],
                 'is_locked' => 0,

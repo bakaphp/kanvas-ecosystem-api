@@ -23,6 +23,15 @@ actions; everything else here is about telling them apart and configuring them.
 | Assistant DM | `Channel` | no | the burst job, **inline** |
 | Group | `Channel` | no | the burst job, **inline** |
 
+**A lead DM with a photo fires the turn too.** `CreateLeadMessageAction` fires
+`after-adding-message-to-channel` for a media message once it is downloaded, but only for the head
+of an album (`parent_id` null after `chainConsecutiveImages()`): the photos chained under it within
+the window ride along as files, and a turn per photo would answer a three-photo album three times.
+The responder reads the caption through `MessageTypeEnum::extractText()` and passes the files to
+the kernel as native image/document blocks; a photo with no caption is prompted as "the customer
+sent an attachment". The `dale` / `process` document trigger is unchanged and still only fires from
+a text.
+
 **A lead DM does not answer by itself.** It files the message, opens a Lead, and fires
 `after-adding-message-to-channel` expecting a rule with an agent-responder activity to speak. A fresh
 receiver with no such rule files messages and stays silent — that is configuration, not a bug. Assistant

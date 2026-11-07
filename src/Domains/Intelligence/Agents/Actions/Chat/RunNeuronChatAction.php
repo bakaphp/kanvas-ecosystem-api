@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
@@ -141,7 +142,15 @@ class RunNeuronChatAction
                 continue;
             }
 
-            $block = AttachmentDescriptionService::contentBlockFor($binary, allowStructuredText: $allowStructuredText);
+            $mimeType = FilesystemServices::detectMimeTypeFromBytes($binary);
+
+            if ($this->handler instanceof BehavesAsKanvasAgent && $this->needsTranscript($this->handler, $mimeType)) {
+                $userMessage->addContent(new TextContent($this->voiceNoteText($this->handler, $binary, $mimeType)));
+
+                continue;
+            }
+
+            $block = AttachmentDescriptionService::contentBlockFor($binary, $mimeType, allowStructuredText: $allowStructuredText);
             if ($block !== null) {
                 $userMessage->addContent($block);
             }
@@ -472,6 +481,25 @@ class RunNeuronChatAction
                 );
             }
         }
+    }
+
+    /**
+     * A voice note on a model that cannot listen is sent as words instead of bytes: the block would
+     * be dropped on the floor and the agent would answer a customer it never heard.
+     */
+    private function needsTranscript(BehavesAsKanvasAgent $handler, string $mimeType): bool
+    {
+        return AttachmentDescriptionService::nativeKind($mimeType) === 'audio'
+            && ! AttachmentDescriptionService::providerHearsAudio($handler->getProvider());
+    }
+
+    private function voiceNoteText(BehavesAsKanvasAgent $handler, string $binary, string $mimeType): string
+    {
+        $transcript = AttachmentDescriptionService::forHandler($handler, $this->agent)->transcribeAudio($binary, $mimeType);
+
+        return $transcript === ''
+            ? 'The customer sent a voice note that could not be transcribed. Say you could not listen to it and ask them to type it.'
+            : 'The customer sent a voice note. Transcript: ' . $transcript;
     }
 
     /**

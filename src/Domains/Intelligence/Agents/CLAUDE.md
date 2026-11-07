@@ -214,13 +214,16 @@ public function execute(array $params = []): array
     if ($entity === null) { throw new ValidationException('No entity found'); }
     $currentLead = $entity instanceof Lead ? $entity : null;
 
-    // 3. Delegate ALL agent work to the kernel
+    // 3. Resolve text and attachments together; Gemini requires text alongside media (KANVAS-ECOSYSTEM-6QC).
+    ['text' => $messageConversation, 'images' => $images, 'documents' => $documents] = $this->inboundContent($messageConversation);
     $responseContent = new AgentChatKernel(
         agent: $this->agent,
         session: $this->session,
         message: $messageConversation,
         user: $this->message->company->getAiAgentUserOrFail(),
         currentLead: $currentLead,
+        images: $images,
+        documents: $documents,
         sourceChannel: $this->channel,
         sourceMessage: $this->message,
         persistConversation: false,   // connector persists below
@@ -269,6 +272,26 @@ parameter is optional and changes nothing for a plain-text agent.
 Connectors set two protected props on their class:
 - `$messageTypeVerb` — e.g. `'whatsapp'`, `'mailgun-email'`, `'respondio-text'`, `'twilio-sms'` (used by `createMessage()` for the outbound's `MessageType`)
 - `$communicationChannel` — e.g. `'whatsapp'`, `'email'`, `'sms'`, `'respondio'` (written to the outbound message's custom field)
+
+## Voice notes: a model that cannot listen gets words
+
+Audio reaches a Neuron agent as an `AudioContent` block, and only Gemini, Mistral and Bedrock take
+one; Anthropic's and OpenAI's mappers drop it, so the agent would answer a customer it never heard.
+`AttachmentDescriptionService::providerHearsAudio()` is the one place that knows which is which.
+
+- **On the turn** (`RunNeuronChatAction`): when the agent's provider cannot hear, the voice note is
+  transcribed first and goes in as text ("The customer sent a voice note. Transcript: …"); when the
+  transcription fails the prompt says so and asks the agent to request a typed message. A hearing
+  provider still gets the block.
+- **Who transcribes**: `AgentProviderService::audioProvider()` — the agent's own provider when it
+  hears, else Gemini on the tenant's (or trial) key with the app's `GEMINI_MODEL`. No Gemini key at
+  all means no transcript, never an exception. Tests bind a fake on
+  `AttachmentDescriptionService::AUDIO_PROVIDER_BINDING`.
+- **In memory**: `DescribeMessageAttachmentsJob` builds its describer with `forAgent()`, which carries
+  the same audio provider, so the history of a Claude-backed agent still gets the transcript. A voice
+  note on a deaf provider is therefore transcribed twice (turn + caption job); accepted for now, cache
+  it on the message if the bill says otherwise.
+- Laravel-AI agents hand `Audio::fromBase64` to laravel/ai and are not gated here.
 
 ## Adding a new backend (e.g. Anthropic-direct)
 
