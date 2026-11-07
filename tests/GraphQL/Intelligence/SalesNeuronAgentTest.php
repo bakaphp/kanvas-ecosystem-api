@@ -129,7 +129,7 @@ class SalesNeuronAgentTest extends TestCase
         $names = array_map(fn (ToolInterface $tool): string => $tool->getName(), $tools);
 
         // The registry tools, plus get_current_time — BaseKanvasAgent gives every agent the time
-        // tool whether or not an operator selected it (see UniversalAgentToolsTest).
+        // tool whether or not an operator selected it (see NeuronSkillsUniversalAgentToolsTest).
         $this->assertCount($instantiableCount + 1, $tools);
         $this->assertContains('get_current_time', $names);
     }

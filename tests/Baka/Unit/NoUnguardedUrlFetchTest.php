@@ -74,6 +74,8 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         // Legacy AZUL_*_PATH fallback: relative paths are forced under base_path(), the file must
         // exist and must contain PEM material — never a URL.
         'src/Domains/Connectors/Azul/Services/AzulCertificate.php',
+        // Reads local markdown skill files discovered by SkillCatalog from vetted local paths.
+        'src/Domains/Intelligence/Agents/Neuron/Tools/Skills/LoadSkillTool.php',
     ];
 
     public function testNoUnguardedRemoteUrlFetch(): void
