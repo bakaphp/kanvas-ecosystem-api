@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\CRM;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddLeadNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
@@ -70,6 +71,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdatePersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UploadFileToLeadTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\FollowUp\CancelLeadFollowUpPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\FollowUp\GetLeadFollowUpPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\FollowUp\SetLeadFollowUpEnabledTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\FollowUp\SetLeadFollowUpPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\UploadFileToMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\CreateTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\GetTemplateTool;
@@ -160,11 +165,48 @@ class SalesManagerAgent extends SystemUserAgent
 
         $core = [...$core, ...$this->followThroughTools($agent)];
 
+        // A rep's own drip on a lead is a sales-manager capability, not teammate plumbing: any other
+        // system-user agent gets these four from the catalog, by grant.
+        $core = [...$core, ...$this->leadFollowUpPlanTools($agent, $this->requestingHuman() ?? $user)];
+
         return $this->mergeRegisteredTools(
             $core,
             $agent,
             CapabilityFrameworkEnum::NEURON,
         );
+    }
+
+    /**
+     * @return list<object>
+     */
+    private function leadFollowUpPlanTools(Agent $agent, Users $human): array
+    {
+        return [
+            new SetLeadFollowUpPlanTool()->withContext(
+                $this->app,
+                $this->company,
+                $human,
+                $agent,
+            ),
+            new GetLeadFollowUpPlanTool()->withContext(
+                $this->app,
+                $this->company,
+                $human,
+                $agent,
+            ),
+            new CancelLeadFollowUpPlanTool()->withContext(
+                $this->app,
+                $this->company,
+                $human,
+                $agent,
+            ),
+            new SetLeadFollowUpEnabledTool()->withContext(
+                $this->app,
+                $this->company,
+                $human,
+                $agent,
+            ),
+        ];
     }
 
     /**

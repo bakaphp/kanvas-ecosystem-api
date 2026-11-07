@@ -28,6 +28,9 @@ class FollowUpConfig extends Data
         public readonly bool $respectWorkHours,
         public readonly bool $respectLeadOptOuts,
         public readonly bool $writeSystemMessageOnStageChange,
+        // Set when the config came from a person's plan rather than a stage, so readers that treat a
+        // plan differently ask the config they already hold instead of re-reading the entity's field.
+        public readonly ?ManualFollowUpPlan $plan = null,
     ) {
     }
 
@@ -96,6 +99,30 @@ class FollowUpConfig extends Data
             respectWorkHours: (bool) ($raw['respect_work_hours'] ?? true),
             respectLeadOptOuts: (bool) ($raw['respect_lead_opt_outs'] ?? true),
             writeSystemMessageOnStageChange: (bool) ($raw['write_system_message_on_stage_change'] ?? true),
+        );
+    }
+
+    /**
+     * A person's plan on one entity, in the shape every engine reader already understands: one
+     * channel, a fixed cadence, stop when the attempts run out, never a stage advance.
+     */
+    public static function fromPlan(ManualFollowUpPlan $plan): self
+    {
+        return new self(
+            enabled: true,
+            mode: FollowUpModeEnum::TIME_BASED,
+            timeBased: new TimeBasedConfig(intervalMinutes: $plan->intervalMinutes),
+            goalBased: null,
+            maxRetries: $plan->maxAttempts,
+            exhaustedAction: ExhaustedActionEnum::STOP,
+            agentName: null,
+            promptTemplate: null,
+            channels: [new ChannelConfig(type: $plan->channel, enabled: true)],
+            channelSelection: ChannelSelectionEnum::PRIORITY_ONLY,
+            respectWorkHours: $plan->respectWorkHours,
+            respectLeadOptOuts: true,
+            writeSystemMessageOnStageChange: false,
+            plan: $plan,
         );
     }
 

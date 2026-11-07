@@ -57,10 +57,10 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         $channelId = $this->hijackMessagePhone($fromEmail);
 
-        $messageConversation = AttachmentPromptBuilder::withFilesystemMarkers(
-            $messageConversation,
-            $this->message->files,
-        );
+        // Both shapes on purpose: the native blocks let a customer-facing agent see the picture or
+        // read the PDF, the markers let an internal agent open the file with its tools.
+        ['text' => $messageConversation, 'images' => $images, 'documents' => $documents] = $this->inboundContent($messageConversation);
+        $messageConversation = AttachmentPromptBuilder::withFilesystemMarkers($messageConversation, $this->message->files);
 
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
@@ -68,6 +68,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             message: $messageConversation,
             user: $this->message->company->getAiAgentUserOrFail(),
             currentLead: $entity instanceof Lead ? $entity : null,
+            images: $images,
+            documents: $documents,
             sourceChannel: $this->channel,
             sourceMessage: $this->message,
             persistConversation: false,

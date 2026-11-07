@@ -84,6 +84,30 @@ final class PrepareLeadTurnMemoryActionTest extends TestCase
     }
 
     /**
+     * A staff note the customer-facing rollup never loads is uncovered all the same. When the catch-up
+     * fails, the gap it leaves must survive the window's re-check and reach the instructions.
+     */
+    public function testAGapTheWindowNeverLoadedSurvivesAFailedCatchUp(): void
+    {
+        $lead = $this->makeLead();
+        $kept = $this->leadMessage($lead, 'hi, is the Tacoma available?');
+        $note = $this->leadMessage($lead, 'Staff: send him to the CDJR lot, not Select');
+
+        $memory = $this->prepare(
+            $lead,
+            [$kept],
+            [$kept],
+            static function (): AIProviderInterface {
+                throw new ValidationException('gemini API key is not configured for this agent or app.');
+            },
+        )->execute();
+
+        $this->assertSame([$note->getId()], $memory->window->uncovered);
+        $this->assertStringContainsString('send him to the CDJR lot', $memory->block);
+        Bus::assertDispatched(ContinueLeadSummaryJob::class);
+    }
+
+    /**
      * An edited or deleted covered message leaves the summary possibly wrong; that alone has to run the
      * catch-up, whatever the window dropped.
      */

@@ -14,6 +14,8 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Intelligence\FollowUp\Actions\SetLeadFollowUpPlanAction;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
 use Kanvas\Intelligence\FollowUp\Jobs\DispatchAppLeadFollowUpsJob;
 use Kanvas\Intelligence\FollowUp\Jobs\LeadFollowUpJob;
 use Kanvas\NervousSystem\Ledger\Models\Event;
@@ -394,6 +396,67 @@ class DispatchAppLeadFollowUpsJobTest extends TestCase
         Queue::assertNotPushed(
             LeadFollowUpJob::class,
             fn (LeadFollowUpJob $job): bool => $job->lead->getId() === $leadId,
+        );
+    }
+
+    public function testALeadWithAPlanIsQueuedWhateverItsStage(): void
+    {
+        Queue::fake();
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $pipeline = Pipeline::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'system_modules_id' => 0,
+            'name' => 'Plan pipe',
+            'is_default' => 0,
+        ]);
+        $stageWithoutFollowUp = PipelineStage::create([
+            'pipelines_id' => $pipeline->getId(),
+            'name' => 'No follow-up',
+            'weight' => 1,
+            'config' => null,
+        ]);
+
+        $planned = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
+            'pipeline_id' => $pipeline->getId(),
+            'pipeline_stage_id' => $stageWithoutFollowUp->getId(),
+        ]);
+        $plainSibling = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
+            'pipeline_id' => $pipeline->getId(),
+            'pipeline_stage_id' => $stageWithoutFollowUp->getId(),
+        ]);
+
+        $now = Carbon::now();
+        new SetLeadFollowUpPlanAction(
+            $planned,
+            new ManualFollowUpPlan(
+                channel: 'sms',
+                body: 'Still interested?',
+                intervalMinutes: 1440,
+                maxAttempts: 3,
+                startAt: $now,
+                setAt: $now,
+                setByUsersId: $user->getId(),
+            ),
+            $user,
+        )->execute();
+
+        new DispatchAppLeadFollowUpsJob(app: $app, company: $company)->handle();
+
+        $plannedId = $planned->getId();
+        $siblingId = $plainSibling->getId();
+        Queue::assertPushed(
+            LeadFollowUpJob::class,
+            fn (LeadFollowUpJob $job): bool => $job->lead->getId() === $plannedId,
+        );
+        Queue::assertNotPushed(
+            LeadFollowUpJob::class,
+            fn (LeadFollowUpJob $job): bool => $job->lead->getId() === $siblingId,
         );
     }
 }

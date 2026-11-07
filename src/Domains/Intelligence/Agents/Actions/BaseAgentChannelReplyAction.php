@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
+use Baka\Support\DateHelper;
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
@@ -18,6 +21,7 @@ use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -78,6 +82,12 @@ class BaseAgentChannelReplyAction
             }
         }
 
+        // A person's plan ends on the reply itself, not an hour later at the next pass.
+        if ($lead instanceof Lead) {
+            $inboundAt = DateHelper::tryParseCarbon($this->message->created_at) ?? Carbon::now();
+            new LeadFollowUpEligibilityService()->concludeRepliedPlan($lead, $inboundAt);
+        }
+
         if ($this->respectsLeadAiMode) {
             $isAiMuted = $lead instanceof Lead
                 ? $lead->isAiMuted()
@@ -93,6 +103,22 @@ class BaseAgentChannelReplyAction
         }
 
         $this->dispatchAttachmentDescription($this->message, $this->agent, $this->channel);
+    }
+
+    /**
+     * @return array{text: string, images: list<string>, documents: list<string>}
+     */
+    protected function inboundContent(?string $text): array
+    {
+        $media = $this->message->attachmentUrls();
+        $text = Str::trimToNull($text) ?? '';
+
+        // Gemini requires a non-empty text part alongside attachments (KANVAS-ECOSYSTEM-6QC).
+        if ($text === '' && ($media['images'] !== [] || $media['documents'] !== [])) {
+            $text = 'The customer sent an attachment without any text. Look at it and answer about it.';
+        }
+
+        return ['text' => $text, ...$media];
     }
 
     /**

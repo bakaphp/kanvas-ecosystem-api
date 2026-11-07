@@ -8,26 +8,32 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionDto;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Stubs\Intelligence\FakeNeuronProvider;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
+use Tests\Traits\AttachesMediaToMessage;
 use Throwable;
 
 class AgentChannelResponderEndToEndTest extends TestCase
 {
+    use AttachesMediaToMessage;
     use DatabaseTransactions;
 
     public static function senderProvider(): array
@@ -40,6 +46,115 @@ class AgentChannelResponderEndToEndTest extends TestCase
 
     #[DataProvider('senderProvider')]
     public function testInboundSmsTriggersAgentReplyPersistedOnChannel(?string $agentNumber, string $expectedFrom): void
+    {
+        [$channel, $inbound, $agent, $session, $app, $company] = $this->seedSmsScenario($agentNumber);
+
+        $action = new AgentChannelResponderAction(
+            $channel,
+            $inbound,
+            $agent,
+            $session,
+        );
+
+        try {
+            $action->execute(['from' => '+15555555555']);
+        } catch (Throwable) {
+            // Outbound Twilio API call may throw in test env — persistence ran first.
+        }
+
+        $outbound = Message::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->whereJsonContains('message->from_ia', true)
+            ->whereHas(
+                'channels',
+                fn ($q) => $q->where('channels.id', $channel->getId()),
+            )
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($outbound, 'Agent reply must be persisted on the channel');
+        $this->assertStringContainsString('Hola Mundo', (string) ($outbound->message['content'] ?? ''));
+        $this->assertSame((string) $session->uuid, (string) ($outbound->message['session_id'] ?? ''));
+
+        // The channel already carried the customer's inbound message, so "first" has to be
+        // counted over outbound history — otherwise a cold inbound text eats the clause.
+        $this->assertStringContainsString(
+            SmsOptOutNoticeService::NOTICE,
+            (string) ($outbound->message['content'] ?? ''),
+            'our first reply on a customer-opened SMS conversation must carry the opt-out notice'
+        );
+        $this->assertSame($expectedFrom, $outbound->get('from_number'));
+    }
+
+    public function testAnImageOnlyMmsReachesTheAgentAsAPicture(): void
+    {
+        [$channel, $inbound, $agent, $session] = $this->seedSmsScenario(null, content: '');
+        $this->attachImage($inbound);
+        $inbound = $inbound->fresh();
+
+        try {
+            new AgentChannelResponderAction(
+                $channel,
+                $inbound,
+                $agent,
+                $session,
+            )->execute(['from' => '+15555555555']);
+        } catch (Throwable) {
+            // Outbound Twilio API call may throw in test env — the turn ran first.
+        }
+
+        $this->assertModelSawAnImageWithText('attachment');
+
+        $outbound = Message::query()
+            ->whereJsonContains('message->from_ia', true)
+            ->whereHas('channels', fn ($q) => $q->where('channels.id', $channel->getId()))
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($outbound, 'A picture without words still gets an answer');
+        $this->assertStringContainsString('Hola Mundo', (string) ($outbound->message['content'] ?? ''));
+    }
+
+    /**
+     * The sales agent in tests runs on a provider that cannot listen, like Claude or OpenAI chat in
+     * production. The voice note reaches it as words from the audio provider, never as a block it
+     * would drop.
+     */
+    public function testAVoiceNoteIsTranscribedForAnAgentWhoseModelCannotListen(): void
+    {
+        $this->app->instance(
+            AttachmentDescriptionService::AUDIO_PROVIDER_BINDING,
+            new FakeNeuronProvider('turn right at the gas station and I will be there'),
+        );
+        [$channel, $inbound, $agent, $session] = $this->seedSmsScenario(null, content: '');
+        $this->attachVoiceNote($inbound);
+        $inbound = $inbound->fresh();
+
+        try {
+            new AgentChannelResponderAction(
+                $channel,
+                $inbound,
+                $agent,
+                $session,
+            )->execute(['from' => '+15555555555']);
+        } catch (Throwable) {
+            // Outbound Twilio API call may throw in test env — the turn ran first.
+        }
+
+        $this->assertModelSawATranscriptNotAudio('turn right at the gas station');
+
+        $outbound = Message::query()
+            ->whereJsonContains('message->from_ia', true)
+            ->whereHas('channels', fn ($q) => $q->where('channels.id', $channel->getId()))
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($outbound, 'A voice note still gets an answer');
+    }
+
+    /**
+     * @return array{0: Channel, 1: Message, 2: Agent, 3: Session, 4: Apps, 5: Companies}
+     */
+    private function seedSmsScenario(?string $agentNumber, string $content = 'Hello via SMS'): array
     {
         Http::fake();
 
@@ -80,7 +195,7 @@ class AgentChannelResponderEndToEndTest extends TestCase
             ->withMessageType($messageType)
             ->create([
                 'message' => [
-                    'content' => 'Hello via SMS',
+                    'content' => $content,
                     'from_me' => false,
                 ],
                 'is_locked' => 0,
@@ -137,41 +252,6 @@ class AgentChannelResponderEndToEndTest extends TestCase
             ])
         )->execute();
 
-        $action = new AgentChannelResponderAction(
-            $channel,
-            $inbound,
-            $agent,
-            $session,
-        );
-
-        try {
-            $action->execute(['from' => '+15555555555']);
-        } catch (Throwable) {
-            // Outbound Twilio API call may throw in test env — persistence ran first.
-        }
-
-        $outbound = Message::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->whereJsonContains('message->from_ia', true)
-            ->whereHas(
-                'channels',
-                fn ($q) => $q->where('channels.id', $channel->getId()),
-            )
-            ->latest('id')
-            ->first();
-
-        $this->assertNotNull($outbound, 'Agent reply must be persisted on the channel');
-        $this->assertStringContainsString('Hola Mundo', (string) ($outbound->message['content'] ?? ''));
-        $this->assertSame((string) $session->uuid, (string) ($outbound->message['session_id'] ?? ''));
-
-        // The channel already carried the customer's inbound message, so "first" has to be
-        // counted over outbound history — otherwise a cold inbound text eats the clause.
-        $this->assertStringContainsString(
-            SmsOptOutNoticeService::NOTICE,
-            (string) ($outbound->message['content'] ?? ''),
-            'our first reply on a customer-opened SMS conversation must carry the opt-out notice'
-        );
-        $this->assertSame($expectedFrom, $outbound->get('from_number'));
+        return [$channel, $inbound, $agent, $session, $app, $company];
     }
 }

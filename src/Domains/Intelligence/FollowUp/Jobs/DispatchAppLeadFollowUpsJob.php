@@ -7,19 +7,23 @@ namespace Kanvas\Intelligence\FollowUp\Jobs;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
 use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Throwable;
 
 /**
- * Per-app fan-out. SQL pre-filters at STAGE level (enabled + non-terminal) and to open leads (by
- * status id); the lead-level gates (ai follow-up, lead type, exhausted, manual, mute, and the stage
+ * Per-app fan-out. SQL pre-filters at STAGE level (enabled + non-terminal), plus every lead carrying
+ * a person's own plan whatever its stage, and to open leads (by status id); the lead-level gates (ai follow-up, lead type, exhausted, manual, mute, and the stage
  * interval against the lead's last message) run here too, so a lead that was already followed up
  * never takes a queue slot. Every lead leaves a ledger record: `lead.follow_up.skipped` with the
  * reason and `source: dispatch`, or `lead.follow_up.queued`. FollowUpLeadAction still re-checks
@@ -55,18 +59,10 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
             // authoritative check is FollowUpLeadAction's hasOpenLeadStatus() gate; this just
             // avoids spawning jobs for already-closed leads.
             ->hasOpenLeadStatus($this->company)
-            ->when($startDate, fn ($query) => $query->where('created_at', '>=', $startDate))
-            ->whereNotNull('pipeline_stage_id')
-            ->whereHas(
-                'stage',
-                fn ($q) => $q
-                    ->where('is_deleted', 0)
-                    ->whereJsonContains('config->follow_up->enabled', true)
-                    ->where(
-                        fn ($inner) => $inner
-                            ->whereJsonDoesntContain('config->stage_meta->is_terminal', true)
-                            ->orWhereNull('config->stage_meta->is_terminal'),
-                    ),
+            ->where(
+                fn ($query) => $query
+                    ->where(fn ($stage) => $this->inFollowUpStage($stage, $startDate))
+                    ->orWhereIn('id', $this->plannedLeadIds()),
             )
             ->with('stage')
             ->lazyById(500);
@@ -84,6 +80,42 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
                 ->onQueue('lead_follow_ups');
             $this->record($lead, 'lead.follow_up.queued');
         }
+    }
+
+    private function inFollowUpStage(Builder $query, ?Carbon $startDate): Builder
+    {
+        return $query
+            ->when($startDate, fn ($q) => $q->where('created_at', '>=', $startDate))
+            ->whereNotNull('pipeline_stage_id')
+            ->whereHas(
+                'stage',
+                fn ($q) => $q
+                    ->where('is_deleted', 0)
+                    ->whereJsonContains('config->follow_up->enabled', true)
+                    ->where(
+                        fn ($inner) => $inner
+                            ->whereJsonDoesntContain('config->stage_meta->is_terminal', true)
+                            ->orWhereNull('config->stage_meta->is_terminal'),
+                    ),
+            );
+    }
+
+    /**
+     * Plans are custom-field rows on `ecosystem`; leads live on `crm`, so the ids are fetched first
+     * (a cross-connection whereHas is silently empty). Active plans only exist under this name.
+     *
+     * @return list<int>
+     */
+    private function plannedLeadIds(): array
+    {
+        return AppsCustomFields::query()
+            ->where('companies_id', $this->company->getId())
+            ->where('model_name', Lead::class)
+            ->where('name', ManualFollowUpPlan::ACTIVE_FIELD)
+            ->where('is_deleted', 0)
+            ->pluck('entity_id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
     }
 
     /**

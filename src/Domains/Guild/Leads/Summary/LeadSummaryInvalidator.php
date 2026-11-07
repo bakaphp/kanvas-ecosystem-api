@@ -6,7 +6,6 @@ namespace Kanvas\Guild\Leads\Summary;
 
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Enums\AgentRunConfigurationEnum;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
 use Throwable;
@@ -25,11 +24,15 @@ final class LeadSummaryInvalidator
     {
         $deleted = $message->wasChanged('is_deleted') && (int) $message->is_deleted === 1;
 
-        if (! $deleted && (! $message->wasChanged('message') || self::textOf($message->getRawOriginal('message')) === self::textOf($message->getAttributes()['message'] ?? null))) {
-            return;
+        if ($deleted || self::textChanged($message)) {
+            self::invalidate($message);
         }
+    }
 
-        self::invalidate($message);
+    private static function textChanged(Message $message): bool
+    {
+        return $message->wasChanged('message')
+            && self::textOf($message->getRawOriginal('message')) !== self::textOf($message->getAttributes()['message'] ?? null);
     }
 
     public static function messageDeleted(Message $message): void
@@ -44,7 +47,7 @@ final class LeadSummaryInvalidator
         }
 
         $message = $row->message;
-        $lead = Lead::query()->whereKey($row->entity_id)->where('apps_id', $row->apps_id)->first();
+        $lead = self::lead((int) $row->entity_id, $row->apps_id);
 
         if ($lead !== null && $message !== null && LeadConversationMessages::isConversationKind($message)) {
             self::invalidateLead($lead, (int) $row->message_id);
@@ -67,12 +70,21 @@ final class LeadSummaryInvalidator
             ->pluck('entity_id');
 
         foreach ($leadIds as $leadId) {
-            $lead = Lead::query()->whereKey($leadId)->where('apps_id', $message->apps_id)->first();
+            $lead = self::lead((int) $leadId, $message->apps_id);
 
             if ($lead !== null) {
                 self::invalidateLead($lead, (int) $message->getId());
             }
         }
+    }
+
+    /**
+     * Pinned to the message's app: an attach row or a message id is never trusted to name a lead of
+     * another tenant. Deleted leads are included; their summary is simply never read again.
+     */
+    private static function lead(int $leadId, int $appsId): ?Lead
+    {
+        return Lead::query()->whereKey($leadId)->where('apps_id', $appsId)->first();
     }
 
     /**
@@ -83,7 +95,7 @@ final class LeadSummaryInvalidator
     {
         // Almost every attach is a new message above the marker; settle that without the lock.
         if (
-            ! $lead->app->getBool(AgentRunConfigurationEnum::LEAD_SUMMARY->value, default: true)
+            ! LeadSummaryRepository::enabledFor($lead->app)
             || $messageId > LeadSummaryRepository::state($lead)->through
         ) {
             return;
