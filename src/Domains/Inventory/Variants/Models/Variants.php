@@ -133,11 +133,16 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         'weight',
         'is_published',
         'apps_id',
+        'is_taxable',
+        'tax_category',
+        'tax_code_override',
+        'tax_code_id',
     ];
 
     protected $casts = [
         'is_deleted' => 'boolean',
         'is_published' => 'boolean',
+        'is_taxable' => 'boolean',
         'rating' => 'float',
     ];
 

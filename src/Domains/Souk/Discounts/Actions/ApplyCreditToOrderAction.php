@@ -9,12 +9,14 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Taxes\Models\CreditReservation;
 
 class ApplyCreditToOrderAction
 {
     public function __construct(
         protected Order $order,
-        protected Discount $credit
+        protected Discount $credit,
+        protected ?int $reservationSnapshotId = null,
     ) {
     }
 
@@ -75,6 +77,19 @@ class ApplyCreditToOrderAction
 
         if ($this->order->orderDiscounts()->where('discount_id', $credit->getId())->exists()) {
             throw new ValidationException('Credit is already applied to this order');
+        }
+
+        $held = CreditReservation::query()
+            ->where('discount_id', $credit->getId())
+            ->where('status', 'held')
+            ->when(
+                $this->reservationSnapshotId !== null,
+                fn ($q) => $q->where('snapshot_id', '!=', $this->reservationSnapshotId)
+            )
+            ->exists();
+
+        if ($held) {
+            throw new ValidationException('Credit is reserved by another checkout in progress');
         }
     }
 }

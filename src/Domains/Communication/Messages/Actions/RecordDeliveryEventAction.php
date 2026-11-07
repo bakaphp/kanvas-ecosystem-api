@@ -88,17 +88,18 @@ final class RecordDeliveryEventAction
 
     /**
      * Terminal is the provider's call, not ours: after `delivered` Twilio says nothing more, while
-     * WhatsApp can still report `read`.
+     * WhatsApp can still report `read`. A provider that only reports on deliveries (Mailgun email) is
+     * not registered, so its deliveries stay open; none of them holds a connection.
      */
     private function isTerminal(Delivery $delivery): bool
     {
-        if ($delivery->provider === null) {
+        $provider = $delivery->provider !== null ? new ProviderRegistry()->all()[$delivery->provider] ?? null : null;
+
+        if ($provider === null) {
             return false;
         }
 
-        $terminalEvents = new ProviderRegistry()->get($delivery->provider)::eventRetention()->terminalEvents;
-
-        return in_array($this->providerStatus, $terminalEvents, true);
+        return in_array($this->providerStatus, $provider::eventRetention()->terminalEvents, true);
     }
 
     private function eventKey(): string

@@ -51,6 +51,8 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     usersRatings: [UserRating!] @hasMany(relation: "usersRatings")
     rating: Float
     weight: Float
+    tax_category: String
+    tax_code_override: String
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
@@ -99,6 +101,8 @@ input ProductInput {
     weight: Float
     company_id: ID
     custom_fields: [CustomFieldEntityInput!]
+    tax_category: String
+    tax_code_override: String
 }
 
 input ProductAttributesInput {
@@ -145,6 +149,8 @@ input ProductInputUpdate {
     attributes: [ProductAttributesInput!]
     files: [FilesystemInputUrl!]
     categories: [ProductCategoriesReferenceInput!]
+    tax_category: String
+    tax_code_override: String
 }
 
 input NearByLocationInput {

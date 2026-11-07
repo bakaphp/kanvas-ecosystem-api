@@ -12,6 +12,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Validations\UniqueSkuRule;
+use Kanvas\Souk\Taxes\Models\TaxCategory;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class UpdateVariantsAction
@@ -38,6 +39,8 @@ class UpdateVariantsAction
             $this->variantDto->product->company,
             $this->user
         );
+
+        TaxCategory::assertCodesExist($this->variant->app, $this->variantDto->tax_category);
 
         $validator = Validator::make(
             ['sku' => $this->variantDto->sku],
@@ -69,6 +72,10 @@ class UpdateVariantsAction
                 'serial_number' => $this->variantDto->serial_number ?? $this->variant->serial_number,
                 'weight' => $this->variantDto->weight ?? $this->variant->weight ?? 0,
                 'is_published' => $this->variantDto->is_published ?? $this->variant->is_published,
+                'is_taxable' => $this->variantDto->is_taxable ?? $this->variant->is_taxable,
+                'tax_category' => $this->variantDto->tax_category ?? $this->variant->tax_category,
+                'tax_code_override' => $this->variantDto->tax_code_override ?? $this->variant->tax_code_override,
+                'tax_code_id' => $this->variantDto->tax_code_id ?? $this->variant->tax_code_id,
             ]
         );
 

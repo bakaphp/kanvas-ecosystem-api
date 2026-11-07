@@ -27,6 +27,7 @@ use Kanvas\Guild\Customers\Models\People;
  * @property array|null $sender
  * @property int|null $reply_to_message_id
  * @property int|null $filed_message_id
+ * @property int|null $campaign_recipient_id
  */
 class Request extends BaseModel
 {

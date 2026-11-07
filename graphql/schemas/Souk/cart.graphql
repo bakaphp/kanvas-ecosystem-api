@@ -6,6 +6,24 @@ type Cart {
     total: Money!
     shipping: CartShipping
     subtotal: Money!
+    tax: CartTax
+    total_tax: Float!
+}
+
+type CartTaxComponent {
+    line_id: String!
+    rate: Float!
+    amount: Float!
+    treatment: String!
+}
+
+type CartTax {
+    status: String!
+    provider: String
+    amount: Float!
+    rate: Float
+    mode: String
+    components: [CartTaxComponent!]!
 }
 
 type CartDiscount {

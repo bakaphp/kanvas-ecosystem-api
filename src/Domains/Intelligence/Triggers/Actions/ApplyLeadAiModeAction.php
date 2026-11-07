@@ -8,7 +8,6 @@ use Exception;
 use InvalidArgumentException;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
-use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
@@ -215,12 +214,6 @@ class ApplyLeadAiModeAction
 
     protected function logSystemNote(string $noteContent): void
     {
-        new RecordLeadNoteAction($this->lead)->execute(
-            body: $noteContent,
-            tag: LeadMessageTypeEnum::AI_CONTROL->value,
-            actingUser: $this->lead->user,
-            fromIa: false,
-            messageTypeVerb: LeadMessageTypeEnum::AI_CONTROL->value,
-        );
+        new RecordLeadNoteAction($this->lead)->recordAiControl($noteContent);
     }
 }

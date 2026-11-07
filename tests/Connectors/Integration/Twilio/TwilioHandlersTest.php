@@ -17,6 +17,7 @@ class TwilioHandlersTest extends TestCase
     private const array CREDENTIALS = [
         'account_sid' => 'ACconnected',
         'auth_token' => 'connected-token',
+        'from_number' => '+1 (809) 555-0100',
     ];
 
     private Apps $testApp;
@@ -34,6 +35,7 @@ class TwilioHandlersTest extends TestCase
     {
         $this->company->del(ConfigurationEnum::TWILIO_ACCOUNT_SID->value);
         $this->company->del(ConfigurationEnum::TWILIO_AUTH_TOKEN->value);
+        $this->company->del(ConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value);
 
         parent::tearDown();
     }
@@ -58,6 +60,49 @@ class TwilioHandlersTest extends TestCase
 
         $this->assertEmpty($this->company->get(ConfigurationEnum::TWILIO_ACCOUNT_SID->value));
         $this->assertEmpty($this->company->get(ConfigurationEnum::TWILIO_AUTH_TOKEN->value));
+        $this->assertEmpty($this->company->get(ConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value));
+    }
+
+    public function testConnectingSavesTheFromNumberInE164(): void
+    {
+        $this->handler(valid: true)->setup();
+
+        $this->assertSame('+18095550100', $this->company->get(ConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value));
+    }
+
+    public function testFromNumberNotOnTheAccountIsRejectedAndNothingSaved(): void
+    {
+        $this->company->set(ConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value, '+12722917870');
+
+        try {
+            $this->handler(valid: true, ownsNumber: false)->setup();
+            $this->fail('Expected a number that is not on the account to be rejected');
+        } catch (Exception $e) {
+            $this->assertStringContainsString('+18095550100', $e->getMessage());
+        }
+
+        $this->assertEmpty($this->company->get(ConfigurationEnum::TWILIO_ACCOUNT_SID->value));
+        $this->assertSame('+12722917870', $this->company->get(ConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value));
+    }
+
+    public function testSwitchingAccountsWithoutANumberClearsTheOldOne(): void
+    {
+        $this->company->set(ConfigurationEnum::TWILIO_ACCOUNT_SID->value, 'ACprevious');
+        $this->company->set(ConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value, '+12722917870');
+
+        $this->handler(valid: true, credentials: ['account_sid' => 'ACconnected', 'auth_token' => 'connected-token'])->setup();
+
+        $this->assertEmpty($this->company->get(ConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value));
+    }
+
+    public function testReconnectingTheSameAccountWithoutANumberKeepsIt(): void
+    {
+        $this->company->set(ConfigurationEnum::TWILIO_ACCOUNT_SID->value, 'ACconnected');
+        $this->company->set(ConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value, '+18095550100');
+
+        $this->handler(valid: true, credentials: ['account_sid' => 'ACconnected', 'auth_token' => 'connected-token'])->setup();
+
+        $this->assertSame('+18095550100', $this->company->get(ConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value));
     }
 
     public function testRejectedCredentialsAreNotSaved(): void
@@ -71,22 +116,32 @@ class TwilioHandlersTest extends TestCase
         }
     }
 
-    private function handler(bool $valid): TwilioHandlers
+    /**
+     * @param array<string, string>|null $credentials
+     */
+    private function handler(bool $valid, bool $ownsNumber = true, ?array $credentials = null): TwilioHandlers
     {
         $handler = new class (
             $this->testApp,
             $this->company,
             new Regions(),
-            self::CREDENTIALS
+            $credentials ?? self::CREDENTIALS
         ) extends TwilioHandlers {
             public bool $valid = true;
+            public bool $ownsNumber = true;
 
             protected function validateCredentials(string $accountSid, string $authToken): bool
             {
                 return $this->valid;
             }
+
+            protected function ownsPhoneNumber(string $accountSid, string $authToken, string $phoneNumber): bool
+            {
+                return $this->ownsNumber;
+            }
         };
         $handler->valid = $valid;
+        $handler->ownsNumber = $ownsNumber;
 
         return $handler;
     }

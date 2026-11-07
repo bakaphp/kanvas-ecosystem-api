@@ -183,7 +183,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         $firstLeadMessage['message'] = SmsOptOutNoticeService::appendTo($firstLeadMessage['message']);
                     }
 
-                    $leadContext = $lead->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value);
+                    $leadContext = $lead->getAiContextInfo();
                     $leadContext['first_message'] = $firstLeadMessage;
                     $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
                     $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
