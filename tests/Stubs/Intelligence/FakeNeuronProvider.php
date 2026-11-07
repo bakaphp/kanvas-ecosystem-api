@@ -45,8 +45,18 @@ class FakeNeuronProvider implements AIProviderInterface
         return $this;
     }
 
+    /**
+     * The messages the last turn handed the provider, so a test can assert what the model was
+     * actually shown (an image block, a caption) rather than only what it answered.
+     *
+     * @var Message[]
+     */
+    public static array $lastMessages = [];
+
     public function chat(Message ...$messages): ProviderResponse
     {
+        self::$lastMessages = $messages;
+
         return $this->respond(new AssistantMessage($this->response));
     }
 

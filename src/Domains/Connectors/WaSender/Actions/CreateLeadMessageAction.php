@@ -157,9 +157,13 @@ class CreateLeadMessageAction
             )->execute();
         }
 
-        if (! $isDocument && ! $haltAgentTurn) {
-            $text = $message->message['raw_data']['message']['conversation'] ?? $message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
-            [$processDocument, $lastUnprocessedImageParentMessage] = $this->resolveDocumentTrigger($channel, $text);
+        // Only the album head fires a workflow, avoiding a separate reply for every photo.
+        $firesAgentTurn = ! $haltAgentTurn && (! $isDocument || $message->parent_id === null);
+
+        if ($firesAgentTurn) {
+            [$processDocument, $lastUnprocessedImageParentMessage] = $isDocument
+                ? [false, null]
+                : $this->resolveDocumentTrigger($channel, $text);
 
             $channel->fireWorkflow(
                 WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
