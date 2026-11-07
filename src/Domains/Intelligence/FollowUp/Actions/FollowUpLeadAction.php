@@ -59,9 +59,9 @@ use Throwable;
  * Brain of the v1 follow-up engine. Full pipeline + outcome semantics:
  * docs/intelligence/follow-up-v1-spec.md.
  *
- * `force: true` bypasses the silence gate only — for manual UI triggers.
+ * `force: true` bypasses scheduling gates — for manual UI triggers.
  * `openSessionIfMissing: true` is for a caller that owns first contact, such as an external scheduler
- * whose lead was never reached out to. The cron leaves it off and skips with `no_session`.
+ * whose lead was never reached out to. Manual plans also open their first session when due.
  */
 final class FollowUpLeadAction
 {
@@ -84,12 +84,13 @@ final class FollowUpLeadAction
             return $this->skip($repliedReason);
         }
 
-        $plan = $this->lead->getFollowUpPlan();
         $config = $eligibility->configFor($this->lead);
         $skipReason = $eligibility->skipReason($this->lead, $config);
         if ($skipReason !== null) {
             return $this->skip($skipReason);
         }
+
+        $plan = $config->plan;
 
         if ($this->lead->getFollowUpStateCount() >= $config->maxRetries) {
             if ($plan !== null) {
@@ -131,11 +132,13 @@ final class FollowUpLeadAction
             return $this->skip(FollowUpFailureReasonEnum::NO_REACHABLE_CHANNEL->value);
         }
 
+        // Before the session: a touch that is not due yet must not open a conversation, and it is a
+        // wait, not a `no_session` failure in the daily summary.
         $waitReason = $this->force ? null : (
             $eligibility->tooSoonReason($this->lead, $config)
             ?? $eligibility->outsideWorkHoursReason($this->lead, $config)
         );
-        if ($plan !== null && $waitReason !== null) {
+        if ($waitReason !== null) {
             return $this->skip($waitReason);
         }
 
@@ -153,32 +156,39 @@ final class FollowUpLeadAction
             return $this->skip(FollowUpFailureReasonEnum::NO_SESSION->value);
         }
 
-        $lastInboundAt = $eligibility->getLastInboundAt($this->lead);
         $targets = $this->selectTargets($candidates, $config);
-        // Primary target drives prompt + template + ledger summary. For
-        // FAN_OUT_ALL the same body is dispatched to every target below.
-        $primary = $targets[0];
-        $channelType = $primary->channelType;
-        $channelConfig = $config->channelByType($channelType);
 
-        if ($waitReason !== null) {
-            return $this->skip($waitReason);
-        }
-
-        if ($plan !== null) {
-            return $this->sendPlanTouch(
+        return $plan !== null
+            ? $this->sendPlanTouch(
                 $plan,
                 $config,
                 $session,
                 $targets,
-                $primary,
+            )
+            : $this->sendStageTouch(
+                $config,
+                $session,
+                $targets,
+                $eligibility,
             );
-        }
+    }
 
+    /**
+     * @param ResolvedChannel[] $targets
+     */
+    private function sendStageTouch(
+        FollowUpConfig $config,
+        Session $session,
+        array $targets,
+        LeadFollowUpEligibilityService $eligibility,
+    ): FollowUpOutcome {
+        // The primary target drives the prompt; fan-out sends the same body to every target.
+        $primary = $targets[0];
+        $channelType = $primary->channelType;
         [$template, $metaTemplate, $skipReason] = $this->resolveTemplateForChannel(
             $channelType,
-            $channelConfig,
-            $lastInboundAt
+            $config->channelByType($channelType),
+            $eligibility->getLastInboundAt($this->lead)
         );
 
         if ($skipReason !== null) {
@@ -277,33 +287,19 @@ final class FollowUpLeadAction
 
         $advanced = $result->advanceStage && $this->advanceLeadStage();
 
-        $this->emitSent(
-            $sent['channels'] ?? [$channelType],
-            $template?->name,
-            $metaTemplate,
-            $result->reason,
-            $advanced,
-            $primary,
-            $config->channelSelection,
+        return $this->completeTouch(
+            sent: $sent,
+            primary: $primary,
+            config: $config,
+            templateName: $template?->name,
+            metaTemplate: $metaTemplate,
+            reason: $result->reason,
+            advanced: $advanced,
         );
-
-        if ($sent !== null) {
-            $this->fireAfterFollowUpWorkflow(
-                $sent['message'],
-                $sent['body'],
-                $sent['channels'],
-                $template?->name,
-                $advanced,
-            );
-        }
-
-        return FollowUpOutcome::sent($sent['body'] ?? null);
     }
 
     /**
-     * The person wrote the body, so no template, no link check and no agent call: the CRM pull, the
-     * send, the bump, the ledger and the tenant workflow are the stage path's. The last attempt ends
-     * the plan on the spot so the person hears about it now, not at the next pass.
+     * A fixed body bypasses templates and the agent. The last successful attempt ends the plan now.
      *
      * @param ResolvedChannel[] $targets
      */
@@ -312,7 +308,6 @@ final class FollowUpLeadAction
         FollowUpConfig $config,
         Session $session,
         array $targets,
-        ResolvedChannel $primary,
     ): FollowUpOutcome {
         $sourceOutcome = $this->syncLeadSource();
         if ($sourceOutcome !== null) {
@@ -326,28 +321,18 @@ final class FollowUpLeadAction
 
         $this->lead->bumpFollowUp($sent['channels'], null);
 
-        $this->emitSent(
-            channels: $sent['channels'],
-            templateName: null,
-            metaTemplate: null,
+        $outcome = $this->completeTouch(
+            sent: $sent,
+            primary: $targets[0],
+            config: $config,
             reason: 'plan',
-            advanced: false,
-            primary: $primary,
-            strategy: $config->channelSelection,
-        );
-        $this->fireAfterFollowUpWorkflow(
-            message: $sent['message'],
-            body: $sent['body'],
-            channels: $sent['channels'],
-            templateName: null,
-            advancedStage: false,
         );
 
         if ($this->lead->getFollowUpStateCount() >= $plan->maxAttempts) {
             new EndLeadFollowUpPlanAction($this->lead, ManualFollowUpPlan::REASON_EXHAUSTED)->execute();
         }
 
-        return FollowUpOutcome::sent($sent['body']);
+        return $outcome;
     }
 
     /**
@@ -486,10 +471,7 @@ final class FollowUpLeadAction
         ?string $metaTemplate,
         int $silenceMin,
     ): string {
-        $override = $config->promptTemplate
-            ?? (is_string($this->company->get('follow_up_prompt_template'))
-                ? (string) $this->company->get('follow_up_prompt_template')
-                : null);
+        $override = $config->promptTemplate ?? $this->company->get('follow_up_prompt_template');
 
         $context = [
             'lead' => $this->lead,
@@ -897,8 +879,7 @@ final class FollowUpLeadAction
             );
             new StoreMessageSidAction($message)->execute($providerResponse);
         } catch (Throwable $e) {
-            // Outbound failure does NOT roll back the persisted message — the
-            // record of attempt is the audit truth; the queue layer retries.
+            // Keep the persisted attempt for auditing even when outbound delivery fails.
             report($e);
             $providerResponse ??= ['success' => false, 'error' => $e->getMessage()];
         }
@@ -965,13 +946,10 @@ final class FollowUpLeadAction
      */
     private function exhaustPlan(): FollowUpOutcome
     {
-        $this->lead->emitLedgerEvent('lead.follow_up.exhausted', payload: [
-            'stage_id' => $this->lead->pipeline_stage_id,
-            'reason' => 'plan_max_attempts',
-        ]);
+        $outcome = $this->exhaust('plan_max_attempts');
         new EndLeadFollowUpPlanAction($this->lead, ManualFollowUpPlan::REASON_EXHAUSTED)->execute();
 
-        return FollowUpOutcome::exhausted('plan_max_attempts');
+        return $outcome;
     }
 
     private function exhaust(string $reason): FollowUpOutcome
@@ -986,30 +964,42 @@ final class FollowUpLeadAction
     }
 
     /**
-     * @param string[] $channels  one element for pick-one strategies, N for fan_out_all
+     * @param array{body: string, message: Message, channels: string[], all_succeeded: bool}|null $sent
      */
-    private function emitSent(
-        array $channels,
-        ?string $templateName,
-        ?string $metaTemplate,
-        ?string $reason,
-        bool $advanced,
+    private function completeTouch(
+        ?array $sent,
         ResolvedChannel $primary,
-        ChannelSelectionEnum $strategy,
-    ): void {
+        FollowUpConfig $config,
+        ?string $templateName = null,
+        ?string $metaTemplate = null,
+        ?string $reason = null,
+        bool $advanced = false,
+    ): FollowUpOutcome {
         $this->lead->emitLedgerEvent('lead.follow_up.sent', payload: [
             'stage_id' => $this->lead->pipeline_stage_id,
-            'channels' => $channels,
+            'channels' => $sent['channels'] ?? [$primary->channelType],
             'template' => $templateName,
             'meta_template' => $metaTemplate,
             'follow_up_count' => $this->lead->getFollowUpStateCount(),
             'by_agent_id' => $this->agent->getId(),
             'reason' => $reason,
             'advanced_stage' => $advanced,
-            'channel_selection_strategy' => $strategy->value,
+            'channel_selection_strategy' => $config->channelSelection->value,
             'channel_selection_reason' => $primary->reason,
             'contact_id' => $primary->contact->getKey(),
-            'source' => $this->lead->getFollowUpPlan() !== null ? 'plan' : 'stage',
+            'source' => $config->plan !== null ? 'plan' : 'stage',
         ]);
+
+        if ($sent !== null) {
+            $this->fireAfterFollowUpWorkflow(
+                $sent['message'],
+                $sent['body'],
+                $sent['channels'],
+                $templateName,
+                $advanced,
+            );
+        }
+
+        return FollowUpOutcome::sent($sent['body'] ?? null);
     }
 }

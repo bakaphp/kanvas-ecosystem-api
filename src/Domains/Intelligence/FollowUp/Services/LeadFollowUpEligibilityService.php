@@ -109,8 +109,8 @@ final class LeadFollowUpEligibilityService
         // Lead-type defaults and the company's start date are admin config for the automatic
         // follow-up; a person's plan on one lead is an explicit instruction and is not vetoed by
         // them. Checked before retries so disabled types cannot advance stages either.
-        $leadConfiguration = new LeadConfigurationService();
-        if ($lead->getFollowUpPlan() === null) {
+        if ($config->plan === null) {
+            $leadConfiguration = new LeadConfigurationService();
             if (! $leadConfiguration->allowsContinuedFollowUp($lead)) {
                 return 'lead_type_follow_up_disabled';
             }
@@ -163,7 +163,7 @@ final class LeadFollowUpEligibilityService
      */
     public function tooSoonReason(Lead $lead, FollowUpConfig $config): ?string
     {
-        $plan = $lead->getFollowUpPlan();
+        $plan = $config->plan;
         if ($plan === null) {
             return $this->silenceMinutes($lead) < $config->timeBased->intervalMinutes ? 'too_soon' : null;
         }
@@ -182,7 +182,7 @@ final class LeadFollowUpEligibilityService
      */
     public function outsideWorkHoursReason(Lead $lead, FollowUpConfig $config): ?string
     {
-        if ($lead->getFollowUpPlan() === null || ! $config->respectWorkHours) {
+        if ($config->plan === null || ! $config->respectWorkHours) {
             return null;
         }
 
@@ -259,7 +259,7 @@ final class LeadFollowUpEligibilityService
 
         // No verb filter — `from_me = false` on a People-keyed channel is a strong-enough signal
         // that this is the customer's inbound, whatever channel it landed on.
-        $message = Message::query()
+        $lastMessageAt = Message::query()
             ->when($inboundOnly, fn ($query) => $query->where('message->from_me', false))
             ->where('is_deleted', 0)
             ->whereHas(
@@ -267,8 +267,8 @@ final class LeadFollowUpEligibilityService
                 fn ($q) => $q->whereIn('channels.id', $channelIds),
             )
             ->latest('created_at')
-            ->first();
+            ->value('created_at');
 
-        return $message?->created_at ? Carbon::parse($message->created_at) : null;
+        return $lastMessageAt !== null ? Carbon::parse($lastMessageAt) : null;
     }
 }

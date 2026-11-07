@@ -120,7 +120,7 @@ on the `status` integer column: no app code writes it (758k of 759k local rows s
 
 A dealer CRM without webhooks never tells us a lead was closed or sold, so the action asks it —
 **after every free gate has passed** (stage config, `ai_follow_up`, lead type, open status,
-exhaustion, hand-off, manual, mute, reachable channel, session, `too_soon`, template) and right
+exhaustion, hand-off, manual, mute, reachable channel, `too_soon`, session, template) and right
 before the agent call. CRM calls are billed per request (Elead), so a lead that would skip anyway
 must never cost one. `FollowUpLeadAction::syncLeadSource()` runs
 `SyncLeadSourceBeforeFollowUpAction` and then re-runs the three gates a pull can flip (open

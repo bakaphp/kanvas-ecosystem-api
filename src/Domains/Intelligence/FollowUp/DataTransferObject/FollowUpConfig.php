@@ -28,6 +28,9 @@ class FollowUpConfig extends Data
         public readonly bool $respectWorkHours,
         public readonly bool $respectLeadOptOuts,
         public readonly bool $writeSystemMessageOnStageChange,
+        // Set when the config came from a person's plan rather than a stage, so readers that treat a
+        // plan differently ask the config they already hold instead of re-reading the entity's field.
+        public readonly ?ManualFollowUpPlan $plan = null,
     ) {
     }
 
@@ -119,6 +122,7 @@ class FollowUpConfig extends Data
             respectWorkHours: $plan->respectWorkHours,
             respectLeadOptOuts: true,
             writeSystemMessageOnStageChange: false,
+            plan: $plan,
         );
     }
 
