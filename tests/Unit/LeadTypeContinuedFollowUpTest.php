@@ -78,6 +78,8 @@ final class LeadTypeContinuedFollowUpTest extends TestCase
         foreach ([false, true] as $force) {
             foreach ($cases as [$stored, $enabled, $typeSetting, $reason]) {
                 $lead = $this->lead(['phone_con_fu_active_default' => $typeSetting]);
+                // No manual plan: the stage config and the lead-type gates are the ones under test.
+                $lead->shouldReceive('getFollowUpPlan')->andReturn(null);
                 $lead->shouldReceive('get')->with('ai_follow_up')->once()->andReturn($stored);
                 if ($enabled === null) {
                     $lead->shouldNotReceive('isAiFollowUpEnabled');
