@@ -12,5 +12,8 @@ enum ConfigurationEnum: string
     case ACCESS_TOKEN = 'microsoft_access_token';
     case REFRESH_TOKEN = 'microsoft_refresh_token';
     case TOKEN_EXPIRES_AT = 'microsoft_token_expires_at';
+    case SCOPES = 'microsoft_scopes';
+    case GRANTED_SCOPES = 'microsoft_granted_scopes';
     case LAST_SYNC_AT = 'microsoft_last_sync_at';
+    case ONEDRIVE_ROOT_FOLDER = 'microsoft_onedrive_root_folder';
 }
