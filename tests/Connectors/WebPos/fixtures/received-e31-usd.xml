@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ECF>
+  <Encabezado>
+    <IdDoc>
+      <TipoeCF>31</TipoeCF>
+      <eNCF>E310000000777</eNCF>
+    </IdDoc>
+    <Emisor>
+      <RNCEmisor>101000010</RNCEmisor>
+      <RazonSocialEmisor>Importadora Ejemplo SRL</RazonSocialEmisor>
+      <FechaEmision>12-06-2026</FechaEmision>
+    </Emisor>
+    <Totales>
+      <MontoGravadoTotal>5850.00</MontoGravadoTotal>
+      <TotalITBIS>1053.00</TotalITBIS>
+      <MontoTotal>6903.00</MontoTotal>
+    </Totales>
+    <OtraMoneda>
+      <TipoMoneda>USD</TipoMoneda>
+      <TipoCambio>58.5000</TipoCambio>
+      <MontoGravadoTotalOtraMoneda>100.00</MontoGravadoTotalOtraMoneda>
+      <TotalITBISOtraMoneda>18.00</TotalITBISOtraMoneda>
+      <MontoTotalOtraMoneda>118.00</MontoTotalOtraMoneda>
+    </OtraMoneda>
+  </Encabezado>
+  <DetallesItems>
+    <Item>
+      <NumeroLinea>1</NumeroLinea>
+      <IndicadorFacturacion>1</IndicadorFacturacion>
+      <NombreItem>Suscripcion</NombreItem>
+      <IndicadorBienoServicio>2</IndicadorBienoServicio>
+      <CantidadItem>1</CantidadItem>
+      <PrecioUnitarioItem>5850.00</PrecioUnitarioItem>
+      <MontoItem>5850.00</MontoItem>
+      <OtraMonedaDetalle>
+        <PrecioOtraMoneda>100.00</PrecioOtraMoneda>
+        <MontoItemOtraMoneda>100.00</MontoItemOtraMoneda>
+      </OtraMonedaDetalle>
+    </Item>
+  </DetallesItems>
+</ECF>

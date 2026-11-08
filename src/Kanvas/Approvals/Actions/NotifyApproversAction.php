@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Approvals\Actions;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Kanvas\Approvals\Concerns\OffersNoticeToEntity;
 use Kanvas\Approvals\Enums\ApprovalDecisionEnum;
 use Kanvas\Approvals\Enums\ApprovalNotifyModeEnum;
 use Kanvas\Approvals\Jobs\SendApprovalDigestJob;
@@ -14,7 +16,9 @@ use Kanvas\Approvals\Notifications\ApprovalRequestedNotification;
 use Throwable;
 
 /**
- * Tells the current step's approvers there is something waiting on them.
+ * Tells the current step's approvers there is something waiting on them — the one notification path for
+ * every opener of a request. Each approver is offered to the entity first (a Slack DM from the owning
+ * agent, see DeliversApprovalNoticesInterface) and emailed only when that did not reach them.
  *
  * Entirely best-effort: a missing email template or an unreachable mail host must never roll back the
  * approval that triggered it. An un-notified approver is a visible pending request someone can chase;
@@ -25,6 +29,8 @@ use Throwable;
  */
 class NotifyApproversAction
 {
+    use OffersNoticeToEntity;
+
     public function __construct(
         protected readonly ApprovalRequest $request,
     ) {
@@ -55,10 +61,11 @@ class NotifyApproversAction
             $recipients = $recipients->take(1);
         }
 
+        $entity = $this->request->resolveEntity();
         $sent = 0;
 
         foreach ($recipients as $recipient) {
-            if ($this->notify($recipient)) {
+            if ($this->notify($recipient, $entity)) {
                 $sent++;
             }
         }
@@ -66,7 +73,7 @@ class NotifyApproversAction
         return $sent;
     }
 
-    private function notify(ApprovalRequestApprover $recipient): bool
+    private function notify(ApprovalRequestApprover $recipient, ?Model $entity): bool
     {
         $user = $recipient->user;
 
@@ -75,7 +82,9 @@ class NotifyApproversAction
         }
 
         try {
-            $user->notify(new ApprovalRequestedNotification($this->request));
+            if (! $this->deliveredByEntity($this->request, $entity, $user)) {
+                $user->notify(new ApprovalRequestedNotification($this->request));
+            }
         } catch (Throwable) {
             return false;
         }

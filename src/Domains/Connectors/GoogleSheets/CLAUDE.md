@@ -1,7 +1,7 @@
 # Google Sheets Connector
 
-Lets Kanvas agents (Apex, Arc) read, append to, and update cells on a Google Sheet the user
-shares a link to — e.g. an invoice tracking list a team keeps outside Kanvas.
+Lets Kanvas agents read, append to, and update cells on a Google Sheet the user shares a link to.
+Catalog tools granted per agent; not hardcoded on any agent (the AP/AR agents dropped them on 2026-11-07).
 
 ## Tools
 
@@ -19,19 +19,13 @@ regex (`SpreadsheetUrlParser::extractId()`), never asked of the LLM directly. `w
 and `update_google_sheet_cell` also accept live formulas (e.g. `"=SUM(C2:C10)"`) as cell values —
 `valueInputOption: USER_ENTERED` interprets them exactly as if typed by hand.
 
-**`sheet_url_or_id` is optional on the four content tools** (read / write / update / clear). Omitting it
-falls back to the app's default invoice-tracking sheet (`ConfigurationEnum::DEFAULT_INVOICE_SHEET`, key
-`google-sheets-default-invoice-tracker`) via `ResolvesSpreadsheetIdForTool::resolveSpreadsheetId()`.
-This is what lets Apex/Arc log every processed invoice to a standing sheet automatically (per
-their agent guidance) without the user having to paste a link every time. If neither an explicit
-URL nor a default is available, the tool returns `reason: 'no_sheet_configured'`.
-
-**`create_google_sheet_tab` opts out of that fallback** — it passes `allowDefault: false` and returns
-`reason: 'sheet_reference_required'` when no sheet is named. The default exists so "log this invoice"
-works without pasting a link, which is a safe guess for an append and an unsafe one for a structural
-write. The tool's name is also the closest match an LLM has for "create a new Google Sheet" — no tool
-does that — so without the opt-out the plausible outcome of that request was a surprise tab on a live
-AP document. Its description states the negative fact explicitly for the same reason.
+**`sheet_url_or_id` is always needed.** There used to be an app-level default invoice-tracking sheet
+(`google-sheets-default-invoice-tracker`) that the AP/AR agents logged every invoice to; it is gone —
+Kanvas is the tracker and the Sheets tools are no longer on the AP/AR agents (decision 21, 2026-11-07).
+An omitted reference returns `reason: 'sheet_reference_required'`, never a guessed document. The
+parameter stays optional in the schema on purpose: the refusal has to reach `__invoke()` so it can point
+at `create_google_spreadsheet`, the closest-named tool to "create a new Google Sheet" being
+`create_google_sheet_tab`, whose description states the negative fact explicitly.
 
 **Why `values` is a JSON string, not `PropertyType::ARRAY`:** NeuronAI's `ToolProperty::getJsonSchema()`
 never emits an `items` sub-schema for array-type parameters. Gemini's function-calling schema
@@ -55,8 +49,8 @@ There are **two** Google identities a tool can act with, and they are not interc
 
 `Client::forAgent()` resolves the first from the agent's MCP credential (renewing an expired token)
 and returns null when the agent has not connected — the tools then pass null to the action, which
-falls back to `Client::getInstance()` and the service account below. So the Apex/Arc invoice flow is
-unchanged, and an agent with its own connection needs no sharing at all.
+falls back to `Client::getInstance()` and the service account below, so an agent with its own
+connection needs no sharing at all.
 
 `GoogleSheetsReadinessService` reports ready on **either** identity. It is asked per app, never per
 agent, so the sign-in half answers only "an agent could connect here"; an agent that has not connected
@@ -112,22 +106,6 @@ $app->set(
     file_get_contents('/path/to/service-account.json'),
 );
 ```
-
-### Default invoice-tracking sheet (optional)
-
-To have Apex/Arc log every processed invoice automatically without being asked, configure
-`google-sheets-default-invoice-tracker` the same way — same Settings panel, or via tinker:
-
-```php
-$app->set(
-    \Kanvas\Connectors\GoogleSheets\Enums\ConfigurationEnum::DEFAULT_INVOICE_SHEET->value,
-    'https://docs.google.com/spreadsheets/d/.../edit',
-);
-```
-
-The sheet still needs the service account shared as Editor on it (see below) — the default just
-saves the agent from needing the URL repeated in every message. Without this key set, the agent
-falls back to asking for a sheet link when it needs to log something.
 
 ### Per-sheet sharing (default path)
 
@@ -192,63 +170,8 @@ file itself with the same care as any other production secret: don't commit it, 
 into chat/logs outside the one-time setup, and use a dedicated production service account (never
 reuse a personal/dev one).
 
-## Full invoice-processing flow (Gmail → Kanvas → Sheet)
+## Not part of the AP/AR invoice flow
 
-This connector is one leg of a pipeline (see also `src/Domains/Connectors/Gmail/CLAUDE.md` and the
-Acumatica connector). End to end, when Apex/Arc process an emailed invoice, the agent:
-
-1. `list_emails` (Gmail) — finds unread invoice emails.
-2. `read_email_details` (Gmail) — reads the body + attachment list.
-3. `download_attachment` (Gmail) — saves the PDF to Kanvas, returns `filesystem_id`/`url`.
-4. `extract_invoice_data` (Accounting) — reads the PDF with AI, gets the real vendor/total/dates.
-   The email body/subject is never the source of truth for these — always read the PDF.
-5. `create_ap_bill` / `create_ar_invoice` with **`approve_immediately: false` / `issue_immediately: false`**, plus
-   `source_email_message_id` and `source_attachment_filesystem_id` (from steps 2–3; the PDF is
-   attached to the record via Kanvas Filesystem, not stored as a URL custom field) — creates the bill/invoice in Kanvas only (status `pending_approval` for bills, `draft` for
-   invoices), giving back the **Kanvas bill/invoice id**. Does **not** push to Acumatica and does
-   not call `attach_bill_file`/`attach_invoice_file` (both require an existing Acumatica push) —
-   those happen automatically at approval time instead (step 12 below), which is exactly why the
-   email message id and the invoice PDF are stashed on the record here.
-6. `write_google_sheet` (this connector) — logs the invoice as a new row (no `sheet_url_or_id`
-   needed — falls back to the default sheet), automatically, without being asked. **The "ID
-   invoice" column holds the Kanvas bill/invoice id from step 5** (not the vendor/customer's own
-   invoice number), with status **"Pending"**.
-7. `mark_email_as_read` (Gmail) — removes the message's `UNREAD` label, only now that steps 5–6
-   succeeded, so the same invoice doesn't get reprocessed on the next `has:attachment is:unread`
-   search. Never mark it read before this point — a failed run must still be findable.
-
-**The Acumatica push and the file attachment are out of scope of the automatic intake flow above**
-— `create_ap_bill`/`create_ar_invoice` still support pushing in one call (the default,
-`approve_immediately: true` / `issue_immediately: true`) for the explicit "create and approve/issue this bill/invoice right now" request,
-which is a different, still-supported use case from the automatic email flow. In the standard
-flow, the push happens later, through the Slack approval phase below.
-
-### Approval phase (Slack → Kanvas → Acumatica → Sheet → email)
-
-Once a bill/invoice is sitting at "Pending", a human approves it over Slack, in natural language —
-no chat UI needed. Full detail (the exact tool sequence, the identity-check mechanics, the config
-keys and how to obtain each one) lives in **`src/Domains/Scribe/Approvals/CLAUDE.md`** — read that
-before touching anything approval-related. The short version: this connector's own part in it is
-step 14, `update_google_sheet_cell` three times on the row found via `read_google_sheet` matching
-column A (ID invoice) — column **D** (Status) → `"Approved"`, column **E** (Approved Date), column
-**F** (Approved By).
-
-### Setup checklist — every key that must exist before this flow works
-
-| # | Key | Where it's set | Connector |
-|---|---|---|---|
-| 1 | `gmail-client-id` | Settings → Key Configurations | Gmail |
-| 2 | `gmail-client-secret` | Settings → Key Configurations | Gmail |
-| 3 | `gmail-refresh-token` (scope `gmail.modify` — covers reading AND sending) | Settings → Key Configurations | Gmail |
-| 4 | `google-sheets-credentials` | Settings → Key Configurations | GoogleSheets |
-| 5 | `google-sheets-default-invoice-tracker` | Settings → Key Configurations | GoogleSheets |
-| 6 | Sheet shared as Editor with the service account's `client_email` — **or**, if the tenant's Workspace blocks that, `google-sheets-impersonate-user` set + domain-wide delegation authorized (see below) | Google Sheets UI, per-sheet — or Settings → Key Configurations | GoogleSheets |
-| 7 | Sheet has columns A–F as ID invoice / vendor / total / Status / Approved Date / Approved By | Google Sheets UI, per-sheet | GoogleSheets |
-| 8–10 | The 3 approval-queue keys (who can approve, their Slack id, the notifier agent's id) | Settings → Key Configurations | see `Scribe/Approvals/CLAUDE.md` |
-| 11 | Acumatica credentials (see that connector's own docs) | Settings → Key Configurations | Acumatica |
-
-Steps 1–3 come from the OAuth Playground flow in `Gmail/CLAUDE.md`. Steps 4–7 come from the
-service-account flow above plus manually adding the two approval columns to the sheet. Missing any
-of 1–11 breaks the flow at that specific step — the tool's error `reason` (`no_sheet_configured`,
-`not_authorized`, `no_approver_configured`, an authentication error from `Client::getInstance()`,
-etc.) tells you which one.
+The AP/AR agents used to log every processed invoice to a tracking sheet and flip its row on approval.
+That flow is gone (decision 21, 2026-11-07): Kanvas holds the status, approver, dates and PDF, and the
+intake/approval flow is documented in `src/Domains/Scribe/Approvals/CLAUDE.md`.

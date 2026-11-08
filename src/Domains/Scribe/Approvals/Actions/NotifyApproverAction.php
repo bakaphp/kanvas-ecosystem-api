@@ -14,10 +14,12 @@ use Throwable;
 
 /**
  * Best-effort Slack DM to the approver — resolved by looking up their email in Slack, since each
- * vendor/customer has its own approver rather than one fixed for the whole app. Silently does
- * nothing when Slack isn't configured or the email doesn't match a Slack workspace member, and
- * never lets a Slack failure block the record it's notifying about — that record is already
- * safely created by the time this runs.
+ * vendor/customer has its own approver rather than one fixed for the whole app. Returns false when
+ * Slack isn't configured or the email doesn't match a Slack workspace member, which is the approvals
+ * domain's cue to email instead, and never lets a Slack failure block the record it's notifying about.
+ *
+ * The notifier agent defaults to the AP one (`ap-slack-notifier-agent-id`); an invoice passes the AR
+ * one. Scoped to the app so a misconfigured id can never borrow another tenant's Slack bot.
  */
 class NotifyApproverAction
 {
@@ -57,37 +59,45 @@ class NotifyApproverAction
         }
     }
 
-    public function execute(): void
+    /**
+     * @return bool true when the DM was delivered — the approvals domain emails the person otherwise
+     */
+    public function execute(): bool
     {
         $agentId = $this->agentId ?? (string) ($this->app->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value) ?? '');
 
         if ($this->approverEmail === null || trim($this->approverEmail) === '' || $agentId === '') {
-            return;
+            return false;
         }
 
         try {
-            $agent = Agent::find((int) $agentId);
+            $agent = Agent::query()
+                ->where('id', (int) $agentId)
+                ->where('apps_id', $this->app->getId())
+                ->first();
 
             if ($agent === null) {
-                return;
+                return false;
             }
 
             $client = SlackClient::getInstanceByAgent($agent);
             $slackUserId = $client->lookupUserIdByEmail($this->approverEmail);
 
             if ($slackUserId === null) {
-                return;
+                return false;
             }
 
             $dmChannel = $client->openDirectMessageChannel($slackUserId);
 
-            if ($this->tryUploadAttachment($client, $dmChannel)) {
-                return;
+            if (! $this->tryUploadAttachment($client, $dmChannel)) {
+                $client->postMarkdownMessage($dmChannel, $this->text);
             }
 
-            $client->postMarkdownMessage($dmChannel, $this->text);
+            return true;
         } catch (Throwable $e) {
             report($e);
+
+            return false;
         }
     }
 

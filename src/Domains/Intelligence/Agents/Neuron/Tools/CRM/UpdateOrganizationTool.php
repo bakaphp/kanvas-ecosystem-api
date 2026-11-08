@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Baka\Support\Str;
 use Kanvas\Guild\Organizations\Actions\UpdateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationData;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationType;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\ChecksOrganizationTaxId;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,13 +27,17 @@ use Throwable;
 #[AgentTool(name: 'Update Organization', category: 'crm')]
 class UpdateOrganizationTool extends Tool
 {
+    use ChecksOrganizationTaxId;
     use HasKanvasContext;
+    use ReportsToolOutcome;
 
     protected string $name = 'update_organization';
 
-    protected ?string $description = 'Update a customer organization (company / account). Identify it by organization_id. Only '
-        . 'the fields you provide are changed — name, email, phone, address, state or organization_type_id; '
-        . 'the rest are left as-is. Use create_organization to make a new one.';
+    protected ?string $description = 'Update a customer or vendor organization (company / account). Identify it by organization_id. '
+        . 'Only the fields you provide are changed — name, email, phone, address, state, organization_type_id, '
+        . 'tax_id (RNC in the Dominican Republic) or tax_id_type; the rest are left as-is. A tax id is checked '
+        . 'before saving: a Dominican RNC/cédula is verified at DGII and the registered legal name comes back as '
+        . 'dgii_legal_name; a refused one changes nothing. Use create_organization to make a new one.';
 
     /**
      * @return array<int, ToolProperty>
@@ -56,6 +63,7 @@ class UpdateOrganizationTool extends Tool
                 description: 'The id of an existing organization type to categorize this organization.',
                 required: false,
             ),
+            ...$this->taxIdProperties(),
         ];
     }
 
@@ -70,6 +78,8 @@ class UpdateOrganizationTool extends Tool
         ?string $address = null,
         ?string $state = null,
         ?int $organization_type_id = null,
+        ?string $tax_id = null,
+        ?string $tax_id_type = null,
     ): array {
         try {
             /** @var Organization $organization */
@@ -79,6 +89,15 @@ class UpdateOrganizationTool extends Tool
         }
 
         $name = $name !== null ? trim($name) : null;
+
+        $checkedTaxId = null;
+        $taxIdToCheck = Str::trimToNull($tax_id) ?? (Str::trimToNull($tax_id_type) !== null ? $organization->tax_id : null);
+        if ($taxIdToCheck !== null) {
+            $checkedTaxId = $this->checkTaxId($taxIdToCheck, $tax_id_type);
+            if (($checkedTaxId['success'] ?? null) === false) {
+                return $checkedTaxId;
+            }
+        }
 
         try {
             $organizationType = $organization_type_id !== null
@@ -103,6 +122,8 @@ class UpdateOrganizationTool extends Tool
                     address: $address !== null ? trim($address) : $organization->address,
                     state: $state !== null ? trim($state) : $organization->state,
                     organizationType: $organizationType,
+                    taxId: $checkedTaxId['tax_id'] ?? null,
+                    taxIdType: $checkedTaxId['tax_id_type'] ?? null,
                 ),
             )->execute();
         } catch (Throwable $e) {
@@ -114,6 +135,8 @@ class UpdateOrganizationTool extends Tool
         return [
             'organization_id' => $organization->getId(),
             'name' => $organization->name,
+            ...$organization->taxIdSummary(),
+            ...$this->verificationResult($checkedTaxId),
             'message' => 'Organization updated.',
         ];
     }

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Invoices\Actions;
 
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\Delivery\Actions\CompleteInvoiceEngagementsAction;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
@@ -45,6 +47,12 @@ class MarkInvoicePaidAction
             ledgerEventName: 'scribe.invoice.paid',
             extraEventPayload: ['invoice_number' => $this->invoice->invoice_number],
         );
+
+        if ($invoice->isPaid()) {
+            DB::connection('accounting')->afterCommit(
+                fn () => new CompleteInvoiceEngagementsAction($invoice)->execute()
+            );
+        }
 
         return $invoice;
     }

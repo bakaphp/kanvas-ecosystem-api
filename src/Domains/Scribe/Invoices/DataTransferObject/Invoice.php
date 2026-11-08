@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
+use Kanvas\Scribe\Support\DocumentTotals;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 
@@ -56,6 +57,24 @@ class Invoice extends Data
         public readonly ?array $billing_address_snapshot = null,
         public readonly ?array $shipping_address_snapshot = null,
     ) {
+    }
+
+    /**
+     * @return array{0: array{subtotal: float, tax: float, discount: float, total: float}, 1: array{subtotal: float, tax: float, discount: float, total: float}}
+     */
+    public function totals(): array
+    {
+        return DocumentTotals::compute(
+            array_map(
+                static fn (InvoiceLine $line): array => [
+                    'subtotal' => $line->lineSubtotalNative(),
+                    'tax' => $line->tax_amount_native,
+                    'discount' => $line->discount_amount_native,
+                ],
+                $this->lines->all(),
+            ),
+            $this->fx_rate_to_base,
+        );
     }
 
     /**

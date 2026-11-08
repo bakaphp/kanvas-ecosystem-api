@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Company;
 
 use Kanvas\Companies\Onboarding\Services\OnboardingPromptBlockService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\Concerns\AppliesAccountingReadiness;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ExportTableTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindLeadsByTraitsTool;
@@ -26,6 +27,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAssignedWorkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlansTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\RememberKnowledgeTool;
+use Kanvas\Scribe\Setup\Services\AccountingAgentLocatorService;
 use Override;
 
 #[AgentTypeDefinition(
@@ -45,6 +47,8 @@ use Override;
 )]
 class CompanyBrainAgent extends SystemUserAgent
 {
+    use AppliesAccountingReadiness;
+
     #[Override]
     public function instructions(): string
     {
@@ -116,6 +120,15 @@ class CompanyBrainAgent extends SystemUserAgent
             $readBundle[] = $staffing
                 ->withContext($app, $company, $user)
                 ->forRequestingUser($requestingHuman);
+        }
+
+        // Accounting is module-gated like every other domain, but finishing its setup is the brain's job
+        // (it runs onboarding), so the setup tools come with the AP/AR agents rather than a catalog grant
+        // a company created from the agent type would never get.
+        if (new AccountingAgentLocatorService()->all($app, $company) !== []) {
+            array_push($readBundle, ...$this->withoutUnavailableAccountingTools(
+                $this->accountingSetupTools(runSetup: true, reminderCadence: true),
+            ));
         }
 
         $seen = [];

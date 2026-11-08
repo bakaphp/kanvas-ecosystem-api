@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Quotes\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\EngageableInterface;
 use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -17,10 +18,13 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
+use Kanvas\Scribe\Delivery\Concerns\IsEngageableDocument;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
+use Kanvas\Social\Messages\Models\Message;
 use Override;
 
 /**
@@ -72,17 +76,20 @@ use Override;
  * @property JournalEntryOriginEnum $origin
  * @property int|null $parent_quote_id
  * @property int $revision_number
+ * @property int|null $sow_message_id
  * @property array|null $metadata
  * @property bool $is_deleted
  * @property int|null $users_id
  */
 #[ObservedBy([ClearsLightHouseCacheObserver::class])]
-class Quote extends BaseModel
+class Quote extends BaseModel implements EngageableInterface
 {
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
+    use EmitsLedgerEventsForEntity;
     use HasLightHouseCache;
+    use IsEngageableDocument;
     use UuidTrait;
 
     protected $table = 'quotes';
@@ -141,6 +148,12 @@ class Quote extends BaseModel
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'customer_organization_id', 'id');
+    }
+
+    /** The current SOW revision; older revisions hang off it through the message parent chain. */
+    public function sowMessage(): BelongsTo
+    {
+        return $this->belongsTo(Message::class, 'sow_message_id', 'id');
     }
 
     public function searchableAs(): string
@@ -247,5 +260,10 @@ class Quote extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'ScribeQuote';
+    }
+
+    protected function sourceDomainForLedger(): string
+    {
+        return 'Scribe';
     }
 }

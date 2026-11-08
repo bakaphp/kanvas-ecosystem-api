@@ -83,7 +83,9 @@ class FindQuoteTool extends Tool
             'issued_date' => $quote->issued_date?->toDateString(),
             'valid_until' => $quote->valid_until?->toDateString(),
             'converted_to_invoice_id' => $quote->converted_to_invoice_id,
+            'sow_message_id' => $quote->sow_message_id,
             'lines' => $quote->lines->map(fn (QuoteLine $line): array => [
+                'quote_line_id' => (int) $line->id,
                 'description' => $line->description,
                 'quantity' => $line->quantity,
                 'unit_price' => $line->unit_price_native,

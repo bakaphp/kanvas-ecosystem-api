@@ -172,7 +172,7 @@ class CreateCrmNoteAction
             return 'Open Messenger to Start Conversation.';
         }
 
-        $shortUrl = Url::getShortUrl($aiChatLink, $this->app) . '?openInSa=true';
+        $shortUrl = Url::getShortUrl($aiChatLink, $this->app, company: $this->lead->company) . '?openInSa=true';
 
         return '<br />Open Messenger to Start Conversation here: <a href="' . $shortUrl . '" target="_blank">AI Chat Conversation</a>';
     }

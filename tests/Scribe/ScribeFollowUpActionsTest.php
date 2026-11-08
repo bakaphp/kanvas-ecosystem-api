@@ -315,14 +315,14 @@ class ScribeFollowUpActionsTest extends TestCase
         $this->assertSame('2026-08-15', $amended->due_date->format('Y-m-d'));
         $this->assertSame('Approved by Maria', $amended->internal_notes);
 
-        $amendments = $amended->metadata['amendments'] ?? [];
+        $amendments = $amended->amendmentHistory();
         $this->assertCount(1, $amendments);
-        $this->assertSame('Customer requested 15-day extension', $amendments[0]['reason']);
+        $this->assertSame('Customer requested 15-day extension', $amendments[0]->reason);
         $this->assertSame(
             $originalDueDate?->format('Y-m-d'),
-            $amendments[0]['changes']['due_date']['from'] ?? null,
+            $amendments[0]->changes['due_date']['from'] ?? null,
         );
-        $this->assertSame('2026-08-15', $amendments[0]['changes']['due_date']['to']);
+        $this->assertSame('2026-08-15', $amendments[0]->changes['due_date']['to']);
     }
 
     public function test_amend_invoice_rejected_on_draft(): void

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesInvoiceForTool;
@@ -59,10 +58,7 @@ class AddInvoiceNoteTool extends Tool
             return ['note_added' => false, ...$invoice];
         }
 
-        $stamped = '[' . Carbon::now()->toDateTimeString() . '] ' . $note;
-        $invoice->internal_notes = $invoice->internal_notes !== null && $invoice->internal_notes !== ''
-            ? $invoice->internal_notes . "\n" . $stamped
-            : $stamped;
+        $stamped = $invoice->appendInternalNote($note);
         $invoice->saveOrFail();
 
         return [

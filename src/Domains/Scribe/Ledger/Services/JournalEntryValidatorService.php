@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Ledger\Services;
 
+use Baka\Support\Money;
+use Brick\Math\BigDecimal;
 use Kanvas\Scribe\Ledger\Exceptions\InvalidJournalEntryLineException;
 use Kanvas\Scribe\Ledger\Exceptions\UnbalancedJournalEntryException;
 
@@ -43,16 +45,14 @@ class JournalEntryValidatorService
     {
         $this->ensureLineCount($lines);
 
-        $debitBaseSum = 0.0;
-        $creditBaseSum = 0.0;
-
         foreach ($lines as $index => $line) {
             $this->validateLine($line, $index);
-            $debitBaseSum += (float) $line['debit_base'];
-            $creditBaseSum += (float) $line['credit_base'];
         }
 
-        $this->ensureBalanced($debitBaseSum, $creditBaseSum);
+        $this->ensureBalanced(
+            Money::sum(...array_map(fn (array $line) => (float) $line['debit_base'], $lines)),
+            Money::sum(...array_map(fn (array $line) => (float) $line['credit_base'], $lines)),
+        );
     }
 
     private function ensureLineCount(array $lines): void
@@ -115,10 +115,10 @@ class JournalEntryValidatorService
         }
     }
 
-    private function ensureBalanced(float $debitBaseSum, float $creditBaseSum): void
+    private function ensureBalanced(BigDecimal $debitBaseSum, BigDecimal $creditBaseSum): void
     {
-        $diff = abs($debitBaseSum - $creditBaseSum);
-        if ($diff > self::BALANCE_TOLERANCE) {
+        $diff = $debitBaseSum->minus($creditBaseSum)->abs();
+        if ($diff->isGreaterThan((string) self::BALANCE_TOLERANCE)) {
             throw new UnbalancedJournalEntryException(
                 "JE unbalanced in base currency: debit_base sum {$debitBaseSum} vs credit_base sum {$creditBaseSum} "
                 . "(delta {$diff}, tolerance " . self::BALANCE_TOLERANCE . ')'

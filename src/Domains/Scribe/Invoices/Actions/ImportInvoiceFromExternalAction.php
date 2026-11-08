@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Invoices\Actions;
 
+use Baka\Support\Money;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -74,9 +75,9 @@ class ImportInvoiceFromExternalAction
         $balanceNative = round(max($totalNative - $paidNative, 0.0), 4);
 
         $invoice->paid_native = $paidNative;
-        $invoice->paid_base = round($paidNative * $fxRate, 4);
+        $invoice->paid_base = Money::toBase($paidNative, $fxRate);
         $invoice->balance_due_native = $balanceNative;
-        $invoice->balance_due_base = round($balanceNative * $fxRate, 4);
+        $invoice->balance_due_base = Money::toBase($balanceNative, $fxRate);
 
         $isPaid = $balanceNative <= self::PAID_TOLERANCE;
         $invoice->document_status = $isPaid

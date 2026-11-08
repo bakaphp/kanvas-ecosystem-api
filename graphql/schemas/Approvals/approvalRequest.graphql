@@ -6,6 +6,8 @@ union ApprovableEntity
     | ScribeBill
     | ScribeInvoice
     | ScribeExpense
+    | NervousSystemTask
+    | Organization
 
 type ApprovalRequest {
     id: ID!

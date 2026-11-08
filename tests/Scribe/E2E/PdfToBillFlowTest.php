@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Scribe\E2E;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
@@ -30,9 +31,10 @@ use Tests\Scribe\ScribeTestCase;
  * Flow 4 — Full PDF-to-Bill AP cycle: ingest → draft Bill → Receive → Pay.
  *
  *   1. ProcessAccountingPdfAction with VENDOR_INVOICE classification
- *   2. → ProposeBillFromPdfAction creates draft Bill (vendor reference NULL until operator resolves)
- *   3. Operator picks a vendor (stub Payee) and calls ReceiveBillAction → posts AP JE
- *      (DR Expense + DR Input Tax / CR AP)
+ *   2. → ProposeBillFromPdfAction resolves (here: creates) the vendor from the extraction. A brand-new
+ *      vendor has no default account and no coded history, so the bill stays DRAFT on the placeholder
+ *      account with status needs_review instead of going to approval (plan 0.4)
+ *   3. Operator codes it and receives it → posts AP JE (DR Expense + DR Input Tax / CR AP)
  *   4. Create BillPaymentAllocation + compose payment JE → MarkBillPaidAction flips to PAID
  *
  * What it proves:
@@ -47,12 +49,15 @@ class PdfToBillFlowTest extends ScribeTestCase
     {
         $pdf = $this->createFilesystemRow();
 
+        // A vendor nobody has billed before: an existing one with coded bills would send it to approval.
+        $vendorName = 'Amazon Web Services ' . uniqid();
+
         $classifier = new FakePdfClassifier()->queue(new PdfClassificationResult(
             document_type: PdfIngestDocumentTypeEnum::VENDOR_INVOICE,
             confidence: 0.93,
             reasoning: 'AWS invoice dated 2026-06-15, due 2026-07-15.',
             extracted: [
-                'vendor_name' => 'Amazon Web Services',
+                'vendor_name' => $vendorName,
                 'vendor_email' => 'no-reply@amazonaws.com',
                 'bill_number' => 'AWS-2026-06-001',
                 'issue_date' => '2026-06-15',
@@ -82,7 +87,7 @@ class PdfToBillFlowTest extends ScribeTestCase
             hasher: new FakePdfContentHasher(),
         )->execute();
 
-        $this->assertSame(PdfIngestStatusEnum::ENTITY_CREATED, $log->status);
+        $this->assertSame(PdfIngestStatusEnum::NEEDS_REVIEW, $log->status);
         $this->assertSame('bill', $log->linked_entity_type);
 
         /** @var Bill $bill */
@@ -90,15 +95,13 @@ class PdfToBillFlowTest extends ScribeTestCase
         $this->assertSame(BillDocumentStatusEnum::DRAFT, $bill->document_status);
         $this->assertSame('parsed_pdf', $bill->source);
         $this->assertSame((int) $log->id, (int) $bill->pdf_ingest_log_id);
-        $this->assertSame('Amazon Web Services', $bill->vendor_display_name);
-        $this->assertNull(
-            $bill->vendor_billable_type,
-            'Vendor reference stays NULL on draft until operator resolves it.',
-        );
+        $this->assertSame($vendorName, $bill->vendor_display_name);
+        $this->assertSame('gl_unresolved', $bill->metadata['ingest']['review_code']);
+        $this->assertNotNull($bill->vendor_organization_id, 'The inbox resolves the vendor from the extraction.');
         $this->assertEqualsWithDelta(1080.0, (float) $bill->total_native, 0.005);
 
-        // ── Step 3 — operator resolves vendor (stub Payee) and receives the bill ──
-        $vendor = $this->seedTestOrganization('Amazon Web Services');
+        // ── Step 3 — operator accepts the coding and receives the bill ──
+        $vendor = Organization::query()->findOrFail($bill->vendor_organization_id);
         $received = new ReceiveBillAction(
             bill: $bill,
             vendor: $vendor,

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Contracts\EngageableInterface;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -91,7 +93,7 @@ use Throwable;
  * @property bool $is_deleted
  * @property Carbon|null $closed_at
  */
-class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentContext
+class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentContext, EngageableInterface
 {
     use HasAdminLink;
     use UuidTrait;
@@ -137,6 +139,34 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     public function getGraphTypeName(): string
     {
         return 'Lead';
+    }
+
+    #[Override]
+    public function getEngagementApp(): AppInterface
+    {
+        return $this->app;
+    }
+
+    #[Override]
+    public function getEngagementCompany(): CompanyInterface
+    {
+        return $this->company;
+    }
+
+    #[Override]
+    public function getEngagementChannelSlug(): string
+    {
+        return (string) $this->uuid;
+    }
+
+    /**
+     * Exactly what PlainData rendered for a Lead before Lead implemented the contract, so every
+     * existing lead template keeps reading the same keys.
+     */
+    #[Override]
+    public function toTemplateData(): array
+    {
+        return array_merge($this->attributesToArray(), $this->getRelations());
     }
 
     #[Override]

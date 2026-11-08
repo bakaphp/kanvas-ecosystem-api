@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Quotes\Actions;
 
+use Baka\Support\Money;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,7 @@ use Kanvas\Scribe\Quotes\DataTransferObject\QuoteLine as QuoteLineData;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\Quotes\Models\QuoteLine;
+use Kanvas\Scribe\Support\DocumentTotals;
 
 /**
  * Creates a DRAFT quote.
@@ -92,15 +94,15 @@ class CreateQuoteAction
                 $line->description = $lineData->description;
                 $line->quantity = $lineData->quantity;
                 $line->unit_price_native = $lineData->unit_price_native;
-                $line->unit_price_base = $lineData->unit_price_native * $fxRate;
+                $line->unit_price_base = Money::toBase($lineData->unit_price_native, $fxRate);
                 $line->discount_amount_native = $lineData->discount_amount_native;
-                $line->discount_amount_base = $lineData->discount_amount_native * $fxRate;
+                $line->discount_amount_base = Money::toBase($lineData->discount_amount_native, $fxRate);
                 $line->discount_rate = $lineData->discount_rate;
                 $line->tax_rate = $lineData->tax_rate;
                 $line->tax_amount_native = $lineData->tax_amount_native;
-                $line->tax_amount_base = $lineData->tax_amount_native * $fxRate;
+                $line->tax_amount_base = Money::toBase($lineData->tax_amount_native, $fxRate);
                 $line->line_total_native = $lineData->lineTotalNative();
-                $line->line_total_base = $lineData->lineTotalNative() * $fxRate;
+                $line->line_total_base = Money::toBase($lineData->lineTotalNative(), $fxRate);
                 $line->tax_metadata = $lineData->tax_metadata;
                 $line->class_id = $lineData->class_id;
                 $line->department_id = $lineData->department_id;
@@ -117,29 +119,16 @@ class CreateQuoteAction
      */
     private function computeTotals(): array
     {
-        $fxRate = (float) $this->data->fx_rate_to_base;
-
-        $subtotal = 0.0;
-        $tax = 0.0;
-        $discount = 0.0;
-
-        foreach ($this->data->lines as $line) {
-            /** @var QuoteLineData $line */
-            $subtotal += $line->lineSubtotalNative();
-            $tax += $line->tax_amount_native;
-            $discount += $line->discount_amount_native;
-        }
-
-        $total = $subtotal - $discount + $tax;
-
-        $native = compact('subtotal', 'tax', 'discount', 'total');
-        $base = [
-            'subtotal' => $subtotal * $fxRate,
-            'tax' => $tax * $fxRate,
-            'discount' => $discount * $fxRate,
-            'total' => $total * $fxRate,
-        ];
-
-        return [$native, $base];
+        return DocumentTotals::compute(
+            array_map(
+                static fn (QuoteLineData $line): array => [
+                    'subtotal' => $line->lineSubtotalNative(),
+                    'tax' => $line->tax_amount_native,
+                    'discount' => $line->discount_amount_native,
+                ],
+                $this->data->lines->all(),
+            ),
+            $this->data->fx_rate_to_base,
+        );
     }
 }

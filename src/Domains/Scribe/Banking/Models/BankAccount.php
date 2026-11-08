@@ -70,6 +70,11 @@ class BankAccount extends BaseModel
         return $this->hasMany(BankTransaction::class, 'bank_account_id', 'id');
     }
 
+    public function statements(): HasMany
+    {
+        return $this->hasMany(BankStatement::class, 'bank_account_id', 'id');
+    }
+
     #[Override]
     public function getGraphTypeName(): string
     {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Invoices\Services;
 
+use Baka\Support\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -14,6 +15,7 @@ use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Services\AccountResolverService;
+use Kanvas\Scribe\Ledger\Services\JournalEntryRoundingService;
 use Spatie\LaravelData\DataCollection;
 
 /**
@@ -47,6 +49,21 @@ class InvoiceJournalEntryComposerService
 
     public function composeIssue(Invoice $invoice): JournalEntryData
     {
+        return $this->composeReceivable($invoice);
+    }
+
+    /**
+     * A debit note books like the invoice it adds to — more AR, more revenue, more tax payable — under
+     * its own source type, so voiding or reversing it finds its own JE and never the parent's.
+     */
+    public function composeDebitNote(Invoice $debitNote): JournalEntryData
+    {
+        return $this->composeReceivable($debitNote);
+    }
+
+    private function composeReceivable(Invoice $invoice): JournalEntryData
+    {
+        $label = $invoice->document_type->label();
         $app = $invoice->app;
         $company = $invoice->company;
         $billableType = 'organization'; // Phase 4: Org-only
@@ -55,8 +72,8 @@ class InvoiceJournalEntryComposerService
         $arAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::ACCOUNTS_RECEIVABLE);
         $revenueAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::SERVICE_REVENUE);
 
-        $netRevenueNative = (float) $invoice->subtotal_native - (float) $invoice->discount_native;
-        $netRevenueBase = (float) $invoice->subtotal_base - (float) $invoice->discount_base;
+        $netRevenueNative = Money::stored(Money::of((float) $invoice->subtotal_native)->minus(Money::of((float) $invoice->discount_native)));
+        $netRevenueBase = Money::stored(Money::of((float) $invoice->subtotal_base)->minus(Money::of((float) $invoice->discount_base)));
         $totalNative = (float) $invoice->total_native;
         $totalBase = (float) $invoice->total_base;
         $currency = $invoice->currency;
@@ -75,7 +92,7 @@ class InvoiceJournalEntryComposerService
                 sort_order: 0,
                 customer_billable_type: $billableType,
                 customer_billable_id: $billableId,
-                memo: "Invoice {$invoice->invoice_number} — AR",
+                memo: "{$label} {$invoice->invoice_number} — AR",
             ),
             // CR Revenue (net of discount)
             new JournalEntryLineData(
@@ -89,7 +106,7 @@ class InvoiceJournalEntryComposerService
                 sort_order: 1,
                 customer_billable_type: $billableType,
                 customer_billable_id: $billableId,
-                memo: "Invoice {$invoice->invoice_number} — Revenue",
+                memo: "{$label} {$invoice->invoice_number} — Revenue",
             ),
         ];
 
@@ -99,10 +116,10 @@ class InvoiceJournalEntryComposerService
             app: $app,
             company: $company,
             postedAt: $invoice->issued_date ?? Carbon::now(),
-            sourceType: 'invoice',
-            lines: new DataCollection(JournalEntryLineData::class, $lines),
+            sourceType: $invoice->document_type->journalSourceType(),
+            lines: new DataCollection(JournalEntryLineData::class, JournalEntryRoundingService::absorbInto($lines, 1)),
             sourceId: $invoice->id,
-            memo: "Invoice {$invoice->invoice_number} issued",
+            memo: "{$label} {$invoice->invoice_number} issued",
             source: $invoice->source,
             externalId: $invoice->external_id,
             origin: $invoice->origin,
@@ -208,8 +225,8 @@ class InvoiceJournalEntryComposerService
             );
         } else {
             $revenueAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::SERVICE_REVENUE);
-            $netRevenueNative = (float) $creditNote->subtotal_native - (float) $creditNote->discount_native;
-            $netRevenueBase = (float) $creditNote->subtotal_base - (float) $creditNote->discount_base;
+            $netRevenueNative = Money::stored(Money::of((float) $creditNote->subtotal_native)->minus(Money::of((float) $creditNote->discount_native)));
+            $netRevenueBase = Money::stored(Money::of((float) $creditNote->subtotal_base)->minus(Money::of((float) $creditNote->discount_base)));
 
             $lines = [
                 // DR Revenue
@@ -251,7 +268,7 @@ class InvoiceJournalEntryComposerService
             company: $company,
             postedAt: $creditNote->issued_date ?? Carbon::now(),
             sourceType: 'credit_note',
-            lines: new DataCollection(JournalEntryLineData::class, $lines),
+            lines: new DataCollection(JournalEntryLineData::class, JournalEntryRoundingService::absorbInto($lines, 0)),
             sourceId: $creditNote->id,
             memo: "Credit Note {$creditNote->invoice_number} issued",
             source: $creditNote->source,
@@ -312,7 +329,7 @@ class InvoiceJournalEntryComposerService
             return [];
         }
 
-        $label = $invoice->isCreditNote() ? 'Credit Note' : 'Invoice';
+        $label = $invoice->document_type->label();
         $currency = $invoice->currency;
         $fxRate = (float) $invoice->fx_rate_to_base;
         $taxLines = $invoice->taxLines;

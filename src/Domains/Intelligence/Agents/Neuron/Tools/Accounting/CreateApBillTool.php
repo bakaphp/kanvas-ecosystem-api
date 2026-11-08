@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
+use Kanvas\Approvals\Enums\ApprovalOriginEnum;
+use Kanvas\Approvals\Services\ApprovalOriginService;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -12,18 +15,17 @@ use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
-use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
-use Kanvas\Scribe\Approvals\Actions\ResolveApproverEmailAction;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
-use Kanvas\Scribe\Bills\Actions\ApproveBillAction;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Bills\Exceptions\DuplicateBillNumberException;
+use Kanvas\Scribe\Bills\Services\BillAddresseeService;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
@@ -35,7 +37,7 @@ use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
-/** Creates an AP bill (one line, or several via lines) and optionally approves it immediately in Kanvas. */
+/** Creates an AP bill (one line, or several via lines) and submits it for approval; it never approves. */
 #[AgentTool(name: 'Create AP Bill', category: 'accounting')]
 class CreateApBillTool extends Tool
 {
@@ -46,13 +48,17 @@ class CreateApBillTool extends Tool
 
     protected string $name = 'create_ap_bill';
 
+    /**
+     * The person's answer to a bill-to mismatch, kept on the bill for the approver; never acted on by the agent.
+     *
+     * @var array<string, string>|null
+     */
+    private ?array $addresseeOverride = null;
+
     protected ?string $description = 'Creates an AP bill — one line via amount/gl_account_number, or several via lines when '
-        . 'the invoice has more than one line item. By default also approves it in Kanvas. This '
-        . 'bypasses the normal human '
-        . 'approval gate, so only do this when the user explicitly asks to create a bill this way, never '
-        . 'on a whim. Set approve_immediately to false to create the bill and submit it for '
-        . 'human approval '
-        . '(status: pending_approval). External provider synchronization is handled separately by configured '
+        . 'the invoice has more than one line item — and submits it for human approval (status: pending_approval), '
+        . 'which notifies the approver. An agent never approves its own bill: approve_immediately is accepted but '
+        . 'still goes through approval. External provider synchronization is handled separately by configured '
         . 'workflow rules.';
 
     /**
@@ -159,12 +165,38 @@ class CreateApBillTool extends Tool
                 required: false,
             ),
             new ToolProperty(
+                name: 'billed_to',
+                type: PropertyType::STRING,
+                description: 'The company the invoice is addressed to, exactly as printed under "Bill to" / '
+                    . '"Facturar a" / "Cliente". Read it off the invoice every time; "" only when the invoice names '
+                    . 'no customer. A bill addressed to another company is refused until the person answers.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'billed_to_tax_id',
+                type: PropertyType::STRING,
+                description: 'The tax id printed with the bill-to (RNC, EIN), when there is one.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'billed_to_is_this_company',
+                type: PropertyType::BOOLEAN,
+                description: 'Only after the person confirmed the bill-to name is this company under another name '
+                    . '(legal name, DBA, old name). It is remembered, so the next invoice with that name is not asked.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'book_anyway',
+                type: PropertyType::BOOLEAN,
+                description: 'Only after the person said to book this one invoice here although it is addressed to '
+                    . 'another company. Nothing is remembered.',
+                required: false,
+            ),
+            new ToolProperty(
                 name: 'approve_immediately',
                 type: PropertyType::BOOLEAN,
-                description: 'Whether to approve this bill immediately in Kanvas. Defaults to true. '
-                    . 'Set to false to submit the bill for human approval '
-                    . '(status: pending_approval). External provider '
-                    . 'synchronization is handled separately by configured workflow rules.',
+                description: 'Ignored for an agent: the bill is always submitted for approval, and the approver '
+                    . 'signs it with approve_pending_item. Kept so older prompts still validate.',
                 required: false,
             ),
             new ToolProperty(
@@ -204,8 +236,54 @@ class CreateApBillTool extends Tool
         ?bool $approve_immediately = null,
         ?string $source_email_message_id = null,
         ?int $source_attachment_filesystem_id = null,
+        ?string $billed_to = null,
+        ?string $billed_to_tax_id = null,
+        ?bool $billed_to_is_this_company = null,
+        ?bool $book_anyway = null,
     ): array {
-        $approve_immediately ??= true;
+        $addressee = $this->checkAddressee($billed_to, $billed_to_tax_id, $billed_to_is_this_company ?? false, $book_anyway ?? false);
+        if ($addressee !== null) {
+            return $addressee;
+        }
+
+        return ApprovalOriginService::during(
+            ApprovalOriginEnum::AGENT,
+            fn (): array => $this->createBill(
+                $vendor_name,
+                $memo,
+                $invoice_number,
+                $amount,
+                $gl_account_number,
+                $lines,
+                $subaccount,
+                $due_date,
+                $currency,
+                $approve_immediately ?? false,
+                $source_email_message_id,
+                $source_attachment_filesystem_id,
+            )
+        );
+    }
+
+    /**
+     * @param array<int, array{gl_account_number?: string, amount?: float|int|string, description?: string, subaccount?: string}>|null $lines
+     *
+     * @return array<string, mixed>
+     */
+    private function createBill(
+        string $vendor_name,
+        string $memo,
+        string $invoice_number,
+        ?float $amount,
+        ?string $gl_account_number,
+        ?array $lines,
+        ?string $subaccount,
+        ?string $due_date,
+        ?string $currency,
+        bool $approve_immediately,
+        ?string $source_email_message_id,
+        ?int $source_attachment_filesystem_id,
+    ): array {
         $app = $this->app;
         $company = $this->company;
 
@@ -297,75 +375,29 @@ class CreateApBillTool extends Tool
             return $this->duplicateInvoiceResult($e, $vendorDisplayName);
         }
 
-        $bill = new SubmitBillForApprovalAction($bill, $actingUser)->execute();
-
+        // Before submitting: opening the approval request DMs the approver, and the PDF has to be on the
+        // bill by then to ride along.
         $this->storeApprovalSourceFields($bill, $source_email_message_id, $source_attachment_filesystem_id);
 
-        if (! $approve_immediately) {
-            $approverEmails = ResolveApproverEmailAction::resolveForOrganization($vendor);
-            $isMultiLine = $lines !== null && $lines !== [];
-            $sourceFields = $this->sourceFields($bill);
-            $hasAttachment = $sourceFields['source_attachment_url'] !== null;
-            $hasSourceEmail = $source_email_message_id !== null && trim($source_email_message_id) !== '';
-
-            NotifyApproverAction::notifyAll(
-                approverEmails: $approverEmails,
-                app: $app,
-                text: "You have an AP bill pending approval:\nVendor: {$vendorDisplayName}\nAmount: {$currency} "
-                    . "{$totalAmount}\n" . ($isMultiLine ? $this->lineSummaryText($lineInputs) : "GL: {$gl_account_number}"
-                        . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : ''))
-                    . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
-                    . "{$bill->getId()}\" to approve it.",
-                attachmentUrl: $sourceFields['source_attachment_url'],
-                attachmentFilename: $sourceFields['source_attachment_filename'],
-            );
-
-            $result = [
-                'created' => true,
-                'bill_id' => $bill->getId(),
-                'bill_number' => $bill->bill_number,
-                'document_status' => $bill->document_status->value,
-                'vendor' => $vendorDisplayName,
-                'amount' => $totalAmount,
-                'currency' => $currency,
-                'gl_account' => $gl_account_number,
-                'subaccount' => $subaccount,
-                'memo' => $memo,
-                'remaining_balance' => (float) $bill->balance_due_native,
-                'approved_by_flag' => $approverEmails !== [] ? '' : 'NOT IN APPROVER LIST',
-                'next' => $approverEmails !== []
-                    ? 'Bill created and submitted for approval in Kanvas (status: pending_approval).'
-                    : 'Bill created and submitted for approval, but vendor "' . $vendorDisplayName . '" has no '
-                        . 'approver configured — nobody can approve it and no notification was sent. Write '
-                        . 'approved_by_flag into the sheet\'s Approved By column so this is visible there too, '
-                        . 'and tell the user to have an admin set that vendor\'s approver.',
-            ];
-
-            if ($isMultiLine) {
-                $result['lines'] = array_map(
-                    static fn (array $line): array => [
-                        'gl_account_number' => (string) ($line['gl_account_number'] ?? ''),
-                        'amount' => (float) ($line['amount'] ?? 0),
-                        'description' => (string) ($line['description'] ?? $memo),
-                    ],
-                    $lineInputs,
-                );
-            }
-
-            if ($hasSourceEmail && ! $hasAttachment) {
-                $result['attachment_warning'] = 'This bill has a source email but no source_attachment_filesystem_id '
-                    . '— the approver was notified without the invoice PDF attached.';
-            }
-
-            return $result;
+        if ($this->addresseeOverride !== null) {
+            $bill->metadata = [...($bill->metadata ?? []), BillAddresseeService::METADATA_KEY => $this->addresseeOverride];
+            $bill->saveOrFail();
         }
 
-        /** @var Organization $approvalVendor */
-        $approvalVendor = Organization::query()->where('id', $bill->vendor_organization_id)->first();
+        // Agent origin always goes through approval. Approving here would bypass the request the submit just
+        // opened (and notified); a person approves directly through the UI, never through this tool.
+        $bill = new SubmitBillForApprovalAction($bill, $actingUser)->execute();
 
-        $bill = new ApproveBillAction($bill, $approvalVendor, $actingUser)->execute();
+        // The policy routes the request (vendor approver, else the setup's default approver); the deprecated
+        // per-vendor lookup alone said "nobody can approve it" for requests that were assigned and notified.
+        $request = $bill->pendingApproval();
+        $routed = $request !== null && ! $request->isUnassigned();
+        $isMultiLine = $lines !== null && $lines !== [];
+        $sourceFields = $this->sourceFields($bill);
+        $hasAttachment = $sourceFields['source_attachment_url'] !== null;
+        $hasSourceEmail = $source_email_message_id !== null && trim($source_email_message_id) !== '';
 
-        return [
+        $result = [
             'created' => true,
             'bill_id' => $bill->getId(),
             'bill_number' => $bill->bill_number,
@@ -377,9 +409,38 @@ class CreateApBillTool extends Tool
             'subaccount' => $subaccount,
             'memo' => $memo,
             'remaining_balance' => (float) $bill->balance_due_native,
-            'next' => 'Bill approved and recorded in Kanvas. Any external synchronization is handled by '
-                . 'configured workflow activities.',
+            'approved_by_flag' => $routed || $request === null ? '' : 'NOT IN APPROVER LIST',
+            'next' => match (true) {
+                $request === null => 'Bill created; no approval step applied.',
+                $routed => 'Bill created and submitted for approval in Kanvas (status: pending_approval); the approver was notified.',
+                default => 'Bill created and submitted for approval, but no approver could be resolved for vendor "'
+                    . $vendorDisplayName . '" — nobody was notified. Tell the user to have an admin set an approver '
+                    . '(the vendor\'s, or the accounting default approver).',
+            },
         ];
+
+        if ($isMultiLine) {
+            $result['lines'] = array_map(
+                static fn (array $line): array => [
+                    'gl_account_number' => (string) ($line['gl_account_number'] ?? ''),
+                    'amount' => (float) ($line['amount'] ?? 0),
+                    'description' => (string) ($line['description'] ?? $memo),
+                ],
+                $lineInputs,
+            );
+        }
+
+        if ($hasSourceEmail && ! $hasAttachment) {
+            $result['attachment_warning'] = 'This bill has a source email but no source_attachment_filesystem_id '
+                . '— the approver was notified without the invoice PDF attached.';
+        }
+
+        if ($approve_immediately) {
+            $result['approval_note'] = 'approve_immediately was ignored: a bill you create always waits for its '
+                . 'approver. Tell the user it is pending approval, not approved.';
+        }
+
+        return $result;
     }
 
     /**
@@ -459,18 +520,6 @@ class CreateApBillTool extends Tool
         ];
     }
 
-    private function lineSummaryText(array $lineInputs): string
-    {
-        $rows = array_map(
-            static fn (array $line): string => "GL {$line['gl_account_number']}: "
-                . number_format((float) ($line['amount'] ?? 0), 2)
-                . (isset($line['description']) ? " - {$line['description']}" : ''),
-            $lineInputs,
-        );
-
-        return "Lines:\n" . implode("\n", $rows);
-    }
-
     private function parseDueDate(?string $due_date): ?Carbon
     {
         if ($due_date === null || trim($due_date) === '') {
@@ -500,5 +549,50 @@ class CreateApBillTool extends Tool
         );
 
         return (int) $subaccountModel->getKey();
+    }
+
+    /**
+     * Null when the bill may be booked here; otherwise the refusal to hand back. An invoice that names no customer
+     * ("") is not checked: there is nothing to compare.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function checkAddressee(?string $billedTo, ?string $billedToTaxId, bool $isThisCompany, bool $bookAnyway): ?array
+    {
+        $billedTo = Str::trimToNull($billedTo);
+        $service = new BillAddresseeService();
+
+        if ($billedTo === null || $service->isAddressedTo($this->company, $billedTo, $billedToTaxId)) {
+            return null;
+        }
+
+        // The agent can set these flags without asking (seen live), so neither teaches the company a name: the bill
+        // still waits for a person's approval, carries the mismatch to that approver, and the name is remembered
+        // only when they approve it (ApproveBillAction).
+        if ($isThisCompany || $bookAnyway) {
+            $this->addresseeOverride = [
+                'billed_to' => $billedTo,
+                'this_company' => (string) $this->company->name,
+                'claimed' => $isThisCompany ? BillAddresseeService::CLAIMED_SAME_COMPANY : 'book_anyway',
+            ];
+
+            return null;
+        }
+
+        $other = $this->user instanceof Users ? $service->otherCompanyOf($this->user, $this->company, $billedTo) : null;
+
+        return [
+            'created' => false,
+            'reason' => 'billed_to_other_company',
+            'billed_to' => $billedTo,
+            'this_company' => $this->company->name,
+            'other_company' => $other !== null ? ['company_id' => $other->getId(), 'name' => $other->name] : null,
+            'message' => "This invoice is addressed to \"{$billedTo}\", not {$this->company->name}. Nothing was created. "
+                . ($other !== null
+                    ? "It looks like {$other->name}'s invoice: it should be booked in that company's books (its own AP agent), not here. "
+                    : '')
+                . 'Ask the person: is it this company under another name (call again with billed_to_is_this_company: '
+                . 'true, remembered), or should this one invoice be booked here anyway (book_anyway: true)?',
+        ];
     }
 }

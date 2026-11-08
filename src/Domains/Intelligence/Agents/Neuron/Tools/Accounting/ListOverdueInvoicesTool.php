@@ -78,7 +78,7 @@ class ListOverdueInvoicesTool extends Tool
         $invoices = Invoice::query()
             ->where('apps_id', $app->getId())
             ->where('companies_id', $company->getId())
-            ->where('document_type', DocumentTypeEnum::INVOICE)
+            ->whereIn('document_type', DocumentTypeEnum::receivables())
             ->whereIn('document_status', [
                 InvoiceDocumentStatusEnum::ISSUED,
                 InvoiceDocumentStatusEnum::SENT,

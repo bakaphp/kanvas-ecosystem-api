@@ -15,6 +15,7 @@ use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
+use Kanvas\Scribe\Payments\Enums\PaymentRecordedViaEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -47,6 +48,8 @@ use Override;
  * @property int|null $reversed_by_users_id
  * @property string|null $reversal_reason
  * @property array|null $metadata
+ * @property PaymentRecordedViaEnum|null $recorded_via
+ * @property Carbon|null $unconfirmed_flagged_at
  * @property bool $is_deleted
  */
 #[ObservedBy([ClearsLightHouseCacheObserver::class])]
@@ -67,6 +70,8 @@ class Payment extends BaseModel
         'payment_date' => 'date',
         'cleared_at' => 'datetime',
         'reconciled_at' => 'datetime',
+        'recorded_via' => PaymentRecordedViaEnum::class,
+        'unconfirmed_flagged_at' => 'datetime',
         'reversed_at' => 'datetime',
         'is_deleted' => 'boolean',
         'direction' => PaymentDirectionEnum::class,

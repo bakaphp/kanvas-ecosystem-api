@@ -43,7 +43,7 @@ class CreatePersonTool extends Tool
         . 'you give an email and no organization, the organization is deduced from the email domain: one '
         . 'match is linked for you, several come back as organization_candidates for you to ask about. '
         . 'If a contact with the same email/phone already exists it is updated, not duplicated. Returns '
-        . 'the person_id. Use create_lead instead when the person should also become a sales lead.';
+        . 'the person_id. It never creates a sales lead.';
 
     /**
      * @return array<int, ToolPropertyInterface>

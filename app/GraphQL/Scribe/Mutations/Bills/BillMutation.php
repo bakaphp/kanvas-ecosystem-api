@@ -7,7 +7,7 @@ namespace App\GraphQL\Scribe\Mutations\Bills;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Scribe\Bills\Actions\AllocateBillPaymentAction;
+use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Bills\Actions\ApproveBillAction;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
@@ -20,7 +20,9 @@ use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillPaymentAllocation;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
+use Kanvas\Scribe\Payments\Actions\RecordBillPaymentAction;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
+use Kanvas\Scribe\Payments\Enums\PaymentRecordedViaEnum;
 use RuntimeException;
 
 class BillMutation
@@ -177,19 +179,26 @@ class BillMutation
         /** @var Bill $bill */
         $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
 
-        return new AllocateBillPaymentAction(
+        $bankAccount = isset($input['bank_account_id'])
+            ? BankAccount::getByIdFromCompanyApp((int) $input['bank_account_id'], $company, $app)
+            : null;
+
+        // One recording path for UI, agent and provider webhook: idempotent on the reference, and left
+        // unreconciled until the bank statement confirms it.
+        return new RecordBillPaymentAction(
             bill: $bill,
             amountNative: (float) $input['amount_native'],
+            recordedVia: PaymentRecordedViaEnum::UI,
+            reference: $input['reference'] ?? null,
+            paidAt: isset($input['paid_at']) ? Carbon::parse((string) $input['paid_at']) : null,
             method: isset($input['method']) ? PaymentMethodEnum::from((string) $input['method']) : PaymentMethodEnum::MANUAL,
+            bankAccount: $bankAccount,
+            user: $user,
             cashAccountSubType: isset($input['cash_account_sub_type'])
                 ? AccountSubTypeEnum::from((string) $input['cash_account_sub_type'])
-                : AccountSubTypeEnum::CASH_CHECKING,
-            bankAccountId: isset($input['bank_account_id']) ? (int) $input['bank_account_id'] : null,
-            reference: $input['reference'] ?? null,
-            user: $user,
-            source: $input['source'] ?? 'kanvas',
+                : null,
+            source: $input['source'] ?? null,
             metadata: $input['metadata'] ?? null,
-            paidAt: isset($input['paid_at']) ? Carbon::parse((string) $input['paid_at']) : null,
-        )->execute();
+        )->execute()->allocation;
     }
 }

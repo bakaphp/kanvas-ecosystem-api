@@ -1,0 +1,44 @@
+{
+    "fiscalDoc": {
+        "companyLicCod": "YPSPUFLH",
+        "branchCod": "0001",
+        "posCod": "001",
+        "docType": 32,
+        "docNumber": "E320000000001",
+        "docNumberDueDate": "2028-12-31",
+        "systemRef": "b3f1c2d4-0000-4000-8000-000000000032",
+        "docDate": "2026-06-16",
+        "currency": "DOP",
+        "customerName": "Consumidor Final",
+        "fedo": {
+            "taxMode": "0",
+            "operMode": "01",
+            "paymentType": "1",
+            "totales": {
+                "subtotalExento": 0.0,
+                "subtotalGravado": 1237.5,
+                "totalItbis": 222.75,
+                "subtotalNet": 1237.5,
+                "total": 1460.25
+            }
+        },
+        "items": [
+            {
+                "qty": 3.0,
+                "price": 412.5,
+                "code": "CAFE-1",
+                "desc": "Cafe molido 1lb",
+                "itemClass": 0,
+                "tax": 1,
+                "subTotal": 1237.5,
+                "taxTotal": 222.75
+            }
+        ],
+        "payments": [
+            {
+                "type": "02",
+                "amt": 1460.25
+            }
+        ]
+    }
+}

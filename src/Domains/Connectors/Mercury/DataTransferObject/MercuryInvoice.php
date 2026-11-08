@@ -10,7 +10,7 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 
 /**
- * A Mercury AR invoice (`/ar/invoices`) — the customer-facing document Mercury emails and collects on.
+ * A Mercury AR invoice (`/ar/invoices`) — the customer-facing pay page Mercury collects on.
  *
  * Mercury is a DELIVERY AND COLLECTION channel, not a book of record. The invoice on our side (Scribe) is
  * the accounting truth; the Mercury copy exists so the customer gets a pay page and Mercury can take the
@@ -19,6 +19,10 @@ use Kanvas\Scribe\Invoices\Models\InvoiceLine;
  */
 class MercuryInvoice
 {
+    public const string SEND_EMAIL_OPTION = 'DontSend';
+
+    public const string ACH_CURRENCY = 'USD';
+
     public function __construct(
         public readonly string $id,
         public readonly ?string $invoiceNumber,
@@ -72,9 +76,10 @@ class MercuryInvoice
         Invoice $invoice,
         string $mercuryCustomerId,
         string $destinationAccountId,
-        bool $sendEmail,
+        bool $cardEnabled = false,
     ): array {
         $invoice->loadMissing('lines');
+        $currency = strtoupper($invoice->getPayableCurrency());
 
         $lineItems = $invoice->lines->map(fn (InvoiceLine $line): array => [
             'name' => (string) $line->description,
@@ -93,12 +98,15 @@ class MercuryInvoice
             'invoiceNumber' => $invoice->invoice_number,
             'payerMemo' => $invoice->notes,
             'ccEmails' => [],
-            'creditCardEnabled' => true,
-            'achDebitEnabled' => true,
+            'currencyCode' => $currency,
+            // Card needs a Stripe account connected inside Mercury and ACH debit is USD-only; either one
+            // switched on without its precondition makes Mercury refuse the whole invoice with a 400.
+            'creditCardEnabled' => $cardEnabled,
+            'achDebitEnabled' => $currency === self::ACH_CURRENCY,
             'useRealAccountNumber' => false,
-            // Default DontSend: firing a real invoice at a real customer is not something a sync should do
-            // behind your back the first time the connector is switched on.
-            'sendEmailOption' => $sendEmail ? 'SendNow' : 'DontSend',
+            // Kanvas sends every AR document itself, as a tracked engagement. Mercury is only the payment rail,
+            // so it must never email the customer — and a DontSend invoice can't be sent later by API anyway.
+            'sendEmailOption' => self::SEND_EMAIL_OPTION,
         ];
     }
 }

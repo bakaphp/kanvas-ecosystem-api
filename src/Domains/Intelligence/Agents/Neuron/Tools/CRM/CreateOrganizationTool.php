@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Baka\Support\Str;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationData;
 use Kanvas\Guild\Organizations\Models\OrganizationType;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\ChecksOrganizationTaxId;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -24,15 +27,20 @@ use Throwable;
 #[AgentTool(name: 'Create Organization', category: 'crm')]
 class CreateOrganizationTool extends Tool
 {
+    use ChecksOrganizationTaxId;
     use HasKanvasContext;
+    use ReportsToolOutcome;
     use TrackByInputs;
 
     protected string $name = 'create_organization';
 
-    protected ?string $description = 'Create a customer organization (company / account) in the CRM. name is required; add '
-        . 'email, phone, address, state and organization_type_id as known. If an organization with the same '
-        . 'name already exists it is returned rather than duplicated (created will be false). Returns the '
-        . 'organization_id. Use update_organization to change an organization you already have the id for.';
+    protected ?string $description = 'Create a customer or vendor organization (company / account) in the CRM. name is required; add '
+        . 'email, phone, address, state, organization_type_id and its tax id (RNC in the Dominican Republic) '
+        . 'as known. A tax id is checked before saving: a Dominican RNC/cédula is verified at DGII and the '
+        . 'registered legal name comes back as dgii_legal_name; a refused one creates nothing. If an organization '
+        . 'with the same name already exists it is returned rather than duplicated (created will be false) and '
+        . 'a tax id it lacked is filled in. Returns the organization_id. Use update_organization to change an '
+        . 'organization you already have the id for.';
 
     /**
      * @return array<int, ToolProperty>
@@ -52,6 +60,7 @@ class CreateOrganizationTool extends Tool
                 description: 'The id of an existing organization type to categorize this organization.',
                 required: false,
             ),
+            ...$this->taxIdProperties(),
         ];
     }
 
@@ -65,10 +74,20 @@ class CreateOrganizationTool extends Tool
         ?string $address = null,
         ?string $state = null,
         ?int $organization_type_id = null,
+        ?string $tax_id = null,
+        ?string $tax_id_type = null,
     ): array {
         $name = trim($name);
         if ($name === '') {
             return ['error' => 'name is required to create an organization.'];
+        }
+
+        $checkedTaxId = null;
+        if (Str::trimToNull($tax_id) !== null) {
+            $checkedTaxId = $this->checkTaxId($tax_id, $tax_id_type);
+            if (($checkedTaxId['success'] ?? null) === false) {
+                return $checkedTaxId;
+            }
         }
 
         $organizationType = null;
@@ -93,6 +112,8 @@ class CreateOrganizationTool extends Tool
                     address: $address !== null ? trim($address) : null,
                     state: $state !== null ? trim($state) : null,
                     organizationType: $organizationType,
+                    taxId: $checkedTaxId['tax_id'] ?? null,
+                    taxIdType: $checkedTaxId['tax_id_type'] ?? null,
                 ),
             )->execute();
         } catch (Throwable $e) {
@@ -104,6 +125,8 @@ class CreateOrganizationTool extends Tool
         return [
             'organization_id' => $organization->getId(),
             'name' => $organization->name,
+            ...$organization->taxIdSummary(),
+            ...$this->verificationResult($checkedTaxId),
             'created' => $organization->wasRecentlyCreated,
             'message' => $organization->wasRecentlyCreated
                 ? 'Organization created.'

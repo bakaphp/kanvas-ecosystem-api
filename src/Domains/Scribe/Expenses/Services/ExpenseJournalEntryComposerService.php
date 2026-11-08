@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Expenses\Services;
 
+use Baka\Support\Money;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
@@ -14,6 +15,7 @@ use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Services\AccountResolverService;
+use Kanvas\Scribe\Ledger\Services\JournalEntryRoundingService;
 use RuntimeException;
 use Spatie\LaravelData\DataCollection;
 
@@ -71,8 +73,8 @@ class ExpenseJournalEntryComposerService
                 );
             }
 
-            $lineTotalNative = (float) $line->amount_native + (float) $line->tax_amount_native;
-            $lineTotalBase = (float) $line->amount_base + (float) $line->tax_amount_base;
+            $lineTotalNative = Money::stored(Money::of((float) $line->amount_native)->plus(Money::of((float) $line->tax_amount_native)));
+            $lineTotalBase = Money::stored(Money::of((float) $line->amount_base)->plus(Money::of((float) $line->tax_amount_base)));
 
             $lines[] = new JournalEntryLineData(
                 account_id: $line->expense_account_id,
@@ -139,7 +141,7 @@ class ExpenseJournalEntryComposerService
             company: $company,
             postedAt: $expense->approved_at ?? Carbon::now(),
             sourceType: 'expense',
-            lines: new DataCollection(JournalEntryLineData::class, $lines),
+            lines: new DataCollection(JournalEntryLineData::class, JournalEntryRoundingService::absorbInto($lines, 0)),
             sourceId: $expense->id,
             memo: "Expense {$expense->expense_number} approved",
             source: $expense->source,

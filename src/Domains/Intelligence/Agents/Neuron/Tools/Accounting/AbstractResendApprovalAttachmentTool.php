@@ -103,6 +103,7 @@ abstract class AbstractResendApprovalAttachmentTool extends Tool
             text: "Here is the invoice for {$noun} {$id}, resent on request.",
             attachmentUrl: $attachmentUrl,
             attachmentFilename: $sourceFields['source_attachment_filename'],
+            agentId: $document->approvalNotifierAgentId(),
         );
 
         return [

@@ -8,6 +8,11 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
+use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
+use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\Scribe\Banking\Actions\IngestBankStatementFromInboxAction;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfClassifierServiceInterface;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfContentHasherInterface;
@@ -15,6 +20,7 @@ use Kanvas\Scribe\PdfIngest\DataTransferObject\PdfIngestInput;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestStatusEnum;
 use Kanvas\Scribe\PdfIngest\Models\PdfIngestLog;
+use Kanvas\Scribe\PdfIngest\Services\InboxAgentHandOffService;
 use Kanvas\Scribe\PdfIngest\Services\RemotePdfContentHasherService;
 use Kanvas\Scribe\PdfIngest\Traits\ResolvesPdfClassifierTrait;
 use Throwable;
@@ -29,18 +35,37 @@ use Throwable;
  *
  *   expense_receipt      → ProposeExpenseFromPdfAction → draft Expense + attached receipt
  *                          status=entity_created
- *   vendor_invoice       → log only, status=awaiting_bill_support (PR 10 backfills these)
+ *   vendor_invoice       → ProposeBillFromPdfAction → bill submitted for approval, status=entity_created;
+ *                          vendor/GL unresolved → DRAFT bill, status=needs_review; known vendor invoice
+ *                          number → status=ignored_duplicate
  *   vendor_quote         → log only, status=quote_inbound_logged
  *   our_invoice/our_quote → log only, status=ignored_our_doc
+ *   remittance_advice / customer_po / credit_request → RouteReceivablesDocumentAction, status=routed_to_ar
+ *                          (the AR agent gets the task; a remittance is matched to open invoices, never applied)
  *   unknown              → log only, status=rejected_unknown + rejected_reason
  *   (classifier throws)  → log only, status=failed + rejected_reason
  *
  * All routing decisions happen inside one accounting-DB transaction so the log row is always written
- * with the entity link consistent.
+ * with the entity link consistent. Every processed PDF then gets one `scribe.document.ingested` ledger
+ * event carrying its outcome (OUTCOMES), and what needs an agent becomes its task (InboxAgentHandOffService).
  */
 class ProcessAccountingPdfAction
 {
     use ResolvesPdfClassifierTrait;
+
+    public const string INGESTED_EVENT = 'scribe.document.ingested';
+
+    /** Every `outcome` an ingested event can carry (outcomeOf()). */
+    public const array OUTCOMES = [
+        'bill_created',
+        'expense_created',
+        'bank_statement_created',
+        'needs_review',
+        'routed_to_ar',
+        'duplicate',
+        'rejected',
+        'failed',
+    ];
 
     public function __construct(
         public readonly PdfIngestInput $input,
@@ -57,6 +82,15 @@ class ProcessAccountingPdfAction
             return $existing;
         }
 
+        $log = $this->process();
+        $this->recordOutcome($log);
+        new InboxAgentHandOffService()->handOff($log);
+
+        return $log;
+    }
+
+    private function process(): PdfIngestLog
+    {
         // Path 2 — content hash dedup. Compute once, check against prior ingests; if we've already
         // processed this exact PDF (regardless of how it arrived), short-circuit and link the new
         // log row to the pre-existing entity.
@@ -88,6 +122,7 @@ class ProcessAccountingPdfAction
                     'from_email' => $this->input->fromEmail,
                     'from_name' => $this->input->fromName,
                     'subject' => $this->input->subject,
+                    'company_name' => $this->input->company->name ?? null,
                 ],
             );
         } catch (Throwable $e) {
@@ -196,6 +231,16 @@ class ProcessAccountingPdfAction
                 $log->rejected_reason = 'Inbound vendor quote — no GL entity created (informational only).';
 
                 return;
+            case PdfIngestDocumentTypeEnum::BANK_STATEMENT:
+                new IngestBankStatementFromInboxAction($log, $this->input, $this->user)->execute();
+
+                return;
+            case PdfIngestDocumentTypeEnum::REMITTANCE_ADVICE:
+            case PdfIngestDocumentTypeEnum::CUSTOMER_PO:
+            case PdfIngestDocumentTypeEnum::CREDIT_REQUEST:
+                new RouteReceivablesDocumentAction($log, $this->input, $extracted)->execute();
+
+                return;
             case PdfIngestDocumentTypeEnum::OUR_INVOICE:
             case PdfIngestDocumentTypeEnum::OUR_QUOTE:
                 $log->status = PdfIngestStatusEnum::IGNORED_OUR_DOC;
@@ -235,9 +280,20 @@ class ProcessAccountingPdfAction
             return;
         }
 
-        $log->status = PdfIngestStatusEnum::ENTITY_CREATED;
         $log->linked_entity_type = 'bill';
         $log->linked_entity_id = (int) $bill->id;
+
+        // Path 3 hands back the bill that already carries this vendor invoice number.
+        if ((int) $bill->pdf_ingest_log_id !== (int) $log->id) {
+            $log->status = PdfIngestStatusEnum::IGNORED_DUPLICATE;
+            $log->rejected_reason = "Duplicate of bill #{$bill->id} (same vendor invoice number {$bill->bill_number}).";
+
+            return;
+        }
+
+        $reviewReason = $bill->metadata['ingest']['review_reason'] ?? null;
+        $log->status = $reviewReason !== null ? PdfIngestStatusEnum::NEEDS_REVIEW : PdfIngestStatusEnum::ENTITY_CREATED;
+        $log->rejected_reason = $reviewReason;
     }
 
     /**
@@ -299,6 +355,55 @@ class ProcessAccountingPdfAction
 
         return "{$kind} creation skipped — no specific cause identified. "
             . 'Check the orchestrator logs for details.';
+    }
+
+    /**
+     * One event per PDF, anchored to the same Filesystem row as `scribe.document.email_received`, so the
+     * document's timeline (and the AP agent reading the ledger) sees what arrived and what became of it.
+     * Best-effort: the ingest is already recorded on the log row.
+     */
+    private function recordOutcome(PdfIngestLog $log): void
+    {
+        try {
+            new AppendEventAction(
+                new EventData(
+                    app: $this->input->app,
+                    company: $this->input->company,
+                    sourceDomain: 'Scribe',
+                    eventType: self::INGESTED_EVENT,
+                    status: $log->status === PdfIngestStatusEnum::FAILED ? EventStatusEnum::ERROR : EventStatusEnum::INFO,
+                    sourceEntityType: Filesystem::class,
+                    sourceEntityId: (int) $this->input->pdf->getKey(),
+                    actorType: $this->user !== null ? 'User' : 'System',
+                    actorId: $this->user?->getId(),
+                    payload: [
+                        'outcome' => $this->outcomeOf($log),
+                        'pdf_ingest_log_id' => $log->id,
+                        'document_type' => $log->document_type->value,
+                        'status' => $log->status->value,
+                        'linked_entity_type' => $log->linked_entity_type,
+                        'linked_entity_id' => $log->linked_entity_id,
+                        'reason' => $log->rejected_reason,
+                        'from_email' => $log->from_email,
+                        'subject' => $log->subject,
+                    ],
+                ),
+            )->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    private function outcomeOf(PdfIngestLog $log): string
+    {
+        return match ($log->status) {
+            PdfIngestStatusEnum::ENTITY_CREATED => $log->linked_entity_type . '_created',
+            PdfIngestStatusEnum::NEEDS_REVIEW => 'needs_review',
+            PdfIngestStatusEnum::ROUTED_TO_AR => 'routed_to_ar',
+            PdfIngestStatusEnum::IGNORED_DUPLICATE => 'duplicate',
+            PdfIngestStatusEnum::FAILED => 'failed',
+            default => 'rejected',
+        };
     }
 
     private function resolveClassifier(): PdfClassifierServiceInterface

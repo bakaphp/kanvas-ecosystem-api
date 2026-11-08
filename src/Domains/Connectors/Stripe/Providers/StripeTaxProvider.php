@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Providers;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Money;
 use Carbon\Carbon;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\StripeTaxCodeMap;
 use Kanvas\Connectors\Stripe\Services\StripeTaxService;
-use Kanvas\Souk\Support\Money;
 use Kanvas\Souk\Taxes\Contracts\TaxProviderInterface;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxableLine;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxAddress;

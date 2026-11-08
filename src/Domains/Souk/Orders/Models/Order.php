@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Orders\Models;
 
 use Baka\Casts\Json;
 use Baka\Contracts\PayableInterface;
+use Baka\Support\Money;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -46,7 +47,6 @@ use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Services\B2BConfigurationService;
 use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
-use Kanvas\Souk\Support\Money;
 use Kanvas\Souk\Taxes\Enums\TaxStatusEnum;
 use Kanvas\Souk\Taxes\Jobs\CommitTaxTransactionJob;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;

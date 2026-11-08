@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Invoices\Actions;
 
+use Baka\Support\Money;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -102,7 +103,7 @@ class AllocateInvoicePaymentAction
             $allocation->source_type = AllocationSourceTypeEnum::PAYMENT->value;
             $allocation->status = AllocationStatusEnum::ACTIVE;
             $allocation->amount_native = $this->amountNative;
-            $allocation->amount_base = $this->amountNative * $fxRate;
+            $allocation->amount_base = Money::toBase($this->amountNative, $fxRate);
             $allocation->currency = $invoice->currency;
             $allocation->fx_rate_to_base = $fxRate;
             $allocation->fx_rate_at = $invoice->fx_rate_at ?? Carbon::now();

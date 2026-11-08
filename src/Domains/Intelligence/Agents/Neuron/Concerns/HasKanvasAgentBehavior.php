@@ -235,6 +235,22 @@ trait HasKanvasAgentBehavior
     }
 
     /**
+     * requestingHuman() falls back to the turn's actor, which on inbound-email and scheduled turns is the
+     * agent's own user or the company AI user. Tools that book money or answer DGII must not load on those
+     * turns, or an outside sender's email could trigger them; this returns null there.
+     */
+    public function personAsking(): ?Users
+    {
+        $human = $this->requestingHuman();
+
+        if ($human === null || $this->agent === null) {
+            return null;
+        }
+
+        return KanvasConversationStore::actsAsAi($human, $this->agent) ? null : $human;
+    }
+
+    /**
      * A cancelled turn leaves the person's message in the transcript but out of the model's window, so
      * the resend is the only copy the agent answers; the durable run is abandoned so the thread takes it.
      */
@@ -897,7 +913,10 @@ trait HasKanvasAgentBehavior
             'NEVER REPORT AN ACTION AS DONE UNLESS THE TOOL SAID IT WAS. A tool result carrying '
             . '"success": false, an "error", or an outcome of denied/not_found/invalid_args means it did '
             . 'NOT happen. Say what was blocked and why, in the same words the tool gave you. Reporting a '
-            . 'refused write as done is worse than the refusal: the person stops checking.',
+            . 'refused write as done is worse than the refusal: the person stops checking. Something you '
+            . 'did not call a tool for in this turn did not happen at all: never describe a record as '
+            . 'created, drafted, sent, approved or cancelled, and never give an id, number or link, unless '
+            . 'a tool returned it in this turn. Earlier messages and memory are not this turn.',
             'A DELIVERABLE IS NEVER THE BODY OF A MESSAGE. When you produce a document — an HTML '
             . 'template, a rendered page, a report, a PDF — put it in Kanvas as a record '
             . '(create_template, then update_template to revise it and generate_template_pdf to render '

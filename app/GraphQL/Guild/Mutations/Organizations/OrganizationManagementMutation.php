@@ -10,6 +10,7 @@ use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\Actions\UpdateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Address as AddressData;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as DataTransferObjectOrganization;
+use Kanvas\Guild\Organizations\Enums\TaxIdTypeEnum;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationType;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -37,6 +38,8 @@ class OrganizationManagementMutation
             organizationType: isset($data['organization_type_id'])
                 ? OrganizationType::getByIdFromCompanyApp((int) $data['organization_type_id'], $company, $app)
                 : null,
+            taxId: $data['tax_id'] ?? null,
+            taxIdType: isset($data['tax_id_type']) ? TaxIdTypeEnum::from($data['tax_id_type']) : null,
         );
 
         $organization = new CreateOrganizationAction($organizationData)->execute();
@@ -70,6 +73,8 @@ class OrganizationManagementMutation
             phone: $data['phone'] ?? null,
             address: $data['address'] ?? null,
             organizationType: $organizationType,
+            taxId: array_key_exists('tax_id', $data) ? (string) $data['tax_id'] : null,
+            taxIdType: isset($data['tax_id_type']) ? TaxIdTypeEnum::from($data['tax_id_type']) : null,
         );
 
         $updated = new UpdateOrganizationAction(

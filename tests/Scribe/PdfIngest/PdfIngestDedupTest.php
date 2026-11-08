@@ -27,7 +27,7 @@ use Tests\Scribe\ScribeTestCase;
  *
  *   Path 3 — vendor invoice arrives with a bill_number that already exists for this tenant
  *            → ProposeBillFromPdfAction returns the existing Bill rather than creating a duplicate.
- *              The orchestrator marks the log as ENTITY_CREATED pointing at the pre-existing bill.
+ *              The orchestrator marks the log as IGNORED_DUPLICATE pointing at the pre-existing bill.
  *
  * Path 1 (message-id idempotency) is covered by PdfIngestRoutingTest.
  */
@@ -192,7 +192,8 @@ class PdfIngestDedupTest extends ScribeTestCase
             hasher: $hasher,
         )->execute();
 
-        $this->assertSame(PdfIngestStatusEnum::ENTITY_CREATED, $log1->status);
+        // A first-time vendor has no GL to code from, so the bill waits for review (still created + linked).
+        $this->assertSame(PdfIngestStatusEnum::NEEDS_REVIEW, $log1->status);
         $firstBillId = $log1->linked_entity_id;
         $this->assertNotNull($firstBillId);
 
@@ -224,7 +225,7 @@ class PdfIngestDedupTest extends ScribeTestCase
             hasher: $hasher,
         )->execute();
 
-        $this->assertSame(PdfIngestStatusEnum::ENTITY_CREATED, $log2->status);
+        $this->assertSame(PdfIngestStatusEnum::IGNORED_DUPLICATE, $log2->status);
         $this->assertSame('bill', $log2->linked_entity_type);
         $this->assertSame(
             (int) $firstBillId,
@@ -298,7 +299,7 @@ class PdfIngestDedupTest extends ScribeTestCase
             hasher: $hasher,
         )->execute();
 
-        $this->assertSame(PdfIngestStatusEnum::ENTITY_CREATED, $log->status);
+        $this->assertSame(PdfIngestStatusEnum::NEEDS_REVIEW, $log->status);
         $this->assertSame('bill', $log->linked_entity_type);
         $this->assertNotSame((int) $bill->id, (int) $log->linked_entity_id);
     }
@@ -347,7 +348,7 @@ class PdfIngestDedupTest extends ScribeTestCase
             )->execute();
 
             $this->assertSame(
-                PdfIngestStatusEnum::ENTITY_CREATED,
+                PdfIngestStatusEnum::NEEDS_REVIEW,
                 $log->status,
                 "Attachment #{$i} sharing the email's Message-Id must still create its own entity.",
             );

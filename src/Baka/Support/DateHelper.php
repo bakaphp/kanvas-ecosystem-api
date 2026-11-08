@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Baka\Support;
 
+use DateTime;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Support\Carbon;
 use Throwable;
+use ValueError;
 
 class DateHelper
 {
@@ -28,9 +30,42 @@ class DateHelper
 
     public static function parseYmd(string $value): ?DateTimeImmutable
     {
-        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        $date = self::parseExact($value, 'Y-m-d');
 
-        return $date !== false && $date->format('Y-m-d') === $value ? $date : null;
+        return $date !== null && $date->format('Y-m-d') === $value ? $date : null;
+    }
+
+    /**
+     * Unlike `createFromFormat()`, refuses a date that does not exist instead of rolling it over:
+     * `31/02/2026` would become March 3, and `13/02/2026` read as m/d/Y would become January 2027.
+     */
+    public static function parseExact(string $value, string $format): ?DateTimeImmutable
+    {
+        try {
+            $date = DateTimeImmutable::createFromFormat('!' . $format, $value);
+        } catch (ValueError) {
+            return null;
+        }
+
+        return $date === false || self::rolledOver() ? null : $date;
+    }
+
+    public static function parseCarbonStrict(string $value): ?Carbon
+    {
+        try {
+            $date = Carbon::parse($value);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return self::rolledOver() ? null : $date;
+    }
+
+    private static function rolledOver(): bool
+    {
+        $errors = DateTime::getLastErrors();
+
+        return $errors !== false && $errors['warning_count'] > 0;
     }
 
     public static function normalizeDate(string $date, string $timezone = 'UTC', string $format = 'Y-m-d'): ?string

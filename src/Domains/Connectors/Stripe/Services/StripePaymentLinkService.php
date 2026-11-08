@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Money;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Validation\ValidationException;
@@ -15,7 +16,6 @@ use Kanvas\Exceptions\ValidationException as KanvasValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Support\Money;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Stripe\PaymentLink;
 use Stripe\StripeClient;

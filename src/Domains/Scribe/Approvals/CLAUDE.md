@@ -28,7 +28,7 @@ its own approver, since different vendors are owned by different people on the f
 | `Actions\RequestApprovalAction` | Creates a pending queue row for any record type. |
 | `Actions\ResolveApprovalAction` | Legacy queue resolver that dispatches on `action_type` to the domain action that approves a bill or issues an invoice, then marks the row `approved`; the resulting status transition is handled by configured workflow activities. |
 | `Actions\ResolveApproverEmailAction` | Given `target_type`/`target_id` (or an `Organization` directly, via the static `resolveForOrganization()`), returns the `list<string>` of approver emails — its own `OrganizationApprover` Users first, falling back to `OrganizationApproverCustomFieldEnum` when none exist. The single place that maps a pending item to who may approve it. |
-| `Actions\NotifyApproverAction` | Best-effort Slack DM to an approver email — looks the person up in Slack by email, silently does nothing if Slack isn't configured or the email doesn't match a workspace member, never blocks the caller. Takes an optional `agentId` constructor arg to use a specific notifier agent instead of the app-level `ap-slack-notifier-agent-id` default. |
+| `Actions\NotifyApproverAction` | Best-effort Slack DM to an approver email — looks the person up in Slack by email, returns false if Slack isn't configured or the email doesn't match a workspace member (the approvals domain then emails), never blocks the caller. Takes an optional `agentId` to use a specific notifier agent instead of the app-level `ap-slack-notifier-agent-id` default. Not called by the agent tools anymore: `Concerns\NotifiesApproversOnSlack` on Bill/Invoice calls it when the approvals domain asks the document to notify. |
 
 `Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool` (`approve_pending_item`)
 is the one LLM-facing tool — generic by design, it never branches on bill-vs-invoice itself. A new
@@ -49,15 +49,14 @@ and `ResolveApproverEmailAction`; the tool and the queue itself never change.
    `ApprovalQueueItem` row (`action_type: 'approve_bill'`); for invoices, `CreateArInvoiceTool` calls
    `RequestApprovalAction` explicitly (`action_type: 'approve_invoice'`) since a draft invoice has no
    built-in approval-queue side effect of its own.
-3. The tool resolves the vendor's/customer's approver emails (`ResolveApproverEmailAction::resolveForOrganization()`)
-   and calls `NotifyApproverAction` once per approver, which DMs that person on Slack — looked up by
-   email, not a fixed Slack user id — with the record's details and its Kanvas id, uploading the
-   invoice PDF (resolved from the `source_invoice_pdf` attachment) as a real Slack attachment when one
-   was captured, so the
-   approver can open the actual document before deciding. If the vendor/customer has no approver
-   configured, the tool still creates the record but tells the caller nobody can approve it yet and
-   no DM was sent.
-4. Logged to the tracking sheet as "Pending".
+3. Opening the approval notifies the approvers — whoever opened it (this tool, the accounting inbox,
+   GraphQL). The generic engine's `NotifyApproversAction` asks the document first
+   (`Concerns\NotifiesApproversOnSlack`): a Slack DM from the AP notifier (bills) or the AR notifier
+   (invoices, `ar-slack-notifier-agent-id`, falling back to AP's), looked up by email, with the record's
+   details, its Kanvas id and the `source_invoice_pdf` attachment uploaded; email when the approver
+   isn't on Slack. A legacy-queue tenant gets the same DM from `RequestApprovalAction`. The source PDF
+   is stored before submitting so it rides along. If the vendor/customer has no approver configured,
+   the tool still creates the record but tells the caller nobody can approve it yet.
 
 **Approval** (the human, then Apex/Arc again):
 
@@ -73,8 +72,13 @@ and `ResolveApproverEmailAction`; the tool and the queue itself never change.
    `attach_bill_file`/`attach_invoice_file` adds any additional files; `gmail_reply_to_thread` replies inside
    the original email thread
    with the same evidence, sent only to that vendor's/customer's approver — never to the vendor
-   itself; and `update_google_sheet_cell` flips the sheet row to "Approved" with the date and
-   approver's email.
+   itself. Kanvas is the tracker; there is no Google Sheet in this flow anymore (decision 21).
+
+An approver can approve many at once: `approve_pending_item(approval_request_ids: [...])` runs each
+request through its own approver check and `ApproveAction` and reports one result per id.
+
+An expired request returns a bill to DRAFT with an internal note and notifies the requester and the
+approvers (`Concerns\ReturnsToDraftOnApprovalExpiry`, see `src/Kanvas/Approvals/CLAUDE.md`).
 
 External synchronization is asynchronous and workflow-owned. The approval result confirms only the
 Kanvas ledger transition; it does not claim that an external system has accepted the record.
@@ -103,20 +107,6 @@ that record until one is set.
 | `Organization` custom field `ap_approver_email` (`OrganizationApproverCustomFieldEnum::APPROVER_EMAIL`) | Legacy fallback: the email of the person who approves this vendor's bills (AP) or this customer's invoices (AR), for organizations not yet migrated to `OrganizationApprover`. Looked up in Slack by email — no separate Slack user id to configure. | Per vendor/customer, via `$organization->set('ap_approver_email', 'name@company.com')`. |
 | `ap-slack-notifier-agent-id` (`ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID`) | The Kanvas `Agent` record id whose Slack bot token sends the DM — this is *deliberately* explicit, not auto-detected, because a tenant can have several agents connected to Slack and there is no reliable way to pick "the right one" automatically. This is the default `NotifyApproverAction` falls back to when no `agentId` is passed explicitly. | Kanvas admin panel → Settings → Agents → find the AP/AR agent (e.g. "Apex") → copy its id. Or run this GraphQL query (authenticated as an admin/owner): `query { agents(where: { column: NAME, operator: LIKE, value: "%Apex%" }) { data { id name } } }`. Set with `$app->set('ap-slack-notifier-agent-id', '123')`. |
 | `ar-slack-notifier-agent-id` (`Kanvas\Scribe\Invoices\Enums\ConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID`) | Same idea, scoped to AR — used when AR's Slack-connected agent (e.g. "Arc") is a different `Agent` record than AP's. | Set with `$app->set('ar-slack-notifier-agent-id', '123')`. |
-
-### Sheet columns this flow expects
-
-The tracking sheet (see `Connectors/GoogleSheets/CLAUDE.md`) needs these columns already created:
-
-| Column | Purpose |
-|---|---|
-| A | ID invoice (the Kanvas bill/invoice id) |
-| B | Vendor / customer name |
-| C | Total |
-| D | Status (`Pending` → `Approved`) |
-| E | Approved Date |
-| F | Approved By (the approver's email) |
-| G | External reference, when a downstream workflow makes one available (not returned by `approve_pending_item`) |
 
 ## Extending: adding a new approval type
 

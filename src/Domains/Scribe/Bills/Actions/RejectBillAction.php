@@ -18,7 +18,7 @@ class RejectBillAction
 {
     public function __construct(
         public readonly Bill $bill,
-        public readonly UserInterface $rejector,
+        public readonly ?UserInterface $rejector,
         public readonly ?string $reason = null,
         protected readonly BillStateMachineService $stateMachine = new BillStateMachineService(),
     ) {
@@ -47,7 +47,7 @@ class RejectBillAction
                 ->where('status', ApprovalQueueStatusEnum::PENDING->value)
                 ->update([
                     'status' => ApprovalQueueStatusEnum::REJECTED->value,
-                    'approved_by_users_id' => $this->rejector->getId(),
+                    'approved_by_users_id' => $this->rejector?->getId(),
                     'approved_at' => Carbon::now(),
                     'reason' => $this->reason,
                 ]);

@@ -9,11 +9,13 @@ use Baka\Contracts\CompanyInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Mailgun\Actions\VerifyMailgunWebhookSignatureAction;
+use Kanvas\Connectors\Mailgun\Services\AccountingInboxService;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\Scribe\PdfIngest\Jobs\ProcessAccountingPdfJob;
+use Kanvas\Scribe\PdfIngest\Services\InboxActingUserService;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
@@ -34,8 +36,9 @@ use Throwable;
  *      by the receiver pipeline at `payload.uploaded_files` — and dispatches one
  *      ProcessAccountingPdfJob per PDF.
  *
- * Each PDF lands as its own PdfIngestLog row + its own draft Expense / Bill (the operator
- * resolves multi-PDF emails by approving each separately).
+ * Each PDF lands as its own PdfIngestLog row + its own Expense / Bill, processed as the company's AP
+ * agent user (InboxActingUserService) so the vendor resolves and the bill is submitted for approval like
+ * one the agent filed itself.
  *
  * Why a webhook + a SEPARATE per-PDF job:
  *   - The webhook returns 200 fast (Mailgun retries on slow responses)
@@ -78,6 +81,17 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
         $app = $this->receiver->app;
         $company = $this->receiver->company;
 
+        if (! AccountingInboxService::isAccountingInbox($this->receiver)) {
+            Log::warning('Scribe.Mailgun.PdfInbound — receiver is not flagged scribe_pdf_inbox, ignoring email', [
+                'receiver_id' => $this->receiver->getId(),
+            ]);
+
+            return [
+                'dispatched' => 0,
+                'reason' => 'not_an_accounting_inbox',
+            ];
+        }
+
         $payload = $this->webhookRequest->payload ?? [];
         $messageId = $this->extractMessageId($payload);
         $fromEmail = $this->extractFromEmail($payload);
@@ -106,6 +120,8 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
             ];
         }
 
+        $actingUser = InboxActingUserService::resolve($app, $company, $this->receiver->user);
+
         $dispatched = 0;
         foreach ($pdfFilesystemIds as $filesystemId) {
             $pdf = Filesystem::query()
@@ -131,6 +147,7 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
                 $fromName,
                 $subject,
                 $inboundMetadata,
+                $actingUser,
             );
             $this->recordArrival(
                 $app,

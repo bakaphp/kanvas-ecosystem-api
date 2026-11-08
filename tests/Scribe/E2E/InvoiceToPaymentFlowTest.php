@@ -299,6 +299,36 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
         );
     }
 
+    /**
+     * 0.10 + 0.70 is 0.7999999999999999 in floats, which left 1e-16 owed on a 0.80 invoice: never marked paid,
+     * while the stored balance read 0.0000.
+     */
+    public function test_payments_that_add_up_in_decimal_but_not_in_floats_mark_the_invoice_paid(): void
+    {
+        $invoice = $this->issueTestInvoice($this->seedTestOrganization(), subtotal: 0.80);
+
+        foreach ([0.10, 0.70] as $amount) {
+            $allocation = new InvoicePaymentAllocation();
+            $allocation->apps_id = (int) $invoice->apps_id;
+            $allocation->companies_id = (int) $invoice->companies_id;
+            $allocation->invoice_id = (int) $invoice->id;
+            $allocation->source_type = 'payment';
+            $allocation->status = AllocationStatusEnum::ACTIVE->value;
+            $allocation->amount_native = $amount;
+            $allocation->amount_base = $amount;
+            $allocation->currency = 'USD';
+            $allocation->fx_rate_to_base = 1.0;
+            $allocation->allocated_at = Carbon::parse('2026-06-20');
+            $allocation->source = 'kanvas';
+            $allocation->save();
+        }
+
+        $result = new MarkInvoicePaidAction(invoice: $invoice)->execute();
+
+        $this->assertSame(InvoiceDocumentStatusEnum::PAID, $result->document_status);
+        $this->assertSame(0.0, (float) $result->balance_due_native);
+    }
+
     private function latestPostedJeFor(string $sourceType, int $sourceId): ?JournalEntry
     {
         return JournalEntry::query()

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Bills\Models\Bill;
@@ -64,10 +63,7 @@ class AddBillNoteTool extends Tool
             ];
         }
 
-        $stamped = '[' . Carbon::now()->toDateTimeString() . '] ' . $note;
-        $bill->internal_notes = $bill->internal_notes !== null && $bill->internal_notes !== ''
-            ? $bill->internal_notes . "\n" . $stamped
-            : $stamped;
+        $stamped = $bill->appendInternalNote($note);
         $bill->saveOrFail();
 
         return [

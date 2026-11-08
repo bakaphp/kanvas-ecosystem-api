@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Scribe\Bills\Actions\AllocateBillPaymentAction;
 use Kanvas\Scribe\Bills\Models\Bill;
-use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Models\BaseModel;
+use Kanvas\Scribe\Payments\Actions\RecordBillPaymentAction;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
+use Kanvas\Scribe\Payments\Enums\PaymentRecordedViaEnum;
 use Kanvas\Scribe\Payments\Models\Payment;
 use Override;
 
@@ -51,12 +51,12 @@ class ApplyApPaymentTool extends AbstractApplyPaymentTool
     protected function allocatePayment(BaseModel $document, float $amount, string $reference): Payment
     {
         /** @var Bill $document */
-        return new AllocateBillPaymentAction(
+        return new RecordBillPaymentAction(
             bill: $document,
             amountNative: $amount,
-            method: PaymentMethodEnum::CHECK,
-            cashAccountSubType: AccountSubTypeEnum::CASH_CHECKING,
+            recordedVia: PaymentRecordedViaEnum::AGENT,
             reference: $reference,
+            method: PaymentMethodEnum::CHECK,
             user: $this->user,
         )->execute()->payment;
     }

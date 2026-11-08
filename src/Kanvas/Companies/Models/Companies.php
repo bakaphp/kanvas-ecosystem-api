@@ -30,6 +30,7 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CompaniesTotalBranchesAction;
 use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
+use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
 use Kanvas\Companies\Observers\CompaniesObserver;
@@ -49,6 +50,7 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\KanvasModules\Enums\CompanyKanvasModuleStatusEnum;
 use Kanvas\KanvasModules\Enums\KanvasModuleEnum;
 use Kanvas\KanvasModules\Models\CompanyKanvasModule;
+use Kanvas\Locations\Models\Countries;
 use Kanvas\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
@@ -509,6 +511,23 @@ class Companies extends BaseModel implements CompanyInterface, Customer, Exposes
             'companies_id' => $this->getId(),
             'apps_id' => $app->getId(),
         ]);
+    }
+
+    /**
+     * ISO 3166-1 alpha-2, upper case. The column first, then the `country_code` setting, then the
+     * countries row; null when none of them says.
+     */
+    public function countryCode(): ?string
+    {
+        $code = trim((string) ($this->country_code ?: $this->get(ConfigurationEnum::COUNTRY_CODE->value)));
+
+        if ($code === '' && (int) $this->countries_id > 0) {
+            $code = (string) Countries::query()->whereKey((int) $this->countries_id)->value('code');
+        }
+
+        $code = strtoupper(trim($code));
+
+        return strlen($code) === 2 ? $code : null;
     }
 
     public function getAiAgentUser(): ?Users

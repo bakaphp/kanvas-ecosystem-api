@@ -38,7 +38,7 @@ class AddNoteToLeadAction
         $linkPreview = '';
 
         try {
-            $linkPreview = Url::getShortUrl($message['link'] ?? '', $this->lead->app);
+            $linkPreview = Url::getShortUrl($message['link'] ?? '', $this->lead->app, company: $this->lead->company);
         } catch (Throwable $e) {
             $linkPreview = $message['link'] ?? '';
         }

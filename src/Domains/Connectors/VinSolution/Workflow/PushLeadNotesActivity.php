@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
+use Kanvas\ActionEngine\Engagements\Concerns\SkipsNonLeadEngagements;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
 use Kanvas\Apps\Models\Apps;
@@ -33,10 +34,16 @@ use Kanvas\Workflow\KanvasActivity;
 )]
 class PushLeadNotesActivity extends KanvasActivity
 {
+    use SkipsNonLeadEngagements;
+
     public $tries = 3;
 
     public function execute(Message $message, Apps $app, array $params): array
     {
+        if ($skip = $this->skipNonLeadEngagement($message)) {
+            return $skip;
+        }
+
         $company = $message->company;
 
         if (! $company->get(ConfigurationEnum::COMPANY->value)) {

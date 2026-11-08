@@ -24,6 +24,7 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\CsvReaderService;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Scribe\ElectronicInvoicing\Support\FiscalFileRetention;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -164,6 +165,8 @@ class FilesystemManagementMutation
             return true;
         }
 
+        FiscalFileRetention::assertDetachable($fileEntity);
+
         if (! $fileEntity->softDelete()) {
             return false;
         }
@@ -294,6 +297,8 @@ class FilesystemManagementMutation
         })->where('uuid', $request['uuid'])
             ->notDeleted()
             ->firstOrFail();
+
+        FiscalFileRetention::assertDeletable($filesystem);
 
         $filesystemService = new FilesystemServices(app(Apps::class));
 

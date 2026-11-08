@@ -54,7 +54,7 @@ class AutoResolveVendorOnPdfIngestTest extends ScribeTestCase
             hasher: new FakePdfContentHasher(),
         )->execute();
 
-        $this->assertSame(PdfIngestStatusEnum::ENTITY_CREATED, $log->status);
+        $this->assertSame(PdfIngestStatusEnum::NEEDS_REVIEW, $log->status, 'Vendor resolved, but a new vendor has no GL to code from.');
         $this->assertSame('bill', $log->linked_entity_type);
 
         /** @var Bill $bill */
@@ -118,7 +118,7 @@ class AutoResolveVendorOnPdfIngestTest extends ScribeTestCase
             hasher: new FakePdfContentHasher(),
         )->execute();
 
-        $this->assertSame(PdfIngestStatusEnum::ENTITY_CREATED, $log->status);
+        $this->assertSame(PdfIngestStatusEnum::NEEDS_REVIEW, $log->status, 'Vendor resolved, but a new vendor has no GL to code from.');
 
         /** @var Bill $bill */
         $bill = Bill::query()->where('id', $log->linked_entity_id)->firstOrFail();

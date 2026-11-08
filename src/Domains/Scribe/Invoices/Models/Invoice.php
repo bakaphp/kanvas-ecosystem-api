@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Invoices\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\EngageableInterface;
 use Baka\Contracts\PayableInterface;
 use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\DynamicSearchableTrait;
@@ -12,17 +13,28 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Carbon;
+use Kanvas\Approvals\Contracts\DeliversApprovalNoticesInterface;
+use Kanvas\Approvals\Contracts\ReactsToApprovalExpiryInterface;
 use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Intelligence\FollowUp\Traits\HasFollowUpState;
+use Kanvas\NervousSystem\Ledger\Models\Event as LedgerEvent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
+use Kanvas\Scribe\Approvals\Concerns\NotifiesApproversOnSlack;
+use Kanvas\Scribe\Approvals\Concerns\ReturnsToDraftOnApprovalExpiry;
+use Kanvas\Scribe\Concerns\HasInternalNotes;
+use Kanvas\Scribe\Delivery\Concerns\IsEngageableDocument;
+use Kanvas\Scribe\Invoices\Actions\AmendInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\MarkInvoicePaidAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceAmendment;
 use Kanvas\Scribe\Invoices\Enums\AgingBucketEnum;
+use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceCollectionStateEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
@@ -99,15 +111,20 @@ use Throwable;
  * @property int|null $users_id
  */
 #[ObservedBy([ClearsLightHouseCacheObserver::class])]
-class Invoice extends BaseModel implements PayableInterface
+class Invoice extends BaseModel implements PayableInterface, DeliversApprovalNoticesInterface, ReactsToApprovalExpiryInterface, EngageableInterface
 {
     use HasApprovals;
+    use HasInternalNotes;
+    use NotifiesApproversOnSlack;
+    use ReturnsToDraftOnApprovalExpiry;
     use CanUseWorkflow;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
     use EmitsLedgerEventsForEntity;
+    use HasFollowUpState;
     use HasLightHouseCache;
+    use IsEngageableDocument;
     use UuidTrait;
 
     protected $table = 'invoices';
@@ -148,6 +165,16 @@ class Invoice extends BaseModel implements PayableInterface
         'metadata' => Json::class,
     ];
 
+    public function scopeOpen(Builder $query): Builder
+    {
+        return $query
+            ->whereIn('document_status', [
+                InvoiceDocumentStatusEnum::ISSUED->value,
+                InvoiceDocumentStatusEnum::SENT->value,
+            ])
+            ->where('balance_due_native', '>', 0);
+    }
+
     public function lines(): HasMany
     {
         return $this->hasMany(InvoiceLine::class, 'invoice_id', 'id')->orderBy('sort_order');
@@ -172,6 +199,12 @@ class Invoice extends BaseModel implements PayableInterface
     {
         return $this->hasMany(self::class, 'parent_invoice_id', 'id')
             ->where('document_type', DocumentTypeEnum::CREDIT_NOTE->value);
+    }
+
+    public function debitNotes(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_invoice_id', 'id')
+            ->where('document_type', DocumentTypeEnum::DEBIT_NOTE->value);
     }
 
     public function payments(): HasManyThrough
@@ -228,43 +261,62 @@ class Invoice extends BaseModel implements PayableInterface
         return $this->document_type === DocumentTypeEnum::CREDIT_NOTE;
     }
 
+    public function isDebitNote(): bool
+    {
+        return $this->document_type === DocumentTypeEnum::DEBIT_NOTE;
+    }
+
     /**
-     * Typed view of `metadata.amendments[]` written by AmendInvoiceAction. Returns newest-first.
-     *
-     * Empty array (not null) when the invoice has never been amended — callers can iterate without
-     * null-checks. Malformed entries are silently skipped so a hand-edit to metadata.json can't
-     * crash the operator UI.
+     * Every AmendInvoiceAction call that changed something, newest first. The record is the
+     * `scribe.invoice.amended` ledger event (one per amendment, its own diff only); `metadata.amendments`
+     * is read only for invoices amended before that, and a malformed legacy entry is skipped.
      *
      * @return list<InvoiceAmendment>
      */
     public function amendmentHistory(): array
     {
-        $raw = $this->metadata['amendments'] ?? [];
-        if (! is_array($raw)) {
-            return [];
+        $fromLedger = LedgerEvent::query()
+            ->where('apps_id', $this->apps_id)
+            ->where('companies_id', $this->companies_id)
+            ->where('source_entity_type', self::class)
+            ->where('source_entity_id', $this->getId())
+            ->where('event_type', AmendInvoiceAction::LEDGER_EVENT)
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (LedgerEvent $event): ?InvoiceAmendment => $this->toAmendment([
+                ...(array) $event->payload,
+                'amended_at' => $event->occurred_at?->toIso8601String(),
+            ]))
+            ->filter()
+            ->values()
+            ->all();
+
+        $legacy = $this->metadata['amendments'] ?? [];
+        $fromMetadata = is_array($legacy)
+            ? array_values(array_filter(array_map(
+                fn (mixed $entry): ?InvoiceAmendment => is_array($entry) ? $this->toAmendment($entry) : null,
+                array_reverse($legacy),
+            )))
+            : [];
+
+        return [...$fromLedger, ...$fromMetadata];
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     */
+    private function toAmendment(array $entry): ?InvoiceAmendment
+    {
+        try {
+            return new InvoiceAmendment(
+                amended_at: Carbon::parse((string) ($entry['amended_at'] ?? '')),
+                amended_by_users_id: isset($entry['amended_by_users_id']) ? (int) $entry['amended_by_users_id'] : null,
+                reason: (string) ($entry['reason'] ?? ''),
+                changes: is_array($entry['changes'] ?? null) ? $entry['changes'] : [],
+            );
+        } catch (Throwable) {
+            return null;
         }
-
-        $out = [];
-        foreach (array_reverse($raw) as $entry) {
-            if (! is_array($entry)) {
-                continue;
-            }
-
-            try {
-                $out[] = new InvoiceAmendment(
-                    amended_at: Carbon::parse((string) ($entry['amended_at'] ?? '')),
-                    amended_by_users_id: isset($entry['amended_by_users_id'])
-                        ? (int) $entry['amended_by_users_id']
-                        : null,
-                    reason: (string) ($entry['reason'] ?? ''),
-                    changes: is_array($entry['changes'] ?? null) ? $entry['changes'] : [],
-                );
-            } catch (Throwable) {
-                continue;
-            }
-        }
-
-        return $out;
     }
 
     public function hasBeenAmended(): bool
@@ -281,6 +333,29 @@ class Invoice extends BaseModel implements PayableInterface
     public function getGraphTypeName(): string
     {
         return 'ScribeInvoice';
+    }
+
+    protected function approvalNoun(): string
+    {
+        return 'invoice';
+    }
+
+    /**
+     * AR has its own Slack-connected agent; unset falls back to the AP notifier.
+     */
+    protected function approvalNotifierSettingKey(): string
+    {
+        return ConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value;
+    }
+
+    protected function approvalNoticeBody(): string
+    {
+        $customer = $this->billable_display_name ?? $this->customer?->name ?? 'Unknown customer';
+
+        return "You have an AR invoice pending approval:\nCustomer: {$customer}\nAmount: {$this->currency} "
+            . number_format((float) $this->total_native, 2)
+            . ($this->notes !== null && $this->notes !== '' ? "\nMemo: {$this->notes}" : '')
+            . "\nInvoice ID (Kanvas): {$this->getKey()}";
     }
 
     protected function sourceDomainForLedger(): string

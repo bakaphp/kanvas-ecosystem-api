@@ -128,6 +128,21 @@ final class StripePaymentLinkWebhookJobTest extends TestCase
         $this->assertCount(0, $this->submittedEngagementsFor($sentMessage));
     }
 
+    public function testCheckoutOnANonLeadEngagementIsSkipped(): void
+    {
+        $sentMessage = $this->sendDepositLink('plink_non_lead');
+        Engagement::where('message_id', $sentMessage->getId())->update([
+            'leads_id' => null,
+            'entity_type' => 'scribe_invoice',
+            'entity_id' => 1,
+        ]);
+
+        $result = $this->dispatchCheckout('plink_non_lead', 'cs_non_lead');
+
+        $this->assertStringContainsString('not a lead', $result['message']);
+        $this->assertNull($sentMessage->fresh()->get(CustomFieldEnum::STRIPE_CHECKOUT_SESSION_ID->value));
+    }
+
     public function testReceiverWithoutSecretTrustsUnsignedRequests(): void
     {
         $this->assertTrue(StripePaymentLinkWebhookJob::authenticateRequest(

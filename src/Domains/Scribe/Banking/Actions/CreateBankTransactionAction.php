@@ -42,6 +42,7 @@ class CreateBankTransactionAction
             $transaction->apps_id = $this->data->app->getId();
             $transaction->companies_id = $this->data->company->getId();
             $transaction->bank_account_id = $this->data->bankAccount->getId();
+            $transaction->bank_statement_id = $this->data->bankStatementId;
             $transaction->posted_at = $this->data->postedAt;
             $transaction->transaction_date = $this->data->transactionDate;
             $transaction->direction = $this->data->direction;
@@ -91,6 +92,9 @@ class CreateBankTransactionAction
         $transaction->counterparty_name = $this->data->counterpartyName;
         $transaction->counterparty_account_last4 = $this->data->counterpartyAccountLast4;
         $transaction->raw_payload = $this->data->rawPayload;
+        // An overlapping statement re-delivers the row; it stays credited to the statement that first
+        // brought it, so coverage reads from where the movement actually came in.
+        $transaction->bank_statement_id ??= $this->data->bankStatementId;
 
         // A pending txn can settle to a different amount/date. Accepting the correction is right, but only
         // while nothing has been booked against it — once a JE exists, changing the amount would desync the

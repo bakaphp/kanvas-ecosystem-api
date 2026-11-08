@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Elead\Workflow;
 
 use Exception;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
+use Kanvas\ActionEngine\Engagements\Concerns\SkipsNonLeadEngagements;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
 use Kanvas\Apps\Models\Apps;
@@ -39,11 +40,18 @@ use Throwable;
 )]
 class PushLeadNotesActivity extends KanvasActivity
 {
+    use SkipsNonLeadEngagements;
+
     public $tries = 1;
 
     public function execute(Message $message, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
+
+        if ($skip = $this->skipNonLeadEngagement($message)) {
+            return $skip;
+        }
+
         $company = $message->company;
 
         if (! $company->get(CustomFieldEnum::COMPANY->value)) {

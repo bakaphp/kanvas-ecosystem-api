@@ -8,6 +8,7 @@ use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemAttachInput;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Scribe\ElectronicInvoicing\Support\FiscalFileRetention;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
@@ -46,6 +47,8 @@ class AttachmentMutation
             ->fromCompany(auth()->user()->getCurrentCompany())
             ->notDeleted()
             ->firstOrFail();
+
+        FiscalFileRetention::assertDetachable($fileEntity);
 
         return $fileEntity->softDelete();
     }

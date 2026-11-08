@@ -13,28 +13,18 @@ use Kanvas\Scribe\Invoices\Exceptions\InvalidInvoiceTransitionException;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 
 /**
- * The only legal post-issue mutator on an Invoice.
+ * Changes the permitted post-issue fields without changing amounts, currency or the customer snapshot.
+ * Amount adjustments require a credit note; wholesale changes require voiding and recreating the invoice.
  *
- * Per plan §7.6 + Scribe/CLAUDE.md — billable snapshot and amounts are frozen at Issue. AmendInvoiceAction
- * exists for the small set of fields that CAN change after issue without breaking the books:
- *   - due_date / expected_payment_date / net_terms_days (customer asked for an extension)
- *   - notes / internal_notes / terms (free-text additions)
- *   - regional_compliance (regulatory fix — e.g. NCF correction)
- *   - external_id / external_url / metadata (cross-system reference fixes)
+ * Each amendment emits a `scribe.invoice.amended` ledger event with its diff, read by
+ * Invoice::amendmentHistory(). The ledger uses a separate connection from the accounting transaction.
  *
- * Amounts, currency, fx_rate, billable, document_type, document_status are EXPLICITLY not allowed.
- * For amount adjustments use IssueCreditNoteAction. For wholesale changes use VoidInvoiceAction + recreate.
- *
- * Side effects:
- *   1. Validate the parent invoice is in ISSUED / SENT (not draft, not paid, not voided)
- *   2. Capture before-values for each changed field
- *   3. Apply the new values
- *   4. Append a diff record to metadata.amendments[] (timestamp + user + reason + before/after)
- *
- * @see plan §7.6 — Billable + Vendor snapshots are immutable post-issue
+ * @see docs/accounting/cfo-agent-plan.md §7.4 — Billable snapshots are frozen at issue
  */
 class AmendInvoiceAction
 {
+    public const string LEDGER_EVENT = 'scribe.invoice.amended';
+
     public function __construct(
         public readonly Invoice $invoice,
         public readonly AmendInvoiceData $data,
@@ -50,32 +40,78 @@ class AmendInvoiceAction
             $invoice = $this->invoice;
             $changes = [];
 
-            $this->applyDateChange($invoice, 'due_date', $this->data->due_date, $changes);
-            $this->applyDateChange($invoice, 'expected_payment_date', $this->data->expected_payment_date, $changes);
-            $this->applyScalarChange($invoice, 'net_terms_days', $this->data->net_terms_days, $changes);
-            $this->applyScalarChange($invoice, 'notes', $this->data->notes, $changes);
-            $this->applyScalarChange($invoice, 'internal_notes', $this->data->internal_notes, $changes);
-            $this->applyScalarChange($invoice, 'terms', $this->data->terms, $changes);
-            $this->applyScalarChange($invoice, 'external_id', $this->data->external_id, $changes);
-            $this->applyScalarChange($invoice, 'external_url', $this->data->external_url, $changes);
-            $this->applyArrayChange($invoice, 'regional_compliance', $this->data->regional_compliance, $changes);
+            $this->applyDateChange(
+                $invoice,
+                'due_date',
+                $this->data->due_date,
+                $changes
+            );
+            $this->applyDateChange(
+                $invoice,
+                'expected_payment_date',
+                $this->data->expected_payment_date,
+                $changes
+            );
+            $this->applyValueChange(
+                $invoice,
+                'net_terms_days',
+                $this->data->net_terms_days,
+                $changes
+            );
+            $this->applyValueChange(
+                $invoice,
+                'notes',
+                $this->data->notes,
+                $changes
+            );
+            $this->applyValueChange(
+                $invoice,
+                'internal_notes',
+                $this->data->internal_notes,
+                $changes
+            );
+            $this->applyValueChange(
+                $invoice,
+                'terms',
+                $this->data->terms,
+                $changes
+            );
+            $this->applyValueChange(
+                $invoice,
+                'external_id',
+                $this->data->external_id,
+                $changes
+            );
+            $this->applyValueChange(
+                $invoice,
+                'external_url',
+                $this->data->external_url,
+                $changes
+            );
+            $this->applyValueChange(
+                $invoice,
+                'regional_compliance',
+                $this->data->regional_compliance,
+                $changes
+            );
             $this->mergeMetadata($invoice, $this->data->metadata, $changes);
 
             if ($changes === []) {
                 return $invoice->refresh();
             }
 
-            $this->appendAmendmentHistory($invoice, $changes);
-
             $invoice->save();
 
             $invoice->emitLedgerEvent(
-                eventType: 'scribe.invoice.amended',
+                eventType: self::LEDGER_EVENT,
                 payload: [
                     'invoice_number' => $invoice->invoice_number,
                     'reason' => $this->data->reason,
+                    'amended_by_users_id' => $this->user?->getId(),
                     'changes' => $changes,
                 ],
+                actorType: $this->user !== null ? 'User' : null,
+                actorId: $this->user?->getId(),
             );
 
             return $invoice->refresh();
@@ -102,8 +138,12 @@ class AmendInvoiceAction
     /**
      * @param array<string, array{from: mixed, to: mixed}> $changes
      */
-    private function applyDateChange(Invoice $invoice, string $field, ?Carbon $newValue, array &$changes): void
-    {
+    private function applyDateChange(
+        Invoice $invoice,
+        string $field,
+        ?Carbon $newValue,
+        array &$changes
+    ): void {
         if ($newValue === null) {
             return;
         }
@@ -123,26 +163,12 @@ class AmendInvoiceAction
     /**
      * @param array<string, array{from: mixed, to: mixed}> $changes
      */
-    private function applyScalarChange(Invoice $invoice, string $field, mixed $newValue, array &$changes): void
-    {
-        if ($newValue === null) {
-            return;
-        }
-
-        $old = $invoice->{$field};
-        if ($old === $newValue) {
-            return;
-        }
-
-        $changes[$field] = ['from' => $old, 'to' => $newValue];
-        $invoice->{$field} = $newValue;
-    }
-
-    /**
-     * @param array<string, array{from: mixed, to: mixed}> $changes
-     */
-    private function applyArrayChange(Invoice $invoice, string $field, ?array $newValue, array &$changes): void
-    {
+    private function applyValueChange(
+        Invoice $invoice,
+        string $field,
+        mixed $newValue,
+        array &$changes
+    ): void {
         if ($newValue === null) {
             return;
         }
@@ -158,11 +184,15 @@ class AmendInvoiceAction
 
     /**
      * Metadata merges rather than replaces — the caller can add keys without overwriting unrelated ones.
+     * The diff names only the top-level keys this call changed, and `amendments` is never taken from the
+     * caller: the history is the ledger, not something a metadata payload can write.
      *
      * @param array<string, array{from: mixed, to: mixed}> $changes
      */
     private function mergeMetadata(Invoice $invoice, ?array $newMetadata, array &$changes): void
     {
+        unset($newMetadata['amendments']);
+
         if ($newMetadata === null || $newMetadata === []) {
             return;
         }
@@ -170,30 +200,18 @@ class AmendInvoiceAction
         $existing = $invoice->metadata ?? [];
         $merged = array_replace_recursive($existing, $newMetadata);
 
-        if ($merged === $existing) {
+        $diff = [];
+        foreach (array_keys($newMetadata) as $key) {
+            if (($existing[$key] ?? null) !== $merged[$key]) {
+                $diff[$key] = ['from' => $existing[$key] ?? null, 'to' => $merged[$key]];
+            }
+        }
+
+        if ($diff === []) {
             return;
         }
 
-        $changes['metadata'] = ['from' => $existing, 'to' => $merged];
+        $changes['metadata'] = $diff;
         $invoice->metadata = $merged;
-    }
-
-    /**
-     * @param array<string, array{from: mixed, to: mixed}> $changes
-     */
-    private function appendAmendmentHistory(Invoice $invoice, array $changes): void
-    {
-        $metadata = $invoice->metadata ?? [];
-        $amendments = $metadata['amendments'] ?? [];
-
-        $amendments[] = [
-            'amended_at' => Carbon::now()->toIso8601String(),
-            'amended_by_users_id' => $this->user?->getId(),
-            'reason' => $this->data->reason,
-            'changes' => $changes,
-        ];
-
-        $metadata['amendments'] = $amendments;
-        $invoice->metadata = $metadata;
     }
 }

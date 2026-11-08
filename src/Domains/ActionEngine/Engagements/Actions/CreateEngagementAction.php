@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\ActionEngine\Engagements\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\EngageableInterface;
 use Baka\Support\IPInfo;
 use Baka\Support\Str;
 use Baka\Support\Url;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
@@ -18,11 +21,14 @@ use Kanvas\ActionEngine\Actions\Models\CompanyActionVisitor;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\EngagementMessage;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Engagements\Support\EngagementReferenceMap;
+use Kanvas\ActionEngine\Engagements\Support\LeadEngagementHooks;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\ShortIo\Services\ShortIoConfigurationService;
 use Kanvas\Connectors\Stripe\Services\StripePaymentLinkService;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -40,13 +46,14 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Ramsey\Uuid\Lazy\LazyUuidFromString;
 
 class CreateEngagementAction
 {
-    protected Lead $lead;
+    protected ?Lead $lead = null;
+    protected EngageableInterface $reference;
+    protected ?LeadEngagementHooks $leadHooks = null;
     protected People $people;
-    protected LeadReceiver $receiver;
+    protected ?LeadReceiver $receiver = null;
     protected CompanyAction $companyAction;
     protected CompanyAction $companyActionParent;
     protected string $actionSlug;
@@ -66,10 +73,22 @@ class CreateEngagementAction
         $this->company = $engagementData->company;
         $this->user = $engagementData->user;
 
-        // Load lead and related data
-        $this->lead = $engagementData->lead;
-        $this->user->follow($this->lead);
-        $this->people = $engagementData->people ?? $this->lead->people;
+        $this->reference = $engagementData->getReference();
+        $this->lead = $this->reference instanceof Lead ? $this->reference : null;
+
+        if ($this->lead !== null) {
+            $this->leadHooks = new LeadEngagementHooks($this->lead, $engagementData);
+            $this->leadHooks->follow($this->user);
+        }
+
+        $this->people = $engagementData->people
+            ?? $this->lead?->people
+            ?? throw new InvalidArgumentException('An engagement needs a person.');
+
+        if ($this->lead === null) {
+            $this->assertSameTenant();
+        }
+
         $this->prepareData();
         $this->resolveAction();
         if ($engagementData->status === ActionStatusEnum::SENT) {
@@ -102,61 +121,88 @@ class CreateEngagementAction
             //update msg new action page migration link
             if ($newLink !== null) {
                 $messageData = $message->message ?? [];
-                $messageData['action_link'] = Url::getShortUrl($newLink, $this->app);
+                $messageData['action_link'] = Url::getShortUrl($newLink, $this->app, company: $engagement->company);
                 $message->message = $messageData;
                 $message->saveOrFail();
                 $engagement->refresh();
             }
 
             if ($this->runWorkflow) {
-                $engagement->fireWorkflow(
-                    WorkflowEnum::CREATED->value,
-                    true,
-                    [
-                        'message' => $message,
-                        'channel' => $channel,
-                    ]
-                );
+                $this->fireCreatedWorkflow($engagement, $message, $channel);
             }
 
             return $engagement;
         });
     }
 
+    protected function fireCreatedWorkflow(Engagement $engagement, Message $message, ModelsChannel $channel): void
+    {
+        $engagement->fireWorkflow(
+            WorkflowEnum::CREATED->value,
+            true,
+            $this->createdWorkflowParams($engagement, $message, $channel)
+        );
+    }
+
+    /**
+     * entity_type lets a rule route by reference ("engagement on a scribe_invoice → AR agent").
+     */
+    protected function createdWorkflowParams(Engagement $engagement, Message $message, ModelsChannel $channel): array
+    {
+        return [
+            'message' => $message,
+            'channel' => $channel,
+            'entity_type' => $engagement->entity_type,
+        ];
+    }
+
+    /**
+     * A non-lead reference gets its link from generateNewEngagementUrl() once the engagement exists;
+     * the legacy landing-page link is built from lead params.
+     */
     private function handleLinkGeneration(): void
     {
+        if ($this->leadHooks === null) {
+            return;
+        }
+
         if ($this->allowDuplicate) {
             $this->generateUrls();
 
             return;
         }
 
-        $previousLinkKey = 'engagement_previous_link';
-        $verifyPreviousLink = $this->lead->get($previousLinkKey) ?? [];
-        $hasPreviousLinkData = ! empty($verifyPreviousLink) && is_array($verifyPreviousLink);
-        $actionExists = $hasPreviousLinkData && array_key_exists($this->engagementData->action, $verifyPreviousLink);
-
-        if (! $actionExists) {
+        $this->messageData = $this->leadHooks->rememberedLinkMessageData(function (): array {
             $this->generateUrls();
-            $verifyPreviousLink[$this->engagementData->action] = $this->messageData;
-            $this->lead->set($previousLinkKey, $verifyPreviousLink);
-        } else {
-            $this->messageData = $verifyPreviousLink[$this->engagementData->action];
+
+            return $this->messageData;
+        });
+    }
+
+    /**
+     * Same-tenant is a given on the lead path (the lead is the tenant); any other reference, and the
+     * person it is shared with, must sit in the engagement's app and company.
+     */
+    protected function assertSameTenant(): void
+    {
+        $sameApp = (int) $this->reference->getEngagementApp()->getId() === (int) $this->app->getId();
+        $sameCompany = (int) $this->reference->getEngagementCompany()->getId() === (int) $this->company->getId();
+        $personInCompany = (int) $this->people->companies_id === (int) $this->company->getId();
+
+        if (! $sameApp || ! $sameCompany || ! $personInCompany) {
+            throw new InvalidArgumentException('The engagement reference and person must belong to the engagement app and company.');
         }
     }
 
     protected function prepareData(): void
     {
-        // Load receiver
-        $this->receiver = $this->engagementData->receiverId !== null
-            ? LeadReceiver::getByIdFromCompanyApp($this->engagementData->receiverId, $this->company, $this->app)
-            : ($this->lead->receiver ?? LeadReceiver::getDefault($this->company, $this->app));
+        $this->receiver = $this->leadHooks?->receiver();
 
         // Handle checklist task
         if ($this->engagementData->taskId !== null) {
             try {
                 $checkListTaskItem = TaskListItem::getById($this->engagementData->taskId);
-                if ($checkListTaskItem->task->company->getId() === $this->lead->company->getId()) {
+                if ($checkListTaskItem->task->company->getId() === $this->reference->getEngagementCompany()->getId()) {
                     $this->checkListId = $checkListTaskItem->task->getId();
                 }
             } catch (ExceptionsModelNotFoundException|ModelNotFoundException $e) {
@@ -222,7 +268,7 @@ class CreateEngagementAction
                 $action,
                 $this->company,
                 $this->app,
-                $this->lead->branch
+                $this->leadHooks?->branch()
             );
         } catch (ModelNotFoundException $e) {
             throw $this->requireActiveAction ? $this->unavailableActionException() : $e;
@@ -240,7 +286,7 @@ class CreateEngagementAction
                 $action,
                 $this->company,
                 $this->app,
-                $this->lead->branch
+                $this->leadHooks?->branch()
             );
         }
     }
@@ -273,7 +319,7 @@ class CreateEngagementAction
         }
 
         if ($isNewActionPage) {
-            $baseDomain = rtrim((string) $this->app->get('NEW_ACTION_PAGE_V4'), '/');
+            $baseDomain = ShortIoConfigurationService::linkPageBaseUrl($this->app, $engagement->company);
             $actionPath = $actionPathV4 ?: 'form';
 
             return $baseDomain . '/' . ltrim((string) $actionPath, '/') . '/' . $engagement->uuid;
@@ -301,78 +347,19 @@ class CreateEngagementAction
      */
     protected function generateUrls(): void
     {
-        $newActionPageUrl = in_array($this->actionSlug, $this->app->get('new-action-slug') ?? []);
-        $actionPageUrl = ! $newActionPageUrl ? $this->app->get('TEMP_LANDING_PAGE') : $this->app->get('NEW_LANDING_PAGE');
-
-        $params = [
-            'visitors_id' => $this->engagementData->requestId,
-            'visitor_id' => $this->engagementData->requestId,
-            'users_id' => $this->user->getId(),
-            'vehicle_id' => null,
-            'leads_id' => $this->lead->uuid,
-            'lead_id' => $this->lead->uuid,
-            'receivers_id' => $this->receiver->uuid,
-            'receiver_id' => $this->receiver->uuid,
-            'contacts_id' => $this->people->uuid,
-            'actions_slug' => $this->actionSlug,
-            'cid' => $this->lead->company->uuid,
-            'bcid' => $this->lead->branch ? $this->lead->branch->uuid : null,
-            'form_type' => $this->engagementData->formType,
-        ];
-
-        if ($this->company->get('hide_millage')) {
-            $params['welcome'] = 'false';
-        }
-
-        $extraField = $this->engagementData->extraField;
-        if (is_array($extraField)) {
-            $extraField = implode('&', $extraField);
-        }
-
-        $urlParams = http_build_query(array_filter($params)) . ($extraField ? '&' . $extraField : '');
-        $urlParams .= '&caction=' . $this->companyAction->uuid;
-
-        //@todo remove this
-        if ($this->actionSlug === 'get-deposit') {
-            $urlParams .= '&ia=1';
-        }
-
-        // Add company language if set
-        $companyLanguage = $this->lead->company->get('COMPANY_MULTI_LANGUAGE');
-        if ($companyLanguage) {
-            $urlParams .= '&lang=' . $companyLanguage;
-        }
-
-        $url = $actionPageUrl . "/{$this->actionSlug}?{$urlParams}";
-        $urlPreview = $actionPageUrl . "/{$this->actionSlug}?{$urlParams}&preview=true";
-
-        // Generate message content
-        $reasonEnglish = $this->companyAction->get('reasonEn');
-        $reasonSpanish = $this->companyAction->get('reasonEs');
-
-        $messageEnglish = 'Hi {name}, this is ' . $this->user->firstname . ' from ' . $this->lead->branch->name . '. Click the link below to ' . $reasonEnglish;
-        $messageSpanish = 'Hola {name}, es ' . $this->user->firstname . ' de ' . $this->lead->branch->name . '. Haz click al siguiente enlace para ' . $reasonSpanish;
-
-        $this->messageData = [
-            'link' => Url::getShortUrl($url, $this->app),
-            'link_preview' => Url::getShortUrl($urlPreview, $this->app),
-            'link_full' => $url,
-            'link_full_preview' => $urlPreview,
-            'data' => $this->companyAction->form_config,
-            'params' => array_merge($params, $this->engagementData->extraData),
-            'preview_image' => null,
-            'message_content' => [
-                'ENG' => $reasonEnglish !== null && Str::endsWith($reasonEnglish, '!') ? $messageEnglish : $messageEnglish . '. ',
-                'ES' => $reasonSpanish !== null && Str::endsWith($reasonSpanish, '!') ? $messageSpanish : $messageSpanish . '. ',
-            ],
-        ];
+        $this->messageData = $this->leadHooks->linkMessageData(
+            $this->receiver,
+            $this->people,
+            $this->actionSlug,
+            $this->companyAction
+        );
     }
 
     protected function createCompanyActionVisitor(): CompanyActionVisitor
     {
         if (! $this->allowDuplicate) {
             $existingVisitor = CompanyActionVisitor::where('visitors_id', $this->engagementData->requestId)
-                ->where('leads_id', $this->lead->uuid)
+                ->where('leads_id', $this->visitorLeadId())
                 ->where('companies_actions_id', $this->companyActionParent->getId())
                 ->first();
 
@@ -381,17 +368,36 @@ class CreateEngagementAction
             }
         }
 
+        $request = array_merge(
+            Arr::except($this->engagementData->toArray(), ['reference']),
+            $this->messageData['params'] ?? []
+        );
+
+        if ($this->lead === null) {
+            $request['entity_type'] = EngagementReferenceMap::aliasFor($this->reference);
+            $request['entity_id'] = $this->reference->getId();
+        }
+
         return CompanyActionVisitor::create([
             'visitors_id' => $this->engagementData->requestId,
-            'leads_id' => $this->lead->uuid,
-            'receivers_id' => $this->receiver->uuid,
+            'leads_id' => $this->visitorLeadId(),
+            'receivers_id' => $this->receiver !== null ? $this->receiver->uuid : '',
             'contacts_id' => $this->people->uuid,
             'companies_id' => $this->company->getId(),
             'users_id' => $this->user->getId(),
             'companies_actions_id' => $this->companyActionParent->getId(),
             'actions_slug' => $this->engagementData->action,
-            'request' => array_merge($this->engagementData->toArray(), ($this->messageData['params'] ?? [])),
+            'request' => $request,
         ]);
+    }
+
+    /**
+     * companies_actions_visitors.leads_id is NOT NULL; a non-lead visit records its reference in
+     * `request` instead.
+     */
+    private function visitorLeadId(): mixed
+    {
+        return $this->lead !== null ? $this->lead->uuid : '';
     }
 
     protected function createMessage(): Message
@@ -463,19 +469,21 @@ class CreateEngagementAction
                 $this->company,
                 $this->app
             ),
-            SystemModulesRepository::getByModelName(Lead::class, $this->app),
-            $this->lead->getId()
+            SystemModulesRepository::getByModelName($this->reference::class, $this->app),
+            $this->reference->getId()
         )->execute();
 
         $this->attachFilesToMessage($message);
 
         //@todo move this to a workflow activity (Async)
-        $this->replaceLink(
-            $this->lead,
-            $message,
-            $this->actionSlug,
-            $this->engagementData->data
-        );
+        if ($this->lead !== null) {
+            $this->replaceLink(
+                $this->lead,
+                $message,
+                $this->actionSlug,
+                $this->engagementData->data
+            );
+        }
 
         return $message;
     }
@@ -504,18 +512,24 @@ class CreateEngagementAction
 
     protected function createOrGetChannel(): ModelsChannel
     {
-        $leadUuid = $this->lead->uuid instanceof LazyUuidFromString ? $this->lead->uuid->toString() : $this->lead->uuid;
+        if ($this->leadHooks !== null) {
+            return $this->leadHooks->channel();
+        }
 
-        return (new CreateChannelAction(new Channel(
+        $slug = Str::sanitizeChannelName(
+            EngagementReferenceMap::aliasFor($this->reference) . '-' . $this->reference->getEngagementChannelSlug()
+        );
+
+        return new CreateChannelAction(new Channel(
             apps: $this->app,
-            companies: $this->lead->company,
-            users: $this->lead->user,
-            entity_id: $this->lead->getId(),
-            entity_namespace: Lead::class,
-            name: $leadUuid,
-            slug: $leadUuid,
-            description: $leadUuid,
-        )))->execute();
+            companies: $this->company,
+            users: $this->user,
+            entity_id: $this->reference->getId(),
+            entity_namespace: $this->reference::class,
+            name: $slug,
+            slug: $slug,
+            description: $slug,
+        ))->execute();
     }
 
     /**
@@ -540,7 +554,7 @@ class CreateEngagementAction
         $lastSentEngagement = Engagement::fromCompany($this->company)
             ->fromApp($this->app)
             ->where('users_id', $this->user->getId())
-            ->where('leads_id', $this->lead->getId())
+            ->where(fn (Builder $query) => $this->whereSameReference($query))
             ->where('people_id', $this->people->getId())
             ->where('companies_actions_id', $this->companyActionParent->getId())
             ->where('pipelines_stages_id', $sentStage->getId())
@@ -557,7 +571,7 @@ class CreateEngagementAction
         $hasSubmittedEngagement = Engagement::fromCompany($this->company)
             ->fromApp($this->app)
             ->where('users_id', $this->user->getId())
-            ->where('leads_id', $this->lead->getId())
+            ->where(fn (Builder $query) => $this->whereSameReference($query))
             ->where('people_id', $this->people->getId())
             ->where('companies_actions_id', $this->companyActionParent->getId())
             ->where('pipelines_stages_id', $submittedStage->getId())
@@ -569,6 +583,13 @@ class CreateEngagementAction
         return $hasSubmittedEngagement ? null : $lastSentEngagement;
     }
 
+    private function whereSameReference(Builder $query): Builder
+    {
+        return $this->lead !== null
+            ? $query->where('leads_id', $this->lead->getId())
+            : $query->whereReference($this->reference);
+    }
+
     protected function createEngagement(Message $message): Engagement
     {
         $pipeline = Pipeline::getBySlug($this->actionSlug, $this->app, $this->company);
@@ -578,8 +599,10 @@ class CreateEngagementAction
             'companies_id' => $this->company->getId(),
             'apps_id' => $this->app->getId(),
             'users_id' => $this->user->getId(),
-            'leads_id' => $this->lead->getId(),
+            'leads_id' => $this->lead?->getId(),
             'people_id' => $this->people->getId(),
+            'entity_type' => EngagementReferenceMap::aliasFor($this->reference),
+            'entity_id' => $this->reference->getId(),
             'companies_actions_id' => $this->companyActionParent->getId(),
             'message_id' => $message->getId(),
             'slug' => $this->actionSlug,
@@ -720,7 +743,7 @@ class CreateEngagementAction
             if ($lead->people_id && $lead->people && $email = $lead->people->getEmails()->first()?->value) {
                 $paymentLinkFullLink .= '?prefilled_email=' . urlencode($email);
             }
-            $paymentShortLink = Url::getShortUrl($paymentLinkFullLink, $lead->app);
+            $paymentShortLink = Url::getShortUrl($paymentLinkFullLink, $lead->app, company: $lead->company);
 
             $messageData['data']['link'] = $paymentShortLink;
 

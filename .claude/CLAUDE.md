@@ -88,6 +88,7 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Kanvas/Templates/CLAUDE.md` — `email_templates` engines: new rows are sandboxed Twig, `blade` rows are hand-made in the database only and refused through Eloquent; the one Blade call site, the plain-array context and `ExposesTemplateData` for models with secrets in their row.
 - `src/Kanvas/AccessControlList/CLAUDE.md` — Bouncer scope is process state and the role cache is per scope with no TTL: write/read roles for an app only inside `onceTo(getScope($app))`, refresh inside the same switch, `Users::assignOwnerOf()` for Owner, and the app-creation incident that proved it.
 - `src/Kanvas/Approvals/CLAUDE.md` — generic cross-domain approval gating (policies, resolvers, the sync-handler vs workflow lanes, the transitional entity-fired event, and the `ecosystem` connection test trap).
+- `src/Domains/Scribe/CLAUDE.md` — accounting domain: GL invariants, cross-domain rules, where e-CF state lives (`fiscal_documents`, not JSON), and **how to set up a tenant for the AP/AR agents + DR e-CF from the UI** (setup mutation, provider integration, e-NCF ranges, readiness keys, onboarding steps).
 - `src/Domains/Insurance/CLAUDE.md` — provider-agnostic insurance layer (quote → policy). Why it is a top-level domain rather than Souk/Inventory/a connector, why only 2 direct queries exist and everything else is a workflow activity, and the hybrid generic-vs-connector custom-field split.
 
 ### Where to put new conventions (don't bloat this file)

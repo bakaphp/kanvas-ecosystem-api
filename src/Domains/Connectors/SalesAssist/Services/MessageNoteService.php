@@ -30,7 +30,7 @@ class MessageNoteService
             $i = 1;
             foreach ($files as $pdf) {
                 $fileName = $this->cleanFiles($pdf, 'File' . $i);
-                $url = Url::getShortUrl($pdf->url, $this->message->app);
+                $url = Url::getShortUrl($pdf->url, $this->message->app, company: $this->message->company);
                 $linkPreview .= '(' . $fileName . ': ' . $url . '),';
                 $i++;
                 $totalCount++;
@@ -42,7 +42,7 @@ class MessageNoteService
                 $i = 1;
                 foreach ($files as $pdf) {
                     $fileName = $this->cleanFiles($pdf, 'File' . $i);
-                    $url = Url::getShortUrl($pdf->url, $this->message->app);
+                    $url = Url::getShortUrl($pdf->url, $this->message->app, company: $this->message->company);
                     $linkPreview .= '(' . $fileName . ': ' . $url . '),';
                     $i++;
                     $totalCount++;
@@ -69,10 +69,7 @@ class MessageNoteService
         $uuid = $this->message->parent ? $this->message->parent->uuid : $this->message->uuid;
         $url = $this->message->app->get(ConfigurationEnum::SALES_ASSIST_LANDING_PAGE->value) . '/global-viewer?lid=' . $lead->uuid . '&mid=' . $uuid . '&ia=1';
 
-        return Url::getShortUrl(
-            $url,
-            $this->message->app
-        ) . '?openInSa=true';
+        return Url::getShortUrl($url, $this->message->app, company: $this->message->company) . '?openInSa=true';
     }
 
     /**

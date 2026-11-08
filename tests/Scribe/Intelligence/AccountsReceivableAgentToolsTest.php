@@ -27,10 +27,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendInvoiceAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Scribe\Approvals\Enums\ApprovalAttachmentFieldEnum;
-use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
+use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum as InvoiceConfigurationEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
@@ -298,7 +298,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             );
 
         $this->assertTrue($result['created']);
-        $this->assertNotSame('draft', $result['document_status']);
+        $this->assertSame('draft', $result['document_status'], 'The default is submit for approval, never issue.');
     }
 
     public function test_create_ar_invoice_with_issue_immediately_false_submits_draft_for_approval(): void
@@ -654,8 +654,9 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             ->withCompanyId($this->company->getId())
             ->create(['name' => 'Arc', 'user_id' => static::$cachedUser->getId()]);
         $agent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test-token');
-        $originalNotifierAgentId = $this->kanvasApp->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value);
-        $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $agent->getId());
+        // An invoice is sent by the AR notifier (falling back to AP's only when AR has none).
+        $originalNotifierAgentId = $this->kanvasApp->get(InvoiceConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value);
+        $this->kanvasApp->set(InvoiceConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value, (string) $agent->getId());
 
         try {
             SafeUrlFetcher::fake(static fn (string $url): string => '%PDF-1.4 fake bytes');
@@ -697,7 +698,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             $this->assertTrue($result['resent']);
             Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'files.getUploadURLExternal'));
         } finally {
-            $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
+            $this->kanvasApp->set(InvoiceConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
         }
     }
 

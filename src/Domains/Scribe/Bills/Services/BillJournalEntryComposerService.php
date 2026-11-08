@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Bills\Services;
 
+use Baka\Support\Money;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillPaymentAllocation;
@@ -13,6 +14,7 @@ use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Services\AccountResolverService;
+use Kanvas\Scribe\Ledger\Services\JournalEntryRoundingService;
 use RuntimeException;
 use Spatie\LaravelData\DataCollection;
 
@@ -63,8 +65,8 @@ class BillJournalEntryComposerService
                 );
             }
 
-            $netLineNative = (float) $line->line_total_native - (float) $line->tax_amount_native;
-            $netLineBase = (float) $line->line_total_base - (float) $line->tax_amount_base;
+            $netLineNative = Money::stored(Money::of((float) $line->line_total_native)->minus(Money::of((float) $line->tax_amount_native)));
+            $netLineBase = Money::stored(Money::of((float) $line->line_total_base)->minus(Money::of((float) $line->tax_amount_base)));
 
             if ($netLineNative <= 0) {
                 continue;
@@ -144,7 +146,7 @@ class BillJournalEntryComposerService
             company: $company,
             postedAt: $bill->received_date ?? Carbon::now(),
             sourceType: 'bill',
-            lines: new DataCollection(JournalEntryLineData::class, $lines),
+            lines: new DataCollection(JournalEntryLineData::class, JournalEntryRoundingService::absorbInto($lines, 0)),
             sourceId: $bill->id,
             memo: "Bill {$bill->bill_number} received",
             source: $bill->source,

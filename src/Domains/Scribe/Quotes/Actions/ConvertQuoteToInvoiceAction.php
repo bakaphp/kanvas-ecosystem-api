@@ -6,11 +6,13 @@ namespace Kanvas\Scribe\Quotes\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\BillingSchedules\Models\BillingSchedule;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
+use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteTransitionException;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\Quotes\Services\QuoteStateMachineService;
 use Spatie\LaravelData\DataCollection;
@@ -41,6 +43,13 @@ class ConvertQuoteToInvoiceAction
     public function execute(): Invoice
     {
         $this->stateMachine->assertTransition($this->quote, QuoteStatusEnum::CONVERTED);
+
+        if (BillingSchedule::query()->where('source_quote_id', $this->quote->getId())->notDeleted()->exists()) {
+            throw new InvalidQuoteTransitionException(
+                "Quote {$this->quote->getId()} is billed by its SOW payment schedule; converting it whole "
+                . 'would invoice the customer twice.'
+            );
+        }
 
         return DB::connection('accounting')->transaction(function (): Invoice {
             $quote = $this->quote;

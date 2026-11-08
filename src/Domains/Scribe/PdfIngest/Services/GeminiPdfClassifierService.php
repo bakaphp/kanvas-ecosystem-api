@@ -83,9 +83,13 @@ class GeminiPdfClassifierService implements PdfClassifierServiceInterface
                             PdfIngestDocumentTypeEnum::VENDOR_QUOTE->value,
                             PdfIngestDocumentTypeEnum::OUR_INVOICE->value,
                             PdfIngestDocumentTypeEnum::OUR_QUOTE->value,
+                            PdfIngestDocumentTypeEnum::BANK_STATEMENT->value,
+                            PdfIngestDocumentTypeEnum::REMITTANCE_ADVICE->value,
+                            PdfIngestDocumentTypeEnum::CUSTOMER_PO->value,
+                            PdfIngestDocumentTypeEnum::CREDIT_REQUEST->value,
                             PdfIngestDocumentTypeEnum::UNKNOWN->value,
                         ])
-                        ->description('One of: expense_receipt | vendor_invoice | vendor_quote | our_invoice | our_quote | unknown')
+                        ->description('One of: expense_receipt | vendor_invoice | vendor_quote | our_invoice | our_quote | bank_statement | remittance_advice | customer_po | credit_request | unknown')
                         ->required(),
                     'confidence' => $s->number()->description('Confidence 0..1 in the document_type call.')->required(),
                     'reasoning' => $s->string()->description('1-2 sentences explaining why this classification was picked.'),
@@ -107,6 +111,21 @@ class GeminiPdfClassifierService implements PdfClassifierServiceInterface
                             ->enum(['paid', 'unpaid', 'unknown'])
                             ->description("Whether the document shows it has ALREADY been paid. 'paid' for receipts / paid-stamps / payment history sections. 'unpaid' for invoices with a future Pay By and no payment evidence. 'unknown' otherwise."),
                         'notes' => $s->string()->description('Free-text notes / memos visible on the doc.'),
+                        'ncf' => $s->string()->description('Dominican NCF / e-NCF printed on a vendor invoice (e.g. B0100000123, E310000000045). Empty when not present.'),
+                        'customer_name' => $s->string()->description('For remittance_advice / customer_po / credit_request: the customer (the company writing to us). Empty otherwise.'),
+                        'po_number' => $s->string()->description('Purchase order number on a customer_po. Empty otherwise.'),
+                        'payment_reference' => $s->string()->description('Transfer / check / payment reference on a remittance_advice. Empty otherwise.'),
+                        'referenced_invoice_numbers' => $s->array()
+                            ->description('On a remittance_advice: OUR invoice numbers the customer says this payment covers. Empty otherwise.')
+                            ->items($s->string()),
+                        'line_items' => $s->array()
+                            ->description('The document lines as printed (vendor_invoice and customer_po).')
+                            ->items($s->object([
+                                'description' => $s->string(),
+                                'qty' => $s->number(),
+                                'unit_price' => $s->number(),
+                                'line_total' => $s->number(),
+                            ])),
                     ]),
                 ],
             )->prompt(
@@ -142,6 +161,9 @@ class GeminiPdfClassifierService implements PdfClassifierServiceInterface
         $defaultCurrency = $hints['app_currency_default'] ?? 'USD';
 
         $contextLines = [];
+        if (! empty($hints['company_name'])) {
+            $contextLines[] = "Our company (the recipient of vendor documents, the seller on customer documents): {$hints['company_name']}";
+        }
         if ($fromEmail !== null) {
             $contextLines[] = "Email sender: {$fromEmail} (use as fallback vendor identifier if extraction is low-confidence)";
         }
@@ -158,7 +180,7 @@ PDF or a photo of a paper receipt — a phone picture is expected and readable, 
 same way. Do not lower confidence merely because the image is a photo rather than a clean scan; lower
 it only when a field is genuinely illegible.
 
-Allowed document_type values: expense_receipt | vendor_invoice | vendor_quote | our_invoice | our_quote | unknown
+Allowed document_type values: expense_receipt | vendor_invoice | vendor_quote | our_invoice | our_quote | bank_statement | remittance_advice | customer_po | credit_request | unknown
 Default currency when none stated: {$defaultCurrency}
 
 Classification rules (apply STRICTLY in order — return the FIRST that matches):
@@ -166,6 +188,20 @@ Classification rules (apply STRICTLY in order — return the FIRST that matches)
   1. our_invoice / our_quote — ONLY when the document is clearly FROM US (our company name in the
      "From" header or our letterhead/logo). For outbound docs the operator already created and
      forwarded back to themselves.
+
+  1b. bank_statement — an account statement FROM A BANK to the account holder ("Estado de Cuenta",
+     "Statement of Account"): an account number, a statement period, opening/closing balances and a
+     table of dated movements (debits, credits, running balance). Never an invoice or a receipt.
+
+  1c. Documents FROM A CUSTOMER TO US (we are the seller; the customer is the one writing):
+     - remittance_advice — the customer tells us what they paid: "Remittance Advice", "Payment Advice",
+       "Aviso de pago", "Comprobante de transferencia" sent to us, a list of OUR invoice numbers with
+       amounts paid. Put our invoice numbers in referenced_invoice_numbers, the amount paid in total.
+     - customer_po — a purchase order the customer issues TO US: "Purchase Order", "Orden de compra",
+       with us as the supplier/vendor. Never a vendor invoice that merely quotes our PO number.
+     - credit_request — a credit application or credit request form from a customer: "Credit
+       Application", "Solicitud de crédito", trade references and requested credit limit.
+     Put the customer's name in customer_name.
 
   2. vendor_quote — title or first heading contains "Quote", "Estimate", "Proforma Invoice",
      "Pro Forma Invoice", or "Cotización" (DR). No real billing happens yet.
@@ -200,8 +236,8 @@ Classification rules (apply STRICTLY in order — return the FIRST that matches)
 If unsure between two options: prefer vendor_invoice over expense_receipt, and prefer unknown
 over guessing. Conservative misclassifications are cheaper to fix than aggressive ones.
 
-For Dominican Republic documents look for "NCF" (Comprobante Fiscal) and "RNC" (tax id) — extract
-verbatim into vendor_tax_id where appropriate.
+For Dominican Republic documents look for "NCF" / "e-NCF" (Comprobante Fiscal) and "RNC" (tax id) —
+extract the NCF verbatim into ncf and the vendor's RNC into vendor_tax_id.
 
 Payment status — drive the `payment_status_hint` field:
   - 'paid'    when ANY paid-evidence signal is present: a "Receipt" header, "PAID" stamp, "Amount

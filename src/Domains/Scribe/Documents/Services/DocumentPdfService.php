@@ -74,7 +74,7 @@ final class DocumentPdfService
 
     public function fileName(): string
     {
-        $kind = $this->isQuote() ? 'quote' : ($this->document->isCreditNote() ? 'credit-note' : 'invoice');
+        $kind = $this->isQuote() ? 'quote' : str_replace('_', '-', $this->document->document_type->value);
         $reference = $this->number() ?? ('draft-' . $this->document->getId());
 
         return $kind . '-' . (string) preg_replace('/[^A-Za-z0-9_-]+/', '-', $reference) . '.pdf';
@@ -117,7 +117,7 @@ final class DocumentPdfService
             return 'Quote';
         }
 
-        return $this->document->isCreditNote() ? 'Credit Note' : 'Invoice';
+        return $this->document->document_type->label();
     }
 
     private function number(): ?string

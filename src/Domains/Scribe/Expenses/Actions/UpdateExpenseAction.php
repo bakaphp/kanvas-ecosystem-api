@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Expenses\Actions;
 
+use Baka\Support\Money;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Expenses\DataTransferObject\Expense as ExpenseData;
@@ -14,6 +15,7 @@ use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Expenses\Models\ExpenseLine;
+use Kanvas\Scribe\Support\DocumentTotals;
 
 /**
  * Updates a DRAFT expense (header + lines + vendor + payment context).
@@ -93,9 +95,9 @@ class UpdateExpenseAction
                 $line->item_id = $lineData->item_id;
                 $line->description = $lineData->description;
                 $line->amount_native = $lineData->amount_native;
-                $line->amount_base = $lineData->amount_native * $fxRate;
+                $line->amount_base = Money::toBase($lineData->amount_native, $fxRate);
                 $line->tax_amount_native = $lineData->tax_amount_native;
-                $line->tax_amount_base = $lineData->tax_amount_native * $fxRate;
+                $line->tax_amount_base = Money::toBase($lineData->tax_amount_native, $fxRate);
                 $line->expense_account_id = $lineData->expense_account_id;
                 $line->class_id = $lineData->class_id;
                 $line->department_id = $lineData->department_id;
@@ -114,26 +116,15 @@ class UpdateExpenseAction
      */
     private function computeTotals(): array
     {
-        $fxRate = (float) $this->data->fx_rate_to_base;
-
-        $subtotal = 0.0;
-        $tax = 0.0;
-
-        foreach ($this->data->lines as $line) {
-            /** @var ExpenseLineData $line */
-            $subtotal += $line->amount_native;
-            $tax += $line->tax_amount_native;
-        }
-
-        $total = $subtotal + $tax;
-
-        $native = compact('subtotal', 'tax', 'total');
-        $base = [
-            'subtotal' => $subtotal * $fxRate,
-            'tax' => $tax * $fxRate,
-            'total' => $total * $fxRate,
-        ];
-
-        return [$native, $base];
+        return DocumentTotals::compute(
+            array_map(
+                static fn (ExpenseLineData $line): array => [
+                    'subtotal' => $line->amount_native,
+                    'tax' => $line->tax_amount_native,
+                ],
+                $this->data->lines->all(),
+            ),
+            $this->data->fx_rate_to_base,
+        );
     }
 }

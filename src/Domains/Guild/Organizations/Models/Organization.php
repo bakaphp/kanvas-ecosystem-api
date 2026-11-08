@@ -9,15 +9,18 @@ use Baka\Contracts\BillableInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Contracts\PayeeInterface;
 use Baka\Enums\StateEnums;
+use Baka\Support\Str;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Validations\EmailDomain;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Analytics\Reporting\Observers\ReportSourceObserver;
@@ -36,6 +39,7 @@ use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Guild\Organizations\Enums\TaxIdTypeEnum;
 use Kanvas\Guild\Organizations\Observers\OrganizationObserver;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
 use Kanvas\Scribe\Bills\Models\Bill;
@@ -56,6 +60,8 @@ use Override;
  * @property int $users_id
  * @property int $companies_id
  * @property string $name
+ * @property string|null $tax_id the one tax id for any country (RNC, NIT, RUC, RFC, EIN…)
+ * @property TaxIdTypeEnum|null $tax_id_type
  * @property ?string $email = null
  * @property ?string $phone = null
  * @property ?string $address = null
@@ -97,6 +103,94 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
         return false;
     }
 
+    protected function casts(): array
+    {
+        return [
+            'tax_id_type' => TaxIdTypeEnum::class,
+        ];
+    }
+
+    protected function taxId(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string|int|null $value): ?string => Str::normalizeTaxId($value),
+        );
+    }
+
+    /**
+     * Runs on save. A new tax id without a type gets one inferred from the organization's own country (else
+     * the company's) and the id's shape (null when that is ambiguous); a type given explicitly must fit the id, or the save is
+     * refused rather than storing a cédula labelled as an RNC.
+     */
+    public function resolveTaxIdType(): void
+    {
+        if (! $this->isDirty(['tax_id', 'tax_id_type'])) {
+            return;
+        }
+
+        if ($this->tax_id === null) {
+            $this->tax_id_type = null;
+
+            return;
+        }
+
+        if ($this->isDirty('tax_id_type') && $this->tax_id_type !== null) {
+            if (! $this->tax_id_type->accepts($this->tax_id)) {
+                throw ValidationException::withMessages([
+                    'tax_id_type' => sprintf(
+                        "'%s' is not a valid %s (%s).",
+                        $this->tax_id,
+                        $this->tax_id_type->label(),
+                        $this->tax_id_type->value
+                    ),
+                ]);
+            }
+
+            return;
+        }
+
+        $this->tax_id_type = TaxIdTypeEnum::infer($this->countryCode() ?? $this->company?->countryCode(), $this->tax_id);
+    }
+
+    public function countryCode(): ?string
+    {
+        if (! $this->exists) {
+            return null;
+        }
+
+        foreach ($this->addresses()->with('country')->get() as $address) {
+            $code = $address->countryCode();
+            if ($code !== null) {
+                return $code;
+            }
+        }
+
+        return null;
+    }
+
+    public function taxIdTypeCode(): ?string
+    {
+        return $this->tax_id_type?->value;
+    }
+
+    public function taxIdLabel(): ?string
+    {
+        return $this->tax_id === null ? null : ($this->tax_id_type ?? TaxIdTypeEnum::OTHER)->label();
+    }
+
+    /**
+     * @return array{tax_id: ?string, tax_id_type: ?string, tax_id_label: ?string, country: ?string}
+     */
+    public function taxIdSummary(): array
+    {
+        return [
+            'tax_id' => $this->tax_id,
+            'tax_id_type' => $this->tax_id_type?->value,
+            'tax_id_label' => $this->taxIdLabel(),
+            'country' => $this->tax_id_type?->country(),
+        ];
+    }
+
     #[Override]
     public function adminLinkSection(): AdminLinkSectionEnum
     {
@@ -120,6 +214,8 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
             'type' => 'Organization',
             'id' => $this->getId(),
             'name' => $this->name,
+            'tax_id' => $this->tax_id,
+            'tax_id_type' => $this->tax_id_type?->value,
             'modules' => $this->tags()->pluck('slug')->all(),
             'tier' => $this->get('customer_tier'),
             'locale' => $this->get('customer_locale'),
@@ -288,6 +384,27 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
             ->limit(10)
             ->get()
             ->collect();
+    }
+
+    /**
+     * Several rows can share a tax id (duplicates exist in real data), so the oldest wins: it is the one
+     * earlier documents were booked against. Explicit tenant columns, not `fromCompany()`: inbound webhooks
+     * run under an app key, where that scope widens to every company.
+     */
+    public static function findByTaxId(AppInterface $app, CompanyInterface $company, string|int|null $taxId): ?self
+    {
+        $taxId = Str::normalizeTaxId($taxId);
+        if ($taxId === null) {
+            return null;
+        }
+
+        return self::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->where('tax_id', $taxId)
+            ->where('is_deleted', false)
+            ->orderBy('id')
+            ->first();
     }
 
     /**

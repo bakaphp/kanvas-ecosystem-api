@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\FollowUp\Services;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
@@ -237,21 +238,43 @@ final class LeadFollowUpEligibilityService
         return $this->lastPersonMessageAt($lead, inboundOnly: false);
     }
 
-    // Across ALL of the person's channels (lead-scoped): a session-scoped query missed messages
-    // that landed on a different channel than the picked session.
+    /**
+     * The same "last word from this person" for an entity that is not a lead (an invoice being
+     * dunned): the person's channels inside the given tenant.
+     */
+    public function getLastInboundAtForPerson(People $people, int $appsId, int $companiesId): ?Carbon
+    {
+        return $this->lastMessageAtForPerson(
+            $people->getId(),
+            $appsId,
+            $companiesId,
+            inboundOnly: true
+        );
+    }
+
     private function lastPersonMessageAt(Lead $lead, bool $inboundOnly): ?Carbon
     {
         if (! $lead->people_id) {
             return null;
         }
 
-        $channelIds = Channel::query()
-            ->where('entity_namespace', People::class)
-            ->where('entity_id', $lead->people_id)
-            ->where('is_deleted', 0)
-            ->where('apps_id', $lead->apps_id)
-            ->where('companies_id', $lead->companies_id)
-            ->pluck('id');
+        return $this->lastMessageAtForPerson(
+            (int) $lead->people_id,
+            (int) $lead->apps_id,
+            (int) $lead->companies_id,
+            $inboundOnly
+        );
+    }
+
+    // Across ALL of the person's channels (tenant-scoped): a session-scoped query missed messages
+    // that landed on a different channel than the picked session.
+    private function lastMessageAtForPerson(
+        int $peopleId,
+        int $appsId,
+        int $companiesId,
+        bool $inboundOnly
+    ): ?Carbon {
+        $channelIds = $this->personChannelIds($peopleId, $appsId, $companiesId);
 
         if ($channelIds->isEmpty()) {
             return null;
@@ -270,5 +293,19 @@ final class LeadFollowUpEligibilityService
             ->value('created_at');
 
         return $lastMessageAt !== null ? Carbon::parse($lastMessageAt) : null;
+    }
+
+    /**
+     * @return Collection<int, int>
+     */
+    public function personChannelIds(int $peopleId, int $appsId, int $companiesId): Collection
+    {
+        return Channel::query()
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', $peopleId)
+            ->where('is_deleted', 0)
+            ->where('apps_id', $appsId)
+            ->where('companies_id', $companiesId)
+            ->pluck('id');
     }
 }

@@ -36,6 +36,7 @@ use Kanvas\Scribe\Payments\Models\Payment;
  *   1. Already settled or posted            → nothing to do (safe to re-run; webhook and poll both call this)
  *   2. Bank fee / interest                  → book straight to P&L. Nothing to match; we know what it is.
  *   3. An internal transfer                 → Suspense. Real cash, but it settles no document.
+ *   3b. A payment someone already recorded  → CONFIRM it: adopt its JE, mark it reconciled, post nothing.
  *   4. An approved Expense already booked it → link the two and post NOTHING. The sub-ledger got there first.
  *   5. Exactly one confident candidate      → SETTLE it. Payment + allocation + the sub-ledger's own cash JE.
  *                                             Clears the document, or reduces it if the amount is partial.
@@ -91,6 +92,15 @@ class MatchBankTransactionAction
             $this->post();
 
             return BankTransactionMatchOutcomeEnum::REVIEW;
+        }
+
+        // A bill marked paid in the UI, by telling the agent or by a provider webhook already credited
+        // cash. This row is that payment arriving at the bank, not a second one.
+        $recordedPayment = $this->matcher->findRecordedPayment($this->bankTransaction);
+        if ($recordedPayment !== null) {
+            $this->confirmRecordedPayment($recordedPayment);
+
+            return BankTransactionMatchOutcomeEnum::CONFIRMED_PAYMENT;
         }
 
         // Before ANY posting: was this movement already booked by an approved Expense? PDF ingest turns a
@@ -299,6 +309,42 @@ class MatchBankTransactionAction
             journalEntryId: $this->expenseJournalEntryId($expense),
             user: $this->user,
         )->execute();
+    }
+
+    private function confirmRecordedPayment(Payment $payment): void
+    {
+        $isBill = $payment->direction === PaymentDirectionEnum::OUTBOUND;
+
+        DB::connection('accounting')->transaction(function () use ($payment, $isBill): void {
+            $this->bankTransaction->match_status = BankTransactionMatchStatusEnum::AUTO_MATCHED;
+            $this->bankTransaction->matched_to_type = $isBill
+                ? BankTransactionMatchedToTypeEnum::BILL_PAYMENT
+                : BankTransactionMatchedToTypeEnum::INVOICE_PAYMENT;
+            $this->bankTransaction->matched_to_id = $payment->getId();
+            $this->bankTransaction->matched_at = Carbon::now();
+            $this->bankTransaction->matched_by = BankTransactionMatchedByEnum::SYSTEM;
+            $this->bankTransaction->journal_entry_id = $this->paymentJournalEntryId(
+                $isBill ? 'bill_payment' : 'payment',
+                $payment->getId(),
+            );
+            $this->bankTransaction->save();
+
+            $payment->reconciled_at = Carbon::now();
+            $payment->bank_account_id ??= $this->bankTransaction->bank_account_id;
+            $payment->metadata = [
+                ...($payment->metadata ?? []),
+                'confirmed_by_bank_transaction_id' => $this->bankTransaction->id,
+            ];
+            $payment->save();
+
+            $this->bankTransaction->emitLedgerEvent('accounting.payment.confirmed_by_bank', payload: [
+                'payment_id' => $payment->getId(),
+                'direction' => $payment->direction->value,
+                'reference' => $payment->reference,
+                'amount_native' => $this->bankTransaction->amount_native,
+                'days_to_clear' => (int) $payment->payment_date->diffInDays($this->bankTransaction->transaction_date, false),
+            ]);
+        });
     }
 
     private function expenseJournalEntryId(Expense $expense): ?int

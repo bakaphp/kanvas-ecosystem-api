@@ -153,12 +153,22 @@ final class OnboardingStateService
     {
         $provisioning = (array) $row->dataGet('provisioning', []);
         $items = [];
+        $setups = [];
 
         foreach ($sections as $section) {
             if (! in_array($section->slug, $selected, true)) {
                 continue;
             }
-            foreach ($section->config()->items() as $item) {
+
+            $config = $section->config();
+            $sectionItems = $config->items();
+            $setup = $config->setupItem();
+            if ($setup !== null && ! isset($setups[$setup['slug']])) {
+                $setups[$setup['slug']] = true;
+                $sectionItems[] = $setup;
+            }
+
+            foreach ($sectionItems as $item) {
                 $slug = (string) $item['slug'];
                 $state = (array) ($provisioning[$slug] ?? []);
                 $status = ProvisionStatusEnum::tryFrom((string) ($state['status'] ?? '')) ?? ProvisionStatusEnum::WAITING;

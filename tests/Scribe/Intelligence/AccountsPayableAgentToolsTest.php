@@ -45,6 +45,7 @@ use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Exceptions\DuplicateBillNumberException;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Bills\Services\BillAddresseeService;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
@@ -277,6 +278,49 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame($file->getId(), $bill->fresh()->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value)->filesystem->getId());
     }
 
+    public function test_create_ap_bill_refuses_an_invoice_addressed_to_another_company_until_the_person_answers(): void
+    {
+        $this->seedTestOrganization('Scale Inference Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+        $tool = new CreateApBillTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+        $bill = fn (array $extra): array => $tool->__invoke(...[
+            'vendor_name' => 'Scale Inference Corp',
+            'amount' => 800.0,
+            'gl_account_number' => $accountCode,
+            'memo' => 'Services for Art Waves',
+            'invoice_number' => 'SI-' . uniqid(),
+            'billed_to' => 'Kyanvasu, Inc.',
+            ...$extra,
+        ]);
+
+        $refused = $bill([]);
+
+        $this->assertFalse($refused['created']);
+        $this->assertSame('billed_to_other_company', $refused['reason']);
+        $this->assertStringContainsString('Nothing was created', $refused['message']);
+
+        $booked = $bill(['book_anyway' => true]);
+        $this->assertTrue($booked['created']);
+
+        // The agent can set the flag without asking, so it changes nothing about the company: the mismatch rides on
+        // the bill and its approval request, for the person who approves it.
+        $claimed = $bill(['billed_to_is_this_company' => true]);
+        $this->assertTrue($claimed['created']);
+        $this->assertNull($this->company->get(BillAddresseeService::BILLING_NAMES_SETTING), 'no name learned from the agent');
+        $claimedBill = Bill::getById($claimed['bill_id']);
+        $this->assertSame('Kyanvasu, Inc.', $claimedBill->metadata[BillAddresseeService::METADATA_KEY]['billed_to']);
+        $this->assertSame(BillAddresseeService::CLAIMED_SAME_COMPANY, $claimedBill->metadata[BillAddresseeService::METADATA_KEY]['claimed']);
+        $request = $claimedBill->pendingApproval();
+        if ($request !== null) {
+            $this->assertSame('Kyanvasu, Inc.', $request->payload['addressee_mismatch']['billed_to'] ?? null, 'the approver sees it');
+        }
+
+        $addressedHere = $bill(['billed_to' => $this->company->name]);
+        $this->assertTrue($addressedHere['created'], 'an invoice addressed to this company books without a question');
+    }
+
     public function test_create_ap_bill_requires_an_invoice_number(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
@@ -499,7 +543,13 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             );
 
         $this->assertTrue($result['created']);
-        $this->assertSame('NOT IN APPROVER LIST', $result['approved_by_flag']);
+
+        // The flag follows the real approval request: a vendor without its own approver can still be routed by
+        // the policy (to the default approver), and saying "nobody was notified" then is false.
+        $request = Bill::getById($result['bill_id'])->pendingApproval();
+        $routed = $request !== null && ! $request->isUnassigned();
+        $this->assertSame($routed || $request === null ? '' : 'NOT IN APPROVER LIST', $result['approved_by_flag']);
+        $this->assertSame($routed, str_contains($result['next'], 'the approver was notified'));
     }
 
     public function test_create_ap_bill_treats_an_explicit_null_approve_immediately_flag_as_the_default(): void
@@ -521,7 +571,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             );
 
         $this->assertTrue($result['created']);
-        $this->assertNotSame('pending_approval', $result['document_status']);
+        $this->assertSame('pending_approval', $result['document_status'], 'The default is submit for approval, never approve.');
     }
 
     public function test_create_ap_bill_passes_the_due_date_through(): void
@@ -1184,6 +1234,35 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $this->assertTrue($result['approved'], 'The configured approver must be authorized even when the agent turn is wired with its own identity.');
         $this->assertSame(static::$cachedUser->email, $result['approved_by']);
+    }
+
+    public function test_money_tools_load_only_when_a_real_person_is_asking(): void
+    {
+        // An inbound-email or scheduled turn runs as the agent's own user with no conversation human, so
+        // requestingHuman() falls back to that user: a vendor's email must not reach these tools.
+        $agentOwnUser = Users::factory()->create(['email' => 'agent-own-user-' . uniqid() . '@internal.test']);
+        $agentType = AgentType::factory()->withAppId($this->kanvasApp->getId())->create(['provider' => 'neuron']);
+        $agentModel = Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['agent_type_id' => $agentType->getId(), 'user_id' => $agentOwnUser->getId()]);
+
+        $gated = ['record_bill_payment', 'ingest_bank_statement', 'respond_to_vendor_ecf', 'settle_from_suspense'];
+        $toolNames = static fn (AccountsPayableAgent $handler): array => array_map(
+            static fn ($tool): string => $tool->getName(),
+            $handler->getTools()
+        );
+
+        $emailTurn = new AccountsPayableAgent();
+        $emailTurn->setConfiguration($agentModel, user: $agentOwnUser);
+
+        $this->assertSame([], array_values(array_intersect($gated, $toolNames($emailTurn))));
+
+        $personTurn = new AccountsPayableAgent();
+        $personTurn->setConfiguration($agentModel, user: $agentOwnUser);
+        $personTurn->setConversationHuman(static::$cachedUser);
+
+        $this->assertSame($gated, array_values(array_intersect($gated, $toolNames($personTurn))));
     }
 
     public function test_find_vendor_returns_a_dead_end_message_when_nothing_matches(): void

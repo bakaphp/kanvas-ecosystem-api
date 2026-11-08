@@ -52,7 +52,7 @@ class AddCommentToDealAction
         $linkPreview = '';
 
         try {
-            $linkPreview = Url::getShortUrl($messageData['link'] ?? '', $this->lead->app);
+            $linkPreview = Url::getShortUrl($messageData['link'] ?? '', $this->lead->app, company: $this->lead->company);
         } catch (Throwable $e) {
             $linkPreview = $messageData['link'] ?? '';
         }
