@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Tests\Connectors\WebPos;
 
 use Kanvas\Connectors\WebPos\Services\FiscalDocMapperService;
+use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfReference;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfExport;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfForeignPayment;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfLine;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfParty;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfReference;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfTotals;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfItbisRateEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;

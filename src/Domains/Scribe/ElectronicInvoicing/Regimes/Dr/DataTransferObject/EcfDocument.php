@@ -7,7 +7,6 @@ namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject;
 use InvalidArgumentException;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalPayloadInterface;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfReference;
-
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
 use Spatie\LaravelData\Data;
 

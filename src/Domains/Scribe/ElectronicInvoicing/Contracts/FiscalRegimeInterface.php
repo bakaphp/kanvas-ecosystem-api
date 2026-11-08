@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\ElectronicInvoicing\Contracts;
 
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Organizations\Enums\TaxIdTypeEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\FxRates\DataTransferObject\OfficialRateSource;
-use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Users\Models\Users;

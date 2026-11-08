@@ -28,9 +28,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendInvoiceAttachmentTo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Scribe\Approvals\Enums\ApprovalAttachmentFieldEnum;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
+use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum as InvoiceConfigurationEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
-use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum as InvoiceConfigurationEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;

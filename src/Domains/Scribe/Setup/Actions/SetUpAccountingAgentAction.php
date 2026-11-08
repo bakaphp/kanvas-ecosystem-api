@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Setup\Actions;
 
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Database\Seeders\ScribeSowTemplateSeeder;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
@@ -20,6 +19,7 @@ use Kanvas\Scribe\Approvals\Actions\SeedEcfApprovalPoliciesAction;
 use Kanvas\Scribe\Approvals\Actions\SeedScribeApprovalPoliciesAction;
 use Kanvas\Scribe\Delivery\DataTransferObject\DunningSchedule;
 use Kanvas\Scribe\Delivery\Support\DocumentActionsSetup;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\Ledger\Services\GlOwnershipService;
 use Kanvas\Scribe\Quotes\Sow\Services\SowMessageTypeService;
 use Kanvas\Scribe\Setup\Enums\AccountingSetupConfigurationEnum;
@@ -47,7 +47,6 @@ use Throwable;
  */
 class SetUpAccountingAgentAction
 {
-
     /** Agent custom field: the setup already opened this agent's mailbox once; never again. */
     public const string MAILBOX_ACCESS_DEFAULTED = 'scribe_mailbox_access_defaulted';
 

@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Stubs\Scribe;
 
-use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalPayloadInterface;
-use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalDocumentTypeInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\ChecksIssuedNumbersInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\EcfProviderInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalDocumentTypeInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalPayloadInterface;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfSubmission;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfEnvironmentEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfStatusEnum;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
 use Throwable;
 
 /**

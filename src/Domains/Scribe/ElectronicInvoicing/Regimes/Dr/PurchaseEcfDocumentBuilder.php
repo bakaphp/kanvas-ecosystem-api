@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 
-use Kanvas\Scribe\ElectronicInvoicing\Support\EcfExchangeRate;
 use Baka\Support\Money;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
@@ -15,8 +14,8 @@ use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfForeignPayment;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfLine;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfParty;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
+use Kanvas\Scribe\ElectronicInvoicing\Support\EcfExchangeRate;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Expenses\Models\ExpenseLine;
 

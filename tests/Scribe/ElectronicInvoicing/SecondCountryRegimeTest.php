@@ -6,6 +6,7 @@ namespace Tests\Scribe\ElectronicInvoicing;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Bills\Actions\CreateBillFromReceivedEcfAction;
+use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\DocumentSequences\Models\DocumentSequence;
 use Kanvas\Scribe\ElectronicInvoicing\Actions\ConfigureEcfRangeAction;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\ConfigurationEnum;
@@ -71,7 +72,13 @@ class SecondCountryRegimeTest extends EcfTestCase
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Use one of 31, 33, 34');
 
-        new ConfigureEcfRangeAction($this->kanvasApp, $this->company, '99', '1', '10')->execute();
+        new ConfigureEcfRangeAction(
+            app: $this->kanvasApp,
+            company: $this->company,
+            type: '99',
+            start: '1',
+            end: '10',
+        )->execute();
     }
 
     public function test_an_invoice_is_issued_and_sent_through_the_regime(): void
@@ -116,8 +123,14 @@ class SecondCountryRegimeTest extends EcfTestCase
     {
         $received = new FakeReceivedDocument('ZZ31-000777', new FakeReceivedLine('Paper stock', 100.0, 0.07));
 
-        $bill = new CreateBillFromReceivedEcfAction($this->kanvasApp, $this->company, static::$cachedUser, $received)->execute();
-        $again = new CreateBillFromReceivedEcfAction($this->kanvasApp, $this->company, static::$cachedUser, $received)->execute();
+        $receive = fn (): Bill => new CreateBillFromReceivedEcfAction(
+            app: $this->kanvasApp,
+            company: $this->company,
+            user: static::$cachedUser,
+            received: $received,
+        )->execute();
+        $bill = $receive();
+        $again = $receive();
 
         $this->assertSame($bill->getId(), $again->getId(), 'The vendor id plus number is the idempotency key.');
         $this->assertSame(CreateBillFromReceivedEcfAction::SOURCE, $bill->source);

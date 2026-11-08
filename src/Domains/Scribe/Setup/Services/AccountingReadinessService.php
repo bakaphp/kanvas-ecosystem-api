@@ -22,7 +22,6 @@ use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Services\GlOwnershipService;
 use Kanvas\Scribe\Ledger\Services\PeriodCloseService;
-use Kanvas\Scribe\Setup\Actions\SetUpAccountingAgentAction;
 use Kanvas\Scribe\Setup\DataTransferObject\ReadinessItem;
 use Kanvas\Scribe\Setup\Enums\ReadinessRequirementEnum;
 use Kanvas\Scribe\Setup\Enums\ReadinessStatusEnum;
@@ -51,7 +50,7 @@ class AccountingReadinessService
             $this->erp($company),
         ];
 
-        $regime = $this->regime($company);
+        $regime = FiscalRegimes::forCompany($company);
         if ($regime !== null) {
             $items[] = $this->ecfProvider($company, $regime);
             if ($this->loadsAuthorizedRanges($company)) {
@@ -114,19 +113,11 @@ class AccountingReadinessService
     }
 
     /**
-     * The company's electronic-invoicing regime: its provider's country, else its own when the platform runs one.
-     */
-    public function regime(Companies $company): ?FiscalRegimeInterface
-    {
-        return FiscalRegimes::forCompany($company);
-    }
-
-    /**
      * Whether the company's regime numbers from ranges its authority authorizes, which are loaded by hand.
      */
     public function loadsAuthorizedRanges(Companies $company): bool
     {
-        return $this->regime($company)?->numbering() instanceof AuthorizedRangeNumbering;
+        return FiscalRegimes::forCompany($company)?->numbering() instanceof AuthorizedRangeNumbering;
     }
 
     private function ledger(Apps $app, Companies $company): ReadinessItem

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Connectors\WebPos;
 
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfItbisRateEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfProviderEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfItbisRateEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\ReceivedEcfXmlParserService;
 use Tests\TestCase;

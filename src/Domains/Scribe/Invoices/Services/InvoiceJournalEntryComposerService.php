@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Invoices\Services;
 
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Baka\Support\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntry as JournalEntryData;

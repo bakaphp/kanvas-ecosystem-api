@@ -15,9 +15,9 @@ use Kanvas\Scribe\ElectronicInvoicing\Exceptions\ProviderRejectedException;
 use Kanvas\Scribe\ElectronicInvoicing\Jobs\PollEcfResultJob;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocumentSubmission;
-use Kanvas\Scribe\ElectronicInvoicing\Services\FiscalPayloadService;
 use Kanvas\Scribe\ElectronicInvoicing\Services\EcfProviderResolver;
 use Kanvas\Scribe\ElectronicInvoicing\Services\FiscalArtifactService;
+use Kanvas\Scribe\ElectronicInvoicing\Services\FiscalPayloadService;
 use Throwable;
 
 /**

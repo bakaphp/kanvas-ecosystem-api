@@ -10,7 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalRangeAnnulment;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalRangeAnnulmentLine;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 
 /**
  * Records a DR ANECF request: one batch, one line per interval. DGII answers per line, so the batch only
@@ -37,7 +37,7 @@ class RecordFiscalRangeAnnulmentAction
                 'apps_id' => $this->app->getId(),
                 'companies_id' => $this->company->getId(),
                 'environment' => $this->environment,
-                'country' => new EcfIssuanceService()->regimeFor($this->company)->country(),
+                'country' => FiscalRegimes::requireForCompany($this->company)->country(),
                 'provider' => $this->provider,
                 'status' => FiscalRangeAnnulmentLine::PENDING,
                 'submitted_at' => Carbon::now(),

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\ElectronicInvoicing\Support;
 
-use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Scribe\Bills\Actions\CreateBillFromReceivedEcfAction;
 use Kanvas\Scribe\ElectronicInvoicing\Actions\ApplyFiscalAnswerAction;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Exceptions\ImmutableFiscalRecordException;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocumentEvent;

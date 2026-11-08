@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Delivery\Services;
 
-use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Scribe\Documents\Services\DocumentPdfService;
 use Kanvas\Scribe\ElectronicInvoicing\Actions\ApplyFiscalAnswerAction;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\Quotes\Sow\Services\QuoteSowPdfService;

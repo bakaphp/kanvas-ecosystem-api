@@ -67,3 +67,4 @@ src/Baka/Search/KanvasDatabaseEngine.php
 .claude/settings.json
 /storage/certification_renombre_3/
 /storage/local-campaign-test/
+/output

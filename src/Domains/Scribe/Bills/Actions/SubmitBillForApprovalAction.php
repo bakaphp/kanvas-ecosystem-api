@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Bills\Actions;
 
-use Kanvas\Scribe\Bills\Services\BillAddresseeService;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Approvals\Actions\RequestApprovalAction;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Bills\Services\BillAddresseeService;
 use Kanvas\Scribe\Bills\Services\BillStateMachineService;
 
 /**

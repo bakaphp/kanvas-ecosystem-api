@@ -9,6 +9,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalDocumentTypeInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\ElectronicInvoicing\Support\ReceivedEcfCompliance;
@@ -91,7 +92,7 @@ class IssuePurchaseEcfAction
 
         $compliance = EcfCompliance::read($document);
 
-        $regime = $ecf->regimeFor($document->company);
+        $regime = FiscalRegimes::requireForCompany($document->company);
         $type ??= $regime->documentType((string) ($compliance['type'] ?? ''));
         $allowed = $regime->purchaseDocumentTypes($document);
 

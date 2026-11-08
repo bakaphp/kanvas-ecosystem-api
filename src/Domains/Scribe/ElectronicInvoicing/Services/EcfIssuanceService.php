@@ -15,7 +15,6 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Actions\CreateFiscalDocumentAction;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalDocumentTypeInterface;
-use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfEnvironmentEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDirectionEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDocumentStatusEnum;
@@ -55,18 +54,9 @@ class EcfIssuanceService
         return $company instanceof Companies && $this->providers->issuesEcf($company);
     }
 
-    public function regimeFor(?CompanyInterface $company): FiscalRegimeInterface
-    {
-        $regime = $company instanceof Companies ? FiscalRegimes::forCompany($company) : null;
-
-        return $regime ?? throw new ValidationException(
-            'Company ' . $company?->getId() . ' has no electronic-invoicing regime: its provider and its country name none this platform runs.'
-        );
-    }
-
     public function ecfTypeFor(Invoice $invoice): ?FiscalDocumentTypeInterface
     {
-        return $this->issuesEcf($invoice) ? $this->regimeFor($invoice->company)->salesDocumentType($invoice) : null;
+        return $this->issuesEcf($invoice) ? FiscalRegimes::requireForCompany($invoice->company)->salesDocumentType($invoice) : null;
     }
 
     /**
@@ -95,7 +85,7 @@ class EcfIssuanceService
             return;
         }
 
-        $regime = $this->regimeFor($document->company);
+        $regime = FiscalRegimes::requireForCompany($document->company);
         $type ??= $document instanceof Invoice ? $regime->salesDocumentType($document) : null;
 
         if ($type !== null) {
@@ -136,7 +126,7 @@ class EcfIssuanceService
 
         $fiscal = $this->allocate(
             $invoice,
-            $this->regimeFor($invoice->company)->salesDocumentType($invoice),
+            FiscalRegimes::requireForCompany($invoice->company)->salesDocumentType($invoice),
             referencedDocument: $referenced,
         );
 
@@ -158,7 +148,7 @@ class EcfIssuanceService
             return;
         }
 
-        $regime = $this->regimeFor($parent->company);
+        $regime = FiscalRegimes::requireForCompany($parent->company);
         $regime->numbering()->assertAvailable($parent, $regime->noteDocumentType($isDebit));
     }
 
@@ -236,14 +226,24 @@ class EcfIssuanceService
                 return $current;
             }
 
-            $regime = $this->regimeFor($document->company);
+            $regime = FiscalRegimes::requireForCompany($document->company);
             $numbering = $regime->numbering();
             $slot = $numbering->reserve($document, $type);
 
-            $regime->assertValid($regime->buildPayload($document, $type, '', $slot->expiresAt));
+            $regime->assertValid($regime->buildPayload(
+                document: $document,
+                type: $type,
+                number: '',
+                expiresAt: $slot->expiresAt,
+            ));
 
             $slot = $numbering->take($document, $slot);
-            $payload = $regime->buildPayload($document, $type, $slot->number, $slot->expiresAt);
+            $payload = $regime->buildPayload(
+                document: $document,
+                type: $type,
+                number: $slot->number,
+                expiresAt: $slot->expiresAt,
+            );
             $reference = $payload->reference();
 
             return new CreateFiscalDocumentAction(

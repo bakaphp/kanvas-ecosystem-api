@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\DocumentSequences;
 
-use Kanvas\Companies\Models\Companies;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\DocumentSequences\Exceptions\DocumentSequenceUnavailableException;
 use Kanvas\Scribe\DocumentSequences\Models\DocumentSequence;

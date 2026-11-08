@@ -34,7 +34,7 @@ class EcfRangeGraphQLTest extends ScribeTestCase
             'first_number' => '1',
             'last_number' => '100',
         ]])->assertGraphQLErrorMessage(
-            'This company has no electronic-invoicing regime yet: connect its provider (or set its country) before loading a range.'
+            "This company has no electronic-invoicing regime yet: connect its e-invoicing provider, or set the company's country."
         );
     }
 

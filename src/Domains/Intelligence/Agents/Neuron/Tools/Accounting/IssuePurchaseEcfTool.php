@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesExpenseForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\ElectronicInvoicing\Actions\SubmitPurchaseEcfForApprovalAction;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalDocumentTypeInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use NeuronAI\Tools\PropertyType;
@@ -86,7 +87,7 @@ class IssuePurchaseEcfTool extends Tool
             return ['requested' => false, 'reason' => 'no_ecf', 'message' => 'This company issues no electronic invoices.'];
         }
 
-        $regime = $ecf->regimeFor($this->company);
+        $regime = FiscalRegimes::requireForCompany($this->company);
         $type = $regime->documentType($ecfType);
 
         if ($type === null || ! $type->isPurchase()) {

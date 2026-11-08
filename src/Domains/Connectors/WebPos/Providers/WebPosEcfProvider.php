@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WebPos\Providers;
 
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
-use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalPayloadInterface;
-use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalDocumentTypeInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\WebPos\Actions\SendCommercialResponseAction;
@@ -23,13 +20,15 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\ChecksIssuedNumbersInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\EcfProviderInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalDocumentTypeInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalPayloadInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\RespondsToReceivedEcfInterface;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfSubmission;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfEnvironmentEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Exceptions\FiscalNumberHeldElsewhereException;
 use Kanvas\Scribe\ElectronicInvoicing\Exceptions\ProviderRejectedException;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
 
 /**
  * systemRef is the attempt's uuid: a repeated submit of one attempt comes back `wasDuplicated` with the status

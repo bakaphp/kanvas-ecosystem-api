@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Bills\Services;
 
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Baka\Support\Money;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillPaymentAllocation;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntry as JournalEntryData;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLine as JournalEntryLineData;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;

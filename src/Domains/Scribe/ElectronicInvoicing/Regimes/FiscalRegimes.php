@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\ElectronicInvoicing\Regimes;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\AllowedClass;
 use Baka\Support\Str;
 use Kanvas\Companies\Models\Companies;
@@ -64,5 +65,17 @@ class FiscalRegimes
     public static function forCompany(Companies $company): ?FiscalRegimeInterface
     {
         return self::find(new EcfProviderResolver()->providerCountry($company) ?? $company->countryCode());
+    }
+
+    /**
+     * For work that cannot proceed without one (issuing, loading a range, rendering the legal PDF).
+     */
+    public static function requireForCompany(?CompanyInterface $company): FiscalRegimeInterface
+    {
+        $regime = $company instanceof Companies ? self::forCompany($company) : null;
+
+        return $regime ?? throw new ValidationException(
+            'This company has no electronic-invoicing regime yet: connect its e-invoicing provider, or set the company\'s country.'
+        );
     }
 }

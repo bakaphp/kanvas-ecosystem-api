@@ -7,10 +7,10 @@ namespace Kanvas\Scribe\ElectronicInvoicing\Support;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Bills\Models\Bill;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfStatusEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDirectionEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 
@@ -22,7 +22,6 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
  */
 final class EcfCompliance
 {
-
     /**
      * What the pre-fiscal-table block kept after allocation. Never read from the JSON any more, so a block the
      * backfill has not cleaned yet cannot shadow the fiscal row.

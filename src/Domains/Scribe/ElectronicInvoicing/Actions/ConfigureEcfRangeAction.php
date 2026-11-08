@@ -147,11 +147,7 @@ class ConfigureEcfRangeAction
             return FiscalRegimes::for($this->country);
         }
 
-        $regime = $this->company instanceof Companies ? FiscalRegimes::forCompany($this->company) : null;
-
-        return $regime ?? throw new ValidationException(
-            'This company has no electronic-invoicing regime yet: connect its provider (or set its country) before loading a range.'
-        );
+        return FiscalRegimes::requireForCompany($this->company);
     }
 
     private function documentType(FiscalRegimeInterface $regime): FiscalDocumentTypeInterface

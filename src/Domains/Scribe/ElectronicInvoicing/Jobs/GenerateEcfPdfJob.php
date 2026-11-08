@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\ElectronicInvoicing\Jobs;
 
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Users\Models\Users;
 
@@ -40,6 +40,6 @@ final class GenerateEcfPdfJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
-        new EcfIssuanceService()->regimeFor($this->invoice->company)->renderInvoicePdf($this->invoice->refresh(), $this->user);
+        FiscalRegimes::requireForCompany($this->invoice->company)->renderInvoicePdf($this->invoice->refresh(), $this->user);
     }
 }

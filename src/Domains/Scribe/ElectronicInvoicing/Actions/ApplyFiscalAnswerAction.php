@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\ElectronicInvoicing\Actions;
 
-use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Baka\Support\DateHelper;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +11,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfSubmission;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfPdfSourceEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDocumentStatusEnum;

@@ -7,8 +7,7 @@ namespace Kanvas\Scribe\ElectronicInvoicing\Support;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Bills\Models\Bill;
-use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\FxRates\Services\FxRateService;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -58,7 +57,7 @@ final class EcfExchangeRate
 
         $currency = strtoupper((string) $document->currency);
         $date = Carbon::parse($document->issued_date ?? $document->bill_date ?? $document->expense_date ?? Carbon::today());
-        $regime = self::regime($document);
+        $regime = FiscalRegimes::requireForCompany($document->company);
         $rate = new FxRateService()->rateOn($document->app, $currency, $regime->currency(), $date);
 
         if ($rate === null) {
@@ -78,11 +77,6 @@ final class EcfExchangeRate
 
     private static function isLocalCurrency(Invoice|Bill|Expense $document): bool
     {
-        return strtoupper((string) $document->currency) === self::regime($document)->currency();
-    }
-
-    private static function regime(Invoice|Bill|Expense $document): FiscalRegimeInterface
-    {
-        return new EcfIssuanceService()->regimeFor($document->company);
+        return strtoupper((string) $document->currency) === FiscalRegimes::requireForCompany($document->company)->currency();
     }
 }

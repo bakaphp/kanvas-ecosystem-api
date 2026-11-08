@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 
-use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Baka\Helpers\GenerateQrCode;
 use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Money;
@@ -16,8 +15,8 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Scribe\Documents\Services\DocumentPdfService;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\ConfigurationEnum;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Templates\Actions\RenderTemplateAction;
