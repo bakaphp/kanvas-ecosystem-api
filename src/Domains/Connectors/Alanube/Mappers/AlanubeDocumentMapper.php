@@ -6,9 +6,9 @@ namespace Kanvas\Connectors\Alanube\Mappers;
 
 use Baka\Support\Money;
 use Illuminate\Support\Carbon;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfDocument;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfLine;
-use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfItbisRateEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfLine;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfItbisRateEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
 
 /**

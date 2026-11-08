@@ -10,7 +10,7 @@ use Kanvas\Guild\Organizations\Models\Address;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfTypeResolver;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeResolver;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\SubmitInvoiceForApprovalAction;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;

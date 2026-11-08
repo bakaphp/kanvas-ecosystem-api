@@ -12,7 +12,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesBankingRecordsForTool
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesExpenseForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\ElectronicInvoicing\Actions\SubmitPurchaseEcfForApprovalAction;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalDocumentTypeInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use NeuronAI\Tools\PropertyType;
@@ -33,9 +33,10 @@ class IssuePurchaseEcfTool extends Tool
 
     protected string $name = 'issue_purchase_ecf';
 
-    protected ?string $description = 'Requests the e-CF the company must issue to DGII for a purchase or payment it '
-        . 'already booked: E41 on a bill from a supplier who gives no e-CF (an individual with a cédula), E43 on a '
-        . 'minor expense, E47 on a bill or expense paid to a foreign payee. It goes to a person for approval and is '
+    protected ?string $description = 'Requests the electronic document the company must issue to its tax authority for a '
+        . 'purchase or payment it already booked, where the country has one. Dominican Republic: E41 on a bill from a '
+        . 'supplier who gives no e-CF (an individual with a cédula), E43 on a minor expense, E47 on a bill or expense '
+        . 'paid to a foreign payee. It goes to a person for approval and is '
         . 'issued when they sign; you never issue it yourself. Pass exactly one of bill_id or expense_id. Never use it '
         . 'on a bill that came in as the vendor\'s own e-CF.';
 
@@ -46,7 +47,7 @@ class IssuePurchaseEcfTool extends Tool
             new ToolProperty(
                 name: 'ecf_type',
                 type: PropertyType::STRING,
-                description: 'One of "41" (purchase from an informal supplier, bills), "43" (minor expense, expenses) or "47" (payment abroad).',
+                description: 'The authority\'s purchase document code. Dominican Republic: "41" (purchase from an informal supplier, bills), "43" (minor expense, expenses) or "47" (payment abroad).',
                 required: true,
             ),
             new ToolProperty(
@@ -80,10 +81,21 @@ class IssuePurchaseEcfTool extends Tool
      */
     private function request(string $ecfType, ?int $billId, ?int $expenseId): array
     {
-        $type = EcfTypeEnum::parse($ecfType);
+        $ecf = new EcfIssuanceService();
+        if (! $ecf->issuesEcfFor($this->company)) {
+            return ['requested' => false, 'reason' => 'no_ecf', 'message' => 'This company issues no electronic invoices.'];
+        }
+
+        $regime = $ecf->regimeFor($this->company);
+        $type = $regime->documentType($ecfType);
 
         if ($type === null || ! $type->isPurchase()) {
-            return ['requested' => false, 'reason' => 'invalid_type', 'message' => 'ecf_type must be 41, 43 or 47.'];
+            $codes = implode(', ', array_map(
+                fn (FiscalDocumentTypeInterface $purchaseType): string => $purchaseType->code(),
+                array_filter($regime->documentTypes(), fn (FiscalDocumentTypeInterface $candidate): bool => $candidate->isPurchase())
+            ));
+
+            return ['requested' => false, 'reason' => 'invalid_type', 'message' => "ecf_type must be one of: {$codes}."];
         }
 
         if (($billId === null) === ($expenseId === null)) {
@@ -105,19 +117,19 @@ class IssuePurchaseEcfTool extends Tool
                 user: $this->user,
             )->execute();
         } catch (Throwable $e) {
-            return ['requested' => false, 'reason' => 'request_failed', 'message' => "The {$type->prefix()} was not requested: {$e->getMessage()}"];
+            return ['requested' => false, 'reason' => 'request_failed', 'message' => "The {$type->series()} was not requested: {$e->getMessage()}"];
         }
 
         $pending = $document->pendingApproval(EcfIssuanceService::PURCHASE_APPROVAL_TYPE) !== null;
 
         return [
             'requested' => true,
-            'ecf_type' => $type->value,
+            'ecf_type' => $type->code(),
             'pending_approval' => $pending,
             'encf' => EcfCompliance::number($document),
             'next' => $pending
-                ? "The {$type->prefix()} waits for a person's approval and is issued when they sign. Say so; do not claim it was issued."
-                : "No approval step applied, so the {$type->prefix()} was issued and sent to DGII.",
+                ? "The {$type->series()} waits for a person's approval and is issued when they sign. Say so; do not claim it was issued."
+                : "No approval step applied, so the {$type->series()} was issued and sent to the tax authority.",
         ];
     }
 }

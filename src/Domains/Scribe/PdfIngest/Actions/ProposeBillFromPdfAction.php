@@ -25,13 +25,13 @@ use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Services\ExpenseAccountCodingService;
 use Kanvas\Scribe\Bills\Services\VendorByTaxIdResolverService;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfTypeResolver;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use Kanvas\Scribe\PdfIngest\Traits\ExtractsPdfPayloadValuesTrait;
 use Kanvas\Scribe\Regional\DataTransferObject\TaxpayerLookup;
 use Kanvas\Scribe\Regional\Services\TaxpayerLookupService;
 use Kanvas\Scribe\Regional\Validators\DominicanRepublic\NcfValidator;
-use Kanvas\Scribe\Setup\Actions\SetUpAccountingAgentAction;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
@@ -340,9 +340,14 @@ class ProposeBillFromPdfAction
         return $descriptions;
     }
 
+    /**
+     * Paper NCFs are a Dominican rule (Regional/Validators/Dr). A company is Dominican by its e-invoicing regime,
+     * so one connected to a DR provider with no country set still gets the checks.
+     */
     private function isDominicanCompany(): bool
     {
-        return $this->company instanceof Companies && $this->company->countryCode() === SetUpAccountingAgentAction::DR;
+        return $this->company instanceof Companies
+            && FiscalRegimes::forCompany($this->company)?->country() === DrFiscalRegime::COUNTRY;
     }
 
     private function dominicanTaxId(): ?string
@@ -353,7 +358,7 @@ class ProposeBillFromPdfAction
 
         $taxId = preg_replace('/\D+/', '', (string) ($this->extracted['vendor_tax_id'] ?? '')) ?? '';
 
-        return EcfTypeResolver::isDominicanTaxId($taxId) ? $taxId : null;
+        return DrFiscalRegime::isTaxId($taxId) ? $taxId : null;
     }
 
     /**

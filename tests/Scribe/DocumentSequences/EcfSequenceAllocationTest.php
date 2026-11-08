@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\DocumentSequences;
 
+use Kanvas\Companies\Models\Companies;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
@@ -11,6 +12,7 @@ use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\DocumentSequences\Exceptions\DocumentSequenceUnavailableException;
 use Kanvas\Scribe\DocumentSequences\Models\DocumentSequence;
 use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
 use Tests\TestCase;
 
@@ -130,7 +132,8 @@ class EcfSequenceAllocationTest extends TestCase
 
     public function test_the_configure_command_accepts_full_e_ncfs(): void
     {
-        $company = static::$cachedUser->getCurrentCompany();
+        // A fresh Dominican company: the range's authority comes from the company's country when no provider is set.
+        $company = Companies::factory()->create(['users_id' => static::$cachedUser->getId(), 'country_code' => DrFiscalRegime::COUNTRY]);
 
         $this->artisan('kanvas-scribe:ecf-sequence', [
             'app_id' => app(Apps::class)->getId(),
@@ -162,11 +165,12 @@ class EcfSequenceAllocationTest extends TestCase
             appsId: self::APPS_ID,
             companiesId: self::COMPANY_ID,
             documentType: DocumentTypeEnum::ECF_31,
-            prefix: EcfTypeEnum::CREDITO_FISCAL->prefix(),
+            prefix: EcfTypeEnum::CREDITO_FISCAL->series(),
             rangeStart: $start,
             rangeEnd: $end,
             expiresAt: $expiresAt !== null ? Carbon::parse($expiresAt) : null,
             padding: 10,
+            country: DrFiscalRegime::COUNTRY,
         );
     }
 

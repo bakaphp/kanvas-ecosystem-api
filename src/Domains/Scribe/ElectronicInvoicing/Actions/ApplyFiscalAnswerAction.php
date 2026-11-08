@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\ElectronicInvoicing\Actions;
 
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
+use Baka\Support\DateHelper;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ValidationException;
@@ -19,10 +21,7 @@ use Kanvas\Scribe\ElectronicInvoicing\Jobs\GenerateEcfPdfJob;
 use Kanvas\Scribe\ElectronicInvoicing\Jobs\PollEcfResultJob;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocumentSubmission;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfInvoicePdfService;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
-use Kanvas\Scribe\ElectronicInvoicing\Support\EcfQrCode;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Actions\VoidInvoiceAction;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
@@ -199,9 +198,9 @@ class ApplyFiscalAnswerAction
             $fiscal->authority_id ??= $fiscal->number;
             // The accepting answer may lack the QR (WebPOS's getResultFe does) while an earlier one carried it.
             $fiscal->authority_seal = $answer->securityCode
-                ?? EcfQrCode::params($answer->qrUrl ?? (string) $fiscal->authorityValue('qr_url'))['CodigoSeguridad']
+                ?? $fiscal->regime()->sealFromStamp($answer->qrUrl ?? (string) $fiscal->authorityValue('qr_url'))
                 ?? $fiscal->authority_seal;
-            $fiscal->signed_at = DrFiscalRegime::date($answer->signedAt) ?? $fiscal->signed_at;
+            $fiscal->signed_at = DateHelper::tryParseCarbon($answer->signedAt) ?? $fiscal->signed_at;
         }
 
         $fiscal->mergeAuthorityData(array_filter([
@@ -295,7 +294,7 @@ class ApplyFiscalAnswerAction
         $user = $document->user ?? $document->company?->user;
 
         $hasLegalPdf = $document->getFileByName(self::PDF_FIELD_NAME) !== null
-            || $document->getFileByName(EcfInvoicePdfService::FIELD_NAME) !== null;
+            || $document->getFileByName(FiscalRegimeInterface::INVOICE_PDF_FIELD) !== null;
 
         if (! $user instanceof Users || $hasLegalPdf) {
             return;

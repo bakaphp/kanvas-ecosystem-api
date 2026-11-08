@@ -19,6 +19,13 @@ interface FiscalDocumentTypeInterface
     public function label(): string;
 
     /**
+     * What the number starts with (DR: E31); a number is the series and the sequence padded to sequenceDigits().
+     */
+    public function series(): string;
+
+    public function sequenceDigits(): int;
+
+    /**
      * A correction that must reference the document it modifies.
      */
     public function isNote(): bool;

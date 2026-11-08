@@ -1016,6 +1016,33 @@ only through `Kanvas\Workflow\Rules\Support\SafeExpression`: no method or functi
 in place of models (`ExpressionLanguageIsConfinedTest`). Stored templates follow
 [`src/Kanvas/Templates/CLAUDE.md`](../src/Kanvas/Templates/CLAUDE.md).
 
+### A Domain Never Imports a Connector
+
+Dependency direction is `Baka` ← `Kanvas` (core) ← `Domains` ← `Connectors`. A connector may import
+any domain; **code under `src/Domains/{Domain}/` (Connectors excepted) never `use`s `Kanvas\Connectors\*`**.
+When a domain needs something a vendor provides, it reaches it one of two ways:
+
+- **A business capability vendors can fill** (issue an e-CF, fetch an FX rate, parse a credit form):
+  the domain owns the interface in `{Domain}/.../Contracts/`, each connector implements it, and the
+  class is picked by config or a company setting and built with `AllowedClass::resolve($class, Interface::class)`.
+  A factory that hard-codes `new SomeConnectorService()` is the same coupling moved one file over.
+- **Platform plumbing** (send a message, notify someone, shorten a link): use the shared layer
+  (`Kanvas\Notifications\Notification`, Social channels), never a per-domain interface and never the
+  vendor client.
+
+The reference is Scribe's e-CF issuance: Scribe declares `EcfProviderInterface`, `WebPosEcfProvider` and
+`AlanubeEcfProvider` implement it, and `config/scribe.php` maps `scribe-ecf-provider` → class. The
+config file and setup edges (a connector's own setup action, a GraphQL setup mutation) are where
+domain and connector are joined, so they may name both.
+
+This is the same shape as Laravel's drivers (Mail, Cache, Filesystem): code depends on the contract,
+config picks the driver. Test: *if a tenant used a different vendor, would you edit a file under the
+domain?* If yes, it is importing a connector.
+
+**The tree does not follow this yet** — Intelligence, Souk, Guild, Scribe and others import connectors
+today (counts in `docs/kanvas-v2-platform-plan.md` §4.2). New code follows the rule; existing imports
+migrate under v2 when that file is next touched, never as a move-only PR.
+
 ### Uploaded Image Handling — Trust Magic Bytes, and the ImageMagick Policy
 
 Two coupled rules for anything that accepts or decodes uploaded images:

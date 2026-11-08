@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Scribe;
 
+use Baka\Support\DateHelper;
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
@@ -40,11 +41,11 @@ class BackfillFiscalDocumentsCommand extends Command
 {
     use KanvasJobsTrait;
 
-    protected $signature = 'scribe:fiscal-backfill
+    protected $signature = 'scribe:dr-fiscal-backfill
                             {--company=* : Only these company ids (default: every company)}
                             {--dry-run : Report what would be moved without writing}';
 
-    protected $description = 'Backfill fiscal_documents from test-environment regional_compliance.do_ecf blocks.';
+    protected $description = 'Dominican Republic legacy data: backfill fiscal_documents from test-environment regional_compliance.do_ecf blocks.';
 
     private ?int $currentAppId = null;
 
@@ -57,7 +58,7 @@ class BackfillFiscalDocumentsCommand extends Command
         foreach ([Invoice::class, Bill::class, Expense::class] as $model) {
             $model::query()
                 ->when($companyIds !== [], fn ($query) => $query->whereIn('companies_id', $companyIds))
-                ->whereNotNull('regional_compliance->' . EcfCompliance::KEY . '->encf')
+                ->whereNotNull('regional_compliance->' . self::legacyKey() . '->encf')
                 ->orderBy('apps_id')
                 ->chunkById(200, function ($documents) use (&$stats): void {
                     foreach ($documents as $document) {
@@ -95,7 +96,7 @@ class BackfillFiscalDocumentsCommand extends Command
             return 'production';
         }
 
-        $block = EcfCompliance::rawBlock($document);
+        $block = EcfCompliance::rawBlock($document, self::legacyKey());
         $encf = Str::trimToNull(strtoupper((string) ($block['encf'] ?? '')));
 
         if ($encf === null || FiscalDocument::query()->forEntity($document)->where('number', $encf)->exists()) {
@@ -137,7 +138,7 @@ class BackfillFiscalDocumentsCommand extends Command
             }
 
             $compliance = $document->regional_compliance ?? [];
-            $compliance[EcfCompliance::KEY] = EcfCompliance::draftSettings($document);
+            $compliance[self::legacyKey()] = EcfCompliance::draftSettings($document, self::legacyKey());
             $document->regional_compliance = $compliance;
             $document->saveQuietly();
         });
@@ -175,7 +176,7 @@ class BackfillFiscalDocumentsCommand extends Command
             'authority_seal' => $block['security_code'] ?? null,
             'status' => $status,
             'authority_status' => $block['status'] ?? null,
-            'signed_at' => DrFiscalRegime::date($block['signed_at'] ?? null),
+            'signed_at' => DateHelper::tryParseCarbon($block['signed_at'] ?? null),
             'issued_at' => $issuedAt,
             'frozen_at' => $wasSent ? Carbon::now() : null,
             'retain_until' => $issuedAt->copy()->addYears(DrFiscalRegime::RETENTION_YEARS),
@@ -225,7 +226,7 @@ class BackfillFiscalDocumentsCommand extends Command
             'authority_id' => $encf,
             'authority_seal' => $block['security_code'] ?? null,
             'status' => FiscalDocumentStatusEnum::ACCEPTED,
-            'signed_at' => DrFiscalRegime::date($block['signed_at'] ?? null),
+            'signed_at' => DateHelper::tryParseCarbon($block['signed_at'] ?? null),
             'issued_at' => $issuedAt,
             'retain_until' => $issuedAt->copy()->addYears(DrFiscalRegime::RETENTION_YEARS),
             'regime_data' => [
@@ -255,7 +256,7 @@ class BackfillFiscalDocumentsCommand extends Command
             'provider_ref' => $block['provider_ref'] ?? null,
             'messages' => $block['messages'] ?? [],
             'authority_number_consumed' => null,
-            'sent_at' => DrFiscalRegime::date($block['submitted_at'] ?? null),
+            'sent_at' => DateHelper::tryParseCarbon($block['submitted_at'] ?? null),
         ]);
 
         new RecordFiscalEventAction(
@@ -288,8 +289,13 @@ class BackfillFiscalDocumentsCommand extends Command
      */
     private function issuedAt(Invoice|Bill|Expense $document, array $block): Carbon
     {
-        return DrFiscalRegime::date($block['issue_date'] ?? null)
+        return DateHelper::tryParseCarbon($block['issue_date'] ?? null)
             ?? ($document instanceof Invoice ? $document->issued_date?->copy() : null)
             ?? Carbon::parse($document->created_at);
+    }
+
+    private static function legacyKey(): string
+    {
+        return EcfCompliance::keyFor(DrFiscalRegime::COUNTRY);
     }
 }

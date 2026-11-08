@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\ElectronicInvoicing\Support;
 
 use Baka\Support\Str;
-use Kanvas\Scribe\Bills\Actions\CreateBillFromReceivedEcfAction;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Actions\RecordFiscalEventAction;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDirectionEnum;
@@ -62,11 +61,12 @@ final class ReceivedEcfCompliance
         return Str::trimToNull(self::current($bill)?->issuer_tax_id ?? $bill->vendor_tax_id);
     }
 
+    /**
+     * Only a bill booked from the vendor's own document carries a received fiscal row, whatever its country.
+     */
     public static function isReceivedEcf(Bill $bill): bool
     {
-        return $bill->source === CreateBillFromReceivedEcfAction::SOURCE
-            && self::encf($bill) !== null
-            && self::vendorTaxId($bill) !== null;
+        return self::encf($bill) !== null && self::vendorTaxId($bill) !== null;
     }
 
     /**

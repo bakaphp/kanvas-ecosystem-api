@@ -7,7 +7,7 @@ namespace Database\Seeders;
 use Database\Seeders\Concerns\SeedsPackagedTwigTemplate;
 use Illuminate\Database\Seeder;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfInvoicePdfService;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfInvoicePdfService;
 
 /**
  * Ships `scribe-ecf-invoice`, our own legal e-CF printout, as a Twig row (templates are seeders, never

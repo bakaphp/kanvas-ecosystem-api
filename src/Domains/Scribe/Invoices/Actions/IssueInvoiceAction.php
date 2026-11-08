@@ -67,7 +67,7 @@ class IssueInvoiceAction
 
         if ($issuesEcf) {
             $this->ecf->assertMayIssue($this->invoice);
-            $this->ecf->assertBuyerIsRegistered($this->invoice);
+            $this->ecf->assertReadyToIssue($this->invoice);
         }
 
         $invoice = DB::connection('accounting')->transaction(function () use ($issuesEcf): Invoice {

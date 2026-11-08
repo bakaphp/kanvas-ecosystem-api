@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\DocumentSequences\Enums;
 
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalDocumentTypeInterface;
+use LogicException;
 
 enum DocumentTypeEnum: string
 {
@@ -18,7 +19,9 @@ enum DocumentTypeEnum: string
     case EXPENSE = 'expense';
     case JOURNAL_ENTRY = 'journal_entry';
 
-    // One sequence per DGII e-CF type: each type has its own authorized range and expiry.
+    // One sequence per fiscal document type, keyed by the authority's code: each has its own range and expiry. A
+    // company issues for one country, so codes need not be unique across countries. A new country's types add
+    // their cases here beside its type enum.
     case ECF_31 = 'ecf_31';
     case ECF_32 = 'ecf_32';
     case ECF_33 = 'ecf_33';
@@ -30,24 +33,26 @@ enum DocumentTypeEnum: string
     case ECF_46 = 'ecf_46';
     case ECF_47 = 'ecf_47';
 
-    public static function forEcf(EcfTypeEnum $type): self
+    public static function forFiscal(FiscalDocumentTypeInterface $type): self
     {
-        return self::from('ecf_' . $type->value);
-    }
-
-    public function ecfType(): ?EcfTypeEnum
-    {
-        return str_starts_with($this->value, 'ecf_')
-            ? EcfTypeEnum::from(substr($this->value, 4))
-            : null;
+        return self::tryFrom('ecf_' . strtolower($type->code()))
+            ?? throw new LogicException("No document sequence case for fiscal type {$type->code()}; add ecf_{$type->code()}.");
     }
 
     /**
-     * An e-CF sequence only exists once a DGII range has been configured for it; inventing one at
-     * number 1 would hand out e-NCFs DGII never authorized.
+     * The authority's document type code, for a fiscal sequence.
+     */
+    public function fiscalCode(): ?string
+    {
+        return str_starts_with($this->value, 'ecf_') ? substr($this->value, 4) : null;
+    }
+
+    /**
+     * A fiscal sequence only exists once a range has been configured for it; inventing one at number 1 would
+     * hand out numbers the authority never authorized.
      */
     public function requiresConfiguredRange(): bool
     {
-        return $this->ecfType() !== null;
+        return $this->fiscalCode() !== null;
     }
 }

@@ -53,7 +53,7 @@ class SubmitInvoiceForApprovalAction
             return $this->invoice->refresh();
         }
 
-        $this->ecf->assertBuyerIsRegistered($this->invoice);
+        $this->ecf->assertReadyToIssue($this->invoice);
 
         $targetType = $this->invoice->document_type->value;
         $request = $this->invoice->requestApproval(

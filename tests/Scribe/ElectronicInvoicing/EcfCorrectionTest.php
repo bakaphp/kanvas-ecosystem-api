@@ -9,7 +9,7 @@ use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Services\ApprovalOriginService;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfStatusEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfDocumentBuilder;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfDocumentBuilder;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\UpdateInvoiceAction;

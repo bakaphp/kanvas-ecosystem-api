@@ -115,8 +115,8 @@ final class AccountingReadinessTest extends ScribeTestCase
         new DocumentNumberAllocatorService()->configureRange(
             appsId: $this->kanvasApp->getId(),
             companiesId: $company->getId(),
-            documentType: DocumentTypeEnum::forEcf(EcfTypeEnum::CREDITO_FISCAL),
-            prefix: EcfTypeEnum::CREDITO_FISCAL->prefix(),
+            documentType: DocumentTypeEnum::forFiscal(EcfTypeEnum::CREDITO_FISCAL),
+            prefix: EcfTypeEnum::CREDITO_FISCAL->series(),
             rangeStart: 1,
             rangeEnd: 1000,
             expiresAt: Carbon::parse('2028-12-31'),

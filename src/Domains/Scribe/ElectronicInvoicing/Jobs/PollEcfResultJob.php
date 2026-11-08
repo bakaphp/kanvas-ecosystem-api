@@ -16,7 +16,7 @@ use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Actions\ApplyFiscalAnswerAction;
 use Kanvas\Scribe\ElectronicInvoicing\Exceptions\FiscalNumberHeldElsewhereException;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfDocumentBuilder;
+use Kanvas\Scribe\ElectronicInvoicing\Services\FiscalPayloadService;
 use Kanvas\Scribe\ElectronicInvoicing\Services\EcfProviderResolver;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Expenses\Models\Expense;
@@ -72,7 +72,7 @@ final class PollEcfResultJob implements ShouldQueue
 
         try {
             $answer = new EcfProviderResolver()->resolveFor($fiscal)
-                ->fetchResult(new EcfDocumentBuilder()->buildForFiscal($fiscal));
+                ->fetchResult(FiscalPayloadService::forFiscal($fiscal));
         } catch (FiscalNumberHeldElsewhereException $e) {
             $fiscal->flagNumberHeldElsewhere($e->getMessage());
 

@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\ElectronicInvoicing\Services;
+namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfReference;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfTotals;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\ReceivedEcf;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\ReceivedEcfLine;
-use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfItbisRateEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfTotals;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\ReceivedEcf;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\ReceivedEcfLine;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfItbisRateEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfProviderEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
-use Kanvas\Scribe\ElectronicInvoicing\Support\EcfQrCode;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfQrCode;
 use SimpleXMLElement;
 use Throwable;
 

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WebPos\Providers;
 
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalPayloadInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalDocumentTypeInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\WebPos\Actions\SendCommercialResponseAction;
@@ -21,7 +24,7 @@ use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\ChecksIssuedNumbersInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\EcfProviderInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\RespondsToReceivedEcfInterface;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfDocument;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfSubmission;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfEnvironmentEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Exceptions\FiscalNumberHeldElsewhereException;
@@ -35,6 +38,11 @@ use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
  */
 class WebPosEcfProvider implements EcfProviderInterface, RespondsToReceivedEcfInterface, ChecksIssuedNumbersInterface
 {
+    public static function country(): string
+    {
+        return DrFiscalRegime::COUNTRY;
+    }
+
     public function __construct(
         public readonly Apps $app,
         public readonly Companies $company,
@@ -43,13 +51,17 @@ class WebPosEcfProvider implements EcfProviderInterface, RespondsToReceivedEcfIn
     ) {
     }
 
-    public function requestPayload(EcfDocument $document): array
+    public function requestPayload(FiscalPayloadInterface $payload): array
     {
+        $document = EcfDocument::narrow($payload);
+
         return $this->mapper($this->client())->map($document);
     }
 
-    public function submit(EcfDocument $document): EcfSubmission
+    public function submit(FiscalPayloadInterface $payload): EcfSubmission
     {
+        $document = EcfDocument::narrow($payload);
+
         $client = $this->client();
 
         try {
@@ -83,8 +95,10 @@ class WebPosEcfProvider implements EcfProviderInterface, RespondsToReceivedEcfIn
      * our systemRef. getResultFe is v1: v2 is refused ("No tiene permisos") for keys without that grant.
      * WebPOS answers an unknown document with 200 and an empty body or empty fields, not 404.
      */
-    public function fetchResult(EcfDocument $document): EcfSubmission
+    public function fetchResult(FiscalPayloadInterface $payload): EcfSubmission
     {
+        $document = EcfDocument::narrow($payload);
+
         $client = $this->client();
 
         $response = $this->knownDocument($client->get(
@@ -125,7 +139,7 @@ class WebPosEcfProvider implements EcfProviderInterface, RespondsToReceivedEcfIn
         return ResultMapperService::toSubmission($response, $document->encf);
     }
 
-    public function isNumberIssued(EcfTypeEnum $type, string $encf): bool
+    public function isNumberIssued(FiscalDocumentTypeInterface $type, string $number): bool
     {
         $client = $this->client();
 
@@ -136,7 +150,7 @@ class WebPosEcfProvider implements EcfProviderInterface, RespondsToReceivedEcfIn
                 $client->environment->pathSegment(),
                 $client->companyLicense,
                 Client::API_KEY,
-                rawurlencode($encf),
+                rawurlencode($number),
             ),
         )) !== null;
     }

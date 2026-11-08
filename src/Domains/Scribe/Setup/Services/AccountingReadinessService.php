@@ -14,8 +14,9 @@ use Kanvas\Connectors\Mailgun\Services\AccountingInboxService;
 use Kanvas\Scribe\Banking\Services\BankStatementCoverageService;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
+use Kanvas\Scribe\ElectronicInvoicing\Services\AuthorizedRangeNumbering;
 use Kanvas\Scribe\ElectronicInvoicing\Services\EcfProviderResolver;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
@@ -50,9 +51,12 @@ class AccountingReadinessService
             $this->erp($company),
         ];
 
-        if ($this->isDominican($company)) {
-            $items[] = $this->ecfProvider($company);
-            $items[] = $this->ecfRanges($app, $company);
+        $regime = $this->regime($company);
+        if ($regime !== null) {
+            $items[] = $this->ecfProvider($company, $regime);
+            if ($this->loadsAuthorizedRanges($company)) {
+                $items[] = $this->ecfRanges($app, $company, $regime);
+            }
         }
 
         $items[] = $this->slack($app, $company);
@@ -109,9 +113,20 @@ class AccountingReadinessService
         return new EcfProviderResolver()->issuesEcf($company);
     }
 
-    public function isDominican(Companies $company): bool
+    /**
+     * The company's electronic-invoicing regime: its provider's country, else its own when the platform runs one.
+     */
+    public function regime(Companies $company): ?FiscalRegimeInterface
     {
-        return $company->countryCode() === SetUpAccountingAgentAction::DR || $this->issuesEcf($company);
+        return FiscalRegimes::forCompany($company);
+    }
+
+    /**
+     * Whether the company's regime numbers from ranges its authority authorizes, which are loaded by hand.
+     */
+    public function loadsAuthorizedRanges(Companies $company): bool
+    {
+        return $this->regime($company)?->numbering() instanceof AuthorizedRangeNumbering;
     }
 
     private function ledger(Apps $app, Companies $company): ReadinessItem
@@ -259,63 +274,74 @@ class AccountingReadinessService
         );
     }
 
-    private function ecfProvider(Companies $company): ReadinessItem
+    private function ecfProvider(Companies $company, FiscalRegimeInterface $regime): ReadinessItem
     {
         $provider = new EcfProviderResolver()->providerKey($company);
+        $authority = $regime->authority();
 
         if ($provider === null) {
             return new ReadinessItem(
                 requirement: ReadinessRequirementEnum::ECF_PROVIDER,
                 status: ReadinessStatusEnum::MISSING,
-                detail: 'no e-CF provider, so no fiscal invoice can be issued',
+                detail: 'no electronic-invoicing provider, so no fiscal invoice can be issued',
                 fixBy: self::ADMIN,
-                fixHow: 'connect WebPOS or Alanube in integrations',
+                fixHow: "connect the {$authority} e-invoicing provider in integrations",
             );
         }
 
-        if (DrFiscalRegime::issuerTaxIdFor($company) === null) {
+        if ($regime->issuerTaxId($company) === null) {
+            $taxId = ($regime->taxIdTypes()[0] ?? null)?->label() ?? 'tax id';
+
             return new ReadinessItem(
                 requirement: ReadinessRequirementEnum::ECF_PROVIDER,
                 status: ReadinessStatusEnum::DEGRADED,
-                detail: "{$provider} connected but no issuer RNC is configured, so no e-CF can be issued",
+                detail: "{$provider} connected but no issuer {$taxId} is configured, so no fiscal invoice can be issued",
                 fixBy: self::ADMIN,
-                fixHow: "reconnect {$provider} with the RNC DGII authorized for e-CF",
+                fixHow: "reconnect {$provider} with the {$taxId} {$authority} authorized for e-invoicing",
             );
         }
 
         return $this->ready(ReadinessRequirementEnum::ECF_PROVIDER, "{$provider} connected");
     }
 
-    private function ecfRanges(Apps $app, Companies $company): ReadinessItem
+    private function ecfRanges(Apps $app, Companies $company, FiscalRegimeInterface $regime): ReadinessItem
     {
-        $sequence = new DocumentNumberAllocatorService()->find(
-            $app->getId(),
-            $company->getId(),
-            DocumentTypeEnum::forEcf(EcfTypeEnum::CREDITO_FISCAL),
-        );
+        $authority = $regime->authority();
+        $ready = [];
 
-        if ($sequence === null || ! $sequence->isUsableRange()) {
-            return new ReadinessItem(
-                requirement: ReadinessRequirementEnum::ECF_RANGES,
-                status: ReadinessStatusEnum::MISSING,
-                detail: 'no usable E31 range from DGII',
-                fixBy: self::ADMIN,
-                fixHow: 'give the accounting assistant the E31 range DGII authorized (first and last e-NCF, expiry) from the OFV authorization',
+        foreach ($regime->readinessDocumentTypes() as $type) {
+            $series = $type->series();
+            $sequence = new DocumentNumberAllocatorService()->find(
+                $app->getId(),
+                $company->getId(),
+                DocumentTypeEnum::forFiscal($type),
             );
+
+            if ($sequence === null || ! $sequence->isUsableRange()) {
+                return new ReadinessItem(
+                    requirement: ReadinessRequirementEnum::ECF_RANGES,
+                    status: ReadinessStatusEnum::MISSING,
+                    detail: "no usable {$series} range from {$authority}",
+                    fixBy: self::ADMIN,
+                    fixHow: "give the accounting assistant the {$series} range {$authority} authorized (first and last number, expiry)",
+                );
+            }
+
+            $reasons = $sequence->attentionReasons();
+            if ($reasons !== []) {
+                return new ReadinessItem(
+                    requirement: ReadinessRequirementEnum::ECF_RANGES,
+                    status: ReadinessStatusEnum::DEGRADED,
+                    detail: "the {$series} range needs attention (" . implode(', ', $reasons) . ", {$sequence->remaining()} left)",
+                    fixBy: self::ADMIN,
+                    fixHow: "request the next {$series} range from {$authority} and give it to the accounting assistant",
+                );
+            }
+
+            $ready[] = "{$series} range valid, {$sequence->remaining()} left";
         }
 
-        $reasons = $sequence->attentionReasons();
-        if ($reasons !== []) {
-            return new ReadinessItem(
-                requirement: ReadinessRequirementEnum::ECF_RANGES,
-                status: ReadinessStatusEnum::DEGRADED,
-                detail: 'the E31 range needs attention (' . implode(', ', $reasons) . ", {$sequence->remaining()} left)",
-                fixBy: self::ADMIN,
-                fixHow: 'request the next e-NCF range from DGII and give it to the accounting assistant',
-            );
-        }
-
-        return $this->ready(ReadinessRequirementEnum::ECF_RANGES, "E31 range valid, {$sequence->remaining()} left");
+        return $this->ready(ReadinessRequirementEnum::ECF_RANGES, implode('; ', $ready));
     }
 
     private function slack(Apps $app, Companies $company): ReadinessItem

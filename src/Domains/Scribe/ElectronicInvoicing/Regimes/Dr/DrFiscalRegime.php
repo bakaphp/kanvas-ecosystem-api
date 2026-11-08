@@ -8,17 +8,34 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\DateHelper;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
+use InvalidArgumentException;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Organizations\Enums\TaxIdTypeEnum;
+use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalDocumentTypeInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalNumberingInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalPayloadInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
-use Kanvas\Scribe\FxRates\DataTransferObject\OfficialRateSource;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfDocument;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\ReceivedEcf;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\ReceivedFiscalDocumentInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\ConfigurationEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDocumentStatusEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\ReceivedEcf;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
+use Kanvas\Scribe\ElectronicInvoicing\Services\AuthorizedRangeNumbering;
+use Kanvas\Scribe\ElectronicInvoicing\Support\BuyerTaxId;
+use Kanvas\Scribe\Expenses\Models\Expense;
+use Kanvas\Scribe\FxRates\DataTransferObject\OfficialRateSource;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
+use Kanvas\Users\Models\Users;
+use Kanvas\Scribe\Regional\DataTransferObject\TaxpayerLookup;
+use Kanvas\Scribe\Regional\Services\TaxpayerLookupService;
 
 /**
- * The Dominican Republic's half of a fiscal row: identity key, routing and the money snapshot at DGII's
- * two-decimal scale. Another country gets its own folder beside this one, registered in FiscalRegimes.
+ * The Dominican Republic: DGII's e-CF types and how a sale picks one, the RNC checks, e-NCF ranges, the payload and
+ * its validation, and the fiscal row's identity and money snapshot at DGII's two-decimal scale.
  */
 final class DrFiscalRegime implements FiscalRegimeInterface
 {
@@ -55,6 +72,16 @@ final class DrFiscalRegime implements FiscalRegimeInterface
         return EcfTypeEnum::parse($code);
     }
 
+    public function authority(): string
+    {
+        return 'DGII';
+    }
+
+    public function readinessDocumentTypes(): array
+    {
+        return [EcfTypeEnum::CREDITO_FISCAL];
+    }
+
     /**
      * DGII numbers e-NCFs per issuer, so issuer RNC + e-NCF is unique at the authority.
      */
@@ -87,18 +114,114 @@ final class DrFiscalRegime implements FiscalRegimeInterface
         );
     }
 
+    public function salesTaxAccountSubType(): AccountSubTypeEnum
+    {
+        return AccountSubTypeEnum::DR_ITBIS_PAYABLE;
+    }
+
+    public function inputTaxAccountSubType(): AccountSubTypeEnum
+    {
+        return AccountSubTypeEnum::DR_ITBIS_RECEIVABLE;
+    }
+
+    public function taxIdTypes(): array
+    {
+        return [TaxIdTypeEnum::DO_RNC, TaxIdTypeEnum::DO_CEDULA];
+    }
+
     /**
-     * @param array<string, mixed> $regimeData
-     * @return array<string, mixed>
+     * The shape of an RNC or cédula, for a number already known to be Dominican. It cannot tell one from a foreign
+     * id of the same length: that is BuyerTaxId's job.
      */
-    public static function issued(
-        EcfDocument $document,
-        string $encf,
+    public static function isTaxId(?string $taxId): bool
+    {
+        return FiscalRegimes::isRegistryTaxId(new self(), $taxId);
+    }
+
+    public function issuerTaxId(CompanyInterface $company): ?string
+    {
+        return self::issuerTaxIdFor($company);
+    }
+
+    public function salesDocumentType(Invoice $invoice): EcfTypeEnum
+    {
+        return new EcfTypeResolver()->resolve($invoice);
+    }
+
+    public function noteDocumentType(bool $isDebit): EcfTypeEnum
+    {
+        return $isDebit ? EcfTypeEnum::NOTA_DEBITO : EcfTypeEnum::NOTA_CREDITO;
+    }
+
+    /**
+     * E41 for a supplier who issues no e-CF, E43 for a minor expense, E47 for a payment to a foreign payee.
+     */
+    public function purchaseDocumentTypes(Bill|Expense $document): array
+    {
+        return $document instanceof Bill
+            ? [EcfTypeEnum::COMPRAS, EcfTypeEnum::PAGOS_EXTERIOR]
+            : [EcfTypeEnum::GASTOS_MENORES, EcfTypeEnum::PAGOS_EXTERIOR];
+    }
+
+    /**
+     * DGII requires RncEmisor on every e-CF, and an E31 names a buyer registered at DGII: a number of the right
+     * shape DGII does not know (a foreign id saved as an RNC, a typo) is refused before it costs an e-NCF. A failed
+     * lookup lets it through, so an outage never stops issuing.
+     */
+    public function assertMayIssue(Invoice|Bill|Expense $document, FiscalDocumentTypeInterface $type): void
+    {
+        self::requireIssuerTaxId($document->company);
+
+        if (! $document instanceof Invoice || $type !== EcfTypeEnum::CREDITO_FISCAL) {
+            return;
+        }
+
+        $taxId = (string) BuyerTaxId::of($document);
+        $lookup = new TaxpayerLookupService()->lookup($document->app, $document->company, $taxId);
+
+        if ($lookup->status === TaxpayerLookup::NOT_REGISTERED) {
+            throw new ValidationException(
+                "DGII has no taxpayer registered under {$taxId}, so invoice {$document->getId()} was not issued. "
+                . 'If the customer is foreign, set its tax id type (for example us_ein) and it goes out as E32; '
+                . 'otherwise correct the number.'
+            );
+        }
+    }
+
+    public function numbering(): FiscalNumberingInterface
+    {
+        return new AuthorizedRangeNumbering();
+    }
+
+    public function buildPayload(
+        Invoice|Bill|Expense $document,
+        FiscalDocumentTypeInterface $type,
+        string $number,
+        ?string $expiresAt,
+        ?string $systemRef = null,
+    ): EcfDocument {
+        return new EcfDocumentBuilder()->buildFor(
+            $document,
+            type: self::type($type),
+            encf: $number,
+            expiresAt: $expiresAt ?? '',
+            systemRef: $systemRef,
+        );
+    }
+
+    public function assertValid(FiscalPayloadInterface $payload): void
+    {
+        new DrEcfValidator()->assertValid(EcfDocument::narrow($payload));
+    }
+
+    public function issuedAttributes(
+        FiscalPayloadInterface $payload,
         CompanyInterface $company,
         ?string $provider,
         string $environment,
-        array $regimeData = [],
+        array $regimeData,
     ): array {
+        $document = EcfDocument::narrow($payload);
         $issuer = self::requireIssuerTaxId($company);
         $issuedAt = Carbon::parse($document->issueDate);
 
@@ -108,23 +231,22 @@ final class DrFiscalRegime implements FiscalRegimeInterface
             'environment' => $environment,
             'schema_version' => self::SCHEMA_VERSION,
             'document_type' => $document->type->value,
-            'series' => $document->type->prefix(),
-            'number' => $encf,
+            'series' => $document->type->series(),
+            'number' => $document->encf,
             'issuer_tax_id' => $issuer,
-            'identity_key' => self::identityKey($issuer, $encf),
+            'identity_key' => self::identityKey($issuer, $document->encf),
             'status' => FiscalDocumentStatusEnum::DRAFT,
             'issued_at' => $issuedAt,
             'retain_until' => $issuedAt->copy()->addYears(self::RETENTION_YEARS),
             'regime_data' => $regimeData,
-            ...self::snapshot($document),
+            ...$this->snapshot($document),
         ];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public static function snapshot(EcfDocument $document): array
+    public function snapshot(FiscalPayloadInterface $payload): array
     {
+        $document = EcfDocument::narrow($payload);
+
         return [
             'receiver_tax_id' => Str::trimToNull($document->buyer->taxId),
             'currency' => strtoupper($document->currency),
@@ -136,13 +258,19 @@ final class DrFiscalRegime implements FiscalRegimeInterface
         ];
     }
 
-    /**
-     * A vendor's e-CF reaches us only after DGII accepted it, so the received row starts accepted.
-     *
-     * @return array<string, mixed>
-     */
-    public static function received(ReceivedEcf $received, CompanyInterface $company, string $environment): array
+    public static function type(FiscalDocumentTypeInterface $type): EcfTypeEnum
     {
+        return $type instanceof EcfTypeEnum
+            ? $type
+            : throw new InvalidArgumentException('The DR regime was handed a ' . $type::class . ' document type.');
+    }
+
+    public function receivedAttributes(
+        ReceivedFiscalDocumentInterface $received,
+        CompanyInterface $company,
+        string $environment
+    ): array {
+        $received = ReceivedEcf::narrow($received);
         $issuedAt = Carbon::parse($received->issueDate);
 
         return [
@@ -151,7 +279,7 @@ final class DrFiscalRegime implements FiscalRegimeInterface
             'environment' => $environment,
             'schema_version' => self::SCHEMA_VERSION,
             'document_type' => $received->type->value,
-            'series' => $received->type->prefix(),
+            'series' => $received->type->series(),
             'number' => $received->encf,
             'issuer_tax_id' => $received->vendorTaxId,
             'receiver_tax_id' => self::issuerTaxIdFor($company),
@@ -160,7 +288,7 @@ final class DrFiscalRegime implements FiscalRegimeInterface
             'authority_seal' => Str::trimToNull($received->securityCode),
             'status' => FiscalDocumentStatusEnum::ACCEPTED,
             'issued_at' => $issuedAt,
-            'signed_at' => self::date($received->signedAt),
+            'signed_at' => DateHelper::tryParseCarbon($received->signedAt),
             'retain_until' => $issuedAt->copy()->addYears(self::RETENTION_YEARS),
             'currency' => strtoupper($received->currency),
             'exchange_rate' => $received->exchangeRate,
@@ -177,12 +305,13 @@ final class DrFiscalRegime implements FiscalRegimeInterface
         ];
     }
 
-    public static function date(?string $value): ?Carbon
+    public function sealFromStamp(string $stampUrl): ?string
     {
-        if (Str::trimToNull($value) === null) {
-            return null;
-        }
+        return EcfQrCode::params($stampUrl)['CodigoSeguridad'] ?? null;
+    }
 
-        return DateHelper::tryParseCarbon($value);
+    public function renderInvoicePdf(Invoice $invoice, Users $user): Filesystem
+    {
+        return new EcfInvoicePdfService($invoice)->generate($user);
     }
 }

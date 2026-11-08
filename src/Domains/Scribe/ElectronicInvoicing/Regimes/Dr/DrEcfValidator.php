@@ -6,8 +6,7 @@ namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfDocument;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfTypeResolver;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
 
 /**
  * What DGII would reject, caught before an e-NCF is spent on it. Runs on the document built without a
@@ -42,7 +41,7 @@ class DrEcfValidator
 
         if ($errors !== []) {
             throw new ValidationException(
-                "This document cannot be issued as an {$document->type->prefix()} e-CF: " . implode(' ', $errors)
+                "This document cannot be issued as an {$document->type->series()} e-CF: " . implode(' ', $errors)
             );
         }
     }
@@ -55,12 +54,12 @@ class DrEcfValidator
         $errors = [];
         $taxId = $document->buyer->taxId;
 
-        if ($taxId !== null && ! $document->buyer->isForeign && ! EcfTypeResolver::isDominicanTaxId($taxId)) {
+        if ($taxId !== null && ! $document->buyer->isForeign && ! DrFiscalRegime::isTaxId($taxId)) {
             $errors[] = "The customer tax id '{$taxId}' must be an RNC of 9 digits or a cédula of 11.";
         }
 
         if ($taxId === null && $this->requiresBuyerTaxId($document)) {
-            $errors[] = "{$document->type->prefix()} requires the customer's RNC or cédula, and the customer has none on file.";
+            $errors[] = "{$document->type->series()} requires the customer's RNC or cédula, and the customer has none on file.";
         }
 
         if (trim($document->buyer->name) === '' && $document->type !== EcfTypeEnum::GASTOS_MENORES) {
@@ -149,7 +148,7 @@ class DrEcfValidator
         }
 
         return Carbon::parse($document->sequenceExpiresAt)->endOfDay()->lt(Carbon::today())
-            ? ["The {$document->type->prefix()} number range expired on {$document->sequenceExpiresAt}; configure a new range."]
+            ? ["The {$document->type->series()} number range expired on {$document->sequenceExpiresAt}; configure a new range."]
             : [];
     }
 
@@ -163,7 +162,7 @@ class DrEcfValidator
         }
 
         if ($document->reference === null || trim($document->reference->encf) === '') {
-            return ["A {$document->type->prefix()} note must reference the e-CF it modifies; standalone notes cannot be issued as e-CF."];
+            return ["A {$document->type->series()} note must reference the e-CF it modifies; standalone notes cannot be issued as e-CF."];
         }
 
         return [];

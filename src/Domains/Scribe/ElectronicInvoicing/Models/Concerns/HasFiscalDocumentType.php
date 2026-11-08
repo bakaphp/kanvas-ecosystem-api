@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\ElectronicInvoicing\Models\Concerns;
 
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalDocumentTypeInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 
 /**
@@ -12,6 +13,11 @@ use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
  */
 trait HasFiscalDocumentType
 {
+    public function regime(): FiscalRegimeInterface
+    {
+        return FiscalRegimes::for($this->country);
+    }
+
     public function fiscalDocumentType(): ?FiscalDocumentTypeInterface
     {
         return FiscalRegimes::find($this->country)?->documentType((string) $this->document_type);

@@ -1,0 +1,113 @@
+{
+    "title": "Statement of Work",
+    "number": null,
+    "revision": 1,
+    "issued_date": "Nov 8, 2026",
+    "expiry_date": "Jul 4, 2019",
+    "expiry_label": "Valid until",
+    "issuer": {
+        "name": "TEST COMPANY",
+        "address_lines": [
+            "3430 E 20th Street, Joplin, MO 64801"
+        ],
+        "email": "team@example.com",
+        "phone": "+1 417 555 0100",
+        "website": "https://example.com"
+    },
+    "customer": {
+        "name": "Studio Den",
+        "legal_name": null,
+        "attention": null,
+        "address_lines": [
+            "305, 3rd Floor Orion mall, Bengaluru, Karnataka - 560055"
+        ],
+        "tax_id": null
+    },
+    "currency": "INR",
+    "quote_total": "95,950.00",
+    "sow": {
+        "summary": "Comprehensive design and full-stack web development services provided by Foobar Labs to Studio Den, covering basic web development, brand logo design, UI/UX web design, and full stack implementation.",
+        "scope": [
+            "Basic Web Development",
+            "Logo Design",
+            "Web Design",
+            "Full Stack Web development"
+        ],
+        "out_of_scope": [
+            "Third-party subscription or licensing fees not explicitly listed.",
+            "Ongoing post-launch maintenance beyond initial acceptance warranty."
+        ],
+        "assumptions": [
+            "Client provides timely feedback, assets, and content approvals within 48 hours.",
+            "All external dependencies or third-party API accounts are provided by Studio Den."
+        ],
+        "deliverables": [
+            {
+                "name": "Basic Web Development",
+                "acceptance_criteria": "Basic web development setup and responsive layout validated across modern browsers."
+            },
+            {
+                "name": "Logo Design",
+                "acceptance_criteria": "Final vector and raster logo assets delivered in multiple formats."
+            },
+            {
+                "name": "Web Design",
+                "acceptance_criteria": "UI/UX wireframes and high-fidelity mockups approved by client."
+            },
+            {
+                "name": "Full Stack Web development",
+                "acceptance_criteria": "Fully tested full-stack web application deployed and functional."
+            }
+        ],
+        "timeline": {
+            "start": "Jun 19, 2019",
+            "end": "Sep 30, 2019"
+        },
+        "change_process": "Scope adjustments or additional features will be handled via a written change order quoted separately.",
+        "signatories": [
+            {
+                "name": "Authorized Representative",
+                "role": "Project Director, Foobar Labs"
+            },
+            {
+                "name": "Authorized Signatory",
+                "role": "Representative, Studio Den"
+            }
+        ]
+    },
+    "lines": [
+        {
+            "description": "Basic Web Development",
+            "quantity": 1,
+            "unit_price": 10000,
+            "total": 9500
+        },
+        {
+            "description": "Logo Design",
+            "quantity": 1,
+            "unit_price": 1000,
+            "total": 950
+        },
+        {
+            "description": "Web Design",
+            "quantity": 1,
+            "unit_price": 50000,
+            "total": 47500
+        },
+        {
+            "description": "Full Stack Web development",
+            "quantity": 1,
+            "unit_price": 40000,
+            "total": 38000
+        }
+    ],
+    "payment_rows": [
+        {
+            "label": "Payment per quotation terms (due within 15 days)",
+            "due": "On signature",
+            "percent": 100,
+            "amount": "95,950.00"
+        }
+    ],
+    "terms": "Please pay within 15 days from the date of invoice, overdue interest @ 14% will be charged on delayed payments. Please quote invoice number when remitting funds."
+}

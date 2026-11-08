@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Scribe;
 
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Redis;
@@ -31,12 +32,12 @@ class FiscalPreflightCommand extends Command
 {
     use KanvasJobsTrait;
 
-    protected $signature = 'scribe:fiscal-preflight
+    protected $signature = 'scribe:dr-fiscal-preflight
                             {--company=* : Only these company ids (default: every company)}
                             {--queue=* : Queue names to inspect for pending e-CF jobs (default: the configured default queue)}
                             {--skip-queue-check : Do not inspect the queues}';
 
-    protected $description = 'Check that no production e-CF state or pending e-CF job blocks the move to fiscal_documents.';
+    protected $description = 'Dominican Republic legacy data: check that no production do_ecf state or pending e-CF job blocks the move to fiscal_documents.';
 
     private const array JOB_CLASSES = [SubmitEcfJob::class, PollEcfResultJob::class];
 
@@ -55,7 +56,7 @@ class FiscalPreflightCommand extends Command
         foreach ([Invoice::class, Bill::class, Expense::class] as $model) {
             $rows = $model::query()
                 ->when($this->companyIds() !== [], fn ($query) => $query->whereIn('companies_id', $this->companyIds()))
-                ->whereNotNull('regional_compliance->' . EcfCompliance::KEY . '->encf')
+                ->whereNotNull('regional_compliance->' . EcfCompliance::keyFor(DrFiscalRegime::COUNTRY) . '->encf')
                 ->selectRaw('apps_id, companies_id, count(*) as total')
                 ->selectRaw("sum(case when json_extract(regional_compliance, '$.do_ecf.provider_ref') is not null then 1 else 0 end) as with_ref")
                 ->groupBy('apps_id', 'companies_id')
@@ -112,7 +113,7 @@ class FiscalPreflightCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info('Preflight passed. Test-environment blocks: run scribe:fiscal-backfill after migrating.');
+        $this->info('Preflight passed. Test-environment blocks: run scribe:dr-fiscal-backfill after migrating.');
 
         return self::SUCCESS;
     }

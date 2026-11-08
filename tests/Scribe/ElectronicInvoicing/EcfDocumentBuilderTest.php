@@ -6,14 +6,14 @@ namespace Tests\Scribe\ElectronicInvoicing;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Enums\TaxIdTypeEnum;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfDocument;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfLine;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfTotals;
-use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfItbisRateEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfLine;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfTotals;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfItbisRateEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrEcfValidator;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfDocumentBuilder;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfTypeResolver;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfDocumentBuilder;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeResolver;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 

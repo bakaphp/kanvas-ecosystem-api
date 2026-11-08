@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsReceivableAgent;
 use Kanvas\Scribe\Delivery\DataTransferObject\DunningSchedule;
+use Kanvas\Scribe\ElectronicInvoicing\Enums\ConfigurationEnum as EcfConfigurationEnum;
 use Kanvas\Scribe\Ledger\Enums\ExternalGlSourceEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Setup\Actions\SetUpAccountingAgentAction;
@@ -25,6 +26,7 @@ use Kanvas\Scribe\Setup\Services\AccountingSetupStateService;
 use Kanvas\Users\Models\Users;
 use Tests\Scribe\ScribeTestCase;
 use Tests\Scribe\Setup\Concerns\UsesFreshAccountingCompany;
+use Tests\Stubs\Scribe\FakeEcfProvider;
 
 final class SetUpAccountingAgentActionTest extends ScribeTestCase
 {
@@ -120,6 +122,31 @@ final class SetUpAccountingAgentActionTest extends ScribeTestCase
         $policy = $this->policy($company, 'approve_credit_note');
         $this->assertSame('explicit_users', $policy->fallback_resolver);
         $this->assertSame('origin', $policy->steps[0]['when']['field']);
+    }
+
+    public function test_a_company_with_no_country_but_a_dominican_provider_is_set_up_as_dominican(): void
+    {
+        config()->set('scribe.ecf_providers.fake', FakeEcfProvider::class);
+        FakeEcfProvider::reset();
+        $company = $this->freshCompany(null);
+        $company->set(EcfConfigurationEnum::ECF_PROVIDER->value, 'fake');
+
+        try {
+            $state = $this->runSetup($company);
+        } finally {
+            $company->del(EcfConfigurationEnum::ECF_PROVIDER->value);
+        }
+
+        $this->assertSame('DO', $state['country']);
+        $this->assertSame('done', $state['steps']['ecf_policies']['status']);
+    }
+
+    public function test_a_country_without_an_e_invoicing_regime_skips_the_fiscal_policies(): void
+    {
+        $state = $this->runSetup($this->freshCompany('US'));
+
+        $this->assertSame('skipped', $state['steps']['ecf_policies']['status']);
+        $this->assertSame('no_e_invoicing_regime', $state['steps']['ecf_policies']['reason']);
     }
 
     public function test_a_new_approver_replaces_the_default_but_never_a_role_someone_chose(): void

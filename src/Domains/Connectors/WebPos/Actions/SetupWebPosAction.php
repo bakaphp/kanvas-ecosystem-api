@@ -15,7 +15,7 @@ use Kanvas\Connectors\WebPos\Exceptions\WebPosRequestException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\ConfigurationEnum as EcfConfigurationEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfProviderEnum;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfTypeResolver;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
 
 /**
  * Stores the WebPOS API key and point of sale, makes WebPOS the company's e-CF provider, and proves the key with
@@ -52,7 +52,7 @@ class SetupWebPosAction
         }
 
         $rnc = Str::digitsOnly($this->issuerRnc);
-        if (! EcfTypeResolver::isDominicanTaxId($rnc)) {
+        if (! DrFiscalRegime::isTaxId($rnc)) {
             throw new ValidationException('The issuer RNC must be the 9-digit RNC (or 11-digit cédula) DGII authorized for e-CF.');
         }
 

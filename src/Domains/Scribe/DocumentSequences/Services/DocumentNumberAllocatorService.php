@@ -13,7 +13,7 @@ use Kanvas\Scribe\DocumentSequences\Models\DocumentSequence;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfEnvironmentEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalRangeStatusEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalNumberRange;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 
 /**
  * Atomic document-number allocator.
@@ -103,6 +103,7 @@ class DocumentNumberAllocatorService
         ?Carbon $expiresAt,
         ?int $padding,
         ?int $firstUnused = null,
+        ?string $country = null,
     ): DocumentSequence {
         if ($rangeEnd < $rangeStart) {
             throw new DocumentSequenceUnavailableException("Range end {$rangeEnd} is before range start {$rangeStart}.");
@@ -117,7 +118,8 @@ class DocumentNumberAllocatorService
             $rangeEnd,
             $expiresAt,
             $padding,
-            $firstUnused
+            $firstUnused,
+            $country
         ): DocumentSequence {
             /** @var DocumentSequence|null $sequence */
             $sequence = DocumentSequence::query()
@@ -149,8 +151,8 @@ class DocumentNumberAllocatorService
             $sequence->expires_at = $expiresAt;
             $sequence->padding = $padding;
 
-            if ($documentType->ecfType() !== null) {
-                $sequence->fiscal_number_range_id = $this->recordFiscalRange($sequence, $documentType)->getKey();
+            if ($documentType->fiscalCode() !== null) {
+                $sequence->fiscal_number_range_id = $this->recordFiscalRange($sequence, $documentType, $country)->getKey();
             }
 
             $sequence->save();
@@ -159,17 +161,24 @@ class DocumentNumberAllocatorService
         });
     }
 
-    private function recordFiscalRange(DocumentSequence $sequence, DocumentTypeEnum $documentType): FiscalNumberRange
-    {
+    private function recordFiscalRange(
+        DocumentSequence $sequence,
+        DocumentTypeEnum $documentType,
+        ?string $country
+    ): FiscalNumberRange {
         $company = Companies::find($sequence->companies_id);
         $environment = ($company !== null ? EcfEnvironmentEnum::forCompany($company) : EcfEnvironmentEnum::TEST)->value;
-        $ecfType = (string) $documentType->ecfType()?->value;
+        $code = (string) $documentType->fiscalCode();
+        $country ??= ($company !== null ? FiscalRegimes::forCompany($company)?->country() : null)
+            ?? throw new DocumentSequenceUnavailableException(
+                "Company {$sequence->companies_id} has no fiscal regime (no e-invoicing provider and no country), so the range has no authority."
+            );
 
         FiscalNumberRange::query()
             ->where('companies_id', $sequence->companies_id)
             ->where('environment', $environment)
-            ->where('country', DrFiscalRegime::COUNTRY)
-            ->where('document_type', $ecfType)
+            ->where('country', $country)
+            ->where('document_type', $code)
             ->where('status', FiscalRangeStatusEnum::ACTIVE->value)
             ->update(['status' => FiscalRangeStatusEnum::SUPERSEDED->value]);
 
@@ -177,8 +186,8 @@ class DocumentNumberAllocatorService
             'apps_id' => $sequence->apps_id,
             'companies_id' => $sequence->companies_id,
             'environment' => $environment,
-            'country' => DrFiscalRegime::COUNTRY,
-            'document_type' => $ecfType,
+            'country' => $country,
+            'document_type' => $code,
             'series' => $sequence->prefix,
             'range_from' => (int) $sequence->range_start,
             'range_to' => (int) $sequence->range_end,
@@ -225,7 +234,7 @@ class DocumentNumberAllocatorService
 
         if ($documentType->requiresConfiguredRange()) {
             throw new DocumentSequenceUnavailableException(
-                "No authorized number range is configured for {$documentType->value}. Configure one with kanvas-scribe:ecf-sequence before issuing."
+                "No authorized number range is configured for {$documentType->value}. Load it with configure_ecf_range before issuing."
             );
         }
 

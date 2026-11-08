@@ -12,7 +12,8 @@ use Kanvas\Scribe\ElectronicInvoicing\Actions\ApplyFiscalAnswerAction;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\ConfigurationEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfPdfSourceEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Jobs\GenerateEcfPdfJob;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfInvoicePdfService;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfInvoicePdfService;
 use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
@@ -134,7 +135,7 @@ class EcfInvoicePdfTest extends EcfCompletionTestCase
 
         $job->handle();
 
-        $file = $invoice->refresh()->getFileByName(EcfInvoicePdfService::FIELD_NAME);
+        $file = $invoice->refresh()->getFileByName(FiscalRegimeInterface::INVOICE_PDF_FIELD);
         $this->assertNotNull($file);
         $this->assertSame('e-cf-E310000000004.pdf', $file->filesystem->name);
     }

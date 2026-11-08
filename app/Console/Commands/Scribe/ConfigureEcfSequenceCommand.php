@@ -15,9 +15,10 @@ class ConfigureEcfSequenceCommand extends Command
 {
     use KanvasJobsTrait;
 
-    protected $signature = 'kanvas-scribe:ecf-sequence {app_id} {company_id} {type} {start} {end} {expires_at?}';
+    protected $signature = 'kanvas-scribe:ecf-sequence {app_id} {company_id} {type} {start} {end} {expires_at?}
+        {--country= : ISO country of the authority; defaults to the company\'s regime (its provider\'s country, else its own)}';
 
-    protected $description = 'Configure the authorized e-NCF range (start, end, expiry) for one e-CF type of a company';
+    protected $description = 'Load a range the tax authority authorized (start, end, expiry) for one document type of a company';
 
     public function handle(): int
     {
@@ -33,6 +34,7 @@ class ConfigureEcfSequenceCommand extends Command
             start: (string) $this->argument('start'),
             end: (string) $this->argument('end'),
             expiresAt: $this->argument('expires_at'),
+            country: $this->option('country'),
         );
 
         try {
@@ -48,7 +50,7 @@ class ConfigureEcfSequenceCommand extends Command
         }
 
         $this->info(sprintf(
-            '%s range %s – %s, expires %s. Next e-NCF: %s (%d left).',
+            '%s range %s – %s, expires %s. Next number: %s (%d left).',
             $sequence->prefix,
             $sequence->format((int) $sequence->range_start),
             $sequence->format((int) $sequence->range_end),

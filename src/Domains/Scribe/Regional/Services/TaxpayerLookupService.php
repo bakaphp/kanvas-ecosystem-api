@@ -7,27 +7,29 @@ namespace Kanvas\Scribe\Regional\Services;
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\ElectronicInvoicing\Services\EcfProviderResolver;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfTypeResolver;
 use Kanvas\Scribe\Regional\DataTransferObject\TaxpayerLookup;
 use Throwable;
 
 /**
- * A Dominican RNC / cédula checked at DGII through whichever e-CF provider the company uses. A lookup
- * that fails is reported as failed, never as "not registered": an outage must not mark a vendor invalid.
+ * A tax id checked against the company's tax authority (DGII for a Dominican RNC / cédula) through whichever
+ * e-invoicing provider the company uses. A lookup that fails is reported as failed, never as "not registered": an
+ * outage must not mark a vendor invalid.
  */
 class TaxpayerLookupService
 {
     public function lookup(Apps $app, Companies $company, string $rawTaxId): TaxpayerLookup
     {
-        $taxId = Str::digitsOnly($rawTaxId);
+        $taxId = (string) Str::normalizeTaxId($rawTaxId);
+        $regime = FiscalRegimes::forCompany($company);
 
-        if (! EcfTypeResolver::isDominicanTaxId($taxId)) {
+        if ($regime !== null && ! FiscalRegimes::isRegistryTaxId($regime, $taxId)) {
             return new TaxpayerLookup(TaxpayerLookup::INVALID_FORMAT, $taxId);
         }
 
         $resolver = new EcfProviderResolver();
-        if (! $resolver->issuesEcf($company)) {
+        if ($regime === null || ! $resolver->issuesEcf($company)) {
             return new TaxpayerLookup(TaxpayerLookup::NO_PROVIDER, $taxId);
         }
 

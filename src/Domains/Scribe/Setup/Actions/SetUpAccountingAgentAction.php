@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Setup\Actions;
 
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Database\Seeders\ScribeSowTemplateSeeder;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
@@ -46,7 +47,6 @@ use Throwable;
  */
 class SetUpAccountingAgentAction
 {
-    public const string DR = 'DO';
 
     /** Agent custom field: the setup already opened this agent's mailbox once; never again. */
     public const string MAILBOX_ACCESS_DEFAULTED = 'scribe_mailbox_access_defaulted';
@@ -95,9 +95,18 @@ class SetUpAccountingAgentAction
         return $state;
     }
 
+    /**
+     * The country stated, else the company's e-invoicing regime (its provider's country before its own: a company
+     * connected to a DR provider is Dominican even with no country set), else its own country, else US.
+     */
     public function country(): string
     {
-        return strtoupper(trim((string) ($this->countryCode ?: $this->company->countryCode() ?: 'US')));
+        $country = $this->countryCode
+            ?: FiscalRegimes::forCompany($this->company)?->country()
+            ?: $this->company->countryCode()
+            ?: 'US';
+
+        return strtoupper(trim($country));
     }
 
     /**
@@ -203,8 +212,8 @@ class SetUpAccountingAgentAction
      */
     private function ensureEcfPolicies(string $country, Users $approver): array
     {
-        if ($country !== self::DR) {
-            return [AccountingSetupStepStatusEnum::SKIPPED, ['reason' => 'not_dominican']];
+        if (FiscalRegimes::find($country) === null) {
+            return [AccountingSetupStepStatusEnum::SKIPPED, ['reason' => 'no_e_invoicing_regime', 'country' => $country]];
         }
 
         $results = new SeedEcfApprovalPoliciesAction(

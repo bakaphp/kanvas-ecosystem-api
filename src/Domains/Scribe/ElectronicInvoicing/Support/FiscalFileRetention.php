@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\ElectronicInvoicing\Support;
 
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
@@ -13,7 +14,6 @@ use Kanvas\Scribe\ElectronicInvoicing\Exceptions\ImmutableFiscalRecordException;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocumentEvent;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocumentSubmission;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfInvoicePdfService;
 
 /**
  * The legal copies of a fiscal document (the accepted PDF, a vendor's signed XML, each attempt's request and
@@ -23,7 +23,7 @@ final class FiscalFileRetention
 {
     public const array FIELD_NAMES = [
         ApplyFiscalAnswerAction::PDF_FIELD_NAME,
-        EcfInvoicePdfService::FIELD_NAME,
+        FiscalRegimeInterface::INVOICE_PDF_FIELD,
         CreateBillFromReceivedEcfAction::XML_FIELD_NAME,
     ];
 

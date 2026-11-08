@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GeneratesScribeDocumentPdfForTool;
@@ -11,7 +13,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Delivery\Services\DocumentFilesService;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfPdfSourceEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfInvoicePdfService;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use NeuronAI\Tools\PropertyType;
@@ -113,9 +114,9 @@ class GenerateInvoicePdfTool extends Tool
 
         try {
             $file = $prefersOurs
-                ? $invoice->getFileByName(EcfInvoicePdfService::FIELD_NAME)?->filesystem
+                ? $invoice->getFileByName(FiscalRegimeInterface::INVOICE_PDF_FIELD)?->filesystem
                 : new DocumentFilesService()->ecfPdf($invoice);
-            $file ??= $user !== null ? new EcfInvoicePdfService($invoice)->generate($user) : null;
+            $file ??= $user !== null ? new EcfIssuanceService()->regimeFor($invoice->company)->renderInvoicePdf($invoice, $user) : null;
         } catch (Throwable $e) {
             report($e);
             $file = null;

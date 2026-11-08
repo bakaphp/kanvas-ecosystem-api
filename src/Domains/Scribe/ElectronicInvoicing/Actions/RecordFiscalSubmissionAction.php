@@ -7,7 +7,7 @@ namespace Kanvas\Scribe\ElectronicInvoicing\Actions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\EcfProviderInterface;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfDocument;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalPayloadInterface;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfSubmission;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDocumentStatusEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalSubmissionStatusEnum;
@@ -15,8 +15,7 @@ use Kanvas\Scribe\ElectronicInvoicing\Exceptions\ProviderRejectedException;
 use Kanvas\Scribe\ElectronicInvoicing\Jobs\PollEcfResultJob;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocumentSubmission;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfDocumentBuilder;
+use Kanvas\Scribe\ElectronicInvoicing\Services\FiscalPayloadService;
 use Kanvas\Scribe\ElectronicInvoicing\Services\EcfProviderResolver;
 use Kanvas\Scribe\ElectronicInvoicing\Services\FiscalArtifactService;
 use Throwable;
@@ -45,7 +44,6 @@ class RecordFiscalSubmissionAction
     public function __construct(
         public readonly FiscalDocument $fiscalDocument,
         protected ?EcfProviderInterface $provider = null,
-        protected readonly EcfDocumentBuilder $builder = new EcfDocumentBuilder(),
         protected ?FiscalArtifactService $artifacts = null,
     ) {
         $this->artifacts ??= app(FiscalArtifactService::class);
@@ -55,7 +53,7 @@ class RecordFiscalSubmissionAction
     {
         $fiscal = $this->fiscalDocument;
         $attempt = new FiscalDocumentSubmission()->generateUuidIfMissing();
-        $document = $this->builder->buildForFiscal($fiscal, $attempt->uuid);
+        $document = FiscalPayloadService::forFiscal($fiscal, $attempt->uuid);
         $provider = $this->provider ??= new EcfProviderResolver()->resolveFor($fiscal);
 
         $request = $this->artifacts->store(
@@ -118,7 +116,7 @@ class RecordFiscalSubmissionAction
     private function startAttempt(
         FiscalDocument $fiscal,
         FiscalDocumentSubmission $attempt,
-        EcfDocument $document,
+        FiscalPayloadInterface $document,
         array $request
     ): ?FiscalDocumentSubmission {
         return DB::connection('accounting')->transaction(function () use ($fiscal, $attempt, $document, $request): ?FiscalDocumentSubmission {
@@ -149,7 +147,7 @@ class RecordFiscalSubmissionAction
             $attempt->save();
 
             if ($locked->frozen_at === null) {
-                $locked->fill(DrFiscalRegime::snapshot($document));
+                $locked->fill($fiscal->regime()->snapshot($document));
             }
 
             $locked->status = FiscalDocumentStatusEnum::SENDING;

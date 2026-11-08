@@ -110,17 +110,40 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   reusable rejection needs its own), jobs take the fiscal row and build the provider for the row's frozen
   provider and environment, and callbacks resolve to that exact row — an answer about a superseded number never
   touches the document. Rows are never deleted and freeze once they may have reached the authority. A DGII
-  rejection burns the number unless `secuenciaUtilizada` is explicitly false. Deploy: `scribe:fiscal-preflight`
-  → migrate → `scribe:fiscal-backfill` (test data only); `scribe:fiscal-resolve-stuck-submissions` runs every
+  rejection burns the number unless `secuenciaUtilizada` is explicitly false. Deploy: `scribe:dr-fiscal-preflight`
+  → migrate → `scribe:dr-fiscal-backfill` (test data only); `scribe:fiscal-resolve-stuck-submissions` runs every
   10 minutes.
-- **A country's rules live in `ElectronicInvoicing/Regimes/{Country}/`, never in a table.** Document types are an
-  enum per country implementing `FiscalDocumentTypeInterface` (DR: `Regimes/Dr/EcfTypeEnum`), because a type carries
-  rules the mappers and validators branch on, so a new one ships with code. The regime class (`DrFiscalRegime`,
-  `FiscalRegimeInterface`) lists its types and is registered in `Regimes/FiscalRegimes` by ISO country. A row
-  stores only the code; read it through its own `country` (`fiscalDocumentType()` / `documentTypeLabel()` from
-  `HasFiscalDocumentType`), never by assuming DR. Our lifecycle (`FiscalDocumentStatusEnum`) is one enum for every
-  country; the authority's own status is the raw `authority_status` string. Pure reference catalogs with no rules
-  attached (Mexico's SAT `c_UsoCFDI`, product codes) are the exception: seeded tables per country.
+- **A country's rules live in `ElectronicInvoicing/Regimes/{Country}/`, never in shared code or a table.** Shared
+  code (`EcfIssuanceService`, the jobs, `ConfigureEcfRangeAction`, readiness, the agent tools) resolves a
+  `FiscalRegimeInterface` and asks it; it never names a country's types, payload, authority or currency. A
+  company's regime is its provider's `country()`, else its own country (`FiscalRegimes::forCompany()`); a fiscal
+  row's is its `country` column (`$fiscal->regime()`). The regime owns: document types (an enum implementing
+  `FiscalDocumentTypeInterface`, DR: `EcfTypeEnum`, because a type carries rules, so a new one ships with code),
+  which type a sale or note becomes, its purchase types (empty where there are none), pre-number checks
+  (`assertMayIssue`, DR: issuer RNC + DGII registration for E31), numbering (`FiscalNumberingInterface`;
+  `AuthorizedRangeNumbering` is shared for range countries, DR and Colombia), the wire payload
+  (`FiscalPayloadInterface`, DR: `EcfDocument`) and its validation, the fiscal row's attributes, the seal in the
+  authority's stamp URL, and its legal invoice PDF. DR builders, DTOs, the ITBIS enum and the QR helper live in
+  `Regimes/Dr/` too. A provider receives the payload its regime built and narrows it (`EcfDocument::narrow()`).
+- **Adding a country:** `Regimes/{Country}/` with the regime, its type enum, its payload and its received-document
+  DTO (implementing `ReceivedFiscalDocumentInterface` / `ReceivedFiscalLineInterface`); register it in
+  `config/scribe.php` `fiscal_regimes`; add its `DocumentTypeEnum` `ecf_{code}` cases for range numbering; ship a
+  provider whose `country()` names it. A provider serving several countries (Alanube) gets one class and config key
+  per country, sharing its client. Nothing else changes: issuing, vendor invoices received into bills
+  (`CreateBillFromReceivedEcfAction`, source `e_invoice` in every country), the draft block
+  (`regional_compliance.{cc}_ecf`, `do_ecf` in the DR, from `EcfCompliance::key()`), the GL tax accounts
+  (`salesTaxAccountSubType()` / `inputTaxAccountSubType()`), the official exchange rate, readiness, setup and the
+  agent tools all ask the regime. Onboarding requirements stay per country in `global.json` (`countries`).
+  `SecondCountryRegimeTest` runs issuing, notes, receiving and the draft key on a fake country and must stay green.
+  A company's country for setup is its regime first, so one connected to a DR provider with no country set is still
+  Dominican. DR by nature: the legacy data commands `scribe:dr-fiscal-preflight` / `scribe:dr-fiscal-backfill`, the
+  DR chart of accounts (a per-country `match` in `ChartOfAccountsSeederService`) and paper NCFs on PDF bills
+  (`Regional/Validators/Dr`). Support loads a range with `kanvas-scribe:ecf-sequence … --country=XX` when the
+  company has no provider or country yet. A row stores only the type code; read it through its own `country`
+  (`fiscalDocumentType()` / `documentTypeLabel()` from `HasFiscalDocumentType`). Our lifecycle
+  (`FiscalDocumentStatusEnum`) is one enum for every country; the authority's own status is the raw
+  `authority_status` string. Pure reference catalogs with no rules attached (Mexico's SAT `c_UsoCFDI`, product
+  codes) are the exception: seeded tables per country.
 - **Loading a range asks the provider first.** Numbers of a DGII range can be used outside Kanvas (a manual test,
   another POS), so `ConfigureEcfRangeAction` asks a provider implementing `ChecksIssuedNumbersInterface` which
   numbers it already holds and starts issuing after them; the range itself is stored as authorized. A lookup by

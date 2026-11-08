@@ -6,12 +6,12 @@ namespace Tests\Connectors\WebPos;
 
 use Kanvas\Connectors\WebPos\Services\FiscalDocMapperService;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfDocument;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfLine;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfParty;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfLine;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfParty;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfReference;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfTotals;
-use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfItbisRateEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfTotals;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfItbisRateEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -273,7 +273,7 @@ final class FiscalDocMapperTest extends TestCase
     ): EcfDocument {
         return new EcfDocument(
             type: $type,
-            encf: $type->prefix() . '0000000001',
+            encf: $type->series() . '0000000001',
             sequenceExpiresAt: '2028-12-31',
             issueDate: '2026-06-15',
             systemRef: 'b3f1c2d4-0000-4000-8000-0000000000' . $type->value,

@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\ElectronicInvoicing\Services;
+namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 
 use Baka\Support\Money;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Bills\Models\Bill;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfDocument;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfExport;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfLine;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfParty;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfExport;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfLine;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfParty;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfReference;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfTotals;
-use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfItbisRateEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfTotals;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfItbisRateEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
@@ -72,28 +72,6 @@ class EcfDocumentBuilder
                 expiresAt: $expiresAt,
                 systemRef: $systemRef,
             );
-    }
-
-    /**
-     * Exactly the row's number and type — never the entity's current row, which may be another one. The
-     * systemRef defaults to the row's latest attempt (what a status query must ask about); a new send passes
-     * its own attempt's uuid. A row never sent falls back to its own uuid.
-     */
-    public function buildForFiscal(FiscalDocument $fiscal, ?string $systemRef = null): EcfDocument
-    {
-        $entity = $fiscal->entity;
-
-        if (! $entity instanceof Invoice && ! $entity instanceof Bill && ! $entity instanceof Expense) {
-            throw new ValidationException("Fiscal document {$fiscal->uuid} has no Scribe document behind it.");
-        }
-
-        return $this->buildFor(
-            $entity,
-            type: EcfTypeEnum::from($fiscal->document_type),
-            encf: $fiscal->number,
-            expiresAt: (string) ($fiscal->regimeValue('expires_at') ?? ''),
-            systemRef: $systemRef ?? $fiscal->latestSubmission?->uuid ?? $fiscal->uuid,
-        );
     }
 
     /**

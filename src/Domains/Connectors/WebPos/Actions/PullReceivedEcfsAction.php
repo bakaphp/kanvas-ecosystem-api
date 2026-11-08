@@ -12,7 +12,7 @@ use Kanvas\Connectors\WebPos\Enums\HostEnum;
 use Kanvas\Connectors\WebPos\Support\ResponseField;
 use Kanvas\Scribe\Bills\Actions\CreateBillFromReceivedEcfAction;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfProviderEnum;
-use Kanvas\Scribe\ElectronicInvoicing\Services\ReceivedEcfXmlParserService;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\ReceivedEcfXmlParserService;
 use Kanvas\Users\Models\Users;
 use RuntimeException;
 use Throwable;

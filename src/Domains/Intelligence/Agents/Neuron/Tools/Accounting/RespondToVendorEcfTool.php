@@ -39,7 +39,7 @@ class RespondToVendorEcfTool extends Tool
         . 'as a bill: accept it, or reject it with a reason. DGII forwards it to the vendor, and each document takes '
         . 'only one answer, so check the bill first (lines, amounts, vendor RNC, that it is really ours). Reject '
         . 'only a document we do not owe or that is wrong; the reason is sent to the vendor. Only bills that came in '
-        . 'as a received e-CF (find_bill shows source dgii_ecf) can be answered.';
+        . 'as a received e-CF (find_bill shows source e_invoice) can be answered.';
 
     public function __construct()
     {

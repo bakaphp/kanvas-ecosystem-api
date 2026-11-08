@@ -8,7 +8,7 @@ use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\DraftCreditNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\DraftDebitNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\IssuePurchaseEcfTool;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfDocumentBuilder;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfDocumentBuilder;
 use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;

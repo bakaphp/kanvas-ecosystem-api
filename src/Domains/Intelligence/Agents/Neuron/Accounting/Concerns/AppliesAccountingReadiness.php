@@ -35,7 +35,7 @@ trait AppliesAccountingReadiness
      * e-NCF ranges are a company/DGII fact, not a provider setting, so they are loaded for any Dominican
      * company, before or after its provider is connected.
      */
-    private const array DOMINICAN_TOOLS = ['configure_ecf_range', 'list_ecf_ranges'];
+    private const array RANGE_TOOLS = ['configure_ecf_range', 'list_ecf_ranges'];
 
     /**
      * The tools that finish accounting setup from a conversation. The writes load only with a person at
@@ -81,7 +81,7 @@ trait AppliesAccountingReadiness
         $unavailable = [
             ...($readiness->gmailConnected($this->app) ? [] : self::GMAIL_TOOLS),
             ...($readiness->issuesEcf($this->company) ? [] : self::ECF_TOOLS),
-            ...($readiness->isDominican($this->company) ? [] : self::DOMINICAN_TOOLS),
+            ...($readiness->loadsAuthorizedRanges($this->company) ? [] : self::RANGE_TOOLS),
         ];
 
         return array_values(array_filter(

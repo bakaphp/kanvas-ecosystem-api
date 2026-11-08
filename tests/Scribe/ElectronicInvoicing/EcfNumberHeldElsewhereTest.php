@@ -15,7 +15,7 @@ use Kanvas\Scribe\ElectronicInvoicing\Actions\ApplyFiscalAnswerAction;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\ConfigurationEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfPdfSourceEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfInvoicePdfService;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
@@ -47,7 +47,7 @@ class EcfNumberHeldElsewhereTest extends EcfCompletionTestCase
         $invoice = $this->waitingInvoice();
 
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('can only modify an accepted e-CF');
+        $this->expectExceptionMessage('DGII has not accepted (draft); a note can only modify an accepted one');
 
         $this->creditNoteFor($invoice);
     }
@@ -57,7 +57,7 @@ class EcfNumberHeldElsewhereTest extends EcfCompletionTestCase
         $invoice = $this->acceptedInvoice();
         DocumentSequence::query()
             ->where('companies_id', $this->company->getId())
-            ->where('document_type', SequenceDocumentTypeEnum::forEcf(EcfTypeEnum::NOTA_CREDITO)->value)
+            ->where('document_type', SequenceDocumentTypeEnum::forFiscal(EcfTypeEnum::NOTA_CREDITO)->value)
             ->delete();
         $before = Invoice::query()->where('parent_invoice_id', $invoice->getId())->count();
 
@@ -116,7 +116,7 @@ class EcfNumberHeldElsewhereTest extends EcfCompletionTestCase
 
         $result = $this->pdfTool()->__invoke(invoice_id: $invoice->getId());
 
-        $ours = $invoice->refresh()->getFileByName(EcfInvoicePdfService::FIELD_NAME)?->filesystem;
+        $ours = $invoice->refresh()->getFileByName(FiscalRegimeInterface::INVOICE_PDF_FIELD)?->filesystem;
         $this->assertNotNull($ours);
         $this->assertSame($ours->getId(), $result['filesystem_id']);
         $this->assertNotSame($provider->getId(), $result['filesystem_id']);

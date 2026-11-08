@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Delivery\Services;
 
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Scribe\Documents\Services\DocumentPdfService;
 use Kanvas\Scribe\ElectronicInvoicing\Actions\ApplyFiscalAnswerAction;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfInvoicePdfService;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\Quotes\Sow\Services\QuoteSowPdfService;
@@ -26,7 +26,7 @@ class DocumentFilesService
      * attaches; the provider's PDF (WebPOS) is the v1 legal PDF (decision 7).
      */
     public const array INVOICE_LEGAL_PDF_FIELDS = [
-        EcfInvoicePdfService::FIELD_NAME,
+        FiscalRegimeInterface::INVOICE_PDF_FIELD,
         ApplyFiscalAnswerAction::PDF_FIELD_NAME,
         DocumentPdfService::INVOICE_FIELD_NAME,
     ];

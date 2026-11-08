@@ -7,7 +7,7 @@ namespace Tests\Scribe\ElectronicInvoicing;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\ElectronicInvoicing\Jobs\SubmitEcfJob;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfDocumentBuilder;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfDocumentBuilder;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfExchangeRate;
 use Kanvas\Scribe\FxRates\Models\FxRate;
@@ -46,7 +46,7 @@ class EcfExchangeRateTest extends EcfCompletionTestCase
             $this->issue($draft);
             $this->fail('A USD e-CF without a rate must not be issued.');
         } catch (ValidationException $e) {
-            $this->assertStringContainsString('no Banco Central USD→DOP rate on file', $e->getMessage());
+            $this->assertStringContainsString('no official USD→DOP rate on file', $e->getMessage());
         }
 
         $this->assertNull(EcfCompliance::current($draft->refresh()), 'no e-NCF was spent');

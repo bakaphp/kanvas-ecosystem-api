@@ -146,7 +146,7 @@ class DateHelper
     // Returns null instead of throwing on garbage / non-strings / empty input.
     public static function tryParseCarbon(mixed $value): ?Carbon
     {
-        if (! is_string($value) || $value === '') {
+        if (! is_string($value) || trim($value) === '') {
             return null;
         }
 

@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Tests\Connectors\WebPos;
 
 use Kanvas\Connectors\WebPos\Services\FiscalDocMapperService;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfDocument;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfExport;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfForeignPayment;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfLine;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfParty;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfExport;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfForeignPayment;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfLine;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfParty;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfReference;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfTotals;
-use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfItbisRateEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfTotals;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfItbisRateEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
 use Tests\TestCase;
 
@@ -103,7 +103,7 @@ final class FiscalDocMapperTypeFieldsTest extends TestCase
 
         return new EcfDocument(
             type: $type,
-            encf: $type->prefix() . '0000000001',
+            encf: $type->series() . '0000000001',
             sequenceExpiresAt: '2028-12-31',
             issueDate: '2026-06-15',
             systemRef: 'b0b6f6c5-0000-4000-8000-000000000001',

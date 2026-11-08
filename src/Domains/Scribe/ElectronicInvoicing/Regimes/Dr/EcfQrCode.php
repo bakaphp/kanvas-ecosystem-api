@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\ElectronicInvoicing\Support;
+namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 
 /**
  * The DGII stamp URL (`ConsultaTimbre?...`) carries the security code and signing time as query parameters,

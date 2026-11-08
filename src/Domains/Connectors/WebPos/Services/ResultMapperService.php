@@ -9,7 +9,7 @@ use Kanvas\Connectors\WebPos\Support\ResponseField;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfSubmission;
 use Kanvas\Scribe\ElectronicInvoicing\Exceptions\ProviderRejectedException;
-use Kanvas\Scribe\ElectronicInvoicing\Support\EcfQrCode;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfQrCode;
 
 /**
  * One mapping for every place WebPOS answers with a document result: sendFileToProcess, GetResultFe,

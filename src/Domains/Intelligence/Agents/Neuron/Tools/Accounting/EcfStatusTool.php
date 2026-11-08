@@ -14,7 +14,7 @@ use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Actions\ApplyFiscalAnswerAction;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDocumentStatusEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Exceptions\FiscalNumberHeldElsewhereException;
-use Kanvas\Scribe\ElectronicInvoicing\Services\EcfDocumentBuilder;
+use Kanvas\Scribe\ElectronicInvoicing\Services\FiscalPayloadService;
 use Kanvas\Scribe\ElectronicInvoicing\Services\EcfProviderResolver;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\ElectronicInvoicing\Support\ReceivedEcfCompliance;
@@ -124,7 +124,7 @@ class EcfStatusTool extends Tool
         if (! $heldElsewhere && ($fiscal->status === FiscalDocumentStatusEnum::DRAFT || $fiscal->status->isOutstanding())) {
             try {
                 $answer = new EcfProviderResolver()->resolveFor($fiscal)
-                    ->fetchResult(new EcfDocumentBuilder()->buildForFiscal($fiscal));
+                    ->fetchResult(FiscalPayloadService::forFiscal($fiscal));
 
                 new ApplyFiscalAnswerAction(fiscalDocument: $fiscal, answer: $answer)->execute();
                 $invoice->refresh();

@@ -546,9 +546,9 @@ class FiscalDocumentsTest extends EcfCompletionTestCase
         $invoice->saveQuietly();
 
         $scope = ['--company' => [$this->company->getId()]];
-        $this->artisan('scribe:fiscal-preflight', [...$scope, '--skip-queue-check' => true])->assertSuccessful();
-        $this->artisan('scribe:fiscal-backfill', $scope)->assertSuccessful();
-        $this->artisan('scribe:fiscal-backfill', $scope)->assertSuccessful();
+        $this->artisan('scribe:dr-fiscal-preflight', [...$scope, '--skip-queue-check' => true])->assertSuccessful();
+        $this->artisan('scribe:dr-fiscal-backfill', $scope)->assertSuccessful();
+        $this->artisan('scribe:dr-fiscal-backfill', $scope)->assertSuccessful();
 
         $fiscal = FiscalDocument::query()->forEntity($invoice)->sole();
         $this->assertSame(FiscalDocumentStatusEnum::ACCEPTED, $fiscal->status);
@@ -569,8 +569,8 @@ class FiscalDocumentsTest extends EcfCompletionTestCase
             $invoice->saveQuietly();
 
             $scope = ['--company' => [$this->company->getId()]];
-            $this->artisan('scribe:fiscal-preflight', [...$scope, '--skip-queue-check' => true])->assertFailed();
-            $this->artisan('scribe:fiscal-backfill', $scope)->assertSuccessful();
+            $this->artisan('scribe:dr-fiscal-preflight', [...$scope, '--skip-queue-check' => true])->assertFailed();
+            $this->artisan('scribe:dr-fiscal-backfill', $scope)->assertSuccessful();
             $this->assertSame(0, FiscalDocument::query()->forEntity($invoice)->count());
         } finally {
             $this->company->del('scribe-ecf-environment');

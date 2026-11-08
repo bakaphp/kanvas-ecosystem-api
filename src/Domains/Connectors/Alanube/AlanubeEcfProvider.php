@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Alanube;
 
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalPayloadInterface;
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -16,7 +18,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\EcfProviderInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\RespondsToReceivedEcfInterface;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfDocument;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfSubmission;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfEnvironmentEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfStatusEnum;
@@ -36,6 +38,11 @@ use Override;
  */
 class AlanubeEcfProvider implements EcfProviderInterface, RespondsToReceivedEcfInterface
 {
+    public static function country(): string
+    {
+        return DrFiscalRegime::COUNTRY;
+    }
+
     // Validation answers: the e-CF never reached DGII and the e-NCF was not consumed, so Scribe can fix and resend.
     private const array VALIDATION_STATUSES = [400, 422];
 
@@ -47,8 +54,10 @@ class AlanubeEcfProvider implements EcfProviderInterface, RespondsToReceivedEcfI
     }
 
     #[Override]
-    public function submit(EcfDocument $document): EcfSubmission
+    public function submit(FiscalPayloadInterface $payload): EcfSubmission
     {
+        $document = EcfDocument::narrow($payload);
+
         $existingReference = $this->providerReferenceFor($document);
 
         if ($existingReference !== null) {
@@ -84,14 +93,18 @@ class AlanubeEcfProvider implements EcfProviderInterface, RespondsToReceivedEcfI
     }
 
     #[Override]
-    public function requestPayload(EcfDocument $document): array
+    public function requestPayload(FiscalPayloadInterface $payload): array
     {
+        $document = EcfDocument::narrow($payload);
+
         return $this->client()->withCompany(new AlanubeDocumentMapper($this->senderProfile())->map($document));
     }
 
     #[Override]
-    public function fetchResult(EcfDocument $document): EcfSubmission
+    public function fetchResult(FiscalPayloadInterface $payload): EcfSubmission
     {
+        $document = EcfDocument::narrow($payload);
+
         $reference = $this->providerReferenceFor($document);
 
         if ($reference === null) {
@@ -119,7 +132,7 @@ class AlanubeEcfProvider implements EcfProviderInterface, RespondsToReceivedEcfI
                 status: EcfStatusEnum::WAITING,
                 encf: $encf,
                 providerReference: $alanubeId,
-                messages: ["Alanube has no {$type->prefix()} document {$alanubeId}."],
+                messages: ["Alanube has no {$type->series()} document {$alanubeId}."],
             );
         }
 

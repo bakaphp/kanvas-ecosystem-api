@@ -45,7 +45,7 @@ final class InvoiceApprovalPayload
             'document_type' => $invoice->document_type->value,
             'customer_organization_id' => $invoice->customer_organization_id,
             'customer_tax_id' => BuyerTaxId::of($invoice),
-            'ecf_type' => $ecf->ecfTypeFor($invoice)?->value,
+            'ecf_type' => $ecf->ecfTypeFor($invoice)?->code(),
             'currency' => $invoice->currency,
             'tax_native' => round((float) $invoice->tax_native, 4),
             'total_native' => round((float) $invoice->total_native, 4),

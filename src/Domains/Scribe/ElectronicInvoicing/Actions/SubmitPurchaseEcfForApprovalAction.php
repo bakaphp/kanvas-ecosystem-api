@@ -10,7 +10,7 @@ use Kanvas\Approvals\Services\ApprovalOriginService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Approvals\PurchaseEcfApprovalPayload;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalDocumentTypeInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Expenses\Models\Expense;
@@ -26,7 +26,7 @@ class SubmitPurchaseEcfForApprovalAction
 {
     public function __construct(
         public readonly Bill|Expense $document,
-        public readonly EcfTypeEnum $type,
+        public readonly FiscalDocumentTypeInterface $type,
         public readonly ?UserInterface $user = null,
         protected readonly EcfIssuanceService $ecf = new EcfIssuanceService(),
     ) {
@@ -46,7 +46,7 @@ class SubmitPurchaseEcfForApprovalAction
             return $document;
         }
 
-        EcfCompliance::writeDraftSettings($document, ['type' => $this->type->value]);
+        EcfCompliance::writeDraftSettings($document, ['type' => $this->type->code()]);
         $document->save();
 
         $request = $document->requestApproval(

@@ -164,7 +164,7 @@ class PurchaseEcfTest extends EcfCompletionTestCase
         );
 
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage("vendor's own e-CF");
+        $this->expectExceptionMessage("vendor's own electronic invoice");
 
         new IssuePurchaseEcfAction($bill, EcfTypeEnum::COMPRAS)->execute();
     }

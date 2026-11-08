@@ -243,7 +243,7 @@ class AccountsPayableAgent extends SystemUserAgent
             '- "What do we need to pay this week" / "prepare the payments" → build_payment_run. It picks the approved, '
             . 'unpaid bills due by the date, checks the known bank balance and emails the run to the person who pays. '
             . 'Post its summary in chat. You never pay: when that person says a bill is paid, record_bill_payment.',
-            '- A bill that came in as a vendor e-CF (source dgii_ecf) gets DGII\'s commercial response once you have '
+            '- A bill that came in as a vendor e-CF (source e_invoice) gets DGII\'s commercial response once you have '
             . 'checked it: respond_to_vendor_ecf accept, or reject with a reason the vendor will read. ecf_status shows '
             . 'whether it was already answered. "How did yesterday go" → accounting_digest.',
             '- A bank statement someone sends you (CSV or PDF) → ingest_bank_statement with the file. Never read the '

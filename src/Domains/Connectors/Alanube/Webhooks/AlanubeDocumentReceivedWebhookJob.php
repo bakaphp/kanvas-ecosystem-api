@@ -8,7 +8,7 @@ use Baka\Http\SafeUrlFetcher;
 use Kanvas\Connectors\Alanube\Client;
 use Kanvas\Scribe\Bills\Actions\CreateBillFromReceivedEcfAction;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfProviderEnum;
-use Kanvas\Scribe\ElectronicInvoicing\Services\ReceivedEcfXmlParserService;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\ReceivedEcfXmlParserService;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Override;

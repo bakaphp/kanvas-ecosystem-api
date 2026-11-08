@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\ElectronicInvoicing\Support;
 
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfStatusEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDirectionEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
@@ -12,14 +15,13 @@ use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 
 /**
- * Two halves. Before a number exists, the e-CF choices (type, export block, purchase order, withholding,
- * foreign payment) live in `regional_compliance.do_ecf` on the document: mutable, saved by the caller. From
- * allocation on, the state is the entity's current `fiscal_documents` row, written only through the fiscal
- * actions. `read()` merges both into the flat shape the rest of Scribe was written against.
+ * Two halves. Before a number exists, the regime's draft choices (DR: type, export block, purchase order,
+ * withholding, foreign payment) live in `regional_compliance.{cc}_ecf` on the document (`do_ecf` in the DR): mutable,
+ * saved by the caller. From allocation on, the state is the entity's current `fiscal_documents` row, written only
+ * through the fiscal actions. `read()` merges both into the flat shape the rest of Scribe was written against.
  */
 final class EcfCompliance
 {
-    public const string KEY = 'do_ecf';
 
     /**
      * What the pre-fiscal-table block kept after allocation. Never read from the JSON any more, so a block the
@@ -35,9 +37,9 @@ final class EcfCompliance
     /**
      * @return array<string, mixed>
      */
-    public static function draftSettings(Invoice|Bill|Expense $document): array
+    public static function draftSettings(Invoice|Bill|Expense $document, ?string $key = null): array
     {
-        return array_diff_key(self::rawBlock($document), array_flip(self::POST_ALLOCATION_KEYS));
+        return array_diff_key(self::rawBlock($document, $key), array_flip(self::POST_ALLOCATION_KEYS));
     }
 
     /**
@@ -45,17 +47,38 @@ final class EcfCompliance
      */
     public static function writeDraftSettings(Invoice|Bill|Expense $document, array $changes): void
     {
+        $key = self::key($document) ?? throw new ValidationException(
+            "Company {$document->companies_id} has no electronic-invoicing regime, so the document has no fiscal choices to set."
+        );
+
         $compliance = $document->regional_compliance ?? [];
-        $compliance[self::KEY] = [...self::rawBlock($document), ...$changes];
+        $compliance[$key] = [...self::rawBlock($document, $key), ...$changes];
         $document->regional_compliance = $compliance;
     }
 
     /**
+     * The key defaults to the document's company regime; empty for a company with none.
+     *
      * @return array<string, mixed>
      */
-    public static function rawBlock(Invoice|Bill|Expense $document): array
+    public static function rawBlock(Invoice|Bill|Expense $document, ?string $key = null): array
     {
-        return (array) (($document->regional_compliance ?? [])[self::KEY] ?? []);
+        $key ??= self::key($document);
+
+        return $key !== null ? (array) (($document->regional_compliance ?? [])[$key] ?? []) : [];
+    }
+
+    public static function key(Invoice|Bill|Expense $document): ?string
+    {
+        $company = $document->company;
+        $country = $company instanceof Companies ? FiscalRegimes::forCompany($company)?->country() : null;
+
+        return $country !== null ? self::keyFor($country) : null;
+    }
+
+    public static function keyFor(string $country): string
+    {
+        return strtolower($country) . '_ecf';
     }
 
     public static function current(Invoice|Bill|Expense $document): ?FiscalDocument

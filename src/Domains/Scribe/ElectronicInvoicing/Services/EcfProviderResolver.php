@@ -15,8 +15,8 @@ use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfEnvironmentEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
 
 /**
- * The company's e-CF provider, from its `scribe-ecf-provider` setting. One provider per company: DGII's
- * directory points each taxpayer at a single provider, so this is never chosen per document.
+ * The company's e-invoicing provider, from its `scribe-ecf-provider` setting. One provider per company: the
+ * authority's directory points each taxpayer at a single provider, so this is never chosen per document.
  */
 class EcfProviderResolver
 {
@@ -25,6 +25,17 @@ class EcfProviderResolver
         $value = $company->get(ConfigurationEnum::ECF_PROVIDER->value);
 
         return is_string($value) ? Str::trimToNull(strtolower($value)) : null;
+    }
+
+    /**
+     * The country the configured provider issues for; null without one, or when the key is not installed.
+     */
+    public function providerCountry(Companies $company): ?string
+    {
+        $key = $this->providerKey($company);
+        $class = $key !== null ? AllowedClass::resolve(config("scribe.ecf_providers.{$key}"), EcfProviderInterface::class) : null;
+
+        return $class !== null ? $class::country() : null;
     }
 
     public function issuesEcf(Companies $company): bool

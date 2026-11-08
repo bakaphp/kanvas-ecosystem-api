@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\ElectronicInvoicing\Services;
+namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Baka\Helpers\GenerateQrCode;
 use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Money;
@@ -38,7 +39,6 @@ use Throwable;
 final class EcfInvoicePdfService
 {
     // Its own field, beside the provider's `ecf_pdf`: both can exist, and delivery prefers this one.
-    public const string FIELD_NAME = 'ecf_invoice_pdf';
     public const string TEMPLATE_NAME = 'scribe-ecf-invoice';
     public const string PACKAGED_TEMPLATE = 'views/pdf/scribe-ecf-invoice.twig';
 
@@ -59,7 +59,7 @@ final class EcfInvoicePdfService
             company: $this->invoice->company,
         );
 
-        $this->invoice->addFile($file, self::FIELD_NAME);
+        $this->invoice->addFile($file, FiscalRegimeInterface::INVOICE_PDF_FIELD);
 
         return $file;
     }

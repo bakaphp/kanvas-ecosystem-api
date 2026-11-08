@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\ElectronicInvoicing\DataTransferObject;
+namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 

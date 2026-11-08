@@ -24,7 +24,7 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 class CreateFiscalDocumentAction
 {
     /**
-     * @param array<string, mixed> $attributes regime-built (DrFiscalRegime::issued / ::received)
+     * @param array<string, mixed> $attributes regime-built (FiscalRegimeInterface::issuedAttributes(), or a regime's received row)
      */
     public function __construct(
         public readonly Invoice|Bill|Expense $entity,

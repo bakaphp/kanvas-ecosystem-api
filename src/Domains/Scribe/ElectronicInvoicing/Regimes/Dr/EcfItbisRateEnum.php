@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\ElectronicInvoicing\Enums;
+namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 
 enum EcfItbisRateEnum: string
 {

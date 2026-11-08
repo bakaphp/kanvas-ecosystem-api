@@ -35,9 +35,14 @@ enum EcfTypeEnum: string implements FiscalDocumentTypeInterface
         return $this->value;
     }
 
-    public function prefix(): string
+    public function series(): string
     {
         return 'E' . $this->value;
+    }
+
+    public function sequenceDigits(): int
+    {
+        return 10;
     }
 
     public function isNote(): bool

@@ -13,6 +13,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\ConfigurationEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Services\FiscalArtifactService;
 use Kanvas\Scribe\FxRates\Models\FxRate;
@@ -111,12 +112,13 @@ abstract class EcfTestCase extends ScribeTestCase
         new DocumentNumberAllocatorService()->configureRange(
             appsId: $this->kanvasApp->getId(),
             companiesId: $this->company->getId(),
-            documentType: DocumentTypeEnum::forEcf($type),
-            prefix: $type->prefix(),
+            documentType: DocumentTypeEnum::forFiscal($type),
+            prefix: $type->series(),
             rangeStart: $start,
             rangeEnd: $end,
             expiresAt: $expiresAt !== null ? Carbon::parse($expiresAt) : null,
             padding: 10,
+            country: DrFiscalRegime::COUNTRY,
         );
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\GraphQL;
 
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
 use Tests\Scribe\ScribeTestCase;
 
 class EcfRangeGraphQLTest extends ScribeTestCase
@@ -14,6 +15,28 @@ class EcfRangeGraphQLTest extends ScribeTestCase
                 id document_type document_type_label first_number last_number next_number remaining expires_at status
             }
         }';
+
+    /**
+     * A range needs its authority: the company's provider names it, else the company's country. The column rolls
+     * back with the test.
+     */
+    protected function afterScribeSetUp(): void
+    {
+        $this->company->forceFill(['country_code' => DrFiscalRegime::COUNTRY])->saveQuietly();
+    }
+
+    public function test_a_company_with_no_regime_cannot_load_a_range(): void
+    {
+        $this->company->forceFill(['country_code' => null])->saveQuietly();
+
+        $this->graphQL(self::CONFIGURE, ['input' => [
+            'document_type' => '31',
+            'first_number' => '1',
+            'last_number' => '100',
+        ]])->assertGraphQLErrorMessage(
+            'This company has no electronic-invoicing regime yet: connect its provider (or set its country) before loading a range.'
+        );
+    }
 
     public function test_a_range_loaded_from_the_ui_is_active_and_the_previous_one_is_kept(): void
     {
@@ -47,7 +70,7 @@ class EcfRangeGraphQLTest extends ScribeTestCase
             'document_type' => '31',
             'first_number' => 'E320000000001',
             'last_number' => 'E320000000100',
-        ]])->assertGraphQLErrorMessage('E320000000001 is not an E31 e-NCF.');
+        ]])->assertGraphQLErrorMessage('E320000000001 is not in the E31 series.');
     }
 
     /**

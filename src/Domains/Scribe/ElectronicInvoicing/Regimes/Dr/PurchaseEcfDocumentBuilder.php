@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\ElectronicInvoicing\Services;
+namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfExchangeRate;
 use Baka\Support\Money;
@@ -11,10 +11,10 @@ use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillLine;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfDocument;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfForeignPayment;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfLine;
-use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfParty;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfForeignPayment;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfLine;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfParty;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Expenses\Models\Expense;

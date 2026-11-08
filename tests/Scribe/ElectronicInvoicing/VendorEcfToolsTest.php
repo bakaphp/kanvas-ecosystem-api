@@ -26,9 +26,9 @@ use Kanvas\Scribe\ElectronicInvoicing\Exceptions\FiscalNumberHeldElsewhereExcept
 use Kanvas\Scribe\ElectronicInvoicing\Jobs\PollEcfResultJob;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
-use Kanvas\Scribe\ElectronicInvoicing\Services\ReceivedEcfXmlParserService;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\ReceivedEcfXmlParserService;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
-use Kanvas\Scribe\ElectronicInvoicing\Support\EcfQrCode;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfQrCode;
 use Kanvas\Scribe\ElectronicInvoicing\Support\ReceivedEcfCompliance;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Models\Invoice;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Bills\Services;
 
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Baka\Support\Money;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Bills\Models\Bill;
@@ -219,10 +220,12 @@ class BillJournalEntryComposerService
         $app = $bill->app;
         $company = $bill->company;
 
-        if ($jurisdiction === 'DO') {
-            $drAccount = $this->accountResolver->bySubTypeOrNull($app, $company, AccountSubTypeEnum::DR_ITBIS_RECEIVABLE);
-            if ($drAccount !== null) {
-                return $drAccount;
+        $subType = FiscalRegimes::find($jurisdiction)?->inputTaxAccountSubType();
+
+        if ($subType !== null) {
+            $account = $this->accountResolver->bySubTypeOrNull($app, $company, $subType);
+            if ($account !== null) {
+                return $account;
             }
         }
 

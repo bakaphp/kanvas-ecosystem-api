@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\ElectronicInvoicing\DataTransferObject;
+namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject;
 
-use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfItbisRateEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfItbisRateEnum;
 use Spatie\LaravelData\Data;
 
 /**

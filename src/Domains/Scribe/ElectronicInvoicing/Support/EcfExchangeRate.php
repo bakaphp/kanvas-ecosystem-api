@@ -7,18 +7,20 @@ namespace Kanvas\Scribe\ElectronicInvoicing\Support;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Bills\Models\Bill;
-use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
+use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
+use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\FxRates\Services\FxRateService;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 
 /**
- * The DOP rate a foreign-currency e-CF declares to DGII (TipoCambio). The document stays in its own currency; DGII
- * records its peso value from this rate, so declaring 1 under-reports a USD invoice about sixty times.
+ * The local-currency rate a foreign-currency fiscal document declares to its authority (DR: TipoCambio in DOP). The
+ * document stays in its own currency; the authority records its local value from this rate, so declaring 1
+ * under-reports a USD invoice about sixty times in the DR.
  *
- * Frozen on the document when its e-NCF is assigned, so every later send (a retry, a resend) declares the same
- * rate: a person's stated rate wins, a note takes its parent's (it modifies the same peso value), otherwise the
- * Banco Central buy rate in force on the issue date.
+ * Frozen on the document when its number is assigned, so every later send (a retry, a resend) declares the same
+ * rate: a person's stated rate wins, a note takes its parent's (it modifies the same local value), otherwise the
+ * regime's official rate in force on the issue date (DR: Banco Central buy rate).
  */
 final class EcfExchangeRate
 {
@@ -26,7 +28,7 @@ final class EcfExchangeRate
 
     public static function declared(Invoice|Bill|Expense $document): float
     {
-        if (self::isPesos($document)) {
+        if (self::isLocalCurrency($document)) {
             return 1.0;
         }
 
@@ -38,7 +40,7 @@ final class EcfExchangeRate
 
     public static function freeze(Invoice|Bill|Expense $document, ?Invoice $parent = null): void
     {
-        if (self::isPesos($document)) {
+        if (self::isLocalCurrency($document)) {
             return;
         }
 
@@ -56,13 +58,14 @@ final class EcfExchangeRate
 
         $currency = strtoupper((string) $document->currency);
         $date = Carbon::parse($document->issued_date ?? $document->bill_date ?? $document->expense_date ?? Carbon::today());
-        $rate = new FxRateService()->rateOn($document->app, $currency, DrFiscalRegime::CURRENCY, $date);
+        $regime = self::regime($document);
+        $rate = new FxRateService()->rateOn($document->app, $currency, $regime->currency(), $date);
 
         if ($rate === null) {
             throw new ValidationException(
-                "There is no Banco Central {$currency}→DOP rate on file for {$date->toDateString()}, and an e-CF in "
-                . "{$currency} has to declare it to DGII. Nothing was issued. Sync the rates (scribe:sync-fx-rates) "
-                . 'or state the rate on the document.'
+                "There is no official {$currency}→{$regime->currency()} rate on file for {$date->toDateString()}, and a "
+                . "fiscal document in {$currency} has to declare it to {$regime->authority()}. Nothing was issued. Sync the "
+                . 'rates (scribe:sync-fx-rates) or state the rate on the document.'
             );
         }
 
@@ -73,8 +76,13 @@ final class EcfExchangeRate
         ]);
     }
 
-    private static function isPesos(Invoice|Bill|Expense $document): bool
+    private static function isLocalCurrency(Invoice|Bill|Expense $document): bool
     {
-        return strtoupper((string) $document->currency) === DrFiscalRegime::CURRENCY;
+        return strtoupper((string) $document->currency) === self::regime($document)->currency();
+    }
+
+    private static function regime(Invoice|Bill|Expense $document): FiscalRegimeInterface
+    {
+        return new EcfIssuanceService()->regimeFor($document->company);
     }
 }

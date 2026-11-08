@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Invoices\Services;
 
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Baka\Support\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -373,21 +374,19 @@ class InvoiceJournalEntryComposerService
     }
 
     /**
-     * Map a tax-line's jurisdiction to the correct payable GL account.
-     *   - DR jurisdiction with ITBIS-shaped rate → dr_itbis_payable
-     *   - Anything else → sales_tax_payable (generic US-default)
-     *
-     * Extends naturally as we add more regional validators (MX/BR/AR/EU).
+     * A tax line posts to its jurisdiction's own payable account (DR: ITBIS) when the regime names one and the
+     * company's chart has it; anything else to the generic sales tax payable.
      */
     private function resolveTaxAccount(Invoice $invoice, ?string $jurisdiction): Account
     {
         $app = $invoice->app;
         $company = $invoice->company;
+        $subType = FiscalRegimes::find($jurisdiction)?->salesTaxAccountSubType();
 
-        if ($jurisdiction === 'DO') {
-            $drAccount = $this->accountResolver->bySubTypeOrNull($app, $company, AccountSubTypeEnum::DR_ITBIS_PAYABLE);
-            if ($drAccount !== null) {
-                return $drAccount;
+        if ($subType !== null) {
+            $account = $this->accountResolver->bySubTypeOrNull($app, $company, $subType);
+            if ($account !== null) {
+                return $account;
             }
         }
 
