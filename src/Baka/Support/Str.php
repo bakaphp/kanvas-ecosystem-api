@@ -190,6 +190,19 @@ class Str extends IlluminateStr
     }
 
     /**
+     * Drops what XML 1.0 cannot carry (control characters, invalid UTF-8). DOM writes such a character
+     * as a "&#11;" reference that no parser will load back, so the saved document is corrupt.
+     */
+    public static function stripInvalidXmlChars(string $value): string
+    {
+        if (! mb_check_encoding($value, 'UTF-8')) {
+            $value = mb_scrub($value, 'UTF-8');
+        }
+
+        return (string) preg_replace('/[^\x{9}\x{A}\x{D}\x{20}-\x{D7FF}\x{E000}-\x{FFFD}\x{10000}-\x{10FFFF}]/u', '', $value);
+    }
+
+    /**
      * Normalizes a value for case-insensitive comparison. Multibyte-safe on purpose: plain `strtolower`
      * leaves accented capitals untouched, so "ÚNICO" and "único" would never match.
      */
