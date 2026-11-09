@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
+use Kanvas\ActionEngine\Engagements\Concerns\SkipsNonLeadEngagements;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
 use Kanvas\Apps\Models\Apps;
@@ -33,10 +34,16 @@ use Kanvas\Workflow\KanvasActivity;
 )]
 class PushLeadNotesActivity extends KanvasActivity
 {
+    use SkipsNonLeadEngagements;
+
     public $tries = 3;
 
     public function execute(Message $message, Apps $app, array $params): array
     {
+        if ($skip = $this->skipNonLeadEngagement($message)) {
+            return $skip;
+        }
+
         $company = $message->company;
 
         if (! $company->get(ConfigurationEnum::COMPANY->value)) {
@@ -59,7 +66,7 @@ class PushLeadNotesActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::VIN_SOLUTION,
             additionalParams: $params,
-            integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($lead) {
+            integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams) use ($lead): array {
                 if ($message->isLocked() || ! $message->isPublic()) {
                     return $this->failWorkflow([
                         'message_id' => $message->getId(),
@@ -98,7 +105,6 @@ class PushLeadNotesActivity extends KanvasActivity
         $status = $messageData['status'] ?? '';
         $results = [];
 
-        // Process based on action type and status
         switch ($verb) {
             case ActionEnum::TRADE_WALK->value:
             case ActionEnum::PAYOFF_FORM->value:
@@ -142,11 +148,6 @@ class PushLeadNotesActivity extends KanvasActivity
                 if ($status === ActionStatusEnum::SUBMITTED->value) {
                     $purchaseVehicleAction = new PushPurchaseVehicleAction($lead, $message);
                     $results['purchaseVehicle'] = $purchaseVehicleAction->execute();
-
-                    // Send email notification if configured
-                    if ($lead->company->get('send-esign-notification-link')) {
-                        //$this->sendEsignNotification($lead, $messageData);
-                    }
                 }
 
                 break;

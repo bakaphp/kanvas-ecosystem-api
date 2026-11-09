@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Tests\Scribe\PdfIngest;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
+use Kanvas\Scribe\Bills\Enums\VendorCustomFieldEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillPaymentAllocation;
 use Kanvas\Scribe\Invoices\Enums\AllocationSourceTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
+use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Scribe\PdfIngest\Actions\ProcessAccountingPdfAction;
 use Kanvas\Scribe\PdfIngest\Actions\ProposeBillFromPdfAction;
@@ -30,7 +33,7 @@ use Tests\Scribe\ScribeTestCase;
  *   - AllocateBillPaymentAction posts the Cash JE  (DR AP / CR Cash, default CASH_CHECKING)
  *   - MarkBillPaidAction recomputes paid_native/balance and flips status to PAID
  *
- * Below the threshold or without a paid hint the Bill stays DRAFT so the operator decides.
+ * Below the threshold or without a paid hint the Bill goes to approval instead.
  *
  * Pair with PaymentStatusHintOnIngestedBillTest which covers the hint column propagation
  * (data-capture side) — this one is the GL-side outcome.
@@ -93,7 +96,7 @@ class AutoAdvancePaidBillOnIngestTest extends ScribeTestCase
         $this->assertEquals(100.0, (float) $payment->amount_native);
     }
 
-    public function test_low_confidence_paid_pdf_stays_draft(): void
+    public function test_low_confidence_paid_pdf_is_submitted_for_approval_not_paid(): void
     {
         $log = $this->ingestVendorInvoice(
             confidence: 0.50,
@@ -104,9 +107,9 @@ class AutoAdvancePaidBillOnIngestTest extends ScribeTestCase
         $bill = Bill::query()->where('id', $log->linked_entity_id)->firstOrFail();
 
         $this->assertSame(
-            BillDocumentStatusEnum::DRAFT,
+            BillDocumentStatusEnum::PENDING_APPROVAL,
             $bill->document_status,
-            'Below threshold the Bill must stay DRAFT — the hint UI button is what advances it.',
+            'Below threshold the Bill is not auto-paid — it goes to approval like any coded bill.',
         );
         // Hint column still captured so the UI can light up "Mark as paid?".
         $this->assertSame(PaymentStatusHintEnum::PAID, $bill->payment_status_hint);
@@ -118,7 +121,7 @@ class AutoAdvancePaidBillOnIngestTest extends ScribeTestCase
         );
     }
 
-    public function test_unpaid_hint_stays_draft_regardless_of_confidence(): void
+    public function test_unpaid_hint_is_never_auto_paid_regardless_of_confidence(): void
     {
         $log = $this->ingestVendorInvoice(
             confidence: 0.97,
@@ -127,7 +130,7 @@ class AutoAdvancePaidBillOnIngestTest extends ScribeTestCase
 
         /** @var Bill $bill */
         $bill = Bill::query()->where('id', $log->linked_entity_id)->firstOrFail();
-        $this->assertSame(BillDocumentStatusEnum::DRAFT, $bill->document_status);
+        $this->assertSame(BillDocumentStatusEnum::PENDING_APPROVAL, $bill->document_status);
         $this->assertSame(PaymentStatusHintEnum::UNPAID, $bill->payment_status_hint);
     }
 
@@ -143,14 +146,27 @@ class AutoAdvancePaidBillOnIngestTest extends ScribeTestCase
      */
     private function ingestVendorInvoice(float $confidence, array $extraExtractedFields)
     {
+        // A known vendor with a default account: auto-advance posts JEs, so it only runs on a coded bill.
+        $vendorEmail = 'billing-' . uniqid() . '@auto-advance.test';
+        $vendor = Organization::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => 'AutoAdvanceVendor ' . uniqid(),
+            'email' => $vendorEmail,
+            'address' => '',
+            'total_employees' => 0,
+        ]);
+        $vendor->set(VendorCustomFieldEnum::DEFAULT_EXPENSE_ACCOUNT->value, AccountSubTypeEnum::SOFTWARE_SUBSCRIPTIONS->defaultAccountNumber());
+
         $pdf = $this->createFilesystemRow();
         $classifier = new FakePdfClassifier()->queue(new PdfClassificationResult(
             document_type: PdfIngestDocumentTypeEnum::VENDOR_INVOICE,
             confidence: $confidence,
             reasoning: 'Vendor invoice for auto-advance test.',
             extracted: $extraExtractedFields + [
-                'vendor_name' => 'AutoAdvanceVendor ' . uniqid(),
-                'vendor_email' => 'billing-' . uniqid() . '@auto-advance.test',
+                'vendor_name' => $vendor->name,
+                'vendor_email' => $vendorEmail,
                 'bill_number' => 'AA-' . uniqid(),
                 'currency' => 'USD',
                 'subtotal' => 100.0,

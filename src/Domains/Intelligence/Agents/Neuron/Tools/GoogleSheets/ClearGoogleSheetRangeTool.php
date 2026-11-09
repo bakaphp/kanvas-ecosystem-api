@@ -41,8 +41,8 @@ class ClearGoogleSheetRangeTool extends Tool
             new ToolProperty(
                 name: 'sheet_url_or_id',
                 type: PropertyType::STRING,
-                description: 'The full Google Sheets URL the user shared, or a bare spreadsheet id. Omit to use '
-                    . 'this app\'s default invoice-tracking sheet.',
+                description: 'The full Google Sheets URL the user shared, or a bare spreadsheet id. '
+                    . 'Required — ask the user for the link when you do not have it.',
                 required: false,
             ),
             new ToolProperty(

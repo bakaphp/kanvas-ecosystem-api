@@ -6,39 +6,53 @@ namespace Kanvas\Scribe\PdfIngest\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
-use Kanvas\Guild\Organizations\Actions\ResolveOrCreateOrganizationFromVendorPayloadAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Actions\AllocateBillPaymentAction;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
+use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
+use Kanvas\Scribe\Bills\DataTransferObject\ExpenseAccountCoding;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Bills\Services\ExpenseAccountCodingService;
+use Kanvas\Scribe\Bills\Services\VendorByTaxIdResolverService;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DrFiscalRegime;
+use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use Kanvas\Scribe\PdfIngest\Traits\ExtractsPdfPayloadValuesTrait;
+use Kanvas\Scribe\Regional\DataTransferObject\TaxpayerLookup;
+use Kanvas\Scribe\Regional\Services\TaxpayerLookupService;
+use Kanvas\Scribe\Regional\Validators\DominicanRepublic\NcfValidator;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
 /**
- * Writes a DRAFT Bill from the LLM-extracted PDF payload.
+ * Turns an LLM-extracted vendor invoice into a Bill, ending in the same state the AP agent's own intake
+ * does: vendor resolved, lines coded, submitted for approval (which notifies the approver).
  *
- * Bill lands with:
- *   - document_status=DRAFT (operator reviews + receives via normal Bills dashboard flow)
- *   - source='parsed_pdf'
- *   - pdf_ingest_log_id linking back to the ingest log row
- *   - external_id=<filesystem_uuid> for cross-system idempotency
- *   - vendor reference NULL until operator resolves it during review (LLM gave us a name; vendor row
- *     in Guild has to be created/picked separately — UI prompts the operator)
- *   - Each line points at the TRAVEL_AND_MEALS default expense account (operator reassigns)
- *   - metadata.ingest carries the raw LLM payload + vendor_name string + vendor_tax_id
+ *   - Vendor: resolved/created from the extracted name, email and tax id. Needs an acting user, which the
+ *     inbox job passes (the AP agent's user, the company AI user, or the receiver's owner).
+ *   - GL: the vendor's default expense account, its coded history, an item named on the lines, then an AI
+ *     suggestion whose confidence rides on the bill for the approver (ExpenseAccountCodingService). Never a
+ *     catch-all guess presented as a coding.
+ *   - Dominican company: the supplier is found by RNC first and its RNC checked at DGII; the NCF is checked
+ *     for format and type into `regional_compliance.do_ncf`. A missing or wrong NCF holds the bill for review.
+ *   - When the vendor or the GL can't be resolved the bill stays DRAFT, its lines on a placeholder
+ *     expense account, with the reason in `metadata.ingest.review_reason` for whoever reviews it.
+ *   - source='parsed_pdf', pdf_ingest_log_id and external_id=<filesystem uuid> link it back to the PDF.
  *
- * Returns null when extraction is unusable (no total, no expense account in COA).
+ * Returns null when extraction is unusable (no total, no expense account in COA). Returns the EXISTING
+ * bill on a bill_number duplicate — the caller tells the two apart by pdf_ingest_log_id.
  */
 class ProposeBillFromPdfAction
 {
@@ -50,6 +64,15 @@ class ProposeBillFromPdfAction
      * decides via the UI suggestion. Anthropic-style clean receipts typically come in at ≥ 0.9.
      */
     public const AUTO_ADVANCE_CONFIDENCE_THRESHOLD = 0.85;
+
+    /** `regional_compliance` key for the supplier NCF + RNC check on a Dominican company's bill. */
+    public const string DO_NCF = 'do_ncf';
+
+    /** `metadata.ingest.review_code`: what the person (or the AP agent) has to fix. */
+    public const string REVIEW_VENDOR = 'vendor_unresolved';
+    public const string REVIEW_GL = 'gl_unresolved';
+    public const string REVIEW_NCF = 'ncf_invalid';
+    public const string REVIEW_RNC = 'rnc_not_registered';
 
     public function __construct(
         public readonly AppInterface $app,
@@ -86,9 +109,31 @@ class ProposeBillFromPdfAction
             }
         }
 
-        $expenseAccountId = $this->resolveDefaultExpenseAccountId();
+        $vendorDisplayName = $this->trimOrDefault(
+            $this->extracted['vendor_name'] ?? null,
+            $this->fromEmail !== null ? "Vendor ({$this->fromEmail})" : 'Unknown vendor',
+        );
+
+        $vendor = $this->resolveVendor($vendorDisplayName);
+        $coding = new ExpenseAccountCodingService()->code(
+            $this->app,
+            $this->company,
+            $vendor,
+            $vendorDisplayName,
+            $this->lineDescriptions(),
+        );
+        $compliance = $this->dominicanCompliance($vendor);
+        [$reviewCode, $reviewReason] = $this->review(
+            $vendor,
+            $coding,
+            $vendorDisplayName,
+            $compliance
+        );
+        $codedAccountId = $coding?->accountId;
+
+        $expenseAccountId = $codedAccountId ?? $this->resolveDefaultExpenseAccountId();
         if ($expenseAccountId === null) {
-            Log::error('Scribe.PdfIngest.ProposeBill skipped — no fallback expense account in COA', [
+            Log::error('Scribe.PdfIngest.ProposeBill skipped — no expense account in COA', [
                 'app_id' => $this->app->getId(),
                 'company_id' => $this->company->getId(),
             ]);
@@ -102,21 +147,17 @@ class ProposeBillFromPdfAction
         $taxNative = $this->floatOrNull($this->extracted['tax'] ?? null) ?? 0.0;
         $subtotal = $this->floatOrNull($this->extracted['subtotal'] ?? null) ?? ($total - $taxNative);
         $notes = trim('Imported from PDF. ' . (string) ($this->extracted['notes'] ?? ''));
-        $vendorDisplayName = $this->trimOrDefault(
-            $this->extracted['vendor_name'] ?? null,
-            $this->fromEmail !== null ? "Vendor ({$this->fromEmail})" : 'Unknown vendor',
-        );
 
         $lines = $this->buildLines($expenseAccountId, $subtotal, $taxNative);
 
         $data = new BillData(
             app: $this->app,
             company: $this->company,
-            vendor: null,                                              // operator resolves vendor during review
+            vendor: $vendor,
             lines: new DataCollection(BillLineData::class, $lines),
             currency: $currency,
             fx_rate_to_base: 1.0,
-            bill_number: $this->trimOrDefault($this->extracted['bill_number'] ?? null, null),
+            bill_number: $billNumberCandidate,
             bill_date: $billDate,
             due_date: $dueDate,
             notes: $notes,
@@ -129,6 +170,14 @@ class ProposeBillFromPdfAction
                     'vendor_name' => $vendorDisplayName,
                     'vendor_tax_id' => $this->extracted['vendor_tax_id'] ?? null,
                     'vendor_email' => $this->extracted['vendor_email'] ?? $this->fromEmail,
+                    'gl_source' => $this->glSource($coding),
+                    'gl_coding' => $coding !== null ? [
+                        'source' => $coding->source,
+                        'confidence' => $coding->confidence,
+                        'reasoning' => $coding->reasoning,
+                    ] : null,
+                    'review_reason' => $reviewReason,
+                    'review_code' => $reviewCode,
                     'extracted' => $this->extracted,
                 ],
             ],
@@ -139,29 +188,8 @@ class ProposeBillFromPdfAction
 
         $bill = new CreateBillAction(data: $data, user: $this->user)->execute();
 
-        // Auto-resolve/create the vendor Guild Org from the extracted payload + email hint. Drafts
-        // ship with vendor_organization_id already set so the operator doesn't have to pick during
-        // approval. Duplicates are cleaned up later via MergeOrganizationsAction.
-        $vendor = null;
-        if ($this->user !== null) {
-            $vendor = new ResolveOrCreateOrganizationFromVendorPayloadAction(
-                app: $this->app,
-                company: $this->company,
-                user: $this->user,
-                payload: [
-                    'vendor_name' => $this->extracted['vendor_name'] ?? $vendorDisplayName,
-                    'vendor_email' => $this->extracted['vendor_email'] ?? $this->fromEmail,
-                    'vendor_tax_id' => $this->extracted['vendor_tax_id'] ?? null,
-                ],
-            )->execute();
-            if ($vendor !== null) {
-                $bill->vendor_organization_id = (int) $vendor->id;
-            }
-        }
-
-        // Set the vendor display name into the snapshot up-front so the operator sees it in the list
-        // (legal_name/tax_id/email also populated from the extraction; ReceiveBill re-freezes them
-        // from the linked Guild Org at the moment of receipt).
+        // The snapshot shows the extracted spelling up-front; ReceiveBill re-freezes it from the linked
+        // Guild Org at the moment of receipt.
         $bill->vendor_display_name = $vendorDisplayName;
         $bill->vendor_legal_name = $this->trimOrDefault($this->extracted['vendor_name'] ?? null, null);
         $bill->vendor_tax_id = $this->trimOrDefault($this->extracted['vendor_tax_id'] ?? null, null);
@@ -180,12 +208,175 @@ class ProposeBillFromPdfAction
             }
         }
 
+        if ($compliance !== null) {
+            $bill->regional_compliance = [...(array) $bill->regional_compliance, self::DO_NCF => $compliance];
+        }
+
+        // The approver is the check on an AI coding, so the approval carries how sure it was.
+        if ($coding !== null && $coding->isSuggestion()) {
+            $bill->appendInternalNote(sprintf(
+                'Expense account suggested by AI (confidence %d%%): %s Check the coding before approving.',
+                (int) round($coding->confidence * 100),
+                (string) $coding->reasoning,
+            ));
+        }
+
         $bill->save();
         $bill->refresh();
 
-        $this->maybeAutoAdvanceToPaid($bill, $vendor ?? null);
+        if ($reviewReason !== null) {
+            return $bill;
+        }
+
+        $this->maybeAutoAdvanceToPaid($bill, $vendor);
+        $bill->refresh();
+
+        if ($bill->document_status === BillDocumentStatusEnum::DRAFT) {
+            $this->submitForApproval($bill);
+        }
 
         return $bill->refresh();
+    }
+
+    /**
+     * The tax id first for a Dominican supplier: it is the legal identity, a name match is not. A vendor
+     * found or created without one gets the invoice's.
+     */
+    private function resolveVendor(string $vendorDisplayName): ?Organization
+    {
+        if ($this->user === null) {
+            return null;
+        }
+
+        return new VendorByTaxIdResolverService()->resolveOrCreate(
+            $this->app,
+            $this->company,
+            $this->user,
+            $this->dominicanTaxId(),
+            [
+                'vendor_name' => $this->extracted['vendor_name'] ?? $vendorDisplayName,
+                'vendor_email' => $this->extracted['vendor_email'] ?? $this->fromEmail,
+                'vendor_tax_id' => $this->extracted['vendor_tax_id'] ?? null,
+            ],
+        );
+    }
+
+    /**
+     * For a Dominican company: the bill's NCF checked for format and type, and the supplier's RNC checked
+     * at DGII when the company has an e-CF provider to ask. Null for every other country.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function dominicanCompliance(?Organization $vendor): ?array
+    {
+        if (! $this->isDominicanCompany()) {
+            return null;
+        }
+
+        $ncf = new NcfValidator()->validate($this->trimOrDefault($this->extracted['ncf'] ?? null, null));
+        $taxId = $this->dominicanTaxId() ?? ($vendor !== null ? Str::digitsOnly($vendor->getPayeeTaxId()) : null);
+        $rnc = $taxId !== null && $taxId !== '' && $this->company instanceof Companies && $this->app instanceof Apps
+            ? new TaxpayerLookupService()->lookup($this->app, $this->company, $taxId)
+            : null;
+
+        return $ncf->toArray() + [
+            'vendor_rnc' => $taxId !== '' ? $taxId : null,
+            'rnc_status' => $rnc?->status,
+            'rnc_legal_name' => $rnc?->legalName,
+            'checked_at' => Carbon::now()->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed>|null $compliance
+     * @return array{0: ?string, 1: ?string} review code and reason, both null when the bill can go to approval
+     */
+    private function review(
+        ?Organization $vendor,
+        ?ExpenseAccountCoding $coding,
+        string $vendorDisplayName,
+        ?array $compliance,
+    ): array {
+        return match (true) {
+            $this->user === null => [self::REVIEW_VENDOR, 'No acting user was available to resolve the vendor.'],
+            $vendor === null => [self::REVIEW_VENDOR, "The vendor \"{$vendorDisplayName}\" could not be matched or created."],
+            $compliance !== null && ! $compliance['valid'] => [self::REVIEW_NCF, (string) $compliance['reason']],
+            ($compliance['rnc_status'] ?? null) === TaxpayerLookup::NOT_REGISTERED => [
+                self::REVIEW_RNC,
+                "DGII has no taxpayer registered under RNC {$compliance['vendor_rnc']}.",
+            ],
+            $coding === null => [self::REVIEW_GL, "Vendor \"{$vendor->name}\" has no default expense account and no coded "
+                . 'bills to learn one from; the lines sit on a placeholder account until someone codes them.'],
+            default => [null, null],
+        };
+    }
+
+    private function glSource(?ExpenseAccountCoding $coding): string
+    {
+        return match ($coding?->source) {
+            null => 'placeholder',
+            ExpenseAccountCoding::VENDOR, ExpenseAccountCoding::HISTORY => 'vendor',
+            default => $coding->source,
+        };
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function lineDescriptions(): array
+    {
+        $descriptions = [];
+        foreach ((array) ($this->extracted['line_items'] ?? []) as $item) {
+            $description = is_array($item) ? trim((string) ($item['description'] ?? '')) : '';
+            if ($description !== '') {
+                $descriptions[] = $description;
+            }
+        }
+
+        $notes = trim((string) ($this->extracted['notes'] ?? ''));
+        if ($descriptions === [] && $notes !== '') {
+            $descriptions[] = $notes;
+        }
+
+        return $descriptions;
+    }
+
+    /**
+     * Paper NCFs are a Dominican rule (Regional/Validators/Dr). A company is Dominican by its e-invoicing regime,
+     * so one connected to a DR provider with no country set still gets the checks.
+     */
+    private function isDominicanCompany(): bool
+    {
+        return $this->company instanceof Companies
+            && FiscalRegimes::forCompany($this->company)?->country() === DrFiscalRegime::COUNTRY;
+    }
+
+    private function dominicanTaxId(): ?string
+    {
+        if (! $this->isDominicanCompany()) {
+            return null;
+        }
+
+        $taxId = Str::digitsOnly((string) ($this->extracted['vendor_tax_id'] ?? ''));
+
+        return DrFiscalRegime::isTaxId($taxId) ? $taxId : null;
+    }
+
+    /**
+     * Best-effort: a bill that could not be submitted stays a reviewable DRAFT, never a lost invoice.
+     */
+    private function submitForApproval(Bill $bill): void
+    {
+        try {
+            new SubmitBillForApprovalAction($bill, $this->user)->execute();
+        } catch (Throwable $e) {
+            report($e);
+
+            $metadata = $bill->metadata ?? [];
+            $metadata['ingest']['review_reason'] = 'Submitting for approval failed: ' . $e->getMessage();
+            $bill->metadata = $metadata;
+            $bill->save();
+        }
     }
 
     /**

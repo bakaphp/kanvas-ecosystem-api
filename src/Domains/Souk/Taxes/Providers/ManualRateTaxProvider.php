@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Taxes\Providers;
 
+use Baka\Support\Money;
 use Brick\Math\BigDecimal;
-use Kanvas\Souk\Support\Money;
 use Kanvas\Souk\Taxes\Contracts\TaxProviderInterface;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxableLine;
 use Kanvas\Souk\Taxes\DataTransferObject\TaxComponent;

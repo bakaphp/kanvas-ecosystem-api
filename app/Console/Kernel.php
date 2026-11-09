@@ -6,11 +6,13 @@ use App\Console\Commands\Analytics\Schedules\AnalyticsSchedule;
 use App\Console\Commands\Approvals\ExpireApprovalRequestsCommand;
 use App\Console\Commands\Communication\Schedules\CommunicationSchedule;
 use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
+use App\Console\Commands\Connectors\Brex\PullBrexCommand;
 use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
 use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
+use App\Console\Commands\Connectors\WebPos\PullWebPosReceivedEcfsCommand;
 use App\Console\Commands\CustomerSuccess\Schedules\CustomerSuccessSchedule;
 use App\Console\Commands\Ecosystem\Companies\FlagOverdueCorporateApplicationsCommand;
 use App\Console\Commands\Ecosystem\Imports\RunImportSourcesCommand;
@@ -117,6 +119,12 @@ class Kernel extends ConsoleKernel
         // event dropped past its ~1-day retry window is gone unless we go looking. Nightly, off-peak, with a
         // 7-day lookback that comfortably outruns that window.
         $schedule->command(PullMercuryCommand::class, ['--with-ar'])->dailyAt('02:00')->withoutOverlapping()->onOneServer();
+
+        // Brex — no transaction webhook is wired, so this pull is the whole feed (cash + card), not a recovery sweep.
+        $schedule->command(PullBrexCommand::class)->dailyAt('02:30')->withoutOverlapping()->onOneServer();
+
+        // WebPOS — vendors' e-CFs into draft bills for the AP agent. Gated per company on scribe-ecf-provider=webpos.
+        $schedule->command(PullWebPosReceivedEcfsCommand::class)->hourly()->withoutOverlapping()->onOneServer();
 
         // Nervous System — agent lifecycle, ledger maintenance, pulse + dashboard
         // rollups, plan + capability sweeps, the daily-learning loop.

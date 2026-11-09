@@ -81,6 +81,15 @@ class GeminiPdfClassifierPromptSnapshotTest extends TestCase
         $this->assertStringContainsString('RNC', $prompt, 'DR tax-id extraction must stay supported.');
     }
 
+    public function test_prompt_asks_for_the_bill_to_party_separately_from_the_vendor(): void
+    {
+        $prompt = GeminiPdfClassifierService::buildPrompt();
+
+        $this->assertStringContainsString('bill_to_name', $prompt);
+        $this->assertStringContainsString('bill_to_tax_id', $prompt);
+        $this->assertStringContainsString('never put the vendor there', $prompt);
+    }
+
     public function test_prompt_specifies_payment_status_hint_rules(): void
     {
         $prompt = GeminiPdfClassifierService::buildPrompt([]);

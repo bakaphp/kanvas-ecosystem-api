@@ -4,32 +4,52 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Baka\Support\Money;
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
+use Kanvas\Approvals\Enums\ApprovalOriginEnum;
+use Kanvas\Approvals\Exceptions\ApprovalRequiredException;
+use Kanvas\Approvals\Services\ApprovalOriginService;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\PresentsInvoiceTerms;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
-use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Approvals\Actions\ResolveApproverEmailAction;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
+use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\SubmitInvoiceForApprovalAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
+use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
+use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
+use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\PaymentTerms\Models\PaymentTerm;
+use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
+use Kanvas\Scribe\Quotes\Models\Quote;
+use NeuronAI\Tools\ArrayProperty;
+use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Spatie\LaravelData\DataCollection;
+use Throwable;
 
-/** Creates a one-line AR invoice and optionally issues it immediately in Kanvas. */
+/**
+ * Creates an AR invoice from lines or a single amount and submits it for approval (or, on explicit request,
+ * issues it). Runs as origin AGENT so IssueInvoiceAction and the approval policy can tell an agent from a person.
+ */
 #[AgentTool(name: 'Create AR Invoice', category: 'accounting')]
 class CreateArInvoiceTool extends Tool
 {
     use HasKanvasContext;
+    use PresentsInvoiceTerms;
     use ReadsApprovalSourceFields;
     use ResolvesCustomerForTool;
     use StoresApprovalSourceFields;
@@ -37,11 +57,13 @@ class CreateArInvoiceTool extends Tool
 
     protected string $name = 'create_ar_invoice';
 
-    protected ?string $description = 'Creates a one-line AR invoice directly in the Kanvas ledger. By default it issues '
-        . 'the invoice immediately; this bypasses the normal human approval gate, so only do this when the user '
-        . 'explicitly asks, never on a whim. Set issue_immediately to false to submit a draft invoice for human '
-        . 'approval. The invoice stays open; use apply_ar_payment separately to record a payment against it. '
-        . 'External synchronization is handled by configured workflows.';
+    protected ?string $description = 'Creates an AR invoice in the Kanvas ledger: give lines (one per product or service, with '
+        . 'its ITBIS/tax rate), or a single amount for a one-line invoice. By default it creates a draft and '
+        . 'submits it for human approval; it is issued when a person approves it. Set issue_immediately to true '
+        . 'only when the user explicitly asks to issue now — for a company that issues electronic invoices (e-CF) '
+        . 'it is still submitted for approval, because an agent never issues an e-CF on its own. The invoice '
+        . 'stays open; use apply_ar_payment separately to record a payment against it. External synchronization '
+        . 'is handled by configured workflows.';
 
     /**
      * @return array<int, ToolProperty>
@@ -50,11 +72,48 @@ class CreateArInvoiceTool extends Tool
     protected function properties(): array
     {
         return [
+            new ArrayProperty(
+                name: 'lines',
+                description: 'One entry per product or service. Prefer this over amount: each line carries its own '
+                    . 'tax. On a company that issues e-CF every line must give tax_rate (18 for ITBIS, 0 when exempt).',
+                required: false,
+                items: new ObjectProperty(
+                    name: 'line',
+                    description: 'One invoice line.',
+                    properties: [
+                        new ToolProperty(
+                            name: 'description',
+                            type: PropertyType::STRING,
+                            description: 'What is billed.',
+                            required: true
+                        ),
+                        new ToolProperty(
+                            name: 'quantity',
+                            type: PropertyType::NUMBER,
+                            description: 'Quantity. Defaults to 1.',
+                            required: false
+                        ),
+                        new ToolProperty(
+                            name: 'unit_price',
+                            type: PropertyType::NUMBER,
+                            description: 'Unit price before tax.',
+                            required: true
+                        ),
+                        new ToolProperty(
+                            name: 'tax_rate',
+                            type: PropertyType::NUMBER,
+                            description: 'Tax rate as a percent (18 for ITBIS, 0 when exempt). The tax is computed from it.',
+                            required: false,
+                        ),
+                    ],
+                ),
+            ),
             new ToolProperty(
                 name: 'amount',
                 type: PropertyType::NUMBER,
-                description: 'The invoice amount, e.g. 1.00.',
-                required: true,
+                description: 'Total for a one-line invoice with no tax, e.g. 1.00. Ignored when lines are given; not '
+                    . 'accepted on a company that issues e-CF (give lines with tax_rate instead).',
+                required: false,
             ),
             new ToolProperty(
                 name: 'memo',
@@ -78,9 +137,16 @@ class CreateArInvoiceTool extends Tool
             new ToolProperty(
                 name: 'issue_immediately',
                 type: PropertyType::BOOLEAN,
-                description: 'Whether to issue this invoice immediately in the Kanvas ledger. Defaults to true. '
-                    . 'Set to false to submit a draft invoice for human approval. External synchronization is '
-                    . 'handled separately by configured workflows.',
+                description: 'Whether to try to issue this invoice immediately instead of submitting it for '
+                    . 'approval. Defaults to false. Even when true, an e-CF company still requires a person\'s '
+                    . 'approval and the result says so.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'net_terms_days',
+                type: PropertyType::INTEGER,
+                description: 'Days after the issue date until it is due (30 for Net 30). Defaults to the company\'s default '
+                    . 'payment term; with none the invoice is due on receipt and the result says so.',
                 required: false,
             ),
             new ToolProperty(
@@ -107,14 +173,45 @@ class CreateArInvoiceTool extends Tool
      */
     public function __invoke(
         string $customer_name,
-        float $amount,
         string $memo,
+        ?float $amount = null,
+        ?array $lines = null,
         ?string $currency = null,
         ?bool $issue_immediately = null,
         ?string $source_email_message_id = null,
         ?int $source_attachment_filesystem_id = null,
+        ?int $net_terms_days = null,
     ): array {
-        $issue_immediately ??= true;
+        return ApprovalOriginService::during(
+            ApprovalOriginEnum::AGENT,
+            fn (): array => $this->createInvoice(
+                $customer_name,
+                $amount,
+                $lines,
+                $memo,
+                $currency,
+                $issue_immediately ?? false,
+                $source_email_message_id,
+                $source_attachment_filesystem_id,
+                $net_terms_days,
+            )
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function createInvoice(
+        string $customer_name,
+        ?float $amount,
+        ?array $lines,
+        string $memo,
+        ?string $currency,
+        bool $issue_immediately,
+        ?string $source_email_message_id,
+        ?int $source_attachment_filesystem_id,
+        ?int $net_terms_days,
+    ): array {
         $app = $this->app;
         $company = $this->company;
 
@@ -140,91 +237,388 @@ class CreateArInvoiceTool extends Tool
         $currency = $currency !== null && trim($currency) !== '' ? strtoupper(trim($currency)) : 'USD';
         $actingUser = $this->user;
 
+        $lineData = $this->lineData(
+            $lines,
+            $amount,
+            $memo,
+            new EcfIssuanceService()->issuesEcfFor($company)
+        );
+        if (is_string($lineData)) {
+            return ['created' => false, 'reason' => 'invalid_lines', 'message' => $lineData];
+        }
+
+        $existing = $this->openInvoiceForTheSameAmount($customer, $lineData, $currency);
+        if ($existing !== null) {
+            return $this->duplicateOf($existing, $customerDisplayName);
+        }
+
+        $quote = $this->quotedWorkFor(
+            $customer,
+            $lineData,
+            $memo,
+            $currency
+        );
+        if ($quote !== null) {
+            return $this->invoiceFromQuote($quote, $customerDisplayName);
+        }
+
+        $netTermsDays = $net_terms_days ?? PaymentTerm::defaultFor($app, $company)?->net_days;
+
         $invoice = new CreateInvoiceAction(
             new InvoiceData(
                 app: $app,
                 company: $company,
                 billable: $customer,
-                lines: new DataCollection(InvoiceLineData::class, [
-                    new InvoiceLineData(
-                        description: $memo,
-                        quantity: 1.0,
-                        unit_price_native: $amount,
-                    ),
-                ]),
+                lines: new DataCollection(InvoiceLineData::class, $lineData),
                 currency: $currency,
                 fx_rate_to_base: 1.0,
+                net_terms_days: $netTermsDays,
                 issued_date: Carbon::today(),
+                due_date: $netTermsDays !== null ? Carbon::today()->addDays($netTermsDays) : null,
                 notes: $memo,
             ),
             $actingUser,
         )->execute();
 
         $this->storeApprovalSourceFields($invoice, $source_email_message_id, $source_attachment_filesystem_id);
+        $amount = (float) $invoice->total_native;
 
-        if (! $issue_immediately) {
-            new SubmitInvoiceForApprovalAction($invoice, $actingUser)->execute();
+        $approvalReason = null;
 
-            $approverEmails = ResolveApproverEmailAction::resolveForOrganization($customer);
-            $sourceFields = $this->sourceFields($invoice);
+        if ($issue_immediately) {
+            try {
+                $invoice = new IssueInvoiceAction($invoice, $customer, $actingUser)->execute();
+                $invoice->refresh();
 
-            NotifyApproverAction::notifyAll(
-                approverEmails: $approverEmails,
-                app: $app,
-                text: "You have an AR invoice pending approval:\nCustomer: {$customerDisplayName}\nAmount: "
-                    . "{$currency} {$amount}\nMemo: {$memo}\nInvoice ID (Kanvas): {$invoice->getId()}\n\nReply "
-                    . "\"approve invoice {$invoice->getId()}\" to issue it.",
-                attachmentUrl: $sourceFields['source_attachment_url'],
-                attachmentFilename: $sourceFields['source_attachment_filename'],
-            );
-
-            $result = [
-                'created' => true,
-                'invoice_id' => $invoice->getId(),
-                'invoice_number' => $invoice->invoice_number,
-                'document_status' => $invoice->document_status->value,
-                'customer' => $customerDisplayName,
-                'amount' => $amount,
-                'currency' => $currency,
-                'memo' => $memo,
-                'remaining_balance' => (float) $invoice->balance_due_native,
-                'approved_by_flag' => $approverEmails !== [] ? '' : 'NOT IN APPROVER LIST',
-                'next' => $approverEmails !== []
-                    ? 'Invoice created in Kanvas (status: draft) and submitted for human approval.'
-                    : 'Invoice created in Kanvas, but customer "' . $customerDisplayName . '" has no approver '
-                        . 'configured — nobody can approve it and no notification was sent. Write approved_by_flag '
-                        . 'into the sheet\'s Approved By column so this is visible there too, and tell the user to '
-                        . 'have an admin set that customer\'s approver.',
-            ];
-
-            // Same warning create_ap_bill returns: the approver was DM'd without the PDF, and the model
-            // is the only one who can notice and follow up with resend_invoice_attachment.
-            if ($source_email_message_id !== null
-                && trim($source_email_message_id) !== ''
-                && $sourceFields['source_attachment_url'] === null
-            ) {
-                $result['attachment_warning'] = 'This invoice has a source email but no '
-                    . 'source_attachment_filesystem_id — the approver was notified without the invoice PDF '
-                    . 'attached.';
+                return [
+                    'created' => true,
+                    'invoice_id' => $invoice->getId(),
+                    'invoice_number' => $invoice->invoice_number,
+                    'document_status' => $invoice->document_status->value,
+                    'customer' => $customerDisplayName,
+                    'amount' => $amount,
+                    'currency' => $currency,
+                    'memo' => $memo,
+                    'remaining_balance' => (float) $invoice->balance_due_native,
+                    ...$this->invoiceTerms($invoice),
+                    'next' => 'Invoice issued in Kanvas. Any external synchronization is handled by configured workflow '
+                        . 'activities; use apply_ar_payment with this invoice_id to record a payment.',
+                ];
+            } catch (ApprovalRequiredException $e) {
+                $approvalReason = $e->getMessage();
             }
-
-            return $result;
         }
 
-        $invoice = new IssueInvoiceAction($invoice, $customer, $actingUser)->execute();
-        $invoice->refresh();
+        if (new EcfIssuanceService()->issuesEcf($invoice)) {
+            return [
+                ...$this->submitEcfInvoice(
+                    $invoice,
+                    $customerDisplayName,
+                    $amount,
+                    $currency,
+                    $memo,
+                    $approvalReason
+                ),
+                ...$this->invoiceTerms($invoice->refresh()),
+            ];
+        }
 
-        return [
+        new SubmitInvoiceForApprovalAction($invoice, $actingUser)->execute();
+
+        $approverEmails = ResolveApproverEmailAction::resolveForOrganization($customer);
+        $sourceFields = $this->sourceFields($invoice);
+
+        // The approval request notified the approvers (Slack DM from the AR notifier, email otherwise).
+        $result = [
             'created' => true,
             'invoice_id' => $invoice->getId(),
+            'invoice_number' => $invoice->invoice_number,
             'document_status' => $invoice->document_status->value,
             'customer' => $customerDisplayName,
             'amount' => $amount,
             'currency' => $currency,
             'memo' => $memo,
             'remaining_balance' => (float) $invoice->balance_due_native,
-            'next' => 'Invoice issued in Kanvas. Any external synchronization is handled by configured workflow '
-                . 'activities; use apply_ar_payment with this invoice_id to record a payment.',
+            ...$this->invoiceTerms($invoice->refresh()),
+            'approved_by_flag' => $approverEmails !== [] ? '' : 'NOT IN APPROVER LIST',
+            'next' => $approverEmails !== []
+                ? 'Invoice created in Kanvas (status: draft) and submitted for human approval.'
+                : 'Invoice created in Kanvas, but customer "' . $customerDisplayName . '" has no approver '
+                    . 'configured — nobody can approve it and no notification was sent. Tell the user to '
+                    . 'have an admin set that customer\'s approver.',
+        ];
+
+        // Same warning create_ap_bill returns: the approver was DM'd without the PDF, and the model
+        // is the only one who can notice and follow up with resend_invoice_attachment.
+        if ($source_email_message_id !== null
+            && trim($source_email_message_id) !== ''
+            && $sourceFields['source_attachment_url'] === null
+        ) {
+            $result['attachment_warning'] = 'This invoice has a source email but no '
+                . 'source_attachment_filesystem_id — the approver was notified without the invoice PDF '
+                . 'attached.';
+        }
+
+        return $result;
+    }
+
+    /**
+     * e-CF: the policy decides who signs, and its digest notifies them — not the customer-approver Slack DM.
+     * A company that turned invoice approval off gets the invoice issued straight away.
+     *
+     * @return array<string, mixed>
+     */
+    private function submitEcfInvoice(
+        Invoice $invoice,
+        string $customerDisplayName,
+        float $amount,
+        string $currency,
+        string $memo,
+        ?string $approvalReason,
+    ): array {
+        try {
+            $invoice = new SubmitInvoiceForApprovalAction($invoice, $this->user)->execute();
+        } catch (Throwable $e) {
+            return [
+                'created' => true,
+                'invoice_id' => $invoice->getId(),
+                'document_status' => $invoice->document_status->value,
+                'submitted' => false,
+                'message' => 'The draft invoice was created but could not be submitted for approval: ' . $e->getMessage(),
+            ];
+        }
+
+        $issued = $invoice->document_status !== InvoiceDocumentStatusEnum::DRAFT;
+
+        return [
+            'created' => true,
+            'invoice_id' => $invoice->getId(),
+            'invoice_number' => $invoice->invoice_number,
+            'document_status' => $invoice->document_status->value,
+            'customer' => $customerDisplayName,
+            'amount' => $amount,
+            'currency' => $currency,
+            'memo' => $memo,
+            'awaiting_approval' => ! $issued,
+            'note' => $approvalReason,
+            'next' => $issued
+                ? 'This company does not require approval for agent invoices, so it was issued and sent to the e-CF '
+                    . 'provider. The DGII result arrives asynchronously.'
+                : 'Draft e-CF invoice submitted for a person\'s approval. No e-NCF is assigned until it is approved; '
+                    . 'use check_approval_status to follow it.',
+        ];
+    }
+
+    /**
+     * A one-line amount carries no tax, so on an e-CF company it would reach DGII as exempt: every line there has to
+     * state its rate, 0 included, so ITBIS is never dropped by omission.
+     *
+     * @param array<int, array<string, mixed>>|null $lines
+     * @return list<InvoiceLineData>|string the lines, or why they were refused
+     */
+    private function lineData(
+        ?array $lines,
+        ?float $amount,
+        string $memo,
+        bool $issuesEcf
+    ): array|string {
+        if ($lines === null || $lines === []) {
+            if ($issuesEcf) {
+                return 'This company issues e-CF: give lines, each with its tax_rate (18 for ITBIS, 0 when exempt). '
+                    . 'A bare amount would reach DGII as exempt. Nothing was created.';
+            }
+
+            if ($amount === null || $amount <= 0) {
+                return 'Give lines or a positive amount. Nothing was created.';
+            }
+
+            return [new InvoiceLineData(description: $memo, quantity: 1.0, unit_price_native: $amount)];
+        }
+
+        $data = [];
+        foreach ($lines as $line) {
+            $quantity = max(0.01, (float) ($line['quantity'] ?? 1));
+            $unitPrice = (float) ($line['unit_price'] ?? 0);
+            $rate = isset($line['tax_rate']) && is_numeric($line['tax_rate']) ? (float) $line['tax_rate'] : null;
+
+            if ($unitPrice <= 0) {
+                return 'Every line needs a positive unit_price. Nothing was created.';
+            }
+
+            if ($rate === null && $issuesEcf) {
+                return 'This company issues e-CF: every line needs tax_rate (18 for ITBIS, 0 when exempt). Nothing was created.';
+            }
+
+            $data[] = new InvoiceLineData(
+                description: Str::trimToNull((string) ($line['description'] ?? '')) ?? $memo,
+                quantity: $quantity,
+                unit_price_native: $unitPrice,
+                tax_rate: $rate,
+                tax_amount_native: $rate !== null ? Money::cents($quantity * $unitPrice * $rate / 100) : 0.0,
+            );
+        }
+
+        return $data;
+    }
+
+    /**
+     * An open invoice of the same amount for the same customer is the invoice; a second one is a duplicate. An
+     * approved draft whose action failed is still that invoice: the agent once rebuilt one and issued a second e-CF
+     * for the same work.
+     *
+     * @param list<InvoiceLineData> $lineData
+     */
+    private function openInvoiceForTheSameAmount(Organization $customer, array $lineData, string $currency): ?Invoice
+    {
+        $total = $this->totalOf($lineData);
+
+        return Invoice::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->where('customer_organization_id', $customer->getId())
+            ->where('currency', $currency)
+            ->where('document_type', DocumentTypeEnum::INVOICE->value)
+            ->whereIn('document_status', [InvoiceDocumentStatusEnum::DRAFT->value, InvoiceDocumentStatusEnum::ISSUED->value, InvoiceDocumentStatusEnum::SENT->value])
+            ->whereBetween('total_native', [$total - 0.01, $total + 0.01])
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function duplicateOf(Invoice $invoice, string $customer): array
+    {
+        $approval = $invoice->approvalRequests()->latest('id')->first();
+        $state = match (true) {
+            $approval?->handlerError() !== null => 'approved, but its approved action failed: ' . $approval->handlerError()
+                . ' Fix that, then call retry_approved_item(invoice, ' . $invoice->getId() . ').',
+            $invoice->pendingApproval() !== null => 'waiting for a person\'s approval.',
+            default => $invoice->document_status->value . ($invoice->invoice_number !== null ? " as {$invoice->invoice_number}" : '') . '.',
+        };
+
+        return [
+            'created' => false,
+            'reason' => 'duplicate_invoice',
+            'invoice_id' => $invoice->getId(),
+            'invoice_status' => $invoice->document_status->value,
+            'message' => sprintf(
+                '%s already has invoice %d for %s %s, %s Nothing was created: a second invoice for the same work bills '
+                . 'the customer twice. Work with that invoice.',
+                $customer,
+                $invoice->getId(),
+                number_format((float) $invoice->total_native, 2, '.', ''),
+                $invoice->currency,
+                $state
+            ),
+        ];
+    }
+
+    /**
+     * @param list<InvoiceLineData> $lineData
+     */
+    private function totalOf(array $lineData): float
+    {
+        return round(array_sum(array_map(
+            fn (InvoiceLineData $line): float => $line->quantity * $line->unit_price_native - $line->discount_amount_native + $line->tax_amount_native,
+            $lineData
+        )), 2);
+    }
+
+    /**
+     * Work the customer was quoted is invoiced from its quote, so the invoice stays linked to it and the quote closes.
+     * An open quote is that work when the text names a quote or a part payment of one (deposit, milestone, a
+     * percentage), or when the amount is the quote's total, one of its lines, or one payment of its SOW schedule.
+     * The agent once hand-built a SOW's 50% deposit with create_ar_invoice: the e-CF went out unlinked and the quote
+     * stayed a draft, while accepting the quote would have billed that same deposit from the schedule.
+     *
+     * @param list<InvoiceLineData> $lineData
+     */
+    private function quotedWorkFor(
+        Organization $customer,
+        array $lineData,
+        string $memo,
+        string $currency
+    ): ?Quote {
+        $total = $this->totalOf($lineData);
+        $text = implode(' ', [$memo, ...array_map(fn (InvoiceLineData $line): string => $line->description, $lineData)]);
+        $textNamesQuotedWork = preg_match(
+            '/\b(quote|quotation|cotizaci[oó]n|presupuesto|deposit|dep[oó]sito|anticipo|avance|upfront|down\s?payment|milestone|hito)\b|\d{1,3}\s?%/iu',
+            $text
+        ) === 1;
+
+        $open = Quote::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->where('customer_organization_id', $customer->getId())
+            ->whereIn('status', [QuoteStatusEnum::DRAFT->value, QuoteStatusEnum::SENT->value, QuoteStatusEnum::ACCEPTED->value])
+            ->orderByDesc('id')
+            ->get();
+
+        return $open->first(
+            fn (Quote $quote): bool => $textNamesQuotedWork
+                || (strtoupper((string) $quote->currency) === $currency && $this->isAnAmountOf($quote, $total))
+        );
+    }
+
+    /**
+     * The quote's total, one of its lines, or one payment of its SOW schedule.
+     */
+    private function isAnAmountOf(Quote $quote, float $total): bool
+    {
+        $lineTotals = $quote->lines->map(
+            fn ($line): float => (float) $line->quantity * (float) $line->unit_price_native
+                - (float) $line->discount_amount_native
+                + (float) $line->tax_amount_native
+        )->all();
+        $payments = $quote->statementOfWork()?->paymentAmounts((float) $quote->total_native) ?? [];
+
+        foreach ([(float) $quote->total_native, ...$lineTotals, ...$payments] as $amount) {
+            if (abs($amount - $total) < 0.01) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function invoiceFromQuote(Quote $quote, string $customer): array
+    {
+        $onceAccepted = $quote->sow_message_id !== null
+            ? 'Once accepted, its SOW payment schedule invoices each payment on its date, the deposit first, each linked to '
+                . 'the quote; find_invoice shows them. Never invoice a deposit or milestone of it by hand.'
+            : 'Once accepted, call convert_quote_to_invoice.';
+        $next = match (true) {
+            $quote->status === QuoteStatusEnum::DRAFT => 'It was never sent. If the person says the customer already accepted '
+                . 'it outside Kanvas, call answer_quote with accepted=true and accepted_outside_kanvas=true; otherwise send it '
+                . 'with send_quote and wait for their answer. ' . $onceAccepted,
+            $quote->status === QuoteStatusEnum::SENT => 'Record the customer\'s answer with answer_quote once they give it. '
+                . $onceAccepted,
+            $quote->sow_message_id !== null => 'It is accepted and has a SOW, so its payment schedule bills it: find_invoice '
+                . 'shows the invoices it created; a payment due now that is not there yet is being invoiced in the background.',
+            default => 'Call convert_quote_to_invoice.',
+        };
+
+        return [
+            'created' => false,
+            'reason' => 'invoice_from_quote',
+            'quote_id' => $quote->getId(),
+            'quote_status' => $quote->status->value,
+            'message' => sprintf(
+                '%s has quote %d (%s, %s %s) for this work, so nothing was created: an invoice for quoted work is made '
+                . 'from the quote, so the two stay linked. %s Never rebuild the quote\'s lines here.',
+                $customer,
+                $quote->getId(),
+                $quote->status->value,
+                number_format((float) $quote->total_native, 2, '.', ''),
+                $quote->currency,
+                $next
+            ),
         ];
     }
 }

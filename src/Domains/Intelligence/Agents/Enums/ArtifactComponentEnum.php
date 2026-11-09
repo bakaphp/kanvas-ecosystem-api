@@ -196,8 +196,9 @@ enum ArtifactComponentEnum: string
                 . 'props: items [{label (max 40 chars — it is a button, keep it to 3-5 words), message, '
                 . 'variant? default|outline|destructive}] 1-6',
             self::ENTITY => 'entity — a record card with an Open button. props: type lead|deal|people|organization|'
-                . 'company|user|product|order; id (the REAL id a tool returned, never invented); title; subtitle?; '
-                . 'fields? [{key, value}] 0-6',
+                . 'company|user|product|order, the record\'s REAL kind (an invoice, quote, bill or payment is none of '
+                . 'these: show it with keyvalue, never as a deal, or the card opens a record that does not exist); '
+                . 'id (the REAL id a tool returned, never invented); title; subtitle?; fields? [{key, value}] 0-6',
             self::PROGRESS => 'progress — goal completion. props: items [{label, percent 0-100, note?}] 1-8',
             self::TIMELINE => 'timeline — a sequence of events, oldest first. props: items [{title, description?, '
                 . 'date? (free text), status? done|current|upcoming}] 1-12',

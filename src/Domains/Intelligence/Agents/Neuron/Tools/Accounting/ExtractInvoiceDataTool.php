@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
+use Kanvas\Scribe\PdfIngest\Enums\PdfExtractionCustomFieldEnum;
 use Kanvas\Scribe\PdfIngest\Traits\ResolvesPdfClassifierTrait;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -86,6 +88,19 @@ class ExtractInvoiceDataTool extends Tool
                 'reason' => 'classification_failed',
                 'message' => 'Could not read the PDF: ' . $e->getMessage(),
             ];
+        }
+
+        // Kept on the file so create_ap_bill reads the addressee and payment hints from the document, not from
+        // what the model says about it. A failed save never costs the extraction.
+        try {
+            $pdf->set(PdfExtractionCustomFieldEnum::EXTRACTED->value, [
+                'document_type' => $result->document_type->value,
+                'confidence' => $result->confidence,
+                'extracted' => $result->extracted,
+                'extracted_at' => Carbon::now()->toIso8601String(),
+            ]);
+        } catch (Throwable $e) {
+            report($e);
         }
 
         return [

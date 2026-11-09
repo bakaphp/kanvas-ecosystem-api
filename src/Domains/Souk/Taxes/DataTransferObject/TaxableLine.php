@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Taxes\DataTransferObject;
 
+use Baka\Support\Money;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Souk\Support\Money;
 use Kanvas\Souk\Taxes\Enums\TaxCategoryEnum;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Spatie\LaravelData\Data;

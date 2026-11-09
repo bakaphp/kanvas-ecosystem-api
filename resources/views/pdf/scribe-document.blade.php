@@ -12,6 +12,7 @@
         h1 { margin: 0; font-size: 26px; letter-spacing: 2px; text-transform: uppercase; color: #111827; }
         table { width: 100%; border-collapse: collapse; }
         .header td { vertical-align: top; }
+        .logo { display: block; width: auto; height: auto; max-height: 40px; max-width: 160px; margin-bottom: 8px; }
         .issuer-name { font-size: 16px; font-weight: bold; }
         .muted { color: #6b7280; }
         .meta { margin-top: 4px; text-align: right; }
@@ -35,6 +36,9 @@
 <table class="header">
     <tr>
         <td>
+            @if ($issuer['logo'] ?? null)
+                <img class="logo" src="{{ $issuer['logo'] }}" alt="{{ $issuer['name'] }}">
+            @endif
             <div class="issuer-name">{{ $issuer['name'] }}</div>
             @foreach ($issuer['address_lines'] as $line)
                 <div class="muted">{{ $line }}</div>

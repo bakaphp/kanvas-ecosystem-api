@@ -16,6 +16,7 @@ use Kanvas\Companies\Onboarding\Models\OnboardingSection;
 use Kanvas\Companies\Onboarding\Services\OnboardingAgentTemplateService;
 use Kanvas\Companies\Onboarding\Services\OnboardingPromptBlockService;
 use Kanvas\Companies\Onboarding\Services\OnboardingSectionsService;
+use Kanvas\Companies\Onboarding\Services\OnboardingSetupHookRegistry;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Jobs\WakeAgentInSessionJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -92,6 +93,7 @@ final class CompleteOnboardingAction
 
         $this->row->dataSet('setup_plan_id', $plan->getId());
         $this->row->dataSet('setup_session_id', (string) $session->uuid);
+        OnboardingSetupHookRegistry::syncSetupPlan($this->row);
         $this->row->completed_at = Carbon::now();
         $this->row->transitionTo(OnboardingStatusEnum::COMPLETED);
 
@@ -178,7 +180,7 @@ final class CompleteOnboardingAction
         OnboardingSection $section,
         Agent $ginny,
     ): Plan {
-        $steps = $section->config()->setupSteps;
+        $steps = $section->config()->setupStepsFor($company->countryCode());
         if ($steps === []) {
             $steps = ['Finish setting up ' . $section->title];
         }

@@ -17,6 +17,9 @@ return [
         'domain' => env('MAILGUN_DOMAIN'),
         'secret' => env('MAILGUN_SECRET'),
         'endpoint' => env('MAILGUN_ENDPOINT', 'api.mailgun.net'),
+        // Platform inbound domain for company accounting inboxes: accounting@<company-slug>.<domain>.
+        // Needs a wildcard MX on the domain. Unset → the company's own Mailgun domain.
+        'accounting_inbox_domain' => env('MAILGUN_ACCOUNTING_INBOX_DOMAIN'),
     ],
 
     'postmark' => [
@@ -59,12 +62,23 @@ return [
         ],
     ],
     'stripe' => [
-    'key' => env('STRIPE_KEY'),
-    'secret' => env('STRIPE_SECRET'),
-    'webhook' => [
-        'secret' => env('STRIPE_WEBHOOK_SECRET'),
-        'tolerance' => env('STRIPE_WEBHOOK_TOLERANCE', 300),
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook' => [
+            'secret' => env('STRIPE_WEBHOOK_SECRET'),
+            'tolerance' => env('STRIPE_WEBHOOK_TOLERANCE', 300),
         ],
+    ],
+
+    // Alanube main-company tokens for `kanvas` account mode (tenants under our account). App setting wins.
+    'alanube' => [
+        'main_token_test' => env('ALANUBE_MAIN_TOKEN_TEST'),
+        'main_token_production' => env('ALANUBE_MAIN_TOKEN_PRODUCTION'),
+    ],
+
+    // Official central-bank exchange rates (Banco Central RD buy rate), platform-wide.
+    'allratestoday' => [
+        'key' => env('ALLRATESTODAY_API_KEY'),
     ],
 
     'sightengine' => [

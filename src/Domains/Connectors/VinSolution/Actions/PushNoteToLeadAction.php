@@ -81,7 +81,7 @@ class PushNoteToLeadAction
     protected function getNote(array $message): ?string
     {
         try {
-            $linkPreview = Url::getShortUrl($message['link'] ?? '', $this->lead->app);
+            $linkPreview = Url::getShortUrl($message['link'] ?? '', $this->lead->app, company: $this->lead->company);
         } catch (Throwable $e) {
             $linkPreview = $message['link'] ?? null;
         }
@@ -93,7 +93,6 @@ class PushNoteToLeadAction
 
         try {
             $parentEngagement = $this->message->getEngagement();
-            //need to look for the current engagement via status
             $currentEngagement = EngagementRepository::findEngagementForLeadAndEntity(
                 $this->lead,
                 $message['verb'],

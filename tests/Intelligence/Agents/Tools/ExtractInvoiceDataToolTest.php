@@ -11,6 +11,7 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfClassifierServiceInterface;
 use Kanvas\Scribe\PdfIngest\DataTransferObject\PdfClassificationResult;
+use Kanvas\Scribe\PdfIngest\Enums\PdfExtractionCustomFieldEnum;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
 use Tests\Scribe\PdfIngest\Stubs\FakePdfClassifier;
 use Tests\TestCase;
@@ -55,6 +56,10 @@ class ExtractInvoiceDataToolTest extends TestCase
         $this->assertSame('vendor_invoice', $result['document_type']);
         $this->assertSame('Bandai', $result['extracted']['vendor_name']);
         $this->assertSame(1250.75, $result['extracted']['total']);
+
+        $stored = $pdf->fresh()->get(PdfExtractionCustomFieldEnum::EXTRACTED->value);
+        $this->assertSame('vendor_invoice', $stored['document_type'], 'kept on the file for the write tools that follow');
+        $this->assertSame('Bandai', $stored['extracted']['vendor_name']);
     }
 
     public function test_returns_a_humanized_error_when_the_file_does_not_exist(): void

@@ -17,25 +17,27 @@
             "source_agent": "Accounts Payable",
             "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\Accounting\\AccountsPayableAgent",
             "provision_mailbox": true,
-            "requirements": ["bills_inbox", "accounting_software"]
+            "requirements": [
+              "bills_inbox",
+              "accounting_software",
+              "bank_account",
+              "approver",
+              "ecf_provider"
+            ]
           }
         ],
         "modules": [
-          {
-            "slug": "approvals",
-            "name": "Approvals",
-            "description": "Lets you approve or reject what your assistants propose."
-          }
+          { "slug": "approvals", "name": "Approvals", "description": "Lets you approve or reject what your assistants propose." }
         ],
         "requirements": [
           {
             "slug": "bills_inbox",
             "label": "Where your bills arrive",
-            "description": "Forward supplier invoices here. It starts receiving them once your workspace is live.",
+            "description": "Forward supplier invoices here, or have suppliers send them here directly. Customer remittances and purchase orders can go to the same address.",
             "required": true,
             "shared": false,
             "options": [
-              { "label": "Kanvas email", "description": "Forward bills to an address we give you", "mode": "kanvas_provided", "address_from": "agent_mailbox" },
+              { "label": "Kanvas email", "description": "Forward bills to the accounting address we give you", "mode": "kanvas_provided", "address_from": "accounting_inbox" },
               { "label": "Webhook", "description": "Your platform posts bills to us", "mode": "webhook" }
             ],
             "allow_not_used": false,
@@ -54,6 +56,48 @@
             ],
             "allow_not_used": true,
             "allow_not_listed": true
+          },
+          {
+            "slug": "bank_account",
+            "label": "Your bank",
+            "description": "So payments are matched to bills and invoices. Without it, your assistants ask you for statements.",
+            "required": false,
+            "shared": true,
+            "options": [
+              { "label": "Mercury", "description": "Connect your Mercury account", "integration_name": "mercury", "mode": "connect" },
+              { "label": "Upload a statement", "description": "A CSV or PDF statement from your bank", "mode": "upload" },
+              { "label": "Set it up with us", "description": "We connect your bank with you", "mode": "request_setup" }
+            ],
+            "allow_not_used": true,
+            "allow_not_listed": true
+          },
+          {
+            "slug": "approver",
+            "label": "Who approves bills and invoices",
+            "description": "You approve what no supplier or customer approver covers. You can name someone else later.",
+            "required": false,
+            "shared": true,
+            "options": [
+              { "label": "Me", "description": "You approve until you name someone else", "mode": "kanvas_provided" }
+            ],
+            "allow_not_used": false,
+            "allow_not_listed": false
+          },
+          {
+            "slug": "ecf_provider",
+            "label": "Electronic invoicing (e-CF)",
+            "description": "Needed to issue fiscal invoices to DGII. Until it is connected, nothing fiscal is issued.",
+            "required": false,
+            "shared": true,
+            "countries": ["DO"],
+            "options": [
+              { "label": "WebPOS", "description": "Your WebPOS credentials", "integration_name": "webpos", "mode": "connect" },
+              { "label": "Alanube, your own account", "description": "Your Alanube API key", "integration_name": "alanube", "mode": "connect" },
+              { "label": "Alanube through Kanvas", "description": "Only your DGII certificate and its password", "integration_name": "alanube", "mode": "request_setup" },
+              { "label": "Set it up with us", "description": "We set up electronic invoicing with you", "mode": "request_setup" }
+            ],
+            "allow_not_used": true,
+            "allow_not_listed": true
           }
         ],
         "capabilities": [
@@ -64,12 +108,16 @@
           "Vendor and due-date tracking"
         ],
         "setup_steps": [
-          "Confirm where your bills arrive",
+          { "title": "Forward your supplier bills to the accounting inbox", "readiness": "inbox" },
+          { "title": "Confirm who approves bills", "readiness": "approver" },
+          { "title": "Connect your bank or send a statement", "readiness": "bank" },
+          { "title": "Connect your e-CF provider", "readiness": "ecf_provider", "countries": ["DO"] },
+          { "title": "Load the e-NCF ranges DGII authorized", "readiness": "ecf_ranges", "countries": ["DO"] },
           "Connect your accounting software",
           "Review the first bill together",
-          "Set approval limits",
           "Go live"
-        ]
+        ],
+        "setup": "accounting"
       }
     },
     {
@@ -89,7 +137,14 @@
             "source_agent": "Accounts Receivable",
             "agent_type": "Kanvas\\Intelligence\\Agents\\Neuron\\Accounting\\AccountsReceivableAgent",
             "provision_mailbox": true,
-            "requirements": ["accounting_software", "company_email"]
+            "requirements": [
+              "accounting_software",
+              "company_email",
+              "bank_account",
+              "approver",
+              "ecf_provider",
+              "link_domain"
+            ]
           }
         ],
         "modules": [],
@@ -105,6 +160,18 @@
             ],
             "allow_not_used": true,
             "allow_not_listed": true
+          },
+          {
+            "slug": "link_domain",
+            "label": "Your own link domain",
+            "description": "Invoice and quote links sent to customers use your domain. Without it, they use the Kanvas default.",
+            "required": false,
+            "shared": true,
+            "options": [
+              { "label": "short.io", "integration_name": "shortio", "mode": "connect" }
+            ],
+            "allow_not_used": true,
+            "allow_not_listed": false
           }
         ],
         "capabilities": [
@@ -115,12 +182,17 @@
           "Aging reports"
         ],
         "setup_steps": [
-          "Connect your accounting software",
+          { "title": "Confirm who approves invoices", "readiness": "approver" },
+          { "title": "Connect your e-CF provider", "readiness": "ecf_provider", "countries": ["DO"] },
+          { "title": "Load the e-NCF ranges DGII authorized", "readiness": "ecf_ranges", "countries": ["DO"] },
+          { "title": "Connect your bank or send a statement", "readiness": "bank" },
+          { "title": "Send customer remittances and purchase orders to the accounting inbox", "readiness": "inbox" },
           "Choose the email your reminders go out from",
           "Review the open invoices together",
           "Set the reminder cadence",
           "Go live"
-        ]
+        ],
+        "setup": "accounting"
       }
     },
     {
@@ -254,18 +326,7 @@
       "icon": "megaphone",
       "is_available": false,
       "display_order": 4,
-      "config": {
-        "agents": [],
-        "modules": [],
-        "requirements": [],
-        "capabilities": [
-          "Campaign planning",
-          "Audience segments",
-          "Multi-channel sends",
-          "Results reporting"
-        ],
-        "setup_steps": []
-      }
+      "config": { "agents": [], "modules": [], "requirements": [], "capabilities": ["Campaign planning", "Audience segments", "Multi-channel sends", "Results reporting"], "setup_steps": [] }
     },
     {
       "slug": "crm",

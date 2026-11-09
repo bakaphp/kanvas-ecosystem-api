@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Approvals\Actions;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Kanvas\Approvals\Contracts\ReactsToApprovalExpiryInterface;
 use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Approvals\Services\ApprovalWorkflowService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
 
 /**
- * Closes requests nobody answered in time.
+ * Closes requests nobody answered in time, lets the entity walk itself back out of limbo
+ * (ReactsToApprovalExpiryInterface — a bill returns to DRAFT), and tells the people involved.
  *
  * Expiry fires its own event rather than reusing `rejected`: an approval that ran out of clock is not
  * a decision, and a tenant usually wants to escalate it rather than treat the record as refused.
@@ -67,8 +71,28 @@ class ExpireApprovalRequestsAction
 
         new RunWithdrawalHandlerAction($request)->execute();
 
+        $entity = $request->resolveEntity();
+        $this->runEntityExpiryHook($request, $entity);
+        new NotifyApprovalExpiredAction($request, $entity)->execute();
+
         $this->workflow->fire($request, WorkflowEnum::APPROVAL_EXPIRED);
 
         return true;
+    }
+
+    /**
+     * A hook that throws must not resurrect the expiry, which is already claimed and recorded.
+     */
+    private function runEntityExpiryHook(ApprovalRequest $request, ?Model $entity): void
+    {
+        if (! $entity instanceof ReactsToApprovalExpiryInterface) {
+            return;
+        }
+
+        try {
+            $entity->approvalExpired($request);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 }

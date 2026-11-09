@@ -15,7 +15,8 @@ enum ConfigurationEnum: string
     case FORCE_VERIFY_WEBHOOK_SIGNATURE = 'MERCURY_FORCE_VERIFY_WEBHOOK_SIGNATURE';
     case WEBHOOK_SECRET = 'MERCURY_WEBHOOK_SECRET';
     case AR_DEPOSIT_ACCOUNT_ID = 'MERCURY_AR_DEPOSIT_ACCOUNT_ID';
-    case AR_SEND_EMAIL = 'MERCURY_AR_SEND_EMAIL';
+    /** Off by default: Mercury 400s a card-enabled invoice unless the company connected Stripe inside Mercury. */
+    case AR_CARD_ENABLED = 'MERCURY_AR_CARD_ENABLED';
 
     public const string DEFAULT_BASE_URL = 'https://api.mercury.com/api/v1';
 

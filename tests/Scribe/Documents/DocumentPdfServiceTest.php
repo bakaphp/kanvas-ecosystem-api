@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Documents;
 
+use Baka\Http\SafeUrlFetcher;
 use Illuminate\Support\Carbon;
+use Imagick;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Documents\Services\DocumentPdfService;
@@ -15,11 +18,64 @@ use Kanvas\Scribe\Quotes\DataTransferObject\Quote as QuoteData;
 use Kanvas\Scribe\Quotes\DataTransferObject\QuoteLine as QuoteLineData;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Templates\Models\Templates;
+use RuntimeException;
 use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
 
 class DocumentPdfServiceTest extends ScribeTestCase
 {
+    public function test_quotes_and_invoices_embed_the_uploaded_logo_as_png_even_when_the_name_says_png_but_the_bytes_are_avif(): void
+    {
+        $image = new Imagick();
+        $image->newImage(80, 20, 'black');
+        $image->setImageFormat('avif');
+        $bytes = $image->getImageBlob();
+        $image->clear();
+        SafeUrlFetcher::fake(fn (string $url): string => $bytes);
+
+        $customer = $this->seedTestOrganization('Branded Customer');
+        $documents = [$this->draftQuote($customer), $this->issueTestInvoice($customer, subtotal: 100)];
+
+        foreach ($documents as $document) {
+            $company = Companies::factory()->create(['name' => 'Branded Company']);
+            $file = $this->createFilesystemRow(extension: 'png', fileType: 'avif', companiesId: $company->getId());
+            $company->addFile($file, 'photo');
+            $document->setRelation('company', $company);
+
+            $service = new DocumentPdfService($document);
+            $logo = $service->viewData()['issuer']['logo'];
+            $this->assertStringStartsWith('data:image/png;base64,', $logo);
+            $this->assertSame(IMAGETYPE_PNG, getimagesizefromstring(base64_decode(explode(',', $logo, 2)[1]))[2]);
+            $this->assertStringContainsString('<img class="logo" src="data:image/png;base64,', $service->render());
+        }
+    }
+
+    public function test_a_company_without_an_uploaded_logo_prints_without_a_broken_image(): void
+    {
+        $quote = $this->draftQuote($this->seedTestOrganization('No Logo Customer'));
+        $quote->setRelation('company', Companies::factory()->create());
+        SafeUrlFetcher::fake(function (): string {
+            $this->fail('A company without a photo must not fetch an app placeholder.');
+        });
+
+        $html = new DocumentPdfService($quote)->render();
+
+        $this->assertStringNotContainsString('<img class="logo"', $html);
+    }
+
+    public function test_an_unavailable_or_non_image_logo_does_not_break_the_document(): void
+    {
+        $quote = $this->draftQuote($this->seedTestOrganization('Unavailable Logo Customer'));
+        $company = Companies::factory()->create();
+        $company->addFile($this->createFilesystemRow(companiesId: $company->getId()), 'photo');
+        $quote->setRelation('company', $company);
+
+        foreach ([fn (): string => '<html>Not an image</html>', fn (): string => throw new RuntimeException('Logo unavailable')] as $responder) {
+            SafeUrlFetcher::fake($responder);
+            $this->assertStringNotContainsString('<img class="logo"', new DocumentPdfService($quote)->render());
+        }
+    }
+
     public function test_quote_html_carries_the_customer_lines_and_totals(): void
     {
         $customer = $this->seedTestOrganization('Brightstar Foods');

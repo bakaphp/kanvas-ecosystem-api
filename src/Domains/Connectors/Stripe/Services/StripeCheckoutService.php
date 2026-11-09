@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Money;
 use Exception;
 use Illuminate\Validation\ValidationException;
 use Kanvas\Companies\Models\Companies;
@@ -12,7 +13,6 @@ use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Support\StripeAccount;
 use Kanvas\Exceptions\ValidationException as KanvasValidationException;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Support\Money;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Stripe\Checkout\Session;
 use Stripe\StripeClient;

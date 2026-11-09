@@ -136,6 +136,27 @@ class Str extends IlluminateStr
     }
 
     /**
+     * A number written with separators (`131-79432-1`, `12.345.678`) is stored as its digits so it matches
+     * however it was typed; anything carrying letters (`B12345678`, `GB123456789`) keeps its own form.
+     * All zeros is the placeholder imports type for "unknown" (thousands of `000000000` RNCs), not an id.
+     */
+    public static function normalizeTaxId(string|int|null $value): ?string
+    {
+        $value = self::trimToNull($value === null ? null : (string) $value);
+        if ($value === null) {
+            return null;
+        }
+
+        if (preg_match('/^[\d\s.\-]+$/', $value) !== 1) {
+            return $value;
+        }
+
+        $digits = self::digitsOnly($value);
+
+        return trim($digits, '0') === '' ? null : $digits;
+    }
+
+    /**
      * `trimToNull` for a value of unknown type — a decoded JSON field, an `integrations.metadata` key, a
      * custom field, a GraphQL argument.
      *
