@@ -23,13 +23,21 @@ communication provider), and its events in `communication_delivery_events`. Twil
 
 ## How an event finds its email
 
-- **Send:** `SendAsAgentMailboxAction` is the one place mail leaves through Mailgun's API. After the send
+- **Send through the API:** `SendAsAgentMailboxAction` is the one place mail leaves through Mailgun's API. After the send
   `FileEmailDeliveryAction` files the request + delivery keyed by the Message-Id the API returned, without
   the angle brackets (`FileEmailDeliveryAction::normalizeMessageId()`), because events spell it that way,
   and starts it `accepted`: a 200 from the send API is exactly Mailgun's `accepted` ("placed in queue"),
   which is why that webhook is not registered. A send Mailgun refuses (`Client::assertOk`) is filed
   `failed` under the sender's attempt uuid (the delivery's uuid), since there is no Message-Id; a
   connection error is not a verdict and files nothing. A failure to file is reported, never thrown.
+- **Send on the company SMTP identity:** an agent without a mailbox (`SendAgentEmailAction`) and a lead
+  send without one (`SendMessageToLeadAction::sendEmailMessage()`) go out as a queued `Blank`. When the
+  company's (or app's) SMTP host is Mailgun's (`FileEmailDeliveryAction::sendsOnMailgunSmtp()`, checked
+  by the caller), `FileEmailDeliveryAction::sending()` fixes our own
+  Message-ID on the notification (`Notification::setMessageId()`, written as the header in `toMail()`)
+  and files the delivery `sending` before the job is queued, so the send result can link it like a
+  mailbox send. `MarkSmtpEmailAcceptedListener` (`NotificationSent`) moves it to `accepted` once the SMTP
+  server takes it. Any other SMTP host never reports back, so nothing is filed.
 - **Campaign:** a campaign send stores its `lead_campaign_recipients` id on the request
   (`campaign_recipient_id`). The campaign tables are not written; delivered/failed per campaign is read
   from the ledger. Opens stay with `EmailOpenedWebhookJob` (`v:campaign_recipient_id`).
@@ -60,5 +68,8 @@ A complaint or an unsubscribe is the person asking us to stop, so it follows the
 
 ## Not covered
 
-Mail sent on the company SMTP identity (`Blank` notifications, agents without a mailbox) has no delivery:
-nothing captures its Message-Id. Its events are ignored.
+- A queued SMTP send that never goes out (the job fails for good) stays `sending`: the generic
+  notification layer has no hook into Communication, and marking it `failed` on the first failed try
+  would freeze it there even when a retry sends it.
+- Other `Blank` emails (notifications to users, `SendEmailToPeopleAction`, ...) are not filed; their
+  events are ignored.
