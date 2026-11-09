@@ -44,7 +44,7 @@ class Address
             'StreetAddress' => $this->getValue($this->address->address),
             'StreetAddress2' => null,
             'City' => $this->getCity(),
-            'PostalCode' => $this->getValue($this->address->zip),
+            'PostalCode' => $this->getValue(preg_replace('/\D/', '', (string) $this->address->zip)),
             'County' => $this->getValue($this->address->county),
             'State' => $this->getState(),
             'Duration' => null,

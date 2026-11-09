@@ -8,14 +8,17 @@ use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Intellicheck\Services\PeopleService;
 use Kanvas\Connectors\SalesAssist\Actions\AttachTradeInPhotosAction;
 use Kanvas\Connectors\VinSolution\Actions\PushCoBuyerAction;
 use Kanvas\Connectors\VinSolution\Actions\PushCreditAppAction;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
+use Kanvas\Connectors\VinSolution\Actions\PushPeopleAction;
 use Kanvas\Connectors\VinSolution\Actions\PushPurchaseVehicleAction;
 use Kanvas\Connectors\VinSolution\Actions\PushTradeInAction;
 use Kanvas\Connectors\VinSolution\Actions\PushVehicleOfInterest;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
+use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -125,10 +128,7 @@ class PushLeadNotesActivity extends KanvasActivity
 
                 break;
             case ActionEnum::ID_VERIFICATION->value:
-                if ($status === ActionStatusEnum::OPEN->value && ! empty($messageData['data']['address']['address'])) {
-                    $results['idVerification'] = $this->idVerificationUpdatePeople($lead->people, $messageData);
-                    $lead->set('dont-run-id-verification-manual', 1);
-                }
+                $results['idVerification'] = $this->syncIdVerification($lead, $messageData);
 
                 break;
             case ActionEnum::VIEW_PRODUCT->value:
@@ -170,16 +170,44 @@ class PushLeadNotesActivity extends KanvasActivity
         ];
     }
 
-    public function idVerificationUpdatePeople(People $people, array $message): array
+    /**
+     * Two producers write this verb with different shapes: the web form (status opened, address under
+     * data.address) and the Intellicheck receiver (status submitted, the scan result under
+     * data.form.private_data.result). Both update the person and then push it, because the note
+     * push above carries no contact data.
+     */
+    public function syncIdVerification(Lead $lead, array $messageData): ?array
     {
-        $people->addDefaultAddress(Address::from([
-            'address' => $message['data']['address']['address'],
-            'city' => $message['data']['address']['city'],
-            'state' => $message['data']['address']['state'],
-            'zip' => $message['data']['address']['zipcode'],
-        ]));
+        $status = $messageData['status'] ?? '';
+        $people = $lead->people;
 
-        return $message['data'];
+        if ($status === ActionStatusEnum::OPEN->value && ! empty($messageData['data']['address']['address'])) {
+            $people->addDefaultAddress(Address::from([
+                'address' => $messageData['data']['address']['address'],
+                'city' => $messageData['data']['address']['city'],
+                'state' => $messageData['data']['address']['state'],
+                'zip' => $messageData['data']['address']['zipcode'],
+            ]));
+            $lead->set('dont-run-id-verification-manual', 1);
+            $this->pushPeople($people);
+
+            return $messageData['data'];
+        }
+
+        $verification = $messageData['data']['form']['private_data']['result'] ?? [];
+        if ($status === ActionStatusEnum::SUBMITTED->value && ! empty($verification['idcheck']['data']['address1'])) {
+            PeopleService::updatePeopleInformation($people, $verification);
+            $this->pushPeople($people);
+
+            return $verification['idcheck']['data'];
+        }
+
+        return null;
+    }
+
+    protected function pushPeople(People $people): Contact
+    {
+        return new PushPeopleAction($people)->execute();
     }
 
     public function cleanEsignature(Lead $lead): void

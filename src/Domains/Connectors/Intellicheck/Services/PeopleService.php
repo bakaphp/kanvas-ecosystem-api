@@ -29,7 +29,7 @@ class PeopleService
             isset($verificationData['idcheck']['data']['state']) ||
             isset($verificationData['idcheck']['data']['postalCode'])
         ) {
-            $people->addAddress(new Address(
+            $people->addDefaultAddress(new Address(
                 address: $verificationData['idcheck']['data']['address1'] ?? '',
                 city: $verificationData['idcheck']['data']['city'] ?? '',
                 state: $verificationData['idcheck']['data']['state'] ?? '',
