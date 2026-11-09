@@ -22,8 +22,9 @@ use Kanvas\Social\Messages\Models\Message;
  * for `on_signature` and on its date for dated lines (plan decision 8: signing is what bills, there
  * is no delivery tracking).
  *
- * Each line bills its share of the quote: the pre-tax amount and the tax split in the same ratio, so
- * the invoices add up to the quote total with the tax where it belongs.
+ * Each payment bills its share of every quote line (price, discount and tax in the same ratio, rate and quantity
+ * kept), so each invoice shows the quote's own lines; the last payment takes each line's rounding remainder, so the
+ * invoices add up to the quote line by line.
  *
  * Idempotent: the source key is the SOW message id plus the line's position, so accepting the same
  * quote twice returns the schedules the first acceptance made.
@@ -62,14 +63,12 @@ class CreateBillingSchedulesFromQuoteAction
         );
         $netTermsDays = $this->netTermsDays($sow);
         $amounts = $sow->paymentAmounts($total);
-        $preTax = (float) $this->quote->subtotal_native - (float) $this->quote->discount_native;
-        $tax = (float) $this->quote->tax_native;
+        $lineShares = $this->lineShares(array_map(fn (float $amount): float => $amount / $total, $amounts));
         $reference = $this->quote->quote_number ?? ('#' . $this->quote->getId());
 
         $schedules = [];
 
         foreach ($sow->paymentSchedule as $index => $line) {
-            $ratio = $amounts[$index] / $total;
             $start = $line['when'] === StatementOfWork::WHEN_DATE && $line['date'] !== null
                 ? Carbon::parse($line['date'])->startOfDay()
                 : Carbon::today();
@@ -80,14 +79,7 @@ class CreateBillingSchedulesFromQuoteAction
                     company: $this->quote->company,
                     customer: $customer,
                     currency: $this->quote->currency,
-                    lines: [
-                        new BillingScheduleLineData(
-                            description: "{$line['label']} — quote {$reference}",
-                            quantity: 1.0,
-                            unit_price: Money::stored($preTax * $ratio),
-                            tax_amount: Money::stored($tax * $ratio),
-                        ),
-                    ],
+                    lines: $lineShares[$index],
                     cadence: BillingCadenceEnum::ONCE,
                     start_date: $start,
                     name: "{$line['label']} (quote {$reference})",
@@ -115,5 +107,49 @@ class CreateBillingSchedulesFromQuoteAction
             ->fromCompany($this->quote->companies_id)
             ->notDeleted()
             ->value('net_days');
+    }
+
+    /**
+     * Per payment, every quote line at that payment's share; the last payment gets what the earlier ones left of
+     * each amount, so no line drifts by a rounding cent.
+     *
+     * @param list<float> $ratios
+     * @return list<list<BillingScheduleLineData>>
+     */
+    private function lineShares(array $ratios): array
+    {
+        $last = array_key_last($ratios);
+        $shares = array_fill(0, count($ratios), []);
+
+        foreach ($this->quote->lines as $quoteLine) {
+            $billed = ['unit_price' => Money::of(0), 'discount' => Money::of(0), 'tax' => Money::of(0)];
+
+            foreach ($ratios as $index => $ratio) {
+                $part = fn (string $key, mixed $amount): float => $index === $last
+                    ? Money::stored(Money::of($amount ?? 0)->minus($billed[$key]))
+                    : Money::stored(Money::of($amount ?? 0)->multipliedBy(Money::of($ratio)));
+
+                $unitPrice = $part('unit_price', $quoteLine->unit_price_native);
+                $discount = $part('discount', $quoteLine->discount_amount_native);
+                $tax = $part('tax', $quoteLine->tax_amount_native);
+                $billed = [
+                    'unit_price' => $billed['unit_price']->plus(Money::of($unitPrice)),
+                    'discount' => $billed['discount']->plus(Money::of($discount)),
+                    'tax' => $billed['tax']->plus(Money::of($tax)),
+                ];
+
+                $shares[$index][] = new BillingScheduleLineData(
+                    description: (string) $quoteLine->description,
+                    quantity: (float) $quoteLine->quantity,
+                    unit_price: $unitPrice,
+                    tax_amount: $tax,
+                    tax_rate: $quoteLine->tax_rate !== null ? (float) $quoteLine->tax_rate : null,
+                    item_id: $quoteLine->item_id,
+                    discount_amount: $discount,
+                );
+            }
+        }
+
+        return $shares;
     }
 }

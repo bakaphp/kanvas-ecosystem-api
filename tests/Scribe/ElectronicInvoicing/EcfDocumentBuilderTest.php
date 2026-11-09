@@ -71,6 +71,20 @@ class EcfDocumentBuilderTest extends EcfTestCase
         $this->assertSame(EcfTypeEnum::GUBERNAMENTAL, new EcfTypeResolver()->resolve($invoice));
     }
 
+    /**
+     * A quote built from a US invoice carried 8% sales tax; it used to go to DGII declared as 18% ITBIS.
+     */
+    public function test_a_tax_rate_dgii_does_not_have_is_refused_instead_of_declared_as_eighteen(): void
+    {
+        $invoice = $this->draftInvoice($this->customer(), self::RNC, [[1000.0, 80.0]]);
+        $invoice->lines()->update(['tax_rate' => 8.0]);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('8% tax, which is not an ITBIS rate');
+
+        new EcfDocumentBuilder()->build($invoice->refresh(), EcfTypeEnum::CREDITO_FISCAL, 'E310000000004', '2028-12-31');
+    }
+
     public function test_the_document_carries_the_booked_totals_and_line_rates(): void
     {
         $invoice = $this->draftInvoice($this->customer(), self::RNC, [[1000.0, 180.0], [250.0, 0.0]]);

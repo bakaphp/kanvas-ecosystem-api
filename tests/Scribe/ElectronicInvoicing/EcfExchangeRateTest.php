@@ -19,8 +19,7 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Spatie\LaravelData\DataCollection;
 
 /**
- * A USD e-CF stays in USD and declares to DGII the DOP rate in force on its issue date (TipoCambio); it used to
- * declare 1, so DGII recorded a USD 13,000 invoice as DOP 13,000.
+ * A USD e-CF stays in USD and declares to DGII the DOP rate in force on its issue date (TipoCambio).
  */
 class EcfExchangeRateTest extends EcfCompletionTestCase
 {
@@ -66,7 +65,13 @@ class EcfExchangeRateTest extends EcfCompletionTestCase
                 company: $this->company,
                 billable: $invoice->customer,
                 lines: new DataCollection(InvoiceLineData::class, [
-                    new InvoiceLineData(description: 'Ajuste', quantity: 1.0, unit_price_native: 100.0, tax_rate: 18.0, tax_amount_native: 18.0),
+                    new InvoiceLineData(
+                        description: 'Ajuste',
+                        quantity: 1.0,
+                        unit_price_native: 100.0,
+                        tax_rate: 18.0,
+                        tax_amount_native: 18.0
+                    ),
                 ]),
                 currency: 'USD',
                 fx_rate_to_base: 1.0,

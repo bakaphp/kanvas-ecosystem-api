@@ -27,6 +27,7 @@ use Kanvas\Scribe\ElectronicInvoicing\Services\AuthorizedRangeNumbering;
 use Kanvas\Scribe\ElectronicInvoicing\Support\BuyerTaxId;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\FxRates\DataTransferObject\OfficialRateSource;
+use Kanvas\Scribe\FxRates\Services\FxRateService;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Regional\DataTransferObject\TaxpayerLookup;
@@ -172,6 +173,10 @@ final class DrFiscalRegime implements FiscalRegimeInterface
     {
         self::requireIssuerTaxId($document->company);
 
+        if ($document instanceof Invoice && $type === EcfTypeEnum::CONSUMO) {
+            $this->assertConsumoMayGoWithoutBuyerTaxId($document);
+        }
+
         if (! $document instanceof Invoice || $type !== EcfTypeEnum::CREDITO_FISCAL) {
             return;
         }
@@ -186,6 +191,38 @@ final class DrFiscalRegime implements FiscalRegimeInterface
                 . 'otherwise correct the number.'
             );
         }
+    }
+
+    /**
+     * DGII takes an E32 without the buyer's id only under DOP 250,000, so a foreign customer with no tax id on file
+     * is refused here, before an approver signs, instead of by the validator after. The peso value is estimated with
+     * today's official rate (the real one is frozen on the issue date); with no rate on file the validator decides.
+     */
+    private function assertConsumoMayGoWithoutBuyerTaxId(Invoice $invoice): void
+    {
+        if (BuyerTaxId::of($invoice) !== null) {
+            return;
+        }
+
+        $currency = strtoupper((string) $invoice->currency);
+        $rate = $currency === self::CURRENCY
+            ? 1.0
+            : (float) (new FxRateService()->rateOn($invoice->app, $currency, self::CURRENCY, Carbon::today())?->rate ?? 0);
+
+        if ($rate <= 0 || (float) $invoice->total_native * $rate < DrEcfValidator::CONSUMER_ANONYMOUS_LIMIT_DOP) {
+            return;
+        }
+
+        throw new ValidationException(sprintf(
+            'Invoice %d is %s %s, about DOP %s, over the DOP %s limit for a consumo invoice (E32) with no buyer tax id, '
+            . 'and the customer has none on file. Record the customer\'s tax id first (a US company: its EIN with '
+            . 'tax_id_type us_ein), or mark the invoice as an export (E46) if that is what it is.',
+            $invoice->getId(),
+            number_format((float) $invoice->total_native, 2),
+            $currency,
+            number_format((float) $invoice->total_native * $rate, 0),
+            number_format(DrEcfValidator::CONSUMER_ANONYMOUS_LIMIT_DOP, 0)
+        ));
     }
 
     public function numbering(): FiscalNumberingInterface

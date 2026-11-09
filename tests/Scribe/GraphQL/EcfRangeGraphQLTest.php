@@ -81,6 +81,7 @@ class EcfRangeGraphQLTest extends ScribeTestCase
     {
         return $this->graphQL(self::CONFIGURE, ['input' => $input])
             ->assertSuccessful()
+            ->assertGraphQLErrorFree()
             ->json('data.configureScribeEcfRange');
     }
 }

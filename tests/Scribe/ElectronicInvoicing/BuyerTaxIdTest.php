@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\ElectronicInvoicing;
 
+use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Enums\TaxIdTypeEnum;
 use Kanvas\Guild\Organizations\Models\Address;
@@ -11,9 +12,11 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\EcfTypeResolver;
+use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\SubmitInvoiceForApprovalAction;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
+use Kanvas\Scribe\Invoices\Models\Invoice;
 use Tests\Stubs\Scribe\FakeEcfProvider;
 
 /**
@@ -58,6 +61,40 @@ class BuyerTaxIdTest extends EcfTestCase
         $this->expectException(ValidationException::class);
 
         new SubmitInvoiceForApprovalAction($this->draftInvoice($this->customer(), self::EIN), static::$cachedUser)->execute();
+    }
+
+    /**
+     * A US customer with no tax id on file was invoiced 4,160 USD as E32; DGII takes an anonymous E32 only under
+     * DOP 250,000, so the approval would have failed after a person signed it.
+     */
+    public function test_an_e32_over_the_anonymous_limit_with_no_buyer_tax_id_is_refused_at_submit(): void
+    {
+        Carbon::setTestNow('2026-06-15 10:00:00');
+
+        try {
+            $customer = $this->customer('Harbor Coffee Roasters LLC');
+            $big = $this->usdDraft($customer, 5000.0);
+            $small = $this->usdDraft($customer, 1000.0);
+
+            $ecf = new EcfIssuanceService();
+            $ecf->assertReadyToIssue($small);
+            $this->addToAssertionCount(1);
+
+            $this->expectException(ValidationException::class);
+            $this->expectExceptionMessage('over the DOP 250,000 limit for a consumo invoice (E32) with no buyer tax id');
+            $ecf->assertReadyToIssue($big);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    private function usdDraft(Organization $customer, float $price): Invoice
+    {
+        $invoice = $this->draftInvoice($customer, null, [[$price, 0.0]]);
+        $invoice->currency = 'USD';
+        $invoice->saveQuietly();
+
+        return $invoice->refresh();
     }
 
     public function test_a_registered_rnc_still_issues_credito_fiscal(): void

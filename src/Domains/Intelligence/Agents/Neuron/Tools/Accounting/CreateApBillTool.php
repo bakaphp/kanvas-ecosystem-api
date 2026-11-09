@@ -241,7 +241,12 @@ class CreateApBillTool extends Tool
         ?bool $billed_to_is_this_company = null,
         ?bool $book_anyway = null,
     ): array {
-        $addressee = $this->checkAddressee($billed_to, $billed_to_tax_id, $billed_to_is_this_company ?? false, $book_anyway ?? false);
+        $addressee = $this->checkAddressee(
+            $billed_to,
+            $billed_to_tax_id,
+            $billed_to_is_this_company ?? false,
+            $book_anyway ?? false
+        );
         if ($addressee !== null) {
             return $addressee;
         }
@@ -557,8 +562,12 @@ class CreateApBillTool extends Tool
      *
      * @return array<string, mixed>|null
      */
-    private function checkAddressee(?string $billedTo, ?string $billedToTaxId, bool $isThisCompany, bool $bookAnyway): ?array
-    {
+    private function checkAddressee(
+        ?string $billedTo,
+        ?string $billedToTaxId,
+        bool $isThisCompany,
+        bool $bookAnyway
+    ): ?array {
         $billedTo = Str::trimToNull($billedTo);
         $service = new BillAddresseeService();
 

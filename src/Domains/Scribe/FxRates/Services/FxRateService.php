@@ -17,8 +17,12 @@ class FxRateService
 {
     public const int MAX_AGE_DAYS = 7;
 
-    public function rateOn(AppInterface $app, string $base, string $quote, Carbon $date): ?FxRate
-    {
+    public function rateOn(
+        AppInterface $app,
+        string $base,
+        string $quote,
+        Carbon $date
+    ): ?FxRate {
         $date = $date->copy()->startOfDay();
 
         return FxRate::query()

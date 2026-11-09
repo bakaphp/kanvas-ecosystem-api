@@ -45,6 +45,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RespondToVendorEcfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SettleFromSuspenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\CheckApprovalStatusTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\RetryApprovedItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetOrganizationTool;
@@ -140,6 +141,7 @@ class AccountsPayableAgent extends SystemUserAgent
         $statusUser = $this->requestingHuman() ?? $this->actingUser();
         if ($statusUser !== null && $this->app !== null && $this->company !== null) {
             $tools[] = new CheckApprovalStatusTool()->withContext($this->app, $this->company, $statusUser);
+            $tools[] = new RetryApprovedItemTool()->withContext($this->app, $this->company, $statusUser);
         }
 
         // approve_pending_item must authorize against the real human, not actingUser() (the agent itself on @mention/channel surfaces).

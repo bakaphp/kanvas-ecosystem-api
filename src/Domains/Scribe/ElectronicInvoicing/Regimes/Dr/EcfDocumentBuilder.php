@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 use Baka\Support\Money;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfReference;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
@@ -179,7 +180,12 @@ class EcfDocumentBuilder
         return match (true) {
             $percent <= 0.0 => EcfItbisRateEnum::EXEMPT,
             abs($percent - 16.0) < 0.5 => EcfItbisRateEnum::RATE_16,
-            default => EcfItbisRateEnum::RATE_18,
+            abs($percent - 18.0) < 0.5 => EcfItbisRateEnum::RATE_18,
+            default => throw new ValidationException(sprintf(
+                'A line carries %s%% tax, which is not an ITBIS rate (18%%, 16%% or exempt), so DGII would get a rate the '
+                . 'amounts do not match. Correct the line\'s tax before issuing.',
+                rtrim(rtrim(number_format($percent, 2, '.', ''), '0'), '.')
+            )),
         };
     }
 

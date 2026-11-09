@@ -20,6 +20,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConvertQuoteToInvoiceTool
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\DiscardDraftInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\DraftCreditNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\DraftDebitNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\EcfStatusTool;
@@ -46,6 +47,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\CheckApprovalStatusTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\RetryApprovedItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
@@ -126,6 +128,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new AddOrganizationApproverTool(),
             new CreateArInvoiceTool(),
             new VoidArInvoiceTool(),
+            new DiscardDraftInvoiceTool(),
             new ApplyArPaymentTool(),
             new CreateArCreditMemoTool(),
             new DraftCreditNoteTool(),
@@ -168,6 +171,7 @@ class AccountsReceivableAgent extends SystemUserAgent
         $statusUser = $this->requestingHuman() ?? $this->actingUser();
         if ($statusUser !== null && $this->app !== null && $this->company !== null) {
             $tools[] = new CheckApprovalStatusTool()->withContext($this->app, $this->company, $statusUser);
+            $tools[] = new RetryApprovedItemTool()->withContext($this->app, $this->company, $statusUser);
         }
 
         // approve_pending_item must authorize against the real human, not actingUser() (the agent itself on @mention/channel surfaces).
@@ -200,7 +204,9 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Who owes us" / "AR aging" / "biggest late payers" → query_ar_aging, list_overdue_invoices, top_late_payers.',
             '- "What invoices are overdue for customer X" → list_overdue_invoices with the customer parameter set — '
             . 'not list_open_sales_orders, which is for purchase/sales orders, not invoices.',
-            '- "Look up invoice #X" / "status of invoice X" → find_invoice (one specific invoice by number).',
+            '- "Look up invoice X" / "status of invoice X" / "are you sure you created it" → find_invoice, by invoice_id '
+            . '(a draft has no number) or by number, and answer from what it returns. You do not see the tool calls '
+            . 'behind your earlier turns: a record you reported then is checked with a lookup, never recanted from memory.',
             '- "Who is customer X" / resolve a customer name → find_customer.',
             '- "Add/assign an approver for customer X" → find_customer first to resolve organization_id, then '
             . 'add_organization_approver with that id and the approver\'s email. A customer can have more than '
@@ -229,7 +235,9 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Credit / discount / cancel invoice Y" → draft_credit_note; "charge more on invoice Y" → '
             . 'draft_debit_note. Send only the difference as positive lines, plus the reason. Both wait for a '
             . 'person\'s approval and are numbered (E34 / E33) when approved; never say one was issued.',
-            '- "Void/cancel/undo that invoice" → void_ar_invoice, given the invoice_id from create_ar_invoice.',
+            '- "Void/cancel/undo that invoice" → void_ar_invoice for an issued or sent invoice (it reverses the posting); '
+            . 'discard_draft_invoice for a DRAFT (nothing was posted, so it is withdrawn and its approval cancelled). '
+            . 'A draft that already carries a fiscal number can be neither.',
             '- "Quote customer X for Y" / "send them a proposal" → create_quote (customer name + priced lines). '
             . 'It stops at a DRAFT with no quote number. Then send_quote: it numbers it, marks it sent and '
             . 'sends the customer a tracked link (a signing page when it has a SOW) with the PDFs.',
@@ -251,8 +259,10 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'when they said no) — never assume it. Once accepted, "turn that quote into an invoice" → '
             . 'convert_quote_to_invoice, which creates a DRAFT invoice carrying the same lines; a human issues '
             . 'it. An invoice for a quote always comes from convert_quote_to_invoice, never from create_ar_invoice: '
-            . 'a hand-built copy loses the link to the quote and its line-by-line detail. If the quote is not '
-            . 'accepted yet, ask whether the customer accepted it; on a yes, answer_quote and then convert. '
+            . 'a hand-built copy loses the link to the quote and its line-by-line detail, and create_ar_invoice '
+            . 'refuses it. If the quote is not accepted yet, ask whether the customer accepted it; on a yes, '
+            . 'answer_quote (with accepted_outside_kanvas when it was never sent through Kanvas) and then convert. '
+            . 'A quote with a SOW is never converted: accepting it bills its payment schedule. '
             . '"Look up quote #X" → find_quote, which gives you the quote_id the other quote tools need.',
             '- "Send me the quote/invoice as a PDF" / "I need a copy to forward" → generate_quote_pdf or '
             . 'generate_invoice_pdf. Both render what Kanvas holds and attach the file to the record; then call '

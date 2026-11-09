@@ -13,7 +13,10 @@ use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Approvals\Services\ApprovalOriginService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConvertQuoteToInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListBillingSchedulesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ScheduleBillingTool;
 use Kanvas\NervousSystem\Ledger\Models\Event as LedgerEvent;
@@ -223,6 +226,69 @@ class BillingScheduleTest extends ScribeTestCase
 
         $this->expectException(InvalidQuoteTransitionException::class);
         new ConvertQuoteToInvoiceAction($quote->refresh())->execute();
+    }
+
+    public function test_each_sow_payment_invoices_the_quotes_own_lines_and_together_they_equal_the_quote(): void
+    {
+        Queue::fake();
+        $quote = $this->sentQuoteWithSow('Same Lines Co');
+        new AcceptQuoteAction($quote, static::$cachedUser)->execute();
+
+        foreach (BillingSchedule::query()->where('source_quote_id', $quote->getId())->orderBy('id')->get() as $schedule) {
+            $this->runJob($schedule, '2026-06-20');
+        }
+
+        $invoices = $this->invoicesFor($quote->customer)->sortBy('id')->values();
+        $quoteLines = $quote->lines()->get();
+        $this->assertCount(2, $invoices);
+
+        foreach ($invoices as $invoice) {
+            $lines = $invoice->lines()->orderBy('sort_order')->get();
+            $this->assertSame($quoteLines->pluck('description')->all(), $lines->pluck('description')->all(), 'the quote\'s lines, as quoted');
+            $this->assertSame($quoteLines->pluck('quantity')->map(fn ($q) => (float) $q)->all(), $lines->pluck('quantity')->map(fn ($q) => (float) $q)->all());
+            $this->assertSame($quote->getId(), $invoice->quote_id);
+        }
+
+        foreach ($quoteLines as $position => $quoteLine) {
+            $billedPrice = $invoices->sum(fn (Invoice $invoice): float => (float) $invoice->lines()->orderBy('sort_order')->get()[$position]->unit_price_native);
+            $billedTax = $invoices->sum(fn (Invoice $invoice): float => (float) $invoice->lines()->orderBy('sort_order')->get()[$position]->tax_amount_native);
+            $this->assertEqualsWithDelta((float) $quoteLine->unit_price_native, $billedPrice, 0.0001, 'no rounding drift per line');
+            $this->assertEqualsWithDelta((float) $quoteLine->tax_amount_native, $billedTax, 0.0001);
+        }
+
+        $this->assertEqualsWithDelta((float) $quote->total_native, (float) $invoices->sum('total_native'), 0.001);
+    }
+
+    /**
+     * The agent once offered to invoice a quote "in full" after its SOW schedule had already billed all of it.
+     */
+    public function test_the_conversion_tool_hands_back_the_invoices_a_sow_quote_already_has(): void
+    {
+        Queue::fake();
+        $quote = $this->sentQuoteWithSow('Already Billed Co');
+        $answer = new AnswerQuoteTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(quote_id: $quote->getId(), accepted: true);
+        $this->assertSame([], $answer['invoices'], 'the due payment is invoiced by the queued job, not inline');
+
+        $deposit = BillingSchedule::query()->where('source_quote_id', $quote->getId())->orderBy('id')->first();
+        $this->runJob($deposit, '2026-06-01');
+
+        $converted = new ConvertQuoteToInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(quote_id: $quote->getId());
+
+        $this->assertFalse($converted['converted']);
+        $this->assertSame('billed_by_sow', $converted['reason']);
+        $this->assertCount(1, $converted['invoices']);
+        $this->assertEqualsWithDelta(2050.0, $converted['invoices'][0]['total'], 0.001);
+        $this->assertStringContainsString('bill the customer twice', $converted['message']);
+
+        $found = new FindQuoteTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(quote_number: (string) $quote->refresh()->quote_number);
+        $this->assertNull($found['converted_to_invoice_id'], 'a SOW quote is never converted...');
+        $this->assertCount(1, $found['invoices'], '...so its invoices are what tells the reader it was billed');
     }
 
     public function test_accepting_a_quote_without_a_sow_schedules_nothing(): void

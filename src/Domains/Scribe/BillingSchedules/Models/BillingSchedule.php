@@ -106,6 +106,7 @@ class BillingSchedule extends BaseModel
                 'description' => $line->description,
                 'quantity' => $line->quantity,
                 'unit_price' => $line->unit_price,
+                'discount_amount' => $line->discount_amount,
                 'tax_rate' => $line->tax_rate,
                 'tax_amount' => $line->tax_amount,
                 'item_id' => $line->item_id,

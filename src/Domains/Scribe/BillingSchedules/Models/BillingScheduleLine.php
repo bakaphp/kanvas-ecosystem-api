@@ -22,6 +22,7 @@ use Kanvas\Scribe\Models\BaseModel;
  * @property string $quantity
  * @property string $unit_price
  * @property string|null $tax_rate
+ * @property string $discount_amount
  * @property string $tax_amount
  * @property int|null $item_id
  */
@@ -33,6 +34,7 @@ class BillingScheduleLine extends BaseModel
     protected $casts = [
         'quantity' => 'decimal:4',
         'unit_price' => 'decimal:4',
+        'discount_amount' => 'decimal:4',
         'tax_rate' => 'decimal:6',
         'tax_amount' => 'decimal:4',
         'item_id' => 'integer',
@@ -52,11 +54,14 @@ class BillingScheduleLine extends BaseModel
 
     public function total(): BigDecimal
     {
-        return Money::of($this->quantity)->multipliedBy(Money::of($this->unit_price))->plus(Money::of($this->tax_amount));
+        return Money::of($this->quantity)
+            ->multipliedBy(Money::of($this->unit_price))
+            ->minus(Money::of($this->discount_amount ?? 0))
+            ->plus(Money::of($this->tax_amount));
     }
 
     /**
-     * @return array{description: string, quantity: float, unit_price: float, tax_rate: float|null, tax_amount: float, item_id: int|null}
+     * @return array{description: string, quantity: float, unit_price: float, discount_amount: float, tax_rate: float|null, tax_amount: float, item_id: int|null}
      */
     public function toPresentation(): array
     {
@@ -64,6 +69,7 @@ class BillingScheduleLine extends BaseModel
             'description' => $this->description,
             'quantity' => (float) $this->quantity,
             'unit_price' => (float) $this->unit_price,
+            'discount_amount' => (float) $this->discount_amount,
             'tax_rate' => $this->tax_rate !== null ? (float) $this->tax_rate : null,
             'tax_amount' => (float) $this->tax_amount,
             'item_id' => $this->item_id,

@@ -15,7 +15,7 @@ class SyncFxRatesCommand extends Command
 {
     protected $signature = 'scribe:sync-fx-rates';
 
-    protected $description = 'Store the Banco Central de la República Dominicana buy rate for each foreign invoice currency.';
+    protected $description = 'Store official exchange rates for each configured fiscal regime and foreign invoice currency.';
 
     public function handle(): int
     {

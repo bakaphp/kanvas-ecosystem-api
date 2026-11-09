@@ -29,7 +29,8 @@ class FindQuoteTool extends Tool
     protected string $name = 'find_quote';
 
     protected ?string $description = 'Look up a single quote by its quote number and return the full detail: customer, '
-        . 'status (draft/sent/accepted/rejected/expired/converted), totals, validity date, line items, '
+        . 'status (draft/sent/accepted/rejected/expired/converted), totals, validity date, every invoice made from it '
+        . '(`invoices`: the conversion, or each SOW payment; converted_to_invoice_id stays empty for a SOW quote), line items, '
         . 'and the invoice it became if it was converted. Use it to get the quote_id the other quote '
         . 'tools need. Returns found=false when there is no such quote.';
 
@@ -83,6 +84,7 @@ class FindQuoteTool extends Tool
             'issued_date' => $quote->issued_date?->toDateString(),
             'valid_until' => $quote->valid_until?->toDateString(),
             'converted_to_invoice_id' => $quote->converted_to_invoice_id,
+            'invoices' => $quote->invoiceSummaries(),
             'sow_message_id' => $quote->sow_message_id,
             'lines' => $quote->lines->map(fn (QuoteLine $line): array => [
                 'quote_line_id' => (int) $line->id,

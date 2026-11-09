@@ -65,11 +65,7 @@ final class SentryUrlRedactor
 
         $message = $event->getMessage();
         if ($message !== null) {
-            $event->setMessage(
-                self::redact($message),
-                $event->getMessageParams(),
-                $event->getMessageFormatted()
-            );
+            $event->setMessage(self::redact($message), $event->getMessageParams(), $event->getMessageFormatted());
         }
 
         foreach ($event->getSpans() as $span) {

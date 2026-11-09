@@ -916,7 +916,11 @@ trait HasKanvasAgentBehavior
             . 'refused write as done is worse than the refusal: the person stops checking. Something you '
             . 'did not call a tool for in this turn did not happen at all: never describe a record as '
             . 'created, drafted, sent, approved or cancelled, and never give an id, number or link, unless '
-            . 'a tool returned it in this turn. Earlier messages and memory are not this turn.',
+            . 'a tool returned it in this turn. Earlier messages and memory are not this turn. The reverse '
+            . 'holds too: the tool calls behind your earlier turns are not shown to you, and a "[card shown: …]" '
+            . 'line in one of them is a card a tool produced then. Never call an earlier turn a hallucination or '
+            . 'declare a record missing or unchanged because you cannot see its tool calls: asked whether '
+            . 'something was done or what state a record is in, look it up and answer from the result.',
             'A DELIVERABLE IS NEVER THE BODY OF A MESSAGE. When you produce a document — an HTML '
             . 'template, a rendered page, a report, a PDF — put it in Kanvas as a record '
             . '(create_template, then update_template to revise it and generate_template_pdf to render '

@@ -356,6 +356,53 @@ final class RenderArtifactToolTest extends TestCase
         $this->assertSame($reply, new ArtifactBlockService()->stripInvalidBlocks($reply));
     }
 
+    public function testACardTheToolReturnedThisTurnIsKept(): void
+    {
+        $result = new RenderArtifactTool()(component: 'keyvalue', props: json_encode(['items' => [['key' => 'Invoice', 'value' => '22836']]]));
+        $reply = "Done.\n\n" . $result['block'] . "\n\nAnything else?";
+        $toolResults = [['name' => 'render_artifact', 'result' => json_encode($result)]];
+
+        $this->assertSame($reply, new ArtifactBlockService()->stripUnissuedBlocks($reply, $toolResults));
+    }
+
+    public function testACardTheToolReturnedSurvivesBeingRepastedWithOtherWhitespace(): void
+    {
+        $result = new RenderArtifactTool()(component: 'keyvalue', props: json_encode(['items' => [['key' => 'Total', 'value' => '10']]]));
+        $json = json_encode(json_decode(trim(str_replace(['```kanvas-artifact', '```'], '', $result['block'])), true), JSON_PRETTY_PRINT);
+        $reply = "```kanvas-artifact\n{$json}\n```";
+
+        $kept = new ArtifactBlockService()->stripUnissuedBlocks($reply, [['result' => $result]]);
+
+        $this->assertSame($reply, $kept);
+    }
+
+    /**
+     * A turn that called no tool wrote an "AR Invoice Created" card for an invoice that never existed.
+     */
+    public function testAHandWrittenCardNoToolReturnedIsRemovedAndTheReplySaysSo(): void
+    {
+        $card = json_encode([
+            'version' => 1,
+            'component' => 'entity',
+            'title' => 'AR Invoice Created',
+            'props' => ['id' => 23026, 'type' => 'deal', 'title' => 'Invoice #23026', 'fields' => [['key' => 'Status', 'value' => 'Draft']]],
+        ]);
+        $reply = "Here it is.\n\n```kanvas-artifact\n{$card}\n```";
+
+        $stripped = new ArtifactBlockService()->stripUnissuedBlocks($reply, []);
+
+        $this->assertStringNotContainsString('kanvas-artifact', $stripped);
+        $this->assertStringContainsString('Here it is.', $stripped);
+        $this->assertStringEndsWith(ArtifactBlockService::UNISSUED_NOTICE, $stripped);
+    }
+
+    public function testAReplyWithoutCardsIsUntouched(): void
+    {
+        $reply = 'Quote 3569 is still a draft. Did the customer accept it?';
+
+        $this->assertSame($reply, new ArtifactBlockService()->stripUnissuedBlocks($reply, []));
+    }
+
     /**
      * Only this fence is ours. A ```json block in an answer about code must survive.
      */

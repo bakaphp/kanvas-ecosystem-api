@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Stores;
 
 use Illuminate\Support\Str;
+use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
 use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\History\MessageStoreInterface;
 use NeuronAI\Chat\History\PaginatesMessages;
+use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
+use NeuronAI\Chat\Messages\ContentBlocks\ReasoningContent;
+use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Tools\ToolCall;
 
@@ -45,9 +49,33 @@ abstract class KanvasMessageStore implements MessageStoreInterface
         $this->persist($threadId, $message);
     }
 
+    /**
+     * What the model reads back. Cards become markers here, on freshly loaded rows only, so the stored transcript
+     * the person sees keeps them (ArtifactBlockService::asHistoryMarkers()).
+     */
     public function loadAll(string $threadId, ?int $limit = null, ?string $before = null): array
     {
-        return $this->paginate($this->loadActive($threadId), $limit, $before);
+        return $this->paginate(
+            array_map(self::withCardsAsMarkers(...), $this->loadActive($threadId)),
+            $limit,
+            $before
+        );
+    }
+
+    private static function withCardsAsMarkers(Message $message): Message
+    {
+        if (! str_contains((string) $message->getContent(), ArtifactBlockService::FENCE)) {
+            return $message;
+        }
+
+        $cards = new ArtifactBlockService();
+
+        return $message->setContents(array_map(
+            fn (ContentBlockInterface $block): ContentBlockInterface => $block instanceof TextContent && ! $block instanceof ReasoningContent
+                ? new TextContent($cards->asHistoryMarkers($block->content))
+                : $block,
+            $message->getContentBlocks()
+        ));
     }
 
     final public function archive(string $threadId, int $count): void

@@ -26,6 +26,7 @@ class BillingScheduleLine extends Data
         public readonly float $tax_amount = 0.0,
         public readonly ?float $tax_rate = null,
         public readonly ?int $item_id = null,
+        public readonly float $discount_amount = 0.0,
     ) {
     }
 

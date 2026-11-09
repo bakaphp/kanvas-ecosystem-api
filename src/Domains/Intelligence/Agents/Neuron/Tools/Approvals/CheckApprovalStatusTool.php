@@ -8,6 +8,7 @@ use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Approvals\Models\ApprovalRequestApprover;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\Concerns\FindsApprovalRequestForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
@@ -28,6 +29,7 @@ use Override;
 #[AgentTool(name: 'Check Approval Status', category: 'approvals')]
 class CheckApprovalStatusTool extends Tool
 {
+    use FindsApprovalRequestForTool;
     use HasKanvasContext;
     use TrackByInputs;
 
@@ -67,28 +69,13 @@ class CheckApprovalStatusTool extends Tool
     {
         $type = trim($target_type);
 
-        $request = $this->latestRequest($type, $target_id);
+        $request = $this->latestApprovalRequest($type, $target_id);
 
         if ($request !== null) {
             return $this->describe($request, $type, $target_id);
         }
 
         return $this->describeLegacy($type, $target_id);
-    }
-
-    private function latestRequest(string $targetType, int $targetId): ?ApprovalRequest
-    {
-        /** @var ApprovalRequest|null $request */
-        $request = ApprovalRequest::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('approval_type', ApprovalRequest::approvalTypeFor($targetType))
-            ->where('entity_id', $targetId)
-            ->where('is_deleted', false)
-            ->latest('id')
-            ->first();
-
-        return $request;
     }
 
     /**
@@ -112,8 +99,10 @@ class CheckApprovalStatusTool extends Tool
             'resolved_by' => $request->resolvedByUser?->email,
             'resolved_at' => $request->resolved_at?->toDateString(),
             'reason' => $request->reason,
-            // "Approved" and "landed in the ERP" are different facts; the agent must not report the
-            // second when it only knows the first.
+            // "Approved" and "the action landed" are different facts; the agent must not report the second when it
+            // only knows the first, and a failed action is the one thing it must not read past.
+            'action_completed' => $request->status === ApprovalStatusEnum::APPROVED ? $request->handlerError() === null : null,
+            'action_error' => $request->handlerError(),
             'downstream_result' => $request->metadata['handler_result'] ?? null,
             'decisions' => $this->decisions($request),
             'message' => $this->message($request, $targetType, $targetId),
@@ -150,7 +139,10 @@ class CheckApprovalStatusTool extends Tool
         }
 
         return match ($request->status) {
-            ApprovalStatusEnum::APPROVED => "This {$targetType} is approved.",
+            ApprovalStatusEnum::APPROVED => $request->handlerError() !== null
+                ? "This {$targetType} is approved, but the approved action FAILED and did not happen: {$request->handlerError()} "
+                    . 'Fix the cause, then call retry_approved_item; never create a replacement record.'
+                : "This {$targetType} is approved and its action completed.",
             ApprovalStatusEnum::REJECTED => "This {$targetType} was rejected."
                 . ($request->reason !== null ? " Reason: {$request->reason}" : ''),
             ApprovalStatusEnum::EXPIRED => "Nobody decided on this {$targetType} before it expired.",

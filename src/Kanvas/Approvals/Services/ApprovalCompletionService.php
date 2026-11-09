@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Approvals\DataTransferObject\ApprovalResult;
 use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -52,6 +53,35 @@ class ApprovalCompletionService
         $this->workflow->fire($request, WorkflowEnum::APPROVED, [
             'approver' => $approver,
             'result' => $handlerResult,
+        ]);
+
+        return ApprovalResult::approved($request, $handlerResult);
+    }
+
+    /**
+     * Runs the approved action again after it failed (a missing range, a customer field fixed since). The decision
+     * stands, so nothing is re-approved: the handler runs, its result replaces the failed one, and the approved
+     * workflow fires again with it. Refused unless the request is approved and its handler did fail.
+     */
+    public function retry(ApprovalRequest $request, ?UserInterface $actor): ApprovalResult
+    {
+        if ($request->status !== ApprovalStatusEnum::APPROVED) {
+            throw new ValidationException("Approval request {$request->getId()} is {$request->status->value}, so there is no approved action to retry.");
+        }
+
+        if ($request->handlerError() === null) {
+            throw new ValidationException("Approval request {$request->getId()} ran clean; there is nothing to retry.");
+        }
+
+        $handlerResult = $this->runHandler($request, $actor);
+
+        $request->metadata = [...($request->metadata ?? []), 'handler_result' => $handlerResult ?? []];
+        $request->saveOrFail();
+
+        $this->workflow->fire($request, WorkflowEnum::APPROVED, [
+            'approver' => $actor,
+            'result' => $handlerResult,
+            'retried' => true,
         ]);
 
         return ApprovalResult::approved($request, $handlerResult);

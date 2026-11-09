@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesScribeQuoteForTool;
 use Kanvas\Scribe\Invoices\Actions\SubmitInvoiceForApprovalAction;
 use Kanvas\Scribe\Quotes\Actions\ConvertQuoteToInvoiceAction;
+use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteTransitionException;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -64,6 +65,19 @@ class ConvertQuoteToInvoiceTool extends Tool
 
         if (is_array($quote)) {
             return ['converted' => false, ...$quote];
+        }
+
+        if ($quote->sow_message_id !== null && $quote->status === QuoteStatusEnum::ACCEPTED) {
+            return [
+                'converted' => false,
+                'reason' => 'billed_by_sow',
+                'quote_status' => $quote->status->value,
+                'invoices' => $quote->invoiceSummaries(),
+                'message' => "Quote {$quote->getId()} is accepted and has a SOW, so its payment schedule bills it: `invoices` "
+                    . 'are the ones already made (drafts wait for approval); a payment due now that is not listed is still '
+                    . 'being invoiced in the background, and later ones come on their dates. Tell the person exactly that. '
+                    . 'Converting it or creating another invoice would bill the customer twice.',
+            ];
         }
 
         try {

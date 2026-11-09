@@ -10,10 +10,12 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConvertQuoteToInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateInvoicePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuoteSowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
 use Kanvas\Scribe\Documents\Services\DocumentPdfService;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
@@ -265,6 +267,135 @@ class QuoteAgentToolsTest extends ScribeTestCase
         $this->assertStringContainsString('Do not rebuild the quote with create_ar_invoice', $converted['message']);
     }
 
+    public function test_a_never_sent_quote_the_customer_accepted_outside_kanvas_is_invoiced_from_the_quote(): void
+    {
+        $this->seedTestOrganization('Offline Yes Ltd');
+        $created = $this->createQuote('Offline Yes Ltd', [['description' => 'Project', 'unit_price' => 700.0]]);
+        $answer = new AnswerQuoteTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $refused = $answer->__invoke(quote_id: $created['quote_id'], accepted: true);
+        $this->assertFalse($refused['recorded']);
+        $this->assertSame('never_sent', $refused['reason']);
+        $this->assertSame(QuoteStatusEnum::DRAFT, Quote::getById($created['quote_id'])->status);
+
+        $answered = $answer->__invoke(quote_id: $created['quote_id'], accepted: true, accepted_outside_kanvas: true);
+        $this->assertTrue($answered['recorded']);
+        $this->assertSame(QuoteStatusEnum::ACCEPTED->value, $answered['status']);
+        $this->assertNotNull($answered['quote_number'], 'numbered as a sent quote is');
+
+        $converted = new ConvertQuoteToInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(quote_id: $created['quote_id']);
+
+        $this->assertTrue($converted['converted']);
+        $this->assertSame($created['quote_id'], (int) Invoice::getById($converted['invoice_id'])->quote_id);
+    }
+
+    public function test_create_ar_invoice_refuses_to_rebuild_an_open_quote(): void
+    {
+        $this->seedTestOrganization('Rebuild Corp');
+        $created = $this->createQuote('Rebuild Corp', [['description' => 'Design', 'unit_price' => 950.0]]);
+        $invoice = new CreateArInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $sameTotal = $invoice->__invoke(customer_name: 'Rebuild Corp', memo: 'Design work', amount: 950.0);
+        $this->assertFalse($sameTotal['created']);
+        $this->assertSame('invoice_from_quote', $sameTotal['reason']);
+        $this->assertSame($created['quote_id'], $sameTotal['quote_id']);
+        $this->assertStringContainsString('accepted_outside_kanvas', $sameTotal['message']);
+
+        $namedInMemo = $invoice->__invoke(customer_name: 'Rebuild Corp', memo: 'Quote 12 conversion', amount: 400.0);
+        $this->assertSame('invoice_from_quote', $namedInMemo['reason']);
+
+        $unrelated = $invoice->__invoke(customer_name: 'Rebuild Corp', memo: 'Hosting renewal', amount: 120.0);
+        $this->assertTrue($unrelated['created'], 'other work for a customer with an open quote is still invoiced');
+    }
+
+    /**
+     * The agent once hand-built the 50% deposit of a quote whose SOW schedule would have billed it on acceptance: the
+     * e-CF went out with no quote_id and the quote stayed a draft.
+     */
+    public function test_create_ar_invoice_refuses_to_hand_build_a_deposit_or_a_line_of_an_open_quote(): void
+    {
+        $this->seedTestOrganization('Cresa Clinic');
+        $created = $this->createQuote('Cresa Clinic', [
+            ['description' => 'Patient UI implementation', 'unit_price' => 15000.0, 'tax_amount' => 2700.0],
+            ['description' => 'Monthly cloud operations', 'unit_price' => 2500.0, 'tax_amount' => 450.0],
+        ]);
+        $quote = Quote::getById($created['quote_id']);
+        $sow = new GenerateQuoteSowTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(
+            quote_id: $quote->getId(),
+            summary: 'Patient portal on Kanvas.',
+            scope: ['Patient UI', 'Cloud operations'],
+            deliverables: [[
+                'name' => 'Portal',
+                'acceptance_criteria' => 'Live.',
+                'quote_line_ids' => $quote->lines->pluck('id')->all(),
+            ]],
+            timeline_start: '2026-11-09',
+            timeline_end: '2027-01-31',
+            payment_schedule: [
+                ['label' => 'Upfront implementation deposit (50%)', 'when' => 'on_signature', 'amount' => 8850],
+                ['label' => 'Implementation balance on handover', 'when' => 'date', 'date' => '2026-12-31', 'amount' => 8850],
+                ['label' => 'First month cloud retainer', 'when' => 'date', 'date' => '2027-01-01', 'amount' => 2950],
+            ],
+            signatories: [['name' => 'Jane Customer', 'role' => 'Director']],
+            render_pdf: false,
+        );
+        $this->assertTrue($sow['saved'], json_encode($sow));
+        $invoice = new CreateArInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $deposit = $invoice->__invoke(
+            customer_name: 'Cresa Clinic',
+            memo: 'New UI implementation',
+            lines: [['description' => 'New UI implementation - first payment', 'unit_price' => 7500.0, 'tax_rate' => 18]],
+        );
+        $this->assertFalse($deposit['created'], 'the SOW schedule bills this amount on acceptance');
+        $this->assertSame('invoice_from_quote', $deposit['reason']);
+        $this->assertSame($quote->getId(), $deposit['quote_id']);
+        $this->assertStringContainsString('accepted_outside_kanvas', $deposit['message']);
+        $this->assertStringContainsString('payment schedule', $deposit['message']);
+
+        $namedDeposit = $invoice->__invoke(
+            customer_name: 'Cresa Clinic',
+            memo: 'Portal work',
+            lines: [['description' => '50% deposit', 'unit_price' => 100.0, 'tax_rate' => 18]],
+        );
+        $this->assertSame('invoice_from_quote', $namedDeposit['reason'], 'a deposit of anything is a part of a quote');
+
+        $oneLine = $invoice->__invoke(
+            customer_name: 'Cresa Clinic',
+            memo: 'Cloud operations, first month',
+            lines: [['description' => 'Cloud operations', 'unit_price' => 2500.0, 'tax_rate' => 18]],
+        );
+        $this->assertSame('invoice_from_quote', $oneLine['reason'], 'one quote line is still quoted work');
+
+        $unrelated = $invoice->__invoke(
+            customer_name: 'Cresa Clinic',
+            memo: 'Hosting renewal',
+            lines: [['description' => 'Hosting renewal', 'unit_price' => 120.0, 'tax_rate' => 18]],
+        );
+        $this->assertTrue($unrelated['created'], 'other work for the customer is still invoiced');
+        $this->assertSame(0, Invoice::query()->where('quote_id', $quote->getId())->count(), 'nothing was hung off the draft quote');
+    }
+
+    public function test_create_ar_invoice_refuses_a_second_invoice_for_the_same_open_amount(): void
+    {
+        $this->seedTestOrganization('Twice Billed Co');
+        $invoice = new CreateArInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $first = $invoice->__invoke(customer_name: 'Twice Billed Co', memo: 'October services', amount: 1250.0);
+        $this->assertTrue($first['created']);
+
+        $second = $invoice->__invoke(customer_name: 'Twice Billed Co', memo: 'October services again', amount: 1250.0);
+        $this->assertFalse($second['created']);
+        $this->assertSame('duplicate_invoice', $second['reason']);
+        $this->assertSame($first['invoice_id'], $second['invoice_id']);
+        $this->assertStringContainsString('bills the customer twice', $second['message']);
+
+        $other = $invoice->__invoke(customer_name: 'Twice Billed Co', memo: 'Hosting', amount: 80.0);
+        $this->assertTrue($other['created'], 'a different amount is other work');
+    }
+
     public function test_rejecting_a_quote_records_the_reason(): void
     {
         $this->seedTestOrganization('Said No Inc');
@@ -357,11 +488,6 @@ class QuoteAgentToolsTest extends ScribeTestCase
     }
 
     /**
-     * @param array<int, array<string, mixed>> $lines
-     *
-     * @return array<string, mixed>
-     */
-    /**
      * SENT as a precondition: the status-only path the UI's "mark as sent" uses, no delivery.
      */
     private function markSent(int $quoteId): Quote
@@ -371,6 +497,11 @@ class QuoteAgentToolsTest extends ScribeTestCase
         return new SendQuoteAction(quote: $quote, billable: $quote->customer, user: static::$cachedUser)->execute();
     }
 
+    /**
+     * @param array<int, array<string, mixed>> $lines
+     *
+     * @return array<string, mixed>
+     */
     private function createQuote(string $customerName, array $lines, ?string $contactName = null): array
     {
         return new CreateQuoteTool()

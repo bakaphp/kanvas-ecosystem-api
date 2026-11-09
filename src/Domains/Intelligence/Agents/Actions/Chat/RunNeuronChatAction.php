@@ -29,6 +29,7 @@ use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Agents\Services\AttachmentFetchService;
 use Kanvas\Intelligence\Agents\Services\NeuronResponderProviderFallback;
+use Kanvas\Intelligence\Agents\Services\UnbackedRecordClaimsService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
@@ -245,10 +246,38 @@ class RunNeuronChatAction
             return $fallback;
         }
 
-        // A block the client cannot draw costs the reader the whole card, so it is removed here
-        // and the prose around it kept. `render_artifact` validates what it produces, but the
-        // model is free to write the fence by hand and routinely does — see stripInvalidBlocks().
-        $content = new ArtifactBlockService()->stripInvalidBlocks($responseMessage->getContent() ?? '');
+        $content = $this->presentable($responseMessage, $toolResults);
+        $thisTurn = [$responseMessage];
+        $unbacked = $this->unbackedClaims($content, $thisTurn, $toolResults);
+        $stateClaim = new UnbackedRecordClaimsService()->unverifiedStateClaim($content, $toolCalls);
+
+        // A reply naming records no tool returned, or denying earlier work or declaring work done with no tool to back
+        // it, is answered once more with a correction before anyone reads it; only a repeat reaches the person, flagged.
+        // The draft and the correction are this turn's own words, so neither counts as evidence for the ids they repeat.
+        $correction = $this->correctionFor($unbacked, $stateClaim);
+        if ($correction !== null && $this->handler instanceof BehavesAsKanvasAgent) {
+            $thisTurn[] = $correction;
+            $retried = $this->retryWithCorrection($correction);
+
+            if ($retried !== null) {
+                $responseMessage = $retried->getMessage() ?? new AssistantMessage('');
+                [$retryCalls, $retryResults, $retryUsage] = $this->extractTurnTelemetry($retried, $responseMessage);
+                $toolCalls = [...$toolCalls, ...$retryCalls];
+                $toolResults = [...$toolResults, ...$retryResults];
+                foreach ($retryUsage as $key => $count) {
+                    $usage[$key] = ($usage[$key] ?? 0) + $count;
+                }
+                $this->endedOnToolBudget = $this->endedOnToolBudget || BoundToolResultsMiddleware::exhausted($retried);
+                $this->executedToolCalls = [...$this->executedToolCalls, ...BoundToolResultsMiddleware::executedCalls($retried)];
+
+                $thisTurn[] = $responseMessage;
+                $content = $this->presentable($responseMessage, $toolResults);
+                $unbacked = $this->unbackedClaims($content, $thisTurn, $toolResults);
+                $stateClaim = new UnbackedRecordClaimsService()->unverifiedStateClaim($content, $toolCalls);
+            }
+        }
+
+        $content = $this->flagUnverified($content, $unbacked, $stateClaim);
 
         if (! $selfRecords) {
             // Record the model the agent resolved to so the daily rollup can price the
@@ -363,6 +392,144 @@ class RunNeuronChatAction
     protected function pause(int $seconds): void
     {
         Sleep::for($seconds)->seconds();
+    }
+
+    /**
+     * A block the client cannot draw costs the reader the whole card, and a block no tool returned can show a
+     * record that does not exist, so both are removed and the prose kept.
+     *
+     * @param list<array<string, mixed>> $toolResults
+     */
+    private function presentable(Message $reply, array $toolResults): string
+    {
+        $artifacts = new ArtifactBlockService();
+
+        return $artifacts->stripUnissuedBlocks($artifacts->stripInvalidBlocks($reply->getContent() ?? ''), $toolResults);
+    }
+
+    /**
+     * Never fails the turn: a check that cannot run reports and lets the reply through.
+     *
+     * @param list<Message> $thisTurn the model's own words this turn, which back nothing
+     * @param list<array<string, mixed>> $toolResults
+     * @return list<string>
+     */
+    private function unbackedClaims(string $content, array $thisTurn, array $toolResults): array
+    {
+        try {
+            return new UnbackedRecordClaimsService()->find($content, $this->evidence($thisTurn, $toolResults));
+        } catch (Throwable $e) {
+            report($e);
+
+            return [];
+        }
+    }
+
+    /**
+     * @param list<string> $unbacked
+     */
+    private function correctionFor(array $unbacked, ?string $stateClaim): ?UserMessage
+    {
+        $claims = new UnbackedRecordClaimsService();
+
+        return match (true) {
+            $unbacked !== [] => new UserMessage($claims->correction($unbacked)),
+            $stateClaim !== null => new UserMessage($claims->stateClaimCorrection($stateClaim)),
+            default => null,
+        };
+    }
+
+    /**
+     * One more model round with the correction as a private user turn (the person never typed it); the model sees
+     * its own draft and the correction. A retry that fails leaves the original reply to be flagged.
+     */
+    private function retryWithCorrection(UserMessage $correction): ?AgentState
+    {
+        Log::warning('Agent reply is not backed by the conversation; retrying with a correction', [
+            'agent_id' => $this->agent->getId(),
+            'session_id' => $this->session?->getId(),
+            'correction' => $correction->getContent(),
+        ]);
+
+        $this->handler->setPrivateUserTurn(true);
+
+        try {
+            return $this->chatOnceTheThreadSettles($correction);
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        } finally {
+            $this->handler->setPrivateUserTurn(false);
+        }
+    }
+
+    /**
+     * A record the reply still names, or a denial or completion it still states, after the correction is flagged
+     * where a staff member reads it, and logged; a customer never sees the flag.
+     *
+     * @param list<string> $unbacked
+     */
+    private function flagUnverified(string $content, array $unbacked, ?string $stateClaim): string
+    {
+        if ($unbacked === [] && $stateClaim === null) {
+            return $content;
+        }
+
+        Log::warning('Agent reply is not backed by the conversation', [
+            'agent_id' => $this->agent->getId(),
+            'session_id' => $this->session?->getId(),
+            'records' => $unbacked,
+            'state_claim' => $stateClaim,
+        ]);
+
+        if ($this->agent->conversesWithCustomer()) {
+            return $content;
+        }
+
+        $claims = new UnbackedRecordClaimsService();
+
+        return rtrim($content) . "\n\n" . ($unbacked !== [] ? $claims->warning($unbacked) : $claims->stateClaimWarning($stateClaim));
+    }
+
+    /**
+     * Everything that could back a claim: the person's message, this turn's tool results and the thread the model
+     * read, earlier cards included as markers with their ids. This turn's own drafts and corrections are left out.
+     *
+     * @param list<Message> $thisTurn
+     * @param list<array<string, mixed>> $toolResults
+     */
+    private function evidence(array $thisTurn, array $toolResults): string
+    {
+        $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
+        $history = method_exists($this->handler, 'getChatHistory') ? $this->handler->getChatHistory()->getMessages() : [];
+
+        return implode("\n", [
+            $this->message,
+            (string) json_encode($toolResults, $flags),
+            ...array_map(
+                fn (Message $message): string => self::isOneOf($message, $thisTurn) ? '' : (string) json_encode($message, $flags),
+                $history
+            ),
+        ]);
+    }
+
+    /**
+     * The history holds its own copies, so a message is matched by id or by role and text, not by instance.
+     *
+     * @param list<Message> $messages
+     */
+    private static function isOneOf(Message $message, array $messages): bool
+    {
+        foreach ($messages as $candidate) {
+            if ($message === $candidate
+                || ($message->getId() !== '' && $message->getId() === $candidate->getId())
+                || ($message->getRole() === $candidate->getRole() && $message->getContent() === $candidate->getContent())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function humanizedFallback(Throwable $e): string

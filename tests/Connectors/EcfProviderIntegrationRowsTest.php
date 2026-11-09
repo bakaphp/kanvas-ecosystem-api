@@ -39,11 +39,10 @@ final class EcfProviderIntegrationRowsTest extends TestCase
 
     public function testTheWebPosFormFromTheCatalogSetsTheCompanyUp(): void
     {
-        Http::fake(['*/token' => Http::response(['access_token' => 'token-not-real', 'expires_in' => 3600])]);
+        Http::fake(['https://fedotest-api.webposonline.com/api/fedo/ak/v1/checkRnc/*' => Http::response(['razonSocial' => 'Ejemplo SRL'])]);
         $company = $this->freshCompany();
         $form = [
-            'username' => 'pos-user',
-            'password' => 'pos-password-not-real',
+            'api_key' => 'webpos-key-not-real',
             'license' => 'LICENSE1',
             'branch' => '0001',
             'pos' => '001',
@@ -58,7 +57,7 @@ final class EcfProviderIntegrationRowsTest extends TestCase
         $this->assertSame('LICENSE1', $company->get(ConfigurationEnum::COMPANY_LICENSE->value));
         $this->assertSame('webpos', $company->get('scribe-ecf-provider'));
         $this->assertSame('131794321', (string) $company->get('scribe-ecf-issuer-rnc'));
-        Http::assertSent(fn (Request $request): bool => $request['username'] === 'pos-user');
+        Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/checkRnc/webpos-key-not-real/131794321'));
     }
 
     public function testTheAlanubeFormNeverAsksForTheCertificate(): void

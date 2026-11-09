@@ -98,6 +98,46 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertFalse($missing['found']);
     }
 
+    /**
+     * A draft has no number until it is issued, and an agent asked "are you sure you created 24084?" looked it up
+     * by number, got found=false, and told the person the invoice did not exist.
+     */
+    public function test_find_invoice_finds_a_numberless_draft_by_its_id(): void
+    {
+        $draft = Invoice::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'document_type' => 'invoice',
+            'invoice_number' => null,
+            'quote_id' => 3801,
+            'billable_display_name' => 'Cresa Santo Domingo',
+            'document_status' => InvoiceDocumentStatusEnum::DRAFT->value,
+            'currency' => 'USD',
+            'fx_rate_to_base' => 1.0,
+            'subtotal_native' => 5000.0,
+            'total_native' => 5900.0,
+            'balance_due_native' => 5900.0,
+            'subtotal_base' => 5000.0,
+            'total_base' => 5900.0,
+            'balance_due_base' => 5900.0,
+            'issued_date' => Carbon::parse('2026-11-09'),
+            'due_date' => Carbon::parse('2026-11-09'),
+            'source' => 'kanvas',
+        ]);
+        $tool = new FindInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $byId = $tool->__invoke(invoice_id: $draft->getId());
+        $this->assertTrue($byId['found']);
+        $this->assertSame('draft', $byId['document_status']);
+        $this->assertSame(3801, $byId['quote_id']);
+        $this->assertNull($byId['invoice_number']);
+
+        $typedAsNumber = $tool->__invoke(invoice_number: (string) $draft->getId());
+        $this->assertTrue($typedAsNumber['found'], 'a person typing the id they see still finds it');
+
+        $this->assertFalse($tool->__invoke()['found'], 'nothing to look up');
+    }
+
     public function test_list_overdue_invoices_filters_by_customer(): void
     {
         $target = $this->seedTestOrganization('Overdue Target Inc');

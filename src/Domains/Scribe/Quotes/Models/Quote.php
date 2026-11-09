@@ -24,6 +24,7 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
+use Kanvas\Scribe\Quotes\Sow\DataTransferObject\StatementOfWork;
 use Kanvas\Social\Messages\Models\Message;
 use Override;
 
@@ -125,6 +126,29 @@ class Quote extends BaseModel implements EngageableInterface
         return $this->hasMany(QuoteLine::class, 'quote_id', 'id')->orderBy('sort_order');
     }
 
+    /**
+     * Every invoice made from this quote: the one conversion, or each payment its SOW schedule billed.
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class, 'quote_id', 'id')->orderBy('id');
+    }
+
+    /**
+     * What has already been billed from this quote, so whoever reads it reports those invoices instead of billing again.
+     *
+     * @return list<array{invoice_id: int, invoice_number: ?string, status: string, total: float}>
+     */
+    public function invoiceSummaries(): array
+    {
+        return $this->invoices()->get()->map(fn (Invoice $invoice): array => [
+            'invoice_id' => $invoice->getId(),
+            'invoice_number' => $invoice->invoice_number,
+            'status' => $invoice->document_status->value,
+            'total' => (float) $invoice->total_native,
+        ])->values()->all();
+    }
+
     public function parentQuote(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_quote_id', 'id');
@@ -154,6 +178,14 @@ class Quote extends BaseModel implements EngageableInterface
     public function sowMessage(): BelongsTo
     {
         return $this->belongsTo(Message::class, 'sow_message_id', 'id');
+    }
+
+    public function statementOfWork(): ?StatementOfWork
+    {
+        /** @var Message|null $message */
+        $message = $this->sowMessage;
+
+        return $message !== null ? StatementOfWork::fromMessage($message) : null;
     }
 
     public function searchableAs(): string

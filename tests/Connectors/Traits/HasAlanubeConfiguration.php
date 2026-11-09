@@ -10,6 +10,8 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Alanube\Enums\AccountModeEnum;
 use Kanvas\Connectors\Alanube\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Alanube\Enums\WebhookEventEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Enums\ConfigurationEnum as EcfConfigurationEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfProviderEnum;
 use Kanvas\Workflow\Models\WorkflowAction;
 
 /**
@@ -39,6 +41,7 @@ trait HasAlanubeConfiguration
         $company->set(ConfigurationEnum::ACCOUNT_MODE->value, $mode->value);
         $company->set(ConfigurationEnum::COMPANY_ID->value, self::ALANUBE_COMPANY_ID);
         $company->set(ConfigurationEnum::SENDER_PROFILE->value, $this->senderProfile());
+        $company->set(EcfConfigurationEnum::ECF_PROVIDER->value, EcfProviderEnum::ALANUBE->value);
 
         if ($mode === AccountModeEnum::OWN) {
             $company->setEncrypted(ConfigurationEnum::API_TOKEN->value, self::ALANUBE_OWN_TOKEN);

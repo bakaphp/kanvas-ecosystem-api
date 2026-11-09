@@ -67,9 +67,24 @@ class SyncCentralBankRatesTest extends ScribeTestCase
 
         $service = new FxRateService();
 
-        $this->assertSame(60.1, (float) $service->rateOn($this->kanvasApp, 'USD', 'DOP', Carbon::parse('2031-01-12'))?->rate, 'a Sunday uses Friday');
-        $this->assertNull($service->rateOn($this->kanvasApp, 'USD', 'DOP', Carbon::parse('2031-01-09')), 'never a later rate');
-        $this->assertNull($service->rateOn($this->kanvasApp, 'USD', 'DOP', Carbon::parse('2031-01-30')), 'older than a week is no rate');
+        $this->assertSame(60.1, (float) $service->rateOn(
+            $this->kanvasApp,
+            'USD',
+            'DOP',
+            Carbon::parse('2031-01-12')
+        )?->rate, 'a Sunday uses Friday');
+        $this->assertNull($service->rateOn(
+            $this->kanvasApp,
+            'USD',
+            'DOP',
+            Carbon::parse('2031-01-09')
+        ), 'never a later rate');
+        $this->assertNull($service->rateOn(
+            $this->kanvasApp,
+            'USD',
+            'DOP',
+            Carbon::parse('2031-01-30')
+        ), 'older than a week is no rate');
     }
 
     /**

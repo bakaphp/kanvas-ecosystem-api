@@ -38,6 +38,110 @@ class ArtifactBlockService
         return $errors;
     }
 
+    public const string UNISSUED_NOTICE = '_A card in this reply was removed: it showed a record no tool produced in this '
+        . 'turn, so nothing on it was done in Kanvas._';
+
+    /**
+     * Keep only the blocks a tool returned in this turn. A card is how the admin chat shows a record, and a model
+     * writing one by hand can show a record that does not exist: an "AR Invoice Created" card for an invoice id no
+     * tool ever returned, in a turn that called no tool, and the person then asked for its PDF. `render_artifact`
+     * returns the exact block it validated, so any other block is the model's own. When one is removed the reply
+     * says so, so the prose around it is not read as done.
+     *
+     * Compared as decoded JSON, so a block pasted with different whitespace still counts as the tool's.
+     *
+     * @param list<array<string, mixed>> $toolResults the turn's serialized tool results
+     */
+    public function stripUnissuedBlocks(string $reply, array $toolResults): string
+    {
+        $issued = [];
+        array_walk_recursive($toolResults, function (mixed $value) use (&$issued): void {
+            if (is_string($value)) {
+                $issued = [...$issued, ...$this->blocksIn($value)];
+            }
+        });
+
+        $removed = false;
+        $kept = (string) preg_replace_callback(
+            $this->blockPattern(),
+            function (array $match) use ($issued, &$removed): string {
+                $block = json_decode(trim($match[1]), true);
+
+                if (is_array($block) && in_array($block, $issued, false)) {
+                    return $match[0];
+                }
+
+                $removed = true;
+
+                return '';
+            },
+            $reply
+        );
+
+        return $removed ? rtrim($kept) . "\n\n" . self::UNISSUED_NOTICE : $reply;
+    }
+
+    /**
+     * History replays a card as one line naming it. A model shown its own past "AR Invoice Created" cards copies
+     * the shape of success without doing the work (it once wrote one for an invoice it never created); the marker
+     * keeps what the card said happened, with its record id, and nothing to copy. Costs a few tokens, not a card.
+     */
+    public function asHistoryMarkers(string $text): string
+    {
+        if (! str_contains($text, self::FENCE)) {
+            return $text;
+        }
+
+        return (string) preg_replace_callback(
+            $this->blockPattern(),
+            function (array $match): string {
+                $block = json_decode(trim($match[1]), true);
+                $props = is_array($block) && is_array($block['props'] ?? null) ? $block['props'] : [];
+                $title = is_array($block) ? trim((string) ($block['title'] ?? $props['title'] ?? $block['component'] ?? 'card')) : 'card';
+                $id = $props['id'] ?? null;
+
+                return '[card shown: ' . $title . (is_scalar($id) && (string) $id !== '' ? " #{$id}" : '') . ']';
+            },
+            $text
+        );
+    }
+
+    /**
+     * The decoded blocks inside a tool result, which may itself be a JSON string carrying the block.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function blocksIn(string $value): array
+    {
+        if (! str_contains($value, self::FENCE)) {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+        if (is_array($decoded)) {
+            $blocks = [];
+            array_walk_recursive($decoded, function (mixed $inner) use (&$blocks): void {
+                if (is_string($inner)) {
+                    $blocks = [...$blocks, ...$this->blocksIn($inner)];
+                }
+            });
+
+            return $blocks;
+        }
+
+        preg_match_all($this->blockPattern(), $value, $matches);
+
+        return array_values(array_filter(array_map(
+            fn (string $json): mixed => json_decode(trim($json), true),
+            $matches[1]
+        ), 'is_array'));
+    }
+
+    private function blockPattern(): string
+    {
+        return '/```' . preg_quote(self::FENCE, '/') . '\s*\n(.*?)\n?```/s';
+    }
+
     /**
      * Drop any `kanvas-artifact` block in a reply that the client would refuse to draw.
      *
@@ -54,10 +158,8 @@ class ArtifactBlockService
      */
     public function stripInvalidBlocks(string $reply): string
     {
-        $pattern = '/```' . preg_quote(self::FENCE, '/') . '\s*\n(.*?)\n?```/s';
-
         return (string) preg_replace_callback(
-            $pattern,
+            $this->blockPattern(),
             function (array $match): string {
                 $decoded = json_decode(trim($match[1]), true);
 

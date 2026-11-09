@@ -58,7 +58,12 @@ final class EcfExchangeRate
         $currency = strtoupper((string) $document->currency);
         $date = Carbon::parse($document->issued_date ?? $document->bill_date ?? $document->expense_date ?? Carbon::today());
         $regime = FiscalRegimes::requireForCompany($document->company);
-        $rate = new FxRateService()->rateOn($document->app, $currency, $regime->currency(), $date);
+        $rate = new FxRateService()->rateOn(
+            $document->app,
+            $currency,
+            $regime->currency(),
+            $date
+        );
 
         if ($rate === null) {
             throw new ValidationException(

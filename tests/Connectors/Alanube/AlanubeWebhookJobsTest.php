@@ -8,6 +8,7 @@ use Baka\Http\SafeUrlFetcher;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Alanube\Enums\AccountModeEnum;
@@ -25,6 +26,7 @@ use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfStatusEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDirectionEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDocumentStatusEnum;
+use Kanvas\Scribe\ElectronicInvoicing\Jobs\GenerateEcfPdfJob;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -108,6 +110,7 @@ final class AlanubeWebhookJobsTest extends TestCase
             'documentNumber' => self::ENCF,
             'securityCode' => 'MYUVCT',
         ])]);
+        Queue::fake([GenerateEcfPdfJob::class]);
 
         $first = $this->deliver(AlanubeEmissionFinishedWebhookJob::class, ['id' => self::DOCUMENT_ID, 'status' => 'FINISHED']);
         $second = $this->deliver(AlanubeEmissionFinishedWebhookJob::class, ['id' => self::DOCUMENT_ID, 'status' => 'FINISHED']);
@@ -118,6 +121,8 @@ final class AlanubeWebhookJobsTest extends TestCase
         $this->assertSame(EcfStatusEnum::ACCEPTED, EcfCompliance::status($invoice));
         $this->assertSame('MYUVCT', EcfCompliance::read($invoice)['security_code']);
         $this->assertSame(1, $this->events('scribe.invoice.ecf_accepted'));
+        Queue::assertPushed(GenerateEcfPdfJob::class, fn (GenerateEcfPdfJob $job): bool => $job->invoice->is($invoice));
+        Queue::assertPushed(GenerateEcfPdfJob::class, 1);
     }
 
     public function testEmissionFinishedForAnUnknownDocumentDoesNothing(): void

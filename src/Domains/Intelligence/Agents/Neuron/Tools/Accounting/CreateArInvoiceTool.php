@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Exceptions\ApprovalRequiredException;
 use Kanvas\Approvals\Services\ApprovalOriginService;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
@@ -23,8 +24,11 @@ use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\SubmitInvoiceForApprovalAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
+use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
+use Kanvas\Scribe\Quotes\Models\Quote;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
@@ -230,6 +234,21 @@ class CreateArInvoiceTool extends Tool
             return ['created' => false, 'reason' => 'invalid_lines', 'message' => $lineData];
         }
 
+        $existing = $this->openInvoiceForTheSameAmount($customer, $lineData, $currency);
+        if ($existing !== null) {
+            return $this->duplicateOf($existing, $customerDisplayName);
+        }
+
+        $quote = $this->quotedWorkFor(
+            $customer,
+            $lineData,
+            $memo,
+            $currency
+        );
+        if ($quote !== null) {
+            return $this->invoiceFromQuote($quote, $customerDisplayName);
+        }
+
         $invoice = new CreateInvoiceAction(
             new InvoiceData(
                 app: $app,
@@ -418,5 +437,166 @@ class CreateArInvoiceTool extends Tool
         }
 
         return $data;
+    }
+
+    /**
+     * An open invoice of the same amount for the same customer is the invoice; a second one is a duplicate. An
+     * approved draft whose action failed is still that invoice: the agent once rebuilt one and issued a second e-CF
+     * for the same work.
+     *
+     * @param list<InvoiceLineData> $lineData
+     */
+    private function openInvoiceForTheSameAmount(Organization $customer, array $lineData, string $currency): ?Invoice
+    {
+        $total = $this->totalOf($lineData);
+
+        return Invoice::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->where('customer_organization_id', $customer->getId())
+            ->where('currency', $currency)
+            ->where('document_type', DocumentTypeEnum::INVOICE->value)
+            ->whereIn('document_status', [InvoiceDocumentStatusEnum::DRAFT->value, InvoiceDocumentStatusEnum::ISSUED->value, InvoiceDocumentStatusEnum::SENT->value])
+            ->whereBetween('total_native', [$total - 0.01, $total + 0.01])
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function duplicateOf(Invoice $invoice, string $customer): array
+    {
+        $approval = $invoice->approvalRequests()->latest('id')->first();
+        $state = match (true) {
+            $approval?->handlerError() !== null => 'approved, but its approved action failed: ' . $approval->handlerError()
+                . ' Fix that, then call retry_approved_item(invoice, ' . $invoice->getId() . ').',
+            $invoice->pendingApproval() !== null => 'waiting for a person\'s approval.',
+            default => $invoice->document_status->value . ($invoice->invoice_number !== null ? " as {$invoice->invoice_number}" : '') . '.',
+        };
+
+        return [
+            'created' => false,
+            'reason' => 'duplicate_invoice',
+            'invoice_id' => $invoice->getId(),
+            'invoice_status' => $invoice->document_status->value,
+            'message' => sprintf(
+                '%s already has invoice %d for %s %s, %s Nothing was created: a second invoice for the same work bills '
+                . 'the customer twice. Work with that invoice.',
+                $customer,
+                $invoice->getId(),
+                number_format((float) $invoice->total_native, 2, '.', ''),
+                $invoice->currency,
+                $state
+            ),
+        ];
+    }
+
+    /**
+     * @param list<InvoiceLineData> $lineData
+     */
+    private function totalOf(array $lineData): float
+    {
+        return round(array_sum(array_map(
+            fn (InvoiceLineData $line): float => $line->quantity * $line->unit_price_native - $line->discount_amount_native + $line->tax_amount_native,
+            $lineData
+        )), 2);
+    }
+
+    /**
+     * Work the customer was quoted is invoiced from its quote, so the invoice stays linked to it and the quote closes.
+     * An open quote is that work when the text names a quote or a part payment of one (deposit, milestone, a
+     * percentage), or when the amount is the quote's total, one of its lines, or one payment of its SOW schedule.
+     * The agent once hand-built a SOW's 50% deposit with create_ar_invoice: the e-CF went out unlinked and the quote
+     * stayed a draft, while accepting the quote would have billed that same deposit from the schedule.
+     *
+     * @param list<InvoiceLineData> $lineData
+     */
+    private function quotedWorkFor(
+        Organization $customer,
+        array $lineData,
+        string $memo,
+        string $currency
+    ): ?Quote {
+        $total = $this->totalOf($lineData);
+        $text = implode(' ', [$memo, ...array_map(fn (InvoiceLineData $line): string => $line->description, $lineData)]);
+        $textNamesQuotedWork = preg_match(
+            '/\b(quote|quotation|cotizaci[oó]n|presupuesto|deposit|dep[oó]sito|anticipo|avance|upfront|down\s?payment|milestone|hito)\b|\d{1,3}\s?%/iu',
+            $text
+        ) === 1;
+
+        $open = Quote::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->where('customer_organization_id', $customer->getId())
+            ->whereIn('status', [QuoteStatusEnum::DRAFT->value, QuoteStatusEnum::SENT->value, QuoteStatusEnum::ACCEPTED->value])
+            ->orderByDesc('id')
+            ->get();
+
+        return $open->first(
+            fn (Quote $quote): bool => $textNamesQuotedWork
+                || (strtoupper((string) $quote->currency) === $currency && $this->isAnAmountOf($quote, $total))
+        );
+    }
+
+    /**
+     * The quote's total, one of its lines, or one payment of its SOW schedule.
+     */
+    private function isAnAmountOf(Quote $quote, float $total): bool
+    {
+        $lineTotals = $quote->lines->map(
+            fn ($line): float => (float) $line->quantity * (float) $line->unit_price_native
+                - (float) $line->discount_amount_native
+                + (float) $line->tax_amount_native
+        )->all();
+        $payments = $quote->statementOfWork()?->paymentAmounts((float) $quote->total_native) ?? [];
+
+        foreach ([(float) $quote->total_native, ...$lineTotals, ...$payments] as $amount) {
+            if (abs($amount - $total) < 0.01) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function invoiceFromQuote(Quote $quote, string $customer): array
+    {
+        $onceAccepted = $quote->sow_message_id !== null
+            ? 'Once accepted, its SOW payment schedule invoices each payment on its date, the deposit first, each linked to '
+                . 'the quote; find_invoice shows them. Never invoice a deposit or milestone of it by hand.'
+            : 'Once accepted, call convert_quote_to_invoice.';
+        $next = match (true) {
+            $quote->status === QuoteStatusEnum::DRAFT => 'It was never sent. If the person says the customer already accepted '
+                . 'it outside Kanvas, call answer_quote with accepted=true and accepted_outside_kanvas=true; otherwise send it '
+                . 'with send_quote and wait for their answer. ' . $onceAccepted,
+            $quote->status === QuoteStatusEnum::SENT => 'Record the customer\'s answer with answer_quote once they give it. '
+                . $onceAccepted,
+            $quote->sow_message_id !== null => 'It is accepted and has a SOW, so its payment schedule bills it: find_invoice '
+                . 'shows the invoices it created; a payment due now that is not there yet is being invoiced in the background.',
+            default => 'Call convert_quote_to_invoice.',
+        };
+
+        return [
+            'created' => false,
+            'reason' => 'invoice_from_quote',
+            'quote_id' => $quote->getId(),
+            'quote_status' => $quote->status->value,
+            'message' => sprintf(
+                '%s has quote %d (%s, %s %s) for this work, so nothing was created: an invoice for quoted work is made '
+                . 'from the quote, so the two stay linked. %s Never rebuild the quote\'s lines here.',
+                $customer,
+                $quote->getId(),
+                $quote->status->value,
+                number_format((float) $quote->total_native, 2, '.', ''),
+                $quote->currency,
+                $next
+            ),
+        ];
     }
 }

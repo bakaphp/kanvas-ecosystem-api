@@ -153,6 +153,8 @@ class RunBillingScheduleAction
                 quantity: (float) $line->quantity,
                 unit_price_native: (float) $line->unit_price,
                 item_id: $line->item_id,
+                discount_amount_native: (float) $line->discount_amount,
+                tax_rate: $line->tax_rate !== null ? (float) $line->tax_rate : null,
                 tax_amount_native: (float) $line->tax_amount,
             ),
         )->all();
