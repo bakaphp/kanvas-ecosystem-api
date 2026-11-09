@@ -39,7 +39,8 @@ use Override;
     description: 'Receiver for Mailgun delivery events on outbound email (delivered, failed, '
         . 'complained, unsubscribed): records whether an email was delivered or failed on the message, '
         . 'marks a hard-bounced address as bounced, and treats a spam complaint or an unsubscribe as a '
-        . 'stop request. Register it with kanvas:mailgun-setup-delivery-webhooks. Opens are a separate '
+        . 'stop request. One per sending domain, registered with kanvas:mailgun-setup-delivery-webhooks. '
+        . 'Opens are a separate '
         . 'receiver.',
     integration: IntegrationsEnum::MAILGUN,
 )]

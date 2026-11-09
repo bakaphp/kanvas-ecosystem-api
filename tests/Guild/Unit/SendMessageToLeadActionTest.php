@@ -126,6 +126,9 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         callable $assertSignature,
         ?bool $signs = null
     ): void {
+        // CI's SMTP host may be Mailgun's, which files a delivery; that lane has its own suite.
+        config(['mail.mailers.smtp.host' => 'smtp.example.com']);
+
         // Intercept the delivery boundary: Blank's real constructor writes notification types.
         $notification = Mockery::mock('overload:' . Blank::class);
         $notification->shouldReceive('__construct')->once()->withArgs(

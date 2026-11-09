@@ -8,6 +8,7 @@ use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
 use Closure;
 use Kanvas\Communication\Messages\DataTransferObject\Content;
+use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Connectors\Mailgun\Client;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
@@ -126,7 +127,9 @@ class SendAsAgentMailboxAction
     {
         try {
             $file(new FileEmailDeliveryAction(
-                agent: $this->agent,
+                app: $this->agent->app,
+                company: $this->agent->company,
+                sender: Sender::agent($this->agent),
                 to: $this->to,
                 content: Content::text($this->markdownBody)->withSubject($this->subject),
                 people: $this->trackingPerson,

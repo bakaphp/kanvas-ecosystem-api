@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Communication\Messages\DataTransferObject\Content;
+use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Communication\Messages\Models\DeliveryEvent;
 use Kanvas\Companies\Models\Companies;
@@ -213,7 +214,9 @@ final class EmailDeliveryWebhookJobTest extends TestCase
             ->create(['user_id' => $this->user->getId()]);
 
         return new FileEmailDeliveryAction(
-            agent: $agent,
+            app: $agent->app,
+            company: $agent->company,
+            sender: Sender::agent($agent),
             to: $this->email,
             content: Content::text('Here is your quote')->withSubject('Your quote'),
             message: $message,
