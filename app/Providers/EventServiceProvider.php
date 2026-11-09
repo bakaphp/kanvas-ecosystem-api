@@ -6,9 +6,9 @@ namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Illuminate\Notifications\Events\NotificationSent;
+use Kanvas\Communication\Messages\Listeners\MarkSmtpEmailAcceptedListener;
 use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\CompaniesGroups;
-use Kanvas\Connectors\Mailgun\Listeners\MarkSmtpEmailAcceptedListener;
 use Kanvas\Connectors\ScrapperApi\Listeners\CartListener;
 use Kanvas\Guild\Customers\Listeners\UpdatePeopleMessageTimestampsListener;
 use Kanvas\Guild\Customers\Models\People;

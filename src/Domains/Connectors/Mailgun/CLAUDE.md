@@ -36,8 +36,8 @@ communication provider), and its events in `communication_delivery_events`. Twil
   by the caller), `FileEmailDeliveryAction::sending()` fixes our own
   Message-ID on the notification (`Notification::setMessageId()`, written as the header in `toMail()`)
   and files the delivery `sending` before the job is queued, so the send result can link it like a
-  mailbox send. `MarkSmtpEmailAcceptedListener` (`NotificationSent`) moves it to `accepted` once the SMTP
-  server takes it. Any other SMTP host never reports back, so nothing is filed.
+  mailbox send. Communication's `MarkSmtpEmailAcceptedListener` (`NotificationSent`) moves any email
+  delivery `sending` under that Message-ID to `accepted` once the SMTP server takes it. Any other SMTP host never reports back, so nothing is filed.
 - **Campaign:** a campaign send stores its `lead_campaign_recipients` id on the request
   (`campaign_recipient_id`). The campaign tables are not written; delivered/failed per campaign is read
   from the ledger. Opens stay with `EmailOpenedWebhookJob` (`v:campaign_recipient_id`).
