@@ -34,6 +34,18 @@ final readonly class Sender
         return new self('user', $user->getId());
     }
 
+    /**
+     * The agent when one wrote it, else the user who sent it, else the platform.
+     */
+    public static function speaking(?Agent $agent, mixed $user = null): self
+    {
+        return match (true) {
+            $agent !== null => self::agent($agent),
+            $user instanceof Users => self::user($user),
+            default => self::system(),
+        };
+    }
+
     public function isAgent(): bool
     {
         return $this->type === 'agent';
