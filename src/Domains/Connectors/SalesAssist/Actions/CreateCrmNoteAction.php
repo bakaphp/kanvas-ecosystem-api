@@ -28,24 +28,17 @@ class CreateCrmNoteAction
     ) {
     }
 
-    /**
-     * Create a note in the CRM system if the company setting is enabled.
-     * Detects which CRM the lead is from (DriveCentric, eLead, VinSolution, or DealerSocket).
-     */
     public function execute(?string $note = null): ?array
     {
         $company = $this->lead->company;
 
-        // Check if the company has the setting enabled
         if (! $company->get('create_note_in_social_channel')) {
             return null;
         }
 
-        // Generate the AI chat link
         $aiChatLink = SessionChannelService::generateChannelLink($this->lead, $this->app);
         $note = $note ?? $this->buildCrmNote($aiChatLink);
 
-        // Detect which CRM the lead is from
         $crm = match (true) {
             $company->get(DriveCentricConfigurationEnum::STORE_ID->value) !== null => 'drivecentric',
             $company->get(EleadCustomFieldEnum::COMPANY->value) !== null => 'elead',
@@ -163,9 +156,6 @@ class CreateCrmNoteAction
         ];
     }
 
-    /**
-     * Build the CRM note with the AI chat link.
-     */
     private function buildCrmNote(?string $aiChatLink): string
     {
         if ($aiChatLink === null) {

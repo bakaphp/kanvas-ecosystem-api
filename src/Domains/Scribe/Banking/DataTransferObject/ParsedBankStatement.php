@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Banking\DataTransferObject;
 
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Spatie\LaravelData\Data;
 
@@ -30,7 +31,7 @@ class ParsedBankStatement extends Data
 
     public function accountLast4(): ?string
     {
-        $digits = preg_replace('/\D/', '', (string) $this->accountNumber);
+        $digits = Str::digitsOnly($this->accountNumber);
 
         return $digits === '' ? null : substr($digits, -4);
     }

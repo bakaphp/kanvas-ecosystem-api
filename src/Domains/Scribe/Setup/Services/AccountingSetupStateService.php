@@ -43,10 +43,7 @@ class AccountingSetupStateService
             return null;
         }
 
-        /** @var Users|null $user */
-        $user = Users::query()->whereKey($userId)->where('is_deleted', 0)->first();
-
-        return $user;
+        return $this->activeUser($userId);
     }
 
     /**
@@ -64,7 +61,7 @@ class AccountingSetupStateService
      */
     public function memberApprover(Companies $company, int $userId): Users
     {
-        $user = Users::query()->whereKey($userId)->where('is_deleted', 0)->first()
+        $user = $this->activeUser($userId)
             ?? throw new ValidationException('The approver must be a user of this company.');
 
         try {
@@ -79,5 +76,13 @@ class AccountingSetupStateService
     public function setDefaultApprover(Companies $company, Users $user): void
     {
         $company->set(AccountingSetupConfigurationEnum::DEFAULT_APPROVER->value, $user->getId());
+    }
+
+    private function activeUser(int $userId): ?Users
+    {
+        /** @var Users|null $user */
+        $user = Users::query()->whereKey($userId)->where('is_deleted', 0)->first();
+
+        return $user;
     }
 }

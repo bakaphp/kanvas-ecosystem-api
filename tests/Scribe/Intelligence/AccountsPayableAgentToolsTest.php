@@ -90,6 +90,11 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         new ReceiveBillAction($bill, $vendor, static::$cachedUser)->execute();
     }
 
+    private function accountCode(AccountSubTypeEnum $subType): string
+    {
+        return (string) Account::query()->whereKey($this->accountIdBySubType($subType))->value('account_number');
+    }
+
     private function receivedBill(string $vendorName): Bill
     {
         $vendor = $this->seedTestOrganization($vendorName);
@@ -286,9 +291,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_refuses_an_invoice_addressed_to_another_company_until_the_person_answers(): void
     {
         $this->seedTestOrganization('Scale Inference Corp');
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
         $tool = new CreateApBillTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
         $bill = fn (array $extra): array => $tool->__invoke(...[
             'vendor_name' => 'Scale Inference Corp',
@@ -330,9 +333,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_takes_the_addressee_from_the_attached_invoice_not_from_the_model(): void
     {
         $this->seedTestOrganization('Claro Telecom Co');
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
         $pdf = $this->createFilesystemRow();
         $pdf->set(PdfExtractionCustomFieldEnum::EXTRACTED->value, [
             'document_type' => 'vendor_invoice',
@@ -367,9 +368,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_requires_an_invoice_number(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $result = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -388,8 +387,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_uses_the_vendor_invoice_number_and_resolves_subaccount(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
-        $accountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
-        $accountCode = (string) Account::query()->where('id', $accountId)->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -418,7 +416,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     {
         $vendor = $this->seedTestOrganization('Sentry Tools Co');
         $softwareId = $this->accountIdBySubType(AccountSubTypeEnum::SOFTWARE_SUBSCRIPTIONS);
-        $softwareCode = (string) Account::query()->where('id', $softwareId)->value('account_number');
+        $softwareCode = $this->accountCode(AccountSubTypeEnum::SOFTWARE_SUBSCRIPTIONS);
         $vendor->set(VendorCustomFieldEnum::DEFAULT_EXPENSE_ACCOUNT->value, $softwareCode);
 
         $result = new CreateApBillTool()
@@ -450,9 +448,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_refuses_a_paid_card_receipt_and_flags_an_invoice_paid_otherwise(): void
     {
         $this->seedTestOrganization('Paid Up Co');
-        $code = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $code = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
         $tool = new CreateApBillTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
 
         $refused = $tool->__invoke(
@@ -496,9 +492,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
     public function test_list_gl_accounts_shows_the_chart_the_agent_codes_against(): void
     {
-        $softwareCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::SOFTWARE_SUBSCRIPTIONS))
-            ->value('account_number');
+        $softwareCode = $this->accountCode(AccountSubTypeEnum::SOFTWARE_SUBSCRIPTIONS);
         $tool = new ListGlAccountsTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
 
         $expense = $tool->__invoke(type: 'expense');
@@ -515,8 +509,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_with_approve_immediately_false_submits_for_native_approval(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
-        $accountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
-        $accountCode = (string) Account::query()->where('id', $accountId)->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $result = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -543,9 +536,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_reports_an_already_recorded_invoice_instead_of_throwing(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $createInvoice = fn (): array => new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -575,9 +566,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_a_deleted_bill_still_holds_its_invoice_number(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $createInvoice = fn (): array => new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -645,9 +634,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $vendor->set(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, 'Penner + Partner WP StB mbB');
         $vendor->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, 'fanny.peng@example.test');
 
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $result = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -669,9 +656,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     {
         $this->seedTestOrganization('No Approver Vendor Corp');
 
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $result = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -698,8 +683,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     {
         // The LLM may send null for an omitted optional boolean, so normalize it before branching.
         $this->seedTestOrganization('Windwalk Games Corp');
-        $accountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
-        $accountCode = (string) Account::query()->where('id', $accountId)->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $result = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -719,9 +703,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_passes_the_due_date_through(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $result = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -743,9 +725,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_refuses_a_due_date_it_cannot_read(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $result = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -766,12 +746,8 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_supports_multiple_lines_without_combining_them(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
-        $travelAccount = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
-        $officeAccount = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::OFFICE_SUPPLIES))
-            ->value('account_number');
+        $travelAccount = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+        $officeAccount = $this->accountCode(AccountSubTypeEnum::OFFICE_SUPPLIES);
 
         $result = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -798,9 +774,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_reports_account_not_found_for_an_invalid_line(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
-        $travelAccount = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $travelAccount = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $result = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -839,9 +813,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_flags_a_missing_attachment_when_a_source_email_is_given(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $result = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -862,9 +834,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_does_not_flag_a_missing_attachment_without_a_source_email(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $result = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -884,9 +854,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_create_ap_bill_attaches_the_invoice_pdf_via_filesystem_not_a_custom_field(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $pdf = $this->createFilesystemRow(
             url: 'https://cdn.example.test/invoice-filesystem-check.pdf',
@@ -1069,9 +1037,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     {
         $vendor = $this->seedTestOrganization('Windwalk Games Corp');
         new AddApproverToOrganizationAction($vendor, static::$cachedUser)->execute();
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $agent = Agent::factory()
             ->withAppId($this->kanvasApp->getId())
@@ -1129,9 +1095,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     {
         $vendor = $this->seedTestOrganization('Windwalk Games Corp');
         new AddApproverToOrganizationAction($vendor, static::$cachedUser)->execute();
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $created = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -1167,9 +1131,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $vendor = $this->seedTestOrganization('Windwalk Games Corp');
         $vendor->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, 'someone-else-' . uniqid() . '@example.test');
 
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $created = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -1193,9 +1155,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
     public function test_approve_pending_item_reports_no_approver_configured_when_the_vendor_has_none(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $created = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -1221,9 +1181,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $vendor = $this->seedTestOrganization('Windwalk Games Corp');
         $vendor->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
 
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $pdf = $this->createFilesystemRow(
             url: 'https://cdn.example.test/invoice-apr-2.pdf',
@@ -1316,9 +1274,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         new AddApproverToOrganizationAction($vendor, $approverOne)->execute();
         new AddApproverToOrganizationAction($vendor, $approverTwo)->execute();
 
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $created = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -1356,9 +1312,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $vendor = $this->seedTestOrganization('Windwalk Games Corp');
         $vendor->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
 
-        $accountCode = (string) Account::query()
-            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
-            ->value('account_number');
+        $accountCode = $this->accountCode(AccountSubTypeEnum::TRAVEL_AND_MEALS);
 
         $created = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)

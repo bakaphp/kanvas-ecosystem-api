@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\DocumentSequences\Services;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
@@ -77,13 +78,17 @@ class DocumentNumberAllocatorService
     public function find(int $appsId, int $companiesId, DocumentTypeEnum $documentType): ?DocumentSequence
     {
         /** @var DocumentSequence|null $row */
-        $row = DocumentSequence::query()
-            ->where('apps_id', $appsId)
-            ->where('companies_id', $companiesId)
-            ->where('document_type', $documentType->value)
-            ->first();
+        $row = $this->sequenceQuery($appsId, $companiesId, $documentType)->first();
 
         return $row;
+    }
+
+    private function sequenceQuery(int $appsId, int $companiesId, DocumentTypeEnum $documentType): Builder
+    {
+        return DocumentSequence::query()
+            ->where('apps_id', $appsId)
+            ->where('companies_id', $companiesId)
+            ->where('document_type', $documentType->value);
     }
 
     /**
@@ -122,12 +127,7 @@ class DocumentNumberAllocatorService
             $country
         ): DocumentSequence {
             /** @var DocumentSequence|null $sequence */
-            $sequence = DocumentSequence::query()
-                ->where('apps_id', $appsId)
-                ->where('companies_id', $companiesId)
-                ->where('document_type', $documentType->value)
-                ->lockForUpdate()
-                ->first();
+            $sequence = $this->sequenceQuery($appsId, $companiesId, $documentType)->lockForUpdate()->first();
 
             $sequence ??= new DocumentSequence([
                 'apps_id' => $appsId,
@@ -221,12 +221,7 @@ class DocumentNumberAllocatorService
         DocumentTypeEnum $documentType,
         ?string $defaultPrefix,
     ): DocumentSequence {
-        $sequence = DocumentSequence::query()
-            ->where('apps_id', $appsId)
-            ->where('companies_id', $companiesId)
-            ->where('document_type', $documentType->value)
-            ->lockForUpdate()
-            ->first();
+        $sequence = $this->sequenceQuery($appsId, $companiesId, $documentType)->lockForUpdate()->first();
 
         if ($sequence !== null) {
             return $sequence;

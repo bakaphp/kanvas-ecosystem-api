@@ -68,8 +68,9 @@ class ImportIssuedEcfRowAction
 
     public function execute(): Result
     {
-        $issuer = DrFiscalRegime::issuerTaxIdFor($this->company) ?? 'company-' . $this->company->getId();
-        $identityKey = DrFiscalRegime::identityKey($issuer, $this->row->encf);
+        // The placeholder keeps the identity key unique for a company with no issuer RNC yet; the column stays null.
+        $issuer = DrFiscalRegime::issuerTaxIdFor($this->company);
+        $identityKey = DrFiscalRegime::identityKey($issuer ?? 'company-' . $this->company->getId(), $this->row->encf);
 
         $existing = FiscalDocument::query()
             ->where('apps_id', $this->app->getId())
@@ -136,7 +137,7 @@ class ImportIssuedEcfRowAction
     /**
      * @return array{0: Invoice, 1: FiscalDocument}
      */
-    private function import(?Organization $organization, string $issuer, string $identityKey): array
+    private function import(?Organization $organization, ?string $issuer, string $identityKey): array
     {
         $data = $this->invoiceData($organization);
 
@@ -147,7 +148,7 @@ class ImportIssuedEcfRowAction
             $invoice->collection_state = null;
             $invoice->voided_at = $this->row->authorizedAt ?? $this->row->issuedAt;
             $invoice->void_reason_code = self::VOID_REASON;
-            $invoice->internal_notes = 'Rejected by the tax authority in the provider; imported as voided. Number burned.';
+            $invoice->appendInternalNote('Rejected by the tax authority in the provider; imported as voided. Number burned.');
             $invoice->saveOrFail();
         } else {
             $invoice = new ImportInvoiceFromExternalAction($data, 0.0, $this->user)->execute();
@@ -223,7 +224,7 @@ class ImportIssuedEcfRowAction
     /**
      * @return array<string, mixed>
      */
-    private function fiscalAttributes(Invoice $invoice, string $issuer, string $identityKey): array
+    private function fiscalAttributes(Invoice $invoice, ?string $issuer, string $identityKey): array
     {
         $accepted = $this->row->status->isAccepted();
 

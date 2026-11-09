@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\Concerns\FindsApprovalRequestForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
-use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -105,7 +104,7 @@ class CheckApprovalStatusTool extends Tool
             'action_error' => $request->handlerError(),
             'downstream_result' => $request->metadata['handler_result'] ?? null,
             'decisions' => $this->decisions($request),
-            'message' => $this->message($request, $targetType, $targetId),
+            'message' => $this->message($request, $targetType),
         ];
     }
 
@@ -131,7 +130,7 @@ class CheckApprovalStatusTool extends Tool
             ->all();
     }
 
-    private function message(ApprovalRequest $request, string $targetType, int $targetId): string
+    private function message(ApprovalRequest $request, string $targetType): string
     {
         if ($request->isUnassigned() && $request->status === ApprovalStatusEnum::PENDING) {
             return "This {$targetType} is waiting for approval but nobody is configured to approve it. "
@@ -162,14 +161,7 @@ class CheckApprovalStatusTool extends Tool
      */
     private function describeLegacy(string $targetType, int $targetId): array
     {
-        /** @var ApprovalQueueItem|null $item */
-        $item = ApprovalQueueItem::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('target_type', $targetType)
-            ->where('target_id', $targetId)
-            ->latest('id')
-            ->first();
+        $item = $this->latestLegacyApprovalItem($targetType, $targetId);
 
         if ($item === null) {
             return [

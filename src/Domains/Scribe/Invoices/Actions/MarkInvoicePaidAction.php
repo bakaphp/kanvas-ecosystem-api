@@ -17,7 +17,7 @@ use Kanvas\Scribe\Ledger\Services\PayableMarkAsPaidExecutorService;
  * Recomputes invoice paid/balance from active allocations and flips status to PAID when the balance
  * hits zero. Workflow is shared with the AP side — see `PayableMarkAsPaidExecutorService`.
  *
- * Called from Souk.Payments::markAsPaid() via Invoice::markAsPaid() and from AllocatePaymentAction
+ * Called from Souk.Payments::markAsPaid() via Invoice::markAsPaid() and from AllocateInvoicePaymentAction
  * after every new allocation. Idempotent on already-paid invoices.
  *
  * @see plan §11 Flow 1 — payment cycle worked example
@@ -38,7 +38,7 @@ class MarkInvoicePaidAction
         $invoice = $this->executor->execute(
             entity: $this->invoice,
             paidStatusEnum: InvoiceDocumentStatusEnum::PAID,
-            canTransitionToPaid: fn ($current) => $this->stateMachine->canTransition(
+            canTransitionToPaid: fn (InvoiceDocumentStatusEnum $current): bool => $this->stateMachine->canTransition(
                 $current,
                 InvoiceDocumentStatusEnum::PAID,
             ),

@@ -151,12 +151,7 @@ class SendQuoteTool extends Tool implements RequiresSystemAgent
         }
 
         if ($result['recipients'] === []) {
-            return [
-                'sent' => false,
-                'reason' => $result['first_failure']?->reason,
-                'message' => $result['first_failure']?->getMessage(),
-                'failed' => $result['failed'],
-            ];
+            return $this->undeliveredResult($result);
         }
 
         return [

@@ -13,6 +13,7 @@ use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\Scribe\Banking\Actions\IngestBankStatementFromInboxAction;
+use Kanvas\Scribe\Ledger\Enums\AccountTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfClassifierServiceInterface;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfContentHasherInterface;
@@ -344,7 +345,7 @@ class ProcessAccountingPdfAction
             ->where('apps_id', $this->input->app->getId())
             ->where('companies_id', $this->input->company->getId())
             ->where('is_deleted', false)
-            ->where('account_type', 'expense')
+            ->where('account_type', AccountTypeEnum::EXPENSE->value)
             ->exists();
 
         if (! $hasExpenseAccount) {

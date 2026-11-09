@@ -4,17 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Expenses\Actions;
 
-use Baka\Support\Money;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\Expenses\Actions\Concerns\PersistsExpenseLines;
 use Kanvas\Scribe\Expenses\DataTransferObject\Expense as ExpenseData;
-use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseLine as ExpenseLineData;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
-use Kanvas\Scribe\Expenses\Models\ExpenseLine;
-use Kanvas\Scribe\Support\DocumentTotals;
 
 /**
  * Creates a DRAFT expense.
@@ -24,6 +21,8 @@ use Kanvas\Scribe\Support\DocumentTotals;
  */
 class CreateExpenseAction
 {
+    use PersistsExpenseLines;
+
     public function __construct(
         public readonly ExpenseData $data,
         public readonly ?UserInterface $user = null,
@@ -33,8 +32,7 @@ class CreateExpenseAction
     public function execute(): Expense
     {
         return DB::connection('accounting')->transaction(function (): Expense {
-            [$totals, $baseTotals] = $this->computeTotals();
-            $fxRate = (float) $this->data->fx_rate_to_base;
+            [$totals, $baseTotals] = $this->computeTotals($this->data);
 
             $expense = new Expense();
             $expense->apps_id = $this->data->app->getId();
@@ -81,45 +79,11 @@ class CreateExpenseAction
 
             $expense->save();
 
-            $sortOrder = 0;
-            foreach ($this->data->lines as $lineData) {
-                /** @var ExpenseLineData $lineData */
-                $line = new ExpenseLine();
-                $line->expense_id = $expense->id;
-                $line->sort_order = $lineData->sort_order ?? $sortOrder++;
-                $line->item_id = $lineData->item_id;
-                $line->description = $lineData->description;
-                $line->amount_native = $lineData->amount_native;
-                $line->amount_base = Money::toBase($lineData->amount_native, $fxRate);
-                $line->tax_amount_native = $lineData->tax_amount_native;
-                $line->tax_amount_base = Money::toBase($lineData->tax_amount_native, $fxRate);
-                $line->expense_account_id = $lineData->expense_account_id;
-                $line->class_id = $lineData->class_id;
-                $line->department_id = $lineData->department_id;
-                $line->metadata = $lineData->metadata;
-                $line->save();
-            }
+            $this->persistLines($expense, $this->data);
 
             $expense->load('lines');
 
             return $expense;
         });
-    }
-
-    /**
-     * @return array{0: array{subtotal: float, tax: float, total: float}, 1: array{subtotal: float, tax: float, total: float}}
-     */
-    private function computeTotals(): array
-    {
-        return DocumentTotals::compute(
-            array_map(
-                static fn (ExpenseLineData $line): array => [
-                    'subtotal' => $line->amount_native,
-                    'tax' => $line->tax_amount_native,
-                ],
-                $this->data->lines->all(),
-            ),
-            $this->data->fx_rate_to_base,
-        );
     }
 }

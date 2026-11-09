@@ -17,36 +17,19 @@ class MessageNoteService
     ) {
     }
 
-    /**
-     * Generate notes file links.
-     */
     public function generateFileLinks(): ?string
     {
         $linkPreview = '';
         $totalCount = 0;
 
-        //overwrite note likes if we have pdf
-        if ($files = $this->message->getFiles()) {
+        foreach (array_filter([$this->message, $this->message->parent]) as $source) {
             $i = 1;
-            foreach ($files as $pdf) {
+            foreach ($source->getFiles() ?: [] as $pdf) {
                 $fileName = $this->cleanFiles($pdf, 'File' . $i);
                 $url = Url::getShortUrl($pdf->url, $this->message->app, company: $this->message->company);
                 $linkPreview .= '(' . $fileName . ': ' . $url . '),';
                 $i++;
                 $totalCount++;
-            }
-        }
-
-        if ($this->message->parent) {
-            if ($files = $this->message->parent->getFiles()) {
-                $i = 1;
-                foreach ($files as $pdf) {
-                    $fileName = $this->cleanFiles($pdf, 'File' . $i);
-                    $url = Url::getShortUrl($pdf->url, $this->message->app, company: $this->message->company);
-                    $linkPreview .= '(' . $fileName . ': ' . $url . '),';
-                    $i++;
-                    $totalCount++;
-                }
             }
         }
 
@@ -61,9 +44,6 @@ class MessageNoteService
         return $linkPreview;
     }
 
-    /**
-     * Get file viewer url.
-     */
     public function filesViewUrl(Lead $lead): string
     {
         $uuid = $this->message->parent ? $this->message->parent->uuid : $this->message->uuid;
@@ -72,12 +52,8 @@ class MessageNoteService
         return Url::getShortUrl($url, $this->message->app, company: $this->message->company) . '?openInSa=true';
     }
 
-    /**
-     * Cleanup filename.
-     */
     public function cleanFiles(FilesystemEntities $file, string $proposeFileName): string
     {
-        //remove anything after the .
         $fileName = preg_replace('/\\.[^.\\s]{3,4}$/', '', $file->field_name);
 
         return ! empty($fileName) ? $fileName : $proposeFileName;

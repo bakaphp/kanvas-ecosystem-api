@@ -12,12 +12,12 @@ use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\Concerns\FindsApprovalRequestForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\VerifiesApprovalAuthority;
 use Kanvas\Scribe\Approvals\Actions\ResolveApprovalAction;
 use Kanvas\Scribe\Approvals\Actions\ResolveApproverEmailAction;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
-use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -40,9 +40,10 @@ use Throwable;
 #[AgentTool(name: 'Approve Pending Item', category: 'accounting')]
 class ApprovePendingItemTool extends Tool
 {
+    use FindsApprovalRequestForTool;
     use HasKanvasContext;
-    use VerifiesApprovalAuthority;
     use TrackByInputs;
+    use VerifiesApprovalAuthority;
 
     protected string $name = 'approve_pending_item';
 
@@ -120,7 +121,7 @@ class ApprovePendingItemTool extends Tool
         // otherwise resolve on one path and miss on the other.
         $type = trim($target_type);
 
-        $request = $this->genericRequest($type, $target_id);
+        $request = $this->latestApprovalRequest($type, $target_id, ApprovalStatusEnum::PENDING);
 
         return $request !== null
             ? $this->approveGeneric($request, $type)
@@ -196,26 +197,6 @@ class ApprovePendingItemTool extends Tool
     }
 
     /**
-     * Matched on approval_type rather than a target_type -> model-class map, so adding a new
-     * approvable type stays a policy row and never touches this tool.
-     */
-    private function genericRequest(string $target_type, int $target_id): ?ApprovalRequest
-    {
-        /** @var ApprovalRequest|null $request */
-        $request = ApprovalRequest::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('approval_type', ApprovalRequest::approvalTypeFor($target_type))
-            ->where('entity_id', $target_id)
-            ->where('status', ApprovalStatusEnum::PENDING->value)
-            ->where('is_deleted', false)
-            ->latest('id')
-            ->first();
-
-        return $request;
-    }
-
-    /**
      * @return array<string, mixed>
      */
     private function approveGeneric(ApprovalRequest $request, string $target_type): array
@@ -279,14 +260,7 @@ class ApprovePendingItemTool extends Tool
      */
     private function approveLegacy(string $target_type, int $target_id): array
     {
-        $item = ApprovalQueueItem::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('target_type', $target_type)
-            ->where('target_id', $target_id)
-            ->where('status', ApprovalQueueStatusEnum::PENDING->value)
-            ->latest('id')
-            ->first();
+        $item = $this->latestLegacyApprovalItem($target_type, $target_id, ApprovalQueueStatusEnum::PENDING);
 
         if ($item === null) {
             return [

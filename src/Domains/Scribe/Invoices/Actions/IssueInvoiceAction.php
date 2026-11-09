@@ -13,6 +13,7 @@ use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
 use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Actions\Concerns\AllocatesInvoiceNumber;
+use Kanvas\Scribe\Invoices\Actions\Concerns\FreezesBillableSnapshot;
 use Kanvas\Scribe\Invoices\Enums\InvoiceCollectionStateEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -42,6 +43,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 class IssueInvoiceAction
 {
     use AllocatesInvoiceNumber;
+    use FreezesBillableSnapshot;
 
     public function __construct(
         public readonly Invoice $invoice,
@@ -138,16 +140,6 @@ class IssueInvoiceAction
         }
 
         return $invoice;
-    }
-
-    private function freezeBillableSnapshot(Invoice $invoice, BillableInterface $billable): void
-    {
-        $invoice->customer_organization_id = $billable->getBillableId();
-        $invoice->billable_display_name = $invoice->billable_display_name ?? $billable->getBillableDisplayName();
-        $invoice->billable_legal_name = $invoice->billable_legal_name ?? $billable->getBillableLegalName();
-        $invoice->billable_tax_id = $invoice->billable_tax_id ?? $billable->getBillableTaxId();
-        $invoice->billable_email = $invoice->billable_email ?? $billable->getBillingEmail();
-        $invoice->billing_address_snapshot = $invoice->billing_address_snapshot ?? $billable->getBillingAddressArray();
     }
 
     private function setDates(Invoice $invoice): void

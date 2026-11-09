@@ -26,7 +26,7 @@ use Throwable;
 
 class StripeTaxProvider implements TaxProviderInterface
 {
-    private const TAX_DATE_WINDOW_DAYS = 31;
+    private const int TAX_DATE_WINDOW_DAYS = 31;
 
     public function __construct(
         private readonly AppInterface $app,

@@ -93,7 +93,6 @@ class PushNoteToLeadAction
 
         try {
             $parentEngagement = $this->message->getEngagement();
-            //need to look for the current engagement via status
             $currentEngagement = EngagementRepository::findEngagementForLeadAndEntity(
                 $this->lead,
                 $message['verb'],

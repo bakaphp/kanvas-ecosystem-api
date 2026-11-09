@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Stripe;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Actions\Models\Action;
@@ -257,7 +258,10 @@ final class StripePaymentLinkWebhookJobTest extends TestCase
         return $message;
     }
 
-    private function submittedEngagementsFor(Message $sentMessage)
+    /**
+     * @return Collection<int, Engagement>
+     */
+    private function submittedEngagementsFor(Message $sentMessage): Collection
     {
         $leadId = Engagement::where('message_id', $sentMessage->getId())->firstOrFail()->leads_id;
 

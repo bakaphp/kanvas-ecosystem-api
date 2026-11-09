@@ -9,7 +9,6 @@ use Kanvas\ActionEngine\Engagements\Concerns\SkipsNonLeadEngagements;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\DriveCentric\Actions\AddCoBuyerToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\AddCommentToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\AddCreditAppToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\AddTradeInToDealAction;
@@ -17,9 +16,6 @@ use Kanvas\Connectors\DriveCentric\Actions\AddVehicleOfInterestToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\ProcessPurchaseVehicleAction;
 use Kanvas\Connectors\DriveCentric\Actions\PushLeadAction;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
-use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
-use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
@@ -70,11 +66,6 @@ class PushLeadNotesActivity extends KanvasActivity
                     ]);
                 }
 
-                /*   $syncLeadAction = new SyncLeadAction($lead);
-                  $eLeadOpportunity = $syncLeadAction->execute(); */
-
-                $isElead = $lead->company->get(CustomFieldEnum::COMPANY->value) !== null;
-                $isVinSolutions = $lead->company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
                 $isDriveCentric = $lead->company->get(ConfigurationEnum::STORE_ID->value) !== null;
                 $note = null;
                 $handlerResult = null;
@@ -99,18 +90,6 @@ class PushLeadNotesActivity extends KanvasActivity
                 } catch (Throwable $e) {
                     $handleCheckList = $e->getMessage();
                 }
-                /*  // Process task updates
-                 $processMessageTaskUpdatesAction = $this->setTaskEngagementStatus($message, $lead);
-
-                 // Handle action by verb
-                 $handlerResult = $this->handleActionByVerb(
-                     message: $message,
-                     lead: $lead,
-                     eLeadOpportunity: $eLeadOpportunity
-                 );
-
-                 // Handle special cases for certain verbs
-                 $this->handleSpecialCases($message, $lead, $eLeadOpportunity); */
 
                 return [
                     'note' => $note,
@@ -170,7 +149,6 @@ class PushLeadNotesActivity extends KanvasActivity
                     return null;
                 }
                 $lead->addCoBuyerParticipant($people);
-                //new AddCoBuyerToDealAction($lead)->execute($people);
                 new PushLeadAction($lead)->execute();
                 $result = new AddCreditAppToDealAction($lead)->execute($message, $people);
 
@@ -190,16 +168,12 @@ class PushLeadNotesActivity extends KanvasActivity
 
                 break;
             case ActionEnum::ESIGN_DOCS->value:
-                //clean cart
                 $lead->set('prefill-sign-docs-' . time(), $lead->get('prefill-sign-docs'));
                 $lead->set('actions_pdf_custom_form-' . time(), $lead->get('actions_pdf_custom_form'));
 
                 $lead->del('prefill-sign-docs');
                 $lead->del('actions_pdf_custom_form');
 
-                break;
-            default:
-                # code...
                 break;
         }
 

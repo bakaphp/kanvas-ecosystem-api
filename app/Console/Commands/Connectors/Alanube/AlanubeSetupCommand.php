@@ -77,8 +77,11 @@ class AlanubeSetupCommand extends Command
 
         // Stored before anything runs: both paths build the Alanube client from company settings.
         if ($mode === AccountModeEnum::OWN) {
-            $token = Str::trimToNull((string) $this->option('token'))
-                ?? ($company->get(ConfigurationEnum::API_TOKEN->value) === null ? Str::trimToNull((string) $this->secret('Alanube API token')) : null);
+            $token = Str::trimToNull((string) $this->option('token'));
+
+            if ($token === null && $company->get(ConfigurationEnum::API_TOKEN->value) === null) {
+                $token = Str::trimToNull((string) $this->secret('Alanube API token'));
+            }
 
             if ($token !== null) {
                 $company->setEncrypted(ConfigurationEnum::API_TOKEN->value, $token);

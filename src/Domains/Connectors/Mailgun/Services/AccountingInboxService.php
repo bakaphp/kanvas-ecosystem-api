@@ -30,17 +30,12 @@ class AccountingInboxService
 
     public function receiverFor(AppInterface $app, CompanyInterface $company): ?ReceiverWebhook
     {
-        $action = $this->workflowAction();
-        if ($action === null) {
-            return null;
-        }
-
         /** @var ReceiverWebhook|null $receiver */
         $receiver = ReceiverWebhook::query()
             ->where('apps_id', $app->getId())
             ->where('companies_id', $company->getId())
-            ->where('action_id', $action->getId())
             ->where('is_deleted', 0)
+            ->forJob(ScribePdfInboundWebhookJob::class)
             ->orderBy('id')
             ->get()
             ->first(fn (ReceiverWebhook $receiver): bool => self::isAccountingInbox($receiver));

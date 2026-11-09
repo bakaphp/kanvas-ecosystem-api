@@ -22,8 +22,11 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
  */
 class SubmitInvoiceForApprovalAction
 {
-    public function __construct(public readonly Invoice $invoice, public readonly ?UserInterface $user = null, protected readonly EcfIssuanceService $ecf = new EcfIssuanceService())
-    {
+    public function __construct(
+        public readonly Invoice $invoice,
+        public readonly ?UserInterface $user = null,
+        protected readonly EcfIssuanceService $ecf = new EcfIssuanceService(),
+    ) {
     }
 
     public function execute(): Invoice

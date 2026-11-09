@@ -6,7 +6,6 @@ namespace App\Console\Commands\Scribe;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Scribe\Banking\Actions\RequestBankStatementAction;
 use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Banking\Services\BankStatementCoverageService;
@@ -37,7 +36,7 @@ class RequestBankStatementsCommand extends Command
             ->get();
 
         foreach ($accounts as $account) {
-            $app = Apps::find($account->apps_id);
+            $app = $account->app;
             if ($app === null) {
                 continue;
             }

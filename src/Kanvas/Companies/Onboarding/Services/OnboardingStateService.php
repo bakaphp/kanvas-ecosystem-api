@@ -79,6 +79,7 @@ final class OnboardingStateService
 
         $research = (array) $row->dataGet('research', []);
         $planId = (int) $row->dataGet('setup_plan_id', 0);
+        $profile = $company->get('company_profile');
 
         return new OnboardingState(
             row: $row,
@@ -92,9 +93,9 @@ final class OnboardingStateService
                 'website' => $company->website ?: null,
                 'offering' => $row->dataGet('profile.offering'),
                 'job_role' => $row->dataGet('profile.job_role'),
-                'industry' => $company->get('company_profile')['industry'] ?? null,
-                'summary' => $company->get('company_profile')['summary'] ?? null,
-                'facts' => $company->get('company_profile'),
+                'industry' => $profile['industry'] ?? null,
+                'summary' => $profile['summary'] ?? null,
+                'facts' => $profile,
             ],
             research: [
                 'status' => strtoupper((string) ($research['status'] ?? ResearchStatusEnum::NOT_STARTED->value)),

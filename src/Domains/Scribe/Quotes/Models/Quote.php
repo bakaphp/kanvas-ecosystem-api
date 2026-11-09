@@ -207,7 +207,7 @@ class Quote extends BaseModel implements EngageableInterface
     public function toSearchableArray(): array
     {
         return [
-            'objectID' => "Kanvas\Scribe\Quotes\Models\Quote::{$this->id}",
+            'objectID' => self::class . "::{$this->id}",
             'id' => (string) $this->id,
             'uuid' => (string) $this->uuid,
             'apps_id' => $this->apps_id,

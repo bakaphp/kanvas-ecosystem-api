@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\WebPos;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Companies\Models\Companies;
@@ -163,7 +164,10 @@ final class PullReceivedEcfsTest extends ScribeTestCase
         ], fn ($value): bool => $value !== null);
     }
 
-    private function receivedBills()
+    /**
+     * @return Builder<Bill>
+     */
+    private function receivedBills(): Builder
     {
         return Bill::query()
             ->where('apps_id', $this->kanvasApp->getId())

@@ -31,7 +31,7 @@ class JournalEntryValidatorService
      * Set to 0.0001 (one ten-thousandth) to allow for any rounding that may have happened at line-composer time.
      * Lines are stored as DECIMAL(18,4) so exact equality should be the norm; this tolerance is belt-and-suspenders.
      */
-    public const BALANCE_TOLERANCE = 0.0001;
+    public const float BALANCE_TOLERANCE = 0.0001;
 
     /**
      * @param array<int, array<string, mixed>> $lines Each: [account_id, debit_native, credit_native, debit_base,

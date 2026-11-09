@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Scribe\Mutations\Bills;
 
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Bills\Actions\ApproveBillAction;
@@ -27,178 +27,131 @@ use RuntimeException;
 
 class BillMutation
 {
+    use ResolvesActingContext;
+
     public function create(mixed $rootValue, array $request): Bill
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $ctx = $this->actingContext();
 
         return new CreateBillAction(
-            data: BillData::from($app, $company, $request['input']),
-            user: $user,
+            data: BillData::from($ctx->app, $ctx->company, $request['input']),
+            user: $ctx->user,
         )->execute();
     }
 
     public function update(mixed $rootValue, array $request): Bill
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-
-        /** @var Bill $bill */
-        $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+        $ctx = $this->actingContext();
 
         return new UpdateBillAction(
-            bill: $bill,
-            data: BillData::from($app, $company, $request['input']),
-            user: $user,
+            bill: $this->bill($request),
+            data: BillData::from($ctx->app, $ctx->company, $request['input']),
+            user: $ctx->user,
         )->execute();
     }
 
     public function receive(mixed $rootValue, array $request): Bill
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-
-        /** @var Bill $bill */
-        $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
-
-        if ($bill->vendor_organization_id === null) {
-            throw new RuntimeException(
-                "Bill {$bill->id} has no vendor reference — assign a vendor before receiving."
-            );
-        }
-
-        /** @var Organization $vendor */
-        $vendor = Organization::getByIdFromCompanyApp(
-            (int) $bill->vendor_organization_id,
-            $company,
-            $app,
-        );
+        $bill = $this->bill($request);
 
         return new ReceiveBillAction(
             bill: $bill,
-            vendor: $vendor,
-            user: $user,
+            vendor: $this->vendorOf($bill, 'receiving'),
+            user: $this->actingContext()->user,
         )->execute();
     }
 
     public function submitForApproval(mixed $rootValue, array $request): Bill
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-
-        /** @var Bill $bill */
-        $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
-
-        return new SubmitBillForApprovalAction(bill: $bill, user: $user)->execute();
+        return new SubmitBillForApprovalAction(bill: $this->bill($request), user: $this->actingContext()->user)->execute();
     }
 
     public function approve(mixed $rootValue, array $request): Bill
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-
-        /** @var Bill $bill */
-        $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
-
-        if ($bill->vendor_organization_id === null) {
-            throw new RuntimeException(
-                "Bill {$bill->id} has no vendor reference — assign a vendor before approving."
-            );
-        }
-
-        /** @var Organization $vendor */
-        $vendor = Organization::getByIdFromCompanyApp(
-            (int) $bill->vendor_organization_id,
-            $company,
-            $app,
-        );
+        $bill = $this->bill($request);
 
         return new ApproveBillAction(
             bill: $bill,
-            vendor: $vendor,
-            approver: $user
+            vendor: $this->vendorOf($bill, 'approving'),
+            approver: $this->actingContext()->user,
         )->execute();
     }
 
     public function reject(mixed $rootValue, array $request): Bill
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-
-        /** @var Bill $bill */
-        $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
-
         return new RejectBillAction(
-            bill: $bill,
-            rejector: $user,
+            bill: $this->bill($request),
+            rejector: $this->actingContext()->user,
             reason: $request['reason'] ?? null,
         )->execute();
     }
 
     public function void(mixed $rootValue, array $request): Bill
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-
-        /** @var Bill $bill */
-        $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
-
         return new VoidBillAction(
-            bill: $bill,
+            bill: $this->bill($request),
             voidReasonCode: (string) $request['void_reason_code'],
-            user: $user,
+            user: $this->actingContext()->user,
         )->execute();
     }
 
     public function markPaid(mixed $rootValue, array $request): Bill
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-
-        /** @var Bill $bill */
-        $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
-
-        return new MarkBillPaidAction(bill: $bill, user: $user)->execute();
+        return new MarkBillPaidAction(bill: $this->bill($request), user: $this->actingContext()->user)->execute();
     }
 
     public function allocatePayment(mixed $rootValue, array $request): BillPaymentAllocation
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $ctx = $this->actingContext();
         $input = $request['input'];
 
-        /** @var Bill $bill */
-        $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
-
         $bankAccount = isset($input['bank_account_id'])
-            ? BankAccount::getByIdFromCompanyApp((int) $input['bank_account_id'], $company, $app)
+            ? BankAccount::getByIdFromCompanyApp((int) $input['bank_account_id'], $ctx->company, $ctx->app)
             : null;
 
         // One recording path for UI, agent and provider webhook: idempotent on the reference, and left
         // unreconciled until the bank statement confirms it.
         return new RecordBillPaymentAction(
-            bill: $bill,
+            bill: $this->bill($request),
             amountNative: (float) $input['amount_native'],
             recordedVia: PaymentRecordedViaEnum::UI,
             reference: $input['reference'] ?? null,
             paidAt: isset($input['paid_at']) ? Carbon::parse((string) $input['paid_at']) : null,
             method: isset($input['method']) ? PaymentMethodEnum::from((string) $input['method']) : PaymentMethodEnum::MANUAL,
             bankAccount: $bankAccount,
-            user: $user,
+            user: $ctx->user,
             cashAccountSubType: isset($input['cash_account_sub_type'])
                 ? AccountSubTypeEnum::from((string) $input['cash_account_sub_type'])
                 : null,
             source: $input['source'] ?? null,
             metadata: $input['metadata'] ?? null,
         )->execute()->allocation;
+    }
+
+    private function bill(array $request): Bill
+    {
+        $ctx = $this->actingContext();
+
+        /** @var Bill $bill */
+        $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $ctx->company, $ctx->app);
+
+        return $bill;
+    }
+
+    /**
+     * Receive and approve both freeze the vendor snapshot, so a bill without one is refused the same way.
+     */
+    private function vendorOf(Bill $bill, string $step): Organization
+    {
+        if ($bill->vendor_organization_id === null) {
+            throw new RuntimeException("Bill {$bill->id} has no vendor reference — assign a vendor before {$step}.");
+        }
+
+        $ctx = $this->actingContext();
+
+        /** @var Organization $vendor */
+        $vendor = Organization::getByIdFromCompanyApp((int) $bill->vendor_organization_id, $ctx->company, $ctx->app);
+
+        return $vendor;
     }
 }

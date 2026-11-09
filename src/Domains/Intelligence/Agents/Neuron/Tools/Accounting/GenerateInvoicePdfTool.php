@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GeneratesScribeDocumentPdfForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -15,6 +16,7 @@ use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\FiscalRegimes;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -91,6 +93,25 @@ class GenerateInvoicePdfTool extends Tool
     }
 
     /**
+     * The stored Kanvas copy is reused until the company's logo is attached after it was rendered; then it is
+     * rendered again, so a PDF made before the logo upload does not keep going out without one.
+     */
+    private function ourLegalPdf(Invoice $invoice, ?Users $user): ?Filesystem
+    {
+        $stored = $invoice->getFileByName(FiscalRegimeInterface::INVOICE_PDF_FIELD);
+        $logo = $invoice->company->getFileByName('photo');
+        $stale = $stored !== null && $logo !== null && $logo->created_at >= $stored->created_at;
+
+        if ($stored !== null && ! $stale) {
+            return $stored->filesystem;
+        }
+
+        return $user !== null
+            ? FiscalRegimes::requireForCompany($invoice->company)->renderInvoicePdf($invoice, $user)
+            : $stored?->filesystem;
+    }
+
+    /**
      * An e-CF invoice's only valid PDF carries DGII's stamp and QR, which exist once DGII accepted it. A plain
      * render looks like the invoice but is not a fiscal document, so it is never produced for one.
      *
@@ -113,14 +134,10 @@ class GenerateInvoicePdfTool extends Tool
         $prefersOurs = EcfPdfSourceEnum::forCompany($invoice->company, $fiscal->provider) === EcfPdfSourceEnum::KANVAS;
 
         try {
-            if ($prefersOurs && $user !== null) {
-                $file = FiscalRegimes::requireForCompany($invoice->company)->renderInvoicePdf($invoice, $user);
-            } else {
-                $file = $prefersOurs
-                    ? $invoice->getFileByName(FiscalRegimeInterface::INVOICE_PDF_FIELD)?->filesystem
-                    : new DocumentFilesService()->ecfPdf($invoice);
-            }
-            $file ??= $user !== null ? FiscalRegimes::requireForCompany($invoice->company)->renderInvoicePdf($invoice, $user) : null;
+            $file = $prefersOurs
+                ? $this->ourLegalPdf($invoice, $user)
+                : new DocumentFilesService()->ecfPdf($invoice)
+                    ?? ($user !== null ? FiscalRegimes::requireForCompany($invoice->company)->renderInvoicePdf($invoice, $user) : null);
         } catch (Throwable $e) {
             report($e);
             $file = null;

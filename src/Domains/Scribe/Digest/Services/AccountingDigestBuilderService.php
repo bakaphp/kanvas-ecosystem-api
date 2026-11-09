@@ -384,7 +384,7 @@ class AccountingDigestBuilderService
         $names = Users::query()
             ->whereIn('id', $rows->pluck('users_id')->all())
             ->get(['id', 'firstname', 'lastname', 'email'])
-            ->mapWithKeys(fn (Users $user): array => [$user->getId() => $this->userName($user)]);
+            ->mapWithKeys(fn (Users $user): array => [$user->getId() => $user->nameOrEmail()]);
 
         return $rows
             ->map(fn ($row): array => [
@@ -445,7 +445,7 @@ class AccountingDigestBuilderService
         $by = null;
         if ($change !== null && $change->actor_type === 'User' && $change->actor_id !== null) {
             $user = Users::query()->where('id', $change->actor_id)->first();
-            $by = $user !== null ? $this->userName($user) : 'user #' . $change->actor_id;
+            $by = $user !== null ? $user->nameOrEmail() : 'user #' . $change->actor_id;
         } elseif ($change !== null) {
             $by = $change->actor_type ?? 'System';
         }
@@ -474,10 +474,5 @@ class AccountingDigestBuilderService
         }
 
         return false;
-    }
-
-    private function userName(Users $user): string
-    {
-        return $user->fullName() ?: (string) $user->email;
     }
 }

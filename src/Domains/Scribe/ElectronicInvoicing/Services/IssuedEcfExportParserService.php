@@ -116,7 +116,7 @@ class IssuedEcfExportParserService
             return "unknown status \"{$text('authority_status')}\"";
         }
 
-        $customerName = Str::trimToNull($text('customer_name'));
+        $customerName = $text('customer_name');
         if ($customerName === null) {
             return 'no customer name';
         }

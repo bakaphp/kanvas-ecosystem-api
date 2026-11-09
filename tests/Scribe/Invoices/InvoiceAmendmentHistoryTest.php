@@ -13,8 +13,8 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Tests\Scribe\ScribeTestCase;
 
 /**
- * Verifies the typed amendmentHistory() accessor that exposes metadata.amendments[] without
- * forcing operator UIs to hand-parse JSON.
+ * The typed amendmentHistory() accessor: one ledger event per amendment, newest first, with the legacy
+ * metadata.amendments[] entries read only for invoices amended before the ledger record existed.
  */
 class InvoiceAmendmentHistoryTest extends ScribeTestCase
 {

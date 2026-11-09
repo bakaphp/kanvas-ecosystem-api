@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Delivery;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
@@ -154,18 +155,19 @@ abstract class DocumentDeliveryTestCase extends EcfTestCase
 
     protected function threadRow(Engagement $thread, ActionStatusEnum $status): ?Engagement
     {
-        return Engagement::query()
-            ->where('entity_uuid', $thread->entity_uuid)
-            ->whereHas('stage', fn ($query) => $query->where('slug', $status->value))
-            ->first();
+        return $this->threadQuery($thread, $status)->first();
     }
 
     protected function threadCount(Engagement $thread, ActionStatusEnum $status): int
     {
+        return $this->threadQuery($thread, $status)->count();
+    }
+
+    private function threadQuery(Engagement $thread, ActionStatusEnum $status): Builder
+    {
         return Engagement::query()
             ->where('entity_uuid', $thread->entity_uuid)
-            ->whereHas('stage', fn ($query) => $query->where('slug', $status->value))
-            ->count();
+            ->whereHas('stage', fn ($query) => $query->where('slug', $status->value));
     }
 
     protected function ledgerHas(Invoice $invoice, string $eventType): bool

@@ -9,6 +9,7 @@ use Baka\Support\Money;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
 
 /**
  * Shared recompute-and-transition workflow for "mark payable as paid" Actions on every Scribe
@@ -91,7 +92,7 @@ class PayableMarkAsPaidExecutorService
                     $entity->collection_state = null;
                     $entity->paid_at = $allocationModelClass::query()
                         ->where($allocationFkColumn, $entity->id)
-                        ->where('status', 'active')
+                        ->where('status', AllocationStatusEnum::ACTIVE->value)
                         ->max('allocated_at');
                 }
             }

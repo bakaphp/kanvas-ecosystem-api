@@ -23,6 +23,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetPaymentTermsTool;
 use Kanvas\NervousSystem\Ledger\Models\Event as LedgerEvent;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\BillingSchedules\Actions\CreateBillingScheduleAction;
+use Kanvas\Scribe\BillingSchedules\Actions\UpdateBillingScheduleAction;
 use Kanvas\Scribe\BillingSchedules\DataTransferObject\BillingSchedule as BillingScheduleData;
 use Kanvas\Scribe\BillingSchedules\Enums\BillingCadenceEnum;
 use Kanvas\Scribe\BillingSchedules\Enums\BillingScheduleRunStatusEnum;
@@ -523,6 +524,28 @@ class BillingScheduleTest extends ScribeTestCase
 
         $this->assertCount(1, $this->invoicesFor($customer));
         $this->assertSame('2026-07-01', $schedule->refresh()->next_run_at->toDateString());
+    }
+
+    /** fromModel() dropped the discount, so every update, pause, resume and bill_now rebuilt the lines at full price. */
+    public function test_an_update_that_does_not_touch_the_lines_keeps_their_discount(): void
+    {
+        $customer = $this->seedTestOrganization('Discount Keeper Co');
+        $schedule = new CreateBillingScheduleAction(
+            data: BillingScheduleData::from($this->kanvasApp, $this->company, [
+                'customer' => $customer,
+                'currency' => 'USD',
+                'lines' => [['description' => 'Retainer', 'unit_price' => 2000, 'discount_amount' => 250]],
+                'cadence' => BillingCadenceEnum::MONTHLY->value,
+                'start_date' => '2026-07-01',
+                'anchor_day' => 1,
+            ]),
+            user: static::$cachedUser,
+        )->execute();
+        $this->assertSame(250.0, (float) $schedule->lines->first()->discount_amount);
+
+        new UpdateBillingScheduleAction($schedule, BillingScheduleData::forUpdate($schedule, ['name' => 'Renamed']))->execute();
+
+        $this->assertSame(250.0, (float) $schedule->refresh()->lines->first()->discount_amount, 'a rename never reprices the line');
     }
 
     private function monthlySchedule(

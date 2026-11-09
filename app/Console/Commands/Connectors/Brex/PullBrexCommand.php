@@ -121,10 +121,10 @@ class PullBrexCommand extends Command
      */
     private function targetCompanies(): array
     {
-        $query = Companies::query()->where('is_deleted', false);
+        $query = Companies::getByCustomFieldBuilder(ConfigurationEnum::SYNC_ENABLED->value, '1');
 
         if ($this->option('company_id')) {
-            $query->where('id', (int) $this->option('company_id'));
+            $query->where('companies.id', (int) $this->option('company_id'));
         }
 
         $targets = [];

@@ -23,7 +23,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
  * (issued invoices have posted JEs and frozen billable snapshots). For post-issue changes the legal paths
  * are:
  *   - AmendInvoiceAction (post-issue mutation w/ diff event)
- *   - IssueCreditNoteAction (negative-shaped credit note bound to the parent invoice)
+ *   - IssueCreditNoteAction (credit note bound to the parent invoice)
  *   - VoidInvoiceAction + re-create (clean slate)
  *
  * Lines + tax lines are replaced wholesale (delete + re-insert). Draft invoices don't have JE history

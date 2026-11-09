@@ -158,9 +158,7 @@ class AccountingReadinessService
             );
         }
 
-        $status = $period->status instanceof FiscalPeriodStatusEnum ? $period->status : FiscalPeriodStatusEnum::tryFrom((string) $period->status);
-
-        return $status === FiscalPeriodStatusEnum::OPEN
+        return $period->status === FiscalPeriodStatusEnum::OPEN
             ? $this->ready(ReadinessRequirementEnum::FISCAL_PERIODS, 'the current month is open')
             : new ReadinessItem(
                 requirement: ReadinessRequirementEnum::FISCAL_PERIODS,
@@ -201,9 +199,7 @@ class AccountingReadinessService
     {
         $approver = new AccountingSetupStateService()->defaultApprover($company);
         if ($approver !== null) {
-            $name = $approver->fullName() ?: (string) $approver->email;
-
-            return $this->ready(ReadinessRequirementEnum::APPROVER, "{$name} approves bills and invoices when the vendor or customer names nobody");
+            return $this->ready(ReadinessRequirementEnum::APPROVER, "{$approver->nameOrEmail()} approves bills and invoices when the vendor or customer names nobody");
         }
 
         $hasPolicies = ApprovalPolicy::query()

@@ -379,7 +379,7 @@ class Invoice extends BaseModel implements PayableInterface, DeliversApprovalNot
     public function toSearchableArray(): array
     {
         return [
-            'objectID' => "Kanvas\Scribe\Invoices\Models\Invoice::{$this->id}",
+            'objectID' => self::class . "::{$this->id}",
             'id' => (string) $this->id,
             'uuid' => (string) $this->uuid,
             'apps_id' => $this->apps_id,

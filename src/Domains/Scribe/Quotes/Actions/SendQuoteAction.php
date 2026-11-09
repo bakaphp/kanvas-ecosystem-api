@@ -151,7 +151,7 @@ class SendQuoteAction
 
     private function allocateQuoteNumberIfMissing(Quote $quote): void
     {
-        if ($quote->quote_number !== null && $quote->quote_number !== '') {
+        if (Str::trimToNull($quote->quote_number) !== null) {
             return;
         }
 

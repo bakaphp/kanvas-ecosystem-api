@@ -12,6 +12,7 @@ use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
+use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Invoices\Services\InvoiceJournalEntryComposerService;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
@@ -48,7 +49,6 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
     {
         $billable = $this->seedTestOrganization('ACME Studios');
 
-        // ── Step 1 — create draft invoice (2 service lines + 1 tax line) ──
         $draft = new CreateInvoiceAction(
             data: new InvoiceData(
                 app: $this->kanvasApp,
@@ -82,7 +82,6 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
         $this->assertEqualsWithDelta(120.0, (float) $draft->tax_native, 0.005);
         $this->assertEqualsWithDelta(1620.0, (float) $draft->total_native, 0.005);
 
-        // ── Step 2 — issue the invoice ──
         $invoice = new IssueInvoiceAction(
             invoice: $draft,
             billable: $billable,
@@ -98,22 +97,9 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
         $this->assertNotNull($issueJe);
         $this->assertJeBalanced($issueJe);
 
-        // ── Step 3 — create an InvoicePaymentAllocation (what Souk's Payment morph does in prod) ──
-        $allocation = new InvoicePaymentAllocation();
-        $allocation->apps_id = (int) $invoice->apps_id;
-        $allocation->companies_id = (int) $invoice->companies_id;
-        $allocation->invoice_id = (int) $invoice->id;
-        $allocation->source_type = 'payment';
-        $allocation->status = AllocationStatusEnum::ACTIVE->value;
-        $allocation->amount_native = 1620.0;
-        $allocation->amount_base = 1620.0;
-        $allocation->currency = 'USD';
-        $allocation->fx_rate_to_base = 1.0;
-        $allocation->allocated_at = Carbon::parse('2026-06-20');
-        $allocation->source = 'kanvas';
-        $allocation->save();
+        // What Souk's Payment morph writes in production.
+        $allocation = $this->allocate($invoice, 1620.0, '2026-06-20');
 
-        // ── Step 4 — compose + post the payment JE (DR Cash / CR AR) ──
         $paymentJeData = new InvoiceJournalEntryComposerService()->composePayment(
             invoice: $invoice,
             allocation: $allocation,
@@ -123,7 +109,6 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
             postedByUser: static::$cachedUser,
         )->execute();
 
-        // ── Step 5 — MarkInvoicePaidAction recomputes + flips to PAID ──
         $paid = new MarkInvoicePaidAction(
             invoice: $invoice,
             user: static::$cachedUser,
@@ -136,7 +121,6 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
         $this->assertNotNull($paid->paid_at, 'paid_at must be set on PAID transition.');
         $this->assertSame('2026-06-20', $paid->paid_at->toDateString(), 'paid_at must equal the allocation date.');
 
-        // ── Cross-cutting: GL invariants ──
         // The Issue JE has source_type='invoice'; the Payment JE has source_type='payment'
         // (the link to the invoice runs via the allocation, not the JE source_id).
         $issueJes = JournalEntry::query()
@@ -159,7 +143,6 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
             $this->assertJeBalanced($je);
         }
 
-        // ── Cross-cutting: GL balances after full cycle ──
         $accountIds = $this->accountIdsByKey([
             AccountSubTypeEnum::ACCOUNTS_RECEIVABLE,
             AccountSubTypeEnum::CASH_CHECKING,
@@ -198,7 +181,6 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
             'Sales Tax Payable is CR-normal.',
         );
 
-        // ── Cross-cutting: reports ──
         $revenue = new RevenueRepository()->generate(
             app: $this->kanvasApp,
             company: $this->company,
@@ -223,20 +205,7 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
         $invoice = $this->issueTestInvoice($billable, subtotal: 1000.0);
         $this->assertEqualsWithDelta(1000.0, (float) $invoice->balance_due_native, 0.005);
 
-        // Half payment
-        $allocation = new InvoicePaymentAllocation();
-        $allocation->apps_id = (int) $invoice->apps_id;
-        $allocation->companies_id = (int) $invoice->companies_id;
-        $allocation->invoice_id = (int) $invoice->id;
-        $allocation->source_type = 'payment';
-        $allocation->status = AllocationStatusEnum::ACTIVE->value;
-        $allocation->amount_native = 400.0;
-        $allocation->amount_base = 400.0;
-        $allocation->currency = 'USD';
-        $allocation->fx_rate_to_base = 1.0;
-        $allocation->allocated_at = Carbon::parse('2026-06-20');
-        $allocation->source = 'kanvas';
-        $allocation->save();
+        $this->allocate($invoice, 400.0, '2026-06-20');
 
         $result = new MarkInvoicePaidAction(invoice: $invoice)->execute();
 
@@ -255,38 +224,12 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
         $billable = $this->seedTestOrganization();
         $invoice = $this->issueTestInvoice($billable, subtotal: 1000.0);
 
-        // First partial: $400 on June 10 — status stays ISSUED, paid_at stays NULL.
-        $a1 = new InvoicePaymentAllocation();
-        $a1->apps_id = (int) $invoice->apps_id;
-        $a1->companies_id = (int) $invoice->companies_id;
-        $a1->invoice_id = (int) $invoice->id;
-        $a1->source_type = 'payment';
-        $a1->status = AllocationStatusEnum::ACTIVE->value;
-        $a1->amount_native = 400.0;
-        $a1->amount_base = 400.0;
-        $a1->currency = 'USD';
-        $a1->fx_rate_to_base = 1.0;
-        $a1->allocated_at = Carbon::parse('2026-06-10');
-        $a1->source = 'kanvas';
-        $a1->save();
+        $this->allocate($invoice, 400.0, '2026-06-10');
 
         new MarkInvoicePaidAction(invoice: $invoice)->execute();
         $this->assertNull($invoice->refresh()->paid_at, 'No paid_at after partial.');
 
-        // Final allocation: $600 on June 25 — clears balance, triggers PAID, paid_at = MAX.
-        $a2 = new InvoicePaymentAllocation();
-        $a2->apps_id = (int) $invoice->apps_id;
-        $a2->companies_id = (int) $invoice->companies_id;
-        $a2->invoice_id = (int) $invoice->id;
-        $a2->source_type = 'payment';
-        $a2->status = AllocationStatusEnum::ACTIVE->value;
-        $a2->amount_native = 600.0;
-        $a2->amount_base = 600.0;
-        $a2->currency = 'USD';
-        $a2->fx_rate_to_base = 1.0;
-        $a2->allocated_at = Carbon::parse('2026-06-25');
-        $a2->source = 'kanvas';
-        $a2->save();
+        $this->allocate($invoice, 600.0, '2026-06-25');
 
         $result = new MarkInvoicePaidAction(invoice: $invoice)->execute();
 
@@ -308,25 +251,32 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
         $invoice = $this->issueTestInvoice($this->seedTestOrganization(), subtotal: 0.80);
 
         foreach ([0.10, 0.70] as $amount) {
-            $allocation = new InvoicePaymentAllocation();
-            $allocation->apps_id = (int) $invoice->apps_id;
-            $allocation->companies_id = (int) $invoice->companies_id;
-            $allocation->invoice_id = (int) $invoice->id;
-            $allocation->source_type = 'payment';
-            $allocation->status = AllocationStatusEnum::ACTIVE->value;
-            $allocation->amount_native = $amount;
-            $allocation->amount_base = $amount;
-            $allocation->currency = 'USD';
-            $allocation->fx_rate_to_base = 1.0;
-            $allocation->allocated_at = Carbon::parse('2026-06-20');
-            $allocation->source = 'kanvas';
-            $allocation->save();
+            $this->allocate($invoice, $amount, '2026-06-20');
         }
 
         $result = new MarkInvoicePaidAction(invoice: $invoice)->execute();
 
         $this->assertSame(InvoiceDocumentStatusEnum::PAID, $result->document_status);
         $this->assertSame(0.0, (float) $result->balance_due_native);
+    }
+
+    private function allocate(Invoice $invoice, float $amount, string $date): InvoicePaymentAllocation
+    {
+        $allocation = new InvoicePaymentAllocation();
+        $allocation->apps_id = (int) $invoice->apps_id;
+        $allocation->companies_id = (int) $invoice->companies_id;
+        $allocation->invoice_id = (int) $invoice->id;
+        $allocation->source_type = 'payment';
+        $allocation->status = AllocationStatusEnum::ACTIVE->value;
+        $allocation->amount_native = $amount;
+        $allocation->amount_base = $amount;
+        $allocation->currency = 'USD';
+        $allocation->fx_rate_to_base = 1.0;
+        $allocation->allocated_at = Carbon::parse($date);
+        $allocation->source = 'kanvas';
+        $allocation->save();
+
+        return $allocation;
     }
 
     private function latestPostedJeFor(string $sourceType, int $sourceId): ?JournalEntry

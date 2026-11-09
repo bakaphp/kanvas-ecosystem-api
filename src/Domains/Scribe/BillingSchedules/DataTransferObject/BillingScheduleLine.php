@@ -69,6 +69,11 @@ class BillingScheduleLine extends Data
             throw new ValidationException("{$label}: tax_amount cannot be negative.");
         }
 
+        $discountAmount = self::optionalNumber($line, 'discount_amount', $label) ?? 0.0;
+        if ($discountAmount < 0) {
+            throw new ValidationException("{$label}: discount_amount cannot be negative.");
+        }
+
         $itemId = $line['item_id'] ?? null;
         if ($itemId !== null && (! is_numeric($itemId) || (int) $itemId != $itemId || (int) $itemId <= 0)) {
             throw new ValidationException("{$label}: item_id must be a positive whole number.");
@@ -81,6 +86,7 @@ class BillingScheduleLine extends Data
             tax_amount: Money::stored($taxAmount ?? self::taxFromRate($quantity, $unitPrice, $taxRate)),
             tax_rate: $taxRate,
             item_id: $itemId !== null ? (int) $itemId : null,
+            discount_amount: Money::stored($discountAmount),
         );
     }
 
@@ -108,6 +114,7 @@ class BillingScheduleLine extends Data
             tax_amount: (float) $line->tax_amount,
             tax_rate: $line->tax_rate !== null ? (float) $line->tax_rate : null,
             item_id: $line->item_id,
+            discount_amount: (float) $line->discount_amount,
         );
     }
 

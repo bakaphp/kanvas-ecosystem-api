@@ -21,7 +21,7 @@ class BrexService
      */
     public static function setup(BrexDto $dto): void
     {
-        $dto->company->set(ConfigurationEnum::API_TOKEN->value, $dto->apiToken);
+        $dto->company->setEncrypted(ConfigurationEnum::API_TOKEN->value, $dto->apiToken);
         $dto->company->set(ConfigurationEnum::SYNC_ENABLED->value, '1');
         $dto->company->set(ConfigurationEnum::SYNC_APP_ID->value, (string) $dto->app->getId());
     }

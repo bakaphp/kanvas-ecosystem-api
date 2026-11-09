@@ -123,11 +123,10 @@ class RunBillingScheduleAction
         $schedule->next_run_at = $next;
 
         if ($next === null || ($schedule->end_date !== null && $next->gt($schedule->end_date))) {
-            $schedule->status = BillingScheduleStatusEnum::FINISHED;
-            $schedule->next_run_at = null;
+            $this->finish($schedule);
+        } else {
+            $schedule->saveOrFail();
         }
-
-        $schedule->saveOrFail();
 
         $schedule->emitLedgerEvent(
             eventType: 'scribe.billing_schedule.invoiced',

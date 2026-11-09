@@ -63,7 +63,7 @@ class BrexHandler extends BaseIntegration
             return;
         }
 
-        $this->company->set(ConfigurationEnum::API_TOKEN->value, $previousToken);
+        $this->company->setEncrypted(ConfigurationEnum::API_TOKEN->value, $previousToken);
     }
 
     #[Override]

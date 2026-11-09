@@ -10,6 +10,7 @@ use Kanvas\Companies\Onboarding\Models\CompanyOnboarding;
 use Kanvas\Companies\Onboarding\Models\OnboardingSection;
 use Kanvas\Companies\Onboarding\Services\OnboardingStateService;
 use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsReceivableAgent;
 use Kanvas\Intelligence\Agents\Neuron\Company\CompanyBrainAgent;
@@ -281,7 +282,7 @@ final class AccountingSetupToolsTest extends ScribeTestCase
         return $tool->withContext($this->kanvasApp, $company, $user ?? static::$cachedUser);
     }
 
-    private function handler(object $handler, $agent): object
+    private function handler(object $handler, Agent $agent): object
     {
         $handler->setConfiguration($agent, user: static::$cachedUser);
 

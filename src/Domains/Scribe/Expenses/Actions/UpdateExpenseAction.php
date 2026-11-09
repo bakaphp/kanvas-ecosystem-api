@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Expenses\Actions;
 
-use Baka\Support\Money;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\Expenses\Actions\Concerns\PersistsExpenseLines;
 use Kanvas\Scribe\Expenses\DataTransferObject\Expense as ExpenseData;
-use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseLine as ExpenseLineData;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Expenses\Models\ExpenseLine;
-use Kanvas\Scribe\Support\DocumentTotals;
 
 /**
  * Updates a DRAFT expense (header + lines + vendor + payment context).
@@ -29,6 +27,8 @@ use Kanvas\Scribe\Support\DocumentTotals;
  */
 class UpdateExpenseAction
 {
+    use PersistsExpenseLines;
+
     public function __construct(
         public readonly Expense $expense,
         public readonly ExpenseData $data,
@@ -47,10 +47,8 @@ class UpdateExpenseAction
 
         return DB::connection('accounting')->transaction(function (): Expense {
             $expense = $this->expense;
-            [$totals, $baseTotals] = $this->computeTotals();
-            $fxRate = (float) $this->data->fx_rate_to_base;
+            [$totals, $baseTotals] = $this->computeTotals($this->data);
 
-            // Header
             $expense->expense_date = $this->data->expense_date;
             $expense->paid_by = $this->data->paid_by;
             $expense->paid_by_users_id = $this->data->paid_by_users_id;
@@ -75,56 +73,17 @@ class UpdateExpenseAction
             $expense->metadata = $this->data->metadata;
 
             // Vendor reference — allow swap (or clear) while in draft
-            if ($this->data->vendor !== null) {
-                $expense->vendor_organization_id = $this->data->vendor->getPayeeId();
-            } else {
-                $expense->vendor_organization_id = null;
-            }
+            $expense->vendor_organization_id = $this->data->vendor?->getPayeeId();
 
             $expense->save();
 
-            // Lines — replace wholesale
             ExpenseLine::query()->where('expense_id', $expense->id)->delete();
 
-            $sortOrder = 0;
-            foreach ($this->data->lines as $lineData) {
-                /** @var ExpenseLineData $lineData */
-                $line = new ExpenseLine();
-                $line->expense_id = $expense->id;
-                $line->sort_order = $lineData->sort_order ?? $sortOrder++;
-                $line->item_id = $lineData->item_id;
-                $line->description = $lineData->description;
-                $line->amount_native = $lineData->amount_native;
-                $line->amount_base = Money::toBase($lineData->amount_native, $fxRate);
-                $line->tax_amount_native = $lineData->tax_amount_native;
-                $line->tax_amount_base = Money::toBase($lineData->tax_amount_native, $fxRate);
-                $line->expense_account_id = $lineData->expense_account_id;
-                $line->class_id = $lineData->class_id;
-                $line->department_id = $lineData->department_id;
-                $line->metadata = $lineData->metadata;
-                $line->save();
-            }
+            $this->persistLines($expense, $this->data);
 
             $expense->load('lines');
 
             return $expense;
         });
-    }
-
-    /**
-     * @return array{0: array{subtotal: float, tax: float, total: float}, 1: array{subtotal: float, tax: float, total: float}}
-     */
-    private function computeTotals(): array
-    {
-        return DocumentTotals::compute(
-            array_map(
-                static fn (ExpenseLineData $line): array => [
-                    'subtotal' => $line->amount_native,
-                    'tax' => $line->tax_amount_native,
-                ],
-                $this->data->lines->all(),
-            ),
-            $this->data->fx_rate_to_base,
-        );
     }
 }

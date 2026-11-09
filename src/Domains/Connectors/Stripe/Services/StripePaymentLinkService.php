@@ -16,6 +16,7 @@ use Kanvas\Exceptions\ValidationException as KanvasValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Taxes\Models\OrderTaxSnapshot;
 use Stripe\PaymentLink;
 use Stripe\StripeClient;
@@ -233,7 +234,7 @@ class StripePaymentLinkService
         return $lineItems;
     }
 
-    protected function getOrCreatePrice($orderItem): string
+    protected function getOrCreatePrice(OrderItem $orderItem): string
     {
         $priceKey = 'stripe_price_' . md5($orderItem->product_sku . '_' . $orderItem->unit_price_gross_amount);
 

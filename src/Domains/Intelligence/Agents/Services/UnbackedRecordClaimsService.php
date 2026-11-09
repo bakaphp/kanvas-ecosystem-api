@@ -138,11 +138,7 @@ final class UnbackedRecordClaimsService
      */
     public function unverifiedDenial(string $reply, array $toolCalls): ?string
     {
-        if ($toolCalls !== [] || preg_match(self::DENIAL, $reply, $match) !== 1) {
-            return null;
-        }
-
-        return $match[0];
+        return $this->claimWithoutTool(self::DENIAL, $reply, $toolCalls);
     }
 
     public function denialCorrection(string $denial): string
@@ -158,11 +154,7 @@ final class UnbackedRecordClaimsService
      */
     public function unverifiedCompletion(string $reply, array $toolCalls): ?string
     {
-        if ($toolCalls !== [] || preg_match(self::DOCUMENT, $reply) !== 1 || preg_match(self::COMPLETION, $reply, $match) !== 1) {
-            return null;
-        }
-
-        return $match[0];
+        return preg_match(self::DOCUMENT, $reply) === 1 ? $this->claimWithoutTool(self::COMPLETION, $reply, $toolCalls) : null;
     }
 
     /**
@@ -170,7 +162,17 @@ final class UnbackedRecordClaimsService
      */
     public function unverifiedToolResult(string $reply, array $toolCalls): ?string
     {
-        if ($toolCalls !== [] || preg_match(self::TOOL_RESULT, $reply, $match) !== 1) {
+        return $this->claimWithoutTool(self::TOOL_RESULT, $reply, $toolCalls);
+    }
+
+    /**
+     * The words of the reply that match, when the turn ran no tool to back them.
+     *
+     * @param list<array<string, mixed>> $toolCalls
+     */
+    private function claimWithoutTool(string $pattern, string $reply, array $toolCalls): ?string
+    {
+        if ($toolCalls !== [] || preg_match($pattern, $reply, $match) !== 1) {
             return null;
         }
 

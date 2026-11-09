@@ -9,8 +9,8 @@ use Kanvas\Companies\Onboarding\Models\CompanyOnboarding;
 /**
  * What a provisioning run works through, in order: the setup agent first, because it is the one
  * that drives the rest, then every item of every selected area in catalog order, then each area's
- * post-provision setup. The setup agent is
- * not a catalog item, so it is declared here rather than in a section.
+ * post-provision setup. The setup agent is not a catalog item, so it is declared here rather than in a
+ * section.
  */
 final class OnboardingProvisioningItemsService
 {

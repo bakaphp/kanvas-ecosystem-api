@@ -52,12 +52,11 @@ class RespondToReceivedEcfAction
             throw new ValidationException('Rejecting a vendor e-CF requires a reason; DGII and the vendor receive it.');
         }
 
+        $providerKey = $this->resolver->providerKey($bill->company);
         $provider = $this->resolver->resolve($bill->app, $bill->company);
 
         if (! $provider instanceof RespondsToReceivedEcfInterface) {
-            throw new ValidationException(
-                "The company's e-CF provider '{$this->resolver->providerKey($bill->company)}' cannot send commercial responses."
-            );
+            throw new ValidationException("The company's e-CF provider '{$providerKey}' cannot send commercial responses.");
         }
 
         $reference = $provider->sendCommercialResponse($bill, $this->accepted, $reason);
@@ -66,7 +65,7 @@ class RespondToReceivedEcfAction
         ReceivedEcfCompliance::recordCommercialResponse($bill, [
             'accepted' => $this->accepted,
             'reason' => $reason,
-            'provider' => $this->resolver->providerKey($bill->company),
+            'provider' => $providerKey,
             'provider_ref' => $reference,
             'responded_at' => Carbon::now()->toIso8601String(),
             'responded_by_users_id' => $this->user?->getId(),

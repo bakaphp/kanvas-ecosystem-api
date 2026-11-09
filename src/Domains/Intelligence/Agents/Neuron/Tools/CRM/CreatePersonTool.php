@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Baka\Support\Str;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -103,17 +103,22 @@ class CreatePersonTool extends Tool
             return $this->invalidArgs('firstname is required.');
         }
 
+        $email = Str::trimToNull($email);
+        $phone = Str::trimToNull($phone);
+        $title = Str::trimToNull($title);
+        $organization = Str::trimToNull($organization);
+
         $contacts = [];
-        if ($email !== null && trim($email) !== '') {
-            $contacts[] = ['value' => trim($email)];
+        if ($email !== null) {
+            $contacts[] = ['value' => $email];
         }
-        if ($phone !== null && trim($phone) !== '') {
-            $contacts[] = ['value' => trim($phone)];
+        if ($phone !== null) {
+            $contacts[] = ['value' => $phone];
         }
 
         $customFields = $custom_fields;
-        if ($title !== null && trim($title) !== '') {
-            $customFields['title'] = trim($title);
+        if ($title !== null) {
+            $customFields['title'] = $title;
         }
 
         try {
@@ -125,7 +130,7 @@ class CreatePersonTool extends Tool
                 'lastname' => $lastname,
                 'contacts' => $contacts,
                 'address' => [],
-                'organization' => $organization !== null && trim($organization) !== '' ? trim($organization) : null,
+                'organization' => $organization,
                 'tags' => $tags ?? [],
                 'custom_fields' => $customFields,
             ]);
@@ -135,8 +140,6 @@ class CreatePersonTool extends Tool
             return $this->failed($e->getMessage(), guidance: 'Say the contact was NOT created.');
         }
 
-        $hasOrganization = $organization !== null && trim($organization) !== '';
-
         return [
             'person_id' => $person->getId(),
             'admin_url' => $this->adminUrlOf($person),
@@ -145,7 +148,7 @@ class CreatePersonTool extends Tool
             // Linked after the create, not passed as the DTO's organization name: that path goes through
             // CreateOrganizationAction's normalize + firstOrCreate, so "Acme, Inc." would come back as a
             // second "Acme" instead of the organization the domain points at.
-            ...(! $hasOrganization && $email !== null ? $this->organizationFromEmailDomain($person) : []),
+            ...($organization === null && $email !== null ? $this->organizationFromEmailDomain($person) : []),
             'message' => 'Contact created.',
         ];
     }

@@ -54,4 +54,20 @@ trait DeliversToBillingContacts
 
         return ['recipients' => $sent, 'failed' => $failed, 'first_failure' => $firstFailure];
     }
+
+    /**
+     * The refusal when nobody got the document: the first contact's reason speaks for the send.
+     *
+     * @param array{recipients: list<array<string, mixed>>, failed: list<array<string, mixed>>, first_failure: ?DocumentDeliveryException} $result
+     * @return array<string, mixed>
+     */
+    protected function undeliveredResult(array $result): array
+    {
+        return [
+            'sent' => false,
+            'reason' => $result['first_failure']?->reason,
+            'message' => $result['first_failure']?->getMessage(),
+            'failed' => $result['failed'],
+        ];
+    }
 }

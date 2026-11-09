@@ -83,6 +83,7 @@ class IssuedEcfExportImportTest extends ScribeTestCase
         $this->assertSame('E310000000008', $fiscal->authority_id);
         $this->assertSame('webpos', $fiscal->provider);
         $this->assertTrue((bool) $fiscal->authority_number_consumed);
+        $this->assertNull($fiscal->issuer_tax_id, 'no issuer RNC configured: the column stays null, only the identity key gets a placeholder');
 
         $je = JournalEntry::query()
             ->where('source_type', 'invoice')

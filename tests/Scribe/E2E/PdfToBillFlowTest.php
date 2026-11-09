@@ -73,7 +73,6 @@ class PdfToBillFlowTest extends ScribeTestCase
             ],
         ));
 
-        // ── Step 1+2 — ingest PDF, draft Bill lands ──
         $log = new ProcessAccountingPdfAction(
             input: new PdfIngestInput(
                 app: $this->kanvasApp,
@@ -101,7 +100,6 @@ class PdfToBillFlowTest extends ScribeTestCase
         $this->assertNotNull($bill->vendor_organization_id, 'The inbox resolves the vendor from the extraction.');
         $this->assertEqualsWithDelta(1080.0, (float) $bill->total_native, 0.005);
 
-        // ── Step 3 — operator accepts the coding and receives the bill ──
         $vendor = Organization::query()->findOrFail($bill->vendor_organization_id);
         $received = new ReceiveBillAction(
             bill: $bill,
@@ -116,7 +114,6 @@ class PdfToBillFlowTest extends ScribeTestCase
         $this->assertCount(1, $receiveJes);
         $this->assertJeBalanced($receiveJes->first());
 
-        // ── Step 4 — pay the bill (allocation + composer + Mark) ──
         $allocation = new BillPaymentAllocation();
         $allocation->apps_id = (int) $received->apps_id;
         $allocation->companies_id = (int) $received->companies_id;
@@ -148,7 +145,6 @@ class PdfToBillFlowTest extends ScribeTestCase
         $this->assertSame(BillDocumentStatusEnum::PAID, $paid->document_status);
         $this->assertEqualsWithDelta(0.0, (float) $paid->balance_due_native, 0.005);
 
-        // ── Cross-cutting: 2 POSTED JEs, both balanced ──
         // Receive JE uses source_type='bill'; payment JE uses source_type='bill_payment'.
         $billJes = $this->postedJesFor('bill', (int) $paid->id);
         $paymentJes = JournalEntry::query()
@@ -163,7 +159,6 @@ class PdfToBillFlowTest extends ScribeTestCase
             $this->assertJeBalanced($je);
         }
 
-        // ── Cross-cutting: GL balances ──
         $accountIds = $this->accountIdsByKey([
             AccountSubTypeEnum::TRAVEL_AND_MEALS,
             AccountSubTypeEnum::INPUT_TAX_RECEIVABLE,

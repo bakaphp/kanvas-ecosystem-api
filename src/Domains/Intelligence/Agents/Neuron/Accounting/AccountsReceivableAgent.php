@@ -6,13 +6,13 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\Concerns\AppliesAccountingReadiness;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\Concerns\GrantsAccountingApprovalTools;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AccountingDigestTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddInvoiceNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApplyArPaymentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachQuoteFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CheckRncTool;
@@ -50,8 +50,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetInvoiceTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetPaymentTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\CheckApprovalStatusTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\RetryApprovedItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
@@ -102,6 +100,7 @@ use Override;
 class AccountsReceivableAgent extends SystemUserAgent
 {
     use AppliesAccountingReadiness;
+    use GrantsAccountingApprovalTools;
 
     #[Override]
     protected function tools(): array
@@ -173,19 +172,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new ReplyToEmailTool(),
         ]));
 
-        // Read-only, so unlike approve_pending_item it is not gated on a requesting human: reporting
-        // where something stands authorizes nothing.
-        $statusUser = $this->requestingHuman() ?? $this->actingUser();
-        if ($statusUser !== null && $this->app !== null && $this->company !== null) {
-            $tools[] = new CheckApprovalStatusTool()->withContext($this->app, $this->company, $statusUser);
-            $tools[] = new RetryApprovedItemTool()->withContext($this->app, $this->company, $statusUser);
-        }
-
-        // approve_pending_item must authorize against the real human, not actingUser() (the agent itself on @mention/channel surfaces).
-        $requestingHuman = $this->requestingHuman();
-        if ($requestingHuman !== null && $this->app !== null && $this->company !== null) {
-            $tools[] = new ApprovePendingItemTool()->withContext($this->app, $this->company, $requestingHuman);
-        }
+        $tools = [...$tools, ...$this->accountingApprovalTools()];
 
         // Books sales and journal entries from a file, and this agent reads inbound email: a forged export must not
         // land on its own, so it loads only when a real person is asking.

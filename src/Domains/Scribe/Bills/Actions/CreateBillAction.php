@@ -140,10 +140,7 @@ class CreateBillAction
             ->first();
 
         if ($existing !== null) {
-            $this->rejectDuplicate(
-                $vendorOrganizationId,
-                $existing
-            );
+            $this->rejectDuplicate($vendorOrganizationId, $existing);
         }
     }
 

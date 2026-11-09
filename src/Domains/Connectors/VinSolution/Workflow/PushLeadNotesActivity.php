@@ -66,7 +66,7 @@ class PushLeadNotesActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::VIN_SOLUTION,
             additionalParams: $params,
-            integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($lead) {
+            integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams) use ($lead): array {
                 if ($message->isLocked() || ! $message->isPublic()) {
                     return $this->failWorkflow([
                         'message_id' => $message->getId(),
@@ -105,7 +105,6 @@ class PushLeadNotesActivity extends KanvasActivity
         $status = $messageData['status'] ?? '';
         $results = [];
 
-        // Process based on action type and status
         switch ($verb) {
             case ActionEnum::TRADE_WALK->value:
             case ActionEnum::PAYOFF_FORM->value:
@@ -149,11 +148,6 @@ class PushLeadNotesActivity extends KanvasActivity
                 if ($status === ActionStatusEnum::SUBMITTED->value) {
                     $purchaseVehicleAction = new PushPurchaseVehicleAction($lead, $message);
                     $results['purchaseVehicle'] = $purchaseVehicleAction->execute();
-
-                    // Send email notification if configured
-                    if ($lead->company->get('send-esign-notification-link')) {
-                        //$this->sendEsignNotification($lead, $messageData);
-                    }
                 }
 
                 break;
