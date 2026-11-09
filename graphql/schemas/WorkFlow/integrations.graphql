@@ -23,6 +23,8 @@ type IntegrationsCompanies {
     status: Status
     region: Region
     is_active: Boolean!
+    "Opens the provider's consent screen for an OAuth integration (e.g. Microsoft). Null for the rest."
+    oauth_url: String @method(name: "getOAuthUrl")
     updated_at: DateTime
 }
 
