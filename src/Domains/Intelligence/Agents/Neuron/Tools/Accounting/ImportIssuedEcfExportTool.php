@@ -95,7 +95,9 @@ class ImportIssuedEcfExportTool extends Tool implements RequiresSystemAgent
                 $payload,
                 $result->dryRun
                     ? 'Nothing was written. Show the person what each row would do, name the customers that would be created '
-                        . 'and the rows that need review, then call again without dry_run when they agree.'
+                        . 'and the rows that need review. When they say go, your whole next step is one tool call: '
+                        . 'import_issued_ecf_export with the same filesystem_id and dry_run false. Only that call imports; '
+                        . 'never report an import, or a refusal, that you did not get back from it.'
                     : 'Report the invoices created with their e-NCF and total, the rejected numbers recorded, what was skipped '
                         . 'as already on the books, and every needs_review row with its reason; those need a person before '
                         . 'they can be imported. Payments are not in the export: say the imported balance is open.',

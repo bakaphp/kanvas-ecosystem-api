@@ -41,6 +41,8 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'src/Kanvas/Companies/Onboarding/Services/OnboardingSectionsSeedService.php',
         // CLI: reads a local Item Balance XML file argument.
         'app/Console/Commands/Connectors/Yusen/YusenInventoryReportCommand.php',
+        // CLI (support only): reads a local WebPOS issued-documents CSV export argument.
+        'app/Console/Commands/Scribe/ImportIssuedEcfExportCommand.php',
         // CLI: reads the coding-agent Docker build context (Dockerfile, entrypoint.sh) out of
         // base_path('docker/opencode'), by hardcoded file name and gated by is_readable().
         'app/Console/Commands/NervousSystem/Agents/Coding/BuildCodingImageCommand.php',

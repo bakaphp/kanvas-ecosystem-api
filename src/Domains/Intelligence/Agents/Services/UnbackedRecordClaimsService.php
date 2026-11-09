@@ -32,7 +32,8 @@ final class UnbackedRecordClaimsService
     public const string CORRECTION = 'Your draft reply named %s, which no tool returned in this conversation, so none of it '
         . 'exists and nothing was done. Answer again: do the work with your tools now and report only what they return, '
         . 'or tell the person plainly what was not done and what you need. Never state an id, number, file or link '
-        . 'that a tool did not return.';
+        . 'that a tool did not return. Never describe a result, refusal or error from a tool you did not call this '
+        . 'turn: if you are not calling it, say you have not run it yet.';
 
     /**
      * A turn that carries a file: the model can read the numbers off it, but only a tool result backs them, and a
@@ -43,7 +44,8 @@ final class UnbackedRecordClaimsService
         . 'again: run the read tool for the attachment first (extract_invoice_data for an invoice or receipt) and '
         . 'report what it returns. If your draft was asking the person something, ask it again from the tool result; '
         . 'do not create, book or change anything they have not answered. Never state an id, number, file or link '
-        . 'that a tool did not return.';
+        . 'that a tool did not return. Never describe a result, refusal or error from a tool you did not call this '
+        . 'turn: if you are not calling it, say you have not run it yet.';
 
     /**
      * Earlier turns omit their tool calls, so a denial of past work needs a lookup in the current turn.
@@ -80,7 +82,7 @@ final class UnbackedRecordClaimsService
         . 'was done and nothing was checked. Answer again: do the work with your tools now and report only what they '
         . 'return, or look the record up and report the state the tool shows, or tell the person plainly what was not '
         . 'done and what you need. Never say a record was created, accepted, sent or changed unless a tool in this turn '
-        . 'says so.';
+        . 'says so, and never describe a result, refusal or error from a tool you did not call this turn.';
 
     public const string COMPLETION_WARNING = '_⚠️ Not verified: this reply says work was done, but no tool ran this turn. '
         . 'Treat it as not done until it is checked._';
