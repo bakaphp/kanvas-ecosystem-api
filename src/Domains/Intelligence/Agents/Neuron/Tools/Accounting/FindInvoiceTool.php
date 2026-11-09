@@ -21,9 +21,7 @@ use Override;
  * Looks up ONE invoice (receivable — money a customer owes US): status, amounts (total / paid / balance), dates,
  * line items, its quote and where its approval stands. The AR mirror of find_bill.
  *
- * By id or by number: a draft has no number until it is issued, and every other tool (create_ar_invoice,
- * find_quote, the cards) hands the model the id, so a lookup that only took the number answered found=false
- * for a draft that existed and the agent concluded the record was gone.
+ * Drafts have no number until issued, so lookups also accept the ids returned by other tools and cards.
  */
 #[AgentTool(name: 'Find Invoice', category: 'accounting')]
 class FindInvoiceTool extends Tool
@@ -79,7 +77,12 @@ class FindInvoiceTool extends Tool
 
         $result = $invoice_id !== null
             ? $this->resolveInvoice($invoice_id)
-            : $this->findTenantRecordOrNotFound(Invoice::class, 'invoice_number', $invoice_number, 'invoice');
+            : $this->findTenantRecordOrNotFound(
+                Invoice::class,
+                'invoice_number',
+                $invoice_number,
+                'invoice'
+            );
 
         // A person typing "24084" means the id they see; a draft has no number that could match it.
         if (is_array($result) && $invoice_id === null && ctype_digit($invoice_number)) {

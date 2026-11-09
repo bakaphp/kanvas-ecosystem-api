@@ -22,7 +22,7 @@ use Tests\Stubs\Intelligence\FabricatingNeuronAgentStub;
 use Tests\TestCase;
 
 /**
- * An AR agent once answered "create the invoice" with no tool call and a card for invoice 23026, which never existed.
+ * Replies must not present invented records or unverified actions as completed work.
  */
 class UnbackedRecordClaimsTest extends TestCase
 {
@@ -225,7 +225,12 @@ class UnbackedRecordClaimsTest extends TestCase
         );
         $card = '{"version":1,"component":"entity","title":"AR Invoice Created","props":{"id":22836,"type":"deal","title":"x","fields":[]}}';
 
-        $history = new ChatHistory($store, $sessionUuid, 1_000_000, KanvasHistoryTrimmer::make());
+        $history = new ChatHistory(
+            $store,
+            $sessionUuid,
+            1_000_000,
+            KanvasHistoryTrimmer::make()
+        );
         $history->addMessage(new UserMessage('create the invoice'));
         $history->addMessage(new AssistantMessage("Created.\n\n```kanvas-artifact\n{$card}\n```"));
 

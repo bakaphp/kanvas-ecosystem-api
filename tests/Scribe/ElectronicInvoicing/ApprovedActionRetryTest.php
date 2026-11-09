@@ -16,8 +16,7 @@ use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 
 /**
- * A person approved an invoice whose e-CF step then failed. The request read "approved", the agent could not run it
- * again, and it rebuilt the invoice and issued a second e-CF for the same work.
+ * A failed e-CF action retains its approval and retries the original invoice instead of issuing a duplicate.
  */
 class ApprovedActionRetryTest extends EcfTestCase
 {
@@ -58,7 +57,12 @@ class ApprovedActionRetryTest extends EcfTestCase
         $this->assertFalse($stillBroken['success']);
         $this->assertStringContainsString('failed again', $stillBroken['error']);
 
-        $this->configureRange(EcfTypeEnum::CREDITO_FISCAL, 4, 1000, '2028-12-31');
+        $this->configureRange(
+            EcfTypeEnum::CREDITO_FISCAL,
+            4,
+            1000,
+            '2028-12-31'
+        );
         $retried = $this->tool(RetryApprovedItemTool::class)->__invoke(target_type: 'invoice', target_id: $invoice->getId());
 
         $this->assertTrue($retried['success']);

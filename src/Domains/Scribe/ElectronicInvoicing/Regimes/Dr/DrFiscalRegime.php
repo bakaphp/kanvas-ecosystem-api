@@ -207,7 +207,12 @@ final class DrFiscalRegime implements FiscalRegimeInterface
         $currency = strtoupper((string) $invoice->currency);
         $rate = $currency === self::CURRENCY
             ? 1.0
-            : (float) (new FxRateService()->rateOn($invoice->app, $currency, self::CURRENCY, Carbon::today())?->rate ?? 0);
+            : (float) (new FxRateService()->rateOn(
+                $invoice->app,
+                $currency,
+                self::CURRENCY,
+                Carbon::today()
+            )?->rate ?? 0);
 
         if ($rate <= 0 || (float) $invoice->total_native * $rate < DrEcfValidator::CONSUMER_ANONYMOUS_LIMIT_DOP) {
             return;

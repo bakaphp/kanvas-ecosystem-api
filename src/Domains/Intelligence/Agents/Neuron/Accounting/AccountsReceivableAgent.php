@@ -277,9 +277,14 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'itself: do not convert_quote_to_invoice it.',
             '- "Bill Acme 2,000 every month for support" → schedule_billing (create). Each period becomes a DRAFT '
             . 'invoice sent for approval. "What do we bill monthly" / "when is X invoiced next" → '
-            . 'list_billing_schedules. Pause, resume or change one with schedule_billing.',
+            . 'list_billing_schedules. Pause, resume or change one with schedule_billing. Schedules bill on their '
+            . 'date in a nightly run; "create the second invoice" / "bill the balance now" for a SOW milestone or any '
+            . 'scheduled payment that is not due yet → say its planned date, then schedule_billing (bill_now) on that '
+            . 'schedule: it makes the draft from the quote\'s own lines and marks the period billed. Never move a '
+            . 'schedule\'s date to today and wait, and never rebuild the payment with create_ar_invoice.',
             '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
-            . 'explicitly asks to record a real payment. Needs the invoice_id, amount, and a payment reference.',
+            . 'explicitly asks to record a real payment. Needs the invoice_id, amount, a payment reference and the '
+            . 'method they named (wire, ach, check, cash, card).',
             '- "Issue a standalone credit memo for customer X" (e.g. a back-end rebate) → create_ar_credit_memo, '
             . 'only on explicit request. Not tied to any invoice — needs the customer name, a reference (e.g. '
             . 'the Credit Request Form\'s Request Reference No), and one or more lines with a Control Acct# and '

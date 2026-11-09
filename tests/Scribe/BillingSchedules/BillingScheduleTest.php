@@ -252,7 +252,12 @@ class BillingScheduleTest extends ScribeTestCase
         foreach ($quoteLines as $position => $quoteLine) {
             $billedPrice = $invoices->sum(fn (Invoice $invoice): float => (float) $invoice->lines()->orderBy('sort_order')->get()[$position]->unit_price_native);
             $billedTax = $invoices->sum(fn (Invoice $invoice): float => (float) $invoice->lines()->orderBy('sort_order')->get()[$position]->tax_amount_native);
-            $this->assertEqualsWithDelta((float) $quoteLine->unit_price_native, $billedPrice, 0.0001, 'no rounding drift per line');
+            $this->assertEqualsWithDelta(
+                (float) $quoteLine->unit_price_native,
+                $billedPrice,
+                0.0001,
+                'no rounding drift per line'
+            );
             $this->assertEqualsWithDelta((float) $quoteLine->tax_amount_native, $billedTax, 0.0001);
         }
 
@@ -260,7 +265,7 @@ class BillingScheduleTest extends ScribeTestCase
     }
 
     /**
-     * The agent once offered to invoice a quote "in full" after its SOW schedule had already billed all of it.
+     * Converting a SOW quote would duplicate the invoices its payment schedule creates.
      */
     public function test_the_conversion_tool_hands_back_the_invoices_a_sow_quote_already_has(): void
     {
@@ -333,12 +338,89 @@ class BillingScheduleTest extends ScribeTestCase
         $this->assertSame('active', $resumed['status']);
     }
 
+    /**
+     * The agent once answered "create the second invoice" by moving a SOW milestone's date to today and waiting for a
+     * nightly run that, locally, never comes.
+     */
+    public function test_bill_now_bills_a_future_sow_milestone_today_from_the_quote(): void
+    {
+        Queue::fake();
+        $quote = $this->sentQuoteWithSow('Early Milestone Co');
+        new AcceptQuoteAction($quote, static::$cachedUser)->execute();
+        $balance = BillingSchedule::query()->where('source_quote_id', $quote->getId())->orderBy('id')->get()[1];
+        $this->assertSame('2026-06-20', $balance->next_run_at->toDateString());
+        $tool = new ScheduleBillingTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $billed = $tool->__invoke(action: 'bill_now', billing_schedule_id: $balance->getId());
+
+        $this->assertTrue($billed['saved'], json_encode($billed));
+        $this->assertTrue($billed['billed_early']);
+        $this->assertSame('2026-06-20', $billed['planned_for']);
+        $this->assertStringContainsString('ahead of its planned date', $billed['message']);
+        $invoice = Invoice::getById($billed['invoice_id']);
+        $this->assertSame($quote->getId(), $invoice->quote_id, 'the schedule made it, so it hangs off the quote');
+        $this->assertSame(InvoiceDocumentStatusEnum::DRAFT, $invoice->document_status);
+        $this->assertEqualsWithDelta(2050.0, (float) $invoice->total_native, 0.001, 'the second half of the 4,100 quote');
+        $this->assertSame(BillingScheduleStatusEnum::FINISHED->value, $billed['status'], 'a once schedule is done after its payment');
+
+        $again = $tool->__invoke(action: 'bill_now', billing_schedule_id: $balance->getId());
+        $this->assertFalse($again['saved']);
+        $this->assertSame('nothing_to_bill', $again['reason']);
+        $this->assertCount(1, $this->invoicesFor($quote->customer)->where('quote_id', $quote->getId())->where('total_native', '>', 2049), 'never billed twice');
+    }
+
+    public function test_bill_now_refuses_a_recurring_or_paused_schedule(): void
+    {
+        $this->seedTestOrganization('Bill Now Retainer Co');
+        $tool = new ScheduleBillingTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+        $created = $tool->__invoke(
+            action: 'create',
+            customer_name: 'Bill Now Retainer Co',
+            lines: [['description' => 'Support retainer', 'unit_price' => 900]],
+            cadence: 'monthly',
+            start_date: '2026-06-15',
+        );
+
+        $recurring = $tool->__invoke(action: 'bill_now', billing_schedule_id: $created['billing_schedule_id']);
+        $this->assertFalse($recurring['saved']);
+        $this->assertSame('recurring_schedule', $recurring['reason']);
+        $this->assertStringContainsString('2026-06-15', $recurring['message']);
+
+        $tool->__invoke(action: 'pause', billing_schedule_id: $created['billing_schedule_id']);
+        $paused = $tool->__invoke(action: 'bill_now', billing_schedule_id: $created['billing_schedule_id']);
+        $this->assertSame('nothing_to_bill', $paused['reason']);
+        $this->assertSame(0, Invoice::query()->where('companies_id', $this->company->getId())->where('notes', 'like', '%Bill Now Retainer%')->count());
+    }
+
+    public function test_an_update_that_lands_a_period_today_bills_it_at_once(): void
+    {
+        $this->seedTestOrganization('Pulled Forward Co');
+        $tool = new ScheduleBillingTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+        $created = $tool->__invoke(
+            action: 'create',
+            customer_name: 'Pulled Forward Co',
+            lines: [['description' => 'Kickoff fee', 'unit_price' => 1200]],
+            cadence: 'once',
+            start_date: '2026-06-25',
+        );
+        $this->assertArrayNotHasKey('invoice_id', $created, 'a future period waits for its date');
+
+        $moved = $tool->__invoke(action: 'update', billing_schedule_id: $created['billing_schedule_id'], start_date: '2026-06-01');
+
+        $this->assertTrue($moved['saved'], json_encode($moved));
+        $this->assertStringContainsString('due period billed', $moved['message']);
+        $invoice = Invoice::getById($moved['invoice_id']);
+        $this->assertEqualsWithDelta(1200.0, (float) $invoice->total_native, 0.001);
+        $this->assertSame(1, BillingScheduleRun::query()->where('billing_schedule_id', $created['billing_schedule_id'])->count());
+    }
+
     public function test_schedule_billing_refuses_bad_input_without_saving(): void
     {
         $this->seedTestOrganization('Tool Refusal Co');
         $tool = new ScheduleBillingTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
 
         $this->assertSame('invalid_action', $tool->__invoke(action: 'delete')['reason']);
+        $this->assertSame('billing_schedule_id_required', $tool->__invoke(action: 'bill_now')['reason']);
         $this->assertSame('invalid_cadence', $tool->__invoke(action: 'create', customer_name: 'Tool Refusal Co', cadence: 'weekly')['reason']);
         $this->assertSame('invalid_schedule', $tool->__invoke(
             action: 'create',

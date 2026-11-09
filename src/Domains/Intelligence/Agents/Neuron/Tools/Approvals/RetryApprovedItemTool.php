@@ -18,8 +18,7 @@ use Override;
 use Throwable;
 
 /**
- * An invoice was approved while its customer had no tax id; the e-CF step failed, the approval read "approved", and
- * with no way to run it again the agent rebuilt the invoice from scratch. This runs the approved action again.
+ * Retries a failed approved action on its original record to avoid creating a duplicate invoice.
  */
 #[AgentTool(name: 'Retry Approved Item', category: 'approvals')]
 class RetryApprovedItemTool extends Tool

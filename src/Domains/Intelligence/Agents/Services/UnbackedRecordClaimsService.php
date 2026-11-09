@@ -35,9 +35,7 @@ final class UnbackedRecordClaimsService
         . 'that a tool did not return.';
 
     /**
-     * The opposite failure: asked "are you sure?", a model that cannot see the tool calls behind its earlier turns
-     * called no tool and declared a real invoice a hallucination and the accepted quote still a draft. A denial of
-     * past work or of a record is only ever backed by a lookup made in the same turn.
+     * Earlier turns omit their tool calls, so a denial of past work needs a lookup in the current turn.
      */
     private const string DENIAL = '/\b(?:hallucinat\w*|without\s+(?:actually\s+)?(?:executing|calling|running|using)\b|'
         . '(?:was|were)\s+(?:never|not)\s+(?:actually\s+)?(?:created|issued|sent|recorded|generated|executed|made|converted)\b|'
@@ -55,10 +53,7 @@ final class UnbackedRecordClaimsService
         . 'it. Confirm the record before acting on this._';
 
     /**
-     * The mirror of a denial: told "approved the quote", a model answered "Quote #3802 is now officially recorded as
-     * Accepted & SOW Signed" with no tool call, and the quote stayed a draft; the deposit was then hand-built off it.
-     * The ids were real, so only the completed action gives it away. Written of a document, in a turn that ran
-     * nothing, a completed action is a claim nothing backs.
+     * A real record id does not prove an action happened: completion claims also need a tool call this turn.
      */
     private const string COMPLETION = '/\b(?:(?:has|have)\s+been|(?:is|are)\s+now|was|were|(?:is|are)\s+(?:officially|successfully))'
         . '\s+(?:(?:now|officially|successfully|already|also)\s+)*'

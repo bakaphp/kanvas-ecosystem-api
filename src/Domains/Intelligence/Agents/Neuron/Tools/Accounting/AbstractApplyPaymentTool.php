@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\Models\BaseModel;
+use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use Kanvas\Scribe\Payments\Models\Payment;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -45,7 +46,12 @@ abstract class AbstractApplyPaymentTool extends Tool
 
     abstract protected function resolveDocument(int $id): ?BaseModel;
 
-    abstract protected function allocatePayment(BaseModel $document, float $amount, string $reference): Payment;
+    abstract protected function allocatePayment(
+        BaseModel $document,
+        float $amount,
+        string $reference,
+        PaymentMethodEnum $method
+    ): Payment;
 
     /**
      * @return array{remaining_balance: float, document_status: string}
@@ -79,19 +85,39 @@ abstract class AbstractApplyPaymentTool extends Tool
                 description: 'Payment reference (check number, wire ref, etc).',
                 required: true,
             ),
+            new ToolProperty(
+                name: 'method',
+                type: PropertyType::STRING,
+                description: 'How the money moved, as the person said it: wire, ach, check, cash or card. Pass what they '
+                    . 'said ("bank transfer" and "transferencia" are wire); defaults to check only when they named none.',
+                required: false,
+            ),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    protected function applyPayment(int $id, float $amount, string $reference): array
+    protected function applyPayment(int $id, float $amount, string $reference, ?string $method = null): array
     {
         $noun = $this->noun();
+        $paymentMethod = $this->paymentMethod($method);
+
+        if ($paymentMethod === null) {
+            return $this->invalidArgs(
+                "Unknown payment method \"{$method}\".",
+                [
+                    'applied' => false,
+                    'reason' => 'invalid_method',
+                    'message' => "Unknown payment method \"{$method}\": pass one of " . implode(', ', self::methodNames()) . '.',
+                ],
+                guidance: 'The payment was NOT applied.',
+            );
+        }
 
         return $this->oncePerTurn(
             [$noun . '_id' => $id, 'amount' => $amount, 'reference' => $reference],
-            fn (): array => $this->allocateOnce($id, $amount, $reference),
+            fn (): array => $this->allocateOnce($id, $amount, $reference, $paymentMethod),
             note: "This exact payment (same {$noun}, amount and reference) was already applied earlier in "
                 . 'this turn and is recorded ONCE. Nothing was posted now. Do not call this again — report '
                 . 'the payment shown here.',
@@ -102,7 +128,7 @@ abstract class AbstractApplyPaymentTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    private function allocateOnce(int $id, float $amount, string $reference): array
+    private function allocateOnce(int $id, float $amount, string $reference, PaymentMethodEnum $method): array
     {
         $noun = $this->noun();
         $idKey = $noun . '_id';
@@ -119,7 +145,7 @@ abstract class AbstractApplyPaymentTool extends Tool
         }
 
         try {
-            $payment = $this->allocatePayment($document, $amount, $reference);
+            $payment = $this->allocatePayment($document, $amount, $reference, $method);
         } catch (RuntimeException $e) {
             return $this->invalidArgs(
                 $e->getMessage(),
@@ -138,9 +164,63 @@ abstract class AbstractApplyPaymentTool extends Tool
             'payment_id' => $payment->getId(),
             'amount' => $amount,
             'payment_ref' => $reference,
+            'method' => $method->value,
             ...$this->refreshedState($document),
             'next' => 'Payment allocated in Kanvas. Any external synchronization is handled by configured '
                 . 'workflow activities.',
         ]);
+    }
+
+    /**
+     * The methods a person names in chat; the rest of the enum (stripe, mercury_match, pdf_ingest_auto) is how a
+     * system recorded a payment, never something to type.
+     *
+     * @return list<PaymentMethodEnum>
+     */
+    private static function spokenMethods(): array
+    {
+        return [
+            PaymentMethodEnum::WIRE,
+            PaymentMethodEnum::ACH,
+            PaymentMethodEnum::CHECK,
+            PaymentMethodEnum::CASH,
+            PaymentMethodEnum::CARD,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function methodNames(): array
+    {
+        return array_map(static fn (PaymentMethodEnum $method): string => $method->value, self::spokenMethods());
+    }
+
+    /**
+     * Null for a method nobody can type; the default when none was given.
+     */
+    private function paymentMethod(?string $method): ?PaymentMethodEnum
+    {
+        $spoken = strtolower(trim((string) $method));
+
+        if ($spoken === '') {
+            return PaymentMethodEnum::CHECK;
+        }
+
+        $aliases = [
+            'bank transfer' => PaymentMethodEnum::WIRE,
+            'bank_transfer' => PaymentMethodEnum::WIRE,
+            'transfer' => PaymentMethodEnum::WIRE,
+            'transferencia' => PaymentMethodEnum::WIRE,
+            'wire transfer' => PaymentMethodEnum::WIRE,
+            'cheque' => PaymentMethodEnum::CHECK,
+            'efectivo' => PaymentMethodEnum::CASH,
+            'credit card' => PaymentMethodEnum::CARD,
+            'debit card' => PaymentMethodEnum::CARD,
+            'tarjeta' => PaymentMethodEnum::CARD,
+        ];
+        $resolved = $aliases[$spoken] ?? PaymentMethodEnum::tryFrom($spoken);
+
+        return $resolved !== null && in_array($resolved, self::spokenMethods(), true) ? $resolved : null;
     }
 }

@@ -36,6 +36,8 @@ use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
+use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
+use Kanvas\Scribe\Payments\Models\Payment;
 use Kanvas\Users\Models\Users;
 use Tests\Scribe\ScribeTestCase;
 use Tests\Traits\AssertsToolRunKeys;
@@ -210,6 +212,31 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame($invoice->getId(), $result['invoice_id']);
         $this->assertSame(InvoiceDocumentStatusEnum::VOIDED->value, $result['document_status']);
         $this->assertSame(InvoiceDocumentStatusEnum::VOIDED, $invoice->fresh()->document_status);
+    }
+
+    /** A wire recorded as a check (every payment was, the tool had no method) breaks the bank reconciliation. */
+    public function test_apply_ar_payment_records_the_method_the_person_named(): void
+    {
+        $customer = $this->seedTestOrganization('Wire Payment Customer');
+        $invoice = $this->issueTestInvoice($customer, 900.0);
+        $tool = new ApplyArPaymentTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $wire = $tool->__invoke(invoice_id: $invoice->getId(), amount: 300.0, reference: 'WIRE-31849382AA', method: 'bank transfer');
+        $this->assertTrue($wire['applied'], json_encode($wire));
+        $this->assertSame(PaymentMethodEnum::WIRE->value, $wire['method']);
+        $this->assertSame(PaymentMethodEnum::WIRE, Payment::query()->findOrFail($wire['payment_id'])->method);
+
+        $card = $tool->__invoke(invoice_id: $invoice->getId(), amount: 300.0, reference: 'CARD-9', method: 'Tarjeta');
+        $this->assertSame(PaymentMethodEnum::CARD->value, $card['method']);
+
+        $unnamed = $tool->__invoke(invoice_id: $invoice->getId(), amount: 100.0, reference: 'CHK-77');
+        $this->assertSame(PaymentMethodEnum::CHECK->value, $unnamed['method'], 'no method named keeps the old default');
+
+        $unknown = $tool->__invoke(invoice_id: $invoice->getId(), amount: 100.0, reference: 'X-1', method: 'crypto');
+        $this->assertFalse($unknown['applied']);
+        $this->assertSame('invalid_method', $unknown['reason']);
+        $this->assertStringContainsString('wire, ach, check, cash, card', $unknown['message']);
+        $this->assertSame(200.0, (float) $invoice->fresh()->balance_due_native, 'the unknown method posted nothing');
     }
 
     public function test_apply_ar_payment_posts_an_identical_repeat_once_per_turn(): void

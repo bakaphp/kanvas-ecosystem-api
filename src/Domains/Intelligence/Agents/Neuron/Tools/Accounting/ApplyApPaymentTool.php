@@ -26,9 +26,9 @@ class ApplyApPaymentTool extends AbstractApplyPaymentTool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $bill_id, float $amount, string $reference): array
+    public function __invoke(int $bill_id, float $amount, string $reference, ?string $method = null): array
     {
-        return $this->applyPayment($bill_id, $amount, $reference);
+        return $this->applyPayment($bill_id, $amount, $reference, $method);
     }
 
     #[Override]
@@ -48,15 +48,19 @@ class ApplyApPaymentTool extends AbstractApplyPaymentTool
     }
 
     #[Override]
-    protected function allocatePayment(BaseModel $document, float $amount, string $reference): Payment
-    {
+    protected function allocatePayment(
+        BaseModel $document,
+        float $amount,
+        string $reference,
+        PaymentMethodEnum $method
+    ): Payment {
         /** @var Bill $document */
         return new RecordBillPaymentAction(
             bill: $document,
             amountNative: $amount,
             recordedVia: PaymentRecordedViaEnum::AGENT,
             reference: $reference,
-            method: PaymentMethodEnum::CHECK,
+            method: $method,
             user: $this->user,
         )->execute()->payment;
     }
