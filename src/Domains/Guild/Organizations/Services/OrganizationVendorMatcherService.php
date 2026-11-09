@@ -72,7 +72,9 @@ final class OrganizationVendorMatcherService
         $runnerUpScore = $scored[1]['score'] ?? 0.0;
 
         if ($best['score'] >= self::MIN_SCORE && ($best['score'] - $runnerUpScore) >= self::MIN_MARGIN) {
-            return OrganizationVendorMatchResult::matched($best['organization'], $best['score']);
+            // Scoring reads two columns off up to 2000 rows; the winner goes to callers that read its apps_id,
+            // companies_id and custom fields (the vendor's default expense account), so it is handed back whole.
+            return OrganizationVendorMatchResult::matched(Organization::getById($best['organization']->getKey(), $app), $best['score']);
         }
 
         return OrganizationVendorMatchResult::ambiguous(array_map(

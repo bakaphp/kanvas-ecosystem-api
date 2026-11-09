@@ -50,15 +50,7 @@ class VendorExpenseAccountResolverService
             return null;
         }
 
-        $id = Account::query()
-            ->where('apps_id', $vendor->apps_id)
-            ->where('companies_id', $vendor->companies_id)
-            ->where('account_number', $accountNumber)
-            ->where('is_active', true)
-            ->where('is_deleted', false)
-            ->value('id');
-
-        return $id === null ? null : (int) $id;
+        return Account::activeByNumber((int) $vendor->apps_id, (int) $vendor->companies_id, $accountNumber)?->getId();
     }
 
     private function mostUsedInHistory(Organization $vendor): ?int

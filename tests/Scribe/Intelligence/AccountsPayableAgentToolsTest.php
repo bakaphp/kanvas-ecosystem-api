@@ -28,6 +28,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportVendorApproversTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListGlAccountsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
@@ -42,7 +43,10 @@ use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
+use Kanvas\Scribe\Bills\DataTransferObject\ExpenseAccountCoding;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
+use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
+use Kanvas\Scribe\Bills\Enums\VendorCustomFieldEnum;
 use Kanvas\Scribe\Bills\Exceptions\DuplicateBillNumberException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Services\BillAddresseeService;
@@ -368,6 +372,105 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $this->assertSame('1498', $bill->bill_number);
         $this->assertSame('BB-0G-M1', $bill->lines->first()->subaccount->sub_code);
+    }
+
+    /** Bill 20044: a Sentry invoice dated 2026-09-14 was booked today, every line on Bank Fees copied from another bill. */
+    public function test_create_ap_bill_is_dated_by_the_invoice_and_codes_uncoded_lines_from_the_vendor(): void
+    {
+        $vendor = $this->seedTestOrganization('Sentry Tools Co');
+        $softwareId = $this->accountIdBySubType(AccountSubTypeEnum::SOFTWARE_SUBSCRIPTIONS);
+        $softwareCode = (string) Account::query()->where('id', $softwareId)->value('account_number');
+        $vendor->set(VendorCustomFieldEnum::DEFAULT_EXPENSE_ACCOUNT->value, $softwareCode);
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Sentry Tools Co',
+                memo: 'Team subscription',
+                invoice_number: 'SENTRY-0914',
+                lines: [
+                    ['description' => 'Subscription to Team', 'amount' => 29.0],
+                    ['description' => 'Pay-as-you-go errors', 'amount' => 48.08],
+                ],
+                invoice_date: '2026-09-14',
+                due_date: '2026-09-14',
+            );
+
+        $this->assertTrue($result['created'], json_encode($result));
+        $this->assertSame('2026-09-14', $result['bill_date']);
+        $this->assertSame($softwareCode, $result['gl_account']);
+        $this->assertSame(ExpenseAccountCoding::VENDOR, $result['gl_coding']['source']);
+        $this->assertSame([$softwareCode, $softwareCode], array_column($result['lines'], 'gl_account_number'));
+        $this->assertArrayNotHasKey('coding_note', $result, 'a vendor default is not an AI guess');
+
+        $bill = Bill::query()->where('id', $result['bill_id'])->firstOrFail();
+        $this->assertSame('2026-09-14', $bill->bill_date->toDateString());
+        $this->assertSame([$softwareId, $softwareId], $bill->lines->pluck('expense_account_id')->map(fn ($id) => (int) $id)->all());
+    }
+
+    public function test_create_ap_bill_refuses_a_paid_card_receipt_and_flags_an_invoice_paid_otherwise(): void
+    {
+        $this->seedTestOrganization('Paid Up Co');
+        $code = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+        $tool = new CreateApBillTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $refused = $tool->__invoke(
+            vendor_name: 'Paid Up Co',
+            memo: 'Card receipt',
+            invoice_number: 'CARD-1',
+            amount: 50.0,
+            gl_account_number: $code,
+            payment_status_hint: 'paid',
+            payment_method_hint: 'credit_card',
+        );
+        $this->assertFalse($refused['created']);
+        $this->assertSame('paid_by_card', $refused['reason']);
+        $this->assertStringContainsString('record_company_card_expense', $refused['message']);
+        $this->assertSame(0, Bill::query()->where('companies_id', $this->company->getId())->where('bill_number', 'CARD-1')->count());
+
+        $flagged = $tool->__invoke(
+            vendor_name: 'Paid Up Co',
+            memo: 'Wired already',
+            invoice_number: 'WIRE-1',
+            amount: 50.0,
+            gl_account_number: $code,
+            payment_status_hint: 'paid',
+            payment_method_hint: 'bank_transfer',
+        );
+        $this->assertTrue($flagged['created'], json_encode($flagged));
+        $this->assertSame('paid', $flagged['payment_status_hint']);
+        $this->assertStringContainsString('already paid', $flagged['payment_note']);
+        $this->assertSame(PaymentStatusHintEnum::PAID, Bill::query()->where('id', $flagged['bill_id'])->firstOrFail()->payment_status_hint);
+
+        $badDate = $tool->__invoke(
+            vendor_name: 'Paid Up Co',
+            memo: 'Bad date',
+            invoice_number: 'BAD-DATE',
+            amount: 10.0,
+            gl_account_number: $code,
+            invoice_date: '2026-02-30',
+        );
+        $this->assertSame('invalid_invoice_date', $badDate['reason']);
+    }
+
+    public function test_list_gl_accounts_shows_the_chart_the_agent_codes_against(): void
+    {
+        $softwareCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::SOFTWARE_SUBSCRIPTIONS))
+            ->value('account_number');
+        $tool = new ListGlAccountsTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $expense = $tool->__invoke(type: 'expense');
+        $this->assertTrue($expense['success']);
+        $this->assertContains($softwareCode, array_column($expense['accounts'], 'account_number'));
+        $this->assertSame(['expense'], array_values(array_unique(array_column($expense['accounts'], 'type'))));
+
+        $searched = $tool->__invoke(search: $softwareCode);
+        $this->assertSame([$softwareCode], array_column($searched['accounts'], 'account_number'));
+
+        $this->assertSame(ToolOutcomeEnum::INVALID_ARGS->value, $tool->__invoke(type: 'bogus')['outcome']);
     }
 
     public function test_create_ap_bill_with_approve_immediately_false_submits_for_native_approval(): void

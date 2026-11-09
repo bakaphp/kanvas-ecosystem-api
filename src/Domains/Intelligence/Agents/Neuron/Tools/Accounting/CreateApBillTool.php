@@ -20,8 +20,11 @@ use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
+use Kanvas\Scribe\Bills\DataTransferObject\ExpenseAccountCoding;
+use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Bills\Exceptions\DuplicateBillNumberException;
 use Kanvas\Scribe\Bills\Services\BillAddresseeService;
+use Kanvas\Scribe\Bills\Services\ExpenseAccountCodingService;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
 use Kanvas\Users\Models\Users;
@@ -53,9 +56,11 @@ class CreateApBillTool extends Tool
      */
     private ?array $addresseeOverride = null;
 
-    protected ?string $description = 'Creates an AP bill — one line via amount/gl_account_number, or several via lines when '
-        . 'the invoice has more than one line item — and submits it for human approval (status: pending_approval), '
-        . 'which notifies the approver. An agent never approves its own bill: approve_immediately is accepted but '
+    protected ?string $description = 'Creates an AP bill — one line via amount, or several via lines when the invoice has '
+        . 'more than one line item — dated by invoice_date, and submits it for human approval (status: pending_approval), '
+        . 'which notifies the approver. A line with no gl_account_number is coded from the vendor\'s default or history, '
+        . 'the item catalog or an AI suggestion the approver checks. An invoice already paid by card is refused: that is a '
+        . 'company card expense, not a payable. An agent never approves its own bill: approve_immediately is accepted but '
         . 'still goes through approval. External provider synchronization is handled separately by configured '
         . 'workflow rules.';
 
@@ -76,9 +81,10 @@ class CreateApBillTool extends Tool
             new ToolProperty(
                 name: 'gl_account_number',
                 type: PropertyType::STRING,
-                description: 'The GL expense account number to code the line to, e.g. "71610". Required only '
-                    . 'for a one-line bill — omit it and use lines instead when the invoice has more than one '
-                    . 'line item.',
+                description: 'The GL expense account number for a one-line bill, only when the person named one '
+                    . '(list_gl_accounts shows the chart). Leave it out otherwise: the line is coded from the vendor\'s '
+                    . 'default or history, the item catalog or an AI suggestion the approver checks. Never copy a '
+                    . 'number from another bill.',
                 required: false,
             ),
             new ToolProperty(
@@ -101,8 +107,9 @@ class CreateApBillTool extends Tool
                         new ToolProperty(
                             name: 'gl_account_number',
                             type: PropertyType::STRING,
-                            description: 'The GL expense account number for this line, e.g. "71610".',
-                            required: true,
+                            description: 'The GL expense account number for this line, only when the person named one; '
+                                . 'left out, the line is coded automatically.',
+                            required: false,
                         ),
                         new ToolProperty(
                             name: 'amount',
@@ -154,6 +161,26 @@ class CreateApBillTool extends Tool
                 description: 'The invoice\'s own due/pay-by date, "YYYY-MM-DD" — e.g. extract_invoice_data\'s '
                     . 'own due_date field, when the invoice shows one. Never compute or guess this yourself; '
                     . 'omit it when the invoice does not show a due date.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'invoice_date',
+                type: PropertyType::STRING,
+                description: 'The invoice\'s own issue date, "YYYY-MM-DD" — extract_invoice_data\'s issue_date. The bill '
+                    . 'is dated and aged by it; left out, it is dated today.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'payment_status_hint',
+                type: PropertyType::STRING,
+                description: 'extract_invoice_data\'s payment_status_hint, verbatim: paid, unpaid or unknown.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'payment_method_hint',
+                type: PropertyType::STRING,
+                description: 'extract_invoice_data\'s payment_method_hint, verbatim (e.g. credit_card, bank_transfer). A '
+                    . 'paid card receipt is refused here: book it with record_company_card_expense instead.',
                 required: false,
             ),
             new ToolProperty(
@@ -238,6 +265,9 @@ class CreateApBillTool extends Tool
         ?string $billed_to_tax_id = null,
         ?bool $billed_to_is_this_company = null,
         ?bool $book_anyway = null,
+        ?string $invoice_date = null,
+        ?string $payment_status_hint = null,
+        ?string $payment_method_hint = null,
     ): array {
         $addressee = $this->checkAddressee(
             $billed_to,
@@ -264,6 +294,9 @@ class CreateApBillTool extends Tool
                 $approve_immediately ?? false,
                 $source_email_message_id,
                 $source_attachment_filesystem_id,
+                $invoice_date,
+                $payment_status_hint,
+                $payment_method_hint,
             )
         );
     }
@@ -286,6 +319,9 @@ class CreateApBillTool extends Tool
         bool $approve_immediately,
         ?string $source_email_message_id,
         ?int $source_attachment_filesystem_id,
+        ?string $invoice_date,
+        ?string $payment_status_hint,
+        ?string $payment_method_hint,
     ): array {
         $app = $this->app;
         $company = $this->company;
@@ -306,12 +342,38 @@ class CreateApBillTool extends Tool
             ];
         }
 
-        if (($lines === null || $lines === []) && ($amount === null || trim((string) $gl_account_number) === '')) {
+        if (($lines === null || $lines === []) && $amount === null) {
             return [
                 'created' => false,
                 'reason' => 'lines_or_amount_required',
-                'message' => 'Provide either lines (multi-line) or both amount and gl_account_number (one-line).',
+                'message' => 'Provide either lines (multi-line) or amount (one-line).',
             ];
+        }
+
+        $paymentStatus = PaymentStatusHintEnum::tryFrom(strtolower((string) Str::trimToNull($payment_status_hint)));
+        $paymentMethod = strtolower((string) Str::trimToNull($payment_method_hint));
+
+        if ($paymentStatus === PaymentStatusHintEnum::PAID && str_contains($paymentMethod, 'card')) {
+            return [
+                'created' => false,
+                'reason' => 'paid_by_card',
+                'message' => "The invoice shows it was already paid by card ({$paymentMethod}). A paid card charge is not a "
+                    . 'payable, so nothing was created. Book it as a company card expense: extract_expense_receipt on the '
+                    . 'same file, then record_company_card_expense with the amount, date and merchant it returns. That '
+                    . 'tool loads only when a person is asking; on an unattended turn, report the invoice and leave it.',
+            ];
+        }
+
+        [$invoiceDate, $invalidDate] = $this->dateArgument('invoice_date', $invoice_date, 'to date the bill today');
+
+        if ($invalidDate !== null) {
+            return $invalidDate;
+        }
+
+        [$dueDate, $invalidDate] = $this->dateArgument('due_date', $due_date, 'when the invoice shows none');
+
+        if ($invalidDate !== null) {
+            return $invalidDate;
         }
 
         $match = OrganizationVendorMatcherService::match($app, $company, $vendor_name);
@@ -339,7 +401,13 @@ class CreateApBillTool extends Tool
             'subaccount' => $subaccount,
         ]];
 
-        $built = $this->buildBillLines($lineInputs, $memo, $subaccount);
+        $built = $this->buildBillLines(
+            $lineInputs,
+            $memo,
+            $subaccount,
+            $vendor,
+            $vendorDisplayName
+        );
 
         if (isset($built['error'])) {
             return $built['error'];
@@ -347,20 +415,11 @@ class CreateApBillTool extends Tool
 
         $billLines = $built['lines'];
         $totalAmount = $built['total'];
+        $glAccountNumbers = $built['gl_account_numbers'];
+        $coding = $built['coding'];
 
         $currency = $currency !== null && trim($currency) !== '' ? strtoupper(trim($currency)) : 'USD';
         $actingUser = $this->user;
-        $dueDay = Str::trimToNull($due_date);
-        $parsedDueDate = $dueDay !== null ? DateHelper::parseYmd($dueDay) : null;
-
-        if ($dueDay !== null && $parsedDueDate === null) {
-            return [
-                'created' => false,
-                'reason' => 'invalid_due_date',
-                'message' => "due_date \"{$dueDay}\" is not a date in YYYY-MM-DD form. Nothing was created: pass the invoice's "
-                    . 'own due date as YYYY-MM-DD, or omit it when the invoice shows none.',
-            ];
-        }
 
         try {
             $bill = new CreateBillAction(
@@ -372,8 +431,8 @@ class CreateApBillTool extends Tool
                     currency: $currency,
                     fx_rate_to_base: 1.0,
                     bill_number: $invoice_number,
-                    bill_date: Carbon::today(),
-                    due_date: $parsedDueDate !== null ? Carbon::instance($parsedDueDate) : null,
+                    bill_date: $invoiceDate ?? Carbon::today(),
+                    due_date: $dueDate,
                     notes: $memo,
                 ),
                 $actingUser,
@@ -388,6 +447,22 @@ class CreateApBillTool extends Tool
 
         if ($this->addresseeOverride !== null) {
             $bill->metadata = [...($bill->metadata ?? []), BillAddresseeService::METADATA_KEY => $this->addresseeOverride];
+        }
+
+        if ($paymentStatus !== null) {
+            $bill->payment_status_hint = $paymentStatus;
+        }
+
+        // The approver is the check on an AI coding, so the approval carries how sure it was.
+        if ($coding !== null && $coding->isSuggestion()) {
+            $bill->appendInternalNote(sprintf(
+                'Expense account suggested by AI (confidence %d%%): %s Check the coding before approving.',
+                (int) round($coding->confidence * 100),
+                (string) $coding->reasoning,
+            ));
+        }
+
+        if ($bill->isDirty()) {
             $bill->saveOrFail();
         }
 
@@ -412,9 +487,12 @@ class CreateApBillTool extends Tool
             'vendor' => $vendorDisplayName,
             'amount' => $totalAmount,
             'currency' => $currency,
-            'gl_account' => $gl_account_number,
+            'bill_date' => $bill->bill_date?->toDateString(),
+            'due_date' => $bill->due_date?->toDateString(),
+            'gl_account' => count(array_unique($glAccountNumbers)) === 1 ? $glAccountNumbers[0] : null,
             'subaccount' => $subaccount,
             'memo' => $memo,
+            'payment_status_hint' => $bill->payment_status_hint->value,
             'remaining_balance' => (float) $bill->balance_due_native,
             'approved_by_flag' => $routed || $request === null ? '' : 'NOT IN APPROVER LIST',
             'next' => match (true) {
@@ -428,13 +506,36 @@ class CreateApBillTool extends Tool
 
         if ($isMultiLine) {
             $result['lines'] = array_map(
-                static fn (array $line): array => [
-                    'gl_account_number' => (string) ($line['gl_account_number'] ?? ''),
+                static fn (array $line, string $glAccountNumber): array => [
+                    'gl_account_number' => $glAccountNumber,
                     'amount' => (float) ($line['amount'] ?? 0),
                     'description' => (string) ($line['description'] ?? $memo),
                 ],
-                $lineInputs,
+                array_values($lineInputs),
+                $glAccountNumbers,
             );
+        }
+
+        if ($coding !== null) {
+            $result['gl_coding'] = [
+                'source' => $coding->source,
+                'confidence' => $coding->confidence,
+                'reasoning' => $coding->reasoning,
+            ];
+
+            if ($coding->isSuggestion()) {
+                $result['coding_note'] = sprintf(
+                    'The expense account was suggested by AI (confidence %d%%), not taken from the vendor or the invoice: '
+                    . 'name the account to the person and say the approver checks the coding.',
+                    (int) round($coding->confidence * 100),
+                );
+            }
+        }
+
+        if ($paymentStatus === PaymentStatusHintEnum::PAID) {
+            $result['payment_note'] = 'The vendor shows this invoice as already paid. It still waits for its approver; once '
+                . 'approved, record the payment with record_bill_payment using the reference the person gives, or let '
+                . 'the bank statement match it. Say it is pending approval and marked as already paid.';
         }
 
         if ($hasSourceEmail && ! $hasAttachment) {
@@ -451,34 +552,66 @@ class CreateApBillTool extends Tool
     }
 
     /**
+     * A line without a gl_account_number is coded the way the inbox codes an uncoded PDF (vendor default or
+     * history, the item catalog, then an AI suggestion the approver checks): a model picking a number off another
+     * bill is how a software subscription landed on Bank Fees.
+     *
      * @param array<int, array{gl_account_number?: string, amount?: float|int|string, description?: string, subaccount?: string}> $lineInputs
      *
-     * @return array{lines: list<BillLineData>, total: float}|array{error: array<string, mixed>}
+     * @return array{lines: list<BillLineData>, total: float, gl_account_numbers: list<string>, coding: ExpenseAccountCoding|null}|array{error: array<string, mixed>}
      */
-    private function buildBillLines(array $lineInputs, string $fallbackDescription, ?string $fallbackSubaccount): array
-    {
+    private function buildBillLines(
+        array $lineInputs,
+        string $fallbackDescription,
+        ?string $fallbackSubaccount,
+        Organization $vendor,
+        string $vendorDisplayName,
+    ): array {
+        $needsCoding = array_any(
+            $lineInputs,
+            static fn (array $line): bool => trim((string) ($line['gl_account_number'] ?? '')) === ''
+        );
+        $coding = $needsCoding
+            ? new ExpenseAccountCodingService()->code(
+                $this->app,
+                $this->company,
+                $vendor,
+                $vendorDisplayName,
+                $this->lineDescriptions($lineInputs, $fallbackDescription)
+            )
+            : null;
+        $codedAccount = $coding !== null ? Account::query()->whereKey($coding->accountId)->first() : null;
+
         $lines = [];
+        $numbers = [];
         $total = 0.0;
 
         foreach ($lineInputs as $line) {
             $lineGlAccount = trim((string) ($line['gl_account_number'] ?? ''));
             $lineAmount = (float) ($line['amount'] ?? 0);
+            $description = (string) ($line['description'] ?? $fallbackDescription);
 
-            if ($lineGlAccount === '' || $lineAmount <= 0) {
+            if ($lineAmount <= 0) {
                 return ['error' => [
                     'created' => false,
                     'reason' => 'line_invalid',
-                    'message' => 'Every line needs a gl_account_number and a positive amount.',
+                    'message' => 'Every line needs a positive amount.',
                 ]];
             }
 
-            $account = Account::query()
-                ->where('apps_id', $this->app->getId())
-                ->where('companies_id', $this->company->getId())
-                ->where('account_number', $lineGlAccount)
-                ->where('is_active', true)
-                ->notDeleted()
-                ->first();
+            if ($lineGlAccount === '' && $codedAccount === null) {
+                return ['error' => [
+                    'created' => false,
+                    'reason' => 'account_required',
+                    'message' => "No GL account was given for \"{$description}\" and none could be coded for "
+                        . "{$vendorDisplayName}. Nothing was created: ask the person which expense account it belongs "
+                        . 'to (list_gl_accounts shows the chart) and call again with gl_account_number on that line.',
+                ]];
+            }
+
+            $account = $lineGlAccount !== ''
+                ? Account::activeByNumber($this->app->getId(), $this->company->getId(), $lineGlAccount)
+                : $codedAccount;
 
             if ($account === null) {
                 return ['error' => [
@@ -491,16 +624,58 @@ class CreateApBillTool extends Tool
             $lineSubaccount = trim((string) ($line['subaccount'] ?? '')) ?: $fallbackSubaccount;
 
             $lines[] = new BillLineData(
-                description: (string) ($line['description'] ?? $fallbackDescription),
+                description: $description,
                 quantity: 1.0,
                 unit_price_native: $lineAmount,
                 expense_account_id: $account->getId(),
                 subaccount_id: $this->resolveSubaccountId($lineSubaccount),
             );
+            $numbers[] = (string) $account->account_number;
             $total += $lineAmount;
         }
 
-        return ['lines' => $lines, 'total' => $total];
+        return ['lines' => $lines, 'total' => $total, 'gl_account_numbers' => $numbers, 'coding' => $coding];
+    }
+
+    /**
+     * The parsed date, or the refusal to hand back: Carbon::parse() would turn "next week" or 2026-02-30 into some
+     * other day, and a bill dated or due on the wrong day is worse than none.
+     *
+     * @return array{0: Carbon|null, 1: array<string, mixed>|null}
+     */
+    private function dateArgument(string $name, ?string $value, string $whenOmitted): array
+    {
+        $day = Str::trimToNull($value);
+
+        if ($day === null) {
+            return [null, null];
+        }
+
+        $parsed = DateHelper::parseYmd($day);
+
+        if ($parsed === null) {
+            return [null, [
+                'created' => false,
+                'reason' => "invalid_{$name}",
+                'message' => "{$name} \"{$day}\" is not a date in YYYY-MM-DD form. Nothing was created: pass the invoice's "
+                    . "own {$name} as YYYY-MM-DD, or omit it {$whenOmitted}.",
+            ]];
+        }
+
+        return [Carbon::instance($parsed), null];
+    }
+
+    /**
+     * @param array<int, array{description?: string}> $lineInputs
+     *
+     * @return list<string>
+     */
+    private function lineDescriptions(array $lineInputs, string $fallbackDescription): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (array $line): string => trim((string) ($line['description'] ?? $fallbackDescription)),
+            $lineInputs,
+        )));
     }
 
     /**

@@ -271,12 +271,6 @@ class CreateArCreditMemoTool extends Tool
 
     private function resolveAccount(string $accountNumber): ?Account
     {
-        return Account::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('account_number', $accountNumber)
-            ->where('is_active', true)
-            ->notDeleted()
-            ->first();
+        return Account::activeByNumber($this->app->getId(), $this->company->getId(), $accountNumber);
     }
 }

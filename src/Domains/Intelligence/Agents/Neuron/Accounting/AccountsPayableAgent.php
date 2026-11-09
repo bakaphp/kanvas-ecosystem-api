@@ -27,6 +27,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportVendorApproversTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\IngestBankStatementTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\IssuePurchaseEcfTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListGlAccountsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListSuspenseTool;
@@ -100,6 +101,7 @@ class AccountsPayableAgent extends SystemUserAgent
             new FindPurchaseOrderTool(),
             new FindBillTool(),
             new FindVendorTool(),
+            new ListGlAccountsTool(),
             new CheckRncTool(),
             new GetOrganizationTool(),
             new CreateOrganizationTool(),
@@ -290,7 +292,13 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'read_email_details → download_attachment → extract_invoice_data (Gmail), or, if this message '
             . 'already carries a `[Attached file...]` marker, extract_invoice_data(filesystem_id) directly. '
             . '(2) create_ap_bill with source_attachment_filesystem_id set to the '
-            . 'file\'s filesystem_id from step 1, using that real data. '
+            . 'file\'s filesystem_id from step 1, using that real data. Pass invoice_date from its issue_date (the '
+            . 'bill is dated and aged by it) and payment_status_hint / payment_method_hint verbatim: an invoice already '
+            . 'paid by card is a company card expense (extract_expense_receipt → record_company_card_expense), not a '
+            . 'bill, and create_ap_bill refuses it. Leave gl_account_number out unless the person named an account: '
+            . 'the line is coded from the vendor\'s default or history, the item catalog or an AI suggestion the '
+            . 'approver checks, and the result says which; list_gl_accounts shows the chart when someone asks for a '
+            . 'specific account. Never copy a GL number from another bill. '
             . 'Pass due_date verbatim from extract_invoice_data\'s own due_date field when the invoice shows '
             . 'one — never compute or guess it yourself, and never leave it out just because computing it '
             . 'looked hard. If the invoice has more than one line item, pass all of them via the lines param, '
