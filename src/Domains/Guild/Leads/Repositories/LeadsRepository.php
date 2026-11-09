@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Repositories;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Traits\SearchableTrait;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Override;
@@ -68,6 +70,25 @@ class LeadsRepository
         return self::getPeopleActiveLeads($people)
                         ->orderBy('id', 'desc')
                         ->first();
+    }
+
+    /**
+     * Every web lead creates its own People row, so one address usually sits on several of them.
+     * Picking a person first and then their lead misses the live lead whenever the person picked is
+     * an older duplicate whose leads are all closed.
+     */
+    public static function getActiveLeadByEmail(string $email, CompanyInterface $company, AppInterface $app): ?Lead
+    {
+        $activeStatuses = self::mappedStatusNames($company, 'active', ['active', 'created']);
+
+        /** @psalm-suppress LessSpecificReturnStatement */
+        return Lead::fromApp($app)
+                    ->fromCompany($company)
+                    ->notDeleted()
+                    ->whereIn('people_id', PeoplesRepository::queryByEmail($email, $company, $app)->select('p.id'))
+                    ->whereHas('status', fn ($query) => $query->whereIn('name', $activeStatuses))
+                    ->orderBy('id', 'desc')
+                    ->first();
     }
 
     public static function getPeopleLastLead(People $people): ?Lead

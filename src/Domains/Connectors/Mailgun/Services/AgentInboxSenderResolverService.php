@@ -40,12 +40,18 @@ class AgentInboxSenderResolverService
             // Not a teammate — fall through to the CRM side.
         }
 
+        // The live lead when there is one: it carries the AI-mode switch, the follow-up state and
+        // the email thread anchor the responder needs to answer in context.
+        $lead = LeadsRepository::getActiveLeadByEmail($email, $company, $app);
+
+        if ($lead !== null) {
+            return $lead;
+        }
+
         $people = PeoplesRepository::getByEmail($email, $company, $app);
 
         if ($people instanceof People) {
-            // The live lead when there is one: it carries the AI-mode switch, the follow-up state and
-            // the email thread anchor the responder needs to answer in context.
-            return LeadsRepository::getPeopleActiveLead($people) ?? $people;
+            return $people;
         }
 
         if (! new AgentMailboxService()->accessFor($this->agent)->allowsUnknownSenders()) {

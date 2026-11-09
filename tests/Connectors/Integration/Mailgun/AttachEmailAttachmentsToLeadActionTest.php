@@ -111,6 +111,43 @@ class AttachEmailAttachmentsToLeadActionTest extends TestCase
     }
 
     /**
+     * An older lead-less person with the same address used to win the people lookup, so the email
+     * was filed against no lead and the responder never fired.
+     */
+    public function testInboundLeadEmailReachesTheActiveLeadWhenAnOlderPersonSharesTheAddress(): void
+    {
+        $email = 'customer-' . uniqid() . '@example.com';
+        $olderPerson = $this->createLead()->people;
+        $olderPerson->leads()->update(['is_deleted' => 1]);
+        $olderPerson->contacts()->create([
+            'contacts_types_id' => 1,
+            'value' => $email,
+            'weight' => 100,
+        ]);
+
+        $lead = $this->createLead();
+        $lead->email = $email;
+        $lead->saveQuietly();
+        $lead->people->contacts()->create([
+            'contacts_types_id' => 1,
+            'value' => $email,
+            'weight' => 100,
+        ]);
+        $webhookCall = $this->buildWebhookCall([
+            'sender' => $email,
+            'from' => 'Customer <' . $email . '>',
+            'subject' => 'Question',
+            'body-plain' => 'Is it still available?',
+            'stripped-text' => 'Is it still available?',
+            'Message-Id' => '<shared-' . uniqid() . '@example.com>',
+        ], []);
+
+        new AgentProcessEmailWebhookJob($webhookCall)->execute();
+
+        $this->assertTrue($lead->fresh()->tags()->where('name', 'engaged')->exists());
+    }
+
+    /**
      * Gmail gives every attachment a Content-ID whether it is embedded or not, so the map on its own
      * threw away files senders had attached on purpose.
      */
