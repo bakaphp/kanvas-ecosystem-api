@@ -38,7 +38,7 @@ class Contact
         $this->dealerTeam = $data['DealerTeam'] ?? [];
         $this->leadInformation = $data['leadInformation'] ?? [];
         $this->personalInformation = $data['PersonalInformation'] ?? [];
-        $this->addresses = $data['Addresses'] ?? [];
+        $this->addresses = $this->information['Addresses'] ?? $data['Addresses'] ?? [];
         $this->licenseData = $data['LicenseData'] ?? [];
     }
 
