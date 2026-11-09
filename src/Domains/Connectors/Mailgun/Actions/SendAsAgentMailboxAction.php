@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\Mailgun\Actions;
 
 use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
+use Closure;
+use Kanvas\Communication\Messages\DataTransferObject\Content;
 use Kanvas\Connectors\Mailgun\Client;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
@@ -15,6 +17,8 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Support\UserEmailSignature;
+use Kanvas\Social\Messages\Models\Message;
+use Throwable;
 
 /**
  * Ships one email from an agent's own address through Mailgun's API.
@@ -55,6 +59,12 @@ class SendAsAgentMailboxAction
         // open also marks that exact slot opened; people_id alone is ambiguous once the same person
         // sits in several campaigns.
         private readonly ?CampaignRecipient $trackingCampaignRecipient = null,
+        // The stored message this mail ships, when the caller wrote it before sending (an agent's
+        // reply); its `delivery` is written right away, accepted or refused.
+        private readonly ?Message $trackingMessage = null,
+        // The sender's own id for this send, used as the delivery's uuid so a send Mailgun refuses
+        // (no Message-Id) can still be linked to the message written afterwards.
+        private readonly ?string $attemptUuid = null,
     ) {
     }
 
@@ -75,21 +85,58 @@ class SendAsAgentMailboxAction
             throw new ValidationException('Outbound email has no recipient');
         }
 
-        return new Client($this->agent->app)->sendMessage(
-            domain: $mailboxService->domainFor($this->agent),
-            from: $this->agent->name . ' <' . $address . '>',
-            to: $this->to,
-            subject: $this->subject,
-            text: $this->markdownBody . ($this->signature !== null ? "\n\nBest Regards,\n" . $this->signature->text : ''),
-            html: MarkdownEmailRenderer::toEmailHtml($this->markdownBody) . ($this->signature?->toHtml() ?? ''),
-            // Reply-To is not caller-overridable: an answer that lands anywhere but the agent's own
-            // inbox never reaches the agent, which is the entire point of giving it an address.
-            headers: array_merge($this->headers, ['Reply-To' => $address]),
-            cc: $this->cc,
-            attachments: $this->fetchAttachments(),
-            trackOpens: $this->trackingPerson !== null,
-            variables: $this->trackingVariables(),
-        );
+        $attachments = $this->fetchAttachments();
+
+        try {
+            $messageId = new Client($this->agent->app)->sendMessage(
+                domain: $mailboxService->domainFor($this->agent),
+                from: $this->agent->name . ' <' . $address . '>',
+                to: $this->to,
+                subject: $this->subject,
+                text: $this->markdownBody . ($this->signature !== null ? "\n\nBest Regards,\n" . $this->signature->text : ''),
+                html: MarkdownEmailRenderer::toEmailHtml($this->markdownBody) . ($this->signature?->toHtml() ?? ''),
+                // Reply-To is not caller-overridable: an answer that lands anywhere but the agent's own
+                // inbox never reaches the agent, which is the entire point of giving it an address.
+                headers: array_merge($this->headers, ['Reply-To' => $address]),
+                cc: $this->cc,
+                attachments: $attachments,
+                trackOpens: $this->trackingPerson !== null,
+                variables: $this->trackingVariables(),
+            );
+        } catch (ValidationException $exception) {
+            // Mailgun answered and refused (Client::assertOk); a connection error is not a verdict on
+            // the email and stays unrecorded, so the caller's retry is not shown as a failure.
+            $this->fileDelivery(fn (FileEmailDeliveryAction $file) => $file->refused($exception->getMessage()));
+
+            throw $exception;
+        }
+
+        if ($messageId !== '') {
+            $this->fileDelivery(fn (FileEmailDeliveryAction $file) => $file->accepted($messageId));
+        }
+
+        return $messageId;
+    }
+
+    /**
+     * Filing the delivery is bookkeeping: a failure here must not read as a failed send, or a caller
+     * that retries on failure mails the person twice.
+     */
+    private function fileDelivery(Closure $file): void
+    {
+        try {
+            $file(new FileEmailDeliveryAction(
+                agent: $this->agent,
+                to: $this->to,
+                content: Content::text($this->markdownBody)->withSubject($this->subject),
+                people: $this->trackingPerson,
+                message: $this->trackingMessage,
+                campaignRecipient: $this->trackingCampaignRecipient,
+                uuid: $this->attemptUuid,
+            ));
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 
     /**

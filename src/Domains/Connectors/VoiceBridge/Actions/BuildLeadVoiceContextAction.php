@@ -8,7 +8,6 @@ use Baka\Support\Str;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\SystemModules\Models\SystemModules;
 
@@ -55,7 +54,7 @@ class BuildLeadVoiceContextAction
         $background = $this->agent->roleSection('background');
         $steps = $this->agent->roleSection('steps');
 
-        $leadContext = $this->lead->get(IntelligenceConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [];
+        $leadContext = $this->lead->getAiContextInfo();
 
         $task = $leadContext;
         unset($task['instructions']);

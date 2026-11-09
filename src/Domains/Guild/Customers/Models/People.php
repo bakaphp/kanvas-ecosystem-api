@@ -563,6 +563,28 @@ class People extends BaseModel implements ExposesTemplateData
             ->count();
     }
 
+    public function markEmailBounced(string $email): int
+    {
+        return $this->emailContactsMatching($email)
+            ->each(fn (Contact $contact): bool => $contact->markBounce(permanent: true))
+            ->count();
+    }
+
+    protected function emailContactsMatching(string $email): Collection
+    {
+        $normalizedEmail = Contact::normalizeValue($email, ContactTypeEnum::EMAIL->value);
+
+        return $this->contacts()
+            ->whereIn('contacts_types_id', Contact::EMAIL_TYPES)
+            ->get()
+            ->filter(
+                fn (Contact $contact): bool => Contact::normalizeValue(
+                    $contact->value,
+                    $contact->contacts_types_id,
+                ) === $normalizedEmail,
+            );
+    }
+
     protected function phoneContactsMatching(string $phoneNumber): Collection
     {
         $normalizedPhone = Contact::normalizeValue(

@@ -298,6 +298,17 @@ class AgentProviderService
         ];
     }
 
+    /**
+     * The LLM config the agent answers phone calls with (voice_config.llm_config_id). Separate from
+     * selectedConfig(), which is its chat config, so calls can run a faster model than chat.
+     */
+    public static function voiceConfig(Agent $agent): ?AgentLlmConfig
+    {
+        $configId = (int) ($agent->voice_config['llm_config_id'] ?? 0);
+
+        return $configId > 0 ? self::activeConfig($agent, $configId, includeGlobal: false) : null;
+    }
+
     public static function selectedConfig(Agent $agent): ?AgentLlmConfig
     {
         if ($agent->agent_llm_config_id === null) {

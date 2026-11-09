@@ -920,6 +920,24 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         return $query;
     }
 
+    /**
+     * LEAD_CONTEXT_INFO is the BDC pipeline's array context, but legacy voice captures left a
+     * plain string in it, which array_merge() and indexing readers can't take. A string comes
+     * back under `voice_context`.
+     *
+     * @return array<string, mixed>
+     */
+    public function getAiContextInfo(): array
+    {
+        $value = $this->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value);
+
+        return match (true) {
+            is_array($value) => $value,
+            is_string($value) && trim($value) !== '' => ['voice_context' => trim($value)],
+            default => [],
+        };
+    }
+
     public function getCurrentPipelineStage(): ?PipelineStage
     {
         if ($this->pipeline_stage_id) {

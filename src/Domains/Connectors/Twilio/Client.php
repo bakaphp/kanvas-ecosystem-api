@@ -46,6 +46,13 @@ final class Client
         }
     }
 
+    public static function ownsPhoneNumber(string $sid, string $token, string $phoneNumber): bool
+    {
+        $client = new TwilioClient($sid, $token);
+
+        return $client->incomingPhoneNumbers->read(['phoneNumber' => $phoneNumber], 1) !== [];
+    }
+
     /**
      * Get Twilio API credentials from app configuration.
      *

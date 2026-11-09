@@ -20,6 +20,19 @@ type AgentAvailablePhoneNumber {
     provider_id: String!
 }
 
+"Where the agent number picker's list comes from: the acting company's Twilio account."
+type AgentPhoneNumberSource {
+    provider: String!
+    company_name: String
+    account_name: String
+    "Last 4 characters of the Twilio account SID."
+    account_sid_suffix: String
+    "Numbers on the account, including ones other agents hold."
+    number_count: Int!
+    "Why the list could not be loaded (missing credentials, Twilio refused), when it failed."
+    error: String
+}
+
 type AgentTestCallResult {
     call_id: String
     twilio_sid: String
@@ -33,6 +46,11 @@ extend type Query @guard {
     agentAvailablePhoneNumbers(id: ID): [AgentAvailablePhoneNumber!]!
         @field(
             resolver: "App\\GraphQL\\Connector\\Twilio\\Queries\\TwilioPhoneNumbersQuery@available"
+        )
+    "Which Twilio account and company agentAvailablePhoneNumbers lists from, or why it is empty."
+    agentPhoneNumberSource: AgentPhoneNumberSource!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Twilio\\Queries\\TwilioPhoneNumbersQuery@source"
         )
 }
 

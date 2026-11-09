@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Services;
 
+use Baka\Support\Str;
+use Illuminate\Support\Carbon;
+
 /**
  * Reads Mailgun's event-webhook payload (opened/clicked/delivered/…) — a JSON body shaped as
  * `{signature: {...}, event-data: {...}}`, structurally nothing like the form-encoded inbound-route
@@ -33,6 +36,42 @@ class MailgunEngagementPayloadService
     public function messageId(): string
     {
         return (string) ($this->eventData['message']['headers']['message-id'] ?? '');
+    }
+
+    /** `temporary` or `permanent` on a `failed` event — Mailgun retries the first, the second is final. */
+    public function severity(): string
+    {
+        return strtolower(trim((string) ($this->eventData['severity'] ?? '')));
+    }
+
+    /** The receiving server's SMTP code on a failure (550, 421…), or Mailgun's own (605 for a suppressed address). */
+    public function deliveryStatusCode(): ?int
+    {
+        $code = $this->eventData['delivery-status']['code'] ?? null;
+
+        return is_numeric($code) ? (int) $code : null;
+    }
+
+    public function deliveryStatusMessage(): ?string
+    {
+        $status = $this->eventData['delivery-status'] ?? [];
+
+        return Str::trimToNull((string) ($status['description'] ?? ''))
+            ?? Str::trimToNull((string) ($status['message'] ?? ''))
+            ?? Str::trimToNull((string) ($this->eventData['reason'] ?? ''));
+    }
+
+    public function occurredAt(): ?Carbon
+    {
+        $timestamp = $this->eventData['timestamp'] ?? null;
+
+        return is_numeric($timestamp) ? Carbon::createFromTimestamp((float) $timestamp) : null;
+    }
+
+    /** @return array<string, mixed> */
+    public function eventData(): array
+    {
+        return $this->eventData;
     }
 
     /**
