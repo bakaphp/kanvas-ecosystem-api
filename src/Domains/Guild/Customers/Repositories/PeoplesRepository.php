@@ -49,6 +49,11 @@ class PeoplesRepository
         /**
          * @psalm-suppress MixedReturnStatement
          */
+        return self::queryByEmail($email, $company, $app)->select('p.*')->first();
+    }
+
+    public static function queryByEmail(string $email, CompanyInterface $company, ?AppInterface $app = null): Builder
+    {
         $query = People::from('peoples as p')
             ->withoutGlobalScopes()
             ->join('peoples_contacts as c', 'p.id', '=', 'c.peoples_id')
@@ -62,7 +67,7 @@ class PeoplesRepository
             $query->where('p.apps_id', $app->getId());
         }
 
-        return $query->select('p.*')->first();
+        return $query;
     }
 
     public static function getByValue(string $value, CompanyInterface $company, AppInterface $app): ?People

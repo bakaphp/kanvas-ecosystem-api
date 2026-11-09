@@ -38,20 +38,14 @@ class AgentProcessEmailWebhookJob extends ProcessWebhookJob
     public function execute(): array
     {
         $from = $this->webhookRequest->payload['sender'] ?? null;
-        $lead = null;
+        $company = $this->webhookRequest->receiverWebhook->company;
+        $app = $this->webhookRequest->receiverWebhook->app;
 
-        $people = PeoplesRepository::getByEmail(
-            $from,
-            $this->webhookRequest->receiverWebhook->company,
-            $this->webhookRequest->receiverWebhook->app,
-        );
+        $lead = LeadsRepository::getActiveLeadByEmail($from, $company, $app);
+        $people = $lead?->people ?? PeoplesRepository::getByEmail($from, $company, $app);
 
-        if ($people !== null) {
-            $lead = LeadsRepository::getPeopleActiveLead($people);
-
-            if ($lead === null && (bool) $this->webhookRequest->receiverWebhook->company->get('use_last_lead_on_responder')) {
-                $lead = LeadsRepository::getPeopleLastLead($people);
-            }
+        if ($lead === null && $people !== null && (bool) $company->get('use_last_lead_on_responder')) {
+            $lead = LeadsRepository::getPeopleLastLead($people);
         }
 
         // Ahead of CreateMessageFromEmailAction, because that is what fires the responder workflow.
