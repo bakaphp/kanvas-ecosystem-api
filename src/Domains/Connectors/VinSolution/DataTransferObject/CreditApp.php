@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\DataTransferObject;
 
+use Baka\Support\Str;
 use DateTime;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Support\Phone;
@@ -57,7 +58,7 @@ class CreditApp extends Data
                     'City' => $formData['housing']['city']['name'] ?? ($formData['housing']['city'] ?? ''),
                     'State' => $formData['housing']['state']['code'] ?? '',
                     ///'County' => $formData['housing']['county'] ?? 'N/A',
-                    'PostalCode' => ! empty($formData['housing']['zip_code']) ? static::cleanZipCode((string) $formData['housing']['zip_code']) : '',
+                    'PostalCode' => ! empty($formData['housing']['zip_code']) ? Str::digitsOnly((string) $formData['housing']['zip_code']) : '',
                     'Duration' => isset($formData['housing']['time_at_address']) && ! empty($formData['housing']['time_at_address']) ? (string) $formData['housing']['time_at_address'] : '0',
                 ],
             ],
@@ -87,7 +88,7 @@ class CreditApp extends Data
                         'StreetAddress2' => $formData['financial']['current_employer_address_line2'] ?? '',
                         'City' => $formData['financial']['city'] ?? '',
                         'State' => $currentEmployerState?->code ?? $defaultState,
-                        'PostalCode' => ! empty($formData['financial']['zip_code']) ? static::cleanZipCode((string) $formData['financial']['zip_code']) : '',
+                        'PostalCode' => ! empty($formData['financial']['zip_code']) ? Str::digitsOnly((string) $formData['financial']['zip_code']) : '',
                     ],
                 ],
                 'PreviousEmploymentInformation' => [
@@ -100,7 +101,7 @@ class CreditApp extends Data
                         'StreetAddress2' => $formData['financial']['previous_employer_address_line2'] ?? '',
                         'City' => $formData['financial']['previous_city']['name'] ?? '',
                         'State' => $previousEmployerStateId > 0 ? ($previousEmployersState?->code ?? $defaultState) : '',
-                        'PostalCode' => ! empty($formData['financial']['previous_zip_code']) ? static::cleanZipCode((string) $formData['financial']['previous_zip_code']) : '',
+                        'PostalCode' => ! empty($formData['financial']['previous_zip_code']) ? Str::digitsOnly((string) $formData['financial']['previous_zip_code']) : '',
                     ],
                 ],
                 'BankInformation' => [
@@ -151,12 +152,6 @@ class CreditApp extends Data
             personalInformation: $result['personalInformation'],
             licenseData: $result['licenseData']
         );
-    }
-
-    protected static function cleanZipCode(string $zipCode): string
-    {
-        //limit to only 5 digits to 9 digits
-        return preg_replace('/\D/', '', $zipCode);
     }
 
     /**
