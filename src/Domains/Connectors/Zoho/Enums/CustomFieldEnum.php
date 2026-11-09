@@ -42,4 +42,10 @@ enum CustomFieldEnum: string
      * push to Zoho is still queued, the push uses this owner and leaves out Lead_Source.
      */
     case ZOHO_DUPLICATE_OWNER_ID = 'ZOHO_DUPLICATE_OWNER_ID';
+
+    /**
+     * Company setting: the Zoho Lead_Status picklist label (e.g. "Hot") a lead moves to once a Get Docs
+     * submission carries at least one file. Unset means the submission changes no status.
+     */
+    case ZOHO_GET_DOCS_LEAD_STATUS = 'ZOHO_GET_DOCS_LEAD_STATUS';
 }

@@ -13,6 +13,8 @@ use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\Communication\Messages\DataTransferObject\Content;
+use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Connectors\Mailgun\Actions\FileEmailDeliveryAction;
 use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
@@ -1001,6 +1003,7 @@ class SendMessageToLeadAction
             ];
         }
 
+        $markdownBody = $message;
         // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
         $message = MarkdownEmailRenderer::toEmailHtml($message);
         $template = $this->resolveEmailTemplate();
@@ -1024,9 +1027,23 @@ class SendMessageToLeadAction
         if ($ccList !== []) {
             $notification->setCc($ccList);
         }
+
+        $delivery = FileEmailDeliveryAction::sendsOnMailgunSmtp($this->lead->app, $this->lead->company)
+            ? new FileEmailDeliveryAction(
+                app: $this->lead->app,
+                company: $this->lead->company,
+                sender: Sender::speaking($fromAgent, $this->signatureOwner),
+                to: $leadEmail,
+                content: Content::text($markdownBody)->withSubject($subject),
+                people: $this->lead->people,
+                campaignRecipient: $this->campaignRecipient,
+                uuid: $this->attemptUuid,
+            )->sending($notification)
+            : null;
+
         Notification::route('mail', $leadEmail)->notify($notification);
 
-        return $this->emailResult(
+        $result = $this->emailResult(
             to: $leadEmail,
             ccList: $ccList,
             body: $message,
@@ -1035,6 +1052,18 @@ class SendMessageToLeadAction
             template: $template,
             signature: $signature,
         );
+
+        if ($delivery === null) {
+            return $result;
+        }
+
+        $this->attemptedProvider = IntegrationsEnum::MAILGUN->value;
+
+        return $result + [
+            'provider' => $this->attemptedProvider,
+            'provider_message_id' => $delivery->external_id,
+            'attempt_uuid' => $this->attemptUuid,
+        ];
     }
 
     /**
