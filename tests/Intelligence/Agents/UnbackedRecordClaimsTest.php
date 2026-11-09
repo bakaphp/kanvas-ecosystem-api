@@ -160,6 +160,40 @@ class UnbackedRecordClaimsTest extends TestCase
         $this->assertStringEndsWith(UnbackedRecordClaimsService::COMPLETION_WARNING, $reply);
     }
 
+    public function test_a_tool_answer_quoted_with_no_tool_call_is_sent_back_to_call_it(): void
+    {
+        $service = new UnbackedRecordClaimsService();
+
+        $this->assertNotNull($service->unverifiedToolResult(FabricatingNeuronAgentStub::TOOL_STORY, []));
+        $this->assertSame('returned an error', $service->unverifiedToolResult('The import returned an error and stopped.', []));
+        $this->assertNull($service->unverifiedToolResult(FabricatingNeuronAgentStub::TOOL_STORY, [['name' => 'import_issued_ecf_export']]), 'a tool ran');
+        $this->assertNull($service->unverifiedToolResult('If the tool returns an error, I will tell you.', []), 'what a tool would do is not an answer from it');
+        $this->assertStringContainsString('no tool answer to report', $service->stateClaimCorrection('tool returned'));
+        $this->assertSame(UnbackedRecordClaimsService::TOOL_RESULT_WARNING, $service->stateClaimWarning('system responded with an error'));
+
+        FabricatingNeuronAgentStub::$replies = [FabricatingNeuronAgentStub::TOOL_STORY, FabricatingNeuronAgentStub::NOT_RUN];
+        $handler = $this->fabricatingHandler();
+
+        $reply = $this->runTurn($handler, 'confirm go');
+
+        $this->assertSame(FabricatingNeuronAgentStub::NOT_RUN, $reply);
+        $requests = $handler->capturedProvider->requests;
+        $this->assertCount(2, $requests, 'one correction round');
+        $correction = (string) end($requests)[count(end($requests)) - 1]->getContent();
+        $this->assertStringContainsString('no tool answer to report', $correction);
+        $this->assertStringContainsString('did not call', $correction);
+    }
+
+    public function test_a_tool_answer_repeated_without_a_tool_reaches_staff_flagged(): void
+    {
+        FabricatingNeuronAgentStub::$replies = [FabricatingNeuronAgentStub::TOOL_STORY];
+
+        $reply = $this->runTurn($this->fabricatingHandler(), 'confirm go');
+
+        $this->assertStringStartsWith(FabricatingNeuronAgentStub::TOOL_STORY, $reply);
+        $this->assertStringEndsWith(UnbackedRecordClaimsService::TOOL_RESULT_WARNING, $reply);
+    }
+
     public function test_a_recant_with_no_tool_call_is_sent_back_to_verify(): void
     {
         FabricatingNeuronAgentStub::$replies = [FabricatingNeuronAgentStub::RECANT, FabricatingNeuronAgentStub::VERIFIED];

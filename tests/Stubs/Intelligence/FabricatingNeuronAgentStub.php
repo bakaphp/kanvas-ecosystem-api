@@ -27,6 +27,11 @@ class FabricatingNeuronAgentStub extends CapturingNeuronAgentStub
     public const string ACCEPTED_FOR_REAL = 'Recorded: quote #3802 is accepted (reported as signed outside Kanvas); its '
         . 'schedule made the deposit invoice.';
 
+    /** Told "go", a model once quoted the refusal of an earlier failed call instead of calling the tool again. */
+    public const string TOOL_STORY = 'The live import tool (import_issued_ecf_export with dry_run: false) returned an error: '
+        . '"This file is not the provider\'s issued-documents export." No invoices were created.';
+    public const string NOT_RUN = 'I have not run the live import yet. Calling import_issued_ecf_export now.';
+
     /** @var list<string> */
     public static array $replies = [self::REPLY];
 

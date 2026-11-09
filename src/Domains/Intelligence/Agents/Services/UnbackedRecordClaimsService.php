@@ -66,6 +66,20 @@ final class UnbackedRecordClaimsService
         . 'it. Confirm the record before acting on this._';
 
     /**
+     * A reply that quotes what "the tool returned" in a turn that called none. Told to do the work, a model once
+     * answered with the refusal text of an earlier failed call instead of calling again (the WebPOS import, 2026-11-09).
+     */
+    private const string TOOL_RESULT = '/\b(?:tool|system|endpoint)\b[^.\n]{0,80}?\b(?:returned|responded|refused|rejected|blocked|errored)\b|'
+        . '\b(?:returned|responded\s+with|came\s+back\s+with)\s+(?:the\s+|an?\s+)?(?:error|refusal|rejection)\b/iu';
+
+    public const string TOOL_RESULT_CORRECTION = 'Your draft reply said "%s", but you called no tool this turn, so there is no '
+        . 'tool answer to report. Answer again: call the tool now and report exactly what it returns; if you are not going '
+        . 'to call it, say that you have not run it. Never describe a result, refusal or error from a tool you did not call.';
+
+    public const string TOOL_RESULT_WARNING = '_⚠️ Not verified: this reply quotes a tool answer, but no tool ran this turn. '
+        . 'Treat the action as not attempted._';
+
+    /**
      * A real record id does not prove an action happened: completion claims also need a tool call this turn.
      */
     private const string COMPLETION = '/\b(?:(?:has|have)\s+been|(?:is|are)\s+now|was|were|(?:is|are)\s+(?:officially|successfully))'
@@ -152,25 +166,45 @@ final class UnbackedRecordClaimsService
     }
 
     /**
-     * What a no-tool turn asserts about the state of the books, either way: a denial of earlier work or a completion
-     * nothing performed. One correction round and one flag serve both; the texts differ.
+     * @param list<array<string, mixed>> $toolCalls the turn's tool calls
+     */
+    public function unverifiedToolResult(string $reply, array $toolCalls): ?string
+    {
+        if ($toolCalls !== [] || preg_match(self::TOOL_RESULT, $reply, $match) !== 1) {
+            return null;
+        }
+
+        return $match[0];
+    }
+
+    /**
+     * What a no-tool turn asserts about the state of the books: a denial of earlier work, a tool answer it never
+     * received, or a completion nothing performed. One correction round and one flag serve all three; the texts differ.
      *
      * @param list<array<string, mixed>> $toolCalls the turn's tool calls
      */
     public function unverifiedStateClaim(string $reply, array $toolCalls): ?string
     {
-        return $this->unverifiedDenial($reply, $toolCalls) ?? $this->unverifiedCompletion($reply, $toolCalls);
+        return $this->unverifiedDenial($reply, $toolCalls)
+            ?? $this->unverifiedToolResult($reply, $toolCalls)
+            ?? $this->unverifiedCompletion($reply, $toolCalls);
     }
 
     public function stateClaimCorrection(string $claim): string
     {
-        return preg_match(self::DENIAL, $claim) === 1
-            ? $this->denialCorrection($claim)
-            : sprintf(self::COMPLETION_CORRECTION, $claim);
+        return match (true) {
+            preg_match(self::DENIAL, $claim) === 1 => $this->denialCorrection($claim),
+            preg_match(self::TOOL_RESULT, $claim) === 1 => sprintf(self::TOOL_RESULT_CORRECTION, $claim),
+            default => sprintf(self::COMPLETION_CORRECTION, $claim),
+        };
     }
 
     public function stateClaimWarning(string $claim): string
     {
-        return preg_match(self::DENIAL, $claim) === 1 ? self::DENIAL_WARNING : self::COMPLETION_WARNING;
+        return match (true) {
+            preg_match(self::DENIAL, $claim) === 1 => self::DENIAL_WARNING,
+            preg_match(self::TOOL_RESULT, $claim) === 1 => self::TOOL_RESULT_WARNING,
+            default => self::COMPLETION_WARNING,
+        };
     }
 }
