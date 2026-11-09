@@ -113,9 +113,13 @@ class GenerateInvoicePdfTool extends Tool
         $prefersOurs = EcfPdfSourceEnum::forCompany($invoice->company, $fiscal->provider) === EcfPdfSourceEnum::KANVAS;
 
         try {
-            $file = $prefersOurs
-                ? $invoice->getFileByName(FiscalRegimeInterface::INVOICE_PDF_FIELD)?->filesystem
-                : new DocumentFilesService()->ecfPdf($invoice);
+            if ($prefersOurs && $user !== null) {
+                $file = FiscalRegimes::requireForCompany($invoice->company)->renderInvoicePdf($invoice, $user);
+            } else {
+                $file = $prefersOurs
+                    ? $invoice->getFileByName(FiscalRegimeInterface::INVOICE_PDF_FIELD)?->filesystem
+                    : new DocumentFilesService()->ecfPdf($invoice);
+            }
             $file ??= $user !== null ? FiscalRegimes::requireForCompany($invoice->company)->renderInvoicePdf($invoice, $user) : null;
         } catch (Throwable $e) {
             report($e);

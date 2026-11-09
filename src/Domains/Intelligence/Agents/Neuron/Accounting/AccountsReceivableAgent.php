@@ -34,6 +34,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuoteSowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetDocumentLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetQuoteSowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportIssuedEcfExportTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListBillingSchedulesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListPaymentTermsTool;
@@ -186,6 +187,13 @@ class AccountsReceivableAgent extends SystemUserAgent
             $tools[] = new ApprovePendingItemTool()->withContext($this->app, $this->company, $requestingHuman);
         }
 
+        // Books sales and journal entries from a file, and this agent reads inbound email: a forged export must not
+        // land on its own, so it loads only when a real person is asking.
+        $person = $this->personAsking();
+        if ($person !== null && $this->app !== null && $this->company !== null) {
+            $tools[] = new ImportIssuedEcfExportTool()->withContext($this->app, $this->company, $person);
+        }
+
         // Ranges get renewed and new e-CF types get authorized long after onboarding, by the agent that issues them.
         $tools = [...$tools, ...$this->accountingSetupTools(runSetup: true, reminderCadence: true)];
 
@@ -288,6 +296,10 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'scheduled payment that is not due yet → say its planned date, then schedule_billing (bill_now) on that '
             . 'schedule: it makes the draft from the quote\'s own lines and marks the period billed. Never move a '
             . 'schedule\'s date to today and wait, and never rebuild the payment with create_ar_invoice.',
+            '- "Here is what we issued in WebPOS before Kanvas" / a CSV export of issued e-CFs → import_issued_ecf_export, '
+            . 'dry_run first: show what would be created, which customers are new and which rows need a person, then run '
+            . 'it for real when they agree. It books each e-CF as an issued, unpaid invoice with its journal entry; '
+            . 'payments are not in the export, so say the balance is open. Never type the rows in by hand.',
             '- Payment terms: an invoice nothing set terms on is due the day it is issued, and the tool result says so '
             . 'in terms_note; tell the person every time. "Give invoice Y net 30" / "make it due on the 15th" → '
             . 'set_invoice_terms (once issued it is an amendment, so pass the reason they gave). "Our standard terms '

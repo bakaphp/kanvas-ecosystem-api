@@ -1,0 +1,28 @@
+{
+    "key": "webpos_issued_ecf_csv",
+    "version": 2,
+    "name": "WebPOS issued e-CF export (CSV)",
+    "description": "The 'Ventas netas' CSV the WebPOS portal downloads from its issued-documents screen (header pinned from a real export, 2026-11-09). It carries no emission date, so the invoice is dated by FECHA REC., the day WebPOS received it. AMBIENTE 1 is production (observed); ESTADO OTRO is the portal's word for a conditional acceptance and is imported flagged for review. A row with CANCEL true is not imported.",
+    "system_module": "Kanvas\\Scribe\\Invoices\\Models\\Invoice",
+    "required_columns": ["NUMERO FE", "CLIENTE", "TOTAL", "ESTADO", "FECHA REC."],
+    "file_header": ["FECHA REC.", "AMBIENTE", "TIPO", "REFERENCIA", "NUMERO FE", "CLIENTE", "RNC", "SUBTOTAL", "ITBIS", "TOTAL", "MONEDA", "TASA", "ENVIADO A DGII", "ESTADO", "FECHA AUT.", "EMAIL ENVIADO", "SUCURSAL", "PTO EMISION", "ECF", "DOC AFECTADO", "TIPO DOC", "CANCEL"],
+    "mapping": {
+        "encf": "NUMERO FE",
+        "issued_at": "FECHA REC.",
+        "authorized_at": "FECHA AUT.",
+        "environment": { "$map": "AMBIENTE", "values": { "1": "production", "PRODUCCIÓN": "production", "PRODUCCION": "production" }, "default": "test" },
+        "reference": "REFERENCIA",
+        "customer_name": "CLIENTE",
+        "customer_tax_id": "RNC",
+        "subtotal": "SUBTOTAL",
+        "tax": "ITBIS",
+        "total": "TOTAL",
+        "currency": "MONEDA",
+        "rate": "TASA",
+        "status": { "$map": "ESTADO", "values": { "AUTORIZADO": "accepted", "AUTORIZADA": "accepted", "OTRO": "accepted_with_observations", "ACEPTADO CONDICIONAL": "accepted_with_observations", "ACEPTADA CONDICIONAL": "accepted_with_observations", "RECHAZADO": "rejected", "RECHAZADA": "rejected", "PENDIENTE": "pending", "EN PROCESO": "pending" }, "default": "unknown" },
+        "authority_status": "ESTADO",
+        "cancelled": "CANCEL",
+        "date_format": "_n/j/y G:i",
+        "decimal_separator": "_."
+    }
+}

@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 
 use Baka\Helpers\GenerateQrCode;
-use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Money;
 use Baka\Support\Str;
-use finfo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -89,7 +87,6 @@ final class EcfInvoicePdfService
 
         return [
             ...$base,
-            'issuer' => [...$base['issuer'], 'logo' => $this->logo()],
             'issued_date' => $this->invoice->issued_date?->format('d-m-Y'),
             'expiry_date' => $this->invoice->due_date?->format('d-m-Y'),
             'ecf' => [
@@ -125,29 +122,6 @@ final class EcfInvoicePdfService
                 ] : null,
             ],
         ];
-    }
-
-    /**
-     * The company's own photo, embedded so the PDF engine never fetches a URL itself. Never the app's default
-     * avatar: a placeholder on a fiscal document is worse than no logo.
-     */
-    private function logo(): ?string
-    {
-        $url = Str::trimmedStringOrNull($this->invoice->company->getFileByName('photo')?->filesystem?->url);
-
-        if ($url === null) {
-            return null;
-        }
-
-        try {
-            $bytes = SafeUrlFetcher::fetch($url);
-        } catch (Throwable) {
-            return null;
-        }
-
-        $mime = (string) new finfo(FILEINFO_MIME_TYPE)->buffer($bytes);
-
-        return str_starts_with($mime, 'image/') ? 'data:' . $mime . ';base64,' . base64_encode($bytes) : null;
     }
 
     private function qrImage(mixed $qrUrl): ?string

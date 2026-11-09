@@ -4,18 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Banking\Services;
 
-use Kanvas\Filesystem\Models\Filesystem;
-use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Services\FileContentsReaderService;
 
-/**
- * The bytes of a stored statement file. Its own class so a test can bind a fake instead of standing up
- * the app's storage disk; production reads through FilesystemServices, which falls back to the
- * SSRF-guarded fetch for files outside the configured bucket.
- */
-class BankStatementFileReaderService
+/** The banking name for the shared reader; tests bind a fake under it. */
+class BankStatementFileReaderService extends FileContentsReaderService
 {
-    public function read(Filesystem $file): string
-    {
-        return FilesystemServices::readBytes($file);
-    }
 }

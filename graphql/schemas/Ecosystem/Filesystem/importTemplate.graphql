@@ -4,6 +4,7 @@ enum ImportTemplateKey {
     BANK_STATEMENT_BHD_CSV @enum(value: "bank_statement_bhd_csv")
     BANK_STATEMENT_BANRESERVAS_CSV
         @enum(value: "bank_statement_banreservas_csv")
+    WEBPOS_ISSUED_ECF_CSV @enum(value: "webpos_issued_ecf_csv")
 }
 
 type ImportTemplate {

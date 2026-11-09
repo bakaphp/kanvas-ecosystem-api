@@ -13,6 +13,7 @@ enum ImportTemplateEnum: string
     case BANK_STATEMENT_POPULAR_CSV = 'bank_statement_popular_csv';
     case BANK_STATEMENT_BHD_CSV = 'bank_statement_bhd_csv';
     case BANK_STATEMENT_BANRESERVAS_CSV = 'bank_statement_banreservas_csv';
+    case WEBPOS_ISSUED_ECF_CSV = 'webpos_issued_ecf_csv';
 
     /**
      * @return list<self>

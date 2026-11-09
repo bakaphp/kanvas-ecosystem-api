@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\ElectronicInvoicing;
 
+use Baka\Http\SafeUrlFetcher;
 use Database\Seeders\ScribeEcfInvoiceTemplateSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Filesystem\Services\PdfService;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateInvoicePdfTool;
 use Kanvas\Scribe\ElectronicInvoicing\Actions\ApplyFiscalAnswerAction;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\ConfigurationEnum;
@@ -27,6 +29,31 @@ use Tests\Stubs\Scribe\FakeEcfProvider;
  */
 class EcfInvoicePdfTest extends EcfCompletionTestCase
 {
+    public function test_generating_our_fiscal_pdf_refreshes_an_old_copy_with_the_current_company_logo(): void
+    {
+        if (! is_executable(PdfService::BINARY_PATH)) {
+            $this->markTestSkipped('wkhtmltopdf is not installed at ' . PdfService::BINARY_PATH);
+        }
+
+        $this->company->set(ConfigurationEnum::ECF_PDF_SOURCE->value, EcfPdfSourceEnum::KANVAS->value);
+        $invoice = $this->acceptedInvoice();
+        $oldPdf = $this->createFilesystemRow();
+        $invoice->addFile($oldPdf, FiscalRegimeInterface::INVOICE_PDF_FIELD);
+        $logo = $this->createFilesystemRow(extension: 'png', fileType: 'image/png');
+        $this->company->addFile($logo, 'photo');
+        SafeUrlFetcher::fake(fn (): string => base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='));
+
+        $this->assertStringContainsString('<img class="logo" src="data:image/png;base64,', new EcfInvoicePdfService($invoice)->render());
+
+        $result = new GenerateInvoicePdfTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: $invoice->getId());
+
+        $this->assertTrue($result['generated'], json_encode($result));
+        $this->assertNotSame($oldPdf->getId(), $result['filesystem_id']);
+        $this->assertSame($result['filesystem_id'], $invoice->getFileByName(FiscalRegimeInterface::INVOICE_PDF_FIELD)->filesystem->getId());
+    }
+
     protected function tearDown(): void
     {
         $this->company->del(ConfigurationEnum::ECF_PDF_SOURCE->value);

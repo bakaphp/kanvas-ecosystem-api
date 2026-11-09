@@ -17,6 +17,7 @@
         ul { margin: 4px 0 0; padding-left: 18px; }
         li { margin-bottom: 3px; }
         .header td { vertical-align: top; }
+        .logo { display: block; width: auto; height: auto; max-height: 40px; max-width: 160px; margin-bottom: 8px; }
         .issuer-name { font-size: 16px; font-weight: bold; }
         .muted { color: #6b7280; }
         .right { text-align: right; }
@@ -43,6 +44,7 @@
 <table class="header">
     <tr>
         <td>
+            {% if issuer.logo %}<img class="logo" src="{{ issuer.logo }}" alt="{{ issuer.name }}">{% endif %}
             <div class="issuer-name">{{ issuer.name }}</div>
             {% for line in issuer.address_lines %}<div class="muted multiline">{{ line }}</div>{% endfor %}
             {% if issuer.email %}<div class="muted">{{ issuer.email }}</div>{% endif %}

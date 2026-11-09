@@ -113,6 +113,8 @@ class GeminiPdfClassifierService implements PdfClassifierServiceInterface
                         'notes' => $s->string()->description('Free-text notes / memos visible on the doc.'),
                         'ncf' => $s->string()->description('Dominican NCF / e-NCF printed on a vendor invoice (e.g. B0100000123, E310000000045). Empty when not present.'),
                         'customer_name' => $s->string()->description('For remittance_advice / customer_po / credit_request: the customer (the company writing to us). Empty otherwise.'),
+                        'bill_to_name' => $s->string()->description('For vendor_invoice / vendor_quote / expense_receipt: the party the document is addressed to, as printed under "Bill to" / "Cliente" / "Facturar a" / "Señor(es)". Never the vendor. Empty when not printed.'),
+                        'bill_to_tax_id' => $s->string()->description('The tax id printed with the bill-to (RNC, cédula, EIN), digits and dashes as printed. Empty when not present.'),
                         'po_number' => $s->string()->description('Purchase order number on a customer_po. Empty otherwise.'),
                         'payment_reference' => $s->string()->description('Transfer / check / payment reference on a remittance_advice. Empty otherwise.'),
                         'referenced_invoice_numbers' => $s->array()
@@ -238,6 +240,11 @@ over guessing. Conservative misclassifications are cheaper to fix than aggressiv
 
 For Dominican Republic documents look for "NCF" / "e-NCF" (Comprobante Fiscal) and "RNC" (tax id) —
 extract the NCF verbatim into ncf and the vendor's RNC into vendor_tax_id.
+
+Bill-to — on a vendor_invoice, vendor_quote or expense_receipt put the party the document is addressed to
+(the "Bill to" / "Cliente" / "Facturar a" / "Señor(es)" block) in bill_to_name, exactly as printed, and the
+tax id printed beside it (RNC, cédula, EIN) in bill_to_tax_id. This is who the vendor is billing, which may be a
+person rather than our company; never put the vendor there.
 
 Payment status — drive the `payment_status_hint` field:
   - 'paid'    when ANY paid-evidence signal is present: a "Receipt" header, "PAID" stamp, "Amount

@@ -35,6 +35,17 @@ final class UnbackedRecordClaimsService
         . 'that a tool did not return.';
 
     /**
+     * A turn that carries a file: the model can read the numbers off it, but only a tool result backs them, and a
+     * question it was asking must come back as a question, not as the write it was asking permission for.
+     */
+    public const string ATTACHMENT_CORRECTION = 'Your draft reply named %s, which no tool returned in this conversation. '
+        . 'This turn carries an attached file; reading it yourself does not count, only a tool result does. Answer '
+        . 'again: run the read tool for the attachment first (extract_invoice_data for an invoice or receipt) and '
+        . 'report what it returns. If your draft was asking the person something, ask it again from the tool result; '
+        . 'do not create, book or change anything they have not answered. Never state an id, number, file or link '
+        . 'that a tool did not return.';
+
+    /**
      * Earlier turns omit their tool calls, so a denial of past work needs a lookup in the current turn.
      */
     private const string DENIAL = '/\b(?:hallucinat\w*|without\s+(?:actually\s+)?(?:executing|calling|running|using)\b|'
@@ -91,9 +102,9 @@ final class UnbackedRecordClaimsService
     /**
      * @param list<string> $ids
      */
-    public function correction(array $ids): string
+    public function correction(array $ids, bool $hasAttachment = false): string
     {
-        return sprintf(self::CORRECTION, implode(', ', $ids));
+        return sprintf($hasAttachment ? self::ATTACHMENT_CORRECTION : self::CORRECTION, implode(', ', $ids));
     }
 
     /**

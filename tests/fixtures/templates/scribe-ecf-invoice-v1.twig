@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ ecf.type_label }} {{ ecf.encf }}</title>
+    <style>
+        @page { margin: 0; }
+        body { margin: 0; padding: 36px 44px; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.45; color: #1f2933; }
+        table { width: 100%; border-collapse: collapse; }
+        .header td { vertical-align: top; }
+        .issuer-name { font-size: 16px; font-weight: bold; }
+        .muted { color: #6b7280; }
+        .right { text-align: right; }
+        .doc-title { font-size: 14px; font-weight: bold; text-transform: uppercase; color: #111827; }
+        .encf { font-size: 15px; font-weight: bold; letter-spacing: 1px; margin-top: 4px; }
+        .meta div { margin-bottom: 2px; }
+        .parties { margin-top: 22px; }
+        .parties td { width: 50%; vertical-align: top; padding-right: 20px; }
+        .label { text-transform: uppercase; font-size: 9px; letter-spacing: 1px; color: #6b7280; margin-bottom: 3px; }
+        .reference { margin-top: 16px; padding: 8px 10px; border: 1px solid #e5e7eb; }
+        .grid { margin-top: 18px; }
+        .grid th { text-align: left; border-bottom: 1px solid #1f2933; padding: 5px 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
+        .grid td { padding: 6px 4px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+        .num { text-align: right; white-space: nowrap; }
+        .totals { margin-top: 12px; width: 45%; margin-left: 55%; }
+        .totals td { padding: 3px 4px; }
+        .totals .grand td { border-top: 2px solid #1f2933; font-weight: bold; font-size: 12px; }
+        .stamp { margin-top: 26px; page-break-inside: avoid; }
+        .logo { max-height: 56px; max-width: 220px; margin-bottom: 8px; }
+        .stamp td { vertical-align: top; }
+        .qr { width: 130px; }
+        .qr img { width: 120px; height: 120px; }
+        .legend { margin-bottom: 3px; }
+        .notes { margin-top: 18px; }
+    </style>
+</head>
+<body>
+<table class="header">
+    <tr>
+        <td>
+            {% if issuer.logo %}<img class="logo" src="{{ issuer.logo }}" alt="{{ issuer.name }}">{% endif %}
+                <div class="issuer-name">{{ issuer.name }}</div>
+            {% if ecf.issuer_tax_id %}<div>RNC {{ ecf.issuer_tax_id }}</div>{% endif %}
+            {% for line in issuer.address_lines %}<div class="muted">{{ line }}</div>{% endfor %}
+            {% if issuer.phone %}<div class="muted">Teléfono: {{ issuer.phone }}</div>{% endif %}
+                {% if issuer.email %}<div class="muted">Correo electrónico: {{ issuer.email }}</div>{% endif %}
+            
+        </td>
+        <td class="right">
+            <div class="doc-title">{{ ecf.type_label }}</div>
+            <div class="encf">e-NCF {{ ecf.encf }}</div>
+            <div class="meta">
+                {% if issued_date %}<div>Fecha de emisión: {{ issued_date }}</div>{% endif %}
+                {% if ecf.sequence_expires_at %}<div>Fecha de vencimiento de la secuencia: {{ ecf.sequence_expires_at }}</div>{% endif %}
+                    {% if ecf.internal_reference %}<div class="muted">Ref.: {{ ecf.internal_reference }}</div>{% endif %}
+                {% if expiry_date and not ecf.is_note %}<div class="muted">Fecha límite de pago: {{ expiry_date }}</div>{% endif %}
+                <div class="muted">{{ ecf.payment_label }}</div>
+            </div>
+        </td>
+    </tr>
+</table>
+
+<table class="parties">
+    <tr>
+        <td>
+            <div class="label">Comprador</div>
+            <div><strong>{{ customer.legal_name ?? customer.name }}</strong></div>
+            {% if customer.tax_id %}<div>RNC / Cédula {{ customer.tax_id }}</div>{% endif %}
+            {% for line in customer.address_lines %}<div class="muted">{{ line }}</div>{% endfor %}
+            {% if customer.email %}<div class="muted">Correo electrónico: {{ customer.email }}</div>{% endif %}
+        </td>
+        <td>
+            {% if ecf.purchase_order_number %}
+                <div class="label">Orden de compra</div>
+                <div>{{ ecf.purchase_order_number }}</div>
+            {% endif %}
+            {% if ecf.export %}
+                <div class="label">Exportación</div>
+                <div>Incoterm {{ ecf.export.incoterm }} · Destino {{ ecf.export.destination_country }}</div>
+            {% endif %}
+            <div class="label" style="margin-top: 6px">Moneda</div>
+            <div>{{ currency }}{% if ecf.exchange_rate %} · Tasa {{ ecf.exchange_rate|number_format(4) }}{% endif %}</div>
+        </td>
+    </tr>
+</table>
+
+{% if ecf.reference %}
+<div class="reference">
+    <div class="label">e-NCF modificado</div>
+    <div><strong>{{ ecf.reference.encf }}</strong> del {{ ecf.reference.issue_date }} · Código de modificación {{ ecf.reference.modification_code }} ({{ ecf.reference.modification_label }})</div>
+    {% if ecf.reference.reason %}<div class="muted">{{ ecf.reference.reason }}</div>{% endif %}
+</div>
+{% endif %}
+
+<table class="grid">
+    <thead>
+    <tr>
+        <th>Cantidad</th>
+        <th>Descripción</th>
+        <th class="num">Precio</th>
+        <th class="num">Descuento</th>
+        <th class="num">ITBIS</th>
+        <th class="num">Valor</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for line in lines %}
+        <tr>
+            <td>{{ line.quantity|number_format(2) }}</td>
+            <td>{{ line.description }}{% if line.sku %} <span class="muted">({{ line.sku }})</span>{% endif %}</td>
+            <td class="num">{{ line.unit_price|number_format(2) }}</td>
+            <td class="num">{{ line.discount|number_format(2) }}</td>
+            <td class="num">{{ line.tax|number_format(2) }}</td>
+            <td class="num">{{ line.total|number_format(2) }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<table class="totals">
+    <tr><td>Subtotal</td><td class="num">{{ ecf.subtotal|number_format(2) }}</td></tr>
+        <tr><td>Subtotal gravado</td><td class="num">{{ ecf.totals.taxed|number_format(2) }}</td></tr>
+    <tr><td>Subtotal exento</td><td class="num">{{ ecf.totals.exempt|number_format(2) }}</td></tr>
+    {% if totals.discount %}<tr><td>Descuento</td><td class="num">{{ totals.discount|number_format(2) }}</td></tr>{% endif %}
+    <tr><td>Total ITBIS</td><td class="num">{{ ecf.totals.itbis|number_format(2) }}</td></tr>
+    <tr class="grand"><td>Total</td><td class="num">{{ currency }} {{ ecf.totals.total|number_format(2) }}</td></tr>
+</table>
+
+<table class="stamp">
+    <tr>
+        {% if ecf.qr_image %}
+        <td class="qr"><img src="{{ ecf.qr_image }}" alt="QR"></td>
+        {% endif %}
+        <td>
+            {% for legend in ecf.qr_legends %}<div class="legend">{{ legend }}</div>{% endfor %}
+            {% if ecf.qr_legends is empty %}
+                {% if ecf.security_code %}<div class="legend">Código de seguridad: <strong>{{ ecf.security_code }}</strong></div>{% endif %}
+                {% if ecf.signed_at %}<div class="legend">Fecha de firma digital: {{ ecf.signed_at }}</div>{% endif %}
+            {% endif %}
+        </td>
+    </tr>
+</table>
+
+{% if notes %}<div class="notes"><div class="label">Notas</div><div>{{ notes|nl2br }}</div></div>{% endif %}
+</body>
+</html>

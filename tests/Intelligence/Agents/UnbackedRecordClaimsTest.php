@@ -77,6 +77,23 @@ class UnbackedRecordClaimsTest extends TestCase
         $this->assertStringContainsString('no tool returned', $correction);
     }
 
+    /** Bill 20394: told to "do the work with your tools", the agent booked the bill it had been asking permission for. */
+    public function test_a_turn_with_an_attachment_is_told_to_read_it_with_a_tool_and_ask_again(): void
+    {
+        FabricatingNeuronAgentStub::$replies = [FabricatingNeuronAgentStub::REPLY, FabricatingNeuronAgentStub::CORRECTED];
+        $handler = $this->fabricatingHandler();
+
+        $reply = $this->runTurn($handler, 'process this invoice', media: ['https://files.example.test/factura.pdf']);
+
+        $this->assertSame(FabricatingNeuronAgentStub::CORRECTED, $reply);
+        $requests = $handler->capturedProvider->requests;
+        $this->assertCount(2, $requests, 'one correction round');
+        $correction = (string) end($requests)[count(end($requests)) - 1]->getContent();
+        $this->assertStringContainsString('extract_invoice_data', $correction);
+        $this->assertStringContainsString('ask it again', $correction);
+        $this->assertStringContainsString('do not create, book or change', $correction);
+    }
+
     public function test_a_reply_that_repeats_the_fabrication_reaches_staff_flagged(): void
     {
         FabricatingNeuronAgentStub::$replies = [FabricatingNeuronAgentStub::REPLY];
@@ -187,7 +204,10 @@ class UnbackedRecordClaimsTest extends TestCase
         return $handler;
     }
 
-    private function runTurn(FabricatingNeuronAgentStub $handler, string $message): string
+    /**
+     * @param list<string> $media
+     */
+    private function runTurn(FabricatingNeuronAgentStub $handler, string $message, array $media = []): string
     {
         return new RunNeuronChatAction(
             agent: $this->fabricatingAgent,
@@ -196,6 +216,7 @@ class UnbackedRecordClaimsTest extends TestCase
             app: app(Apps::class),
             user: auth()->user(),
             handler: $handler,
+            media: $media,
         )->execute();
     }
 

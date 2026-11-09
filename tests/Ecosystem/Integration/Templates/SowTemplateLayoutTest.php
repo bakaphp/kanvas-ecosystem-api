@@ -94,4 +94,44 @@ final class SowTemplateLayoutTest extends TestCase
             $this->assertSame($index < 2 ? $current : $rows[$index]['template'], DB::table('email_templates')->where('id', $id)->value('template'));
         }
     }
+
+    public function testLogoMigrationUpdatesStockCopiesAndPreservesCustomTemplates(): void
+    {
+        $fixtures = ['scribe-sow' => 'scribe-sow-v2.twig', 'scribe-ecf-invoice' => 'scribe-ecf-invoice-v1.twig'];
+        $expected = [];
+
+        foreach ($fixtures as $name => $fixture) {
+            $original = file_get_contents(base_path('tests/fixtures/templates/' . $fixture));
+            $current = file_get_contents(resource_path('views/pdf/' . $name . '.twig'));
+            $rows = [
+                ['template' => $original],
+                ['template' => $original . '\n<!-- Custom branding -->'],
+                ['template' => $original, 'engine' => 'blade'],
+                ['template' => $original, 'is_deleted' => 1],
+                ['template' => $original, 'name' => 'another-document'],
+            ];
+
+            foreach ($rows as $index => $row) {
+                $id = DB::table('email_templates')->insertGetId([
+                    'apps_id' => app(Apps::class)->getId(),
+                    'companies_id' => random_int(1900000000, 2000000000),
+                    'users_id' => auth()->id(),
+                    'name' => $name,
+                    'engine' => 'twig',
+                    'is_deleted' => 0,
+                    'created_at' => now(),
+                    ...$row,
+                ]);
+                $expected[$id] = $index === 0 ? $current : $row['template'];
+            }
+        }
+
+        $migration = require database_path('migrations/2026_11_09_140000_resize_stock_document_logos.php');
+        $migration->up();
+        $migration->up();
+
+        foreach ($expected as $id => $template) {
+            $this->assertSame($template, DB::table('email_templates')->where('id', $id)->value('template'));
+        }
+    }
 }

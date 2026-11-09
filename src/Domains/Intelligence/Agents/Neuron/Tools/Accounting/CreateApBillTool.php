@@ -13,6 +13,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Approvals\Traits\ReadsApprovalSourceFields;
@@ -27,6 +28,7 @@ use Kanvas\Scribe\Bills\Services\BillAddresseeService;
 use Kanvas\Scribe\Bills\Services\ExpenseAccountCodingService;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
+use Kanvas\Scribe\PdfIngest\Enums\PdfExtractionCustomFieldEnum;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\ObjectProperty;
@@ -44,6 +46,7 @@ class CreateApBillTool extends Tool
 {
     use HasKanvasContext;
     use ReadsApprovalSourceFields;
+    use ResolvesFilesystemForTool;
     use StoresApprovalSourceFields;
     use TrackByInputs;
 
@@ -269,9 +272,12 @@ class CreateApBillTool extends Tool
         ?string $payment_status_hint = null,
         ?string $payment_method_hint = null,
     ): array {
+        // The attached invoice outranks the model's retelling of it: an agent once passed its own company as the
+        // bill-to on an invoice addressed to a person, and the check had nothing else to compare against.
+        $extracted = $this->storedExtraction($source_attachment_filesystem_id);
         $addressee = $this->checkAddressee(
-            $billed_to,
-            $billed_to_tax_id,
+            Str::trimToNull($extracted['bill_to_name'] ?? null) ?? $billed_to,
+            Str::trimToNull($extracted['bill_to_tax_id'] ?? null) ?? $billed_to_tax_id,
             $billed_to_is_this_company ?? false,
             $book_anyway ?? false
         );
@@ -714,6 +720,20 @@ class CreateApBillTool extends Tool
         );
 
         return (int) $subaccountModel->getKey();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function storedExtraction(?int $filesystemId): array
+    {
+        if ($filesystemId === null) {
+            return [];
+        }
+
+        $stored = $this->findTenantFile($filesystemId)?->get(PdfExtractionCustomFieldEnum::EXTRACTED->value);
+
+        return is_array($stored) && is_array($stored['extracted'] ?? null) ? $stored['extracted'] : [];
     }
 
     /**

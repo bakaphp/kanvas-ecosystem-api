@@ -463,7 +463,7 @@ class RunNeuronChatAction
         $claims = new UnbackedRecordClaimsService();
 
         return match (true) {
-            $unbacked !== [] => new UserMessage($claims->correction($unbacked)),
+            $unbacked !== [] => new UserMessage($claims->correction($unbacked, hasAttachment: $this->media !== [])),
             $stateClaim !== null => new UserMessage($claims->stateClaimCorrection($stateClaim)),
             default => null,
         };

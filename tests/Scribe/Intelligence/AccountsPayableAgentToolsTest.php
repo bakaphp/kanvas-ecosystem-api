@@ -52,6 +52,7 @@ use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Services\BillAddresseeService;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
+use Kanvas\Scribe\PdfIngest\Enums\PdfExtractionCustomFieldEnum;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrderLine;
 use Kanvas\Users\Models\Users;
@@ -323,6 +324,44 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $addressedHere = $bill(['billed_to' => $this->company->name]);
         $this->assertTrue($addressedHere['created'], 'an invoice addressed to this company books without a question');
+    }
+
+    /** Bill 20394: the agent passed its own company as billed_to on an invoice addressed to a person, and booked it. */
+    public function test_create_ap_bill_takes_the_addressee_from_the_attached_invoice_not_from_the_model(): void
+    {
+        $this->seedTestOrganization('Claro Telecom Co');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+        $pdf = $this->createFilesystemRow();
+        $pdf->set(PdfExtractionCustomFieldEnum::EXTRACTED->value, [
+            'document_type' => 'vendor_invoice',
+            'extracted' => ['bill_to_name' => 'Maximo Castro Pou', 'bill_to_tax_id' => '048-0076249-6'],
+        ]);
+        $tool = new CreateApBillTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+        $bill = fn (array $extra): array => $tool->__invoke(...[
+            'vendor_name' => 'Claro Telecom Co',
+            'amount' => 3334.19,
+            'gl_account_number' => $accountCode,
+            'memo' => 'Telefonia',
+            'invoice_number' => 'E32-' . uniqid(),
+            'billed_to' => (string) $this->company->name,
+            'source_attachment_filesystem_id' => $pdf->getId(),
+            ...$extra,
+        ]);
+
+        $refused = $bill([]);
+        $this->assertFalse($refused['created'], json_encode($refused));
+        $this->assertSame('billed_to_other_company', $refused['reason']);
+        $this->assertSame('Maximo Castro Pou', $refused['billed_to'], 'the file wins over the model');
+
+        $claimed = $bill(['billed_to_is_this_company' => true]);
+        $this->assertTrue($claimed['created'], json_encode($claimed));
+        $this->assertSame(
+            'Maximo Castro Pou',
+            Bill::getById($claimed['bill_id'])->metadata[BillAddresseeService::METADATA_KEY]['billed_to'],
+            'the approver sees who the invoice was really addressed to',
+        );
     }
 
     public function test_create_ap_bill_requires_an_invoice_number(): void
