@@ -56,7 +56,7 @@ class AcceptQuoteAction
 
         foreach ($schedules as $schedule) {
             if ($schedule->wasRecentlyCreated && $schedule->isDue($today)) {
-                RunBillingScheduleJob::dispatch($this->quote->app, $schedule, $today->toDateString())->afterCommit();
+                RunBillingScheduleJob::dispatch($schedule, $today->toDateString())->afterCommit();
             }
         }
     }

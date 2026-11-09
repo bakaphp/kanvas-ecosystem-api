@@ -3,8 +3,10 @@ What an engagement shares with its person. Add a member when a model joins
 EngagementReferenceMap (ScribeInvoice, ScribeQuote, ...); the resolver reads getGraphTypeName().
 """
 union EngagementReference
-    @union(resolveType: "App\\GraphQL\\ActionEngine\\Types\\EngagementReferenceTypeResolver")
-    = Lead
+    @union(
+        resolveType: "App\\GraphQL\\ActionEngine\\Types\\EngagementReferenceTypeResolver"
+    ) =
+    | Lead
 
 type Engagement {
     id: ID!
@@ -92,7 +94,6 @@ extend type Mutation @guard {
         )
 }
 
-# Query definition
 extend type Query @guard {
     engagements(
         where: _

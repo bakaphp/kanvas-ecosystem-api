@@ -207,6 +207,21 @@ class QuoteAgentToolsTest extends ScribeTestCase
         $this->assertNull($quote->quote_number);
     }
 
+    public function test_send_quote_on_a_deleted_customer_reports_it_instead_of_throwing(): void
+    {
+        $organization = $this->seedTestOrganization('Gone Co');
+        $created = $this->createQuote('Gone Co', [['description' => 'Work', 'unit_price' => 100.0]]);
+        $organization->softDelete();
+
+        $sent = new SendQuoteTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(quote_id: $created['quote_id']);
+
+        $this->assertFalse($sent['sent']);
+        $this->assertSame('customer_not_found', $sent['reason']);
+        $this->assertSame(QuoteStatusEnum::DRAFT, Quote::getById($created['quote_id'])->status);
+    }
+
     /** A model that repeats itself must not renumber the quote the customer already has. */
     public function test_sending_the_same_quote_twice_keeps_the_first_number(): void
     {

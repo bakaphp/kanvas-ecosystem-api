@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\ElectronicInvoicing\Support;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Event;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Scribe\Bills\Actions\CreateBillFromReceivedEcfAction;
@@ -17,7 +18,8 @@ use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocumentSubmission;
 
 /**
  * The legal copies of a fiscal document (the accepted PDF, a vendor's signed XML, each attempt's request and
- * response) must outlive the authority's retention period, so the Filesystem detach/delete paths ask here first.
+ * response) must outlive the authority's retention period. guardFilesystemEvents() hangs the checks on the
+ * Filesystem models' delete events at boot, so every detach and delete path is refused, not only the mutations.
  */
 final class FiscalFileRetention
 {
@@ -26,6 +28,24 @@ final class FiscalFileRetention
         FiscalRegimeInterface::INVOICE_PDF_FIELD,
         CreateBillFromReceivedEcfAction::XML_FIELD_NAME,
     ];
+
+    /**
+     * softDeleting is Kanvas's own event (KanvasModelTrait::softDelete), so it has no Eloquent static registrar;
+     * the dispatcher key is what fireModelEvent() dispatches. A listener that throws aborts before the row changes.
+     */
+    public static function guardFilesystemEvents(): void
+    {
+        foreach (['softDeleting', 'deleting'] as $event) {
+            Event::listen(
+                "eloquent.{$event}: " . FilesystemEntities::class,
+                static fn (FilesystemEntities $fileEntity) => self::assertDetachable($fileEntity)
+            );
+            Event::listen(
+                "eloquent.{$event}: " . Filesystem::class,
+                static fn (Filesystem $file) => self::assertDeletable($file)
+            );
+        }
+    }
 
     public static function assertDetachable(FilesystemEntities $fileEntity): void
     {

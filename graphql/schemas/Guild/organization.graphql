@@ -107,7 +107,9 @@ type OrganizationDuplicateGroup {
     reason: String!
     sample_name: String!
     organizations: [Organization!]!
-        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@organizations")
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@organizations"
+        )
 }
 
 input OrganizationMessageInput {
@@ -143,9 +145,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\PeopleOrganizationMutation@remove"
         )
 
-    addMessageToOrganizationChannel(
-        input: OrganizationMessageInput!
-    ): Message!
+    addMessageToOrganizationChannel(input: OrganizationMessageInput!): Message!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMessageMutation@addToNotesChannel"
         )
@@ -173,7 +173,10 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationAddressMutation@add"
         )
 
-    updateOrganizationAddress(id: ID!, input: AddressInput!): OrganizationAddress!
+    updateOrganizationAddress(
+        id: ID!
+        input: AddressInput!
+    ): OrganizationAddress!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationAddressMutation@update"
         )
@@ -216,9 +219,7 @@ extend type Query @guard {
             defaultCount: 25
         )
 
-    findOrganizationDuplicates(
-        max_groups: Int
-    ): [OrganizationDuplicateGroup!]!
+    findOrganizationDuplicates(max_groups: Int): [OrganizationDuplicateGroup!]!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@findDuplicates"
         )

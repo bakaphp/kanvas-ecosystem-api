@@ -2,7 +2,8 @@ enum ImportTemplateKey {
     DEALER_VEHICLE_CSV @enum(value: "dealer_vehicle_csv")
     BANK_STATEMENT_POPULAR_CSV @enum(value: "bank_statement_popular_csv")
     BANK_STATEMENT_BHD_CSV @enum(value: "bank_statement_bhd_csv")
-    BANK_STATEMENT_BANRESERVAS_CSV @enum(value: "bank_statement_banreservas_csv")
+    BANK_STATEMENT_BANRESERVAS_CSV
+        @enum(value: "bank_statement_banreservas_csv")
 }
 
 type ImportTemplate {

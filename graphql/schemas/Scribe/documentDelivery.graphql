@@ -30,12 +30,17 @@ extend type Engagement {
     `reference`, which is the internal record.
     """
     document_page: Mixed
-        @field(resolver: "App\\GraphQL\\Scribe\\Queries\\DocumentEngagementQuery@page")
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Queries\\DocumentEngagementQuery@page"
+        )
 }
 
 extend type Mutation @guard {
     "Called by the public document page (app key) for the engagement in its link."
-    respondToDocumentEngagement(uuid: ID!, input: ScribeDocumentResponseInput!): Engagement!
+    respondToDocumentEngagement(
+        uuid: ID!
+        input: ScribeDocumentResponseInput!
+    ): Engagement!
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Delivery\\DocumentEngagementMutation@respond"
         )

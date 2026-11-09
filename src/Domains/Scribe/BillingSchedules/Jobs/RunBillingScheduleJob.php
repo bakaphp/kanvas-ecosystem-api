@@ -11,7 +11,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Scribe\BillingSchedules\Actions\RunBillingScheduleAction;
 use Kanvas\Scribe\BillingSchedules\Models\BillingSchedule;
 
@@ -31,7 +30,6 @@ final class RunBillingScheduleJob implements ShouldQueue
     public const int MAX_PERIODS_PER_RUN = 12;
 
     public function __construct(
-        public readonly Apps $app,
         public readonly BillingSchedule $schedule,
         public readonly ?string $todayIso = null,
     ) {
@@ -39,7 +37,7 @@ final class RunBillingScheduleJob implements ShouldQueue
 
     public function handle(): void
     {
-        $this->overwriteAppService($this->app);
+        $this->overwriteAppService($this->schedule->app);
 
         $today = $this->todayIso !== null ? Carbon::parse($this->todayIso) : Carbon::today();
 

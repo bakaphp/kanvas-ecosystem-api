@@ -165,8 +165,6 @@ class FilesystemManagementMutation
             return true;
         }
 
-        FiscalFileRetention::assertDetachable($fileEntity);
-
         if (! $fileEntity->softDelete()) {
             return false;
         }
@@ -298,6 +296,7 @@ class FilesystemManagementMutation
             ->notDeleted()
             ->firstOrFail();
 
+        // The model-event guard fires on $filesystem->delete(), after the bytes are already gone from storage.
         FiscalFileRetention::assertDeletable($filesystem);
 
         $filesystemService = new FilesystemServices(app(Apps::class));

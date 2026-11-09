@@ -46,5 +46,7 @@ extend type Query @guard {
 extend type Mutation @guardByAdmin {
     "Loads a DGII-authorized range for one e-CF type; the previous range of that type is kept as history."
     configureScribeEcfRange(input: ScribeEcfRangeInput!): ScribeEcfRange!
-        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Setup\\EcfRangeMutation@configure")
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Setup\\EcfRangeMutation@configure"
+        )
 }

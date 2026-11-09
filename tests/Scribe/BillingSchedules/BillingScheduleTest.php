@@ -562,7 +562,7 @@ class BillingScheduleTest extends ScribeTestCase
 
     private function runJob(BillingSchedule $schedule, string $today): void
     {
-        new RunBillingScheduleJob($this->kanvasApp, $schedule, $today)->handle();
+        new RunBillingScheduleJob($schedule, $today)->handle();
     }
 
     /**

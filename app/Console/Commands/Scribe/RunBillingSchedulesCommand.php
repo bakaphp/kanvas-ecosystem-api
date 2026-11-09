@@ -52,7 +52,7 @@ class RunBillingSchedulesCommand extends Command
             $this->overwriteAppService($app);
 
             foreach ($appSchedules as $schedule) {
-                $job = new RunBillingScheduleJob($app, $schedule, $todayIso);
+                $job = new RunBillingScheduleJob($schedule, $todayIso);
 
                 $this->option('sync') ? dispatch_sync($job) : dispatch($job);
             }

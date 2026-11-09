@@ -7,11 +7,11 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 use Baka\Support\Str;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
-use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DeliversToBillingContacts;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesOrganizationForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesScribeQuoteForTool;
 use Kanvas\Scribe\Delivery\DataTransferObject\DocumentDelivery;
@@ -31,6 +31,7 @@ class SendQuoteTool extends Tool implements RequiresSystemAgent
 {
     use DeliversToBillingContacts;
     use HasKanvasContext;
+    use ResolvesOrganizationForTool;
     use ResolvesPersonForTool;
     use ResolvesScribeQuoteForTool;
     use TrackByInputs;
@@ -112,12 +113,11 @@ class SendQuoteTool extends Tool implements RequiresSystemAgent
             }
         }
 
-        /** @var Organization $customer */
-        $customer = Organization::getByIdFromCompanyApp(
-            $quote->customer_organization_id,
-            $this->company,
-            $this->app,
-        );
+        $customer = $this->resolveOrganization((int) $quote->customer_organization_id, null);
+
+        if (is_array($customer)) {
+            return ['sent' => false, 'reason' => 'customer_not_found', ...$customer];
+        }
 
         $channel = LeadCommunicationChannelEnum::tryFrom((string) Str::trimToNull($channel));
         $sent = $quote;

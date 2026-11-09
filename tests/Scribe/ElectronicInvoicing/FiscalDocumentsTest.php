@@ -37,7 +37,6 @@ use Kanvas\Scribe\ElectronicInvoicing\Services\EcfIssuanceService;
 use Kanvas\Scribe\ElectronicInvoicing\Services\FiscalArtifactService;
 use Kanvas\Scribe\ElectronicInvoicing\Services\FiscalNumberRangeService;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
-use Kanvas\Scribe\ElectronicInvoicing\Support\FiscalFileRetention;
 use Kanvas\Scribe\ElectronicInvoicing\Support\ReceivedEcfCompliance;
 use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
@@ -446,8 +445,13 @@ class FiscalDocumentsTest extends EcfCompletionTestCase
         /** @var FilesystemEntities $attached */
         $attached = $invoice->getFileByName(ApplyFiscalAnswerAction::PDF_FIELD_NAME);
 
-        $this->expectException(ImmutableFiscalRecordException::class);
-        FiscalFileRetention::assertDetachable($attached);
+        try {
+            $attached->softDelete();
+            $this->fail('A retained fiscal file cannot be detached.');
+        } catch (ImmutableFiscalRecordException) {
+        }
+
+        $this->assertFalse($attached->refresh()->trashed());
     }
 
     public function test_a_new_range_keeps_the_old_one_and_unused_numbers_span_both_minus_a_partial_annulment(): void
