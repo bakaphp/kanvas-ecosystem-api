@@ -13,29 +13,63 @@ class PeopleService
 {
     public static function updatePeopleInformation(People $people, array $verificationData): void
     {
-        $people->firstname = $verificationData['idcheck']['data']['firstName'] ?? $people->firstname;
-        $people->middlename = $verificationData['idcheck']['data']['middleName'] ?? $people->middlename;
-        $people->lastname = $verificationData['idcheck']['data']['lastName'] ?? $people->lastname;
+        $idCheck = $verificationData['idcheck']['data'] ?? [];
+
+        $people->firstname = $idCheck['firstName'] ?? $people->firstname;
+        $people->middlename = $idCheck['middleName'] ?? $people->middlename;
+        $people->lastname = $idCheck['lastName'] ?? $people->lastname;
         $people->name = $people->firstname . ' ' . $people->lastname;
-        $people->dob = isset($verificationData['idcheck']['data']['dateOfBirth'])
-            ? Carbon::createFromFormat('m/d/Y', $verificationData['idcheck']['data']['dateOfBirth'])->format('Y-m-d')
+        $people->dob = isset($idCheck['dateOfBirth'])
+            ? Carbon::createFromFormat('m/d/Y', $idCheck['dateOfBirth'])->format('Y-m-d')
             : $people->dob;
         $people->saveOrFail();
 
-        // Check if address data exists before adding it
         if (
-            isset($verificationData['idcheck']['data']['address1']) ||
-            isset($verificationData['idcheck']['data']['city']) ||
-            isset($verificationData['idcheck']['data']['state']) ||
-            isset($verificationData['idcheck']['data']['postalCode'])
+            isset($idCheck['address1']) ||
+            isset($idCheck['city']) ||
+            isset($idCheck['state']) ||
+            isset($idCheck['postalCode'])
         ) {
-            $people->addDefaultAddress(new Address(
-                address: $verificationData['idcheck']['data']['address1'] ?? '',
-                city: $verificationData['idcheck']['data']['city'] ?? '',
-                state: $verificationData['idcheck']['data']['state'] ?? '',
-                country: $verificationData['idcheck']['data']['country'] ?? Countries::getByCode('US')->name,
-                zip: $verificationData['idcheck']['data']['postalCode'] ?? '',
-            ));
+            self::setDefaultAddress(
+                $people,
+                $idCheck['address1'] ?? '',
+                $idCheck['city'] ?? '',
+                $idCheck['state'] ?? '',
+                $idCheck['postalCode'] ?? '',
+                $idCheck['country'] ?? Countries::getByCode('US')->name,
+            );
         }
+    }
+
+    /**
+     * The manual id-verification form (status opened, `data.address`) that the dealer CRM
+     * activities share; the scan path above is the Intellicheck envelope.
+     */
+    public static function updatePeopleAddressFromForm(People $people, array $form): void
+    {
+        self::setDefaultAddress(
+            $people,
+            (string) ($form['address'] ?? ''),
+            (string) ($form['city'] ?? ''),
+            (string) ($form['state'] ?? ''),
+            (string) ($form['zipcode'] ?? ''),
+        );
+    }
+
+    private static function setDefaultAddress(
+        People $people,
+        string $address,
+        string $city,
+        string $state,
+        string $zip,
+        ?string $country = null,
+    ): void {
+        $people->addDefaultAddress(new Address(
+            address: $address,
+            city: $city,
+            state: $state,
+            country: $country,
+            zip: $zip,
+        ));
     }
 }

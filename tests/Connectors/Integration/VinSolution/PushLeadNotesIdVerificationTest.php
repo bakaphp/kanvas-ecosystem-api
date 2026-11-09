@@ -135,7 +135,12 @@ final class PushLeadNotesIdVerificationTest extends TestCase
      */
     private function activity(): PushLeadNotesActivity
     {
-        return new class (0, now()->toDateTimeString(), new StoredWorkflow(), []) extends PushLeadNotesActivity {
+        return new class (
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        ) extends PushLeadNotesActivity {
             public array $pushed = [];
 
             protected function pushPeople(People $people): Contact
