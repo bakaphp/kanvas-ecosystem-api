@@ -13,6 +13,15 @@ accepts it; the inbound receivers and agent mailboxes are documented in their cl
 Keep them apart: each command registers only its own Mailgun webhook ids, so setting up one never
 repoints the other.
 
+**The delivery receiver is one per app and sending domain** (`DeliveryWebhookReceiverService`,
+`configuration.mailgun.domain`), not per company: Mailgun keeps one URL per domain and event, and Mailgun
+has no per-message status callback the way Twilio does (routes only forward inbound mail). Its company is
+only whoever set it up first. It is set up by hand, once per domain, never from a send: run the command
+for any company on that domain. The domain defaults to the company's from email (`from_email_address`,
+e.g. `tom@mg.salesassist.io` → `mg.salesassist.io`), which is what company SMTP mail goes out as, then
+the company's Mailgun domain; `--domain=` overrides both (an agent mailbox domain, for instance). Running
+it again repoints the domain's events at the same receiver; a receiver switched off stays off.
+
 ## Where it is recorded: the communication ledger
 
 Email deliveries live in Communication, not in a Mailgun table (a connector must not own a table the

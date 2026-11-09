@@ -6,41 +6,29 @@ namespace App\Console\Commands\Connectors\Mailgun;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Mailgun\Client;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
-use Kanvas\Connectors\Mailgun\Webhooks\EmailDeliveryWebhookJob;
+use Kanvas\Connectors\Mailgun\Services\DeliveryWebhookReceiverService;
 use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Workflow\Models\ReceiverWebhook;
-use Kanvas\Workflow\Rules\Models\Action;
 
 /**
- * Creates the receiver for EmailDeliveryWebhookJob and points the company's sending domain at it for
- * every delivery event. `opened` is left to kanvas:mailgun-setup-email-opened-webhook.
+ * Points a sending domain's delivery events at its receiver, one per app and domain: run it once per
+ * domain, for any company sending on it. `opened` is left to kanvas:mailgun-setup-email-opened-webhook.
  */
 class SetupEmailDeliveryWebhooksCommand extends Command
 {
     use KanvasJobsTrait;
 
-    /**
-     * Mailgun's webhook ids; a failure is reported under one of the two `*_fail` ids by severity.
-     * `accepted` is left out: the send itself files the attempt as accepted, so the event adds nothing.
-     */
-    private const array EVENTS = [
-        'delivered',
-        'permanent_fail',
-        'temporary_fail',
-        'complained',
-        'unsubscribed',
-    ];
-
     protected $signature = 'kanvas:mailgun-setup-delivery-webhooks
                             {app_id : The application ID}
                             {company_id : Company ID}
-                            {user_id : User ID that owns the receiver}';
+                            {user_id : User ID that owns the receiver if one is created}
+                            {--domain= : The Mailgun sending domain; defaults to the domain of the company\'s from email}';
 
-    protected $description = 'Creates the Mailgun delivery-status receiver and registers it with Mailgun for the company\'s sending domain.';
+    protected $description = 'Creates the Mailgun delivery-status receiver for a sending domain and registers it with Mailgun.';
 
     public function handle(): int
     {
@@ -51,36 +39,25 @@ class SetupEmailDeliveryWebhooksCommand extends Command
         $company = Companies::getById((int) $this->argument('company_id'));
         $user = UsersRepository::getUserOfCompanyById($company, (int) $this->argument('user_id'));
 
-        $action = Action::firstOrCreate(
-            ['model_name' => EmailDeliveryWebhookJob::class],
-            ['name' => class_basename(EmailDeliveryWebhookJob::class)],
-        );
+        $domain = (string) ($this->option('domain') ?: $this->fromEmailDomain($app, $company));
+        $receiver = new DeliveryWebhookReceiverService()->ensure($app, $company, $domain, $user->getId());
 
-        $receiver = ReceiverWebhook::firstOrCreate(
-            [
-                'apps_id' => $app->getId(),
-                'companies_id' => $company->getId(),
-                'action_id' => $action->getId(),
-                'name' => 'Mailgun Email Delivery Status',
-                'is_deleted' => 0,
-            ],
-            [
-                'users_id' => $user->getId(),
-                'description' => 'Receives Mailgun\'s delivery events and records them on the outbound email.',
-                'is_active' => true,
-            ],
-        );
-
-        $domain = new AgentMailboxService()->domainForTenant($app, $company);
-        $client = new Client($app);
-
-        foreach (self::EVENTS as $event) {
-            $client->createOrUpdateWebhook($domain, $event, $receiver->getUrl());
-        }
-
-        $this->info('Mailgun delivery webhooks (' . implode(', ', self::EVENTS) . ') registered for domain ' . $domain . '.');
+        $this->info('Mailgun delivery webhooks (' . implode(', ', DeliveryWebhookReceiverService::EVENTS) . ') registered for domain ' . strtolower($domain) . '.');
         $this->info('Receiver URL: ' . $receiver->getUrl());
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Company SMTP mail goes out as the company's from email (`tom@mg.salesassist.io`), and Mailgun files
+     * its events under that domain. The company's Mailgun domain is the fallback, for agent mailboxes.
+     */
+    private function fromEmailDomain(Apps $app, Companies $company): string
+    {
+        $address = (string) new SmtpRuntimeConfiguration($app, $company)->getFromEmail()['address'];
+
+        return str_contains($address, '@')
+            ? Str::after($address, '@')
+            : new AgentMailboxService()->domainForTenant($app, $company);
     }
 }
