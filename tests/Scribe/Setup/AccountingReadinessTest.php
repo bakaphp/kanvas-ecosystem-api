@@ -137,7 +137,7 @@ final class AccountingReadinessTest extends ScribeTestCase
 
         $ar = $this->accountingAgent($company, AccountsReceivableAgent::class);
         $handler = new AccountsReceivableAgent();
-        $handler->setConfiguration($ar, null, static::$cachedUser);
+        $handler->setConfiguration(agent: $ar, user: static::$cachedUser);
 
         $names = $this->toolNames($handler);
         $this->assertNotContains('check_rnc', $names);
@@ -148,11 +148,11 @@ final class AccountingReadinessTest extends ScribeTestCase
         $this->assertStringContainsString('## Your setup right now', $handler->instructions());
 
         $company->set(EcfConfigurationEnum::ECF_PROVIDER->value, 'fake');
-        $handler->setConfiguration($ar, null, static::$cachedUser);
+        $handler->setConfiguration(agent: $ar, user: static::$cachedUser);
         $this->assertContains('check_rnc', $this->toolNames($handler));
 
         $ap = new AccountsPayableAgent();
-        $ap->setConfiguration($this->accountingAgent($company, AccountsPayableAgent::class), null, static::$cachedUser);
+        $ap->setConfiguration(agent: $this->accountingAgent($company, AccountsPayableAgent::class), user: static::$cachedUser);
         $this->assertContains('recent_inbox_arrivals', $this->toolNames($ap));
     }
 

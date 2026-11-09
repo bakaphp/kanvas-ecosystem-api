@@ -37,7 +37,7 @@ use Spatie\LaravelData\DataCollection;
  *     DR Cash — Checking          {amount}
  *       CR Accounts Receivable     {amount}
  *
- *   Void (reverse the original issue JE — mirror DR/CR swap) — composed inline by VoidInvoiceAction.
+ *   Void — a mirror reversal of the issue JE, posted by VoidInvoiceAction through ReverseJournalEntryAction.
  *
  * @see plan §3.5 sub-ledger → GL auto-posting table
  */
@@ -111,7 +111,12 @@ class InvoiceJournalEntryComposerService
             ),
         ];
 
-        array_push($lines, ...$this->buildTaxLines($invoice, credit: true, memoSuffix: '', startSortOrder: 2));
+        array_push($lines, ...$this->buildTaxLines(
+            $invoice,
+            credit: true,
+            memoSuffix: '',
+            startSortOrder: 2
+        ));
 
         return new JournalEntryData(
             app: $app,
@@ -247,7 +252,12 @@ class InvoiceJournalEntryComposerService
             ];
         }
 
-        array_push($lines, ...$this->buildTaxLines($creditNote, credit: false, memoSuffix: ' reversal', startSortOrder: 1));
+        array_push($lines, ...$this->buildTaxLines(
+            $creditNote,
+            credit: false,
+            memoSuffix: ' reversal',
+            startSortOrder: 1
+        ));
 
         // CR Accounts Receivable
         $lines[] = new JournalEntryLineData(
@@ -295,7 +305,7 @@ class InvoiceJournalEntryComposerService
         $sortOrder = 0;
 
         foreach ($codedLines->groupBy('account_id') as $accountId => $groupLines) {
-            $account = Account::query()->where('id', $accountId)->firstOrFail();
+            $account = Account::getById($accountId, $creditNote->app);
 
             $lines[] = new JournalEntryLineData(
                 account_id: $account->id,
@@ -322,8 +332,12 @@ class InvoiceJournalEntryComposerService
      *
      * @return array<int, JournalEntryLineData>
      */
-    private function buildTaxLines(Invoice $invoice, bool $credit, string $memoSuffix, int $startSortOrder): array
-    {
+    private function buildTaxLines(
+        Invoice $invoice,
+        bool $credit,
+        string $memoSuffix,
+        int $startSortOrder
+    ): array {
         $taxNative = (float) $invoice->tax_native;
 
         if ($taxNative <= 0) {

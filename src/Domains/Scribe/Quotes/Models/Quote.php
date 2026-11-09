@@ -146,6 +146,7 @@ class Quote extends BaseModel implements EngageableInterface
             'invoice_number' => $invoice->invoice_number,
             'status' => $invoice->document_status->value,
             'total' => (float) $invoice->total_native,
+            'due_date' => $invoice->due_date?->toDateString(),
         ])->values()->all();
     }
 

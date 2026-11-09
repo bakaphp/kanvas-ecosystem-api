@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Alanube\Mappers;
 
 use Baka\Support\Money;
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr\DataTransferObject\EcfLine;
@@ -152,10 +153,10 @@ class AlanubeDocumentMapper
     private function buyer(EcfDocument $document): array
     {
         $party = $document->buyer;
-        $taxId = $party->taxId !== null ? preg_replace('/\D/', '', $party->taxId) : null;
+        $taxId = Str::digitsOnly($party->taxId);
 
         // An anonymous E32 (consumer, under DOP 250k) goes with no buyer block at all.
-        if (($taxId === null || $taxId === '') && ! $document->type->requiresBuyerTaxId() && ! $party->isForeign) {
+        if ($taxId === '' && ! $document->type->requiresBuyerTaxId() && ! $party->isForeign) {
             return [];
         }
 

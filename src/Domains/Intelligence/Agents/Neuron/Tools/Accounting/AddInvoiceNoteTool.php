@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesInvoiceForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /** Appends an internal note to an AR invoice or credit memo in the Kanvas ledger. */
@@ -18,6 +19,7 @@ class AddInvoiceNoteTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesInvoiceForTool;
+    use TrackByInputs;
 
     protected string $name = 'add_invoice_note';
 

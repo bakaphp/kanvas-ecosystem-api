@@ -7,8 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Services\ApprovalOriginService;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
@@ -208,7 +206,7 @@ class CreateArCreditMemoTool extends Tool
                 ];
             }
 
-            $account = $this->resolveAccount($accountNumber, $app, $company);
+            $account = $this->resolveAccount($accountNumber);
 
             if ($account === null) {
                 return [
@@ -271,13 +269,14 @@ class CreateArCreditMemoTool extends Tool
         ];
     }
 
-    private function resolveAccount(string $accountNumber, Apps $app, Companies $company): ?Account
+    private function resolveAccount(string $accountNumber): ?Account
     {
         return Account::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
             ->where('account_number', $accountNumber)
             ->where('is_active', true)
+            ->notDeleted()
             ->first();
     }
 }

@@ -100,14 +100,14 @@ class PurchaseEcfDocumentBuilder
                 $discount = (float) $line->discount_amount_native;
                 $net = Money::of($quantity)->multipliedBy(Money::of($unitPrice))->minus(Money::of($discount))->toFloat();
                 $rate = $line->tax_rate;
-                $code = Str::trimToNull($line->sku) ?? ($line->item_id !== null ? 'ITEM-' . $line->item_id : (string) $lineNumber);
+                $sku = $line->sku;
             } else {
                 $quantity = 1.0;
                 $unitPrice = (float) $line->amount_native;
                 $discount = 0.0;
                 $net = $unitPrice;
                 $rate = null;
-                $code = $line->item_id !== null ? 'ITEM-' . $line->item_id : (string) $lineNumber;
+                $sku = null;
             }
 
             $tax = Money::cents((float) $line->tax_amount_native);
@@ -116,8 +116,8 @@ class PurchaseEcfDocumentBuilder
 
             $lines[] = new EcfLine(
                 lineNumber: $lineNumber,
-                code: mb_substr($code, 0, EcfDocumentBuilder::CODE_MAX),
-                description: mb_substr(Str::trimToNull($line->description) ?? 'Item ' . $lineNumber, 0, EcfDocumentBuilder::DESCRIPTION_MAX),
+                code: EcfDocumentBuilder::lineCode($sku, $line->item_id, $lineNumber),
+                description: EcfDocumentBuilder::lineDescription($line->description, $lineNumber),
                 quantity: round($quantity, 2),
                 unitPrice: round($unitPrice, 4),
                 itbis: EcfDocumentBuilder::rateFor(EcfDocumentBuilder::percentOf($rate, $net, $tax), $type),

@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\LinksRecordsToAdmin;
 use Kanvas\Intelligence\Tools\Traits\Guild\LinksOrganizationByEmailDomain;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -34,6 +35,7 @@ class CreatePersonTool extends Tool
     use HasKanvasContext;
     use LinksOrganizationByEmailDomain;
     use LinksRecordsToAdmin;
+    use ReportsToolOutcome;
     use TrackByInputs;
 
     protected string $name = 'create_person';
@@ -98,7 +100,7 @@ class CreatePersonTool extends Tool
         $custom_fields = $this->decodeJsonObjectParam($custom_fields);
         $firstname = trim($firstname);
         if ($firstname === '') {
-            return ['error' => 'firstname is required.'];
+            return $this->invalidArgs('firstname is required.');
         }
 
         $contacts = [];
@@ -130,7 +132,7 @@ class CreatePersonTool extends Tool
 
             $person = new CreatePeopleAction($dto)->execute();
         } catch (Throwable $e) {
-            return ['error' => $e->getMessage()];
+            return $this->failed($e->getMessage(), guidance: 'Say the contact was NOT created.');
         }
 
         $hasOrganization = $organization !== null && trim($organization) !== '';

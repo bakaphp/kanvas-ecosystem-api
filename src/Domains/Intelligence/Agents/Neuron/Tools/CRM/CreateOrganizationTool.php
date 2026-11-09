@@ -79,7 +79,7 @@ class CreateOrganizationTool extends Tool
     ): array {
         $name = trim($name);
         if ($name === '') {
-            return ['error' => 'name is required to create an organization.'];
+            return $this->invalidArgs('name is required to create an organization.');
         }
 
         $checkedTaxId = null;
@@ -96,7 +96,7 @@ class CreateOrganizationTool extends Tool
                 /** @var OrganizationType $organizationType */
                 $organizationType = OrganizationType::getByIdFromCompanyApp($organization_type_id, $this->company, $this->app);
             } catch (Throwable) {
-                return ['error' => sprintf('No organization type #%d found in this company.', $organization_type_id)];
+                return $this->notFound(['error' => sprintf('No organization type #%d found in this company.', $organization_type_id)]);
             }
         }
 
@@ -119,7 +119,7 @@ class CreateOrganizationTool extends Tool
         } catch (Throwable $e) {
             report($e);
 
-            return ['error' => $e->getMessage()];
+            return $this->failed($e->getMessage(), guidance: 'Say the organization was NOT created.');
         }
 
         return [

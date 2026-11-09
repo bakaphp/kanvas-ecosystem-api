@@ -40,10 +40,7 @@ class SetupDocumentActionsCommand extends Command
             }
 
             new DocumentActionsSetup($app, $owner, $company)->run();
-
-            if (! is_array($company->get(DunningSchedule::SETTING))) {
-                $company->set(DunningSchedule::SETTING, DunningSchedule::defaults());
-            }
+            DunningSchedule::seedDefaults($company);
 
             $this->info("Company {$company->getId()} ({$company->name}): document actions ready.");
         }

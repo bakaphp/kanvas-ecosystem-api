@@ -5,11 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\ElectronicInvoicing\Services;
 
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalPayloadInterface;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
-use Kanvas\Scribe\Expenses\Models\Expense;
-use Kanvas\Scribe\Invoices\Models\Invoice;
 
 class FiscalPayloadService
 {
@@ -20,11 +17,8 @@ class FiscalPayloadService
      */
     public static function forFiscal(FiscalDocument $fiscal, ?string $systemRef = null): FiscalPayloadInterface
     {
-        $entity = $fiscal->entity;
-
-        if (! $entity instanceof Invoice && ! $entity instanceof Bill && ! $entity instanceof Expense) {
-            throw new ValidationException("Fiscal document {$fiscal->uuid} has no Scribe document behind it.");
-        }
+        $entity = $fiscal->scribeDocument()
+            ?? throw new ValidationException("Fiscal document {$fiscal->uuid} has no Scribe document behind it.");
 
         $regime = $fiscal->regime();
         $type = $regime->documentType((string) $fiscal->document_type)

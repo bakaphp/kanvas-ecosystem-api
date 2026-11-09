@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WebPos\Providers;
 
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\WebPos\Actions\SendCommercialResponseAction;
@@ -112,16 +113,7 @@ class WebPosEcfProvider implements EcfProviderInterface, RespondsToReceivedEcfIn
             ),
         ));
 
-        $response ??= $this->knownDocument($client->get(
-            HostEnum::ISSUING,
-            sprintf(
-                'api/fedo/ak/v1/%s/getResultFe/%s/%s/%s',
-                $client->environment->pathSegment(),
-                $client->companyLicense,
-                Client::API_KEY,
-                rawurlencode($document->encf),
-            ),
-        ));
+        $response ??= $this->resultByNumber($client, $document->encf);
 
         if ($response === null) {
             throw new ValidationException("WebPOS has no record of e-CF {$document->encf} (systemRef {$document->systemRef}).");
@@ -140,23 +132,12 @@ class WebPosEcfProvider implements EcfProviderInterface, RespondsToReceivedEcfIn
 
     public function isNumberIssued(FiscalDocumentTypeInterface $type, string $number): bool
     {
-        $client = $this->client();
-
-        return $this->knownDocument($client->get(
-            HostEnum::ISSUING,
-            sprintf(
-                'api/fedo/ak/v1/%s/getResultFe/%s/%s/%s',
-                $client->environment->pathSegment(),
-                $client->companyLicense,
-                Client::API_KEY,
-                rawurlencode($number),
-            ),
-        )) !== null;
+        return $this->resultByNumber($this->client(), $number) !== null;
     }
 
     public function lookupTaxpayer(string $taxId): ?string
     {
-        $taxId = (string) preg_replace('/\D/', '', $taxId);
+        $taxId = Str::digitsOnly($taxId);
 
         if ($taxId === '') {
             return null;
@@ -186,6 +167,23 @@ class WebPosEcfProvider implements EcfProviderInterface, RespondsToReceivedEcfIn
         )->execute();
 
         return ResponseField::string($result, 'trackId', 'id');
+    }
+
+    /**
+     * @return array<array-key, mixed>|null
+     */
+    private function resultByNumber(Client $client, string $number): ?array
+    {
+        return $this->knownDocument($client->get(
+            HostEnum::ISSUING,
+            sprintf(
+                'api/fedo/ak/v1/%s/getResultFe/%s/%s/%s',
+                $client->environment->pathSegment(),
+                $client->companyLicense,
+                Client::API_KEY,
+                rawurlencode($number),
+            ),
+        ));
     }
 
     /**

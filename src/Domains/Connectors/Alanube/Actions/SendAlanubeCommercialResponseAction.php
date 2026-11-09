@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Alanube\Actions;
 
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Alanube\Client;
@@ -56,7 +57,7 @@ class SendAlanubeCommercialResponseAction
     {
         $response = $client->get(
             $client->scopedPath('received-documents'),
-            ['rnc' => preg_replace('/\D/', '', $this->vendorTaxId), 'documentNumber' => $this->encf],
+            ['rnc' => Str::digitsOnly($this->vendorTaxId), 'documentNumber' => $this->encf],
         ) ?? [];
 
         $documents = is_array($response['documents'] ?? null) ? $response['documents'] : $response;

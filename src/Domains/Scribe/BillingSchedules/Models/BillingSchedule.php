@@ -82,7 +82,7 @@ class BillingSchedule extends BaseModel
     public function lines(): HasMany
     {
         return $this->hasMany(BillingScheduleLine::class, 'billing_schedule_id', 'id')
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->orderBy('sort_order')
             ->orderBy('id');
     }
@@ -94,7 +94,7 @@ class BillingSchedule extends BaseModel
     {
         BillingScheduleLine::query()
             ->where('billing_schedule_id', $this->getId())
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->update(['is_deleted' => 1]);
 
         foreach ($lines as $position => $line) {

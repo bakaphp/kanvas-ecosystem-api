@@ -7,7 +7,6 @@ namespace Tests\Connectors\Alanube;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
 use Illuminate\Log\Events\MessageLogged;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
@@ -43,6 +42,7 @@ final class AlanubeOnboardingTest extends TestCase
         parent::setUp();
 
         config(['app.url' => 'https://graphapi.kanvas.dev']);
+        config(['services.alanube.main_token_test' => self::ALANUBE_MAIN_TOKEN]);
         $this->registerAlanubeWorkflowActions();
     }
 
@@ -224,16 +224,6 @@ final class AlanubeOnboardingTest extends TestCase
             ),
             certificate: new AlanubeCertificate(self::CERTIFICATE_BYTES, self::CERTIFICATE_PASSWORD),
         );
-    }
-
-    private function freshCompany(): Companies
-    {
-        /** @var Companies $company */
-        $company = Companies::factory()->create(['users_id' => Auth::id(), 'is_active' => 1]);
-        $company->associateApp(app(Apps::class));
-        config(['services.alanube.main_token_test' => self::ALANUBE_MAIN_TOKEN]);
-
-        return $company;
     }
 
     private function freshKanvasModeCompany(): Companies

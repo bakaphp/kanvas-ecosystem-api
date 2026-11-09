@@ -13,9 +13,8 @@ use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
 /**
  * Atomic document-number allocator state.
  *
- * NOT extending Scribe\Models\BaseModel — this table has no apps_id+companies_id partition (it HAS them, but it's
- * not a user-facing entity with soft delete / custom fields / files). The DocumentNumberAllocatorService service is the
- * sole writer; never write to this table directly via Eloquent in business code.
+ * Not a Scribe BaseModel: the row is allocator state, not a user-facing entity, so it has no soft delete, custom
+ * fields or files. DocumentNumberAllocatorService is the sole writer; never write to this table from business code.
  *
  * A row with a range is an authority-issued block (a DGII e-NCF range): numbers come only from inside it
  * and only until it expires.

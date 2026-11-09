@@ -249,8 +249,6 @@ class Invoice extends BaseModel implements PayableInterface, DeliversApprovalNot
         new MarkInvoicePaidAction(invoice: $this, user: $user)->execute();
     }
 
-    // ────────── helpers ──────────
-
     public function computeAgingBucket(?Carbon $today = null): AgingBucketEnum
     {
         return AgingBucketEnum::forInvoice($this->due_date, $today ?? Carbon::today());

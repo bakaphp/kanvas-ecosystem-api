@@ -27,8 +27,8 @@ use Throwable;
  * Mailgun inbound webhook for the Scribe accounting inbox.
  *
  * Production routing:
- *   1. Tenant sets up a Mailgun route forwarding `accounting@<tenant>.example.com` to
- *      POST {API_BASE}/receiver/{receiver_uuid}.
+ *   1. EnsureAccountingInboxAction provisions the receiver, its address and the Mailgun route that
+ *      forwards the address to POST {API_BASE}/v1/receiver/{receiver_uuid}.
  *   2. ReceiverController (routes/api.php) looks up the ReceiverWebhook row by uuid, calls
  *      `authenticateRequest()`, and dispatches an instance of this class (it's ShouldQueue
  *      via the parent ProcessWebhookJob).
@@ -46,7 +46,8 @@ use Throwable;
  *     doesn't hold up the email's other attachments
  *   - Mailgun message_id is captured per-job so dedup (Path 1) works across re-deliveries
  *
- * Tenant ReceiverWebhook config (JSON column `configuration`):
+ * ReceiverWebhook config (JSON column `configuration`, written by EnsureAccountingInboxAction except the
+ * last key, which a tenant may add by hand):
  *   {
  *     "scribe_pdf_inbox": true,             # gate so non-accounting Mailgun routes don't trigger
  *     "default_from_email_when_missing": "ops@example.com"

@@ -38,6 +38,44 @@ class ArtifactBlockService
         return $errors;
     }
 
+    /**
+     * A list over its cap is cut to the cap instead of refused. The cap is a rendering contract (see checkString), but
+     * the model kept sending 7 or 8 entity fields against a cap of 6 and each refusal cost a model round before the
+     * same card came back trimmed by hand; cutting it here and saying so costs nothing. Only top-level lists: a nested
+     * list's cap is the renderer's, and a bad item is still an error the model fixes.
+     *
+     * @param array<string, mixed> $props
+     * @return array{0: array<string, mixed>, 1: list<string>}
+     */
+    public function truncateLists(ArtifactComponentEnum $component, array $props): array
+    {
+        $notes = [];
+
+        foreach ($component->props() as $key => $rule) {
+            $max = $rule['max'] ?? null;
+            $value = $props[$key] ?? null;
+
+            if ($max === null
+                || ! in_array($rule['type'] ?? null, ['list', 'rows', 'record_id_list'], true)
+                || ! is_array($value)
+                || ! array_is_list($value)
+                || count($value) <= $max
+            ) {
+                continue;
+            }
+
+            $notes[] = sprintf(
+                'props.%s had %d entries; the first %d were kept, say the rest in prose',
+                $key,
+                count($value),
+                $max
+            );
+            $props[$key] = array_slice($value, 0, $max);
+        }
+
+        return [$props, $notes];
+    }
+
     public const string UNISSUED_NOTICE = '_A card in this reply was removed: it showed a record no tool produced in this '
         . 'turn, so nothing on it was done in Kanvas._';
 

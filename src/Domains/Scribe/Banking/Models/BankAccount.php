@@ -17,8 +17,7 @@ use Kanvas\Scribe\Models\BaseModel;
 use Override;
 
 /**
- * Minimal bank account row — points at the GL Cash account that backs it.
- * Full Banking subdomain (transactions, reconciliations, transfers) lands in Phase 3.
+ * A bank account and the GL Cash (or credit-card liability) account that backs it.
  *
  * @property int $id
  * @property int $apps_id

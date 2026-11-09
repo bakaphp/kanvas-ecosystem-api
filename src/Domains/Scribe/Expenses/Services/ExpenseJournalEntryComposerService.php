@@ -220,27 +220,9 @@ class ExpenseJournalEntryComposerService
 
     private function resolveCreditAccount(Expense $expense): Account
     {
-        // COMPANY_BANK_TRANSFER may have a specific bank_account_id; use its GL cash account.
-        if ($expense->paid_by === ExpensePaidByEnum::COMPANY_BANK_TRANSFER && $expense->bank_account_id !== null) {
-            $bankAccount = BankAccount::query()
-                ->where('id', $expense->bank_account_id)
-                ->where('apps_id', $expense->apps_id)
-                ->where('companies_id', $expense->companies_id)
-                ->first();
+        $glAccount = $expense->paid_by === ExpensePaidByEnum::COMPANY_BANK_TRANSFER ? $this->bankGlAccount($expense) : null;
 
-            if ($bankAccount !== null && $bankAccount->gl_account_id !== null) {
-                $glAccount = Account::query()
-                    ->where('id', $bankAccount->gl_account_id)
-                    ->where('is_active', true)
-                    ->first();
-
-                if ($glAccount !== null) {
-                    return $glAccount;
-                }
-            }
-        }
-
-        return $this->accountResolver->bySubType(
+        return $glAccount ?? $this->accountResolver->bySubType(
             $expense->app,
             $expense->company,
             $expense->paid_by->creditAccountSubType(),
@@ -249,31 +231,36 @@ class ExpenseJournalEntryComposerService
 
     private function resolveCashAccount(Expense $expense): Account
     {
-        // If a specific bank account is linked, use its GL cash account.
-        if ($expense->bank_account_id !== null) {
-            $bankAccount = BankAccount::query()
-                ->where('id', $expense->bank_account_id)
-                ->where('apps_id', $expense->apps_id)
-                ->where('companies_id', $expense->companies_id)
-                ->first();
-
-            if ($bankAccount !== null && $bankAccount->gl_account_id !== null) {
-                $glAccount = Account::query()
-                    ->where('id', $bankAccount->gl_account_id)
-                    ->where('is_active', true)
-                    ->first();
-
-                if ($glAccount !== null) {
-                    return $glAccount;
-                }
-            }
-        }
-
-        return $this->accountResolver->bySubType(
+        return $this->bankGlAccount($expense) ?? $this->accountResolver->bySubType(
             $expense->app,
             $expense->company,
             AccountSubTypeEnum::CASH_CHECKING,
         );
+    }
+
+    /**
+     * The GL cash account behind the expense's own bank account, when it names one that is still active.
+     */
+    private function bankGlAccount(Expense $expense): ?Account
+    {
+        if ($expense->bank_account_id === null) {
+            return null;
+        }
+
+        $bankAccount = BankAccount::query()
+            ->where('id', $expense->bank_account_id)
+            ->where('apps_id', $expense->apps_id)
+            ->where('companies_id', $expense->companies_id)
+            ->first();
+
+        if ($bankAccount?->gl_account_id === null) {
+            return null;
+        }
+
+        return Account::query()
+            ->where('id', $bankAccount->gl_account_id)
+            ->where('is_active', true)
+            ->first();
     }
 
     private function creditLineMemo(Expense $expense): string

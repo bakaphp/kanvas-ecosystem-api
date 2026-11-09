@@ -69,6 +69,20 @@ final class DunningSchedule
     }
 
     /**
+     * @return bool whether the defaults were written; a cadence the company already set is left alone
+     */
+    public static function seedDefaults(Companies $company): bool
+    {
+        if (is_array($company->get(self::SETTING))) {
+            return false;
+        }
+
+        $company->set(self::SETTING, self::defaults());
+
+        return true;
+    }
+
+    /**
      * The stored setting shape, the one fromArray() reads back.
      *
      * @return array<string, mixed>

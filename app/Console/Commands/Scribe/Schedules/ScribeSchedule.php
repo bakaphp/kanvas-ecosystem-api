@@ -45,6 +45,8 @@ use Illuminate\Console\Scheduling\Schedule;
  *               per published date, so the second run changes nothing on a normal day.
  *   every 10 min  ResolveStuckFiscalSubmissionsCommand
  *             — an e-CF send whose worker died mid-call is turned into a status query within minutes.
+ *   hourly :20  RetryDocumentSignalsCommand
+ *             — a document signal whose task did not open (no AR agent yet) is handed over once there is one.
  */
 final class ScribeSchedule
 {

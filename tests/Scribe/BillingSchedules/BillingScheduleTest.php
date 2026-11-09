@@ -19,6 +19,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListBillingSchedulesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ScheduleBillingTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetPaymentTermsTool;
 use Kanvas\NervousSystem\Ledger\Models\Event as LedgerEvent;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\BillingSchedules\Actions\CreateBillingScheduleAction;
@@ -367,6 +368,43 @@ class BillingScheduleTest extends ScribeTestCase
         $this->assertFalse($again['saved']);
         $this->assertSame('nothing_to_bill', $again['reason']);
         $this->assertCount(1, $this->invoicesFor($quote->customer)->where('quote_id', $quote->getId())->where('total_native', '>', 2049), 'never billed twice');
+    }
+
+    public function test_a_sow_schedule_takes_the_company_default_terms_and_bill_now_reports_them(): void
+    {
+        Queue::fake();
+        $quote = $this->sentQuoteWithSow('Default Terms Sow Co');
+        new SetPaymentTermsTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(name: 'Net 30', net_days: 30, is_default: true);
+
+        new AcceptQuoteAction($quote, static::$cachedUser)->execute();
+        $schedules = BillingSchedule::query()->where('source_quote_id', $quote->getId())->orderBy('id')->get();
+        $this->assertSame([30, 30], $schedules->pluck('net_terms_days')->map(fn ($days) => (int) $days)->all());
+
+        $billed = new ScheduleBillingTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(action: 'bill_now', billing_schedule_id: $schedules[1]->getId());
+
+        $this->assertTrue($billed['saved'], json_encode($billed));
+        $this->assertSame(30, $billed['net_terms_days']);
+        $this->assertSame('2026-07-01', $billed['due_date'], 'issued today, due in 30 days');
+        $this->assertArrayNotHasKey('terms_note', $billed);
+    }
+
+    public function test_a_sow_schedule_with_no_terms_anywhere_is_flagged_due_on_receipt(): void
+    {
+        Queue::fake();
+        $quote = $this->sentQuoteWithSow('No Terms Sow Co');
+        new AcceptQuoteAction($quote, static::$cachedUser)->execute();
+        $balance = BillingSchedule::query()->where('source_quote_id', $quote->getId())->orderBy('id')->get()[1];
+
+        $billed = new ScheduleBillingTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(action: 'bill_now', billing_schedule_id: $balance->getId());
+
+        $this->assertSame('2026-06-01', $billed['due_date']);
+        $this->assertStringContainsString('Due on receipt: nothing set payment terms', $billed['terms_note']);
     }
 
     public function test_bill_now_refuses_a_recurring_or_paused_schedule(): void

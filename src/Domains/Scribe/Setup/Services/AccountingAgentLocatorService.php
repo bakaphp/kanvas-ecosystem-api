@@ -19,6 +19,9 @@ use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsReceivableAgent;
  */
 class AccountingAgentLocatorService
 {
+    /** @var list<class-string> */
+    public const array HANDLERS = [AccountsPayableAgent::class, AccountsReceivableAgent::class];
+
     public function payables(AppInterface $app, CompanyInterface $company): ?Agent
     {
         return $this->byHandler($app, $company, AccountsPayableAgent::class);
@@ -42,7 +45,7 @@ class AccountingAgentLocatorService
 
     public static function isAccountingHandler(?string $handler): bool
     {
-        return in_array($handler, [AccountsPayableAgent::class, AccountsReceivableAgent::class], true);
+        return in_array($handler, self::HANDLERS, true);
     }
 
     private function byHandler(AppInterface $app, CompanyInterface $company, string $handler): ?Agent

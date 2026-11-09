@@ -189,7 +189,7 @@ class MatchBankTransactionAction
             $this->bankTransaction->matched_by = BankTransactionMatchedByEnum::SYSTEM;
             $this->bankTransaction->match_confidence = $candidates[0]->confidence;
             // Point at the sub-ledger's JE rather than posting our own — this IS the no-double-post rule.
-            $this->bankTransaction->journal_entry_id = $this->paymentJournalEntryId(
+            $this->bankTransaction->journal_entry_id = $this->journalEntryIdFor(
                 $isBill ? 'bill_payment' : 'payment',
                 $payment->getId(),
             );
@@ -306,7 +306,7 @@ class MatchBankTransactionAction
         new LinkBankTransactionToExpenseAction(
             bankTransaction: $this->bankTransaction,
             expense: $expense,
-            journalEntryId: $this->expenseJournalEntryId($expense),
+            journalEntryId: $this->journalEntryIdFor('expense', $expense->getId()),
             user: $this->user,
         )->execute();
     }
@@ -323,7 +323,7 @@ class MatchBankTransactionAction
             $this->bankTransaction->matched_to_id = $payment->getId();
             $this->bankTransaction->matched_at = Carbon::now();
             $this->bankTransaction->matched_by = BankTransactionMatchedByEnum::SYSTEM;
-            $this->bankTransaction->journal_entry_id = $this->paymentJournalEntryId(
+            $this->bankTransaction->journal_entry_id = $this->journalEntryIdFor(
                 $isBill ? 'bill_payment' : 'payment',
                 $payment->getId(),
             );
@@ -347,17 +347,6 @@ class MatchBankTransactionAction
         });
     }
 
-    private function expenseJournalEntryId(Expense $expense): ?int
-    {
-        return JournalEntry::query()
-            ->where('apps_id', $this->bankTransaction->apps_id)
-            ->where('companies_id', $this->bankTransaction->companies_id)
-            ->where('source_type', 'expense')
-            ->where('source_id', $expense->getId())
-            ->latest('id')
-            ->first()?->id;
-    }
-
     private function post(): void
     {
         new PostBankTransactionJournalEntryAction(
@@ -378,17 +367,15 @@ class MatchBankTransactionAction
             ?? AccountSubTypeEnum::CASH_CHECKING;
     }
 
-    private function paymentJournalEntryId(string $sourceType, int $paymentId): ?int
+    private function journalEntryIdFor(string $sourceType, int $sourceId): ?int
     {
-        $entry = JournalEntry::query()
+        return JournalEntry::query()
             ->where('apps_id', $this->bankTransaction->apps_id)
             ->where('companies_id', $this->bankTransaction->companies_id)
             ->where('source_type', $sourceType)
-            ->where('source_id', $paymentId)
+            ->where('source_id', $sourceId)
             ->latest('id')
-            ->first();
-
-        return $entry?->id;
+            ->value('id');
     }
 
     /**

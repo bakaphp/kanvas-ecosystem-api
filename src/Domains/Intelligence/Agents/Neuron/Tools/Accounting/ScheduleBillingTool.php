@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\PresentsInvoiceTerms;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesBillingScheduleForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
 use Kanvas\Scribe\BillingSchedules\Actions\CreateBillingScheduleAction;
@@ -40,6 +41,7 @@ use Throwable;
 #[AgentTool(name: 'Schedule Billing', category: 'accounting')]
 class ScheduleBillingTool extends Tool
 {
+    use PresentsInvoiceTerms;
     use ResolvesBillingScheduleForTool;
     use ResolvesCustomerForTool;
     use TrackByInputs;
@@ -417,6 +419,7 @@ class ScheduleBillingTool extends Tool
             'total' => (float) $invoice->total_native,
             'currency' => $invoice->currency,
             'quote_id' => $invoice->quote_id,
+            ...$this->invoiceTerms($invoice),
         ];
     }
 }

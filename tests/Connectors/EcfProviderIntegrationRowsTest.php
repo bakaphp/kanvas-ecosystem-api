@@ -6,7 +6,6 @@ namespace Tests\Connectors;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -18,6 +17,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\Integrations;
+use Tests\Connectors\Traits\HasThrowawayCompany;
 use Tests\TestCase;
 
 /**
@@ -28,6 +28,7 @@ use Tests\TestCase;
 final class EcfProviderIntegrationRowsTest extends TestCase
 {
     use DatabaseTransactions;
+    use HasThrowawayCompany;
 
     protected array $connectionsToTransact = ['mysql', 'ecosystem'];
 
@@ -91,14 +92,5 @@ final class EcfProviderIntegrationRowsTest extends TestCase
             data: $form,
             integration: $row,
         );
-    }
-
-    private function freshCompany(): Companies
-    {
-        /** @var Companies $company */
-        $company = Companies::factory()->create(['users_id' => Auth::id(), 'is_active' => 1]);
-        $company->associateApp(app(Apps::class));
-
-        return $company;
     }
 }

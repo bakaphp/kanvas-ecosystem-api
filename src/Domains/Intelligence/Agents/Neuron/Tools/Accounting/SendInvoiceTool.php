@@ -18,6 +18,7 @@ use Kanvas\Scribe\Invoices\Actions\SendInvoiceAction;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /** The one way an invoice reaches a customer: a tracked link (plus the legal PDF by email), then SENT. */
@@ -27,6 +28,7 @@ class SendInvoiceTool extends Tool implements RequiresSystemAgent
     use DeliversToBillingContacts;
     use ResolvesInvoiceForTool;
     use ResolvesPersonForTool;
+    use TrackByInputs;
 
     protected string $name = 'send_invoice';
 

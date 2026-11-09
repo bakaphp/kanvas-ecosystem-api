@@ -227,6 +227,21 @@ class EcfDocumentBuilder
         );
     }
 
+    /**
+     * DGII caps CodigoItem at 35 characters; the SKU, else the item id, else the line number.
+     */
+    public static function lineCode(?string $sku, ?int $itemId, int $lineNumber): string
+    {
+        $code = Str::trimToNull($sku) ?? ($itemId !== null ? 'ITEM-' . $itemId : (string) $lineNumber);
+
+        return mb_substr($code, 0, self::CODE_MAX);
+    }
+
+    public static function lineDescription(?string $description, int $lineNumber): string
+    {
+        return mb_substr(Str::trimToNull($description) ?? 'Item ' . $lineNumber, 0, self::DESCRIPTION_MAX);
+    }
+
     public static function addressLine(?array $snapshot): ?string
     {
         if ($snapshot === null) {
@@ -258,8 +273,8 @@ class EcfDocumentBuilder
 
             $lines[] = new EcfLine(
                 lineNumber: $lineNumber,
-                code: mb_substr(Str::trimToNull($line->sku) ?? ($line->item_id !== null ? 'ITEM-' . $line->item_id : (string) $lineNumber), 0, self::CODE_MAX),
-                description: mb_substr(Str::trimToNull($line->description) ?? 'Item ' . $lineNumber, 0, self::DESCRIPTION_MAX),
+                code: self::lineCode($line->sku, $line->item_id, $lineNumber),
+                description: self::lineDescription($line->description, $lineNumber),
                 quantity: round($line->quantity, 2),
                 unitPrice: round($line->unit_price_native, 4),
                 itbis: $this->itbisRate($line, $type),

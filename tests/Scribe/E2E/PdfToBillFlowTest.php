@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\E2E;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
@@ -203,9 +204,9 @@ class PdfToBillFlowTest extends ScribeTestCase
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, JournalEntry>
+     * @return Collection<int, JournalEntry>
      */
-    private function postedJesFor(string $sourceType, int $sourceId)
+    private function postedJesFor(string $sourceType, int $sourceId): Collection
     {
         return JournalEntry::query()
             ->where('apps_id', $this->kanvasApp->getId())

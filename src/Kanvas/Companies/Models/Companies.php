@@ -18,6 +18,7 @@ use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -122,7 +123,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer, Exposes
     /**
      * Create a new factory instance for the model.
      *
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     * @return Factory
      */
     #[Override]
     protected static function newFactory()
@@ -323,12 +324,12 @@ class Companies extends BaseModel implements CompanyInterface, Customer, Exposes
 
     public function getTotalUsersAttribute(): int
     {
-        return (int) ($this->get('total_users') ?? (new CompaniesSetUsersCountAction($this))->execute());
+        return (int) ($this->get('total_users') ?? new CompaniesSetUsersCountAction($this)->execute());
     }
 
     public function getTotalBranchesAttribute(): int
     {
-        return (int) ($this->get('total_branches') ?? (new CompaniesTotalBranchesAction($this))->execute());
+        return (int) ($this->get('total_branches') ?? new CompaniesTotalBranchesAction($this)->execute());
     }
 
     #[Override]

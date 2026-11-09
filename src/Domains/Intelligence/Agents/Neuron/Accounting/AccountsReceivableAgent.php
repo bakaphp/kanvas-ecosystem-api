@@ -36,6 +36,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetDocumentLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetQuoteSowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListBillingSchedulesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListPaymentTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
@@ -44,6 +45,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendInvoiceAttachmentTo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ScheduleBillingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetInvoiceTermsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetPaymentTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\CheckApprovalStatusTool;
@@ -154,6 +157,9 @@ class AccountsReceivableAgent extends SystemUserAgent
             new GetQuoteSowTool(),
             new ScheduleBillingTool(),
             new ListBillingSchedulesTool(),
+            new SetInvoiceTermsTool(),
+            new ListPaymentTermsTool(),
+            new SetPaymentTermsTool(),
             // The PDF tools hand back a filesystem_id; without this the agent quotes that id at a
             // person who then has nothing to open.
             new GetFileLinkTool(),
@@ -282,6 +288,12 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'scheduled payment that is not due yet → say its planned date, then schedule_billing (bill_now) on that '
             . 'schedule: it makes the draft from the quote\'s own lines and marks the period billed. Never move a '
             . 'schedule\'s date to today and wait, and never rebuild the payment with create_ar_invoice.',
+            '- Payment terms: an invoice nothing set terms on is due the day it is issued, and the tool result says so '
+            . 'in terms_note; tell the person every time. "Give invoice Y net 30" / "make it due on the 15th" → '
+            . 'set_invoice_terms (once issued it is an amendment, so pass the reason they gave). "Our standard terms '
+            . 'are net 30" → set_payment_terms with is_default: from then on new invoices, SOW payment schedules and '
+            . 'billing schedules use it when nothing names terms; list_payment_terms shows what exists. One invoice '
+            . 'with its own terms → create_ar_invoice with net_terms_days.',
             '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
             . 'explicitly asks to record a real payment. Needs the invoice_id, amount, a payment reference and the '
             . 'method they named (wire, ach, check, cash, card).',

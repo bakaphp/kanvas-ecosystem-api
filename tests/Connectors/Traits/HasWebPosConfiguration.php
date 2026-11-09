@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Traits;
 
-use Illuminate\Support\Facades\Auth;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\WebPos\Enums\ConfigurationEnum;
 
@@ -18,6 +16,8 @@ use Kanvas\Connectors\WebPos\Enums\ConfigurationEnum;
  */
 trait HasWebPosConfiguration
 {
+    use HasThrowawayCompany;
+
     protected const string WEBPOS_TEST_HOST = 'https://fedotest-api.webposonline.com';
     protected const string WEBPOS_TEST_RECEPTION_HOST = 'https://fedotest-api02.webposonline.com';
     protected const string WEBPOS_LICENSE = 'TESTLIC1';
@@ -25,13 +25,7 @@ trait HasWebPosConfiguration
 
     protected function webPosCompany(): Companies
     {
-        /** @var Companies $company */
-        $company = Companies::factory()->create([
-            'users_id' => Auth::id(),
-            'is_active' => 1,
-        ]);
-        $company->associateApp(app(Apps::class));
-
+        $company = $this->freshCompany();
         $company->setEncrypted(ConfigurationEnum::API_KEY->value, self::WEBPOS_API_KEY);
         $company->set(ConfigurationEnum::COMPANY_LICENSE->value, self::WEBPOS_LICENSE);
         $company->set(ConfigurationEnum::BRANCH->value, '0001');

@@ -11,6 +11,31 @@ enum EcfItbisRateEnum: string
     case RATE_16 = '16';
     case RATE_0 = '0';
 
+    /**
+     * DGII's IndicadorFacturacion on a line: 1/2/3 the ITBIS rates, 4 exempt. 0 (not billable, outside the totals)
+     * and anything else map to no rate.
+     */
+    public static function fromIndicator(int $indicator): ?self
+    {
+        foreach (self::cases() as $rate) {
+            if ($rate->indicator() === $indicator) {
+                return $rate;
+            }
+        }
+
+        return null;
+    }
+
+    public function indicator(): int
+    {
+        return match ($this) {
+            self::RATE_18 => 1,
+            self::RATE_16 => 2,
+            self::RATE_0 => 3,
+            self::EXEMPT => 4,
+        };
+    }
+
     public function percent(): float
     {
         return match ($this) {

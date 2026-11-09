@@ -12,6 +12,8 @@ use Kanvas\Connectors\Mailgun\Enums\ReceiverConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Services\AccountingInboxService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Actions\CreateReceiverWebhookAction;
+use Kanvas\Workflow\DataTransferObject\ReceiverWebhook as ReceiverWebhookData;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Throwable;
 
@@ -79,22 +81,22 @@ class EnsureAccountingInboxAction
                 'The Mailgun Accounting PDF Inbox workflow action is not registered. Run kanvas:workflow-sync-actions.'
             );
 
-        $receiver = new ReceiverWebhook();
-        $receiver->apps_id = $this->app->getId();
-        $receiver->companies_id = $this->company->getId();
-        $receiver->users_id = $this->owner->getId();
-        $receiver->action_id = $action->getId();
-        $receiver->name = 'Accounting inbox';
-        $receiver->description = 'Supplier invoices and customer documents forwarded to the company accounting address';
-        $receiver->configuration = [
-            ReceiverConfigurationEnum::SCRIBE_PDF_INBOX->value => true,
-            ReceiverConfigurationEnum::CAPTURE_FILES->value => true,
-        ];
-        $receiver->is_active = true;
-        $receiver->run_async = true;
-        $receiver->saveOrFail();
-
-        return $receiver;
+        return new CreateReceiverWebhookAction(
+            new ReceiverWebhookData(
+                app: $this->app,
+                company: $this->company,
+                user: $this->owner,
+                action: $action,
+                name: 'Accounting inbox',
+                description: 'Supplier invoices and customer documents forwarded to the company accounting address',
+                configuration: [
+                    ReceiverConfigurationEnum::SCRIBE_PDF_INBOX->value => true,
+                    ReceiverConfigurationEnum::CAPTURE_FILES->value => true,
+                ],
+                is_active: true,
+                run_async: true,
+            ),
+        )->execute();
     }
 
     private function ensureRoute(ReceiverWebhook $receiver, string $address, ?string $routeId): string

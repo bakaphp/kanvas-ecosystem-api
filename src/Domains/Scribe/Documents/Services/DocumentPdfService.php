@@ -243,8 +243,9 @@ final class DocumentPdfService
 
     private function resolveTemplateName(): ?string
     {
-        if ($this->templateName !== null && trim($this->templateName) !== '') {
-            return trim($this->templateName);
+        $template = Str::trimToNull($this->templateName);
+        if ($template !== null) {
+            return $template;
         }
 
         $configured = $this->document->app->get(
@@ -253,6 +254,6 @@ final class DocumentPdfService
                 : ConfigurationEnum::INVOICE_PDF_TEMPLATE->value
         );
 
-        return $configured !== null && trim((string) $configured) !== '' ? trim((string) $configured) : null;
+        return Str::trimToNull((string) $configured);
     }
 }

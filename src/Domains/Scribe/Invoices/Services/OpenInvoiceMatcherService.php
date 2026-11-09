@@ -69,7 +69,7 @@ class OpenInvoiceMatcherService
         return Organization::query()
             ->where('apps_id', $app->getId())
             ->where('companies_id', $company->getId())
-            ->where('is_deleted', false)
+            ->notDeleted()
             ->where('name', 'like', '%' . $term . '%')
             ->pluck('id');
     }
@@ -79,7 +79,7 @@ class OpenInvoiceMatcherService
         return Invoice::query()
             ->where('apps_id', $app->getId())
             ->where('companies_id', $company->getId())
-            ->where('is_deleted', false)
+            ->notDeleted()
             ->open();
     }
 

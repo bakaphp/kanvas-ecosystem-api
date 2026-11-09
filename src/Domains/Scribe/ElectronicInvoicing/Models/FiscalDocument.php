@@ -13,11 +13,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\EcfEnvironmentEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDirectionEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\FiscalDocumentStatusEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Exceptions\ImmutableFiscalRecordException;
 use Kanvas\Scribe\ElectronicInvoicing\Models\Concerns\HasFiscalDocumentType;
+use Kanvas\Scribe\Expenses\Models\Expense;
+use Kanvas\Scribe\Invoices\Models\Invoice;
 
 /**
  * One row per issuer number (plan §2). The systemRef sent to providers is the attempt's uuid
@@ -180,6 +183,16 @@ class FiscalDocument extends FiscalBaseModel
     public function entity(): MorphTo
     {
         return $this->morphTo('entity', 'entity_type', 'entity_id');
+    }
+
+    /**
+     * The Scribe document behind the row; null when the morph points at something the fiscal code cannot act on.
+     */
+    public function scribeDocument(): Invoice|Bill|Expense|null
+    {
+        $entity = $this->entity;
+
+        return $entity instanceof Invoice || $entity instanceof Bill || $entity instanceof Expense ? $entity : null;
     }
 
     public function numberRange(): BelongsTo

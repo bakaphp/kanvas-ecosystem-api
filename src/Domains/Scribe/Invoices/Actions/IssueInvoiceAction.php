@@ -59,7 +59,6 @@ class IssueInvoiceAction
         $this->stateMachine->assertTransition($this->invoice, InvoiceDocumentStatusEnum::ISSUED);
 
         if ($this->invoice->document_status === InvoiceDocumentStatusEnum::ISSUED) {
-            // Idempotent — already issued.
             return $this->invoice;
         }
 

@@ -231,9 +231,12 @@ class AccountingDigestBuilderService
             ->where('document_type', DocumentTypeEnum::INVOICE->value)
             ->open();
 
-        $overdue
-            ? $query->whereDate('due_date', '<', $this->day)
-            : $query->whereDate('due_date', '>=', $this->day)->whereDate('due_date', '<=', $this->day->copy()->addDays(self::DUE_SOON_DAYS));
+        if ($overdue) {
+            $query->whereDate('due_date', '<', $this->day);
+        } else {
+            $query->whereDate('due_date', '>=', $this->day)
+                ->whereDate('due_date', '<=', $this->day->copy()->addDays(self::DUE_SOON_DAYS));
+        }
 
         return $this->byCurrency($query->get(['currency', 'balance_due_native']));
     }

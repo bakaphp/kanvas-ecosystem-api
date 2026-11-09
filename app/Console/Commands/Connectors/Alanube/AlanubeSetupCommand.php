@@ -121,10 +121,10 @@ class AlanubeSetupCommand extends Command
             return null;
         }
 
-        $rnc = preg_replace('/\D/', '', (string) $this->option('rnc'));
+        $rnc = Str::digitsOnly((string) $this->option('rnc'));
         $address = Str::trimToNull((string) $this->option('address'));
 
-        if ($rnc === null || $rnc === '' || $address === null) {
+        if ($rnc === '' || $address === null) {
             $this->error('Onboarding needs --rnc and --address.');
 
             return null;

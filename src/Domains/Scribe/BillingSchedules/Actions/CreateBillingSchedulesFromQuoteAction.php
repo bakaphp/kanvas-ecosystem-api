@@ -98,7 +98,7 @@ class CreateBillingSchedulesFromQuoteAction
     private function netTermsDays(StatementOfWork $sow): ?int
     {
         if ($sow->paymentTermsId === null) {
-            return null;
+            return PaymentTerm::defaultFor($this->quote->app, $this->quote->company)?->net_days;
         }
 
         return PaymentTerm::query()

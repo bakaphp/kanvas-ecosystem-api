@@ -215,7 +215,7 @@ class FilesystemManagementMutation
      */
     public function singleFile(mixed $rootValue, array $request): Filesystem
     {
-        /** @var \Illuminate\Http\UploadedFile $file */
+        /** @var UploadedFile $file */
         $file = $request['file'];
 
         // Validate file
@@ -234,7 +234,7 @@ class FilesystemManagementMutation
      */
     public function uploadCsv(mixed $rootValue, array $request): array
     {
-        /** @var \Illuminate\Http\UploadedFile $file */
+        /** @var UploadedFile $file */
         $file = $request['file'];
 
         // Validate file
@@ -274,7 +274,7 @@ class FilesystemManagementMutation
      */
     public function multiFile(mixed $rootValue, array $request): array
     {
-        /** @var \Illuminate\Http\UploadedFile[] $files */
+        /** @var UploadedFile[] $files */
         $files = $request['files'];
 
         $fileSystems = [];

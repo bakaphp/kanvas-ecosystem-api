@@ -142,9 +142,9 @@ class AlanubeEcfProvider implements EcfProviderInterface, RespondsToReceivedEcfI
     #[Override]
     public function lookupTaxpayer(string $taxId): ?string
     {
-        $rnc = preg_replace('/\D/', '', $taxId);
+        $rnc = Str::digitsOnly($taxId);
 
-        if ($rnc === null || $rnc === '') {
+        if ($rnc === '') {
             return null;
         }
 

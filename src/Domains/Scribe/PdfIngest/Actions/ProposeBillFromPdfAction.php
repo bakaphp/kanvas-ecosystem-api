@@ -6,6 +6,7 @@ namespace Kanvas\Scribe\PdfIngest\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -273,7 +274,7 @@ class ProposeBillFromPdfAction
         }
 
         $ncf = new NcfValidator()->validate($this->trimOrDefault($this->extracted['ncf'] ?? null, null));
-        $taxId = $this->dominicanTaxId() ?? ($vendor !== null ? preg_replace('/\D+/', '', (string) $vendor->getPayeeTaxId()) : null);
+        $taxId = $this->dominicanTaxId() ?? ($vendor !== null ? Str::digitsOnly($vendor->getPayeeTaxId()) : null);
         $rnc = $taxId !== null && $taxId !== '' && $this->company instanceof Companies && $this->app instanceof Apps
             ? new TaxpayerLookupService()->lookup($this->app, $this->company, $taxId)
             : null;
@@ -356,7 +357,7 @@ class ProposeBillFromPdfAction
             return null;
         }
 
-        $taxId = preg_replace('/\D+/', '', (string) ($this->extracted['vendor_tax_id'] ?? '')) ?? '';
+        $taxId = Str::digitsOnly((string) ($this->extracted['vendor_tax_id'] ?? ''));
 
         return DrFiscalRegime::isTaxId($taxId) ? $taxId : null;
     }

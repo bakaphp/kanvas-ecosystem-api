@@ -13,6 +13,7 @@ use Kanvas\Scribe\Quotes\Sow\Services\QuoteSowPdfService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /** Attaches a file to a quote in Kanvas Filesystem: a signed or customer-supplied SOW, or any other attachment. */
@@ -22,6 +23,7 @@ class AttachQuoteFileTool extends Tool
     use AttachesFileToDocumentForTool;
     use HasKanvasContext;
     use ResolvesScribeQuoteForTool;
+    use TrackByInputs;
 
     private const string KIND_SOW = 'sow';
     private const string DEFAULT_ATTACHMENT_SLOT = 'attachment';

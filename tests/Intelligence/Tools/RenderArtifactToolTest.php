@@ -28,6 +28,24 @@ final class RenderArtifactToolTest extends TestCase
         );
     }
 
+    /** The model sent 7 and 8 entity fields against a cap of 6 three times in one evening; each refusal cost a round. */
+    public function testAListOverItsCapIsTrimmedAndSaidSoInsteadOfRefused(): void
+    {
+        $fields = array_map(fn (int $i): array => ['key' => "Field {$i}", 'value' => "v{$i}"], range(1, 8));
+
+        $result = new RenderArtifactTool()(
+            component: 'entity',
+            props: json_encode(['id' => 24325, 'type' => 'deal', 'title' => 'Invoice 24325', 'fields' => $fields]),
+        );
+
+        $this->assertTrue($result['success'], json_encode($result));
+        $this->assertSame(['props.fields had 8 entries; the first 6 were kept, say the rest in prose'], $result['truncated']);
+        $this->assertStringContainsString('the first 6 were kept', $result['note']);
+        $block = json_decode(trim(str_replace(['```kanvas-artifact', '```'], '', $result['block'])), true);
+        $this->assertCount(6, $block['props']['fields']);
+        $this->assertSame('Field 6', $block['props']['fields'][5]['key']);
+    }
+
     /**
      * A Q3 report rendered 10 distinct blocks, then the 11th (a "Next steps" actions block) aborted
      * the turn with ToolRunsExceededException (KANVAS-ECOSYSTEM-6H4).
@@ -113,7 +131,7 @@ final class RenderArtifactToolTest extends TestCase
         $this->assertSame('props is not a valid JSON object.', $result['error']);
     }
 
-    public function testOverTheLimitAsksToTruncate(): void
+    public function testOverTheLimitIsTrimmedToTheCap(): void
     {
         $items = array_map(
             fn (int $i): array => ['label' => 'Metric ' . $i, 'value' => $i],
@@ -122,8 +140,9 @@ final class RenderArtifactToolTest extends TestCase
 
         $result = new RenderArtifactTool()(component: 'stats', props: json_encode(['items' => $items]));
 
-        $this->assertFalse($result['success']);
-        $this->assertStringContainsString('props.items has 7 entries; it needs 1 to 6', $result['error']);
+        $this->assertTrue($result['success']);
+        $this->assertSame(['props.items had 7 entries; the first 6 were kept, say the rest in prose'], $result['truncated']);
+        $this->assertStringNotContainsString('Metric 7', $result['block']);
     }
 
     public function testEnumValuesAreChecked(): void

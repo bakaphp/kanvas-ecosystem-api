@@ -25,6 +25,18 @@ class AmendInvoiceAction
 {
     public const string LEDGER_EVENT = 'scribe.invoice.amended';
 
+    private const array DATE_FIELDS = ['due_date', 'expected_payment_date'];
+
+    private const array VALUE_FIELDS = [
+        'net_terms_days',
+        'notes',
+        'internal_notes',
+        'terms',
+        'external_id',
+        'external_url',
+        'regional_compliance',
+    ];
+
     public function __construct(
         public readonly Invoice $invoice,
         public readonly AmendInvoiceData $data,
@@ -40,60 +52,24 @@ class AmendInvoiceAction
             $invoice = $this->invoice;
             $changes = [];
 
-            $this->applyDateChange(
-                $invoice,
-                'due_date',
-                $this->data->due_date,
-                $changes
-            );
-            $this->applyDateChange(
-                $invoice,
-                'expected_payment_date',
-                $this->data->expected_payment_date,
-                $changes
-            );
-            $this->applyValueChange(
-                $invoice,
-                'net_terms_days',
-                $this->data->net_terms_days,
-                $changes
-            );
-            $this->applyValueChange(
-                $invoice,
-                'notes',
-                $this->data->notes,
-                $changes
-            );
-            $this->applyValueChange(
-                $invoice,
-                'internal_notes',
-                $this->data->internal_notes,
-                $changes
-            );
-            $this->applyValueChange(
-                $invoice,
-                'terms',
-                $this->data->terms,
-                $changes
-            );
-            $this->applyValueChange(
-                $invoice,
-                'external_id',
-                $this->data->external_id,
-                $changes
-            );
-            $this->applyValueChange(
-                $invoice,
-                'external_url',
-                $this->data->external_url,
-                $changes
-            );
-            $this->applyValueChange(
-                $invoice,
-                'regional_compliance',
-                $this->data->regional_compliance,
-                $changes
-            );
+            foreach (self::DATE_FIELDS as $field) {
+                $this->applyDateChange(
+                    $invoice,
+                    $field,
+                    $this->data->{$field},
+                    $changes
+                );
+            }
+
+            foreach (self::VALUE_FIELDS as $field) {
+                $this->applyValueChange(
+                    $invoice,
+                    $field,
+                    $this->data->{$field},
+                    $changes
+                );
+            }
+
             $this->mergeMetadata($invoice, $this->data->metadata, $changes);
 
             if ($changes === []) {

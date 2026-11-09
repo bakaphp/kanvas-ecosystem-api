@@ -283,7 +283,7 @@ final class AccountingSetupToolsTest extends ScribeTestCase
 
     private function handler(object $handler, $agent): object
     {
-        $handler->setConfiguration($agent, null, static::$cachedUser);
+        $handler->setConfiguration($agent, user: static::$cachedUser);
 
         return $handler;
     }

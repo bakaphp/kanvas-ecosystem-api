@@ -116,7 +116,12 @@ class NotifyApproverAction
                 ? $this->attachmentFilename
                 : Str::fileNameFromUrl($this->attachmentUrl, 'invoice.pdf');
 
-            $client->uploadFile($dmChannel, $filename, $contents, $this->text);
+            $client->uploadFile(
+                $dmChannel,
+                $filename,
+                $contents,
+                $this->text
+            );
 
             return true;
         } catch (Throwable $e) {

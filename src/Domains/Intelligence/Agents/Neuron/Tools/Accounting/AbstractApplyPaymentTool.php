@@ -98,8 +98,12 @@ abstract class AbstractApplyPaymentTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    protected function applyPayment(int $id, float $amount, string $reference, ?string $method = null): array
-    {
+    protected function applyPayment(
+        int $id,
+        float $amount,
+        string $reference,
+        ?string $method = null
+    ): array {
         $noun = $this->noun();
         $paymentMethod = $this->paymentMethod($method);
 
@@ -117,7 +121,12 @@ abstract class AbstractApplyPaymentTool extends Tool
 
         return $this->oncePerTurn(
             [$noun . '_id' => $id, 'amount' => $amount, 'reference' => $reference],
-            fn (): array => $this->allocateOnce($id, $amount, $reference, $paymentMethod),
+            fn (): array => $this->allocateOnce(
+                $id,
+                $amount,
+                $reference,
+                $paymentMethod
+            ),
             note: "This exact payment (same {$noun}, amount and reference) was already applied earlier in "
                 . 'this turn and is recorded ONCE. Nothing was posted now. Do not call this again — report '
                 . 'the payment shown here.',
@@ -128,8 +137,12 @@ abstract class AbstractApplyPaymentTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    private function allocateOnce(int $id, float $amount, string $reference, PaymentMethodEnum $method): array
-    {
+    private function allocateOnce(
+        int $id,
+        float $amount,
+        string $reference,
+        PaymentMethodEnum $method
+    ): array {
         $noun = $this->noun();
         $idKey = $noun . '_id';
 
@@ -145,7 +158,12 @@ abstract class AbstractApplyPaymentTool extends Tool
         }
 
         try {
-            $payment = $this->allocatePayment($document, $amount, $reference, $method);
+            $payment = $this->allocatePayment(
+                $document,
+                $amount,
+                $reference,
+                $method
+            );
         } catch (RuntimeException $e) {
             return $this->invalidArgs(
                 $e->getMessage(),

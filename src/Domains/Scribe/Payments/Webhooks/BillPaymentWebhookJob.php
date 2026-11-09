@@ -147,6 +147,7 @@ class BillPaymentWebhookJob extends ProcessWebhookJob
             ->where('id', (int) $accountId)
             ->where('apps_id', $this->receiver->apps_id)
             ->where('companies_id', $this->receiver->companies_id)
+            ->where('is_deleted', false)
             ->first();
     }
 

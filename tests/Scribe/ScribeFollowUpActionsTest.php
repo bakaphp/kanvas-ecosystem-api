@@ -104,7 +104,12 @@ class ScribeFollowUpActionsTest extends TestCase
                 billable: $billable,
                 lines: new DataCollection(InvoiceLineData::class, [
                     new InvoiceLineData(description: 'New A', quantity: 1, unit_price_native: 250.0),
-                    new InvoiceLineData(description: 'New B', quantity: 1, unit_price_native: 75.0, tax_amount_native: 13.5),
+                    new InvoiceLineData(
+                        description: 'New B',
+                        quantity: 1,
+                        unit_price_native: 75.0,
+                        tax_amount_native: 13.5,
+                    ),
                 ]),
                 currency: 'USD',
                 fx_rate_to_base: 1.0,

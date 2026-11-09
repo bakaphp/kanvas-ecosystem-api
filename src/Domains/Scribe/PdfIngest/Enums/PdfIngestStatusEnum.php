@@ -12,7 +12,8 @@ namespace Kanvas\Scribe\PdfIngest\Enums;
  *   entity_created            → routed to a Scribe entity (Expense draft, or a Bill submitted for approval)
  *   needs_review              → a Bill was created but left DRAFT: vendor or GL could not be resolved
  *                                (the reason is in rejected_reason and on the bill's metadata.ingest)
- *   awaiting_bill_support     → classified as vendor_invoice; Bill sub-ledger lands in PR 10. Backfill auto-runs then.
+ *   awaiting_bill_support     → legacy: a vendor_invoice logged before bills existed; BackfillPdfIngestedBillsAction
+ *                                promotes these rows, nothing writes the status any more
  *   quote_inbound_logged      → classified as vendor_quote; informational, no entity
  *   ignored_our_doc           → it's one of OUR docs forwarded back (already in DB)
  *   ignored_duplicate         → PR 9.1 dedup hit — same PDF content (Path 2) or same vendor+bill_number

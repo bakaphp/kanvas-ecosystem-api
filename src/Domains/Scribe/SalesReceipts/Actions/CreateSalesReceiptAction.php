@@ -137,7 +137,7 @@ class CreateSalesReceiptAction
                 eventType: 'scribe.sales_receipt.recorded',
                 payload: [
                     'receipt_number' => $receipt->receipt_number,
-                                        'billable_id' => $receipt->customer_organization_id,
+                    'billable_id' => $receipt->customer_organization_id,
                     'billable_display_name' => $receipt->billable_display_name,
                     'currency' => $receipt->currency,
                     'total_native' => (float) $receipt->total_native,

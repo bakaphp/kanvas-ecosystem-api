@@ -14,6 +14,7 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -28,6 +29,7 @@ abstract class AbstractResendApprovalAttachmentTool extends Tool
 {
     use HasKanvasContext;
     use ReadsApprovalSourceFields;
+    use TrackByInputs;
 
     /** 'bill' | 'invoice' — drives the {noun}_id param, the result keys, and the messages. */
     abstract protected function noun(): string;

@@ -12,6 +12,7 @@ use Kanvas\Approvals\Exceptions\ApprovalRequiredException;
 use Kanvas\Approvals\Services\ApprovalOriginService;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Concerns\PresentsInvoiceTerms;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
@@ -27,6 +28,7 @@ use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\PaymentTerms\Models\PaymentTerm;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use NeuronAI\Tools\ArrayProperty;
@@ -47,6 +49,7 @@ use Throwable;
 class CreateArInvoiceTool extends Tool
 {
     use HasKanvasContext;
+    use PresentsInvoiceTerms;
     use ReadsApprovalSourceFields;
     use ResolvesCustomerForTool;
     use StoresApprovalSourceFields;
@@ -140,6 +143,13 @@ class CreateArInvoiceTool extends Tool
                 required: false,
             ),
             new ToolProperty(
+                name: 'net_terms_days',
+                type: PropertyType::INTEGER,
+                description: 'Days after the issue date until it is due (30 for Net 30). Defaults to the company\'s default '
+                    . 'payment term; with none the invoice is due on receipt and the result says so.',
+                required: false,
+            ),
+            new ToolProperty(
                 name: 'source_email_message_id',
                 type: PropertyType::STRING,
                 description: 'The Gmail message_id of the invoice email this invoice was created from, when '
@@ -170,6 +180,7 @@ class CreateArInvoiceTool extends Tool
         ?bool $issue_immediately = null,
         ?string $source_email_message_id = null,
         ?int $source_attachment_filesystem_id = null,
+        ?int $net_terms_days = null,
     ): array {
         return ApprovalOriginService::during(
             ApprovalOriginEnum::AGENT,
@@ -182,6 +193,7 @@ class CreateArInvoiceTool extends Tool
                 $issue_immediately ?? false,
                 $source_email_message_id,
                 $source_attachment_filesystem_id,
+                $net_terms_days,
             )
         );
     }
@@ -198,6 +210,7 @@ class CreateArInvoiceTool extends Tool
         bool $issue_immediately,
         ?string $source_email_message_id,
         ?int $source_attachment_filesystem_id,
+        ?int $net_terms_days,
     ): array {
         $app = $this->app;
         $company = $this->company;
@@ -249,6 +262,8 @@ class CreateArInvoiceTool extends Tool
             return $this->invoiceFromQuote($quote, $customerDisplayName);
         }
 
+        $netTermsDays = $net_terms_days ?? PaymentTerm::defaultFor($app, $company)?->net_days;
+
         $invoice = new CreateInvoiceAction(
             new InvoiceData(
                 app: $app,
@@ -257,7 +272,9 @@ class CreateArInvoiceTool extends Tool
                 lines: new DataCollection(InvoiceLineData::class, $lineData),
                 currency: $currency,
                 fx_rate_to_base: 1.0,
+                net_terms_days: $netTermsDays,
                 issued_date: Carbon::today(),
+                due_date: $netTermsDays !== null ? Carbon::today()->addDays($netTermsDays) : null,
                 notes: $memo,
             ),
             $actingUser,
@@ -283,6 +300,7 @@ class CreateArInvoiceTool extends Tool
                     'currency' => $currency,
                     'memo' => $memo,
                     'remaining_balance' => (float) $invoice->balance_due_native,
+                    ...$this->invoiceTerms($invoice),
                     'next' => 'Invoice issued in Kanvas. Any external synchronization is handled by configured workflow '
                         . 'activities; use apply_ar_payment with this invoice_id to record a payment.',
                 ];
@@ -292,14 +310,17 @@ class CreateArInvoiceTool extends Tool
         }
 
         if (new EcfIssuanceService()->issuesEcf($invoice)) {
-            return $this->submitEcfInvoice(
-                $invoice,
-                $customerDisplayName,
-                $amount,
-                $currency,
-                $memo,
-                $approvalReason
-            );
+            return [
+                ...$this->submitEcfInvoice(
+                    $invoice,
+                    $customerDisplayName,
+                    $amount,
+                    $currency,
+                    $memo,
+                    $approvalReason
+                ),
+                ...$this->invoiceTerms($invoice->refresh()),
+            ];
         }
 
         new SubmitInvoiceForApprovalAction($invoice, $actingUser)->execute();
@@ -318,6 +339,7 @@ class CreateArInvoiceTool extends Tool
             'currency' => $currency,
             'memo' => $memo,
             'remaining_balance' => (float) $invoice->balance_due_native,
+            ...$this->invoiceTerms($invoice->refresh()),
             'approved_by_flag' => $approverEmails !== [] ? '' : 'NOT IN APPROVER LIST',
             'next' => $approverEmails !== []
                 ? 'Invoice created in Kanvas (status: draft) and submitted for human approval.'

@@ -216,7 +216,7 @@ class Bill extends BaseModel implements PayableInterface, DeliversApprovalNotice
             return;
         }
 
-        new RejectBillAction($this, null, $reason)->execute();
+        new RejectBillAction(bill: $this, reason: $reason)->execute();
     }
 
     #[Override]

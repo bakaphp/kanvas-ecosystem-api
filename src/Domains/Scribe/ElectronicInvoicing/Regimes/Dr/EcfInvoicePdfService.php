@@ -16,7 +16,6 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Scribe\Documents\Services\DocumentPdfService;
 use Kanvas\Scribe\ElectronicInvoicing\Contracts\FiscalRegimeInterface;
-use Kanvas\Scribe\ElectronicInvoicing\Enums\ConfigurationEnum;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Templates\Actions\RenderTemplateAction;
@@ -28,8 +27,8 @@ use Throwable;
  * Our own legal printout of an accepted e-CF (invoice, credit or debit note): the document as
  * DocumentPdfService prints it, plus what DGII requires on the representation — e-NCF and its type,
  * sequence expiry, security code, signing date, the QR built from do_ecf.qr_url and the two legends under
- * it. Attached as `ecf_pdf`, the same field the provider's PDF uses, so whoever reads the file never cares
- * which one made it.
+ * it. Attached under its own field (FiscalRegimeInterface::INVOICE_PDF_FIELD) beside the provider's `ecf_pdf`:
+ * both can exist, and delivery prefers this one.
  *
  * The layout is the `scribe-ecf-invoice` Twig row (company, then app, then platform), falling back to the
  * packaged file, so a tenant can restyle it without code. The QR is rendered here and handed to the
@@ -37,7 +36,6 @@ use Throwable;
  */
 final class EcfInvoicePdfService
 {
-    // Its own field, beside the provider's `ecf_pdf`: both can exist, and delivery prefers this one.
     public const string TEMPLATE_NAME = 'scribe-ecf-invoice';
     public const string PACKAGED_TEMPLATE = 'views/pdf/scribe-ecf-invoice.twig';
 
@@ -105,7 +103,7 @@ final class EcfInvoicePdfService
                 'qr_url' => $compliance['qr_url'] ?? null,
                 'qr_image' => $this->qrImage($compliance['qr_url'] ?? null),
                 'qr_legends' => array_values(array_filter((array) ($compliance['qr_legends'] ?? []), 'is_string')),
-                'issuer_tax_id' => Str::trimToNull((string) $this->invoice->company->get(ConfigurationEnum::ECF_ISSUER_TAX_ID->value)),
+                'issuer_tax_id' => DrFiscalRegime::issuerTaxIdFor($this->invoice->company),
                 'payment_label' => $document->isCredit ? 'Venta a crédito' : 'Venta al contado',
                 'exchange_rate' => $document->currency !== 'DOP' ? $document->exchangeRate : null,
                 'purchase_order_number' => $document->purchaseOrderNumber,

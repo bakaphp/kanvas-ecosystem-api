@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Scribe\Setup\Actions\SetUpAccountingAgentAction;
+use Kanvas\Scribe\Setup\DataTransferObject\ReadinessItem;
 use Kanvas\Scribe\Setup\Services\AccountingReadinessService;
 use Kanvas\Users\Models\Users;
 
@@ -60,7 +61,7 @@ class SetUpAccountingCommand extends Command
         $this->table(
             ['requirement', 'status', 'detail', 'who fixes it', 'how'],
             array_map(
-                fn ($item): array => [$item->requirement->value, $item->status->value, $item->detail, $item->fixBy, $item->fixHow],
+                fn (ReadinessItem $item): array => [$item->requirement->value, $item->status->value, $item->detail, $item->fixBy, $item->fixHow],
                 array_values(new AccountingReadinessService()->check($app, $company)),
             ),
         );

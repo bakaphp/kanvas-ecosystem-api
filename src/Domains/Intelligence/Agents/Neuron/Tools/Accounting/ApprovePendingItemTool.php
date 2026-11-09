@@ -22,6 +22,7 @@ use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -41,6 +42,7 @@ class ApprovePendingItemTool extends Tool
 {
     use HasKanvasContext;
     use VerifiesApprovalAuthority;
+    use TrackByInputs;
 
     protected string $name = 'approve_pending_item';
 

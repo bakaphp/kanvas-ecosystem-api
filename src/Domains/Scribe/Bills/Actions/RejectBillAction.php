@@ -18,7 +18,7 @@ class RejectBillAction
 {
     public function __construct(
         public readonly Bill $bill,
-        public readonly ?UserInterface $rejector,
+        public readonly ?UserInterface $rejector = null,
         public readonly ?string $reason = null,
         protected readonly BillStateMachineService $stateMachine = new BillStateMachineService(),
     ) {

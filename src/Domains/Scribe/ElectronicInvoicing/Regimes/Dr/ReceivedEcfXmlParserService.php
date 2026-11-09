@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\ElectronicInvoicing\Regimes\Dr;
 
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\ElectronicInvoicing\DataTransferObject\EcfReference;
@@ -97,19 +98,12 @@ class ReceivedEcfXmlParserService
         float $exchangeRate,
         float $documentItbis
     ): array {
-        $rates = [
-            1 => EcfItbisRateEnum::RATE_18,
-            2 => EcfItbisRateEnum::RATE_16,
-            3 => EcfItbisRateEnum::RATE_0,
-            4 => EcfItbisRateEnum::EXEMPT,
-        ];
-
         $parsed = [];
 
         foreach ($this->nodes($root, 'DetallesItems/Item') as $item) {
-            $indicator = (int) ($this->text($item, 'IndicadorFacturacion') ?? self::NOT_BILLABLE);
+            $itbis = EcfItbisRateEnum::fromIndicator((int) ($this->text($item, 'IndicadorFacturacion') ?? self::NOT_BILLABLE));
 
-            if (! isset($rates[$indicator])) {
+            if ($itbis === null) {
                 continue;
             }
 
@@ -127,8 +121,6 @@ class ReceivedEcfXmlParserService
                 $unitPrice = $amount / $quantity;
                 $gross = $amount;
             }
-
-            $itbis = $rates[$indicator];
 
             $parsed[] = [
                 'lineNumber' => (int) ($this->text($item, 'NumeroLinea') ?? count($parsed) + 1),
@@ -236,9 +228,8 @@ class ReceivedEcfXmlParserService
     private function text(SimpleXMLElement $context, string $path): ?string
     {
         $node = $this->nodes($context, $path)[0] ?? null;
-        $value = $node !== null ? trim((string) $node) : '';
 
-        return $value === '' ? null : $value;
+        return $node !== null ? Str::trimToNull((string) $node) : null;
     }
 
     private function number(SimpleXMLElement $context, string $path): float

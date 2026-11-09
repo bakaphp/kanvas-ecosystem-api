@@ -291,12 +291,7 @@ class SetUpAccountingAgentAction
     {
         new DocumentActionsSetup($this->app, $this->company->user ?? $approver, $this->company)->run();
 
-        $seeded = ! is_array($this->company->get(DunningSchedule::SETTING));
-        if ($seeded) {
-            $this->company->set(DunningSchedule::SETTING, DunningSchedule::defaults());
-        }
-
-        return [AccountingSetupStepStatusEnum::DONE, ['dunning_seeded' => $seeded]];
+        return [AccountingSetupStepStatusEnum::DONE, ['dunning_seeded' => DunningSchedule::seedDefaults($this->company)]];
     }
 
     /**

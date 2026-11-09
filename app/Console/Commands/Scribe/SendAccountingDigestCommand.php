@@ -11,9 +11,8 @@ use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
-use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsReceivableAgent;
 use Kanvas\Scribe\Digest\Actions\SendAccountingDigestAction;
+use Kanvas\Scribe\Setup\Services\AccountingAgentLocatorService;
 use Throwable;
 
 /**
@@ -87,10 +86,7 @@ class SendAccountingDigestCommand extends Command
         $query = Agent::query()
             ->where('is_active', true)
             ->where('is_deleted', false)
-            ->whereHas('type', fn ($type) => $type->whereIn('handler', [
-                AccountsPayableAgent::class,
-                AccountsReceivableAgent::class,
-            ]));
+            ->whereHas('type', fn ($type) => $type->whereIn('handler', AccountingAgentLocatorService::HANDLERS));
 
         if ($this->option('app') !== null) {
             $query->where('apps_id', (int) $this->option('app'));

@@ -205,7 +205,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $vendor = $this->seedTestOrganization('Globex Supply');
         $this->receiveOpenBill($vendor, 640.0, '2026-06-20');
 
-        $bill = \Kanvas\Scribe\Bills\Models\Bill::query()
+        $bill = Bill::query()
             ->where('apps_id', $this->kanvasApp->getId())
             ->where('companies_id', $this->company->getId())
             ->latest('id')
@@ -596,6 +596,29 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertTrue($result['created']);
         $bill = Bill::query()->where('id', $result['bill_id'])->firstOrFail();
         $this->assertSame('2026-10-15', $bill->due_date->toDateString());
+    }
+
+    public function test_create_ap_bill_refuses_a_due_date_it_cannot_read(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Due date test',
+                invoice_number: 'DUEDATE-2',
+                due_date: '2026-02-30',
+            );
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('invalid_due_date', $result['reason'], 'Carbon::parse() would have rolled it over to March 2');
+        $this->assertSame(0, Bill::query()->where('bill_number', 'DUEDATE-2')->count());
     }
 
     public function test_create_ap_bill_supports_multiple_lines_without_combining_them(): void

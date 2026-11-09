@@ -67,12 +67,7 @@ class ResultMapperService
      */
     private static function numberConsumed(array $response): ?bool
     {
-        $dgiResponse = $response['dgiResp'] ?? null;
-        if (is_string($dgiResponse)) {
-            $dgiResponse = json_decode($dgiResponse, true);
-        }
-
-        $value = (is_array($dgiResponse) ? ($dgiResponse['secuenciaUtilizada'] ?? null) : null)
+        $value = self::dgiResponse($response)['secuenciaUtilizada']
             ?? $response['secuenciaUtilizada']
             ?? null;
 
@@ -124,12 +119,7 @@ class ResultMapperService
             }
         }
 
-        $dgiResponse = $response['dgiResp'] ?? null;
-        if (is_string($dgiResponse)) {
-            $dgiResponse = json_decode($dgiResponse, true);
-        }
-
-        foreach ((array) (is_array($dgiResponse) ? ($dgiResponse['mensajes'] ?? []) : []) as $dgiMessage) {
+        foreach ((array) (self::dgiResponse($response)['mensajes'] ?? []) as $dgiMessage) {
             if (! is_array($dgiMessage) || ! isset($dgiMessage['valor'])) {
                 continue;
             }
@@ -139,5 +129,22 @@ class ResultMapperService
         }
 
         return array_values(array_unique($messages));
+    }
+
+    /**
+     * DGII's own answer, which WebPOS relays as a JSON string in `dgiResp` (or already decoded).
+     *
+     * @param array<array-key, mixed> $response
+     * @return array<array-key, mixed>|null
+     */
+    private static function dgiResponse(array $response): ?array
+    {
+        $dgiResponse = $response['dgiResp'] ?? null;
+
+        if (is_string($dgiResponse)) {
+            $dgiResponse = json_decode($dgiResponse, true);
+        }
+
+        return is_array($dgiResponse) ? $dgiResponse : null;
     }
 }

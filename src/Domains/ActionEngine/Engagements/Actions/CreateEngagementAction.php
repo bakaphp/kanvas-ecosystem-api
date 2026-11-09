@@ -9,6 +9,7 @@ use Baka\Contracts\EngageableInterface;
 use Baka\Support\IPInfo;
 use Baka\Support\Str;
 use Baka\Support\Url;
+use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Arr;
@@ -504,7 +505,7 @@ class CreateEngagementAction
         foreach ($this->engagementData->filesUrl as $fileUrl) {
             try {
                 $message->addFileFromUrl($fileUrl, basename($fileUrl), $this->app);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 report($e);
             }
         }

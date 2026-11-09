@@ -27,9 +27,18 @@ class ApplyArPaymentTool extends AbstractApplyPaymentTool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $invoice_id, float $amount, string $reference, ?string $method = null): array
-    {
-        return $this->applyPayment($invoice_id, $amount, $reference, $method);
+    public function __invoke(
+        int $invoice_id,
+        float $amount,
+        string $reference,
+        ?string $method = null
+    ): array {
+        return $this->applyPayment(
+            $invoice_id,
+            $amount,
+            $reference,
+            $method
+        );
     }
 
     #[Override]
@@ -45,6 +54,7 @@ class ApplyArPaymentTool extends AbstractApplyPaymentTool
             ->where('id', $id)
             ->where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
+            ->notDeleted()
             ->first();
     }
 

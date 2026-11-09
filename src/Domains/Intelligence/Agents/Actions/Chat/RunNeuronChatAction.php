@@ -246,10 +246,13 @@ class RunNeuronChatAction
             return $fallback;
         }
 
-        $content = $this->presentable($responseMessage, $toolResults);
         $thisTurn = [$responseMessage];
-        $unbacked = $this->unbackedClaims($content, $thisTurn, $toolResults);
-        $stateClaim = new UnbackedRecordClaimsService()->unverifiedStateClaim($content, $toolCalls);
+        [$content, $unbacked, $stateClaim] = $this->assessReply(
+            $responseMessage,
+            $thisTurn,
+            $toolCalls,
+            $toolResults
+        );
 
         // A reply naming records no tool returned, or denying earlier work or declaring work done with no tool to back
         // it, is answered once more with a correction before anyone reads it; only a repeat reaches the person, flagged.
@@ -271,9 +274,12 @@ class RunNeuronChatAction
                 $this->executedToolCalls = [...$this->executedToolCalls, ...BoundToolResultsMiddleware::executedCalls($retried)];
 
                 $thisTurn[] = $responseMessage;
-                $content = $this->presentable($responseMessage, $toolResults);
-                $unbacked = $this->unbackedClaims($content, $thisTurn, $toolResults);
-                $stateClaim = new UnbackedRecordClaimsService()->unverifiedStateClaim($content, $toolCalls);
+                [$content, $unbacked, $stateClaim] = $this->assessReply(
+                    $responseMessage,
+                    $thisTurn,
+                    $toolCalls,
+                    $toolResults
+                );
             }
         }
 
@@ -392,6 +398,30 @@ class RunNeuronChatAction
     protected function pause(int $seconds): void
     {
         Sleep::for($seconds)->seconds();
+    }
+
+    /**
+     * The reply as the person will read it, plus what in it nothing backs: record ids no tool returned, and a
+     * denial or completion stated with no tool call.
+     *
+     * @param list<Message> $thisTurn
+     * @param list<array<string, mixed>> $toolCalls
+     * @param list<array<string, mixed>> $toolResults
+     * @return array{0: string, 1: list<string>, 2: ?string}
+     */
+    private function assessReply(
+        Message $reply,
+        array $thisTurn,
+        array $toolCalls,
+        array $toolResults
+    ): array {
+        $content = $this->presentable($reply, $toolResults);
+
+        return [
+            $content,
+            $this->unbackedClaims($content, $thisTurn, $toolResults),
+            new UnbackedRecordClaimsService()->unverifiedStateClaim($content, $toolCalls),
+        ];
     }
 
     /**

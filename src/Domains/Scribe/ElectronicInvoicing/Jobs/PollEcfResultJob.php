@@ -12,14 +12,12 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
-use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Actions\ApplyFiscalAnswerAction;
 use Kanvas\Scribe\ElectronicInvoicing\Exceptions\FiscalNumberHeldElsewhereException;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
 use Kanvas\Scribe\ElectronicInvoicing\Services\EcfProviderResolver;
 use Kanvas\Scribe\ElectronicInvoicing\Services\FiscalPayloadService;
 use Kanvas\Scribe\ElectronicInvoicing\Support\EcfCompliance;
-use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 
 /**
@@ -91,9 +89,9 @@ final class PollEcfResultJob implements ShouldQueue
         $fiscal->mergeAuthorityData(['poll_exhausted' => true]);
         $fiscal->save();
 
-        $entity = $fiscal->entity;
+        $entity = $fiscal->scribeDocument();
 
-        if (! $entity instanceof Invoice && ! $entity instanceof Bill && ! $entity instanceof Expense) {
+        if ($entity === null) {
             return;
         }
 

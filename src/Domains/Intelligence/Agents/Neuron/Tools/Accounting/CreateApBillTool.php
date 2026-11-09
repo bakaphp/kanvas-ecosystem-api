@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Baka\Support\DateHelper;
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Services\ApprovalOriginService;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -35,7 +34,6 @@ use NeuronAI\Tools\ToolPropertyInterface;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Spatie\LaravelData\DataCollection;
-use Throwable;
 
 /** Creates an AP bill (one line, or several via lines) and submits it for approval; it never approves. */
 #[AgentTool(name: 'Create AP Bill', category: 'accounting')]
@@ -341,13 +339,7 @@ class CreateApBillTool extends Tool
             'subaccount' => $subaccount,
         ]];
 
-        $built = $this->buildBillLines(
-            lineInputs: $lineInputs,
-            fallbackDescription: $memo,
-            fallbackSubaccount: $subaccount,
-            app: $app,
-            company: $company,
-        );
+        $built = $this->buildBillLines($lineInputs, $memo, $subaccount);
 
         if (isset($built['error'])) {
             return $built['error'];
@@ -358,7 +350,17 @@ class CreateApBillTool extends Tool
 
         $currency = $currency !== null && trim($currency) !== '' ? strtoupper(trim($currency)) : 'USD';
         $actingUser = $this->user;
-        $parsedDueDate = $this->parseDueDate($due_date);
+        $dueDay = Str::trimToNull($due_date);
+        $parsedDueDate = $dueDay !== null ? DateHelper::parseYmd($dueDay) : null;
+
+        if ($dueDay !== null && $parsedDueDate === null) {
+            return [
+                'created' => false,
+                'reason' => 'invalid_due_date',
+                'message' => "due_date \"{$dueDay}\" is not a date in YYYY-MM-DD form. Nothing was created: pass the invoice's "
+                    . 'own due date as YYYY-MM-DD, or omit it when the invoice shows none.',
+            ];
+        }
 
         try {
             $bill = new CreateBillAction(
@@ -371,7 +373,7 @@ class CreateApBillTool extends Tool
                     fx_rate_to_base: 1.0,
                     bill_number: $invoice_number,
                     bill_date: Carbon::today(),
-                    due_date: $parsedDueDate,
+                    due_date: $parsedDueDate !== null ? Carbon::instance($parsedDueDate) : null,
                     notes: $memo,
                 ),
                 $actingUser,
@@ -453,13 +455,8 @@ class CreateApBillTool extends Tool
      *
      * @return array{lines: list<BillLineData>, total: float}|array{error: array<string, mixed>}
      */
-    private function buildBillLines(
-        array $lineInputs,
-        string $fallbackDescription,
-        ?string $fallbackSubaccount,
-        Apps $app,
-        Companies $company,
-    ): array {
+    private function buildBillLines(array $lineInputs, string $fallbackDescription, ?string $fallbackSubaccount): array
+    {
         $lines = [];
         $total = 0.0;
 
@@ -476,10 +473,11 @@ class CreateApBillTool extends Tool
             }
 
             $account = Account::query()
-                ->where('apps_id', $app->getId())
-                ->where('companies_id', $company->getId())
+                ->where('apps_id', $this->app->getId())
+                ->where('companies_id', $this->company->getId())
                 ->where('account_number', $lineGlAccount)
                 ->where('is_active', true)
+                ->notDeleted()
                 ->first();
 
             if ($account === null) {
@@ -497,7 +495,7 @@ class CreateApBillTool extends Tool
                 quantity: 1.0,
                 unit_price_native: $lineAmount,
                 expense_account_id: $account->getId(),
-                subaccount_id: $this->resolveSubaccountId($lineSubaccount, $app, $company),
+                subaccount_id: $this->resolveSubaccountId($lineSubaccount),
             );
             $total += $lineAmount;
         }
@@ -525,20 +523,7 @@ class CreateApBillTool extends Tool
         ];
     }
 
-    private function parseDueDate(?string $due_date): ?Carbon
-    {
-        if ($due_date === null || trim($due_date) === '') {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($due_date);
-        } catch (Throwable) {
-            return null;
-        }
-    }
-
-    private function resolveSubaccountId(?string $subaccount, Apps $app, Companies $company): ?int
+    private function resolveSubaccountId(?string $subaccount): ?int
     {
         if ($subaccount === null || trim($subaccount) === '') {
             return null;
@@ -546,8 +531,8 @@ class CreateApBillTool extends Tool
 
         $subaccountModel = Subaccount::firstOrCreate(
             [
-                'apps_id' => $app->getId(),
-                'companies_id' => $company->getId(),
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->company->getId(),
                 'sub_code' => trim($subaccount),
             ],
             ['source' => 'kanvas'],

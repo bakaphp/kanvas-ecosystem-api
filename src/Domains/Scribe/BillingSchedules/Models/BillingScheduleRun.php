@@ -49,7 +49,7 @@ class BillingScheduleRun extends BaseModel
      */
     public function scopeAwaitingSubmission(Builder $query, Carbon $now): Builder
     {
-        return $query->where('is_deleted', 0)
+        return $query->notDeleted()
             ->whereNotNull('invoice_id')
             ->where(fn (Builder $query): Builder => $query
                 ->where(fn (Builder $failed): Builder => $failed

@@ -6,10 +6,7 @@ namespace Kanvas\Scribe\ElectronicInvoicing\Services;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\ElectronicInvoicing\Models\FiscalDocument;
-use Kanvas\Scribe\Expenses\Models\Expense;
-use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -24,11 +21,8 @@ class FiscalArtifactService
      */
     public function store(FiscalDocument $fiscal, string $contents, string $fileName): array
     {
-        $entity = $fiscal->entity;
-
-        if (! $entity instanceof Invoice && ! $entity instanceof Bill && ! $entity instanceof Expense) {
-            throw new ValidationException("Fiscal document {$fiscal->uuid} has no Scribe document to own its artifacts.");
-        }
+        $entity = $fiscal->scribeDocument()
+            ?? throw new ValidationException("Fiscal document {$fiscal->uuid} has no Scribe document to own its artifacts.");
 
         $user = $entity->user ?? $entity->company?->user;
 

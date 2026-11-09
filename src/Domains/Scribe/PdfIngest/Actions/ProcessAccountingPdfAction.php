@@ -31,7 +31,7 @@ use Throwable;
  * Idempotent on (apps_id, message_id, filesystem_id) — re-running the same stored attachment returns
  * the existing log row instead of double-processing. Mailgun sometimes redelivers, so this matters.
  *
- * Routing matrix (per the PR 9 design call — Option C):
+ * Routing matrix:
  *
  *   expense_receipt      → ProposeExpenseFromPdfAction → draft Expense + attached receipt
  *                          status=entity_created

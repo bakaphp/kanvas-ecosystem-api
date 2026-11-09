@@ -62,9 +62,4 @@ class EnsureWebPosResultReceiverAction
             ),
         )->execute();
     }
-
-    public static function url(ReceiverWebhook $receiver): string
-    {
-        return rtrim((string) config('app.url'), '/') . '/receiver/' . $receiver->uuid;
-    }
 }

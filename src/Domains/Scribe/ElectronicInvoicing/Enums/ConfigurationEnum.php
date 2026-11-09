@@ -15,6 +15,6 @@ enum ConfigurationEnum: string
     // Company-level EcfPdfSourceEnum value: whose legal PDF is attached to an accepted e-CF. Unset follows the provider's default.
     case ECF_PDF_SOURCE = 'scribe-ecf-pdf-source';
 
-    // Company-level RNC printed as the issuer on our own e-CF PDF.
+    // Company-level issuer RNC: required on every e-CF (DGII numbers e-NCFs per issuer) and printed on our own PDF.
     case ECF_ISSUER_TAX_ID = 'scribe-ecf-issuer-rnc';
 }

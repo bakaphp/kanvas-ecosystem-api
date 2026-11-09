@@ -85,7 +85,7 @@ class UpdateOrganizationTool extends Tool
             /** @var Organization $organization */
             $organization = Organization::getByIdFromCompanyApp($organization_id, $this->company, $this->app);
         } catch (Throwable) {
-            return ['error' => sprintf('No organization #%d found in this company.', $organization_id)];
+            return $this->notFound(['error' => sprintf('No organization #%d found in this company.', $organization_id)]);
         }
 
         $name = $name !== null ? trim($name) : null;
@@ -106,7 +106,7 @@ class UpdateOrganizationTool extends Tool
                     ? OrganizationType::getByIdFromCompanyApp($organization->organization_type_id, $this->company, $this->app)
                     : null);
         } catch (Throwable) {
-            return ['error' => sprintf('No organization type #%d found in this company.', $organization_type_id)];
+            return $this->notFound(['error' => sprintf('No organization type #%d found in this company.', $organization_type_id)]);
         }
 
         try {
@@ -129,7 +129,7 @@ class UpdateOrganizationTool extends Tool
         } catch (Throwable $e) {
             report($e);
 
-            return ['error' => $e->getMessage()];
+            return $this->failed($e->getMessage(), guidance: 'Say the organization was NOT updated.');
         }
 
         return [

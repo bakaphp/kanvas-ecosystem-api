@@ -232,9 +232,9 @@ class ApplyFiscalAnswerAction
 
     private function accepted(FiscalDocument $fiscal): void
     {
-        $entity = $fiscal->entity;
+        $entity = $fiscal->scribeDocument();
 
-        if ($entity instanceof Invoice || $entity instanceof Bill || $entity instanceof Expense) {
+        if ($entity !== null) {
             $this->attachLegalPdf($fiscal, $entity);
         }
 
@@ -339,9 +339,9 @@ class ApplyFiscalAnswerAction
 
     private function emit(FiscalDocument $fiscal, string $event, EventStatusEnum $status): void
     {
-        $entity = $fiscal->entity;
+        $entity = $fiscal->scribeDocument();
 
-        if (! $entity instanceof Invoice && ! $entity instanceof Bill && ! $entity instanceof Expense) {
+        if ($entity === null) {
             return;
         }
 

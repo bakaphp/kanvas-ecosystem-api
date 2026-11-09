@@ -17,8 +17,7 @@ use Spatie\LaravelData\Data;
  * about an attempt never issues twice and a new attempt is never mistaken for an earlier one.
  * Dates are Y-m-d strings so the DTO stays plain data.
  *
- * purchaseOrderNumber (E45), export (E46) and foreignPayment (E47) are type-specific and null elsewhere;
- * they were added after the first providers, so they default to null and older callers keep compiling.
+ * purchaseOrderNumber (E45), export (E46) and foreignPayment (E47) are type-specific and null elsewhere.
  */
 class EcfDocument extends Data implements FiscalPayloadInterface
 {

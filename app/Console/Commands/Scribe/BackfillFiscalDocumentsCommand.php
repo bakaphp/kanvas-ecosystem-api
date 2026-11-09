@@ -88,8 +88,7 @@ class BackfillFiscalDocumentsCommand extends Command
             $this->currentAppId = (int) $document->apps_id;
         }
 
-        /** @var Companies $company */
-        $company = Companies::findOrFail((int) $document->companies_id);
+        $company = Companies::getById((int) $document->companies_id);
         $environment = EcfEnvironmentEnum::forCompany($company);
 
         if ($environment->isProduction()) {
@@ -129,7 +128,7 @@ class BackfillFiscalDocumentsCommand extends Command
                     ),
             )->execute();
 
-            if (! $received && (isset($block['provider_ref']) || isset($block['submitted_at']))) {
+            if (! $received && self::wasSent($block)) {
                 $this->recordSubmission($fiscal, $block);
             }
 
@@ -160,7 +159,7 @@ class BackfillFiscalDocumentsCommand extends Command
         $status = $this->status($block);
         $issuer = DrFiscalRegime::issuerTaxIdFor($company);
         $issuedAt = $this->issuedAt($document, $block);
-        $wasSent = isset($block['provider_ref']) || isset($block['submitted_at']);
+        $wasSent = self::wasSent($block);
 
         return [
             'country' => DrFiscalRegime::COUNTRY,
@@ -276,10 +275,9 @@ class BackfillFiscalDocumentsCommand extends Command
     private function status(array $block): FiscalDocumentStatusEnum
     {
         $answer = EcfStatusEnum::tryFrom((string) ($block['status'] ?? ''));
-        $wasSent = isset($block['provider_ref']) || isset($block['submitted_at']);
 
         return match (true) {
-            $answer === null, $answer === EcfStatusEnum::WAITING && ! $wasSent => FiscalDocumentStatusEnum::DRAFT,
+            $answer === null, $answer === EcfStatusEnum::WAITING && ! self::wasSent($block) => FiscalDocumentStatusEnum::DRAFT,
             default => FiscalDocumentStatusEnum::fromAnswer($answer),
         };
     }
@@ -292,6 +290,14 @@ class BackfillFiscalDocumentsCommand extends Command
         return DateHelper::tryParseCarbon($block['issue_date'] ?? null)
             ?? ($document instanceof Invoice ? $document->issued_date?->copy() : null)
             ?? Carbon::parse($document->created_at);
+    }
+
+    /**
+     * @param array<string, mixed> $block
+     */
+    private static function wasSent(array $block): bool
+    {
+        return isset($block['provider_ref']) || isset($block['submitted_at']);
     }
 
     private static function legacyKey(): string

@@ -70,7 +70,7 @@ class WebPosSetupCommand extends Command
 
         try {
             $receiver = new EnsureWebPosResultReceiverAction($app, $company, $company->user)->execute();
-            $this->line('Result webhook URL to give WebPOS: ' . EnsureWebPosResultReceiverAction::url($receiver));
+            $this->line('Result webhook URL to give WebPOS: ' . $receiver->getUrl());
         } catch (Throwable $e) {
             $this->warn('Result webhook receiver not provisioned: ' . $e->getMessage());
         }

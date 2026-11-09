@@ -6,14 +6,15 @@ namespace Tests\Connectors\WebPos;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\WebPos\Enums\ConfigurationEnum;
 use Kanvas\Connectors\WebPos\Jobs\PullReceivedEcfsJob;
+use Kanvas\Connectors\WebPos\Webhooks\WebPosResultWebhookJob;
 use Kanvas\Scribe\ElectronicInvoicing\Enums\ConfigurationEnum as EcfConfigurationEnum;
+use Kanvas\Workflow\Models\WorkflowAction;
 use Tests\Connectors\Traits\HasWebPosConfiguration;
 use Tests\TestCase;
 
@@ -27,6 +28,11 @@ final class WebPosCommandsTest extends TestCase
     public function testSetupStoresTheSettingsMakesWebPosTheProviderAndNeverPrintsTheKey(): void
     {
         Http::fake([self::WEBPOS_TEST_HOST . '/api/fedo/ak/v1/checkRnc/*' => Http::response(['valido' => true, 'razonSocial' => 'Ejemplo SRL'])]);
+        config(['app.url' => 'https://graphapi.kanvas.dev']);
+        WorkflowAction::firstOrCreate(
+            ['model_name' => WebPosResultWebhookJob::class],
+            ['name' => class_basename(WebPosResultWebhookJob::class)],
+        );
         $company = $this->freshCompany();
 
         $this->artisan('kanvas:webpos-setup', [
@@ -39,6 +45,7 @@ final class WebPosCommandsTest extends TestCase
             '--rnc' => '131794321',
         ])
             ->expectsOutputToContain('API key verified')
+            ->expectsOutputToContain('https://graphapi.kanvas.dev/v1/receiver/')
             ->doesntExpectOutputToContain(self::WEBPOS_API_KEY)
             ->assertSuccessful();
 
@@ -86,14 +93,5 @@ final class WebPosCommandsTest extends TestCase
             PullReceivedEcfsJob::class,
             fn (PullReceivedEcfsJob $job): bool => $job->company->getId() === $company->getId()
         );
-    }
-
-    private function freshCompany(): Companies
-    {
-        /** @var Companies $company */
-        $company = Companies::factory()->create(['users_id' => Auth::id(), 'is_active' => 1]);
-        $company->associateApp(app(Apps::class));
-
-        return $company;
     }
 }
