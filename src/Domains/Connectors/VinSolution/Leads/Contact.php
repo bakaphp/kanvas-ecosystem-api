@@ -102,13 +102,7 @@ class Contact
         $data['DealerId'] = $dealer->id;
         $data['UserId'] = $user->id;
 
-        if (isset($data['ContactInformation']['Phones'][0])) {
-            $data['ContactInformation']['Phones'][0]['Number'] = Str::limit(
-                preg_replace('/[^0-9]/', '', $data['ContactInformation']['Phones'][0]['Number']),
-                10,
-                ''
-            );
-        }
+        $data['ContactInformation'] = self::truncateFirstPhone($data['ContactInformation'] ?? []);
 
         if (isset($data['ContactInformation']['Addresses'])
             && empty($data['ContactInformation']['Addresses'])) {
@@ -201,17 +195,25 @@ class Contact
             }
         }
 
-        if (! empty($this->phones) && isset($data['ContactInformation']['Phones'])) {
-            if (isset($data['ContactInformation']['Phones'][0])) {
-                $data['ContactInformation']['Phones'][0]['Number'] = Str::limit(
-                    preg_replace('/[^0-9]/', '', $data['ContactInformation']['Phones'][0]['Number']),
-                    10,
-                    ''
-                );
-            }
-        }
+        $data['ContactInformation'] = self::truncateFirstPhone($data['ContactInformation']);
 
         return $data;
+    }
+
+    /**
+     * VinSolutions takes a 10-digit national number on the first phone slot.
+     */
+    private static function truncateFirstPhone(array $information): array
+    {
+        if (isset($information['Phones'][0]['Number'])) {
+            $information['Phones'][0]['Number'] = Str::limit(
+                preg_replace('/[^0-9]/', '', (string) $information['Phones'][0]['Number']),
+                10,
+                ''
+            );
+        }
+
+        return $information;
     }
 
     private function changedEntries(array $submitted, array $current, string $field): array

@@ -19,7 +19,6 @@ use Kanvas\Connectors\VinSolution\Actions\PushTradeInAction;
 use Kanvas\Connectors\VinSolution\Actions\PushVehicleOfInterest;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Leads\Contact;
-use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
@@ -182,12 +181,7 @@ class PushLeadNotesActivity extends KanvasActivity
         $people = $lead->people;
 
         if ($status === ActionStatusEnum::OPEN->value && ! empty($messageData['data']['address']['address'])) {
-            $people->addDefaultAddress(Address::from([
-                'address' => $messageData['data']['address']['address'],
-                'city' => $messageData['data']['address']['city'],
-                'state' => $messageData['data']['address']['state'],
-                'zip' => $messageData['data']['address']['zipcode'],
-            ]));
+            PeopleService::updatePeopleAddressFromForm($people, $messageData['data']['address']);
             $lead->set('dont-run-id-verification-manual', 1);
             $this->pushPeople($people);
 
