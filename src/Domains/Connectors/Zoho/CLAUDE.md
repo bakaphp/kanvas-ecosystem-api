@@ -190,3 +190,28 @@ private note is also left on the lead, because Zoho will not retry the step:
 - **Hours.** Zoho's schedule owns send hours; nothing in Kanvas enforces them on this path.
 - **A skipped touch is not retried.** The next attempt is Zoho's next step.
 - **Reply detection needs a person.** A lead with no `people_id` has no inbound history, so a reply cannot be seen.
+
+## Get Docs moves the lead to a status (e.g. "Hot")
+
+A company that wants a lead marked once the customer uploads paperwork sets **one company setting**,
+`ZOHO_GET_DOCS_LEAD_STATUS`, to the Zoho `Lead_Status` picklist label, e.g. `Hot`. Nothing happens for a
+company without it. The `Zoho Push Lead Notes` rule on message submitted must already be in place; it is
+the same rule that uploads the files.
+
+What runs (`PushLeadNotesActivity` → `PushGetDocsLeadStatusAction`), only when the Get Docs submission
+carried at least one file:
+
+1. Zoho gets `Lead_Status = <label>` first; a rejected write leaves Kanvas untouched and the retry redoes
+   the step.
+2. The Kanvas lead moves to the matching `LeadStatus`: the company's own open row by name, else a shared
+   open one, else a new company-owned open row. That row gets `ZOHO_STATUS_NAME = <label>` if it has none.
+
+Why both sides move: every lead push rebuilds `Lead_Status` from the Kanvas status row
+(`ZohoLead::fromLead`, `ZOHO_STATUS_NAME` or "New Lead"). A Zoho-only write is undone by the next edit.
+
+What it never does: reopen a closed lead (Sold, Closed - Not Sold), reuse a status row flagged closed,
+touch a lead Zoho does not have yet, or change a deal's Stage. A second submission is a no-op. Every skip
+is in the activity result as `leadStatus.reason`: `not_configured`, `lead_not_in_zoho`, `lead_closed`,
+`already_set`.
+
+The label must exist in the tenant's Zoho `Lead_Status` picklist, or Zoho rejects the write.
