@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Mailgun\Listeners;
+namespace Kanvas\Communication\Messages\Listeners;
 
 use Illuminate\Notifications\Events\NotificationSent;
 use Kanvas\Communication\Messages\Actions\RecordDeliveryEventAction;
 use Kanvas\Communication\Messages\Actions\RecordDeliveryOnMessageAction;
+use Kanvas\Communication\Messages\Enums\ChannelTypeEnum;
 use Kanvas\Communication\Messages\Enums\DeliveryStatusEnum;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Notifications\Notification;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Throwable;
 
 /**
- * The SMTP server took an email FileEmailDeliveryAction::sending() filed: that is Mailgun's `accepted`,
- * the same verdict a 200 from the send API gives a mailbox email. A Mailgun event that beat the queue
- * here already moved the delivery forward, and the status never moves back.
+ * An email delivery filed `sending` under the Message-ID its notification carries left the queue and the
+ * SMTP server took it: that is the provider's `accepted`. A provider event that beat the queue here
+ * already moved the delivery forward, and the status never moves back.
  */
 final class MarkSmtpEmailAcceptedListener
 {
@@ -39,7 +39,7 @@ final class MarkSmtpEmailAcceptedListener
     private function markAccepted(string $messageId): void
     {
         $delivery = Delivery::query()
-            ->where('provider', IntegrationsEnum::MAILGUN->value)
+            ->where('channel', ChannelTypeEnum::EMAIL->value)
             ->where('external_id', $messageId)
             ->where('status', DeliveryStatusEnum::SENDING->value)
             ->first();
