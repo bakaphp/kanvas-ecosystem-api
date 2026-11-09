@@ -204,7 +204,9 @@ carried at least one file:
 1. Zoho gets `Lead_Status = <label>` first; a rejected write leaves Kanvas untouched and the retry redoes
    the step.
 2. The Kanvas lead moves to the matching `LeadStatus`: the company's own open row by name, else a shared
-   open one, else a new company-owned open row. That row gets `ZOHO_STATUS_NAME = <label>` if it has none.
+   open row that already carries `ZOHO_STATUS_NAME = <label>`, else a new company-owned open row. The
+   label is written only on a row the company owns; a platform row (`apps_id`/`companies_id` 0) is never
+   relabelled from one tenant's setting.
 
 Why both sides move: every lead push rebuilds `Lead_Status` from the Kanvas status row
 (`ZohoLead::fromLead`, `ZOHO_STATUS_NAME` or "New Lead"). A Zoho-only write is undone by the next edit.

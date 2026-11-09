@@ -63,10 +63,11 @@ class PushGetDocsLeadStatusAction
     }
 
     /**
-     * The company's own row before a shared one, matched by name the way the Zoho pull creates them.
-     * Only an open row qualifies: receiving paperwork never closes a lead, whatever the tenant calls
-     * the status. Whichever row is used must carry the exact Zoho label, or the next push sends
-     * "New Lead".
+     * Matched by name the way the Zoho pull creates them, open rows only: receiving paperwork never
+     * closes a lead, whatever the tenant calls the status. The row must carry the exact Zoho label or
+     * the next push sends "New Lead", and that label is written only on a row this company owns. A
+     * shared row (apps_id/companies_id 0) is reused only if it already carries it, never relabelled
+     * from one tenant's setting.
      */
     protected function resolveStatus(string $label): LeadStatus
     {
@@ -81,7 +82,11 @@ class PushGetDocsLeadStatusAction
             ->notDeleted()
             ->orderByDesc('companies_id')
             ->orderByDesc('apps_id')
-            ->first();
+            ->get()
+            ->first(
+                fn (LeadStatus $row): bool => $this->ownedByCompany($row)
+                    || $row->get(CustomFieldEnum::ZOHO_STATUS_NAME->value) === $label
+            );
 
         $status ??= LeadStatus::create([
             'apps_id' => $app->getId(),
@@ -91,10 +96,15 @@ class PushGetDocsLeadStatusAction
             'is_open' => true,
         ]);
 
-        if (Str::trimToNull((string) $status->get(CustomFieldEnum::ZOHO_STATUS_NAME->value)) === null) {
+        if ($this->ownedByCompany($status) && Str::trimToNull((string) $status->get(CustomFieldEnum::ZOHO_STATUS_NAME->value)) === null) {
             $status->set(CustomFieldEnum::ZOHO_STATUS_NAME->value, $label);
         }
 
         return $status;
+    }
+
+    protected function ownedByCompany(LeadStatus $status): bool
+    {
+        return (int) $status->companies_id === (int) $this->lead->companies_id;
     }
 }

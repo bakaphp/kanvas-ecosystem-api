@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Zoho;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -98,6 +99,44 @@ final class PushGetDocsLeadStatusActionTest extends TestCase
         $this->assertSame(1, $this->companyStatusesNamed('hot')->count(), 'no second row for the same status');
     }
 
+    public function testASharedRowWithoutTheZohoLabelIsNeverRelabelledFromOneTenantsSetting(): void
+    {
+        $label = 'Docs Received ' . uniqid();
+        $shared = LeadStatus::create([
+            'apps_id' => 0,
+            'companies_id' => 0,
+            'name' => $label,
+            'is_default' => 0,
+            'is_open' => true,
+        ]);
+        $this->company->set(CustomFieldEnum::ZOHO_GET_DOCS_LEAD_STATUS->value, $label);
+        new PushGetDocsLeadStatusAction($this->lead, $this->acceptingModule())->execute();
+
+        $status = $this->lead->fresh()->status()->firstOrFail();
+        $this->assertNotSame($shared->getId(), $status->getId(), 'a platform row is not this tenant\'s to label');
+        $this->assertNull($shared->get(CustomFieldEnum::ZOHO_STATUS_NAME->value));
+        $this->assertSame((int) $this->company->getId(), (int) $status->companies_id);
+        $this->assertSame($label, $status->get(CustomFieldEnum::ZOHO_STATUS_NAME->value));
+    }
+
+    public function testASharedRowAlreadyCarryingTheLabelIsReused(): void
+    {
+        $label = 'Docs Received ' . uniqid();
+        $shared = LeadStatus::create([
+            'apps_id' => 0,
+            'companies_id' => 0,
+            'name' => $label,
+            'is_default' => 0,
+            'is_open' => true,
+        ]);
+        $shared->set(CustomFieldEnum::ZOHO_STATUS_NAME->value, $label);
+        $this->company->set(CustomFieldEnum::ZOHO_GET_DOCS_LEAD_STATUS->value, $label);
+        new PushGetDocsLeadStatusAction($this->lead, $this->acceptingModule())->execute();
+
+        $this->assertSame($shared->getId(), (int) $this->lead->fresh()->leads_status_id);
+        $this->assertSame(0, $this->companyStatusesNamed($label)->count(), 'no company copy of a row that already works');
+    }
+
     public function testDoesNothingWhenTheCompanyHasNoStatusConfigured(): void
     {
         $module = $this->module();
@@ -190,7 +229,7 @@ final class PushGetDocsLeadStatusActionTest extends TestCase
         $this->lead->unsetRelation('status');
     }
 
-    private function companyStatusesNamed(string $name)
+    private function companyStatusesNamed(string $name): Builder
     {
         return LeadStatus::query()
             ->where('companies_id', $this->company->getId())

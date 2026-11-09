@@ -54,6 +54,7 @@ class PushLeadNotesActivity extends KanvasActivity
                     ]);
                 }
 
+                // One client for the file push and the status write, built only if there is something to push.
                 $zohoService = null;
                 $resolveZohoService = function () use (&$zohoService, $lead): ZohoService {
                     return $zohoService ??= $this->zohoService($lead);
