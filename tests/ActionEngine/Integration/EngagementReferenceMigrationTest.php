@@ -13,6 +13,25 @@ final class EngagementReferenceMigrationTest extends TestCase
 {
     public function testMigratesUnsignedLeadIdsInPlaceAndCanBeRerunAndRolledBack(): void
     {
+        $this->assertMigratesInPlace(
+            fn (Blueprint $table) => $table->unsignedInteger('leads_id')->index(),
+            'int unsigned',
+            3000000000
+        );
+    }
+
+    /** Production's leads_id is a signed int; rewriting it as INT UNSIGNED made MySQL refuse the ALTER INPLACE (1846). */
+    public function testKeepsASignedLeadIdSignedAndOnlyDropsNotNull(): void
+    {
+        $this->assertMigratesInPlace(
+            fn (Blueprint $table) => $table->integer('leads_id')->index(),
+            'int',
+            2000000000
+        );
+    }
+
+    private function assertMigratesInPlace(callable $leadsIdColumn, string $expectedType, int $sampleLeadId): void
+    {
         $manager = app('db');
         $source = $manager->connection('action_engine');
         $database = 'engagement_migration_' . bin2hex(random_bytes(8));
@@ -26,14 +45,14 @@ final class EngagementReferenceMigrationTest extends TestCase
             ]]);
             $connection = $manager->connection('engagement_migration_test');
             $schema = $connection->getSchemaBuilder();
-            $schema->create('engagements', function (Blueprint $table): void {
+            $schema->create('engagements', function (Blueprint $table) use ($leadsIdColumn): void {
                 $table->engine = 'InnoDB';
                 $table->increments('id');
                 $table->unsignedBigInteger('companies_id');
-                $table->unsignedInteger('leads_id')->index();
+                $leadsIdColumn($table);
                 $table->bigInteger('people_id')->nullable();
             });
-            $connection->table('engagements')->insert(['companies_id' => 1, 'leads_id' => 3000000000]);
+            $connection->table('engagements')->insert(['companies_id' => 1, 'leads_id' => $sampleLeadId]);
 
             Schema::shouldReceive('connection')->with('action_engine')->andReturn($schema);
             DB::shouldReceive('connection')->with('action_engine')->andReturn($connection);
@@ -43,9 +62,9 @@ final class EngagementReferenceMigrationTest extends TestCase
             $migration->up();
 
             $column = $connection->selectOne("SHOW COLUMNS FROM engagements LIKE 'leads_id'");
-            $this->assertSame('int unsigned', $column->Type);
+            $this->assertSame($expectedType, $column->Type);
             $this->assertSame('YES', $column->Null);
-            $this->assertSame(3000000000, (int) $connection->table('engagements')->value('leads_id'));
+            $this->assertSame($sampleLeadId, (int) $connection->table('engagements')->value('leads_id'));
             $this->assertTrue($schema->hasIndex('engagements', 'engagements_entity_type_entity_id_index'));
             $this->assertTrue($schema->hasIndex('engagements', 'engagements_companies_id_entity_type_entity_id_index'));
 
@@ -55,6 +74,7 @@ final class EngagementReferenceMigrationTest extends TestCase
                 'entity_type' => 'invoice',
                 'entity_id' => 123,
             ]);
+
             $migration->down();
             $migration->down();
 
