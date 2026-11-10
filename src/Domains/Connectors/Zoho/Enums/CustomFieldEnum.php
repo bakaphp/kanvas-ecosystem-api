@@ -39,7 +39,7 @@ enum CustomFieldEnum: string
 
     /**
      * Set by CreateLeadWithZohoDuplicateCheckJob on the existing lead it reassigns. If that lead's first
-     * push to Zoho is still queued, the push uses this owner and leaves out Lead_Source.
+     * push to Zoho is still queued, the push uses this owner.
      */
     case ZOHO_DUPLICATE_OWNER_ID = 'ZOHO_DUPLICATE_OWNER_ID';
 
