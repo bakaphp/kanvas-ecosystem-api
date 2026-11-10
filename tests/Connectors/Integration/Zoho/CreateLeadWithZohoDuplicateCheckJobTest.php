@@ -149,7 +149,7 @@ final class CreateLeadWithZohoDuplicateCheckJobTest extends TestCase
         $module->expects($this->never())->method('searchPhone');
         $module->expects($this->once())
             ->method('update')
-            ->with($zohoLeadId, ['Owner' => self::ZOHO_OWNER_ID, 'Lead_Source' => null]);
+            ->with($zohoLeadId, ['Owner' => self::ZOHO_OWNER_ID]);
 
         $result = $this->runReceiver($this->payload($email), $module);
 
@@ -175,7 +175,7 @@ final class CreateLeadWithZohoDuplicateCheckJobTest extends TestCase
         $module->expects($this->never())->method('searchEmail');
         $module->expects($this->once())
             ->method('update')
-            ->with('zl-9', ['Owner' => self::ZOHO_OWNER_ID, 'Lead_Source' => null]);
+            ->with('zl-9', ['Owner' => self::ZOHO_OWNER_ID]);
 
         $result = $this->runReceiver($this->payload($email), $module);
 
@@ -184,6 +184,30 @@ final class CreateLeadWithZohoDuplicateCheckJobTest extends TestCase
         $this->assertSame('zl-9', $result['zoho_lead_id']);
         $this->assertSame(1, $this->receiverLeadCount());
         $this->assertReassigned($existing->fresh());
+        $this->assertSame($this->leadReceiver->leads_sources_id, $existing->fresh()->leads_sources_id);
+    }
+
+    public function testTheSubmissionOriginIsAppendedToTheDescriptionOnBothSidesOnce(): void
+    {
+        $email = $this->uniqueEmail();
+        $first = $this->runReceiver($this->payload($email), $this->zohoWithNoMatches());
+        $existing = Lead::find($first['lead_id']);
+        $existing->set(CustomFieldEnum::ZOHO_LEAD_ID->value, 'zl-11');
+        $origin = 'New submission from ' . $this->leadReceiver->name . ' on ' . now()->format('m/d/Y') . '.';
+
+        $module = $this->module();
+        $module->method('get')->willReturnOnConsecutiveCalls(
+            new Record(['id' => 'zl-11', 'Description' => 'Edited in Zoho'], $module),
+            new Record(['id' => 'zl-11', 'Description' => "Edited in Zoho\n" . $origin], $module),
+        );
+        $module->expects($this->exactly(2))
+            ->method('update')
+            ->with('zl-11', ['Owner' => self::ZOHO_OWNER_ID, 'Description' => "Edited in Zoho\n" . $origin]);
+
+        $this->runReceiver($this->payload($email), $module);
+        $this->runReceiver($this->payload($email), $module);
+
+        $this->assertSame(1, substr_count((string) $existing->fresh()->description, $origin));
     }
 
     public function testAKanvasPhoneMatchIgnoresFormatting(): void
@@ -317,7 +341,6 @@ final class CreateLeadWithZohoDuplicateCheckJobTest extends TestCase
     private function assertReassigned(Lead $lead): void
     {
         $this->assertSame(auth()->user()->getId(), $lead->leads_owner_id);
-        $this->assertSame(0, (int) $lead->leads_sources_id);
         $this->assertSame(self::ZOHO_OWNER_ID, (string) $lead->get(CustomFieldEnum::ZOHO_DUPLICATE_OWNER_ID->value));
     }
 
