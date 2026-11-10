@@ -108,10 +108,11 @@ final class LeadFollowUpEligibilityService
         }
 
         // Lead-type defaults and the company's start date are admin config for the automatic
-        // follow-up; a person's plan on one lead is an explicit instruction and is not vetoed by
-        // them. Checked before retries so disabled types cannot advance stages either.
-        if ($config->plan === null) {
-            $leadConfiguration = new LeadConfigurationService();
+        // follow-up; a person's plan on one lead, or a person turning follow-up on for it by hand,
+        // is an explicit instruction and is not vetoed by them. Checked before retries so disabled
+        // types cannot advance stages either.
+        $leadConfiguration = new LeadConfigurationService();
+        if ($config->plan === null && ! $leadConfiguration->hasManualFollowUp($lead)) {
             if (! $leadConfiguration->allowsContinuedFollowUp($lead)) {
                 return 'lead_type_follow_up_disabled';
             }

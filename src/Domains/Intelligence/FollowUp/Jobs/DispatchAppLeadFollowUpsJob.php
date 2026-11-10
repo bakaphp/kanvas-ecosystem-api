@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\CustomFields\Models\AppsCustomFields;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
 use Kanvas\Intelligence\FollowUp\Services\LeadFollowUpEligibilityService;
@@ -62,7 +63,7 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
             ->where(
                 fn ($query) => $query
                     ->where(fn ($stage) => $this->inFollowUpStage($stage, $startDate))
-                    ->orWhereIn('id', $this->plannedLeadIds()),
+                    ->orWhereIn('id', $this->leadIdsWithField(ManualFollowUpPlan::ACTIVE_FIELD)),
             )
             ->with('stage')
             ->lazyById(500);
@@ -85,7 +86,14 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
     private function inFollowUpStage(Builder $query, ?Carbon $startDate): Builder
     {
         return $query
-            ->when($startDate, fn ($q) => $q->where('created_at', '>=', $startDate))
+            ->when(
+                $startDate,
+                fn ($q) => $q->where(
+                    fn ($created) => $created
+                        ->where('created_at', '>=', $startDate)
+                        ->orWhereIn('id', $this->leadIdsWithField(LeadConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value)),
+                ),
+            )
             ->whereNotNull('pipeline_stage_id')
             ->whereHas(
                 'stage',
@@ -101,17 +109,18 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
     }
 
     /**
-     * Plans are custom-field rows on `ecosystem`; leads live on `crm`, so the ids are fetched first
-     * (a cross-connection whereHas is silently empty). Active plans only exist under this name.
+     * A plan or a manual follow-up pin is a custom-field row on `ecosystem`; leads live on `crm`, so
+     * the ids are fetched first (a cross-connection whereHas is silently empty). Both rows exist only
+     * while they are active: an ended plan and a follow-up turned off delete theirs.
      *
      * @return list<int>
      */
-    private function plannedLeadIds(): array
+    private function leadIdsWithField(string $name): array
     {
         return AppsCustomFields::query()
             ->where('companies_id', $this->company->getId())
             ->where('model_name', Lead::class)
-            ->where('name', ManualFollowUpPlan::ACTIVE_FIELD)
+            ->where('name', $name)
             ->where('is_deleted', 0)
             ->pluck('entity_id')
             ->map(fn ($id): int => (int) $id)
