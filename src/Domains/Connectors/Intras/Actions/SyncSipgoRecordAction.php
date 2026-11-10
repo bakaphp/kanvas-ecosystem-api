@@ -14,9 +14,9 @@ use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Enums\PeopleIntrasSyncApprovalTypeEnum;
 use Kanvas\Connectors\Intras\Enums\SipgoRecordKindEnum;
+use Kanvas\Connectors\Intras\Support\LegacyIdMap;
 use Kanvas\Connectors\Intras\Support\SipgoReference;
 use Kanvas\Connectors\Intras\Support\SipgoSyncPlan;
-use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
@@ -98,7 +98,15 @@ class SyncSipgoRecordAction
      */
     public function run(SipgoSyncPlan $plan): array
     {
-        $counts = ['empresas' => 0, 'ejecutivos' => 0, 'eventos' => 0, 'versiones' => 0, 'fechas' => 0, 'facilitadores' => 0, 'inscripciones' => 0];
+        $counts = [
+            'empresas' => 0,
+            'ejecutivos' => 0,
+            'eventos' => 0,
+            'versiones' => 0,
+            'fechas' => 0,
+            'facilitadores' => 0,
+            'inscripciones' => 0,
+        ];
 
         if ($plan->companyIds !== []) {
             $counts['empresas'] = $this->pullOrganizations($plan);
@@ -336,23 +344,22 @@ class SyncSipgoRecordAction
             return [];
         }
 
-        $legacyByPeopleId = AppsCustomFields::query()
-            ->where('companies_id', $this->company->getId())
-            ->where('model_name', People::class)
-            ->where('name', CustomFieldEnum::INTRAS_PARTICIPANT_ID->value)
-            ->whereIn('value', array_map('strval', $participantIds))
-            ->where('is_deleted', 0)
-            ->pluck('value', 'entity_id')
-            ->map(fn ($value): int => (int) $value)
-            ->all();
+        $peopleIdByLegacyId = LegacyIdMap::load(
+            People::class,
+            CustomFieldEnum::INTRAS_PARTICIPANT_ID,
+            $this->company,
+            onlyLegacyIds: $participantIds
+        );
 
-        if ($legacyByPeopleId === []) {
+        if ($peopleIdByLegacyId === []) {
             return [];
         }
 
+        $legacyByPeopleId = array_flip($peopleIdByLegacyId);
+
         $pendingPeopleIds = ApprovalRequest::query()
             ->where('system_modules_id', SystemModulesRepository::getByModelName(People::class, $this->app)->getId())
-            ->whereIn('entity_id', array_keys($legacyByPeopleId))
+            ->whereIn('entity_id', $peopleIdByLegacyId)
             ->where('status', ApprovalStatusEnum::PENDING)
             ->whereIn('approval_type', array_column(PeopleIntrasSyncApprovalTypeEnum::cases(), 'value'))
             ->where('is_deleted', 0)

@@ -9,7 +9,6 @@ use Kanvas\ActionEngine\Engagements\Actions\AttachGetDocsFilesToMessageAction;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
 use Kanvas\Connectors\Zoho\Actions\Concerns\TracksZohoSyncedFiles;
-use Kanvas\Connectors\Zoho\Actions\PushFilesToZohoRecordAction;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -71,7 +70,7 @@ trait PushesSubmittedMessageToZoho
         $results = [];
 
         foreach ($resolveTargets() as $zohoRecordId => $target) {
-            $pushed = new PushFilesToZohoRecordAction($target['module'], (string) $zohoRecordId)->execute(
+            $pushed = $this->filePusher($target['module'], (string) $zohoRecordId)->execute(
                 $files,
                 $synced[$zohoRecordId] ?? [],
                 $zohoFileNames

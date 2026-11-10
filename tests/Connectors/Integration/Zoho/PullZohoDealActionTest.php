@@ -417,7 +417,13 @@ final class PullZohoDealActionTest extends TestCase
                 private array $attachments,
                 ?Lead $lead
             ) {
-                parent::__construct($app, $company, $user, $zohoDealId, lead: $lead);
+                parent::__construct(
+                    $app,
+                    $company,
+                    $user,
+                    $zohoDealId,
+                    lead: $lead
+                );
             }
 
             protected function fetchDeal(): array

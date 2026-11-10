@@ -7,14 +7,10 @@ namespace Tests\Connectors\Integration\Intras;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Support\CompanyScope;
-use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Enums\SipgoRecordKindEnum;
 use Kanvas\Connectors\Intras\Support\SipgoReference;
-use Kanvas\Event\Events\Models\EventCategory;
-use Kanvas\Event\Events\Models\EventType;
-use Kanvas\Event\Events\Models\EventVersion;
-use Kanvas\Event\Support\Setup;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Connectors\Integration\Intras\Concerns\CreatesSipgoLinkedVersion;
 use Tests\TestCase;
 
 /**
@@ -23,6 +19,8 @@ use Tests\TestCase;
  */
 final class SipgoReferenceTest extends TestCase
 {
+    use CreatesSipgoLinkedVersion;
+
     /**
      * @return iterable<string, array{0: string, 1: SipgoRecordKindEnum, 2: int}>
      */
@@ -99,7 +97,7 @@ final class SipgoReferenceTest extends TestCase
         $company = static::$cachedUser->getCurrentCompany();
         $legacyId = random_int(9_000_000, 9_999_999);
 
-        $version = $this->versionLinkedTo($legacyId, $app, $company);
+        $version = $this->createSipgoLinkedVersion($app, $company, $legacyId);
 
         $found = SipgoReference::parse('VE' . $legacyId)->resolve($app, CompanyScope::ownCompanyOnly($app, $company));
 
@@ -120,44 +118,11 @@ final class SipgoReferenceTest extends TestCase
         $otherCompany = Companies::factory()->create(['users_id' => static::$cachedUser->getId()]);
         $legacyId = random_int(9_000_000, 9_999_999);
 
-        $this->versionLinkedTo($legacyId, $app, $company);
+        $this->createSipgoLinkedVersion($app, $company, $legacyId);
 
         $this->assertNull(
             SipgoReference::parse('VE' . $legacyId)->resolve($app, CompanyScope::ownCompanyOnly($app, $otherCompany)),
             'the same SIPGO id read from another company must not reach this company\'s row'
         );
-    }
-
-    private function versionLinkedTo(int $legacyId, Apps $app, Companies $company): EventVersion
-    {
-        $version = EventVersion::query()
-            ->fromApp($app)
-            ->fromCompany($company)
-            ->notDeleted()
-            ->orderByDesc('id')
-            ->first() ?? $this->makeVersion($app, $company);
-
-        $version->set(CustomFieldEnum::INTRAS_EVENT_VERSION_ID->value, $legacyId);
-
-        return $version;
-    }
-
-    private function makeVersion(Apps $app, Companies $company): EventVersion
-    {
-        new Setup($app, static::$cachedUser, $company)->run();
-
-        $response = $this->graphQL('
-            mutation($input: EventInput!) {
-                createEvent(input: $input) { id versions { data { id } } }
-            }
-        ', ['input' => [
-            'name' => 'SipgoReference ' . uniqid(),
-            'description' => 'reference test',
-            'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
-            'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
-            'dates' => [['date' => now()->addMonth()->toDateString(), 'start_time' => '09:00', 'end_time' => '17:00']],
-        ]])->assertSuccessful();
-
-        return EventVersion::findOrFail((int) $response->json('data.createEvent.versions.data.0.id'));
     }
 }

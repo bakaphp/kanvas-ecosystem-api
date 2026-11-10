@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Intras\Neuron\Tools;
 
+use Baka\Support\Str;
 use Kanvas\Connectors\Intras\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Enums\SipgoRecordKindEnum;
@@ -72,12 +73,19 @@ class EventVersionTool extends Tool
             return $version;
         }
 
-        $version->load(['event.eventType', 'event.eventClass', 'event.eventCategory', 'eventStatus', 'currency', 'dates']);
+        $version->load([
+            'event.eventType',
+            'event.eventClass',
+            'event.eventCategory',
+            'eventStatus',
+            'currency',
+            'dates',
+        ]);
 
         $fields = CustomFieldsBatch::forEntities(EventVersion::class, [$version->getId()])[$version->getId()] ?? [];
         $legacyId = (int) ($fields[SipgoRecordKindEnum::VERSION->linkField()->value] ?? 0);
         $reference = $legacyId > 0 ? new SipgoReference(SipgoRecordKindEnum::VERSION, $legacyId) : null;
-        $baseUrl = trim((string) $this->app->get(ConfigurationEnum::INTRAS_BASE_URL->value));
+        $baseUrl = Str::trimToNull((string) $this->app->get(ConfigurationEnum::INTRAS_BASE_URL->value));
 
         $registered = (int) EventVersionParticipant::query()
             ->where('event_version_id', $version->getId())
@@ -89,7 +97,7 @@ class EventVersionTool extends Tool
             'status' => 'success',
             'version_id' => $version->getId(),
             'codigo' => $reference?->code(),
-            'enlace_sipgo' => $reference === null || $baseUrl === '' ? null : $reference->url($baseUrl),
+            'enlace_sipgo' => $reference === null || $baseUrl === null ? null : $reference->url($baseUrl),
             'nombre' => $version->name,
             'numero_version' => $version->version_number === null ? null : (int) $version->version_number,
             'evento' => $version->event === null ? null : array_filter([
@@ -124,10 +132,7 @@ class EventVersionTool extends Tool
                 : 'Muestra el código ' . $reference->code() . ' a la persona. ')
                 . 'El version_id es interno: úsalo en las demás herramientas (intras_inscritos, '
                 . 'get_event_report, event_tracking) pero no lo muestres. '
-                . (isset($fields[CustomFieldEnum::INTRAS_SYNCED_AT->value])
-                    ? 'Los datos reflejan SIPGO a las ' . $fields[CustomFieldEnum::INTRAS_SYNCED_AT->value] . '.'
-                    : 'Los datos vienen de la sincronización programada; si la persona necesita lo último de SIPGO, '
-                        . 'llama a intras_sincronizar con la misma referencia.'),
+                . $this->syncedAtNote($fields[CustomFieldEnum::INTRAS_SYNCED_AT->value] ?? null),
         ], static fn ($value): bool => $value !== null && $value !== '' && $value !== []);
     }
 

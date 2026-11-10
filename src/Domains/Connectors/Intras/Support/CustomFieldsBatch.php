@@ -13,7 +13,6 @@ use Kanvas\SystemModules\Models\SystemModules;
  *
  * Not filtered by `apps_custom_fields.companies_id`: that column records the writer's company context,
  * not the entity's owner, so the caller scopes the ids by tenant first and this reads them as given.
- * `Reporting/*Definition::customFieldsFor()` is the same query, kept there until those files are next touched.
  */
 final class CustomFieldsBatch
 {

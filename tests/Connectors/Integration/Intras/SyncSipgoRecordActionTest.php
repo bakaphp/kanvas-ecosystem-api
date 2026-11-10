@@ -20,11 +20,6 @@ use PHPUnit\Framework\Attributes\Group;
 use Tests\Connectors\Integration\Intras\Concerns\SeedsSipgoEventGraph;
 use Tests\TestCase;
 
-/**
- * The request behind this: "PA-80239 is not the head of HR, you crossed the information, check again
- * that every position matches what SIPGO has". The scheduled pull is up to an hour behind SIPGO; this
- * refreshes one edition and its people right now, through the same pulls the import runs.
- */
 #[Group('serial')]
 final class SyncSipgoRecordActionTest extends TestCase
 {

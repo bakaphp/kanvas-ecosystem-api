@@ -113,6 +113,14 @@ trait ResolvesSipgoVersion
         return $version;
     }
 
+    protected function syncedAtNote(?string $syncedAt): string
+    {
+        return $syncedAt !== null
+            ? 'Los datos reflejan SIPGO a las ' . $syncedAt . '.'
+            : 'Los datos vienen de la sincronización programada; si la persona necesita lo último de SIPGO o dice que '
+                . 'algo no coincide, llama a intras_sincronizar con la misma referencia y vuelve a leer.';
+    }
+
     /**
      * @return array{status: string, message: string}
      */

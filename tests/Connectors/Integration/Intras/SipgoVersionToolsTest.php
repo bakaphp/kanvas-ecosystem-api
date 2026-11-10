@@ -9,13 +9,10 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Neuron\Tools\EventRegistrationsTool;
 use Kanvas\Connectors\Intras\Neuron\Tools\EventVersionTool;
-use Kanvas\Event\Events\Models\EventCategory;
-use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\EventVersionParticipant;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantType;
-use Kanvas\Event\Support\Setup;
 use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -24,17 +21,14 @@ use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Spatie\LaravelData\DataCollection;
+use Tests\Connectors\Integration\Intras\Concerns\CreatesSipgoLinkedVersion;
 use Tests\TestCase;
 use Tests\Traits\AssertsToolRunKeys;
 
-/**
- * The request that exposed the gap: "https://erp.example.test/events-versions/7160/participants, tráeme la
- * lista de participantes". The number in that link is a SIPGO id, every event tool wanted a Kanvas id,
- * and the two ranges overlap. These tools take the link.
- */
 final class SipgoVersionToolsTest extends TestCase
 {
     use AssertsToolRunKeys;
+    use CreatesSipgoLinkedVersion;
 
     private Apps $kanvasApp;
     private Companies $company;
@@ -190,27 +184,13 @@ final class SipgoVersionToolsTest extends TestCase
 
     private function createVersion(string $name, int $legacyId, int $maxCapacity = 50): EventVersion
     {
-        new Setup($this->kanvasApp, static::$cachedUser, $this->company)->run();
-
-        $response = $this->graphQL('
-            mutation($input: EventInput!) {
-                createEvent(input: $input) { id versions { data { id } } }
-            }
-        ', ['input' => [
-            'name' => $name . ' ' . uniqid(),
-            'description' => 'SIPGO tools test',
-            'category_id' => EventCategory::fromCompany($this->company)->fromApp($this->kanvasApp)->first()->getId(),
-            'type_id' => EventType::fromCompany($this->company)->fromApp($this->kanvasApp)->first()->getId(),
-            'dates' => [['date' => now()->addMonth()->toDateString(), 'start_time' => '09:00', 'end_time' => '17:00']],
-        ]])->assertSuccessful();
-
-        /** @var EventVersion $version */
-        $version = EventVersion::findOrFail((int) $response->json('data.createEvent.versions.data.0.id'));
-        $version->metadata = array_merge($version->metadata ?? [], ['max_capacity' => $maxCapacity]);
-        $version->saveQuietly();
-        $version->set(CustomFieldEnum::INTRAS_EVENT_VERSION_ID->value, $legacyId);
-
-        return $version;
+        return $this->createSipgoLinkedVersion(
+            $this->kanvasApp,
+            $this->company,
+            $legacyId,
+            $name,
+            $maxCapacity
+        );
     }
 
     /**

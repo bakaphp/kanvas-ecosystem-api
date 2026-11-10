@@ -63,11 +63,7 @@ trait TracksZohoSyncedFiles
 
         $alreadyOnDeal = $deal->files()->pluck('filesystem.id')->map(intval(...))->all();
 
-        foreach (Filesystem::query()->whereKey($uploadedIds)->get() as $file) {
-            if (in_array($file->getId(), $alreadyOnDeal, true)) {
-                continue;
-            }
-
+        foreach (Filesystem::query()->whereKey($uploadedIds)->whereKeyNot($alreadyOnDeal)->get() as $file) {
             $deal->addFile($file, $zohoFileNames[$file->getId()] ?? $file->name);
         }
     }

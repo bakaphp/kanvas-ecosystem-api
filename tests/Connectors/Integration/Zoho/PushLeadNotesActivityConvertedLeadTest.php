@@ -99,7 +99,12 @@ final class PushLeadNotesActivityConvertedLeadTest extends TestCase
 
     private function activity(?string $pulledZohoDealId): PushLeadNotesActivity
     {
-        $activity = new class (0, now()->toDateTimeString(), new StoredWorkflow(), []) extends PushLeadNotesActivity {
+        $activity = new class (
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        ) extends PushLeadNotesActivity {
             public ?string $pulledZohoDealId = null;
             public bool $pullAttempted = false;
             /** @var list<string> */

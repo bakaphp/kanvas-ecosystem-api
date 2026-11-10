@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Intras\Neuron\Tools;
 
+use Baka\Support\Str;
 use Illuminate\Support\Collection;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Enums\SipgoRecordKindEnum;
@@ -48,6 +49,22 @@ class EventRegistrationsTool extends Tool
 
     private const int DEFAULT_LIMIT = 50;
     private const int MAX_LIMIT = 200;
+
+    /**
+     * The People custom fields a row shows: the SIPGO id, the cargo, and what a person proofreading
+     * the list asks about — the certificate names (what gets printed) and the org placement.
+     */
+    private const array PEOPLE_FIELDS = [
+        CustomFieldEnum::INTRAS_PARTICIPANT_ID->value,
+        'position',
+        'area',
+        'nivel',
+        'department',
+        'certificado_primer_nombre',
+        'certificado_segundo_nombre',
+        'certificado_primer_apellido',
+        'certificado_segundo_apellido',
+    ];
 
     /**
      * @return array<int, ToolProperty>
@@ -95,7 +112,11 @@ class EventRegistrationsTool extends Tool
         $total = (int) (clone $query)->count();
 
         $registrations = $query
-            ->with(['participant.people.organizations', 'participant.people.contacts', 'participantType'])
+            ->with([
+                'participant.people.organizations',
+                'participant.people.contacts',
+                'participantType',
+            ])
             ->orderBy('id')
             ->limit($limit)
             ->get();
@@ -136,22 +157,6 @@ class EventRegistrationsTool extends Tool
     }
 
     /**
-     * The People custom fields a row shows: the SIPGO id, the cargo, and what a person proofreading
-     * the list asks about — the certificate names (what gets printed) and the org placement.
-     */
-    private const array PEOPLE_FIELDS = [
-        'INTRAS_PARTICIPANT_ID',
-        'position',
-        'area',
-        'nivel',
-        'department',
-        'certificado_primer_nombre',
-        'certificado_segundo_nombre',
-        'certificado_primer_apellido',
-        'certificado_segundo_apellido',
-    ];
-
-    /**
      * @param array<int, array<string, string>> $peopleFields
      *
      * @return array<string, mixed>
@@ -163,7 +168,7 @@ class EventRegistrationsTool extends Tool
         $metadata = is_array($registration->metadata) ? $registration->metadata : [];
         $legacyId = (int) ($fields[SipgoRecordKindEnum::PARTICIPANT->linkField()->value] ?? 0);
 
-        $certificateName = trim(implode(' ', array_filter([
+        $certificateName = Str::trimToNull(implode(' ', array_filter([
             $fields['certificado_primer_nombre'] ?? null,
             $fields['certificado_segundo_nombre'] ?? null,
             $fields['certificado_primer_apellido'] ?? null,
@@ -174,7 +179,7 @@ class EventRegistrationsTool extends Tool
             'pa' => $legacyId > 0 ? SipgoReference::codeFor(SipgoRecordKindEnum::PARTICIPANT, $legacyId) : null,
             'nombre' => $people?->firstname,
             'apellido' => $people?->lastname,
-            'nombre_certificado' => $certificateName === '' ? null : $certificateName,
+            'nombre_certificado' => $certificateName,
             'empresa' => $metadata['empresa'] ?? $people?->organizations->first()?->name,
             'cargo' => $metadata['posicion'] ?? $fields['position'] ?? null,
             'cargo_de_la_inscripcion' => isset($metadata['posicion']),
@@ -223,11 +228,6 @@ class EventRegistrationsTool extends Tool
             . 'es lo que se imprime; úsalos para revisar ortografía. Muestra los códigos PA a la persona; nunca '
             . 'muestres version_id. ';
 
-        $note .= $syncedAt !== null
-            ? 'Los datos reflejan SIPGO a las ' . $syncedAt . '.'
-            : 'Los datos vienen de la sincronización programada; si la persona necesita lo último de SIPGO o dice que '
-                . 'algo no coincide, llama a intras_sincronizar con la misma referencia y vuelve a leer.';
-
-        return $note;
+        return $note . $this->syncedAtNote($syncedAt);
     }
 }

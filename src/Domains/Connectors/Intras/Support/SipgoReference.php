@@ -24,9 +24,10 @@ use Kanvas\SystemModules\Models\SystemModules;
 final readonly class SipgoReference
 {
     // Anchored on the first path segment so `/manager/companies/12` (a Gestor page) is not a company.
-    private const string URL_PATTERN = '~^/?(events-versions|events|participants|companies|inhouseproposals|facilitators)/(\d+)(?:[/?#]|$)~i';
+    // The segment and prefix are matched loosely here and validated by the enum, which owns both lists.
+    private const string URL_PATTERN = '~^/?([a-z-]+)/(\d+)(?:[/?#]|$)~i';
     private const string HOST_PATTERN = '~^(?:[a-z]+://)?[^/\s]+\.[a-z]{2,}(?=/)~i';
-    private const string CODE_PATTERN = '~^(VE|EV|PA|EM|PI)\s*-?\s*(\d+)$~i';
+    private const string CODE_PATTERN = '~^([a-z]{2})\s*-?\s*(\d+)$~i';
 
     public function __construct(
         public SipgoRecordKindEnum $kind,
