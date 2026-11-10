@@ -655,6 +655,12 @@ class RunNeuronChatAction
             return;
         }
 
+        // An AI Assist or Notes session is staff talking about the lead; copying that channel onto
+        // the lead and people channels would put internal chatter in the customer-facing thread.
+        if ($channel->isInternalChannel()) {
+            return;
+        }
+
         $people = $lead->people;
         $peopleChannelService = $people !== null ? new PeopleChannelService() : null;
         $leadChannelService = new LeadChannelService();

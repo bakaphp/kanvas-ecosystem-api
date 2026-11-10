@@ -140,7 +140,7 @@ class EntityRollupMessageStore extends KanvasMessageStore
                 $text = self::withMarker($text, $marker);
                 $channel = $socialMessage->channels->first();
 
-                if ($channel?->isNoteChannel() || $channel?->isAiAssistChannel()) {
+                if ($channel?->isInternalChannel()) {
                     $prefixed = "[INTERNAL - {$channel->name}] {$text}";
                 } elseif ($fromHuman) {
                     $owner = $socialMessage->user?->displayname ?: 'Owner';
