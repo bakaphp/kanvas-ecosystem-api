@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\CustomFields;
 
+use App\GraphQL\Ecosystem\Queries\CustomFields\CustomFieldValueResolver;
 use Kanvas\CustomFields\DataTransferObject\CustomFieldInput;
 use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -41,9 +42,7 @@ class CustomFieldMutation
         $entity = SystemModulesRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'get')) {
-            return $entity->get(
-                $customFieldInput->name
-            );
+            return new CustomFieldValueResolver()->resolve($entity, $customFieldInput->name);
         }
 
         return null;
@@ -59,7 +58,7 @@ class CustomFieldMutation
         $entity = SystemModulesRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'getAll')) {
-            return $entity->getAll();
+            return new CustomFieldValueResolver()->resolveAll($entity, $entity->getAll());
         }
 
         return [];
