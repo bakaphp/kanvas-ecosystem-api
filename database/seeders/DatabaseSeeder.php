@@ -31,6 +31,7 @@ class DatabaseSeeder extends Seeder
             CustomerUpdateEmailTemplateSeeder::class,
             ScribeSowTemplateSeeder::class,
             ScribeEcfInvoiceTemplateSeeder::class,
+            ScribeDocumentTemplateSeeder::class,
             ScribeEmailTemplateSeeder::class,
             EventBookingEmailTemplateSeeder::class,
             CustomFieldsTypesSeeder::class,

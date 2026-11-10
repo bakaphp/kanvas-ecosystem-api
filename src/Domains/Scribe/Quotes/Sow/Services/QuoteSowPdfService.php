@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Quotes\Sow\Services;
 
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\File;
-use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Scribe\Documents\Services\DocumentPdfService;
@@ -14,7 +12,6 @@ use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\Quotes\Sow\DataTransferObject\StatementOfWork;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Templates\Actions\RenderTemplateAction;
-use Kanvas\Templates\Repositories\TemplatesRepository;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -55,16 +52,8 @@ final class QuoteSowPdfService
 
     public function render(): string
     {
-        $renderer = new RenderTemplateAction($this->quote->app, $this->quote->company);
-        $context = $this->viewData();
-
-        try {
-            $template = TemplatesRepository::getByName(self::TEMPLATE_NAME, $this->quote->app, $this->quote->company);
-        } catch (ModelNotFoundException) {
-            return $renderer->execute(self::TEMPLATE_NAME, $context, File::get(resource_path(self::PACKAGED_TEMPLATE)));
-        }
-
-        return $renderer->renderTemplate($template, $context);
+        return new RenderTemplateAction($this->quote->app, $this->quote->company)
+            ->renderNamedOrPackaged(self::TEMPLATE_NAME, $this->viewData(), self::PACKAGED_TEMPLATE);
     }
 
     /**
