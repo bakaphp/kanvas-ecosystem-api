@@ -55,6 +55,7 @@ class BaseAgentChannelReplyAction
     protected string $communicationChannel = '';
     protected bool $supportsHumanApproval = false;
     protected bool $respectsLeadAiMode = true;
+    protected bool $mirrorsReplyToLeadChannels = true;
 
     public function __construct(
         protected Channel $channel,
@@ -216,8 +217,10 @@ class BaseAgentChannelReplyAction
             // channel dual-write so the CRM deal view and People profile show the actual
             // delivery message (verb='twilio-sms', 'mailgun-email', etc.). ADK is left
             // alone — its remote memory and existing legacy behavior depend on the
-            // per-protocol channel only.
-            if (! $this->agent->isAdk()) {
+            // per-protocol channel only. Internal channels (the rep talking to the agent
+            // about the lead) opt out via $mirrorsReplyToLeadChannels: that chatter is not a
+            // delivery and must not land in the customer-facing lead conversation.
+            if ($this->mirrorsReplyToLeadChannels && ! $this->agent->isAdk()) {
                 new LeadChannelService()->attachMessageToLeadChannel(
                     $newMessage,
                     $lead,
