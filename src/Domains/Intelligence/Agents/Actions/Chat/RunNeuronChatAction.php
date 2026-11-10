@@ -118,6 +118,7 @@ class RunNeuronChatAction
         $threadId = $this->handler instanceof BehavesAsKanvasAgent ? $this->handler->getThreadId() : null;
 
         $this->timing = new AgentTurnTimingService();
+        $this->timing->watchQueries();
         if ($this->handler instanceof Workflow) {
             $this->handler->subscribe(ObservabilityEvent::class, $this->timing);
         }
@@ -129,6 +130,7 @@ class RunNeuronChatAction
                 AgentTurnCancellationService::clear($threadId);
             }
 
+            $this->timing->stopWatchingQueries();
             $this->timing->logIfSlow($this->agent, $this->threadWaitMs(), [
                 'session_id' => $sessionId,
                 'thread_id' => $threadId,

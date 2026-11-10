@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
@@ -103,6 +104,38 @@ final class AgentTurnTimingServiceTest extends TestCase
         );
     }
 
+    public function testASlowStatementIsRecordedWithItsConnectionAndNoBindings(): void
+    {
+        $timing = new AgentTurnTimingService();
+        $timing->watchQueries();
+        DB::connection('intelligence')->select('select sleep(?) as waited', [0.3]);
+        $timing->stopWatchingQueries();
+        DB::connection('intelligence')->select('select sleep(?) as waited', [0.3]);
+
+        $queries = $timing->summary()['slowest_queries'];
+
+        $this->assertCount(1, $queries, 'Statements after the turn are not this turn\'s');
+        $this->assertSame('intelligence', $queries[0]['connection']);
+        $this->assertSame('select sleep(?) as waited', $queries[0]['sql']);
+        $this->assertGreaterThanOrEqual(250, $queries[0]['ms']);
+    }
+
+    public function testANestedTurnHandsTheWatchBackToItsParent(): void
+    {
+        $parent = new AgentTurnTimingService();
+        $child = new AgentTurnTimingService();
+
+        $parent->watchQueries();
+        $child->watchQueries();
+        DB::connection('intelligence')->select('select sleep(?) as waited', [0.3]);
+        $child->stopWatchingQueries();
+        DB::connection('intelligence')->select('select sleep(?) as waited', [0.3]);
+        $parent->stopWatchingQueries();
+
+        $this->assertCount(1, $child->summary()['slowest_queries']);
+        $this->assertCount(1, $parent->summary()['slowest_queries']);
+    }
+
     public function testThreadWaitIsKeptOutOfTheTurnTotal(): void
     {
         $timing = new AgentTurnTimingService(fn (): float => $this->now);
@@ -126,7 +159,8 @@ final class AgentTurnTimingServiceTest extends TestCase
                 && $context['model_calls'] === 1
                 && $context['runs'] === 1
                 && $context['total_ms'] >= 1
-                && array_key_exists('slowest_steps', $context))
+                && array_key_exists('slowest_steps', $context)
+                && array_key_exists('slowest_queries', $context))
             ->once();
     }
 

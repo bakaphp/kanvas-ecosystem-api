@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Services;
 
 use Closure;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use NeuronAI\Agent\Observability\InferenceStart;
 use NeuronAI\Agent\Observability\InferenceStop;
@@ -56,6 +59,16 @@ final class AgentTurnTimingService
 
     /** @var list<array{step: string, ms: int}> */
     private array $gaps = [];
+
+    /** @var list<array{connection: string, ms: int, sql: string}> */
+    private array $queries = [];
+
+    /** The turn whose queries are being recorded; a sub-agent's turn nests inside its parent's. */
+    private static ?self $watching = null;
+
+    private static ?int $listeningOn = null;
+
+    private ?self $outer = null;
 
     /** @var Closure(): float */
     private readonly Closure $clock;
@@ -112,6 +125,50 @@ final class AgentTurnTimingService
     }
 
     /**
+     * A statement that waits (a stale connection, a lock) takes minutes with every stage reading fast,
+     * so the turn records its slowest statements, with the connection each ran on. Bindings are left
+     * out: they carry message text.
+     */
+    public function watchQueries(): void
+    {
+        // One listener per event dispatcher, since listeners cannot be removed and a worker runs many
+        // turns; Octane hands each request its own dispatcher, hence the id.
+        $dispatcher = spl_object_id(DB::getEventDispatcher());
+
+        if (self::$listeningOn !== $dispatcher) {
+            DB::listen(static fn (QueryExecuted $query) => self::$watching?->queryExecuted($query));
+            self::$listeningOn = $dispatcher;
+        }
+
+        $this->outer = self::$watching;
+        self::$watching = $this;
+    }
+
+    public function stopWatchingQueries(): void
+    {
+        if (self::$watching === $this) {
+            self::$watching = $this->outer;
+        }
+
+        $this->outer = null;
+    }
+
+    private function queryExecuted(QueryExecuted $query): void
+    {
+        $ms = (int) round($query->time);
+
+        if ($ms < self::MIN_GAP_MS) {
+            return;
+        }
+
+        $this->queries[] = [
+            'connection' => (string) $query->connectionName,
+            'ms' => $ms,
+            'sql' => Str::limit($query->sql, 200),
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function summary(int $threadWaitMs = 0): array
@@ -119,6 +176,8 @@ final class AgentTurnTimingService
         $totalMs = max(0, self::ms(($this->clock)() - $this->startedAt) - $threadWaitMs);
         $gaps = $this->gaps;
         usort($gaps, static fn (array $a, array $b): int => $b['ms'] <=> $a['ms']);
+        $queries = $this->queries;
+        usort($queries, static fn (array $a, array $b): int => $b['ms'] <=> $a['ms']);
         $toolMs = $this->toolMs;
         arsort($toolMs);
 
@@ -134,6 +193,7 @@ final class AgentTurnTimingService
             'runs' => $this->runs,
             'slowest_tools' => array_slice($toolMs, 0, self::SLOWEST_GAPS, true),
             'slowest_steps' => array_slice($gaps, 0, self::SLOWEST_GAPS),
+            'slowest_queries' => array_slice($queries, 0, self::SLOWEST_GAPS),
         ];
     }
 
