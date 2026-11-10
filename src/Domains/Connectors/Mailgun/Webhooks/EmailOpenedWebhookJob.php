@@ -6,7 +6,9 @@ namespace Kanvas\Connectors\Mailgun\Webhooks;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Kanvas\Connectors\Mailgun\Actions\RecordEmailEventOnDeliveryAction;
 use Kanvas\Connectors\Mailgun\Actions\VerifyMailgunWebhookSignatureAction;
+use Kanvas\Connectors\Mailgun\Enums\DeliveryStatusEnum;
 use Kanvas\Connectors\Mailgun\Services\MailgunEngagementPayloadService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Campaigns\Actions\RecordCampaignRecipientOpenAction;
@@ -36,7 +38,8 @@ use Override;
         . 'once with Client::createOrUpdateWebhook() pointed at this receiver\'s URL. Every email sent '
         . 'with open tracking on (SendAsAgentMailboxAction\'s trackingPerson/trackingLead) gets an '
         . 'activity note — on the Lead\'s own feed when the mail was about one, otherwise on the '
-        . 'People\'s. A campaign email (v:campaign_recipient_id) also marks that campaign slot opened. '
+        . 'People\'s. A campaign email (v:campaign_recipient_id) also marks that campaign slot opened, '
+        . 'and an email on record as a delivery (matched by Message-Id) is marked read. '
         . 'Needs no receiver configuration — read off the event\'s own user-variables.',
     integration: IntegrationsEnum::MAILGUN,
 )]
@@ -62,19 +65,39 @@ class EmailOpenedWebhookJob extends ProcessWebhookJob
             return ['message' => 'Duplicate delivery'];
         }
 
-        $campaignResult = $this->recordOnCampaignRecipient($payload);
+        $trackingResult = [...$this->recordOnDelivery($payload), ...$this->recordOnCampaignRecipient($payload)];
 
         $leadId = $payload->userVariable('lead_id');
         if ($leadId !== null && $leadId !== '') {
-            return [...$this->recordOnLead((int) $leadId, $payload), ...$campaignResult];
+            return [...$this->recordOnLead((int) $leadId, $payload), ...$trackingResult];
         }
 
         $peopleId = $payload->userVariable('people_id');
         if ($peopleId === null || $peopleId === '') {
-            return ['message' => 'Event carries no people_id or lead_id, nothing to record against', ...$campaignResult];
+            return ['message' => 'Event carries no people_id or lead_id, nothing to record against', ...$trackingResult];
         }
 
-        return [...$this->recordOnPeople((int) $peopleId, $payload), ...$campaignResult];
+        return [...$this->recordOnPeople((int) $peopleId, $payload), ...$trackingResult];
+    }
+
+    /**
+     * The open is the email's `read`, the same as WhatsApp's: matched by Message-Id like the delivery
+     * receiver, so it needs none of the user-variables the note does. Kept on this receiver because
+     * Mailgun keeps one URL per domain and event, and `opened` already points here.
+     *
+     * @return array<string, mixed>
+     */
+    private function recordOnDelivery(MailgunEngagementPayloadService $payload): array
+    {
+        $delivery = RecordEmailEventOnDeliveryAction::findDelivery($this->receiver->app, $payload);
+
+        if ($delivery === null) {
+            return [];
+        }
+
+        new RecordEmailEventOnDeliveryAction($delivery, DeliveryStatusEnum::OPENED, $payload)->execute();
+
+        return ['delivery_id' => $delivery->getId(), 'delivery_status' => $delivery->status->value];
     }
 
     /**
