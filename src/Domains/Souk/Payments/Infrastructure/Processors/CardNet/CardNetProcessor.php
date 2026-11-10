@@ -12,22 +12,20 @@ use Kanvas\Connectors\CardNet\DataTransferObject\CardNetPurchaseRequest;
 use Kanvas\Connectors\CardNet\Enums\CustomFieldEnum;
 use Kanvas\Connectors\CardNet\Exceptions\CardNetException;
 use Kanvas\Connectors\CardNet\Services\CardNetService;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Payments\Actions\CreateRefundAction;
 use Kanvas\Souk\Payments\Contracts\ActivationProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\ActivateResult;
 use Kanvas\Souk\Payments\DataTransferObject\AuthorizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\CaptureResult;
-use Kanvas\Souk\Payments\DataTransferObject\RefundPayment;
 use Kanvas\Souk\Payments\DataTransferObject\RefundResult;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Infrastructure\Processors\Concerns\OpensProcessorRefunds;
 use Kanvas\Souk\Payments\Models\Payments;
 
 /**
@@ -45,6 +43,8 @@ use Kanvas\Souk\Payments\Models\Payments;
  */
 class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcessorInterface, ActivationProcessorInterface
 {
+    use OpensProcessorRefunds;
+
     protected CardNetService $service;
 
     public function __construct(
@@ -100,6 +100,8 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                     'response_message' => $response->getResponseMessage(),
                     'transaction_id' => $response->getTransactionId(),
                     'status' => $response->getStatus(),
+                    'customer_ip' => $request->customerIp,
+                    'customer_user_agent' => $request->customerUserAgent,
                 ],
             ];
 
@@ -264,31 +266,10 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
             );
         }
 
-        try {
-            $refund = new CreateRefundAction(
-                RefundPayment::forProcessor(
-                    $this->app,
-                    $payment->company,
-                    $payment,
-                    $amount,
-                    $context
-                )
-            )->execute();
-        } catch (ValidationException $e) {
-            return new RefundResult(
-                success: false,
-                message: $e->getMessage(),
-                transactionId: '',
-            );
-        }
+        $refund = $this->openRefund($payment, $amount, $context);
 
-        if ($refund->isCompleted()) {
-            return new RefundResult(
-                success: true,
-                message: 'Refund already completed',
-                transactionId: (string) ($refund->metadata['cardnet_purchase_id'] ?? $purchaseId),
-                raw: $refund->metadata ?? [],
-            );
+        if ($refund instanceof RefundResult) {
+            return $refund;
         }
 
         $start = hrtime(true);
@@ -691,8 +672,8 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
 
     /**
      * CardNet's refund endpoint expects the original purchase payload echoed back
-     * (TrxToken, Order, Amount, Currency, CustomerIP, DataDo.Invoice) per the official
-     * Postman collection. The amount defaults to what was actually charged.
+     * (TrxToken, Order, Amount, Currency, CustomerIP, CustomerUserAgent, DataDo.Invoice) per the official
+     * Postman collection, so the purchase's own IP and user agent are replayed, not the refunding request's.
      */
     private function buildRefundRequest(Payments $payment, Order $order, ?float $amount = null): CardNetPurchaseRequest
     {
@@ -705,8 +686,8 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
             currency: trim((string) ($order->currency ?? '')) ?: 'DOP',
             invoice: (string) ($order->order_number ?? $order->id),
             tip: 0,
-            customerIp: request()?->ip(),
-            customerUserAgent: request()?->userAgent() ?? 'KanvasEcosystem/1.0',
+            customerIp: $payment->getMetadata('customer_ip') ?? request()?->ip(),
+            customerUserAgent: $payment->getMetadata('customer_user_agent') ?? request()?->userAgent() ?? 'KanvasEcosystem/1.0',
         );
     }
 

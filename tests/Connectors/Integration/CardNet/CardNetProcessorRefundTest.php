@@ -94,6 +94,24 @@ class CardNetProcessorRefundTest extends TestCase
         $this->assertSame([$actor->getId()], $logUsers);
     }
 
+    public function testRefundReplaysThePurchaseIpAndUserAgent(): void
+    {
+        $payment = $this->persistPayment(100.00);
+        $payment->metadata = ['data' => ['customer_ip' => '203.0.113.7', 'customer_user_agent' => 'ShopperApp/2.1']];
+        $payment->saveOrFail();
+
+        $service = Mockery::mock(CardNetService::class);
+        $service->shouldReceive('refund')
+            ->once()
+            ->with(12345, Mockery::on(
+                fn (CardNetPurchaseRequest $request) => $request->customerIp === '203.0.113.7'
+                    && $request->customerUserAgent === 'ShopperApp/2.1'
+            ))
+            ->andReturn($this->approvedResponse());
+
+        $this->assertTrue($this->processor($service)->refund($payment, $this->buildOrderMock(), 10.00)->success);
+    }
+
     public function testPartialRefundsKeepPaymentPaidUntilFullyRefunded(): void
     {
         $payment = $this->persistPayment(100.00);
