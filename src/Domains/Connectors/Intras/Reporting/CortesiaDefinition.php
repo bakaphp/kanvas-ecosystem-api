@@ -10,6 +10,7 @@ use Kanvas\Analytics\Reporting\Contracts\RefreshableReportInterface;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportColumn;
 use Kanvas\Analytics\Reporting\Enums\ReportGrainEnum;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Intras\Support\CustomFieldsBatch;
 use Kanvas\Event\Participants\Models\ParticipantPass;
 use Override;
 
@@ -135,7 +136,7 @@ class CortesiaDefinition implements RefreshableReportInterface
             ))));
 
             $people = $this->flatPeople($peopleIds);
-            $passFields = $this->customFieldsFor(array_map(fn ($r) => (int) $r->id, $rows));
+            $passFields = CustomFieldsBatch::forEntities(ParticipantPass::class, array_map(fn ($r) => (int) $r->id, $rows));
 
             foreach ($rows as $row) {
                 $payload = $this->decodePayload($row->payload ?? null);
@@ -227,34 +228,6 @@ class CortesiaDefinition implements RefreshableReportInterface
 
         foreach ($rows as $row) {
             $map[(int) $row->peoples_id] = $row;
-        }
-
-        return $map;
-    }
-
-    /**
-     * @param array<int, int> $passIds
-     *
-     * @return array<int, array<string, string>>
-     */
-    protected function customFieldsFor(array $passIds): array
-    {
-        if ($passIds === []) {
-            return [];
-        }
-
-        $rows = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
-            ->where('model_name', ParticipantPass::class)
-            ->whereIn('entity_id', $passIds)
-            ->where('is_deleted', 0)
-            ->select('entity_id', 'name', 'value')
-            ->get();
-
-        $map = [];
-
-        foreach ($rows as $row) {
-            $map[(int) $row->entity_id][(string) $row->name] = (string) $row->value;
         }
 
         return $map;

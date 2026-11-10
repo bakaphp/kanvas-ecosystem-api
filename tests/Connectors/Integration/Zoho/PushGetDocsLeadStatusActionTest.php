@@ -62,6 +62,20 @@ final class PushGetDocsLeadStatusActionTest extends TestCase
         );
     }
 
+    public function testAConvertedLeadIsLeftAloneOnBothSides(): void
+    {
+        $this->company->set(CustomFieldEnum::ZOHO_GET_DOCS_LEAD_STATUS->value, 'Hot');
+        $this->lead->set(CustomFieldEnum::ZOHO_LEAD_CONVERTED_DETAIL->value, ['deal' => 'zd-100']);
+        $statusBefore = (int) $this->lead->leads_status_id;
+        $module = $this->module();
+        $module->expects($this->never())->method('update');
+
+        $result = new PushGetDocsLeadStatusAction($this->lead, $module)->execute();
+
+        $this->assertSame(['moved' => false, 'reason' => 'lead_converted', 'status' => 'Hot'], $result);
+        $this->assertSame($statusBefore, (int) $this->lead->fresh()->leads_status_id);
+    }
+
     public function testCreatesAnOpenCompanyStatusWhenNoneMatchesTheLabel(): void
     {
         $label = 'Docs Received ' . uniqid();

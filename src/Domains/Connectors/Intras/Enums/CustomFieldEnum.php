@@ -16,4 +16,5 @@ enum CustomFieldEnum: string
     case INTRAS_QUOTE_ID = 'INTRAS_QUOTE_ID';
     case INTRAS_AGENCY_ID = 'INTRAS_AGENCY_ID';
     case INTRAS_USER_ID = 'INTRAS_USER_ID';
+    case INTRAS_SYNCED_AT = 'INTRAS_SYNCED_AT';
 }

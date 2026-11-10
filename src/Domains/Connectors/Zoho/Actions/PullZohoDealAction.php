@@ -57,11 +57,16 @@ class PullZohoDealAction
 
     protected ?ZohoCrm $zohoCrm = null;
 
+    /**
+     * `$lead` is for a caller that already knows which lead the deal came from (a converted lead's
+     * `$converted_detail`); otherwise the deal's ZCRM_Lead_ID field decides.
+     */
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
         protected UserInterface $user,
         protected string $zohoDealId,
+        protected ?Lead $lead = null,
     ) {
     }
 
@@ -137,6 +142,10 @@ class PullZohoDealAction
 
     protected function findRelatedLead(array $zohoDealInfo): ?Lead
     {
+        if ($this->lead !== null) {
+            return $this->lead;
+        }
+
         $raw = $zohoDealInfo['ZCRM_Lead_ID'] ?? null;
         $zohoLeadId = is_scalar($raw) ? Str::trimToNull((string) $raw) : null;
 

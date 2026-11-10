@@ -10,6 +10,7 @@ use Kanvas\Analytics\Reporting\Contracts\RefreshableReportInterface;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportColumn;
 use Kanvas\Analytics\Reporting\Enums\ReportGrainEnum;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Intras\Support\CustomFieldsBatch;
 use Kanvas\Event\Events\Models\EventVersion;
 use Override;
 
@@ -170,7 +171,7 @@ class EventoVersionDefinition implements RefreshableReportInterface
             $rows = $chunk->all();
             $versionIds = array_map(fn ($r) => (int) $r->id, $rows);
 
-            $customFields = $this->customFieldsFor($versionIds);
+            $customFields = CustomFieldsBatch::forEntities(EventVersion::class, $versionIds);
             $dates = $this->datesFor($versionIds);
             $facilitators = $this->facilitatorsFor($versionIds);
             $rollups = $this->rollupsFor($versionIds);
@@ -199,31 +200,6 @@ class EventoVersionDefinition implements RefreshableReportInterface
         return [
             EventVersion::class => fn (EventVersion $version): array => [(int) $version->getId()],
         ];
-    }
-
-    /**
-     * @param array<int, int> $versionIds
-     *
-     * @return array<int, array<string, string>>
-     */
-    protected function customFieldsFor(array $versionIds): array
-    {
-        // Not company-scoped — apps_custom_fields.companies_id records the writer's context.
-        $rows = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
-            ->where('model_name', EventVersion::class)
-            ->whereIn('entity_id', $versionIds)
-            ->where('is_deleted', 0)
-            ->select('entity_id', 'name', 'value')
-            ->get();
-
-        $map = [];
-
-        foreach ($rows as $row) {
-            $map[(int) $row->entity_id][(string) $row->name] = (string) $row->value;
-        }
-
-        return $map;
     }
 
     /**

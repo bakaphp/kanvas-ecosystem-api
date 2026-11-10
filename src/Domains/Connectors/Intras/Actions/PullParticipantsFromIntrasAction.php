@@ -44,12 +44,16 @@ class PullParticipantsFromIntrasAction
     /** @var array<int|string, int> intras events_id => kanvas event id */
     protected array $eventIdMap = [];
 
+    /**
+     * @param list<int>|null $onlyParticipantIds pull just these legacy participants (on-demand refresh)
+     */
     public function __construct(
         protected AppInterface $app,
         protected Companies $company,
         protected UserInterface $user,
         protected ?string $lastSyncAt = null,
-        protected ?int $agencyId = null
+        protected ?int $agencyId = null,
+        protected ?array $onlyParticipantIds = null
     ) {
     }
 
@@ -83,6 +87,10 @@ class PullParticipantsFromIntrasAction
 
         if ($this->lastSyncAt !== null) {
             $query->where('p.updated_at', '>=', $this->lastSyncAt);
+        }
+
+        if ($this->onlyParticipantIds !== null) {
+            $query->whereIn('p.id', $this->onlyParticipantIds);
         }
 
         $participantType = PeopleType::firstOrCreate([
@@ -372,7 +380,12 @@ class PullParticipantsFromIntrasAction
                 ->first();
 
             if ($existing !== null) {
-                return $existing;
+                return $this->refreshName(
+                    $existing,
+                    $mapped['firstname'],
+                    $mapped['lastname'],
+                    $name
+                );
             }
         }
 
@@ -395,6 +408,31 @@ class PullParticipantsFromIntrasAction
         $people->generateUuidIfMissing()->saveQuietly();
 
         $this->participantIdMap[$legacyId] = $people->getId();
+
+        return $people;
+    }
+
+    /**
+     * SIPGO is the record while the two run side by side, so a name corrected there (a missing
+     * accent, a surname typed in caps) has to reach the row Kanvas already holds. A Kanvas edit that
+     * is still awaiting approval is protected one level up: `SyncSipgoRecordAction` leaves that
+     * person out of the pull.
+     */
+    protected function refreshName(
+        People $people,
+        string $firstname,
+        string $lastname,
+        string $name
+    ): People {
+        if ($people->firstname === $firstname && $people->lastname === $lastname) {
+            return $people;
+        }
+
+        $people->disableWorkflows();
+        $people->firstname = $firstname;
+        $people->lastname = $lastname;
+        $people->name = $name;
+        $people->saveQuietly();
 
         return $people;
     }
