@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Souk\Unit;
 
-use Kanvas\Souk\Support\Money;
+use Baka\Support\Money;
 use Tests\TestCaseUnit;
 
 final class MoneyTest extends TestCaseUnit

@@ -12,4 +12,5 @@ enum ApprovalEmailTemplateEnum: string
 {
     case REQUESTED = 'approval-requested';
     case DIGEST = 'approval-digest';
+    case EXPIRED = 'approval-expired';
 }

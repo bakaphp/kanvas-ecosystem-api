@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Microsoft\OAuth;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Contracts\OAuthProviderInterface;
 use Kanvas\Connectors\Microsoft\Client as MicrosoftClient;
 use Kanvas\Connectors\Microsoft\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Microsoft\Support\MicrosoftScopes;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
@@ -35,7 +35,7 @@ class MicrosoftOAuthProvider implements OAuthProviderInterface
         }
 
         $redirectUrl = $this->getRedirectUrl($receiver, $app);
-        $scopes = (string) ($app->get('microsoft_scopes') ?? 'offline_access Mail.Read Mail.Send Mail.ReadWrite');
+        $scopes = MicrosoftScopes::forAuthorization($app);
 
         return "https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/authorize?" . http_build_query([
             'client_id' => $clientId,
@@ -71,25 +71,13 @@ class MicrosoftOAuthProvider implements OAuthProviderInterface
             $clientSecret,
             $tenantId,
             $redirectUrl,
-            $code
+            $code,
+            MicrosoftScopes::forAuthorization($app)
         );
 
         $configPrefix = '-' . $app->getId() . '-' . $receiver->company->getId();
 
-        $receiver->company->set(
-            ConfigurationEnum::ACCESS_TOKEN->value . $configPrefix,
-            $tokenData['access_token']
-        );
-
-        $receiver->company->set(
-            ConfigurationEnum::REFRESH_TOKEN->value . $configPrefix,
-            $tokenData['refresh_token']
-        );
-
-        $receiver->company->set(
-            ConfigurationEnum::TOKEN_EXPIRES_AT->value . $configPrefix,
-            Carbon::now()->addSeconds($tokenData['expires_in'])->toIso8601String()
-        );
+        MicrosoftClient::storeTokens($receiver->company, $configPrefix, $tokenData);
 
         $userProfile = MicrosoftClient::getUserProfile($tokenData['access_token']);
 

@@ -77,6 +77,16 @@ class ApprovalRequest extends BaseModel
             ->where('is_deleted', false);
     }
 
+    /**
+     * Why the approved action did not land, when a person signed but the handler failed; null once it ran clean.
+     */
+    public function handlerError(): ?string
+    {
+        $error = ($this->metadata['handler_result'] ?? [])['handler_error'] ?? null;
+
+        return is_string($error) && $error !== '' ? $error : null;
+    }
+
     public function policy(): BelongsTo
     {
         return $this->belongsTo(ApprovalPolicy::class, 'approval_policies_id', 'id');

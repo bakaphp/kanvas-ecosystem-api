@@ -25,7 +25,7 @@ class GetOrganizationTool extends Tool
 
     protected string $name = 'get_organization';
 
-    protected ?string $description = 'Returns the full profile of one customer organization: name, email, phone, email domains, type, '
+    protected ?string $description = 'Returns the full profile of one customer or vendor organization: name, tax id, email, phone, email domains, type, '
         . 'addresses, tags, how many people are linked to it, and its business custom fields. Identify it by '
         . 'organization_id, or by organization_name when you do not have the id.';
 
@@ -57,6 +57,7 @@ class GetOrganizationTool extends Tool
         return [
             'organization_id' => $organization->getId(),
             'name' => $organization->name,
+            ...$organization->taxIdSummary(),
             'email' => $organization->email,
             'phone' => $organization->phone,
             'email_domains' => $organization->emailDomains(),

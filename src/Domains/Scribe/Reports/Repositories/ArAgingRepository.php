@@ -34,7 +34,7 @@ class ArAgingRepository
             ->fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
-            ->where('document_type', DocumentTypeEnum::INVOICE)
+            ->whereIn('document_type', DocumentTypeEnum::receivables())
             ->whereIn('document_status', [
                 InvoiceDocumentStatusEnum::ISSUED,
                 InvoiceDocumentStatusEnum::SENT,

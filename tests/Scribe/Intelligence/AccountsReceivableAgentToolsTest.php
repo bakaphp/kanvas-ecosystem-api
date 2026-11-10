@@ -27,8 +27,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendInvoiceAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Scribe\Approvals\Enums\ApprovalAttachmentFieldEnum;
-use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
+use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum as InvoiceConfigurationEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -36,6 +36,8 @@ use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
+use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
+use Kanvas\Scribe\Payments\Models\Payment;
 use Kanvas\Users\Models\Users;
 use Tests\Scribe\ScribeTestCase;
 use Tests\Traits\AssertsToolRunKeys;
@@ -96,6 +98,46 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $missing = new FindInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(invoice_number: 'DOES-NOT-EXIST');
         $this->assertFalse($missing['found']);
+    }
+
+    /**
+     * A draft has no number until it is issued, and an agent asked "are you sure you created 24084?" looked it up
+     * by number, got found=false, and told the person the invoice did not exist.
+     */
+    public function test_find_invoice_finds_a_numberless_draft_by_its_id(): void
+    {
+        $draft = Invoice::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'document_type' => 'invoice',
+            'invoice_number' => null,
+            'quote_id' => 3801,
+            'billable_display_name' => 'Cresa Santo Domingo',
+            'document_status' => InvoiceDocumentStatusEnum::DRAFT->value,
+            'currency' => 'USD',
+            'fx_rate_to_base' => 1.0,
+            'subtotal_native' => 5000.0,
+            'total_native' => 5900.0,
+            'balance_due_native' => 5900.0,
+            'subtotal_base' => 5000.0,
+            'total_base' => 5900.0,
+            'balance_due_base' => 5900.0,
+            'issued_date' => Carbon::parse('2026-11-09'),
+            'due_date' => Carbon::parse('2026-11-09'),
+            'source' => 'kanvas',
+        ]);
+        $tool = new FindInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $byId = $tool->__invoke(invoice_id: $draft->getId());
+        $this->assertTrue($byId['found']);
+        $this->assertSame('draft', $byId['document_status']);
+        $this->assertSame(3801, $byId['quote_id']);
+        $this->assertNull($byId['invoice_number']);
+
+        $typedAsNumber = $tool->__invoke(invoice_number: (string) $draft->getId());
+        $this->assertTrue($typedAsNumber['found'], 'a person typing the id they see still finds it');
+
+        $this->assertFalse($tool->__invoke()['found'], 'nothing to look up');
     }
 
     public function test_list_overdue_invoices_filters_by_customer(): void
@@ -170,6 +212,60 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame($invoice->getId(), $result['invoice_id']);
         $this->assertSame(InvoiceDocumentStatusEnum::VOIDED->value, $result['document_status']);
         $this->assertSame(InvoiceDocumentStatusEnum::VOIDED, $invoice->fresh()->document_status);
+    }
+
+    /** A wire recorded as a check (every payment was, the tool had no method) breaks the bank reconciliation. */
+    public function test_apply_ar_payment_records_the_method_the_person_named(): void
+    {
+        $customer = $this->seedTestOrganization('Wire Payment Customer');
+        $invoice = $this->issueTestInvoice($customer, 900.0);
+        $tool = new ApplyArPaymentTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $wire = $tool->__invoke(
+            invoice_id: $invoice->getId(),
+            amount: 300.0,
+            reference: 'WIRE-31849382AA',
+            method: 'bank transfer'
+        );
+        $this->assertTrue($wire['applied'], json_encode($wire));
+        $this->assertSame(PaymentMethodEnum::WIRE->value, $wire['method']);
+        $this->assertSame(PaymentMethodEnum::WIRE, Payment::query()->findOrFail($wire['payment_id'])->method);
+
+        $card = $tool->__invoke(
+            invoice_id: $invoice->getId(),
+            amount: 300.0,
+            reference: 'CARD-9',
+            method: 'Tarjeta'
+        );
+        $this->assertSame(PaymentMethodEnum::CARD->value, $card['method']);
+
+        $unnamed = $tool->__invoke(invoice_id: $invoice->getId(), amount: 100.0, reference: 'CHK-77');
+        $this->assertSame(PaymentMethodEnum::CHECK->value, $unnamed['method'], 'no method named keeps the old default');
+
+        $unknown = $tool->__invoke(
+            invoice_id: $invoice->getId(),
+            amount: 100.0,
+            reference: 'X-1',
+            method: 'crypto'
+        );
+        $this->assertFalse($unknown['applied']);
+        $this->assertSame('invalid_method', $unknown['reason']);
+        $this->assertStringContainsString('wire, ach, check, cash, card', $unknown['message']);
+        $this->assertSame(200.0, (float) $invoice->fresh()->balance_due_native, 'the unknown method posted nothing');
+    }
+
+    public function test_apply_ar_payment_refuses_a_soft_deleted_invoice(): void
+    {
+        $customer = $this->seedTestOrganization('Deleted Invoice Customer');
+        $invoice = $this->issueTestInvoice($customer, 200.0);
+        Invoice::query()->whereKey($invoice->getId())->update(['is_deleted' => 1]);
+
+        $result = new ApplyArPaymentTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: $invoice->getId(), amount: 200.0, reference: 'GONE-1');
+
+        $this->assertFalse($result['applied']);
+        $this->assertSame('invoice_not_found', $result['reason']);
     }
 
     public function test_apply_ar_payment_posts_an_identical_repeat_once_per_turn(): void
@@ -298,7 +394,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             );
 
         $this->assertTrue($result['created']);
-        $this->assertNotSame('draft', $result['document_status']);
+        $this->assertSame('draft', $result['document_status'], 'The default is submit for approval, never issue.');
     }
 
     public function test_create_ar_invoice_with_issue_immediately_false_submits_draft_for_approval(): void
@@ -654,8 +750,9 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             ->withCompanyId($this->company->getId())
             ->create(['name' => 'Arc', 'user_id' => static::$cachedUser->getId()]);
         $agent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test-token');
-        $originalNotifierAgentId = $this->kanvasApp->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value);
-        $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $agent->getId());
+        // An invoice is sent by the AR notifier (falling back to AP's only when AR has none).
+        $originalNotifierAgentId = $this->kanvasApp->get(InvoiceConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value);
+        $this->kanvasApp->set(InvoiceConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value, (string) $agent->getId());
 
         try {
             SafeUrlFetcher::fake(static fn (string $url): string => '%PDF-1.4 fake bytes');
@@ -697,7 +794,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             $this->assertTrue($result['resent']);
             Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'files.getUploadURLExternal'));
         } finally {
-            $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
+            $this->kanvasApp->set(InvoiceConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
         }
     }
 

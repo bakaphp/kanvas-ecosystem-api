@@ -11,7 +11,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
 /**
  * Both approval emails render a named template when the company or app has one, and fall back to
  * built-in HTML otherwise, so an app that never synced its templates still sends a readable email.
- * Template variables: heading, count, approvals (list), approval (the first), company_name, review_url.
+ * Template variables: heading, intro, count, approvals (list), approval (the first), company_name, review_url.
  * Each approval: id, name, type, action, approval_type, requested_at.
  */
 trait RendersApprovalEmail
@@ -19,12 +19,16 @@ trait RendersApprovalEmail
     /**
      * @param list<array<string, mixed>> $approvals each one from ApprovalRequest::emailSummary()
      */
-    protected function setApprovalData(array $approvals, string $heading): void
-    {
+    protected function setApprovalData(
+        array $approvals,
+        string $heading,
+        string $intro = 'These requests are waiting on your decision.'
+    ): void {
         $reviewUrl = $this->app->get(ApprovalConfigurationEnum::REVIEW_URL->value);
 
         $this->setData([
             'heading' => $heading,
+            'intro' => $intro,
             'count' => count($approvals),
             'approvals' => $approvals,
             'approval' => $approvals[0] ?? null,
@@ -59,7 +63,7 @@ trait RendersApprovalEmail
                 . 'padding: 10px 18px; border-radius: 6px; text-decoration: none;">Review approvals</a></p>';
 
         return '<h2 style="margin: 0 0 8px;">' . e($this->data['heading']) . '</h2>'
-            . '<p style="color: #667085;">These requests are waiting on your decision.</p>'
+            . '<p style="color: #667085;">' . e($this->data['intro']) . '</p>'
             . '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse;">'
             . $rows
             . '</table>'

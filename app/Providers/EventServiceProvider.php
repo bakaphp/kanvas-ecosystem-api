@@ -46,6 +46,7 @@ use Kanvas\NervousSystem\Plan\Listeners\WakePlanAgentOnChannelCommentListener;
 use Kanvas\NervousSystem\Plan\Listeners\WakeProjectManagerOnPlanOutcomeListener;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
+use Kanvas\Scribe\ElectronicInvoicing\Support\FiscalFileRetention;
 use Kanvas\Social\Channels\Events\ChannelMessageAttachedEvent;
 use Kanvas\Social\Messages\Events\AppModuleMessageCreatedEvent;
 use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
@@ -143,6 +144,7 @@ class EventServiceProvider extends ServiceProvider
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         #People::observe(PeopleObserver::class);
         AppsStripeCustomer::observe(AppsStripeCustomerObserver::class);
+        FiscalFileRetention::guardFilesystemEvents();
     }
 
     /**

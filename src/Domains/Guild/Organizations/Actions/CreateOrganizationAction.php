@@ -36,7 +36,19 @@ class CreateOrganizationAction
             'phone' => $this->organizationData->phone,
             'state' => $this->organizationData->state,
             'organization_type_id' => $this->organizationData->organizationType?->getId(),
+            'tax_id' => $this->organizationData->taxId,
+            'tax_id_type' => $this->organizationData->taxIdType,
         ]);
+
+        // A name match is the same party; a tax id we just learned for it is filled, never overwritten.
+        if (! $organization->wasRecentlyCreated
+            && $organization->tax_id === null
+            && Str::normalizeTaxId($this->organizationData->taxId) !== null
+        ) {
+            $organization->tax_id = $this->organizationData->taxId;
+            $organization->tax_id_type = $this->organizationData->taxIdType;
+            $organization->saveOrFail();
+        }
 
         // firstOrCreate, so this is a find as often as it is a create. Only the create is news.
         if ($organization->wasRecentlyCreated && $this->organizationData->runWorkflow) {

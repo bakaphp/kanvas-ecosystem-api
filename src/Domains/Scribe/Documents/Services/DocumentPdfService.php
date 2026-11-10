@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Documents\Services;
 
+use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
+use finfo;
 use Illuminate\Support\Facades\View;
+use Intervention\Image\Drivers\Imagick\Driver;
+use Intervention\Image\ImageManager;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -16,6 +20,7 @@ use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\Quotes\Models\QuoteLine;
 use Kanvas\Templates\Actions\RenderTemplateAction;
 use Kanvas\Users\Models\Users;
+use Throwable;
 
 /**
  * Renders an invoice or a quote as a printable document and attaches the PDF to it.
@@ -74,7 +79,7 @@ final class DocumentPdfService
 
     public function fileName(): string
     {
-        $kind = $this->isQuote() ? 'quote' : ($this->document->isCreditNote() ? 'credit-note' : 'invoice');
+        $kind = $this->isQuote() ? 'quote' : str_replace('_', '-', $this->document->document_type->value);
         $reference = $this->number() ?? ('draft-' . $this->document->getId());
 
         return $kind . '-' . (string) preg_replace('/[^A-Za-z0-9_-]+/', '-', $reference) . '.pdf';
@@ -117,7 +122,7 @@ final class DocumentPdfService
             return 'Quote';
         }
 
-        return $this->document->isCreditNote() ? 'Credit Note' : 'Invoice';
+        return $this->document->document_type->label();
     }
 
     private function number(): ?string
@@ -136,11 +141,43 @@ final class DocumentPdfService
 
         return [
             'name' => (string) $company->name,
+            'logo' => $this->logo(),
             'address_lines' => $this->addressLines(['address' => $company->address ?? null]),
             'email' => $company->email ?? null,
             'phone' => $company->phone ?? null,
             'website' => $company->website ?? null,
         ];
+    }
+
+    /**
+     * Embed the company's uploaded photo, never the app's placeholder. wkhtmltopdf cannot display AVIF/WebP,
+     * so inspect the bytes rather than trusting an upload's filename and convert unsupported formats to PNG.
+     */
+    private function logo(): ?string
+    {
+        $url = Str::trimToNull($this->document->company->getFileByName('photo')?->filesystem?->url);
+        if ($url === null) {
+            return null;
+        }
+
+        try {
+            $bytes = SafeUrlFetcher::fetch($url);
+            $mime = (string) new finfo(FILEINFO_MIME_TYPE)->buffer($bytes);
+            if (! str_starts_with($mime, 'image/')) {
+                return null;
+            }
+
+            if (! in_array($mime, ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml'], true)) {
+                $bytes = (string) new ImageManager(new Driver())->decodeBinary($bytes)->encodeUsingMediaType('image/png');
+                $mime = 'image/png';
+            }
+
+            return 'data:' . $mime . ';base64,' . base64_encode($bytes);
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 
     /**
@@ -243,8 +280,9 @@ final class DocumentPdfService
 
     private function resolveTemplateName(): ?string
     {
-        if ($this->templateName !== null && trim($this->templateName) !== '') {
-            return trim($this->templateName);
+        $template = Str::trimToNull($this->templateName);
+        if ($template !== null) {
+            return $template;
         }
 
         $configured = $this->document->app->get(
@@ -253,6 +291,6 @@ final class DocumentPdfService
                 : ConfigurationEnum::INVOICE_PDF_TEMPLATE->value
         );
 
-        return $configured !== null && trim((string) $configured) !== '' ? trim((string) $configured) : null;
+        return Str::trimToNull((string) $configured);
     }
 }

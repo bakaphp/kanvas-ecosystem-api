@@ -255,6 +255,35 @@ final class BankTransactionLedgerTest extends ScribeTestCase
         $this->assertSame(0.0, $this->netBalanceFor(AccountSubTypeEnum::SUSPENSE, $transaction->id));
     }
 
+    public function testAStaleCopyOfAnAlreadyReclassifiedTransactionDoesNotPostASecondReclassification(): void
+    {
+        $transaction = new CreateBankTransactionAction(
+            data: $this->transactionData(direction: BankTransactionDirectionEnum::DEBIT, amount: 100.00),
+            user: static::$cachedUser,
+        )->execute();
+
+        new PostBankTransactionJournalEntryAction($transaction, static::$cachedUser)->execute();
+
+        $rent = Account::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('account_sub_type', AccountSubTypeEnum::RENT->value)
+            ->firstOrFail();
+
+        $loadedByA = $transaction->fresh();
+        $loadedByB = $transaction->fresh();
+
+        $first = new ReclassifySuspenseAction($loadedByA, $rent, static::$cachedUser)->execute();
+        $second = new ReclassifySuspenseAction($loadedByB, $rent, static::$cachedUser)->execute();
+
+        $this->assertSame($first->id, $second->id, 'The second caller must see the first reclassification under the lock.');
+        $this->assertSame(0.0, $this->netBalanceFor(AccountSubTypeEnum::SUSPENSE, $transaction->id));
+
+        $transaction->refresh();
+        $this->assertSame($first->id, $transaction->suspense_reclassified_journal_entry_id);
+        $this->assertSame($rent->id, $transaction->suspense_reclassified_to_account_id);
+    }
+
     public function testABankDateOutsideAnyOpenPeriodAutoOpensThatMonth(): void
     {
         // The seeded period covers June 2026 only. A real bank feed does not care.

@@ -16,14 +16,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Carbon;
+use Kanvas\Approvals\Contracts\DeliversApprovalNoticesInterface;
+use Kanvas\Approvals\Contracts\ReactsToApprovalExpiryInterface;
 use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
+use Kanvas\Scribe\Approvals\Concerns\NotifiesApproversOnSlack;
+use Kanvas\Scribe\Approvals\Concerns\ReturnsToDraftOnApprovalExpiry;
+use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
+use Kanvas\Scribe\Bills\Actions\RejectBillAction;
 use Kanvas\Scribe\Bills\Enums\BillCollectionStateEnum;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
+use Kanvas\Scribe\Concerns\HasInternalNotes;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Payments\Models\Payment;
@@ -91,9 +98,12 @@ use Override;
  * @property int|null $users_id
  */
 #[ObservedBy([ClearsLightHouseCacheObserver::class])]
-class Bill extends BaseModel implements PayableInterface
+class Bill extends BaseModel implements PayableInterface, DeliversApprovalNoticesInterface, ReactsToApprovalExpiryInterface
 {
     use HasApprovals;
+    use HasInternalNotes;
+    use NotifiesApproversOnSlack;
+    use ReturnsToDraftOnApprovalExpiry;
     use CanUseWorkflow;
     use DynamicSearchableTrait {
         search as public traitSearch;
@@ -168,6 +178,45 @@ class Bill extends BaseModel implements PayableInterface
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'vendor_organization_id', 'id');
+    }
+
+    protected function approvalNoun(): string
+    {
+        return 'bill';
+    }
+
+    protected function approvalNotifierSettingKey(): string
+    {
+        return ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value;
+    }
+
+    protected function approvalNoticeBody(): string
+    {
+        $vendor = $this->vendor_display_name ?? $this->vendor?->name ?? 'Unknown vendor';
+        $lines = $this->lines()->with('expenseAccount')->orderBy('sort_order')->get()
+            ->map(fn (BillLine $line): string => '- ' . ($line->expenseAccount?->account_number ?? '?') . ' '
+                . $this->currency . ' ' . number_format((float) $line->line_total_native, 2) . ' ' . $line->description)
+            ->implode("\n");
+
+        return "You have an AP bill pending approval:\nVendor: {$vendor}\nAmount: {$this->currency} "
+            . number_format((float) $this->total_native, 2)
+            . ($this->bill_number !== null ? "\nVendor invoice #: {$this->bill_number}" : '')
+            . ($lines !== '' ? "\nLines:\n{$lines}" : '')
+            . ($this->notes !== null && $this->notes !== '' ? "\nMemo: {$this->notes}" : '')
+            . "\nBill ID (Kanvas): {$this->getKey()}";
+    }
+
+    /**
+     * Expiry is not a rejection — nobody decided — but the bill is just as stuck in PENDING_APPROVAL, so it
+     * takes the same walk back to DRAFT.
+     */
+    protected function returnToDraftAfterExpiry(string $reason): void
+    {
+        if ($this->document_status !== BillDocumentStatusEnum::PENDING_APPROVAL) {
+            return;
+        }
+
+        new RejectBillAction(bill: $this, reason: $reason)->execute();
     }
 
     #[Override]

@@ -52,6 +52,9 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
 ## Cross-domain rules (the easiest ones to violate)
 
 - **Customers + Vendors live in Guild** (`Guild.Organizations.Organization` + `Guild.Customers.People`). Both implement `Baka\Contracts\BillableInterface` + `Baka\Contracts\PayeeInterface`. Scribe consumes only the interfaces — no Scribe-naming inside Guild.
+- **An organization's tax id is the `organizations.tax_id` column** (+ `tax_id_type`, `TaxIdTypeEnum`, Stripe-style
+  codes, inferred on save from the company's country when not given), one country-neutral id: RNC, NIT, RUC, RFC, EIN.
+  Never read or write the old `tax_id` / `rnc` / `ein` custom fields; `guild:backfill-organization-tax-id` copied them once.
 - **Payments live in Souk** (`Souk.Payments` polymorphic via `payable_type`/`payable_id`). Scribe's `Invoice` and `Bill` implement `Baka\Contracts\PayableInterface` (extracted in PR -1). `accounting.invoice_payment_allocations` maps one Souk payment to N invoices/bills.
 - **Stripe lives in `Connectors/Stripe/`, ALWAYS.** No in-Scribe Stripe handlers, period. When Scribe needs Stripe (tenant AR via Stripe Billing), the work goes in `Connectors/Stripe/` and calls Scribe's public `*FromExternal` Actions.
 - **Items (`accounting.items`) live in Scribe** with a nullable `inventory_variant_id` FK to `inventory.variants.id`. Variant — not Product, because you sell the variant. Pure-service items have `inventory_variant_id=NULL`. Each domain owns its own fields; no auto-sync in either direction except one-time creation observers.
@@ -61,8 +64,26 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   `Scribe\Documents\Enums\ConfigurationEnum::{INVOICE,QUOTE}_PDF_TEMPLATE` at a stored template name —
   that path goes through `RenderTemplateAction`, so the template is Blade with the same view data.
   One service, not two: the documents differ only in title, number field, due-vs-valid-until and
-  amount-paid, and two layouts would drift. **Rendering is not sending** — nothing emails a document; the
-  outbound flow (PR 7) stays out of scope on purpose.
+  amount-paid, and two layouts would drift. **Rendering is not sending.** Sending lives in
+  `Scribe/Delivery/`: a document reaches a customer only as an ActionEngine engagement on the document
+  itself (`view-invoice`, `view-quote`, `sign-sow`; aliases `scribe_invoice` / `scribe_quote`), through
+  `SendInvoiceAction` / `SendQuoteAction(deliverTo:)` → `SendDocumentEngagementAction`, whose engagement
+  step is `OpenDocumentEngagementAction` — the same one `get_document_link` uses, so a hand-shared link and
+  a later send are one engagement. Recipients come from `BillingContactResolverService` (named person →
+  quote contact → every person linked to the customer with the `billing-contact` people tag → billing
+  email); naming a person tags and links them. Never the old `billing_contact_people_id` custom field
+  (`scribe:migrate-billing-contacts` moved it once). An agent reaches a customer with an invoice, quote or SOW only
+  through `send_invoice` / `send_quote` (a tracked engagement: opens, signatures, payments on record); never grant an
+  AR/AP agent a general email or WhatsApp tool, which would send a document outside it. A person may still generate
+  the PDF and send it by hand. Never use an e-CF or bank provider's own email (untracked). An e-CF invoice is not sent before
+  DGII accepted it. The public page renders `Engagement.document_page` (`toTemplateData()`), never the
+  row; customer answers come back through `respondToDocumentEngagement` → `RecordDocumentResponseAction`
+  (accept = `AcceptQuoteAction`, decline = `RejectQuoteAction`), and paid closes the thread from
+  `MarkInvoicePaidAction`. Dunning is the follow-up engine's Invoice executor
+  (`Intelligence/FollowUp/Actions/FollowUpInvoiceAction`, company setting `scribe_dunning_schedule`).
+  Per tenant: `scribe:setup-document-actions {app_id} {company_id?}`. Links shorten through the
+  company's short.io integration, else the app's; the page base URL is the company's
+  `link_page_base_url`, else the app's `NEW_ACTION_PAGE_V4` (`ShortIoConfigurationService`).
 - **Every primary document exposes `files`.** Bill, Invoice, Quote, Expense, SalesReceipt and Payment all
   carry Kanvas Filesystem attachments (the source invoice PDF an AP/AR agent was handed, a rendered
   `invoice_pdf` / `quote_pdf`, a receipt, a remittance) and all expose them as `files: [Filesystem!]!
@@ -76,6 +97,77 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   `JournalEntry` is deliberately out — it extends `EloquentModel` directly, not the Scribe `BaseModel`,
   so it has no `HasFilesystemTrait`; `PurchaseOrder` and `BankTransaction` have no GraphQL type at all yet.
 - **Regional compliance** (NCF for DR, CFDI for MX, NFE for BR, …) lives in a single `regional_compliance` JSON column on invoices/bills/quotes/sales_receipts, validated by per-country validator services in `Scribe/Regional/Validators/{Country}/{Code}Validator`. NOT custom fields (those are tenant-choice extensions); NOT dedicated DR-only columns (schema bloat).
+- **Electronic invoicing state is NOT in that JSON.** `regional_compliance.do_ecf` holds only the pre-issuance
+  choices (`EcfCompliance::draftSettings()`: type, export, purchase order, withholding, foreign payment). From
+  the moment a number is allocated, the e-CF is a row in `fiscal_documents` (country-neutral; plan:
+  `docs/accounting/fiscal-documents-table-plan.md`), with `fiscal_document_submissions` (one per send, inserted
+  before the call, wire payload + raw response stored as files with sha256), `fiscal_document_events` (every
+  inbound answer, deduped, applied under the row lock), `fiscal_document_relations` (notes → modified document)
+  and `fiscal_number_ranges` (+ ANECF annulments). Write only through `CreateFiscalDocumentAction`,
+  `RecordFiscalSubmissionAction` and `ApplyFiscalAnswerAction`; read through `EcfCompliance::read()/current()`
+  or `ReceivedEcfCompliance`. The provider `systemRef` is the send attempt's `uuid` (`fiscal_document_submissions.uuid`, never
+  the invoice's: WebPOS answers a repeated systemRef with the status it already holds, so a resend after a
+  reusable rejection needs its own), jobs take the fiscal row and build the provider for the row's frozen
+  provider and environment, and callbacks resolve to that exact row — an answer about a superseded number never
+  touches the document. Rows are never deleted and freeze once they may have reached the authority. A DGII
+  rejection burns the number unless `secuenciaUtilizada` is explicitly false. Deploy: `scribe:dr-fiscal-preflight`
+  → migrate → `scribe:dr-fiscal-backfill` (test data only); `scribe:fiscal-resolve-stuck-submissions` runs every
+  10 minutes.
+- **A country's rules live in `ElectronicInvoicing/Regimes/{Country}/`, never in shared code or a table.** Shared
+  code (`EcfIssuanceService`, the jobs, `ConfigureEcfRangeAction`, readiness, the agent tools) resolves a
+  `FiscalRegimeInterface` and asks it; it never names a country's types, payload, authority or currency. A
+  company's regime is its provider's `country()`, else its own country (`FiscalRegimes::forCompany()`); a fiscal
+  row's is its `country` column (`$fiscal->regime()`). The regime owns: document types (an enum implementing
+  `FiscalDocumentTypeInterface`, DR: `EcfTypeEnum`, because a type carries rules, so a new one ships with code),
+  which type a sale or note becomes, its purchase types (empty where there are none), pre-number checks
+  (`assertMayIssue`, DR: issuer RNC + DGII registration for E31), numbering (`FiscalNumberingInterface`;
+  `AuthorizedRangeNumbering` is shared for range countries, DR and Colombia), the wire payload
+  (`FiscalPayloadInterface`, DR: `EcfDocument`) and its validation, the fiscal row's attributes, the seal in the
+  authority's stamp URL, and its legal invoice PDF. DR builders, DTOs, the ITBIS enum and the QR helper live in
+  `Regimes/Dr/` too. A provider receives the payload its regime built and narrows it (`EcfDocument::narrow()`).
+- **Adding a country:** `Regimes/{Country}/` with the regime, its type enum, its payload and its received-document
+  DTO (implementing `ReceivedFiscalDocumentInterface` / `ReceivedFiscalLineInterface`); register it in
+  `config/scribe.php` `fiscal_regimes`; add its `DocumentTypeEnum` `ecf_{code}` cases for range numbering; ship a
+  provider whose `country()` names it. A provider serving several countries (Alanube) gets one class and config key
+  per country, sharing its client. Nothing else changes: issuing, vendor invoices received into bills
+  (`CreateBillFromReceivedEcfAction`, source `e_invoice` in every country), the draft block
+  (`regional_compliance.{cc}_ecf`, `do_ecf` in the DR, from `EcfCompliance::key()`), the GL tax accounts
+  (`salesTaxAccountSubType()` / `inputTaxAccountSubType()`), the official exchange rate, readiness, setup and the
+  agent tools all ask the regime. Onboarding requirements stay per country in `global.json` (`countries`).
+  `SecondCountryRegimeTest` runs issuing, notes, receiving and the draft key on a fake country and must stay green.
+  A company's country for setup is its regime first, so one connected to a DR provider with no country set is still
+  Dominican. DR by nature: the legacy data commands `scribe:dr-fiscal-preflight` / `scribe:dr-fiscal-backfill`, the
+  DR chart of accounts (a per-country `match` in `ChartOfAccountsSeederService`) and paper NCFs on PDF bills
+  (`Regional/Validators/Dr`). Support loads a range with `kanvas-scribe:ecf-sequence … --country=XX` when the
+  company has no provider or country yet. A row stores only the type code; read it through its own `country`
+  (`fiscalDocumentType()` / `documentTypeLabel()` from `HasFiscalDocumentType`). Our lifecycle
+  (`FiscalDocumentStatusEnum`) is one enum for every country; the authority's own status is the raw
+  `authority_status` string. Pure reference catalogs with no rules attached (Mexico's SAT `c_UsoCFDI`, product
+  codes) are the exception: seeded tables per country.
+- **Loading a range asks the provider first.** Numbers of a DGII range can be used outside Kanvas (a manual test,
+  another POS), so `ConfigureEcfRangeAction` asks a provider implementing `ChecksIssuedNumbersInterface` which
+  numbers it already holds and starts issuing after them; the range itself is stored as authorized. A lookup by
+  number is only ours when it carries our attempt's `systemRef`.
+
+## Setting up a tenant (AP/AR agents + DR e-CF)
+
+All setup goes through company onboarding and the agent tools; there is no setup API and nothing the end user
+runs. Picking AP/AR in onboarding (`database/seeders/data/onboarding/global.json`, `setup: "accounting"`) runs
+`SetUpAccountingAgentAction` (ledger, periods, approval + e-CF policies, inbox, agent mailboxes, document pages,
+dunning, SOW) and `completeOnboarding` opens a setup plan on Ginny whose tasks close as their readiness key turns
+ready (`SyncAccountingSetupPlanAction`). Ginny (`CompanyBrainAgent`, once the company has an AP/AR agent) finishes
+the rest in conversation: `check_accounting_setup` (the `AccountingReadinessService` answer the agents' prompt line
+also reads), `run_accounting_setup` (re-run, change the approver), `configure_ecf_range` / `list_ecf_ranges` (DGII
+ranges, Dominican companies) and `set_reminder_cadence`; the AP/AR agents hold the check and range tools for
+renewals (`AppliesAccountingReadiness::accountingSetupTools()`). The e-CF provider is the onboarding `ecf_provider`
+requirement (connect `webpos` with its `rnc`, or `alanube`); an agent never takes provider credentials in chat. A new
+setup thing is a readiness key + an onboarding step + an agent tool, never a command or a separate screen; the
+`kanvas-scribe:setup-accounting` / `kanvas-scribe:ecf-sequence` commands are for support only.
+
+Rules: the accounting inbox needs a verified Mailgun domain on the company (the setup reports `inbox: failed`
+otherwise; everything else still runs). DR issuance refuses without the issuer RNC (`scribe-ecf-issuer-rnc`, written
+when the provider is connected). A range is a company/DGII fact, not a provider setting: switching WebPOS → Alanube keeps it. Changing
+`global.json` reaches the database through `kanvas:onboarding:seed-sections` (run it on deploy).
 
 ## What's NOT in Scribe (and why)
 

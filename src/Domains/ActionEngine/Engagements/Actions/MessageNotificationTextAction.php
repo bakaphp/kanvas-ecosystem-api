@@ -59,8 +59,9 @@ class MessageNotificationTextAction
             'message' => $engagementMessage,
             'messageData' => $messageData,
             'companyAction' => $this->engagement->companyAction,
-            'contact' => is_object($entity->people) ? trim($entity->people->name) : $data['custom_fields']['contact']['contact'],
-            'postTitle' => $this->engagement->companyAction ? $this->engagement->companyAction->name : $data['message']['text'],
+            // The person the engagement went to; a document engagement (invoice, quote) has no lead custom fields.
+            'contact' => $this->contactName($entity, $data),
+            'postTitle' => $this->engagement->companyAction ? $this->engagement->companyAction->name : ($data['message']['text'] ?? ''),
             'user' => ! empty($engagementMessage->user->firstname) ? $engagementMessage->user->firstname . ' ' . $engagementMessage->user->lastname : $engagementMessage->user->displayname,
             'year' => $messageData['form']['year'] ?? '',
             'make' => $messageData['form']['make'] ?? '',
@@ -76,6 +77,21 @@ class MessageNotificationTextAction
         }
 
         return $message;
+    }
+
+    /**
+     * @param array<array-key, mixed> $data
+     */
+    private function contactName(mixed $entity, array $data): string
+    {
+        $people = $this->engagement->people
+            ?? (is_object($entity) && is_object($entity->people ?? null) ? $entity->people : null);
+
+        if ($people !== null) {
+            return trim((string) $people->name);
+        }
+
+        return (string) ($data['custom_fields']['contact']['contact'] ?? '');
     }
 
     protected function formatMessageData(string $message): array

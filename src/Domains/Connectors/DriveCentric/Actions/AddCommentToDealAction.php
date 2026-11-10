@@ -47,12 +47,11 @@ class AddCommentToDealAction
 
     protected function getNote(Message $message): ?string
     {
-        /** @var string $linkPreview */
         $messageData = $message->getMessage();
         $linkPreview = '';
 
         try {
-            $linkPreview = Url::getShortUrl($messageData['link'] ?? '', $this->lead->app);
+            $linkPreview = Url::getShortUrl($messageData['link'] ?? '', $this->lead->app, company: $this->lead->company);
         } catch (Throwable $e) {
             $linkPreview = $messageData['link'] ?? '';
         }
@@ -63,13 +62,8 @@ class AddCommentToDealAction
             $linkPreview = $newLink;
         }
 
-        /** @var string $linkPreview */
-
-        // Get the message from the engagement service
-        // This is the parent msg engagement
         try {
             $parentEngagement = $message->parent ? $message->parent->getEngagement() : $message->getEngagement();
-            // Need to look for the current engagement via status
             $currentEngagement = EngagementRepository::findEngagementForLeadAndEntity(
                 $this->lead,
                 $messageData['verb'],

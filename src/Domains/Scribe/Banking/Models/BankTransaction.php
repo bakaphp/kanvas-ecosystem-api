@@ -30,6 +30,7 @@ use Override;
  * @property int $companies_id
  * @property string $uuid
  * @property int $bank_account_id
+ * @property int|null $bank_statement_id
  * @property Carbon $posted_at
  * @property Carbon $transaction_date
  * @property BankTransactionDirectionEnum $direction
@@ -52,6 +53,8 @@ use Override;
  * @property string $source
  * @property string|null $external_id
  * @property array|null $metadata
+ * @property int|null $suspense_reclassified_journal_entry_id
+ * @property int|null $suspense_reclassified_to_account_id
  * @property bool $is_deleted
  * @property int|null $users_id
  */
@@ -91,12 +94,19 @@ class BankTransaction extends BaseModel
         'matched_by' => BankTransactionMatchedByEnum::class,
         'match_confidence' => 'float',
         'metadata' => Json::class,
+        'suspense_reclassified_journal_entry_id' => 'integer',
+        'suspense_reclassified_to_account_id' => 'integer',
         'is_deleted' => 'boolean',
     ];
 
     public function bankAccount(): BelongsTo
     {
         return $this->belongsTo(BankAccount::class, 'bank_account_id', 'id');
+    }
+
+    public function bankStatement(): BelongsTo
+    {
+        return $this->belongsTo(BankStatement::class, 'bank_statement_id', 'id');
     }
 
     public function journalEntry(): BelongsTo

@@ -7,7 +7,6 @@ namespace Tests\Connectors\GoogleSheets;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\GoogleSheets\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\CreateGoogleSheetTabTool;
@@ -19,27 +18,6 @@ use Tests\TestCase;
 class GoogleSheetsToolsTest extends TestCase
 {
     use DatabaseTransactions;
-
-    /**
-     * DEFAULT_INVOICE_SHEET lives on the app's custom-fields store, which persists outside the
-     * ambient test transaction — save/restore explicitly so this test never clobbers a real
-     * default sheet configured for this shared app.
-     */
-    private mixed $originalDefaultSheet = null;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->originalDefaultSheet = app(Apps::class)->get(ConfigurationEnum::DEFAULT_INVOICE_SHEET->value);
-    }
-
-    protected function tearDown(): void
-    {
-        app(Apps::class)->set(ConfigurationEnum::DEFAULT_INVOICE_SHEET->value, $this->originalDefaultSheet);
-
-        parent::tearDown();
-    }
 
     public function test_read_google_sheet_rejects_a_url_that_is_not_a_sheet(): void
     {
@@ -133,18 +111,9 @@ class GoogleSheetsToolsTest extends TestCase
         $this->assertSame('invalid_sheet_reference', $result['reason']);
     }
 
-    /**
-     * The footgun this guards: every other sheets tool falls back to the default invoice tracker, and
-     * `create_google_sheet_tab` is the closest-named tool to "create a new Google Sheet". Before this,
-     * that request could land a surprise tab on a live AP document.
-     */
     public function test_create_google_sheet_tab_refuses_to_guess_a_document(): void
     {
         [$app, $company] = $this->context();
-        $app->set(
-            ConfigurationEnum::DEFAULT_INVOICE_SHEET->value,
-            'https://docs.google.com/spreadsheets/d/1A_B_C_D_12345/edit',
-        );
 
         $result = new CreateGoogleSheetTabTool()
             ->withContext($app, $company, static::$cachedUser)
@@ -167,46 +136,33 @@ class GoogleSheetsToolsTest extends TestCase
         $this->assertStringContainsString('does NOT create a new spreadsheet', $result['message']);
     }
 
-    /** The default is still right for the "log every invoice to a standing sheet" path it was built for. */
-    public function test_write_google_sheet_still_falls_back_to_the_configured_default_sheet(): void
+    /** The AP/AR default invoice-tracker sheet is gone: an omitted link is refused, never guessed. */
+    public function test_read_and_write_refuse_when_no_sheet_link_is_given(): void
     {
         [$app, $company] = $this->context();
-        $app->set(
-            ConfigurationEnum::DEFAULT_INVOICE_SHEET->value,
-            'https://docs.google.com/spreadsheets/d/1A_B_C_D_12345/edit',
-        );
 
-        $tool = new AppendGoogleSheetRowsTool()->withContext($app, $company, static::$cachedUser);
-        $method = new ReflectionMethod($tool, 'resolveSpreadsheetId');
-
-        $this->assertSame('1A_B_C_D_12345', $method->invoke($tool));
-    }
-
-    public function test_read_google_sheet_reports_no_default_when_url_omitted_and_nothing_configured(): void
-    {
-        [$app, $company] = $this->context();
-        $app->set(ConfigurationEnum::DEFAULT_INVOICE_SHEET->value, '');
-
-        $result = new ReadGoogleSheetTool()
+        $read = new ReadGoogleSheetTool()
             ->withContext($app, $company, static::$cachedUser)
             ->__invoke();
+        $write = new AppendGoogleSheetRowsTool()
+            ->withContext($app, $company, static::$cachedUser)
+            ->__invoke(range: 'Invoices!A1', values: '[["1"]]');
 
-        $this->assertFalse($result['success']);
-        $this->assertSame('no_sheet_configured', $result['reason']);
+        $this->assertSame('sheet_reference_required', $read['reason']);
+        $this->assertSame('sheet_reference_required', $write['reason']);
     }
 
-    public function test_resolve_spreadsheet_id_falls_back_to_the_configured_default_sheet(): void
+    public function test_resolve_spreadsheet_id_extracts_the_id_from_a_url(): void
     {
         [$app, $company] = $this->context();
-        $app->set(
-            ConfigurationEnum::DEFAULT_INVOICE_SHEET->value,
-            'https://docs.google.com/spreadsheets/d/1A_B_C_D_12345/edit',
-        );
 
         $tool = new ReadGoogleSheetTool()->withContext($app, $company, static::$cachedUser);
         $method = new ReflectionMethod($tool, 'resolveSpreadsheetId');
 
-        $this->assertSame('1A_B_C_D_12345', $method->invoke($tool));
+        $this->assertSame(
+            '1A_B_C_D_12345',
+            $method->invoke($tool, 'https://docs.google.com/spreadsheets/d/1A_B_C_D_12345/edit')
+        );
     }
 
     /**

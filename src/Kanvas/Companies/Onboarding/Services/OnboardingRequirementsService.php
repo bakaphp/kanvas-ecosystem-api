@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Onboarding\Services;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Onboarding\DataTransferObject\SectionConfig;
 use Kanvas\Companies\Onboarding\Enums\RequirementModeEnum;
 use Kanvas\Companies\Onboarding\Enums\RequirementStatusEnum;
 use Kanvas\Companies\Onboarding\Models\CompanyOnboarding;
+use Kanvas\Connectors\Mailgun\Services\AccountingInboxService;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Enums\StatusEnum;
@@ -38,13 +40,14 @@ class OnboardingRequirementsService
         $app = $row->app;
         $definitions = $this->sections->requirementDefinitions($app);
         $recorded = (array) $row->dataGet('requirements', []);
+        $country = $row->company->countryCode();
         $requirements = [];
 
         foreach ($items as $item) {
             foreach ((array) ($item['template']['requirements'] ?? []) as $slug) {
                 $slug = (string) $slug;
                 $definition = $definitions[$slug] ?? null;
-                if ($definition === null) {
+                if ($definition === null || ! SectionConfig::appliesTo($definition, $country)) {
                     continue;
                 }
 
@@ -149,8 +152,9 @@ class OnboardingRequirementsService
     }
 
     /**
-     * The address a `kanvas_provided` slot hands out is the item's own agent mailbox; null until that
-     * agent is provisioned and has one. Onboarding never computes an address itself.
+     * The address a `kanvas_provided` slot hands out: the company accounting inbox (`address_from:
+     * accounting_inbox`) or the item's own agent mailbox (`agent_mailbox`); null until it exists.
+     * Onboarding never computes an address itself.
      *
      * @param array<string, mixed> $definition
      * @param array<string, mixed> $item
@@ -161,6 +165,15 @@ class OnboardingRequirementsService
         array $definition,
         array $item,
     ): ?string {
+        $fromAccountingInbox = array_any(
+            (array) ($definition['options'] ?? []),
+            fn (array $option): bool => ($option['mode'] ?? null) === RequirementModeEnum::KANVAS_PROVIDED->value
+                && ($option['address_from'] ?? null) === 'accounting_inbox',
+        );
+        if ($fromAccountingInbox) {
+            return new AccountingInboxService()->storedAddress($app, $row->company);
+        }
+
         $fromMailbox = array_any(
             (array) ($definition['options'] ?? []),
             fn (array $option): bool => ($option['mode'] ?? null) === RequirementModeEnum::KANVAS_PROVIDED->value
