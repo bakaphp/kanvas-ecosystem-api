@@ -69,6 +69,8 @@ class RunNeuronChatAction
 
     private bool $endedOnToolBudget = false;
 
+    private AgentTurnTimingService $timing;
+
     /** @var list<string> */
     private array $executedToolCalls = [];
 
@@ -115,9 +117,9 @@ class RunNeuronChatAction
         // on every exit; the thread is the key the cancel mutation and the middleware share.
         $threadId = $this->handler instanceof BehavesAsKanvasAgent ? $this->handler->getThreadId() : null;
 
-        $timing = new AgentTurnTimingService();
+        $this->timing = new AgentTurnTimingService();
         if ($this->handler instanceof Workflow) {
-            $this->handler->subscribe(ObservabilityEvent::class, $timing);
+            $this->handler->subscribe(ObservabilityEvent::class, $this->timing);
         }
 
         try {
@@ -127,7 +129,7 @@ class RunNeuronChatAction
                 AgentTurnCancellationService::clear($threadId);
             }
 
-            $timing->logIfSlow($this->agent, $this->threadWaitMs(), [
+            $this->timing->logIfSlow($this->agent, $this->threadWaitMs(), [
                 'session_id' => $sessionId,
                 'thread_id' => $threadId,
                 'handler' => $this->handler::class,
@@ -193,6 +195,7 @@ class RunNeuronChatAction
             // chat() runs the whole turn, so a provider error (e.g. Gemini blocking the content)
             // surfaces here, inside the try, and never bubbles as a 500.
             $state = $this->chatOnceTheThreadSettles($userMessage);
+            $this->timing->mark('chat-returned');
             $responseMessage = $state->getMessage() ?? new AssistantMessage('');
             [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
             $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
@@ -268,6 +271,8 @@ class RunNeuronChatAction
             $toolResults
         );
 
+        $this->timing->mark('reply-assessed');
+
         // A reply naming records no tool returned, or denying earlier work or declaring work done with no tool to back
         // it, is answered once more with a correction before anyone reads it; only a repeat reaches the person, flagged.
         // The draft and the correction are this turn's own words, so neither counts as evidence for the ids they repeat.
@@ -320,9 +325,12 @@ class RunNeuronChatAction
             );
         }
 
+        $this->timing->mark('turn-logged');
+
         // Idempotent backfill so EntityRollupMessageStore (entity-keyed query)
         // sees every channel message on the next turn.
         $this->backfillChannelMessagesToLead();
+        $this->timing->mark('channel-backfilled');
 
         return $content;
     }

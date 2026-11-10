@@ -85,6 +85,24 @@ final class AgentTurnTimingServiceTest extends TestCase
         );
     }
 
+    public function testAMarkedStepAfterTheReplyIsNamedInTheSlowestSteps(): void
+    {
+        $timing = new AgentTurnTimingService(fn (): float => $this->now);
+
+        $this->emit($timing, new WorkflowStart([]), after: 0.1);
+        $this->now += 4.0;
+        $timing->mark('chat-returned');
+        $this->now += 0.1;
+        $timing->mark('turn-logged');
+        $this->now += 360.0;
+        $timing->mark('channel-backfilled');
+
+        $this->assertSame(
+            ['step' => 'turn-logged -> channel-backfilled', 'ms' => 360_000],
+            $timing->summary()['slowest_steps'][0]
+        );
+    }
+
     public function testThreadWaitIsKeptOutOfTheTurnTotal(): void
     {
         $timing = new AgentTurnTimingService(fn (): float => $this->now);
@@ -107,6 +125,7 @@ final class AgentTurnTimingServiceTest extends TestCase
             ->withArgs(fn (string $message, array $context): bool => $message === 'Slow agent turn'
                 && $context['model_calls'] === 1
                 && $context['runs'] === 1
+                && $context['total_ms'] >= 1
                 && array_key_exists('slowest_steps', $context))
             ->once();
     }
