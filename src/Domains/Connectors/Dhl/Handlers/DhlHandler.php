@@ -5,15 +5,26 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Dhl\Handlers;
 
 use Kanvas\Connectors\Contracts\BaseIntegration;
+use Kanvas\Connectors\Contracts\DefaultRule;
 use Kanvas\Connectors\Dhl\Actions\BuildDhlRatesPayloadAction;
+use Kanvas\Connectors\Dhl\Activities\CreateDhlShipmentActivity;
+use Kanvas\Connectors\Dhl\Activities\NotifyCabinetOrderStatusActivity;
 use Kanvas\Connectors\Dhl\Client;
 use Kanvas\Connectors\Dhl\DataTransferObject\Dhl;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
+use Kanvas\Workflow\Rules\Enums\RuleConditionOperatorEnum;
 use Override;
 use Throwable;
 
 class DhlHandler extends BaseIntegration
 {
+    public const string BOOKING_RULE_NAME = 'DHL create shipment on ready-for-dispatch';
+    public const string STATUS_NOTICE_RULE_NAME = 'DHL cabinet order status notice';
+
     #[Override]
     public function setup(): bool
     {
@@ -39,6 +50,42 @@ class DhlHandler extends BaseIntegration
         }
 
         return $this->credentialsAreValid($dhl);
+    }
+
+    #[Override]
+    public function defaultRules(): array
+    {
+        return [
+            new DefaultRule(
+                trigger: WorkflowEnum::STATUS_TRANSITION,
+                model: Order::class,
+                activity: CreateDhlShipmentActivity::class,
+                name: self::BOOKING_RULE_NAME,
+                conditions: [
+                    new RuleConditionData(
+                        attribute_name: 'to_status',
+                        operator: RuleConditionOperatorEnum::EQUAL,
+                        value: OrderStatusEnum::READY_FOR_DISPATCH->value,
+                    ),
+                ],
+            ),
+            new DefaultRule(
+                trigger: WorkflowEnum::STATUS_TRANSITION,
+                model: Order::class,
+                activity: NotifyCabinetOrderStatusActivity::class,
+                name: self::STATUS_NOTICE_RULE_NAME,
+                conditions: [
+                    new RuleConditionData(
+                        attribute_name: 'to_status',
+                        operator: RuleConditionOperatorEnum::IN,
+                        value: implode(',', array_map(
+                            fn (OrderStatusEnum $status): string => $status->value,
+                            NotifyCabinetOrderStatusActivity::NOTIFIED_STATUSES
+                        )),
+                    ),
+                ],
+            ),
+        ];
     }
 
     #[Override]

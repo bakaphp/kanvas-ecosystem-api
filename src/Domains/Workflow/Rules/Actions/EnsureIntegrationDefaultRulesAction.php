@@ -14,6 +14,7 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Rules\DataTransferObject\Rule as RuleData;
 use Kanvas\Workflow\Rules\DataTransferObject\RuleActionData;
+use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleType;
@@ -96,6 +97,7 @@ final class EnsureIntegrationDefaultRulesAction
                 description: 'Created when ' . $this->integrationCompany->integration->name . ' was connected',
                 params: $defaultRule->params,
                 is_async: $defaultRule->isAsync,
+                conditions: $defaultRule->conditions === [] ? null : RuleConditionData::collect($defaultRule->conditions, DataCollection::class),
                 actions: RuleActionData::collect([new RuleActionData($action)], DataCollection::class),
             )
         )->execute();
