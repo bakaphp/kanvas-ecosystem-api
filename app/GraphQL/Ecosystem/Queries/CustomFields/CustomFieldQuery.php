@@ -43,6 +43,22 @@ class CustomFieldQuery
             $root->reGenerateRedisCustomFields();
         }
 
+        if ($root instanceof Lead) {
+            // Project before slicing so a virtual ai_mode appears once, with accurate pagination.
+            $fields = new CustomFieldValueResolver()->resolveAll($root, $root->getAllFromRedis());
+            $rows = [];
+            foreach (array_slice($fields, ($page - 1) * $limit, $limit, true) as $name => $value) {
+                $rows[] = [
+                    'name' => $name,
+                    'value' => $value,
+                    'entity_id' => $root->getKey(),
+                    'model_name' => Lead::class,
+                ];
+            }
+
+            return new LengthAwarePaginator($rows, count($fields), $limit, $page);
+        }
+
         $results = $root->getAllCustomFieldsFromRedisPaginated($limit, $page);
 
         //...apply your logic
@@ -97,9 +113,7 @@ class CustomFieldQuery
         $entity = SystemModulesRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'get')) {
-            return $entity->get(
-                $customFieldInput->name
-            );
+            return new CustomFieldValueResolver()->resolve($entity, $customFieldInput->name);
         }
 
         return null;
@@ -118,7 +132,7 @@ class CustomFieldQuery
         $entity = SystemModulesRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'getAll')) {
-            return $entity->getAll();
+            return new CustomFieldValueResolver()->resolveAll($entity, $entity->getAll());
         }
 
         return [];
