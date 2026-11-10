@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Tests\Scribe\Documents;
 
 use Baka\Http\SafeUrlFetcher;
+use Database\Seeders\ScribeDocumentTemplateSeeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Imagick;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Scribe\Documents\Enums\ConfigurationEnum;
 use Kanvas\Scribe\Documents\Services\DocumentPdfService;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Quotes\Actions\CreateQuoteAction;
@@ -18,6 +21,7 @@ use Kanvas\Scribe\Quotes\DataTransferObject\Quote as QuoteData;
 use Kanvas\Scribe\Quotes\DataTransferObject\QuoteLine as QuoteLineData;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Templates\Models\Templates;
+use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
 use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
@@ -129,13 +133,7 @@ class DocumentPdfServiceTest extends ScribeTestCase
         $customer = $this->seedTestOrganization('Custom Layout LLC');
         $quote = $this->draftQuote($customer);
 
-        $template = Templates::create([
-            'apps_id' => $this->kanvasApp->getId(),
-            'companies_id' => $this->company->getId(),
-            'users_id' => static::$cachedUser->getId(),
-            'name' => 'quote-pdf-test-' . uniqid('', true),
-            'template' => 'BRANDED COPY for {{ $customer["name"] }}',
-        ]);
+        $template = $this->companyTemplate('quote-pdf-test-' . uniqid('', true), 'BRANDED COPY for {{ $customer["name"] }}');
 
         $html = new DocumentPdfService($quote, $template->name)->render();
 
@@ -185,6 +183,94 @@ class DocumentPdfServiceTest extends ScribeTestCase
 
         $this->assertStringContainsString('Credit Note', new DocumentPdfService($creditNote)->render());
         $this->assertStringStartsWith('credit-note-', new DocumentPdfService($creditNote)->fileName());
+    }
+
+    public function test_a_company_scribe_invoice_row_restyles_invoices_and_leaves_quotes_on_the_packaged_layout(): void
+    {
+        $customer = $this->seedTestOrganization('Row Styled Co');
+        $invoice = $this->issueTestInvoice($customer, subtotal: 300.0);
+        $quote = $this->draftQuote($customer);
+
+        $this->companyTemplate(DocumentPdfService::INVOICE_TEMPLATE_NAME, '<p>ROW LAYOUT {{ title }} {{ number }} for {{ customer.name }}</p>');
+
+        $invoiceHtml = new DocumentPdfService($invoice)->render();
+        $quoteHtml = new DocumentPdfService($quote)->render();
+
+        $this->assertStringContainsString('ROW LAYOUT Invoice ' . $invoice->invoice_number . ' for Row Styled Co', $invoiceHtml);
+        $this->assertStringNotContainsString('<table class="lines">', $invoiceHtml);
+        $this->assertStringContainsString('<table class="lines">', $quoteHtml);
+        $this->assertStringNotContainsString('ROW LAYOUT', $quoteHtml);
+    }
+
+    /**
+     * The app setting is Redis-backed and shared by every parallel process, so this runs alone.
+     */
+    #[Group('serial')]
+    public function test_the_app_setting_still_wins_over_the_scribe_quote_row(): void
+    {
+        $customer = $this->seedTestOrganization('Setting Wins LLC');
+        $quote = $this->draftQuote($customer);
+
+        $this->companyTemplate(DocumentPdfService::QUOTE_TEMPLATE_NAME, '<p>ROW LAYOUT</p>');
+        $configured = $this->companyTemplate('quote-pdf-setting-' . uniqid('', true), '<p>SETTING LAYOUT</p>');
+        $this->kanvasApp->set(ConfigurationEnum::QUOTE_PDF_TEMPLATE->value, $configured->name);
+
+        try {
+            $html = new DocumentPdfService($quote)->render();
+        } finally {
+            $this->kanvasApp->set(ConfigurationEnum::QUOTE_PDF_TEMPLATE->value, '');
+        }
+
+        $this->assertStringContainsString('SETTING LAYOUT', $html);
+        $this->assertStringNotContainsString('ROW LAYOUT', $html);
+    }
+
+    public function test_the_seeder_stores_both_packaged_rows_once_and_they_render_like_the_packaged_file(): void
+    {
+        $appsId = $this->kanvasApp->getId();
+        $names = [DocumentPdfService::INVOICE_TEMPLATE_NAME, DocumentPdfService::QUOTE_TEMPLATE_NAME];
+        DB::table('email_templates')->whereIn('name', $names)->where('apps_id', $appsId)->where('companies_id', 0)->delete();
+
+        $customer = $this->seedTestOrganization('Seeded Layout Inc');
+        $quote = $this->draftQuote($customer);
+        $packaged = new DocumentPdfService($quote)->render();
+
+        $this->assertTrue(ScribeDocumentTemplateSeeder::forApp($appsId));
+        $this->assertFalse(ScribeDocumentTemplateSeeder::forApp($appsId));
+
+        foreach ($names as $name) {
+            $row = DB::table('email_templates')->where('name', $name)->where('apps_id', $appsId)->where('companies_id', 0)->first();
+            $this->assertSame('twig', $row->engine);
+            $this->assertStringContainsString('issuer.logo', $row->template);
+        }
+
+        $this->assertSame($packaged, new DocumentPdfService($quote)->render());
+
+        DB::table('email_templates')->whereIn('name', $names)->where('apps_id', $appsId)->where('companies_id', 0)->delete();
+    }
+
+    public function test_the_packaged_layout_prints_notes_terms_dates_and_whole_quantities(): void
+    {
+        $quote = $this->draftQuote($this->seedTestOrganization('Notes Co'));
+
+        $html = new DocumentPdfService($quote)->render();
+
+        $this->assertStringContainsString('Includes two workshops.', $html);
+        $this->assertStringContainsString('50% upfront, net 30.', $html);
+        $this->assertStringContainsString('Issued Jun 10, 2026', $html);
+        $this->assertStringContainsString('<td class="num">1</td>', $html, 'Whole quantities print without decimals.');
+        $this->assertStringContainsString('USD 2,500.00', $html);
+    }
+
+    private function companyTemplate(string $name, string $body): Templates
+    {
+        return Templates::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => $name,
+            'template' => $body,
+        ]);
     }
 
     private function draftQuote(Organization $customer): Quote
