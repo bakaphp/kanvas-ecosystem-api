@@ -17,6 +17,7 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\Services\ZohoFieldMapService;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Sentry\Laravel\Facade as Sentry;
 use Throwable;
@@ -123,11 +124,27 @@ class SyncLeadToZohoAction
                         $zohoData
                     );
                 } else {
+                    // Zoho answers empty both for a lead it deleted and for one it converted. The
+                    // converted one is read-only and lives on as a deal, so its files go there and
+                    // the Kanvas lead is left as it is.
+                    $convertedDeal = $this->pullConvertedLeadDeal($lead, $company);
+
+                    if ($convertedDeal !== null) {
+                        $pushed = $this->uploadAttachments(
+                            $this->dealModule($company),
+                            $lead,
+                            (string) $convertedDeal->get(CustomFieldEnum::ZOHO_DEAL_ID->value)
+                        );
+                        $this->mirrorUploadedFilesOnDeal($convertedDeal, $pushed['uploaded']);
+
+                        return $zohoData;
+                    }
+
                     $lead->close();
                 }
             }
 
-            $this->uploadAttachments($leadModule, $lead);
+            $this->uploadAttachments($leadModule, $lead, (string) $zohoLeadId);
 
             return $zohoData;
         });
@@ -221,13 +238,15 @@ class SyncLeadToZohoAction
         }
     }
 
-    protected function uploadAttachments(ZohoRecordsModule $zohoLead, Lead $lead): void
+    /**
+     * @return array{uploaded: int[], failed: array<int, string>}
+     */
+    protected function uploadAttachments(ZohoRecordsModule $module, Lead $lead, string $zohoRecordId): array
     {
         if (! ZohoLead::hasAttachments($lead)) {
-            return;
+            return ['uploaded' => [], 'failed' => []];
         }
 
-        $zohoLeadId = (string) $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value);
         $attachmentUrls = array_filter(array_map('trim', explode(',', (string) $lead->get('Attachments'))));
 
         foreach ($attachmentUrls as $attachment) {
@@ -235,17 +254,29 @@ class SyncLeadToZohoAction
                 $fileContent = SafeUrlFetcher::fetch($attachment);
                 $fileName = Str::fileNameFromUrl($attachment, 'attachment_' . uniqid());
 
-                $zohoLead->uploadAttachment($zohoLeadId, $fileName, $fileContent);
+                $module->uploadAttachment($zohoRecordId, $fileName, $fileContent);
             } catch (Throwable $e) {
                 report($e);
             }
         }
 
-        $pushed = new PushFilesToZohoRecordAction($zohoLead, $zohoLeadId)->execute(
+        $pushed = $this->filePusher($module, $zohoRecordId)->execute(
             $lead->files()->get(),
             $this->syncedFileIds($lead, CustomFieldEnum::ZOHO_LEAD_SYNC_FILES)
         );
 
         $this->rememberSyncedFiles($lead, CustomFieldEnum::ZOHO_LEAD_SYNC_FILES, $pushed['uploaded']);
+
+        return $pushed;
+    }
+
+    protected function dealModule(Companies $company): ZohoRecordsModule
+    {
+        return Client::getInstance($this->app, $company)->deals;
+    }
+
+    protected function pullConvertedLeadDeal(Lead $lead, Companies $company): ?Deal
+    {
+        return new PullConvertedLeadDealAction($lead, new ZohoService($this->app, $company))->execute();
     }
 }

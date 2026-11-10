@@ -24,12 +24,16 @@ class PullOrganizationsFromIntrasAction
     /** @var array<string, int>|null lowercased country name => kanvas countries.id */
     protected ?array $countryIdByName = null;
 
+    /**
+     * @param list<int>|null $onlyCompanyIds pull just these legacy companies (on-demand refresh)
+     */
     public function __construct(
         protected AppInterface $app,
         protected Companies $company,
         protected UserInterface $user,
         protected ?string $lastSyncAt = null,
-        protected ?int $agencyId = null
+        protected ?int $agencyId = null,
+        protected ?array $onlyCompanyIds = null
     ) {
     }
 
@@ -59,6 +63,10 @@ class PullOrganizationsFromIntrasAction
 
         if ($this->lastSyncAt !== null) {
             $query->where('co.updated_at', '>=', $this->lastSyncAt);
+        }
+
+        if ($this->onlyCompanyIds !== null) {
+            $query->whereIn('co.id', $this->onlyCompanyIds);
         }
 
         $count = 0;

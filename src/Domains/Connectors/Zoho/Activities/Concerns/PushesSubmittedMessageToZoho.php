@@ -8,6 +8,7 @@ use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Engagements\Actions\AttachGetDocsFilesToMessageAction;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
+use Kanvas\Connectors\Zoho\Actions\Concerns\TracksZohoSyncedFiles;
 use Kanvas\Connectors\Zoho\Actions\PushFilesToZohoRecordAction;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
@@ -18,12 +19,20 @@ use Kanvas\Social\Messages\Models\Message;
 use Throwable;
 use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
 
+/**
+ * A target is a Zoho record id mapped to `{module, deal}`: the module to upload through, and the
+ * Kanvas deal to mirror the files on when the record is a deal (null for a lead).
+ *
+ * @phpstan-type ZohoTarget array{module: ZohoRecordsModule, deal: ?Deal}
+ */
 trait PushesSubmittedMessageToZoho
 {
+    use TracksZohoSyncedFiles;
+
     /**
      * Targets resolve lazily so the Zoho client is only built when there is something to push.
      *
-     * @param callable(): array<string, ZohoRecordsModule> $resolveTargets keyed by Zoho record id
+     * @param callable(): array<string, ZohoTarget> $resolveTargets keyed by Zoho record id
      */
     protected function pushSubmittedMessage(Message $message, callable $resolveTargets): ?array
     {
@@ -40,7 +49,7 @@ trait PushesSubmittedMessageToZoho
     }
 
     /**
-     * @param callable(): array<string, ZohoRecordsModule> $resolveTargets
+     * @param callable(): array<string, ZohoTarget> $resolveTargets
      */
     protected function pushGetDocs(Message $message, callable $resolveTargets): array
     {
@@ -61,12 +70,16 @@ trait PushesSubmittedMessageToZoho
         $synced = $message->get(CustomFieldEnum::ZOHO_MESSAGE_SYNC_FILES->value) ?? [];
         $results = [];
 
-        foreach ($resolveTargets() as $zohoRecordId => $module) {
-            $pushed = new PushFilesToZohoRecordAction($module, (string) $zohoRecordId)->execute(
+        foreach ($resolveTargets() as $zohoRecordId => $target) {
+            $pushed = new PushFilesToZohoRecordAction($target['module'], (string) $zohoRecordId)->execute(
                 $files,
                 $synced[$zohoRecordId] ?? [],
                 $zohoFileNames
             );
+
+            if ($target['deal'] !== null) {
+                $this->mirrorUploadedFilesOnDeal($target['deal'], $pushed['uploaded'], $zohoFileNames);
+            }
 
             $synced[$zohoRecordId] = array_merge($synced[$zohoRecordId] ?? [], $pushed['uploaded']);
             $results[$zohoRecordId] = $pushed;
@@ -82,23 +95,33 @@ trait PushesSubmittedMessageToZoho
     }
 
     /**
-     * @return array<string, ZohoRecordsModule>
+     * A converted lead is read-only in Zoho, so it is never a target; its documents go to the deal.
+     *
+     * @return array<string, ZohoTarget>
      */
     protected function zohoLeadTarget(ZohoService $zohoService, ?Lead $lead): array
     {
-        $zohoLeadId = $lead?->get(CustomFieldEnum::ZOHO_LEAD_ID->value);
+        if ($lead === null || $lead->get(CustomFieldEnum::ZOHO_LEAD_CONVERTED_DETAIL->value)) {
+            return [];
+        }
 
-        return $zohoLeadId ? [(string) $zohoLeadId => $zohoService->getLeadModule()] : [];
+        $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value);
+
+        return $zohoLeadId
+            ? [(string) $zohoLeadId => ['module' => $zohoService->getLeadModule(), 'deal' => null]]
+            : [];
     }
 
     /**
-     * @return array<string, ZohoRecordsModule>
+     * @return array<string, ZohoTarget>
      */
     protected function zohoDealTarget(ZohoService $zohoService, Deal $deal): array
     {
         $zohoDealId = $deal->get(CustomFieldEnum::ZOHO_DEAL_ID->value);
 
-        return $zohoDealId ? [(string) $zohoDealId => $zohoService->getDealModule()] : [];
+        return $zohoDealId
+            ? [(string) $zohoDealId => ['module' => $zohoService->getDealModule(), 'deal' => $deal]]
+            : [];
     }
 
     protected function processTaskUpdates(Message $message, Lead $lead): mixed
