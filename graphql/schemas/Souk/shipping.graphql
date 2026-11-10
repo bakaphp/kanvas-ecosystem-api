@@ -2,6 +2,7 @@ input ShippingDestinationInput {
     country: String!
     city: String
     postal_code: String
+    state: String
 }
 
 type ShippingQuote {

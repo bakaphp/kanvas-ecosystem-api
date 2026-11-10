@@ -13,6 +13,7 @@ class ShippingDestination extends Data
         public readonly string $countryCode,
         public readonly ?string $city = null,
         public readonly ?string $postalCode = null,
+        public readonly ?string $state = null,
     ) {
     }
 
@@ -22,6 +23,7 @@ class ShippingDestination extends Data
             countryCode: (string) ($input['country'] ?? ''),
             city: Str::trimToNull($input['city'] ?? null),
             postalCode: Str::trimToNull($input['postal_code'] ?? null),
+            state: Str::trimToNull($input['state'] ?? null),
         );
     }
 
@@ -31,6 +33,7 @@ class ShippingDestination extends Data
             'country' => $this->countryCode,
             'city' => $this->city,
             'postal_code' => $this->postalCode,
+            'state' => $this->state,
         ];
     }
 }
