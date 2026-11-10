@@ -92,11 +92,9 @@ class CreateLeadWithZohoDuplicateCheckJob extends CreateLeadsFromReceiverJob
     }
 
     /**
-     * Only the owner changes, and the description gains a line saying which form the submission came
-     * through. The update runs without workflows: the regular Zoho push would rewrite every mapped field
-     * on the Zoho record from the Kanvas copy, and the Zoho lead may have been edited since. The line is
-     * written on both sides because that same push rebuilds Description from the Kanvas lead. The custom
-     * field covers a matched lead whose first push is still queued.
+     * Saved without workflows: the regular Zoho push rewrites every mapped field from the Kanvas copy,
+     * and the Zoho lead may have been edited since. That push also rebuilds Description, so the origin
+     * line goes on both sides. The custom field covers a matched lead whose first push is still queued.
      */
     private function reassignExistingLead(LeadReceiver $leadReceiver, string $zohoOwnerId): array
     {

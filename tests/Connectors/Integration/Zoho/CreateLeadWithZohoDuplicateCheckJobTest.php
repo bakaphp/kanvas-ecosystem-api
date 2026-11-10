@@ -210,6 +210,23 @@ final class CreateLeadWithZohoDuplicateCheckJobTest extends TestCase
         $this->assertSame(1, substr_count((string) $existing->fresh()->description, $origin));
     }
 
+    public function testAFailedDescriptionReadStillReassignsTheOwnerInZoho(): void
+    {
+        $email = $this->uniqueEmail();
+        $first = $this->runReceiver($this->payload($email), $this->zohoWithNoMatches());
+        Lead::find($first['lead_id'])->set(CustomFieldEnum::ZOHO_LEAD_ID->value, 'zl-12');
+
+        $module = $this->module();
+        $module->method('get')->willThrowException(new RuntimeException('Zoho is down'));
+        $module->expects($this->once())
+            ->method('update')
+            ->with('zl-12', ['Owner' => self::ZOHO_OWNER_ID]);
+
+        $result = $this->runReceiver($this->payload($email), $module);
+
+        $this->assertTrue($result['zoho_updated']);
+    }
+
     public function testAKanvasPhoneMatchIgnoresFormatting(): void
     {
         $digits = $this->uniquePhoneDigits();
