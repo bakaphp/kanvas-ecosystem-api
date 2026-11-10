@@ -111,6 +111,124 @@ trait UsesSipgoScratchSchema
     }
 
     /**
+     * The event side of SIPGO, enough for `PullEventsFromIntrasAction`, the registrations pull and the
+     * facilitator links to run against the scratch database. Columns a mapper reads without a null
+     * guard are all here; lookup tables the pulls wrap in try/catch (languages, places, …) are not.
+     */
+    private function createSipgoEventSchema(ConnectionInterface $fixture, string $db): void
+    {
+        $fixture->statement("CREATE TABLE `{$db}`.events (
+            id INT UNSIGNED NOT NULL PRIMARY KEY,
+            agencies_id INT UNSIGNED NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            classification VARCHAR(64) NULL,
+            events_types_id INT UNSIGNED NULL,
+            events_classes_id INT UNSIGNED NULL,
+            events_categories_id INT UNSIGNED NULL,
+            events_statuses_id INT UNSIGNED NULL,
+            themes_id INT UNSIGNED NULL,
+            themes_areas_id INT UNSIGNED NULL,
+            affiliates_id INT UNSIGNED NULL,
+            participants_satisfaction DECIMAL(5,2) NULL,
+            participants_average DECIMAL(5,2) NULL,
+            versions_count INT NOT NULL DEFAULT 0,
+            is_deleted TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NULL,
+            updated_at DATETIME NULL
+        )");
+        $fixture->statement("CREATE TABLE `{$db}`.events_versions (
+            id INT UNSIGNED NOT NULL PRIMARY KEY,
+            events_id INT UNSIGNED NOT NULL,
+            agencies_id INT UNSIGNED NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            version INT NOT NULL DEFAULT 1,
+            classification VARCHAR(64) NULL,
+            price_per_ticket DECIMAL(12,2) NULL,
+            currencies_id INT UNSIGNED NULL,
+            events_versions_statuses_id INT UNSIGNED NULL,
+            places_id INT UNSIGNED NULL,
+            places_areas_id INT UNSIGNED NULL,
+            languages_id INT UNSIGNED NULL,
+            affiliates_id INT UNSIGNED NULL,
+            setup_types_id INT UNSIGNED NULL,
+            places_comments TEXT NULL,
+            participants_satisfaction DECIMAL(5,2) NULL,
+            facilitators_satisfaction DECIMAL(5,2) NULL,
+            companies_satisfaction DECIMAL(5,2) NULL,
+            exchange_rate DECIMAL(12,4) NULL,
+            max_capacity INT NULL,
+            has_book TINYINT(1) NULL,
+            has_forum TINYINT(1) NULL,
+            has_graduation TINYINT(1) NULL,
+            has_translations TINYINT(1) NULL,
+            place_covered_by VARCHAR(64) NULL,
+            hotel_covered_by VARCHAR(64) NULL,
+            equip_covered_by VARCHAR(64) NULL,
+            trip_covered_by VARCHAR(64) NULL,
+            flight_covered_by VARCHAR(64) NULL,
+            is_deleted TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NULL,
+            updated_at DATETIME NULL
+        )");
+        $fixture->statement("CREATE TABLE `{$db}`.events_versions_dates (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            events_versions_id INT UNSIGNED NOT NULL,
+            event_date DATE NOT NULL,
+            start_time TIME NULL,
+            end_time TIME NULL,
+            is_deleted TINYINT(1) NOT NULL DEFAULT 0
+        )");
+        $fixture->statement("CREATE TABLE `{$db}`.events_versions_statuses (id INT UNSIGNED NOT NULL PRIMARY KEY, name VARCHAR(64) NOT NULL)");
+        $fixture->table("{$db}.events_versions_statuses")->insert([
+            ['id' => 1, 'name' => 'En Progreso...'],
+            ['id' => 2, 'name' => 'Completado'],
+            ['id' => 3, 'name' => 'Cancelado'],
+        ]);
+        $fixture->statement("CREATE TABLE `{$db}`.events_versions_participants (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            events_versions_id INT UNSIGNED NOT NULL,
+            participants_id INT UNSIGNED NOT NULL,
+            inscriptions_types_id INT UNSIGNED NULL,
+            investment DECIMAL(12,2) NULL,
+            discount DECIMAL(12,2) NULL,
+            invoice_date DATETIME NULL,
+            reserved_tickets INT NULL,
+            amount_covered_by_company DECIMAL(12,2) NULL,
+            is_assisting TINYINT(1) NULL,
+            assisted_event TINYINT(1) NULL,
+            completed_event TINYINT(1) NULL,
+            comments TEXT NULL,
+            channels_id INT UNSIGNED NULL,
+            companies_plans_id INT UNSIGNED NULL,
+            company_sponsor_id INT UNSIGNED NULL,
+            is_deleted TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NULL,
+            updated_at DATETIME NULL
+        )");
+        $fixture->statement("CREATE TABLE `{$db}`.events_versions_facilitators (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            events_versions_id INT UNSIGNED NOT NULL,
+            facilitators_id INT UNSIGNED NOT NULL,
+            is_deleted TINYINT(1) NOT NULL DEFAULT 0
+        )");
+        $fixture->statement("CREATE TABLE `{$db}`.currencies (id INT UNSIGNED NOT NULL PRIMARY KEY, code VARCHAR(3) NOT NULL)");
+        $fixture->table("{$db}.currencies")->insert([['id' => 1, 'code' => 'USD'], ['id' => 2, 'code' => 'DOP']]);
+        $fixture->statement("CREATE TABLE `{$db}`.`groups` (id INT UNSIGNED NOT NULL PRIMARY KEY, name VARCHAR(64) NULL)");
+        $fixture->statement("CREATE TABLE `{$db}`.participants_groups (participants_id INT UNSIGNED NOT NULL, groups_id INT UNSIGNED NOT NULL, is_deleted TINYINT NOT NULL DEFAULT 0)");
+        $fixture->statement("CREATE TABLE `{$db}`.participants_interests (participants_id INT UNSIGNED NOT NULL, name VARCHAR(64) NULL, is_deleted TINYINT NOT NULL DEFAULT 0)");
+        $fixture->statement("CREATE TABLE `{$db}`.participants_events_interests (participants_id INT UNSIGNED NOT NULL, events_id INT UNSIGNED NULL, participants_referral_id INT UNSIGNED NULL, is_deleted TINYINT NOT NULL DEFAULT 0)");
+        $fixture->statement("CREATE TABLE `{$db}`.programs (id INT UNSIGNED NOT NULL PRIMARY KEY, name VARCHAR(128) NOT NULL)");
+        $fixture->statement("CREATE TABLE `{$db}`.participants_programs (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            participants_id INT UNSIGNED NOT NULL,
+            programs_id INT UNSIGNED NOT NULL,
+            events_versions_id INT UNSIGNED NULL,
+            completed TINYINT(1) NOT NULL DEFAULT 0,
+            is_deleted TINYINT(1) NOT NULL DEFAULT 0
+        )");
+    }
+
+    /**
      * Through its own connection: DDL on `mysql` would implicitly commit the test's transaction.
      */
     protected function createSipgoSchema(): void
@@ -124,7 +242,8 @@ trait UsesSipgoScratchSchema
         $db = self::SIPGO_DATABASE;
 
         $fixture->statement("CREATE DATABASE IF NOT EXISTS `{$db}`");
-        $fixture->statement("DROP TABLE IF EXISTS `{$db}`.participants, `{$db}`.custom_fields, `{$db}`.participants_custom_fields, `{$db}`.participants_levels, `{$db}`.participants_statuses, `{$db}`.cities, `{$db}`.facilitators, `{$db}`.facilitators_custom_fields, `{$db}`.facilitators_statuses, `{$db}`.countries, `{$db}`.companies, `{$db}`.companies_custom_fields, `{$db}`.business_sectors, `{$db}`.companies_offices");
+        $fixture->statement("DROP TABLE IF EXISTS `{$db}`.participants, `{$db}`.custom_fields, `{$db}`.participants_custom_fields, `{$db}`.participants_levels, `{$db}`.participants_statuses, `{$db}`.cities, `{$db}`.facilitators, `{$db}`.facilitators_custom_fields, `{$db}`.facilitators_statuses, `{$db}`.countries, `{$db}`.companies, `{$db}`.companies_custom_fields, `{$db}`.business_sectors, `{$db}`.companies_offices, `{$db}`.events, `{$db}`.events_versions, `{$db}`.events_versions_dates, `{$db}`.events_versions_statuses, `{$db}`.events_versions_participants, `{$db}`.events_versions_facilitators, `{$db}`.currencies, `{$db}`.participants_programs, `{$db}`.programs, `{$db}`.participants_groups, `{$db}`.`groups`, `{$db}`.participants_interests, `{$db}`.participants_events_interests");
+        $this->createSipgoEventSchema($fixture, $db);
         $fixture->statement("CREATE TABLE `{$db}`.participants (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
             companies_id INT UNSIGNED NULL,
@@ -136,6 +255,11 @@ trait UsesSipgoScratchSchema
             participants_levels_id INT UNSIGNED NULL,
             participants_statuses_id INT UNSIGNED NOT NULL,
             departments_id VARCHAR(254) NULL,
+            companies_offices_id INT UNSIGNED NULL,
+            general_representative TINYINT(1) NOT NULL DEFAULT 0,
+            is_axis_participant TINYINT(1) NOT NULL DEFAULT 0,
+            is_key_participant TINYINT(1) NOT NULL DEFAULT 0,
+            is_prospect TINYINT(1) NOT NULL DEFAULT 0,
             is_deleted TINYINT(1) NOT NULL DEFAULT 0,
             created_at DATETIME NOT NULL,
             updated_at DATETIME NULL

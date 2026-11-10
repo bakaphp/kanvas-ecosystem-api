@@ -48,4 +48,11 @@ enum CustomFieldEnum: string
      * submission carries at least one file. Unset means the submission changes no status.
      */
     case ZOHO_GET_DOCS_LEAD_STATUS = 'ZOHO_GET_DOCS_LEAD_STATUS';
+
+    /**
+     * Zoho's `$converted_detail` (deal, contact, account ids) stored on the lead once Zoho reports
+     * it converted. A converted lead is read-only in Zoho, so anything that would write to it goes to
+     * the deal instead, and nothing asks Zoho twice.
+     */
+    case ZOHO_LEAD_CONVERTED_DETAIL = 'ZOHO_LEAD_CONVERTED_DETAIL';
 }
