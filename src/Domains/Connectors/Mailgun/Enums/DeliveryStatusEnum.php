@@ -19,6 +19,7 @@ enum DeliveryStatusEnum: string
     case FAILED = 'failed';
     case COMPLAINED = 'complained';
     case UNSUBSCRIBED = 'unsubscribed';
+    case OPENED = 'opened';
 
     public static function fromEvent(string $event, string $severity): ?self
     {
@@ -28,14 +29,15 @@ enum DeliveryStatusEnum: string
             'failed' => strtolower(trim($severity)) === 'temporary' ? self::TEMPORARY_FAILURE : self::FAILED,
             'complained' => self::COMPLAINED,
             'unsubscribed' => self::UNSUBSCRIBED,
+            'opened' => self::OPENED,
             default => null,
         };
     }
 
     /**
      * A temporary failure is Mailgun still trying, so it stays `accepted`. A complaint or an unsubscribe
-     * can only come from someone who received the email, so it reads as `delivered`; the delivery only
-     * moves forward, so neither undoes a later outcome.
+     * can only come from someone who received the email, so it reads as `delivered`; an open is the
+     * email's `read`. The delivery only moves forward, so none of them undoes a later outcome.
      */
     public function toDeliveryStatus(): CommunicationDeliveryStatusEnum
     {
@@ -43,6 +45,7 @@ enum DeliveryStatusEnum: string
             self::ACCEPTED, self::TEMPORARY_FAILURE => CommunicationDeliveryStatusEnum::ACCEPTED,
             self::DELIVERED, self::COMPLAINED, self::UNSUBSCRIBED => CommunicationDeliveryStatusEnum::DELIVERED,
             self::FAILED => CommunicationDeliveryStatusEnum::FAILED,
+            self::OPENED => CommunicationDeliveryStatusEnum::READ,
         };
     }
 
