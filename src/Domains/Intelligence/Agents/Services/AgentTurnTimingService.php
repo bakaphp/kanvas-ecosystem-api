@@ -72,13 +72,7 @@ final class AgentTurnTimingService
 
     public function __invoke(ObservabilityEvent $event): void
     {
-        $now = ($this->clock)();
-        $label = $this->label($event);
-        $gapMs = self::ms($now - $this->lastAt);
-
-        if ($gapMs >= self::MIN_GAP_MS) {
-            $this->gaps[] = ['step' => $this->lastLabel . ' -> ' . $label, 'ms' => $gapMs];
-        }
+        $now = $this->step($this->label($event));
 
         match (true) {
             $event instanceof WorkflowStart => $this->workflowStarted($now),
@@ -90,9 +84,31 @@ final class AgentTurnTimingService
             $event instanceof ToolCalled => $this->toolCalled($event, $now),
             default => null,
         };
+    }
+
+    /**
+     * A step outside the handler's own events: what the chat action does once the model has answered
+     * (reply checks, the turn log, the channel backfill) emits nothing, and that is where a turn can
+     * spend minutes with every Neuron stage reading fast.
+     */
+    public function mark(string $label): void
+    {
+        $this->step($label);
+    }
+
+    private function step(string $label): float
+    {
+        $now = ($this->clock)();
+        $gapMs = self::ms($now - $this->lastAt);
+
+        if ($gapMs >= self::MIN_GAP_MS) {
+            $this->gaps[] = ['step' => $this->lastLabel . ' -> ' . $label, 'ms' => $gapMs];
+        }
 
         $this->lastAt = $now;
         $this->lastLabel = $label;
+
+        return $now;
     }
 
     /**
