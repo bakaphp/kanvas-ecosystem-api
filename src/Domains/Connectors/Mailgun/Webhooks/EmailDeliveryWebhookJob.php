@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Mailgun\Webhooks;
 
 use Illuminate\Http\Request;
-use Kanvas\Communication\Messages\Actions\RecordDeliveryEventAction;
-use Kanvas\Communication\Messages\Actions\RecordDeliveryOnMessageAction;
 use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Connectors\Mailgun\Actions\FileEmailDeliveryAction;
+use Kanvas\Connectors\Mailgun\Actions\RecordEmailEventOnDeliveryAction;
 use Kanvas\Connectors\Mailgun\Actions\VerifyMailgunWebhookSignatureAction;
 use Kanvas\Connectors\Mailgun\Enums\DeliveryStatusEnum;
 use Kanvas\Connectors\Mailgun\Services\MailgunEngagementPayloadService;
@@ -56,36 +55,17 @@ class EmailDeliveryWebhookJob extends ProcessWebhookJob
             return ['message' => 'Event ' . ($payload->event() ?: 'without a name') . ' is not a delivery event, ignored'];
         }
 
-        $messageId = FileEmailDeliveryAction::normalizeMessageId($payload->messageId());
-        $delivery = $messageId === '' ? null : Delivery::query()
-            ->fromApp($this->receiver->app)
-            ->where('provider', IntegrationsEnum::MAILGUN->value)
-            ->where('external_id', $messageId)
-            ->first();
+        $delivery = RecordEmailEventOnDeliveryAction::findDelivery($this->receiver->app, $payload);
 
         if (! $delivery instanceof Delivery) {
-            return ['message' => 'No outbound email on record for this Message-Id, ignored', 'message_id' => $messageId];
+            return [
+                'message' => 'No outbound email on record for this Message-Id, ignored',
+                'message_id' => FileEmailDeliveryAction::normalizeMessageId($payload->messageId()),
+            ];
         }
 
-        $statusBefore = $delivery->status;
-        $errorCode = $event->isFailure() ? $payload->deliveryStatusCode() : null;
-
-        $recorded = new RecordDeliveryEventAction(
-            delivery: $delivery,
-            status: $event->toDeliveryStatus(),
-            providerStatus: $event->value,
-            payload: $payload->eventData(),
-            occurredAt: $payload->occurredAt(),
-            errorCode: $errorCode !== null ? (string) $errorCode : null,
-            error: $event->isFailure() ? $payload->deliveryStatusMessage() : null,
-        )->execute();
-
-        if (! $recorded) {
+        if (! new RecordEmailEventOnDeliveryAction($delivery, $event, $payload)->execute()) {
             return ['message' => 'Mailgun event already recorded', 'delivery_id' => $delivery->getId()];
-        }
-
-        if ($delivery->status !== $statusBefore) {
-            new RecordDeliveryOnMessageAction($delivery)->execute();
         }
 
         $this->applyDestinationRemediation($delivery, $event, $payload->recipient());

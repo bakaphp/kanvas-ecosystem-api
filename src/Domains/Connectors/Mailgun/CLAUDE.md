@@ -7,11 +7,12 @@ accepts it; the inbound receivers and agent mailboxes are documented in their cl
 
 | Receiver | Events | Setup |
 |---|---|---|
-| `EmailOpenedWebhookJob` | `opened` → note on the lead/person, campaign slot opened | `kanvas:mailgun-setup-email-opened-webhook` |
+| `EmailOpenedWebhookJob` | `opened` → note on the lead/person, campaign slot opened, delivery `read` | `kanvas:mailgun-setup-email-opened-webhook` |
 | `EmailDeliveryWebhookJob` | `delivered`, `failed` (temporary / permanent), `complained`, `unsubscribed` | `kanvas:mailgun-setup-delivery-webhooks` |
 
 Keep them apart: each command registers only its own Mailgun webhook ids, so setting up one never
-repoints the other.
+repoints the other. An open still reaches the delivery: `EmailOpenedWebhookJob` matches it by Message-Id through the
+same `RecordEmailEventOnDeliveryAction`, so `opened` is never added to the delivery receiver's events.
 
 **The delivery receiver is one per app and sending domain** (`DeliveryWebhookReceiverService`,
 `configuration.mailgun.domain`), not per company: Mailgun keeps one URL per domain and event, and Mailgun
@@ -71,6 +72,7 @@ failure Mailgun recovered from never overwrites `delivered`.
 | `failed`, temporary | event recorded, stays `accepted` (Mailgun retries) | — |
 | `failed`, permanent | `failed` + SMTP code, pushed | that address → `hard_bounce` |
 | `complained` / `unsubscribed` | event recorded, reads as `delivered` | `ApplyDoNotContactAction` — person-wide, like a STOP |
+| `opened` (on the opened receiver) | `read`, pushed; a bot open is ignored | — |
 
 A complaint or an unsubscribe is the person asking us to stop, so it follows the consent rule in
 `Guild/Customers/CLAUDE.md` rather than opting out the one address.
