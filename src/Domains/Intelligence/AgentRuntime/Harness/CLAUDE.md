@@ -183,6 +183,42 @@ auto-login and FileVault off, so a GUI session exists after a reboot; Remote Log
 (`git`, `curl`, `unzip`, `shasum` ship with macOS); and a stable address. `check_self_hosted_coding_setup`
 reports each of these when missing, plus "only Apple silicon" on an Intel Mac.
 
+## Coding chat: an agent's chat as a front end for the opencode factory
+
+`CODING_CHAT_MODE` on an agent hands **every** `AgentChatKernel` call to `RunCodingChatAction`: no model
+of the agent's own reads the message, it is the next prompt to one opencode session in a real checkout
+of the opencode factory on the agent's machine (`~/Documents/Projects/<App>`, the same checkout, persona,
+rules and baseline as running `akira` there). Kanvas writes nothing into the checkout: the factory's
+`scripts/serve.sh` does, and `FactoryServeClient` is its only caller (`open`, `release`, `list`, `health`).
+
+| Agent custom field | Notes |
+|---|---|
+| `CODING_CHAT_MODE` | The switch. A chat-mode agent's chat no longer reaches its own model or tools. |
+| `CODING_MACHINE_ID` | The factory Mac. Its `runtime` must be `host`, which only `kanvas:coding:setup` or the row itself sets: a container machine is reached by `docker exec` and every turn fails. Its `ssh_user` must own the factory. |
+| `CODING_CHAT_DEFAULT_REPO` | The checkout a message opens when the conversation has none; `/repo <App>` switches. |
+| `CODING_CHAT_FACTORY_DIR` | Only when the factory is not at `Documents/Projects/opencode-factory`. |
+
+The agent's own `soul` + `instructions` are sent on every `open` as the factory's "Who you are"
+(`CodingChatSettingEnum::personaFor()`), never the type's: a type's soul is orchestrator text.
+
+**Two shapes of session, one row.** A chat (`chat_session_id` set) parks `IDLE` after each turn and
+posts through the plan's origin channel. A **task run** is the same row whose task has a parent: a
+workflow handed the agent a task (`RunTaskWorkerJob`, `WakeAgentForTaskJob`), the run is that task's
+child, and its first turn closes it — the reply becomes `worker_summary`, the child's outcome resumes the
+worker, which closes the task from that answer instead of running the factory again. Paths that do not
+go through those two (plan-owner wakes, `VerifyPlanAction`, receivers, "run agent on record") are not
+factory-aware, and **@mentions never reach the factory**: `RespondToMentionJob` calls Neuron directly.
+
+Things that bite:
+- **One lock per checkout, on the Mac.** `open` takes `locks/<App>`; every environment pointing at the
+  same Mac shares it, so a local test chat holds a checkout production then cannot open ("in use").
+- **The opencode server is started from the login session, never launchd.** macOS privacy protection
+  denies a background job `~/Documents`, and only the login session has the unlocked keychain (provider
+  key, `gh`). `serve.sh start` runs it in tmux; `start-at-login.command` as a Login Item restarts it.
+- **The factory is watched while a chat is open.** `WatchCodingChatJob` polls `serve.sh health` every
+  minute and `ReportFactoryProblemsAction` posts crashes and lost devices/Metro; mid-turn it also steers
+  the agent, between turns it does not (that would start a paid turn).
+
 ## The `coding` queue is not optional
 
 `LaunchTaskSessionJob`, `PollHarnessSessionJob` and `VerifyHarnessDiffJob` ride a queue of their own,

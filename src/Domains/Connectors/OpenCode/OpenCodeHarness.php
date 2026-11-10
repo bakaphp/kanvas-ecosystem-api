@@ -90,7 +90,8 @@ class OpenCodeHarness implements CodingHarness
         $turnOffset = (int) $session->turn_offset;
         $currentTurnIdle = array_slice($idle, $turnOffset);
         $questions = $this->mapForms($forms);
-        $error = $this->lastError($currentTurnIdle, $this->currentTurn($assistant, $idle, $turnOffset));
+        $currentTurn = $this->currentTurn($assistant, $idle, $turnOffset);
+        $error = $this->lastError($currentTurnIdle, $currentTurn);
 
         return new HarnessTick(
             status: $this->resolveStatus(
@@ -110,6 +111,7 @@ class OpenCodeHarness implements CodingHarness
             error: $error,
             closedTurns: count($idle),
             lastSaid: $this->lastSaid($assistant),
+            turnReply: $this->lastSaid($currentTurn),
         );
     }
 

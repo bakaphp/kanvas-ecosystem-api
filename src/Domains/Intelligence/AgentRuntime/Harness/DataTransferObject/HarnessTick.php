@@ -26,6 +26,10 @@ class HarnessTick extends Data
      *                                                         `AgentTaskSession::$turn_offset` on resume
      * @param string|null                      $lastSaid       the agent's most recent text, for a
      *                                                         post-mortem when the run is stopped
+     * @param string|null                      $turnReply      the agent's last text in the CURRENT turn
+     *                                                         only — what a coding chat posts back. Null
+     *                                                         when the turn said nothing, rather than
+     *                                                         repeating the previous turn's answer
      */
     public function __construct(
         public readonly HarnessStatusEnum $status,
@@ -39,6 +43,7 @@ class HarnessTick extends Data
         public readonly ?string $error = null,
         public readonly int $closedTurns = 0,
         public readonly ?string $lastSaid = null,
+        public readonly ?string $turnReply = null,
     ) {
     }
 

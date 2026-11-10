@@ -279,6 +279,38 @@ class OpenCodeHarnessTest extends TestCase
         $this->assertSame('picking up where I stopped', $tick->lastSaid);
     }
 
+    /**
+     * A coding chat posts `turnReply` after every turn. A turn that only ran tools must not repost the
+     * previous turn's answer as if it were new.
+     */
+    public function testTurnReplyIsTheCurrentTurnsLastTextAndNullWhenItSaidNothing(): void
+    {
+        $session = $this->taskSession();
+        $session->turn_offset = 1;
+
+        $said = $this->harness([
+            'message' => $this->page([
+                $this->assistantMessage(createdAt: 1000, text: 'first answer'),
+                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'succeeded'],
+                $this->assistantMessage(createdAt: 2000, text: 'looking'),
+                $this->assistantMessage(createdAt: 2100, text: 'second answer'),
+            ], idle: ['type' => 'idle', 'time' => ['created' => 2200], 'outcome' => 'succeeded']),
+        ])->poll($session);
+
+        $silent = $this->harness([
+            'message' => $this->page([
+                $this->assistantMessage(createdAt: 1000, text: 'first answer'),
+                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'succeeded'],
+                $this->assistantMessage(createdAt: 2000, text: ''),
+            ], idle: ['type' => 'idle', 'time' => ['created' => 2200], 'outcome' => 'succeeded']),
+        ])->poll($session);
+
+        $this->assertSame(HarnessStatusEnum::IDLE, $said->status);
+        $this->assertSame('second answer', $said->turnReply);
+        $this->assertNull($silent->turnReply);
+        $this->assertSame('first answer', $silent->lastSaid);
+    }
+
     public function testAResumedTurnThatClosesIsIdle(): void
     {
         $session = $this->taskSession();

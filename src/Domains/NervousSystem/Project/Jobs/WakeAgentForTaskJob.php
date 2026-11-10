@@ -12,9 +12,12 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Connectors\ClaudeAgent\Actions\StartHostedTaskSessionAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\RunTaskWorkerJob;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
@@ -58,6 +61,14 @@ class WakeAgentForTaskJob implements ShouldQueue
         $plan = $this->task->plan;
 
         if ($agent === null || $plan === null || $plan->project_id === null) {
+            return;
+        }
+
+        // A factory agent has no board turn to take: its model is the opencode agent on the factory Mac.
+        // The task goes through the worker, which hands it to the factory and records what comes back.
+        if ($agent->is_active && CodingChatSettingEnum::isEnabledFor($agent)) {
+            $this->handToTheFactory();
+
             return;
         }
 
@@ -209,5 +220,18 @@ class WakeAgentForTaskJob implements ShouldQueue
             $plan?->title ?? '',
             $project->objective ?? '(not set)',
         );
+    }
+
+    /**
+     * Once per task: a task already finished, or already waiting on its factory run, is not handed over
+     * a second time when it is assigned again.
+     */
+    private function handToTheFactory(): void
+    {
+        if (TaskStatusEnum::from((string) $this->task->status)->isTerminal() || $this->task->children()->open()->exists()) {
+            return;
+        }
+
+        RunTaskWorkerJob::dispatch($this->task);
     }
 }
