@@ -26,7 +26,9 @@ use Kanvas\Users\Models\Users;
  * @property float $amount
  * @property string|null $currency
  * @property string|null $reason
+ * @property string|null $note
  * @property string|null $processor_refund_id
+ * @property string|null $idempotency_key
  * @property string $status
  * @property array|null $metadata
  */
@@ -49,6 +51,11 @@ class PaymentRefund extends BaseModel
     public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id', 'id');
+    }
+
+    public function attempt(): int
+    {
+        return (int) ($this->metadata['attempt'] ?? 1);
     }
 
     public function isCompleted(): bool
@@ -85,7 +92,7 @@ class PaymentRefund extends BaseModel
             'refund_id' => $this->id,
             'amount' => $this->amount,
             'fully_refunded' => $payment->isFullyRefunded(),
-        ]);
+        ], actor: $this->user);
 
         $this->dispatchTaxReversal($payment);
     }
