@@ -61,6 +61,26 @@ final class DhlShippingProviderTest extends TestCase
         });
     }
 
+    public function testProductsWithoutAPricedCurrencyAreSkipped(): void
+    {
+        $response = $this->dhlRatesResponse();
+        $response['products'][] = [
+            'productName' => 'EXPRESS EASY',
+            'productCode' => '7',
+            'isCustomerAgreement' => true,
+            'totalPrice' => [
+                ['currencyType' => 'BILLC', 'price' => 0],
+                ['currencyType' => 'PULCL', 'price' => 0],
+            ],
+        ];
+        $this->fakeDhl([self::DHL_HOST . '/rates' => Http::response($response)]);
+
+        $quotes = $this->provider()->quote($this->request('DO'));
+
+        $this->assertCount(2, $quotes);
+        $this->assertNotContains('7', array_map(fn ($quote): string => $quote->serviceCode, $quotes));
+    }
+
     public function testInternationalLanesAreNotSupportedAndNeverCallDhl(): void
     {
         $this->fakeDhl();

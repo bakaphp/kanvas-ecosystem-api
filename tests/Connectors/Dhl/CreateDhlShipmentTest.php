@@ -7,32 +7,35 @@ namespace Tests\Connectors\Dhl;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Dhl\Actions\CreateDhlShipmentAction;
 use Kanvas\Connectors\Dhl\Activities\CreateDhlShipmentActivity;
-use Kanvas\Connectors\Dhl\Activities\NotifyCabinetOrderStatusActivity;
+use Kanvas\Connectors\Dhl\Activities\NotifyOrderStatusActivity;
 use Kanvas\Connectors\Dhl\Enums\BookingStateEnum;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Dhl\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Dhl\Exceptions\DhlBookingException;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Notifications\OrderNotification;
 use Kanvas\Souk\Shipping\Enums\ConfigurationEnum as ShippingConfigurationEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
-use Tests\Connectors\Traits\CreatesDhlCabinetOrder;
+use Tests\Connectors\Traits\CreatesDhlOrder;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 #[Group('serial')]
 final class CreateDhlShipmentTest extends TestCase
 {
-    use CreatesDhlCabinetOrder;
+    use CreatesDhlOrder;
     use DatabaseTransactions;
     use InventoryCases;
 
@@ -50,7 +53,7 @@ final class CreateDhlShipmentTest extends TestCase
         $this->region = $this->createDefaultRegion($this->company, app(Apps::class), $user);
         $this->configureDhl($this->company);
         $this->connectDhlIntegration($this->company, $this->region);
-        $this->setUpCabinetStatuses();
+        $this->setUpDhlOrderStatuses();
         app(Apps::class)->set(ShippingConfigurationEnum::DEFAULT_BOX_CM->value, ['length' => 30, 'width' => 20, 'height' => 10]);
         Notification::fake();
     }
@@ -58,6 +61,7 @@ final class CreateDhlShipmentTest extends TestCase
     protected function tearDown(): void
     {
         app(Apps::class)->del(ShippingConfigurationEnum::DEFAULT_BOX_CM->value);
+        Carbon::setTestNow();
 
         parent::tearDown();
     }
@@ -66,7 +70,7 @@ final class CreateDhlShipmentTest extends TestCase
     {
         $this->fakeDhl([self::DHL_HOST . '/shipments' => Http::response($this->dhlShipmentResponse(), 201)]);
         $documents = $this->fakeDhlDocuments();
-        $order = $this->cabinetOrder($this->company, 'ready-for-dispatch');
+        $order = $this->dhlOrder($this->company, 'ready-for-dispatch');
 
         $result = new CreateDhlShipmentAction($order)->execute();
 
@@ -97,7 +101,7 @@ final class CreateDhlShipmentTest extends TestCase
     {
         $this->fakeDhlDocuments();
         $this->fakeDhl([self::DHL_HOST . '/shipments' => Http::response($this->dhlShipmentResponse(), 201)]);
-        $order = $this->cabinetOrder($this->company, 'ready-for-dispatch');
+        $order = $this->dhlOrder($this->company, 'ready-for-dispatch');
 
         new CreateDhlShipmentAction($order)->execute();
         $second = new CreateDhlShipmentAction($order->refresh())->execute();
@@ -109,7 +113,7 @@ final class CreateDhlShipmentTest extends TestCase
     public function testAPendingBookingWithoutATrackingNumberIsNeverRetried(): void
     {
         $this->fakeDhl();
-        $order = $this->cabinetOrder($this->company, 'ready-for-dispatch');
+        $order = $this->dhlOrder($this->company, 'ready-for-dispatch');
         $order->set(CustomFieldEnum::BOOKING_STATE->value, BookingStateEnum::PENDING->value);
 
         $this->expectException(DhlBookingException::class);
@@ -124,23 +128,120 @@ final class CreateDhlShipmentTest extends TestCase
     public function testMissingConsigneeDataIsNamedAndNothingIsSent(): void
     {
         $this->fakeDhl();
-        $order = $this->cabinetOrder($this->company, 'ready-for-dispatch', withAddress: false);
+        $order = $this->dhlOrder($this->company, 'ready-for-dispatch', withAddress: false);
 
         try {
             new CreateDhlShipmentAction($order)->execute();
             $this->fail('Expected a booking exception');
         } catch (DhlBookingException $exception) {
             $this->assertStringContainsString('address', $exception->getMessage());
-            $this->assertStringContainsString('postal code', $exception->getMessage());
+            $this->assertStringNotContainsString('postal code', $exception->getMessage());
         }
 
         Http::assertNothingSent();
         $this->assertNull($order->get(CustomFieldEnum::BOOKING_STATE->value));
     }
 
+    #[DataProvider('plannedShippingTimes')]
+    public function testThePlannedShippingTimeIsLocalAndNeverAfterThePickupCloses(string $nowUtc, string $expected): void
+    {
+        Carbon::setTestNow(Carbon::parse($nowUtc, 'UTC'));
+        $this->company->timezone = '';
+        $this->company->saveQuietly();
+        $this->fakeDhlDocuments();
+        $this->fakeDhl([self::DHL_HOST . '/shipments' => Http::response($this->dhlShipmentResponse(), 201)]);
+        $order = $this->dhlOrder($this->company, 'ready-for-dispatch');
+
+        new CreateDhlShipmentAction($order)->execute();
+
+        Http::assertSent(fn (Request $request): bool => $request->url() === self::DHL_HOST . '/shipments'
+            && $request['plannedShippingDateAndTime'] === $expected);
+    }
+
+    public function testAPickupPastTheLocationCutoffIsRebookedForTheNextBusinessDayOnce(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-11-12 17:06:00', 'UTC'));
+        $this->company->timezone = 'America/Santo_Domingo';
+        $this->company->saveQuietly();
+        $this->fakeDhlDocuments();
+        $this->fakeDhl([
+            self::DHL_HOST . '/shipments' => Http::sequence()
+                ->push([
+                    'detail' => 'Multiple problems found, see Additional Details',
+                    'additionalDetails' => [
+                        '5001: The pickup request is past the booking cutoff time for the pickup location.',
+                        '5005: Bookings for this location must be created before 13 November 2026, by 12:00 (origin time).',
+                    ],
+                ], 422)
+                ->push($this->dhlShipmentResponse(), 201),
+        ]);
+        $order = $this->dhlOrder($this->company, 'ready-for-dispatch');
+
+        $result = new CreateDhlShipmentAction($order)->execute();
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('dispatched', $this->statusSlugOf($order->refresh()));
+        $planned = [];
+        Http::assertSent(function (Request $request) use (&$planned): bool {
+            $planned[] = $request['plannedShippingDateAndTime'];
+
+            return true;
+        });
+        $this->assertSame(['2026-11-12T14:06:00 GMT-04:00', '2026-11-13T09:00:00 GMT-04:00'], $planned);
+    }
+
+    public function testAnyOtherRejectionIsNotRetried(): void
+    {
+        $this->fakeDhl([
+            self::DHL_HOST . '/shipments' => Http::response([
+                'detail' => 'Multiple problems found, see Additional Details',
+                'additionalDetails' => ['420504: The requested product(s) (N) not available.'],
+            ], 422),
+        ]);
+        $order = $this->dhlOrder($this->company, 'ready-for-dispatch');
+
+        try {
+            new CreateDhlShipmentAction($order)->execute();
+            $this->fail('Expected a booking exception');
+        } catch (DhlBookingException $exception) {
+            $this->assertStringContainsString('420504', $exception->getMessage());
+        }
+
+        Http::assertSentCount(1);
+        $this->assertNull($order->get(CustomFieldEnum::BOOKING_STATE->value));
+    }
+
+    public static function plannedShippingTimes(): array
+    {
+        return [
+            'thursday afternoon in Santo Domingo' => ['2026-11-12 17:06:00', '2026-11-12T14:06:00 GMT-04:00'],
+            'after the 18:00 close' => ['2026-11-12 21:30:00', '2026-11-13T09:00:00 GMT-04:00'],
+            'friday evening rolls to monday' => ['2026-11-13 22:30:00', '2026-11-16T09:00:00 GMT-04:00'],
+            'saturday rolls to monday' => ['2026-11-14 14:00:00', '2026-11-16T09:00:00 GMT-04:00'],
+        ];
+    }
+
+    public function testAnAddressWithoutPostalCodeBooksWithAnEmptyOne(): void
+    {
+        $this->fakeDhlDocuments();
+        $this->fakeDhl([self::DHL_HOST . '/shipments' => Http::response($this->dhlShipmentResponse(), 201)]);
+        $origin = $this->company->get(ConfigurationEnum::ORIGIN->value);
+        unset($origin['postal_code']);
+        $this->company->set(ConfigurationEnum::ORIGIN->value, $origin);
+        $order = $this->dhlOrder($this->company, 'ready-for-dispatch');
+        $order->shippingAddress->update(['zip' => '']);
+
+        $result = new CreateDhlShipmentAction($order->refresh())->execute();
+
+        $this->assertSame('success', $result['status']);
+        Http::assertSent(fn (Request $request): bool => $request->url() === self::DHL_HOST . '/shipments'
+            && $request['customerDetails']['shipperDetails']['postalAddress']['postalCode'] === ''
+            && $request['customerDetails']['receiverDetails']['postalAddress']['postalCode'] === '');
+    }
+
     public function testADhlClientErrorReleasesTheReservationButAServerErrorKeepsIt(): void
     {
-        $rejected = $this->cabinetOrder($this->company, 'ready-for-dispatch');
+        $rejected = $this->dhlOrder($this->company, 'ready-for-dispatch');
         $this->fakeDhl([self::DHL_HOST . '/shipments' => Http::sequence()
             ->push(['detail' => 'Invalid postal code'], 422)
             ->push([], 503)]);
@@ -154,7 +255,7 @@ final class CreateDhlShipmentTest extends TestCase
 
         $this->assertNull($rejected->get(CustomFieldEnum::BOOKING_STATE->value));
 
-        $unknown = $this->cabinetOrder($this->company, 'ready-for-dispatch');
+        $unknown = $this->dhlOrder($this->company, 'ready-for-dispatch');
 
         try {
             new CreateDhlShipmentAction($unknown)->execute();
@@ -168,7 +269,7 @@ final class CreateDhlShipmentTest extends TestCase
     {
         $this->fakeDhl();
         $this->company->set(ConfigurationEnum::SIGNATURE_SERVICE->value, 'SF');
-        $order = $this->cabinetOrder($this->company, 'ready-for-dispatch');
+        $order = $this->dhlOrder($this->company, 'ready-for-dispatch');
 
         $this->expectException(DhlBookingException::class);
         $this->expectExceptionMessage('SF');
@@ -183,7 +284,7 @@ final class CreateDhlShipmentTest extends TestCase
     public function testAnOrderNotQuotedWithDhlIsSkipped(): void
     {
         $this->fakeDhl();
-        $order = $this->cabinetOrder($this->company, 'ready-for-dispatch', ['metadata' => ['shipping' => ['provider' => 'inposdom']]]);
+        $order = $this->dhlOrder($this->company, 'ready-for-dispatch', ['metadata' => ['shipping' => ['provider' => 'inposdom']]]);
 
         $result = new CreateDhlShipmentAction($order)->execute();
 
@@ -195,7 +296,7 @@ final class CreateDhlShipmentTest extends TestCase
     {
         $this->fakeDhlDocuments();
         $this->fakeDhl([self::DHL_HOST . '/shipments' => Http::response($this->dhlShipmentResponse(), 201)]);
-        $order = $this->cabinetOrder($this->company, 'ready-for-dispatch');
+        $order = $this->dhlOrder($this->company, 'ready-for-dispatch');
 
         $ignored = $this->runBooking($order, 'paid');
         $booked = $this->runBooking($order, 'ready-for-dispatch');
@@ -208,7 +309,7 @@ final class CreateDhlShipmentTest extends TestCase
     public function testTheActivityFlagsFailureWithoutThrowingWhenDataIsMissing(): void
     {
         $this->fakeDhl();
-        $order = $this->cabinetOrder($this->company, 'ready-for-dispatch', withAddress: false);
+        $order = $this->dhlOrder($this->company, 'ready-for-dispatch', withAddress: false);
 
         $activity = $this->activity(CreateDhlShipmentActivity::class);
         $result = $activity->execute($order, app(Apps::class), $this->transitionParams('ready-for-dispatch'));
@@ -221,17 +322,56 @@ final class CreateDhlShipmentTest extends TestCase
     public function testCancellingAfterBookingFlagsManualReviewAndAnUnbookedCancelDoesNot(): void
     {
         $this->fakeDhl();
-        $booked = $this->cabinetOrder($this->company, 'dispatched');
+        $booked = $this->dhlOrder($this->company, 'dispatched');
         $booked->set(CustomFieldEnum::BOOKING_STATE->value, BookingStateEnum::BOOKED->value);
-        $unbooked = $this->cabinetOrder($this->company, 'paid');
+        $unbooked = $this->dhlOrder($this->company, 'paid');
 
-        $this->activity(NotifyCabinetOrderStatusActivity::class)
+        $this->activity(NotifyOrderStatusActivity::class)
             ->execute($booked, app(Apps::class), $this->transitionParams('cancelled'));
-        $this->activity(NotifyCabinetOrderStatusActivity::class)
+        $this->activity(NotifyOrderStatusActivity::class)
             ->execute($unbooked, app(Apps::class), $this->transitionParams('cancelled'));
 
         $this->assertSame(BookingStateEnum::MANUAL_REVIEW->value, $booked->get(CustomFieldEnum::BOOKING_STATE->value));
         $this->assertNull($unbooked->get(CustomFieldEnum::BOOKING_STATE->value));
+    }
+
+    #[DataProvider('statusNotices')]
+    public function testEachStatusEmailsTheCustomerAndTheOwnerItConcerns(string $toStatus, array $expected): void
+    {
+        $order = $this->dhlOrder($this->company, $toStatus);
+        $order->people->addEmail('maria@customer.test');
+
+        $this->activity(NotifyOrderStatusActivity::class)
+            ->execute($order, app(Apps::class), $this->transitionParams($toStatus));
+
+        if ($expected === []) {
+            Notification::assertNothingSent();
+
+            return;
+        }
+
+        $sent = [];
+        Notification::assertSentOnDemand(OrderNotification::class, function (OrderNotification $notification) use (&$sent): bool {
+            $sent[] = $notification->getTemplateName();
+
+            return true;
+        });
+
+        $this->assertEqualsCanonicalizing($expected, $sent);
+    }
+
+    public static function statusNotices(): array
+    {
+        return [
+            'placed' => ['verifying', ['user-order-verifying', 'owner-order-verifying']],
+            'confirmed' => ['paid', ['user-order-paid']],
+            'preparing' => ['ready-for-dispatch', ['user-order-ready-for-dispatch']],
+            'shipped is sent by the booking' => ['dispatched', []],
+            'delivered' => ['delivered', ['user-order-delivered', 'owner-order-delivered']],
+            'returned' => ['returned', ['user-order-returned', 'owner-order-returned']],
+            'out of stock' => ['out-of-stock', ['user-order-out-of-stock']],
+            'cancelled' => ['cancelled', ['user-order-cancelled', 'owner-order-cancelled']],
+        ];
     }
 
     private function runBooking(Order $order, string $toStatus): array

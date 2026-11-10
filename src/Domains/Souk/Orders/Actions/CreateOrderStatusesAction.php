@@ -43,12 +43,16 @@ class CreateOrderStatusesAction
                 'order_types_id' => $orderType->getId(),
                 'slug' => Str::slug($statusName),
             ], [
-                'name' => ucfirst(str_replace('-', ' ', $statusName)),
+                'name' => $config['name'] ?? ucfirst(str_replace('-', ' ', $statusName)),
                 'is_default' => $isDefault,
                 'is_final' => $isFinal,
                 'sequence' => $sequence,
                 'companies_id' => 0,
             ]);
+
+            if (isset($config['name']) && $status->name !== $config['name']) {
+                $status->update(['name' => $config['name']]);
+            }
 
             $sequenceIndex++;
 

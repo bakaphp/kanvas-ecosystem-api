@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Dhl\Actions;
 
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\DateHelper;
+use DateTimeZone;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
 
@@ -45,12 +47,24 @@ class BuildDhlRatesPayloadAction
 
     public function signatureService(): string
     {
-        return (string) ($this->company->get(ConfigurationEnum::SIGNATURE_SERVICE->value) ?: ConfigurationEnum::DEFAULT_SIGNATURE_SERVICE);
+        return ConfigurationEnum::SIGNATURE_SERVICE->valueFor($this->company);
+    }
+
+    public static function localNow(CompanyInterface $company): Carbon
+    {
+        $timezone = DateHelper::validTimezone($company->timezone);
+
+        if ($timezone === null) {
+            $country = strtoupper((string) (((array) $company->get(ConfigurationEnum::ORIGIN->value))['country_code'] ?? ''));
+            $timezone = DateTimeZone::listIdentifiers(DateTimeZone::PER_COUNTRY, $country)[0] ?? 'UTC';
+        }
+
+        return Carbon::now($timezone);
     }
 
     private function plannedShippingDate(): Carbon
     {
-        return $this->shipDate ?? Carbon::now()->addWeekday()->setTime(10, 0);
+        return $this->shipDate ?? self::localNow($this->company)->addWeekday()->setTime(10, 0);
     }
 
     private function addressPayload(array $address): array

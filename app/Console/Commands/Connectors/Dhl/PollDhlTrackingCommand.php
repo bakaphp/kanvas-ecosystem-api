@@ -19,7 +19,7 @@ class PollDhlTrackingCommand extends Command
 
     protected $signature = 'kanvas:dhl-poll-tracking';
 
-    protected $description = 'Poll DHL tracking for dispatched cabinet orders, move them to delivered or returned and store the proof of delivery';
+    protected $description = 'Poll DHL tracking for dispatched DHL orders, move them to delivered or returned and store the proof of delivery';
 
     public function handle(): int
     {

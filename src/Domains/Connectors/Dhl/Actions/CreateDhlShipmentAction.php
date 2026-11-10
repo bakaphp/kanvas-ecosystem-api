@@ -20,8 +20,9 @@ use Kanvas\Souk\Shipping\Enums\ShippingConditionEnum;
 
 class CreateDhlShipmentAction
 {
-    public const string CUSTOMER_TEMPLATE = 'user-dhl-dispatched';
+    public const string CUSTOMER_TEMPLATE = 'user-order-dispatched';
     public const string LABEL_FIELD = 'dhl-label';
+    public const string PAST_PICKUP_CUTOFF = '5001:';
 
     public function __construct(protected Order $order)
     {
@@ -52,8 +53,7 @@ class CreateDhlShipmentAction
             throw DhlBookingException::missingConsigneeData($consignee->missingFields());
         }
 
-        $payload = new BuildDhlShipmentPayloadAction($this->order, $consignee, $meta)->execute();
-        $response = $this->book($payload);
+        $response = $this->book($consignee, $meta);
 
         $this->persistBooking($response);
         $this->attachLabel($response);
@@ -67,21 +67,56 @@ class CreateDhlShipmentAction
         ];
     }
 
-    private function book(array $payload): array
+    private function book(Consignee $consignee, array $meta): array
     {
         $this->order->set(CustomFieldEnum::BOOKING_STATE->value, BookingStateEnum::PENDING->value);
 
         try {
-            return new Client($this->order->company)->createShipment($payload, (string) $this->order->uuid);
+            return $this->sendShipment($consignee, $meta);
         } catch (RequestException $exception) {
-            if ($exception->response->clientError()) {
-                $this->order->del(CustomFieldEnum::BOOKING_STATE->value);
-
-                throw DhlBookingException::rejected((string) ($exception->response->json('detail') ?? $exception->getMessage()));
+            if (! $this->isPastPickupCutoff($exception)) {
+                $this->failBooking($exception);
             }
+        }
 
+        try {
+            return $this->sendShipment($consignee, $meta, nextBusinessDay: true);
+        } catch (RequestException $exception) {
+            $this->failBooking($exception);
+        }
+    }
+
+    private function sendShipment(Consignee $consignee, array $meta, bool $nextBusinessDay = false): array
+    {
+        $payload = new BuildDhlShipmentPayloadAction(
+            $this->order,
+            $consignee,
+            $meta,
+            $nextBusinessDay
+        )->execute();
+
+        return new Client($this->order->company)->createShipment($payload, (string) $this->order->uuid);
+    }
+
+    private function isPastPickupCutoff(RequestException $exception): bool
+    {
+        return $exception->response->clientError()
+            && collect((array) $exception->response->json('additionalDetails', []))
+                ->contains(fn (mixed $detail): bool => is_string($detail) && str_starts_with($detail, self::PAST_PICKUP_CUTOFF));
+    }
+
+    private function failBooking(RequestException $exception): never
+    {
+        if (! $exception->response->clientError()) {
             throw $exception;
         }
+
+        $this->order->del(CustomFieldEnum::BOOKING_STATE->value);
+
+        $detail = (string) ($exception->response->json('detail') ?? $exception->getMessage());
+        $additional = array_filter((array) $exception->response->json('additionalDetails', []), 'is_string');
+
+        throw DhlBookingException::rejected(trim($detail . ' ' . implode('; ', $additional)));
     }
 
     private function persistBooking(array $response): void
@@ -125,7 +160,6 @@ class CreateDhlShipmentAction
                 'tracking_url' => $response['trackingUrl'] ?? null,
             ],
             ['mail', 'database'],
-            "Shipped · Order #{$this->order->order_number}",
         )->execute();
     }
 
@@ -137,7 +171,7 @@ class CreateDhlShipmentAction
             throw DhlBookingException::quoteChanged('the order carries no DHL product code');
         }
 
-        $configured = (string) ($this->order->company->get(ConfigurationEnum::SIGNATURE_SERVICE->value) ?: ConfigurationEnum::DEFAULT_SIGNATURE_SERVICE);
+        $configured = ConfigurationEnum::SIGNATURE_SERVICE->valueFor($this->order->company);
 
         if ($meta['signature_code'] !== $configured) {
             throw DhlBookingException::quoteChanged("quoted with {$meta['signature_code']}, configured {$configured}");

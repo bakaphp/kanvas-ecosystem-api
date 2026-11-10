@@ -17,19 +17,30 @@ use Kanvas\Workflow\KanvasActivity;
 use Override;
 
 #[WorkflowAction(
-    name: 'DHL Cabinet Order Status Notice',
-    description: 'Emails the customer when a cabinet order is delivered, returned, out of stock or cancelled, '
+    name: 'DHL Order Status Notice',
+    description: 'Emails the customer at every DHL order status except dispatched (sent by the booking with the tracking number), '
+        . 'emails the owner when an order is placed, delivered, returned or cancelled, '
         . 'and flags a cancelled order whose DHL shipment was already booked for manual review, since DHL cannot void a booking.',
     integration: IntegrationsEnum::DHL,
 )]
-class NotifyCabinetOrderStatusActivity extends KanvasActivity implements WorkflowActivityInterface
+class NotifyOrderStatusActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    public const string MANUAL_REVIEW_TEMPLATE = 'owner-dhl-manual-review';
-    public const string RETURNED_TEMPLATE = 'owner-dhl-returned';
+    public const string CUSTOMER_TEMPLATE_PREFIX = 'user-order-';
+    public const string OWNER_TEMPLATE_PREFIX = 'owner-order-';
+    public const string MANUAL_REVIEW_TEMPLATE = 'owner-order-manual-review';
     public const array NOTIFIED_STATUSES = [
+        OrderStatusEnum::VERIFYING,
+        OrderStatusEnum::PAID,
+        OrderStatusEnum::READY_FOR_DISPATCH,
         OrderStatusEnum::DELIVERED,
         OrderStatusEnum::RETURNED,
         OrderStatusEnum::OUT_OF_STOCK,
+        OrderStatusEnum::CANCELLED,
+    ];
+    public const array OWNER_NOTIFIED_STATUSES = [
+        OrderStatusEnum::VERIFYING,
+        OrderStatusEnum::DELIVERED,
+        OrderStatusEnum::RETURNED,
         OrderStatusEnum::CANCELLED,
     ];
 
@@ -52,24 +63,22 @@ class NotifyCabinetOrderStatusActivity extends KanvasActivity implements Workflo
 
                 new SendOrderEmailsAction(
                     $order,
-                    'user-' . $status->value,
+                    self::CUSTOMER_TEMPLATE_PREFIX . $status->value,
                     [],
                     ['mail', 'database'],
-                    "Order #{$order->order_number} · {$status->value}",
                 )->execute();
+
+                if (in_array($status, self::OWNER_NOTIFIED_STATUSES, true)) {
+                    new SendOrderEmailsAction(
+                        $order,
+                        self::OWNER_TEMPLATE_PREFIX . $status->value,
+                        ['tracking_number' => $order->tracking_client_id],
+                        ['mail'],
+                    )->execute();
+                }
 
                 if ($status === OrderStatusEnum::CANCELLED) {
                     $this->flagBookedShipmentForReview($order);
-                }
-
-                if ($status === OrderStatusEnum::RETURNED) {
-                    new SendOrderEmailsAction(
-                        $order,
-                        self::RETURNED_TEMPLATE,
-                        ['tracking_number' => $order->tracking_client_id],
-                        ['mail'],
-                        "DHL returned the shipment · Order #{$order->order_number}",
-                    )->execute();
                 }
 
                 return ['order' => $order->getId(), 'status' => 'success', 'notified' => $status->value];
@@ -91,7 +100,6 @@ class NotifyCabinetOrderStatusActivity extends KanvasActivity implements Workflo
             self::MANUAL_REVIEW_TEMPLATE,
             ['tracking_number' => $order->tracking_client_id],
             ['mail'],
-            "Cancel the DHL pickup · Order #{$order->order_number}",
         )->execute();
     }
 }

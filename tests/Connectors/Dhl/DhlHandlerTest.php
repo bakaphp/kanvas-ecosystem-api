@@ -12,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Dhl\Client;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
 use Kanvas\Connectors\Dhl\Handlers\DhlHandler;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\NervousSystem\Capability\Services\ActiveIntegrationsService;
@@ -28,7 +29,7 @@ final class DhlHandlerTest extends TestCase
     use HasDhlConfiguration;
     use InventoryCases;
 
-    protected $connectionsToTransact = [null, 'workflow', 'inventory', 'ecosystem'];
+    protected $connectionsToTransact = [null, 'workflow', 'commerce', 'inventory', 'ecosystem'];
 
     private Companies $company;
     private Regions $region;
@@ -53,6 +54,7 @@ final class DhlHandlerTest extends TestCase
         $this->assertTrue($this->company->isSecret(ConfigurationEnum::PASSWORD->value));
         $this->assertSame('SD', $this->company->get(ConfigurationEnum::SIGNATURE_SERVICE->value));
         $this->assertSame('DO', $this->company->get(ConfigurationEnum::ORIGIN->value)['country_code']);
+        $this->assertNotNull(OrderStatusEnum::VERIFYING->forApp(app(Apps::class)), 'Connecting DHL creates the delivery order type');
 
         Http::assertSent(fn (Request $request): bool => $request->url() === self::DHL_HOST . '/rates'
             && $request->hasHeader('x-version', ConfigurationEnum::API_VERSION)
@@ -70,11 +72,23 @@ final class DhlHandlerTest extends TestCase
     public function testSetupRefusesAnIncompleteOrigin(): void
     {
         $data = $this->setupData();
-        unset($data['origin']['postal_code']);
+        unset($data['origin']['city']);
 
         $this->expectException(ValidationException::class);
 
         $this->handler($data)->setup();
+    }
+
+    public function testSetupAcceptsAnOriginWithoutPostalCode(): void
+    {
+        $this->fakeDhl([self::DHL_HOST . '/rates' => Http::response($this->dhlRatesResponse())]);
+        $data = $this->setupData();
+        unset($data['origin']['postal_code']);
+
+        $this->assertTrue($this->handler($data)->setup());
+
+        Http::assertSent(fn (Request $request): bool => $request->url() === self::DHL_HOST . '/rates'
+            && $request['customerDetails']['shipperDetails']['postalCode'] === '');
     }
 
     public function testTeardownRemovesEveryStoredSetting(): void
@@ -107,24 +121,29 @@ final class DhlHandlerTest extends TestCase
         new Client(Companies::factory()->create())->rates([]);
     }
 
-    public function testSetupMutationConnectsTheIntegrationAndActivatesIt(): void
+    public function testTheGenericIntegrationMutationConnectsDhlAndActivatesIt(): void
     {
         if (! Schema::connection('workflow')->hasColumn('integration_companies', 'apps_id')) {
             $this->markTestSkipped('The workflow database has not run the apps_id migration for integration_companies');
         }
 
         $this->fakeDhl([self::DHL_HOST . '/rates' => Http::response($this->dhlRatesResponse())]);
-        Integrations::firstOrCreate(
+        $integration = Integrations::firstOrCreate(
             ['name' => IntegrationsEnum::DHL->value, 'apps_id' => 0],
             ['handler' => DhlHandler::class]
         );
 
         $response = $this->graphQL(
-            'mutation($input: DhlSetupInput!) { dhlSetup(input: $input) }',
-            ['input' => $this->setupData() + ['region_id' => $this->region->getId(), 'company_id' => $this->company->getId()]]
+            'mutation($input: IntegrationsCompaniesInput!) { integrationCompany(input: $input) { id status { slug } } }',
+            ['input' => [
+                'integration' => ['id' => $integration->getId()],
+                'company_id' => $this->company->getId(),
+                'region' => ['id' => $this->region->getId()],
+                'config' => $this->setupData(),
+            ]]
         );
 
-        $this->assertTrue($response->json('data.dhlSetup') ?? false, $response->getContent());
+        $this->assertSame('active', $response->json('data.integrationCompany.status.slug'), $response->getContent());
         $this->assertContains(IntegrationsEnum::DHL->value, $this->activeIntegrationNames());
     }
 

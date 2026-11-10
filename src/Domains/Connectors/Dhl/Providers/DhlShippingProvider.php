@@ -114,7 +114,10 @@ class DhlShippingProvider implements ShippingRateProviderInterface
 
     private function billingPrice(array $product): ?array
     {
-        $prices = $product['totalPrice'] ?? [];
+        $prices = array_values(array_filter(
+            $product['totalPrice'] ?? [],
+            fn (array $price): bool => ! empty($price['priceCurrency']) && (float) ($price['price'] ?? 0) > 0
+        ));
 
         foreach ($prices as $price) {
             if (($price['currencyType'] ?? null) === self::BILLING_CURRENCY_TYPE) {

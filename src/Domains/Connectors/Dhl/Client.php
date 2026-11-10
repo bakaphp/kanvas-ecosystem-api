@@ -28,11 +28,17 @@ class Client
 
     public function tracking(array $trackingNumbers): array
     {
-        return $this->request()->get('/tracking', [
+        $response = $this->request()->get('/tracking', [
             'shipmentTrackingNumber' => implode(',', $trackingNumbers),
             'trackingView' => 'all-checkpoints',
             'levelOfDetail' => 'all',
-        ])->throw()->json();
+        ]);
+
+        if ($response->status() === 404) {
+            return ['shipments' => []];
+        }
+
+        return $response->throw()->json();
     }
 
     public function proofOfDelivery(string $trackingNumber): ?array
@@ -57,9 +63,7 @@ class Client
             $headers['Message-Reference'] = $messageReference;
         }
 
-        $baseUrl = (string) ($this->company->get(ConfigurationEnum::BASE_URL->value) ?: ConfigurationEnum::DEFAULT_BASE_URL);
-
-        return Http::baseUrl($baseUrl)
+        return Http::baseUrl(ConfigurationEnum::BASE_URL->valueFor($this->company))
             ->withBasicAuth($this->setting(ConfigurationEnum::USERNAME), $this->setting(ConfigurationEnum::PASSWORD))
             ->withHeaders($headers)
             ->acceptJson()

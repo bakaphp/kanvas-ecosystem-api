@@ -6,5 +6,5 @@ namespace Kanvas\Connectors\Dhl\Enums;
 
 enum OrderTypeEnum: string
 {
-    case CABINET = 'cabinet';
+    case DELIVERY = 'delivery';
 }

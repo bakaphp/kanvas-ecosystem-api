@@ -17,13 +17,13 @@ use Kanvas\Connectors\Dhl\Enums\BookingStateEnum;
 use Kanvas\Connectors\Dhl\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use PHPUnit\Framework\Attributes\Group;
-use Tests\Connectors\Traits\CreatesDhlCabinetOrder;
+use Tests\Connectors\Traits\CreatesDhlOrder;
 use Tests\TestCase;
 
 #[Group('serial')]
 final class SyncDhlTrackingTest extends TestCase
 {
-    use CreatesDhlCabinetOrder;
+    use CreatesDhlOrder;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'workflow', 'commerce', 'inventory', 'crm', 'ecosystem'];
@@ -37,7 +37,7 @@ final class SyncDhlTrackingTest extends TestCase
 
         $this->company = Companies::factory()->create();
         $this->configureDhl($this->company);
-        $this->setUpCabinetStatuses();
+        $this->setUpDhlOrderStatuses();
         $this->documents = $this->fakeDhlDocuments();
         Notification::fake();
     }
@@ -129,6 +129,25 @@ final class SyncDhlTrackingTest extends TestCase
         $this->assertSame(0, $first['epod_stored']);
     }
 
+    public function testAnAwbDhlHasNotScannedYetDoesNotStopThePoll(): void
+    {
+        $booked = $this->dispatchedOrder('9090909090');
+        $delivered = $this->dhlOrder($this->company, 'delivered', [
+            'tracking_client_id' => '9191919191',
+            'shipped_date' => Carbon::now()->toDateTimeString(),
+        ]);
+        Http::fake([
+            self::DHL_HOST . '/tracking*' => Http::response(['title' => 'No data found', 'status' => '404'], 404),
+            self::DHL_HOST . '/shipments/9191919191/proof-of-delivery*' => Http::response($this->dhlEpodResponse()),
+        ]);
+
+        $summary = $this->sync();
+
+        $this->assertSame(['polled' => 0, 'transitioned' => 0, 'epod_stored' => 1], $summary);
+        $this->assertSame('dispatched', $this->statusSlugOf($booked));
+        $this->assertNotNull($delivered->get(CustomFieldEnum::EPOD_STORED_AT->value));
+    }
+
     public function testManualReviewAndStaleOrdersAreNotPolled(): void
     {
         $this->fakeDhl();
@@ -149,7 +168,7 @@ final class SyncDhlTrackingTest extends TestCase
 
     private function dispatchedOrder(string $awb, ?Carbon $shippedAt = null): Order
     {
-        return $this->cabinetOrder($this->company, 'dispatched', [
+        return $this->dhlOrder($this->company, 'dispatched', [
             'tracking_client_id' => $awb,
             'shipped_date' => ($shippedAt ?? Carbon::now())->toDateTimeString(),
         ]);

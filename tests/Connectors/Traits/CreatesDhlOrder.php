@@ -8,7 +8,7 @@ use ArrayObject;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Dhl\Actions\AttachDhlDocumentAction;
-use Kanvas\Connectors\Dhl\Actions\SetupCabinetOrderAction;
+use Kanvas\Connectors\Dhl\Actions\SetupDhlOrderTypeAction;
 use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
@@ -22,18 +22,18 @@ use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Models\Integrations;
 
-trait CreatesDhlCabinetOrder
+trait CreatesDhlOrder
 {
     use HasDhlConfiguration;
 
-    private array $cabinetStatuses = [];
+    private array $dhlOrderStatuses = [];
 
-    protected function setUpCabinetStatuses(): void
+    protected function setUpDhlOrderStatuses(): void
     {
-        $result = new SetupCabinetOrderAction(app(Apps::class))->execute();
+        $result = new SetupDhlOrderTypeAction(app(Apps::class))->execute();
 
         foreach ($result['statuses'] as $status) {
-            $this->cabinetStatuses[$status->slug] = $status;
+            $this->dhlOrderStatuses[$status->slug] = $status;
         }
     }
 
@@ -57,9 +57,9 @@ trait CreatesDhlCabinetOrder
         return $link;
     }
 
-    protected function cabinetOrder(Companies $company, string $statusSlug, array $overrides = [], bool $withAddress = true): Order
+    protected function dhlOrder(Companies $company, string $statusSlug, array $overrides = [], bool $withAddress = true): Order
     {
-        $status = OrderStatus::find($this->cabinetStatuses[$statusSlug]->getId());
+        $status = OrderStatus::find($this->dhlOrderStatuses[$statusSlug]->getId());
         $people = People::factory()->create([
             'apps_id' => app(Apps::class)->getId(),
             'companies_id' => $company->getId(),

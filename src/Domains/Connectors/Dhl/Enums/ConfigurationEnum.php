@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Dhl\Enums;
 
+use Baka\Contracts\CompanyInterface;
+
 enum ConfigurationEnum: string
 {
     case BASE_URL = 'dhl_base_url';
@@ -24,4 +26,21 @@ enum ConfigurationEnum: string
     public const string DEFAULT_PICKUP_CLOSE_TIME = '18:00';
     public const string DEFAULT_CONTENT_DESCRIPTION = 'Merchandise';
     public const string API_VERSION = '3.4.1';
+
+    public function default(): ?string
+    {
+        return match ($this) {
+            self::BASE_URL => self::DEFAULT_BASE_URL,
+            self::SIGNATURE_SERVICE => self::DEFAULT_SIGNATURE_SERVICE,
+            self::LABEL_TEMPLATE => self::DEFAULT_LABEL_TEMPLATE,
+            self::PICKUP_CLOSE_TIME => self::DEFAULT_PICKUP_CLOSE_TIME,
+            self::CONTENT_DESCRIPTION => self::DEFAULT_CONTENT_DESCRIPTION,
+            default => null,
+        };
+    }
+
+    public function valueFor(CompanyInterface $company): string
+    {
+        return (string) ($company->get($this->value) ?: $this->default());
+    }
 }

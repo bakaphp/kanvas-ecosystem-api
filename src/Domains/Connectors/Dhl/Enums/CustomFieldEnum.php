@@ -12,5 +12,5 @@ enum CustomFieldEnum: string
     case DELIVERED_AT = 'dhl_delivered_at';
     case TRACKING_UPDATED_AT = 'dhl_tracking_updated_at';
     case EPOD_STORED_AT = 'dhl_epod_stored_at';
-    case UNVERIFIED_ALERTED_AT = 'cabinet_unverified_alerted_at';
+    case UNVERIFIED_ALERTED_AT = 'dhl_unverified_alerted_at';
 }

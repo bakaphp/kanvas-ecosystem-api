@@ -18,13 +18,13 @@ use Override;
 
 #[WorkflowAction(
     name: 'DHL Create Shipment',
-    description: 'Books a DHL Express shipment for a cabinet order that reached ready-for-dispatch: replays the applied quote, '
+    description: 'Books a DHL Express shipment for a DHL order that reached ready-for-dispatch: replays the applied quote, '
         . 'stores the tracking number and label on the order, moves it to dispatched and emails the customer.',
     integration: IntegrationsEnum::DHL,
 )]
 class CreateDhlShipmentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    public const string OWNER_FAILURE_TEMPLATE = 'owner-dhl-booking-failed';
+    public const string OWNER_FAILURE_TEMPLATE = 'owner-order-booking-failed';
 
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params = []): array
@@ -49,7 +49,6 @@ class CreateDhlShipmentActivity extends KanvasActivity implements WorkflowActivi
                         self::OWNER_FAILURE_TEMPLATE,
                         ['reason' => $exception->getMessage()],
                         ['mail'],
-                        "DHL booking needs attention · Order #{$order->order_number}",
                     )->execute();
 
                     return $this->failWorkflow([

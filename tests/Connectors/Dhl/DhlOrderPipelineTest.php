@@ -8,8 +8,8 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Dhl\Actions\AlertUnverifiedCabinetOrdersAction;
-use Kanvas\Connectors\Dhl\Actions\SetupCabinetOrderAction;
+use Kanvas\Connectors\Dhl\Actions\AlertUnverifiedOrdersAction;
+use Kanvas\Connectors\Dhl\Actions\SetupDhlOrderTypeAction;
 use Kanvas\Connectors\Dhl\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
@@ -17,7 +17,7 @@ use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
 use Tests\TestCase;
 
-final class CabinetOrderPipelineTest extends TestCase
+final class DhlOrderPipelineTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -31,7 +31,7 @@ final class CabinetOrderPipelineTest extends TestCase
         parent::setUp();
 
         $this->apps = app(Apps::class);
-        $result = new SetupCabinetOrderAction($this->apps)->execute();
+        $result = new SetupDhlOrderTypeAction($this->apps)->execute();
 
         foreach ($result['statuses'] as $status) {
             $this->statuses[$status->slug] = $status;
@@ -54,11 +54,33 @@ final class CabinetOrderPipelineTest extends TestCase
         $this->assertFalse($this->transitionExists('verifying', 'dispatched'));
     }
 
+    public function testStatusesCarryTheCustomerFacingNamesAndARerunRenamesExistingOnes(): void
+    {
+        $expected = [
+            'verifying' => 'Order placed, pending confirmation',
+            'paid' => 'Order confirmed',
+            'ready-for-dispatch' => 'Preparing to ship',
+            'dispatched' => 'Shipped',
+            'delivered' => 'Delivered',
+            'returned' => 'Returned',
+            'out-of-stock' => 'Out of stock',
+            'cancelled' => 'Cancelled',
+        ];
+
+        $this->statuses['paid']->update(['name' => 'Paid']);
+
+        $statuses = collect(new SetupDhlOrderTypeAction($this->apps)->execute()['statuses'])
+            ->mapWithKeys(fn (OrderStatus $status): array => [$status->slug => $status->refresh()->name])
+            ->all();
+
+        $this->assertSame($expected, $statuses);
+    }
+
     public function testRunningTheSetupTwiceKeepsTheSameGraph(): void
     {
         $before = OrderStatusTransitions::query()->where('order_types_id', $this->statuses['paid']->order_types_id)->count();
 
-        new SetupCabinetOrderAction($this->apps)->execute();
+        new SetupDhlOrderTypeAction($this->apps)->execute();
 
         $this->assertSame(
             $before,
@@ -82,8 +104,8 @@ final class CabinetOrderPipelineTest extends TestCase
         $recent = $this->orderIn('verifying', Carbon::now()->subHours(2));
         $paid = $this->orderIn('paid', Carbon::now()->subHours(30));
 
-        $first = new AlertUnverifiedCabinetOrdersAction($this->apps)->execute();
-        $second = new AlertUnverifiedCabinetOrdersAction($this->apps)->execute();
+        $first = new AlertUnverifiedOrdersAction($this->apps)->execute();
+        $second = new AlertUnverifiedOrdersAction($this->apps)->execute();
 
         $this->assertSame(1, $first);
         $this->assertSame(0, $second);

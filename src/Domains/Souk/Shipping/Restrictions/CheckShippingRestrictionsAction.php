@@ -47,7 +47,7 @@ class CheckShippingRestrictionsAction
     {
         $allowed = $this->allowedDestinations($product);
 
-        return $allowed === [] || in_array(true, array_map($this->matchesDestination(...), $allowed), true);
+        return $allowed === [] || array_any($allowed, $this->matchesDestination(...));
     }
 
     private function allowedDestinations(Products $product): array

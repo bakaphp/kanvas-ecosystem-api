@@ -8,16 +8,13 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Dhl\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
-use Kanvas\Connectors\Dhl\Enums\OrderTypeEnum;
 use Kanvas\Souk\Orders\Actions\SendOrderEmailsAction;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Orders\Models\OrderStatus;
-use Kanvas\Souk\Orders\Models\OrderTypes;
 
-class AlertUnverifiedCabinetOrdersAction
+class AlertUnverifiedOrdersAction
 {
     public const int MAX_HOURS_IN_VERIFYING = 24;
-    public const string ALERT_TEMPLATE = 'owner-cabinet-order-unverified';
+    public const string ALERT_TEMPLATE = 'owner-order-unverified';
 
     public function __construct(protected AppInterface $app)
     {
@@ -25,7 +22,7 @@ class AlertUnverifiedCabinetOrdersAction
 
     public function execute(): int
     {
-        $verifying = $this->verifyingStatus();
+        $verifying = OrderStatusEnum::VERIFYING->forApp($this->app);
 
         if ($verifying === null) {
             return 0;
@@ -35,6 +32,7 @@ class AlertUnverifiedCabinetOrdersAction
 
         $overdue = Order::query()
             ->fromApp($this->app)
+            ->notDeleted()
             ->where('order_status_id', $verifying->getId())
             ->where('created_at', '<=', Carbon::now()->subHours(self::MAX_HOURS_IN_VERIFYING))
             ->get();
@@ -55,20 +53,5 @@ class AlertUnverifiedCabinetOrdersAction
         }
 
         return $alerted;
-    }
-
-    private function verifyingStatus(): ?OrderStatus
-    {
-        $type = OrderTypes::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('name', OrderTypeEnum::CABINET->value)
-            ->first();
-
-        return $type === null
-            ? null
-            : OrderStatus::query()
-                ->where('order_types_id', $type->getId())
-                ->where('slug', OrderStatusEnum::VERIFYING->value)
-                ->first();
     }
 }

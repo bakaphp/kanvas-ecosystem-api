@@ -12,7 +12,7 @@ use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use RuntimeException;
 
-class SetupCabinetOrderAction
+class SetupDhlOrderTypeAction
 {
     public function __construct(protected AppInterface $app)
     {
@@ -22,7 +22,7 @@ class SetupCabinetOrderAction
     {
         $result = new CreateOrderStatusesAction(
             $this->app,
-            OrderTypeEnum::CABINET->value,
+            OrderTypeEnum::DELIVERY->value,
             $this->statusGraph()
         )->execute();
 
@@ -38,22 +38,26 @@ class SetupCabinetOrderAction
 
         return [
             OrderStatusEnum::VERIFYING->value => [
+                'name' => 'Order placed, pending confirmation',
                 'is_default' => true,
                 'transitions' => [OrderStatusEnum::PAID->value, $outOfStock, $cancelled],
             ],
             OrderStatusEnum::PAID->value => [
+                'name' => 'Order confirmed',
                 'transitions' => [OrderStatusEnum::READY_FOR_DISPATCH->value, $outOfStock, $cancelled],
             ],
             OrderStatusEnum::READY_FOR_DISPATCH->value => [
+                'name' => 'Preparing to ship',
                 'transitions' => [OrderStatusEnum::DISPATCHED->value, $cancelled],
             ],
             OrderStatusEnum::DISPATCHED->value => [
+                'name' => 'Shipped',
                 'transitions' => [OrderStatusEnum::DELIVERED->value, OrderStatusEnum::RETURNED->value, $cancelled],
             ],
-            OrderStatusEnum::DELIVERED->value => ['is_final' => true],
-            OrderStatusEnum::RETURNED->value => ['is_final' => true],
-            $outOfStock => ['is_final' => true],
-            $cancelled => ['is_final' => true],
+            OrderStatusEnum::DELIVERED->value => ['name' => 'Delivered', 'is_final' => true],
+            OrderStatusEnum::RETURNED->value => ['name' => 'Returned', 'is_final' => true],
+            $outOfStock => ['name' => 'Out of stock', 'is_final' => true],
+            $cancelled => ['name' => 'Cancelled', 'is_final' => true],
         ];
     }
 

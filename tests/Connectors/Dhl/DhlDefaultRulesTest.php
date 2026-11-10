@@ -8,7 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Dhl\Activities\CreateDhlShipmentActivity;
-use Kanvas\Connectors\Dhl\Activities\NotifyCabinetOrderStatusActivity;
+use Kanvas\Connectors\Dhl\Activities\NotifyOrderStatusActivity;
 use Kanvas\Connectors\Dhl\Handlers\DhlHandler;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -16,13 +16,13 @@ use Kanvas\Workflow\Rules\Actions\EnsureIntegrationDefaultRulesAction;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleType;
-use Tests\Connectors\Traits\CreatesDhlCabinetOrder;
+use Tests\Connectors\Traits\CreatesDhlOrder;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 final class DhlDefaultRulesTest extends TestCase
 {
-    use CreatesDhlCabinetOrder;
+    use CreatesDhlOrder;
     use DatabaseTransactions;
     use InventoryCases;
 
@@ -38,7 +38,7 @@ final class DhlDefaultRulesTest extends TestCase
         $region = $this->createDefaultRegion($this->company, app(Apps::class), auth()->user());
         RuleType::firstOrCreate(['name' => WorkflowEnum::STATUS_TRANSITION->value]);
         Action::factory()->create(['name' => 'DHL Create Shipment', 'model_name' => CreateDhlShipmentActivity::class]);
-        Action::factory()->create(['name' => 'DHL Cabinet Order Status Notice', 'model_name' => NotifyCabinetOrderStatusActivity::class]);
+        Action::factory()->create(['name' => 'DHL Order Status Notice', 'model_name' => NotifyOrderStatusActivity::class]);
 
         new EnsureIntegrationDefaultRulesAction(
             $this->connectDhlIntegration($this->company, $region),
@@ -56,16 +56,15 @@ final class DhlDefaultRulesTest extends TestCase
         $this->assertFalse($rule->matches(new Order(), ['to_status' => 'dispatched']));
     }
 
-    public function testStatusNoticeRuleFiresForTheCustomerFacingExits(): void
+    public function testStatusNoticeRuleFiresForEveryStatusButDispatched(): void
     {
         $rule = $this->rule(DhlHandler::STATUS_NOTICE_RULE_NAME);
 
-        foreach (['delivered', 'returned', 'out-of-stock', 'cancelled'] as $status) {
+        foreach (['verifying', 'paid', 'ready-for-dispatch', 'delivered', 'returned', 'out-of-stock', 'cancelled'] as $status) {
             $this->assertTrue($rule->matches(new Order(), ['to_status' => $status]), $status);
         }
 
         $this->assertFalse($rule->matches(new Order(), ['to_status' => 'dispatched']));
-        $this->assertFalse($rule->matches(new Order(), ['to_status' => 'ready-for-dispatch']));
     }
 
     public function testEachRuleRunsItsActivity(): void
@@ -75,7 +74,7 @@ final class DhlDefaultRulesTest extends TestCase
             $this->rule(DhlHandler::BOOKING_RULE_NAME)->workflowActivities->first()->activity->actionClass()
         );
         $this->assertSame(
-            NotifyCabinetOrderStatusActivity::class,
+            NotifyOrderStatusActivity::class,
             $this->rule(DhlHandler::STATUS_NOTICE_RULE_NAME)->workflowActivities->first()->activity->actionClass()
         );
     }

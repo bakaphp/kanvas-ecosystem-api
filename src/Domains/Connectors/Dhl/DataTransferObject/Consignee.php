@@ -49,7 +49,6 @@ class Consignee
             'email' => $this->email,
             'address' => $this->addressLine1,
             'city' => $this->city,
-            'postal code' => $this->postalCode,
             'country' => $this->countryCode,
         ];
 
@@ -59,14 +58,16 @@ class Consignee
     public function toPayload(): array
     {
         return [
-            'postalAddress' => array_filter([
-                'postalCode' => $this->postalCode,
-                'cityName' => $this->city,
-                'countryCode' => $this->countryCode,
-                'provinceName' => $this->state,
-                'addressLine1' => $this->addressLine1,
-                'addressLine2' => $this->addressLine2,
-            ]),
+            'postalAddress' => [
+                'postalCode' => (string) $this->postalCode,
+                ...array_filter([
+                    'cityName' => $this->city,
+                    'countryCode' => $this->countryCode,
+                    'provinceName' => $this->state,
+                    'addressLine1' => $this->addressLine1,
+                    'addressLine2' => $this->addressLine2,
+                ]),
+            ],
             'contactInformation' => [
                 'email' => $this->email,
                 'phone' => $this->phone,

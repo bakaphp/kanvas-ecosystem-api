@@ -17,13 +17,13 @@ use Kanvas\Souk\Shipping\Providers\ShippingProviderFactory;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use PHPUnit\Framework\Attributes\Group;
-use Tests\Connectors\Traits\CreatesDhlCabinetOrder;
+use Tests\Connectors\Traits\CreatesDhlOrder;
 use Tests\TestCase;
 
 #[Group('serial')]
 final class DhlStaysOptionalTest extends TestCase
 {
-    use CreatesDhlCabinetOrder;
+    use CreatesDhlOrder;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = [null, 'workflow', 'commerce', 'inventory', 'crm', 'ecosystem'];
@@ -62,8 +62,8 @@ final class DhlStaysOptionalTest extends TestCase
     public function testANonDhlOrderIsNeverBookedAndTheCompanyHasNoDhlIntegration(): void
     {
         $company = Companies::factory()->create();
-        $this->setUpCabinetStatuses();
-        $order = $this->cabinetOrder($company, 'ready-for-dispatch', ['metadata' => ['shipping' => ['provider' => 'inposdom', 'service' => 'ems']]]);
+        $this->setUpDhlOrderStatuses();
+        $order = $this->dhlOrder($company, 'ready-for-dispatch', ['metadata' => ['shipping' => ['provider' => 'inposdom', 'service' => 'ems']]]);
 
         $result = new CreateDhlShipmentActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), [])->execute(
             $order,

@@ -7,25 +7,25 @@ namespace App\Console\Commands\Connectors\Dhl;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Dhl\Actions\SetupCabinetOrderAction;
+use Kanvas\Connectors\Dhl\Actions\SetupDhlOrderTypeAction;
 use Kanvas\Connectors\Dhl\Enums\OrderTypeEnum;
 
-class SetupCabinetOrderCommand extends Command
+class SetupDhlOrderTypeCommand extends Command
 {
     use KanvasJobsTrait;
 
-    protected $signature = 'kanvas:dhl-setup-cabinet-order {app_id?}';
+    protected $signature = 'kanvas:dhl-setup-order-type {app_id?}';
 
-    protected $description = 'Create the cabinet order type with its statuses and transitions for DHL fulfillment';
+    protected $description = 'Create the DHL order type with its statuses and transitions for DHL fulfillment';
 
     public function handle(): int
     {
         $app = $this->argument('app_id') ? Apps::getById((int) $this->argument('app_id')) : app(Apps::class);
         $this->overwriteAppService($app);
 
-        $result = new SetupCabinetOrderAction($app)->execute();
+        $result = new SetupDhlOrderTypeAction($app)->execute();
 
-        $this->info('Order type ' . OrderTypeEnum::CABINET->value . " set up for app: {$app->name}");
+        $this->info('Order type ' . OrderTypeEnum::DELIVERY->value . " set up for app: {$app->name}");
         $this->table(
             ['Status', 'Slug', 'Default', 'Final'],
             collect($result['statuses'])->map(

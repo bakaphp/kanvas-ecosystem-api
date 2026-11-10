@@ -7,8 +7,9 @@ namespace Kanvas\Connectors\Dhl\Handlers;
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Contracts\DefaultRule;
 use Kanvas\Connectors\Dhl\Actions\BuildDhlRatesPayloadAction;
+use Kanvas\Connectors\Dhl\Actions\SetupDhlOrderTypeAction;
 use Kanvas\Connectors\Dhl\Activities\CreateDhlShipmentActivity;
-use Kanvas\Connectors\Dhl\Activities\NotifyCabinetOrderStatusActivity;
+use Kanvas\Connectors\Dhl\Activities\NotifyOrderStatusActivity;
 use Kanvas\Connectors\Dhl\Client;
 use Kanvas\Connectors\Dhl\DataTransferObject\Dhl;
 use Kanvas\Connectors\Dhl\Enums\ConfigurationEnum;
@@ -23,7 +24,7 @@ use Throwable;
 class DhlHandler extends BaseIntegration
 {
     public const string BOOKING_RULE_NAME = 'DHL create shipment on ready-for-dispatch';
-    public const string STATUS_NOTICE_RULE_NAME = 'DHL cabinet order status notice';
+    public const string STATUS_NOTICE_RULE_NAME = 'DHL order status notice';
 
     #[Override]
     public function setup(): bool
@@ -49,7 +50,13 @@ class DhlHandler extends BaseIntegration
             $this->company->set(ConfigurationEnum::CONTENT_DESCRIPTION->value, $dhl->contentDescription);
         }
 
-        return $this->credentialsAreValid($dhl);
+        if (! $this->credentialsAreValid($dhl)) {
+            return false;
+        }
+
+        new SetupDhlOrderTypeAction($this->app)->execute();
+
+        return true;
     }
 
     #[Override]
@@ -72,7 +79,7 @@ class DhlHandler extends BaseIntegration
             new DefaultRule(
                 trigger: WorkflowEnum::STATUS_TRANSITION,
                 model: Order::class,
-                activity: NotifyCabinetOrderStatusActivity::class,
+                activity: NotifyOrderStatusActivity::class,
                 name: self::STATUS_NOTICE_RULE_NAME,
                 conditions: [
                     new RuleConditionData(
@@ -80,7 +87,7 @@ class DhlHandler extends BaseIntegration
                         operator: RuleConditionOperatorEnum::IN,
                         value: implode(',', array_map(
                             fn (OrderStatusEnum $status): string => $status->value,
-                            NotifyCabinetOrderStatusActivity::NOTIFIED_STATUSES
+                            NotifyOrderStatusActivity::NOTIFIED_STATUSES
                         )),
                     ),
                 ],

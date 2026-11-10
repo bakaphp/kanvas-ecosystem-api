@@ -8,7 +8,7 @@ use App\Console\Commands\Communication\Schedules\CommunicationSchedule;
 use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
 use App\Console\Commands\Connectors\Brex\PullBrexCommand;
 use App\Console\Commands\Connectors\BrushCrazy\Schedules\BrushCrazySchedule;
-use App\Console\Commands\Connectors\Dhl\AlertUnverifiedCabinetOrdersCommand;
+use App\Console\Commands\Connectors\Dhl\AlertUnverifiedOrdersCommand;
 use App\Console\Commands\Connectors\Dhl\PollDhlTrackingCommand;
 use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
@@ -76,7 +76,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('model:prune', ['--model' => [StoredWorkflow::class]])->dailyAt('03:30')
             ->withoutOverlapping(1380)->onOneServer();
         $schedule->command(DetectSignupAnomalyCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
-        $schedule->command(AlertUnverifiedCabinetOrdersCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
+        $schedule->command(AlertUnverifiedOrdersCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(PollDhlTrackingCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(ExpireApprovalRequestsCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();
         $schedule->command(FlagOverdueCorporateApplicationsCommand::class)->hourly()->withoutOverlapping(120)->onOneServer();

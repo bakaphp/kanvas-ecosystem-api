@@ -17,6 +17,7 @@ class BuildDhlShipmentPayloadAction
         protected Order $order,
         protected Consignee $consignee,
         protected array $quoteMeta,
+        protected bool $nextBusinessDay = false,
     ) {
     }
 
@@ -27,7 +28,7 @@ class BuildDhlShipmentPayloadAction
         $pickupRequested = (bool) $company->get(ConfigurationEnum::REQUEST_PICKUP->value);
 
         return array_filter([
-            'plannedShippingDateAndTime' => Carbon::now()->addHour()->format(BuildDhlRatesPayloadAction::PLANNED_TIME_FORMAT),
+            'plannedShippingDateAndTime' => $this->plannedShippingDate()->format(BuildDhlRatesPayloadAction::PLANNED_TIME_FORMAT),
             'pickup' => $this->pickupPayload($pickupRequested),
             'productCode' => $this->quoteMeta['product_code'],
             'localProductCode' => $this->quoteMeta['local_product_code'] ?? null,
@@ -42,7 +43,7 @@ class BuildDhlShipmentPayloadAction
             'content' => [
                 'packages' => [$this->packagePayload()],
                 'isCustomsDeclarable' => false,
-                'description' => (string) ($company->get(ConfigurationEnum::CONTENT_DESCRIPTION->value) ?: ConfigurationEnum::DEFAULT_CONTENT_DESCRIPTION),
+                'description' => ConfigurationEnum::CONTENT_DESCRIPTION->valueFor($company),
                 'unitOfMeasurement' => 'metric',
             ],
             'valueAddedServices' => [['serviceCode' => $this->quoteMeta['signature_code']]],
@@ -52,10 +53,23 @@ class BuildDhlShipmentPayloadAction
                 'encodingFormat' => 'pdf',
                 'imageOptions' => [[
                     'typeCode' => 'label',
-                    'templateName' => (string) ($company->get(ConfigurationEnum::LABEL_TEMPLATE->value) ?: ConfigurationEnum::DEFAULT_LABEL_TEMPLATE),
+                    'templateName' => ConfigurationEnum::LABEL_TEMPLATE->valueFor($company),
                 ]],
             ],
         ]);
+    }
+
+    private function plannedShippingDate(): Carbon
+    {
+        $now = BuildDhlRatesPayloadAction::localNow($this->order->company);
+        $planned = $now->copy()->addHour();
+        $closesAt = $planned->copy()->setTimeFromTimeString(ConfigurationEnum::PICKUP_CLOSE_TIME->valueFor($this->order->company));
+
+        if ($this->nextBusinessDay || $planned->isWeekend() || $planned->gt($closesAt)) {
+            return $now->addWeekday()->setTime(9, 0);
+        }
+
+        return $planned;
     }
 
     private function pickupPayload(bool $requested): array
@@ -66,7 +80,7 @@ class BuildDhlShipmentPayloadAction
 
         return [
             'isRequested' => true,
-            'closeTime' => (string) ($this->order->company->get(ConfigurationEnum::PICKUP_CLOSE_TIME->value) ?: ConfigurationEnum::DEFAULT_PICKUP_CLOSE_TIME),
+            'closeTime' => ConfigurationEnum::PICKUP_CLOSE_TIME->valueFor($this->order->company),
             'location' => 'reception',
         ];
     }
@@ -75,7 +89,7 @@ class BuildDhlShipmentPayloadAction
     {
         return [
             'postalAddress' => [
-                'postalCode' => $origin['postal_code'],
+                'postalCode' => (string) ($origin['postal_code'] ?? ''),
                 'cityName' => $origin['city'],
                 'countryCode' => strtoupper($origin['country_code']),
                 'addressLine1' => $origin['address_line1'],

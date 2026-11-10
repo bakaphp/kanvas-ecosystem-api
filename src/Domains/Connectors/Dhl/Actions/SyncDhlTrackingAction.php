@@ -5,18 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Dhl\Actions;
 
 use Baka\Contracts\AppInterface;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Dhl\Client;
 use Kanvas\Connectors\Dhl\Enums\BookingStateEnum;
 use Kanvas\Connectors\Dhl\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Dhl\Enums\DhlTrackingEventEnum;
 use Kanvas\Connectors\Dhl\Enums\OrderStatusEnum;
-use Kanvas\Connectors\Dhl\Enums\OrderTypeEnum;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Orders\Models\OrderStatus;
-use Kanvas\Souk\Orders\Models\OrderTypes;
 use Throwable;
 
 class SyncDhlTrackingAction
@@ -38,7 +35,6 @@ class SyncDhlTrackingAction
         $summary = ['polled' => 0, 'transitioned' => 0, 'epod_stored' => 0];
 
         $dispatched = $this->ordersIn(OrderStatusEnum::DISPATCHED)
-            ->get()
             ->reject(fn (Order $order): bool => $order->get(CustomFieldEnum::BOOKING_STATE->value) === BookingStateEnum::MANUAL_REVIEW->value);
 
         foreach ($dispatched->chunk(self::NUMBERS_PER_CALL) as $chunk) {
@@ -52,7 +48,7 @@ class SyncDhlTrackingAction
         return $summary;
     }
 
-    private function syncChunk($ordersByAwb, array &$summary): void
+    private function syncChunk(Collection $ordersByAwb, array &$summary): void
     {
         $response = new Client($this->company)->tracking($ordersByAwb->keys()->all());
 
@@ -122,36 +118,28 @@ class SyncDhlTrackingAction
         return true;
     }
 
-    private function deliveredWithoutEpod()
+    private function deliveredWithoutEpod(): Collection
     {
         return $this->ordersIn(OrderStatusEnum::DELIVERED)
-            ->get()
             ->filter(fn (Order $order): bool => ! isset($this->epodAttempted[$order->getId()])
                 && $order->get(CustomFieldEnum::EPOD_STORED_AT->value) === null);
     }
 
-    private function ordersIn(OrderStatusEnum $status): Builder
+    private function ordersIn(OrderStatusEnum $status): Collection
     {
-        $statusId = $this->statusId($status);
+        $orderStatus = $status->forApp($this->app);
+
+        if ($orderStatus === null) {
+            return new Collection();
+        }
 
         return Order::query()
             ->fromApp($this->app)
             ->fromCompany($this->company)
-            ->where('order_status_id', $statusId)
+            ->notDeleted()
+            ->where('order_status_id', $orderStatus->getId())
             ->whereNotNull('tracking_client_id')
-            ->where('shipped_date', '>=', Carbon::now()->subDays(self::STALE_AFTER_DAYS));
-    }
-
-    private function statusId(OrderStatusEnum $status): int
-    {
-        $type = OrderTypes::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('name', OrderTypeEnum::CABINET->value)
-            ->first();
-
-        return (int) OrderStatus::query()
-            ->where('order_types_id', $type?->getId())
-            ->where('slug', $status->value)
-            ->value('id');
+            ->where('shipped_date', '>=', Carbon::now()->subDays(self::STALE_AFTER_DAYS))
+            ->get();
     }
 }

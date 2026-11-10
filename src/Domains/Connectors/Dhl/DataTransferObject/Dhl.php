@@ -19,7 +19,6 @@ class Dhl
         'email',
         'address_line1',
         'city',
-        'postal_code',
         'country_code',
     ];
 
