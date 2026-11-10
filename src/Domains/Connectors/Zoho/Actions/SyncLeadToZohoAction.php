@@ -37,7 +37,9 @@ class SyncLeadToZohoAction
 
     public function execute(): array
     {
-        return DB::transaction(function () {
+        // The lead's own connection: on the default one the row lock below is released at once, and
+        // two pushes started together both create the lead in Zoho.
+        return DB::connection($this->lead->getConnectionName())->transaction(function () {
             $lead = Lead::where('id', $this->lead->id)->lockForUpdate()->first();
             $zohoLead = ZohoLead::fromLead($this->lead);
             $zohoData = $zohoLead->toArray();
