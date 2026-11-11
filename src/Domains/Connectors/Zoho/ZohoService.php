@@ -337,15 +337,20 @@ class ZohoService
      */
     public function getConvertedLeadDetail(string $leadId): ?array
     {
-        $record = $this->zohoCrm->leads->get($leadId, ['converted' => 'both'])->getData();
+        $record = $this->zohoCrm->leads->get($leadId, ['converted' => 'both']);
 
-        if (($record['$converted'] ?? false) !== true) {
+        if (! self::isConvertedLead($record)) {
             return null;
         }
 
-        $detail = $record['$converted_detail'] ?? null;
+        $detail = $record->getData()['$converted_detail'] ?? null;
 
         return is_array($detail) ? $detail : null;
+    }
+
+    public static function isConvertedLead(Record $record): bool
+    {
+        return ($record->getData()['$converted'] ?? false) === true;
     }
 
     public function deleteLead(Lead $lead): void
