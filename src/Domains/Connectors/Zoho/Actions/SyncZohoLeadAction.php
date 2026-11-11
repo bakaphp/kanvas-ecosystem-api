@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Connectors\Zoho\Actions\Concerns\ResolvesZohoOwner;
 use Kanvas\Connectors\Zoho\Actions\Concerns\SyncsZohoPerson;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\Services\ZohoFieldMapService;
@@ -23,12 +24,12 @@ use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
-use Kanvas\Users\Models\UsersAssociatedApps;
 use Spatie\LaravelData\DataCollection;
 use Webleit\ZohoCrmApi\Models\Record;
 
 class SyncZohoLeadAction
 {
+    use ResolvesZohoOwner;
     use SyncsZohoPerson;
 
     public function __construct(
@@ -87,13 +88,7 @@ class SyncZohoLeadAction
             ]
         );
 
-        $ownerUser = null;
-        if (! empty($zohoLead->Owner) && ! empty($zohoLead->Owner['email'])) {
-            $ownerUser = UsersAssociatedApps::query()
-                ->fromApp($this->app)
-                ->where('email', $zohoLead->Owner['email'])
-                ->first()?->user;
-        }
+        $ownerUser = $this->resolveZohoOwner($this->app, $zohoLead->Owner);
 
         $user = $agent?->user ?? $this->company->user;
         $companyZohoMapFields = $this->company->get(CustomFieldEnum::FIELDS_MAP->value) ?? [];

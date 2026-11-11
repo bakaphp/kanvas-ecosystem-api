@@ -41,7 +41,7 @@ class SyncLeadToZohoAction
         // two pushes started together both create the lead in Zoho.
         return DB::connection($this->lead->getConnectionName())->transaction(function () {
             $lead = Lead::where('id', $this->lead->id)->lockForUpdate()->first();
-            $zohoLead = ZohoLead::fromLead($this->lead);
+            $zohoLead = ZohoLead::fromLead($lead);
             $zohoData = $zohoLead->toArray();
             $company = $lead->company;
             $receiver = $lead->receiver;
@@ -60,15 +60,6 @@ class SyncLeadToZohoAction
                 if ($usesAgentsModule && ! $leadRotation) {
                     $this->assignAgent($this->app, $zohoLead, $lead, $company, $zohoData);
                 } elseif ($leadRotation) {
-                    /* $rotationOwner = $leadRotation->getAgent();
-                    $lead->users_id = $rotationOwner ? $rotationOwner->getId() : (int) $receiver->agents_id;
-                    $lead->leads_owner_id = $lead->users_id;
-                    $lead->disableWorkflows();
-                    $lead->saveOrFail();
-
-                    // Reload the owner relationship to ensure it's up-to-date
-                    $lead->load('owner'); */
-
                     $zohoData['Lead_Source'] = $receiver->name ?? 'Kanvas Api';
                     $zohoData['Owner'] = $lead->owner->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value) ?? $company->get(CustomFieldEnum::DEFAULT_OWNER->value);
                 }

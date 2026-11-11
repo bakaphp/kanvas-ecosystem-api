@@ -63,4 +63,19 @@ final class ZohoLeadPushLockTest extends TestCase
 
         $this->assertSame('zl-once', $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value));
     }
+
+    public function testThePayloadUsesTheLeadReloadedUnderTheLock(): void
+    {
+        $lead = $this->makeLead($this->makeZohoCompany());
+        $description = 'Description updated while the push was waiting.';
+        $lead->newQuery()->whereKey($lead->getId())->update(['description' => $description]);
+
+        $module = $this->module();
+        $module->expects($this->once())
+            ->method('create')
+            ->with($this->callback(fn (array $data): bool => ($data['Description'] ?? null) === $description))
+            ->willReturn(new Record(['id' => 'zl-current'], $module));
+
+        $this->action($lead, $module)->execute();
+    }
 }
