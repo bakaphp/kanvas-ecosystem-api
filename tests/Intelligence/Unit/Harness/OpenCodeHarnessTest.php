@@ -283,6 +283,40 @@ class OpenCodeHarnessTest extends TestCase
      * A coding chat posts `turnReply` after every turn. A turn that only ran tools must not repost the
      * previous turn's answer as if it were new.
      */
+    public function testAMessageAfterATurnsIdleKeepsTheChatRunningInsteadOfDeliveringTheOldTurn(): void
+    {
+        $session = $this->taskSession();
+        $session->turn_offset = 1;
+        $prompt = fn (int $at): array => ['type' => 'user', 'time' => ['created' => $at], 'content' => [['type' => 'text', 'text' => 'run the app']]];
+
+        $pending = $this->harness([
+            'message' => $this->page([
+                $this->assistantMessage(createdAt: 1000, text: 'first answer'),
+                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'succeeded'],
+                $this->assistantMessage(createdAt: 2000, text: 'second answer'),
+                ['type' => 'idle', 'time' => ['created' => 2100], 'outcome' => 'succeeded'],
+                $prompt(2200),
+            ], idle: null),
+        ])->poll($session);
+
+        $this->assertSame(HarnessStatusEnum::RUNNING, $pending->status);
+
+        $settled = $this->harness([
+            'message' => $this->page([
+                $this->assistantMessage(createdAt: 1000, text: 'first answer'),
+                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'succeeded'],
+                $this->assistantMessage(createdAt: 2000, text: 'second answer'),
+                ['type' => 'idle', 'time' => ['created' => 2100], 'outcome' => 'succeeded'],
+                $prompt(2200),
+                $this->assistantMessage(createdAt: 2300, text: 'third answer'),
+            ], idle: ['type' => 'idle', 'time' => ['created' => 2400], 'outcome' => 'succeeded']),
+        ])->poll($session);
+
+        $this->assertSame(HarnessStatusEnum::IDLE, $settled->status);
+        $this->assertSame('third answer', $settled->turnReply, 'the reply is the newest turn, not the one the chat missed');
+        $this->assertSame(3, $settled->closedTurns, 'delivering it puts the chat back in step');
+    }
+
     public function testTheTickSaysTheCurrentTurnsLatestStepAndWhenTheTurnStarted(): void
     {
         $session = $this->taskSession();
@@ -349,7 +383,7 @@ class OpenCodeHarnessTest extends TestCase
                 $this->assistantMessage(createdAt: 1000, text: 'working'),
                 ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'interrupted'],
                 $this->assistantMessage(createdAt: 2000, text: 'finished'),
-            ]),
+            ], idle: ['type' => 'idle', 'time' => ['created' => 2200], 'outcome' => 'succeeded']),
         ])->poll($session);
 
         $this->assertSame(HarnessStatusEnum::IDLE, $tick->status);

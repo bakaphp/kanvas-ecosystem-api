@@ -97,7 +97,7 @@ class OpenCodeHarness implements CodingHarness
         return new HarnessTick(
             status: $this->resolveStatus(
                 $assistant,
-                $currentTurnIdle,
+                $this->settledIdle($page['messages'], $currentTurnIdle),
                 $permissions,
                 $questions,
                 $error
@@ -396,6 +396,28 @@ class OpenCodeHarness implements CodingHarness
      * @param list<HarnessQuestion>      $questions   already mapped: an unreadable question must not
      *                                                park the session with nothing to answer
      */
+    /**
+     * The current turn's idles, or none while anything newer than the last of them exists. A message
+     * sent while a turn was ending arrives after its `idle` and starts another turn; read as finished,
+     * the chat delivered the old reply, stopped polling the new turn, and stayed a turn behind for good.
+     *
+     * @param list<array<string, mixed>> $messages
+     * @param list<array<string, mixed>> $currentTurnIdle
+     * @return list<array<string, mixed>>
+     */
+    private function settledIdle(array $messages, array $currentTurnIdle): array
+    {
+        $createdAt = static fn (array $message): int => (int) ($message['time']['created'] ?? 0);
+        $lastIdleAt = max([0, ...array_map($createdAt, $currentTurnIdle)]);
+        $workAfterIt = array_filter(
+            $messages,
+            static fn (array $message): bool => in_array($message['type'] ?? '', ['user', 'assistant'], true)
+                && $createdAt($message) > $lastIdleAt
+        );
+
+        return $workAfterIt === [] ? $currentTurnIdle : [];
+    }
+
     private function resolveStatus(
         array $assistant,
         array $idle,
