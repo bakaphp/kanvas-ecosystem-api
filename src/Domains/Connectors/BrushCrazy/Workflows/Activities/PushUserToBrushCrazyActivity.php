@@ -60,7 +60,7 @@ class PushUserToBrushCrazyActivity extends BrushCrazyPushActivity
             }
 
             $studioId = ($paramCompany instanceof Companies ? SiteBooking::studioId($paramCompany) : null)
-                ??($people->first() !== null ? SiteBooking::studioId($people->first()->company) : null);
+                ?? ($people->first() !== null ? SiteBooking::studioId($people->first()->company) : null);
             $phone = trim((string) ($user->cell_phone_number ?: $user->phone_number));
 
             $body = [
