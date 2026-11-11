@@ -30,5 +30,7 @@ DB::connection('intelligence')->table('nervous_system_tools')->insert([
 ```
 
 The category backfill migration assigns uncategorized existing MCP tools to a global category and
-uses `other` only when no more specific match applies. Its `down()` intentionally leaves category
-rows and assignments in place so rolling back cannot erase catalog data created or edited later.
+uses `other` only when no more specific match applies. It matches a term at the start of a word in
+the tool name, never as a bare substring (`sap` must not claim "WhatsApp"). Its `down()` intentionally
+leaves category rows and assignments in place so rolling back cannot erase catalog data created or
+edited later.
