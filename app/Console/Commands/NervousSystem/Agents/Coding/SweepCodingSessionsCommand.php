@@ -109,15 +109,15 @@ class SweepCodingSessionsCommand extends Command
         return 'No activity for ' . self::STALE_MINUTES . ' minutes — the session was interrupted.';
     }
 
-    /**
-     * The query uses the default window; a launch stage can only lengthen it (a mirror clone is
-     * silent for up to 15 minutes by design), so the stage is checked here rather than in SQL.
-     */
     private function isParkedChat(AgentTaskSession $session): bool
     {
         return $session->isChat() && $session->harnessStatus() === HarnessStatusEnum::IDLE;
     }
 
+    /**
+     * The query uses the default window; a launch stage can only lengthen it (a mirror clone is
+     * silent for up to 15 minutes by design), so the stage is checked here rather than in SQL.
+     */
     private function isStale(AgentTaskSession $session): bool
     {
         $minutes = $this->isParkedChat($session)

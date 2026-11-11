@@ -56,8 +56,7 @@ class WatchCodingChatJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
     {
         $this->overwriteAppService($this->app);
 
-        /** @var AgentTaskSession|null $session */
-        $session = AgentTaskSession::query()->where('id', $this->sessionId)->fromApp($this->app)->first();
+        $session = AgentTaskSession::findInApp($this->sessionId, $this->app);
 
         if ($session === null || ! $session->isChat() || ! $session->isLive()) {
             return;

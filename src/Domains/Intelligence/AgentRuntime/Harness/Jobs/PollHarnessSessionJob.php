@@ -18,8 +18,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\AbsorbHarnessTickAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\CloseCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\DeliverCodingChatTurnAction;
-use Kanvas\Intelligence\AgentRuntime\Harness\Actions\PostCodingChatProgressAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\FinalizeHarnessSessionAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\PostCodingChatProgressAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\RequestSessionExtensionAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
@@ -62,8 +62,7 @@ class PollHarnessSessionJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
-        /** @var AgentTaskSession|null $session */
-        $session = AgentTaskSession::query()->where('id', $this->sessionId)->fromApp($this->app)->first();
+        $session = AgentTaskSession::findInApp($this->sessionId, $this->app);
 
         if ($session === null || ! $session->isLive()) {
             return;

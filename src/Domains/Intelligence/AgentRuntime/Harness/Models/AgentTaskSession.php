@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessUsage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
@@ -159,6 +160,12 @@ class AgentTaskSession extends BaseModel
         $slug = trim(Str::limit(Str::slug((string) $ticket->title), 40, ''), '-');
 
         return ($owner !== '' ? $owner : 'agent') . '/task-' . $ticket->getId() . ($slug !== '' ? '-' . $slug : '');
+    }
+
+    public static function findInApp(int $id, Apps $app): ?self
+    {
+        /** @var self|null */
+        return self::query()->where('id', $id)->fromApp($app)->first();
     }
 
     public static function liveChatFor(Agent $agent, Session $chat): ?self

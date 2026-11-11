@@ -114,11 +114,11 @@ class RunCodingChatAction
 
     private function command(Session $chat, string $text, ?AgentTaskSession $live): string
     {
-        [$name, $rest] = array_pad(preg_split('/\s+/', $text, 2) ?: [], 2, '');
+        [$name, $rest] = $this->firstWordAndRest($text);
 
         return match (strtolower($name)) {
-            '/repo' => $this->switchTo($chat, (string) $rest, $live),
-            '/take' => $this->take($chat, (string) $rest, $live),
+            '/repo' => $this->switchTo($chat, $rest, $live),
+            '/take' => $this->take($chat, $rest, $live),
             '/status' => $this->status($live),
             '/stop' => $this->stop($live),
             '/end' => $this->end($live),
@@ -150,9 +150,7 @@ class RunCodingChatAction
      */
     private function switchTo(Session $chat, string $args, ?AgentTaskSession $live): string
     {
-        [$repo, $instruction] = array_pad(preg_split('/\s+/', trim($args), 2) ?: [], 2, '');
-        $repo = (string) $repo;
-        $instruction = trim((string) $instruction);
+        [$repo, $instruction] = $this->firstWordAndRest($args);
 
         // The Mac's folders are case-insensitive: `quorum-app` and `Quorum-app` are one checkout and one lock.
         if ($live !== null && strcasecmp((string) $live->repo_slug, $repo) === 0) {
@@ -177,7 +175,7 @@ class RunCodingChatAction
      */
     private function take(Session $chat, string $args, ?AgentTaskSession $live): string
     {
-        $repo = (string) (preg_split('/\s+/', trim($args), 2) ?: [''])[0];
+        [$repo] = $this->firstWordAndRest($args);
 
         if ($repo === '') {
             return 'Which app? For example `/take Quorum-app`.';
@@ -433,6 +431,16 @@ class RunCodingChatAction
         }
 
         return new CloseCodingChatAction($live, notify: false)->execute();
+    }
+
+    /**
+     * @return array{string, string}
+     */
+    private function firstWordAndRest(string $text): array
+    {
+        [$first, $rest] = array_pad(preg_split('/\s+/', trim($text), 2) ?: [], 2, '');
+
+        return [$first, trim($rest)];
     }
 
     private function harness(AgentTaskSession $live): AgentHarness

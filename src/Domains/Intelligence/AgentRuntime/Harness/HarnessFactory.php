@@ -50,7 +50,10 @@ class HarnessFactory
      */
     public static function codingFactoryOn(AgentMachine $machine, Agent $agent): CodingFactory
     {
-        return app(FactoryServeClient::class, ['machine' => $machine, 'factoryDir' => CodingChatSettingEnum::factoryDirFor($agent)]);
+        return app(FactoryServeClient::class, [
+            'machine' => $machine,
+            'factoryDir' => CodingChatSettingEnum::factoryDirFor($agent),
+        ]);
     }
 
     /**
