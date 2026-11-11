@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Services;
 
+use Closure;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 
@@ -15,6 +16,22 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 class HeldChatMessages
 {
     private const int TTL_SECONDS = 3600;
+
+    /**
+     * The launch and an arriving message each read the row and the held list, then act on what they saw.
+     * Run both under this lock: unlocked, a message held as the launch flips the row to idle is lost, or
+     * reaches the agent twice, and two sessions get started in one checkout.
+     *
+     * @template T
+     *
+     * @param Closure(): T $call
+     *
+     * @return T
+     */
+    public static function handOver(AgentTaskSession $session, Closure $call): mixed
+    {
+        return Cache::lock(self::key($session) . ':handover', 30)->block(10, $call);
+    }
 
     public static function hold(AgentTaskSession $session, string $message): void
     {

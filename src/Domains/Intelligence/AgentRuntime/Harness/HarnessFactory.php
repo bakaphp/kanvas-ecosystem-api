@@ -5,18 +5,24 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Harness;
 
 use Kanvas\Connectors\OpenCode\Client as OpenCodeClient;
+use Kanvas\Connectors\OpenCode\Concerns\ResolvesAgentMachine;
 use Kanvas\Connectors\OpenCode\OpenCodeHarness;
+use Kanvas\Connectors\OpenCode\Services\FactoryServeClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\AgentHarness;
+use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\CodingFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\CodingHarness;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\HarnessTransport;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineNetworkModeEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineRuntimeEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Transports\HttpHarnessTransport;
 use Kanvas\Intelligence\AgentRuntime\Harness\Transports\SshExecHarnessTransport;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
 
 /**
@@ -26,6 +32,35 @@ use Throwable;
  */
 class HarnessFactory
 {
+    use ResolvesAgentMachine;
+
+    /**
+     * The factory a coding chat runs on, or null when the session lost its machine or agent.
+     */
+    public static function codingFactoryFor(AgentTaskSession $session): ?CodingFactory
+    {
+        $machine = $session->machine;
+        $agent = $session->agent;
+
+        return $machine === null || $agent === null ? null : self::codingFactoryOn($machine, $agent);
+    }
+
+    /**
+     * Resolved through the container so a test can bind a fake for the jobs that build it themselves.
+     */
+    public static function codingFactoryOn(AgentMachine $machine, Agent $agent): CodingFactory
+    {
+        return app(FactoryServeClient::class, ['machine' => $machine, 'factoryDir' => CodingChatSettingEnum::factoryDirFor($agent)]);
+    }
+
+    /**
+     * The agent's pinned machine (`CODING_MACHINE_ID`), else any active machine of its company.
+     */
+    public static function codingMachineFor(Agent $agent): ?AgentMachine
+    {
+        return new self()->machineFor($agent, $agent->app, $agent->company);
+    }
+
     public static function forSession(AgentTaskSession $session, ?HarnessTransport $transport = null): AgentHarness
     {
         return match ($session->harnessName()) {

@@ -317,6 +317,35 @@ class OpenCodeHarnessTest extends TestCase
         $this->assertSame(3, $settled->closedTurns, 'delivering it puts the chat back in step');
     }
 
+    public function testATurnAfterAStoppedOneRunsAndThenSucceedsInsteadOfReportingTheStop(): void
+    {
+        $session = $this->taskSession();
+        $session->turn_offset = 1;
+        $history = [
+            $this->assistantMessage(createdAt: 1000, text: 'first answer'),
+            ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'succeeded'],
+            $this->assistantMessage(createdAt: 2000, text: 'working on it'),
+            ['type' => 'idle', 'time' => ['created' => 2100], 'outcome' => 'interrupted'],
+            ['type' => 'user', 'time' => ['created' => 2200], 'content' => [['type' => 'text', 'text' => 'now add a test']]],
+        ];
+
+        $running = $this->harness(['message' => $this->page($history, idle: null)])->poll($session);
+
+        $this->assertSame(HarnessStatusEnum::RUNNING, $running->status, 'the stop belongs to the turn before');
+        $this->assertNull($running->error);
+
+        $done = $this->harness([
+            'message' => $this->page(
+                [...$history, $this->assistantMessage(createdAt: 2300, text: 'test added')],
+                idle: ['type' => 'idle', 'time' => ['created' => 2400], 'outcome' => 'succeeded']
+            ),
+        ])->poll($session);
+
+        $this->assertSame(HarnessStatusEnum::IDLE, $done->status);
+        $this->assertNull($done->error);
+        $this->assertSame('test added', $done->turnReply);
+    }
+
     public function testTheTickSaysTheCurrentTurnsLatestStepAndWhenTheTurnStarted(): void
     {
         $session = $this->taskSession();

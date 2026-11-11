@@ -16,7 +16,6 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
-use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\RunTaskWorkerJob;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
@@ -64,6 +63,8 @@ class WakeAgentForTaskJob implements ShouldQueue
             return;
         }
 
+        $this->overwriteAppService($agent->app);
+
         // A factory agent has no board turn to take: its model is the opencode agent on the factory Mac.
         // The task goes through the worker, which hands it to the factory and records what comes back.
         if ($agent->is_active && CodingChatSettingEnum::isEnabledFor($agent)) {
@@ -78,8 +79,6 @@ class WakeAgentForTaskJob implements ShouldQueue
         if (! $agent->is_active || ! $agent->canExecuteBoardWork()) {
             return;
         }
-
-        $this->overwriteAppService($agent->app);
 
         $project = Project::query()->where('id', $plan->project_id)->notDeleted()->first();
         if ($project === null) {
@@ -228,7 +227,7 @@ class WakeAgentForTaskJob implements ShouldQueue
      */
     private function handToTheFactory(): void
     {
-        if (TaskStatusEnum::from((string) $this->task->status)->isTerminal() || $this->task->children()->open()->exists()) {
+        if ($this->task->isTerminal() || $this->task->children()->open()->exists()) {
             return;
         }
 

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenCode\Services;
 
+use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\CodingFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\FactoryHealth;
-use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\CheckoutInUseException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
-use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Override;
 use Throwable;
 
 /**
@@ -17,7 +17,7 @@ use Throwable;
  * baseline, persona, rules, command lockdown) exactly as `akira` does, and answers with one JSON line.
  * Kanvas never writes the session config itself here — the factory is the single source of truth.
  */
-class FactoryServeClient
+class FactoryServeClient implements CodingFactory
 {
     /** `open` measures the repository's baseline (tsc, lint, tests) before it answers. */
     private const int OPEN_TIMEOUT_SECONDS = 900;
@@ -34,22 +34,6 @@ class FactoryServeClient
     }
 
     /**
-     * The factory a coding chat runs on, or null when the session lost its machine or agent. Resolved
-     * through the container so a test can bind a fake for the jobs that build it themselves.
-     */
-    public static function forSession(AgentTaskSession $session): ?self
-    {
-        $machine = $session->machine;
-        $agent = $session->agent;
-
-        if ($machine === null || $agent === null) {
-            return null;
-        }
-
-        return app(self::class, ['machine' => $machine, 'factoryDir' => CodingChatSettingEnum::factoryDirFor($agent)]);
-    }
-
-    /**
      * `$name` and `$persona` replace the factory's own agent name and "Who you are" section for this
      * checkout. They travel base64-encoded: free text from a tenant, one argument each.
      *
@@ -58,6 +42,7 @@ class FactoryServeClient
      *
      * @return array{repo: string, directory: string, branch: string, port: int, password: string, provider: string, model: string}
      */
+    #[Override]
     public function open(
         string $repo,
         string $owner,
@@ -102,6 +87,7 @@ class FactoryServeClient
     /**
      * @return list<string>
      */
+    #[Override]
     public function repos(): array
     {
         $listed = (string) ($this->call(['list'], self::RELEASE_TIMEOUT_SECONDS)['repos'] ?? '');
@@ -112,6 +98,7 @@ class FactoryServeClient
     /**
      * @return array<string, mixed>
      */
+    #[Override]
     public function release(string $repo, string $owner): array
     {
         return $this->call(['release', $repo, $owner], self::RELEASE_TIMEOUT_SECONDS);
@@ -120,6 +107,7 @@ class FactoryServeClient
     /**
      * Starts the factory's opencode server when it is down; a no-op when it already answers.
      */
+    #[Override]
     public function start(): void
     {
         $result = $this->call(['start'], self::START_TIMEOUT_SECONDS);
@@ -132,6 +120,7 @@ class FactoryServeClient
     /**
      * The Mac as a whole, not one checkout: crashes are reported since `$since`, on the Mac's own clock.
      */
+    #[Override]
     public function health(int $since): FactoryHealth
     {
         return FactoryHealth::from($this->call(['health', (string) $since], self::RELEASE_TIMEOUT_SECONDS));

@@ -92,12 +92,13 @@ class OpenCodeHarness implements CodingHarness
         $currentTurnIdle = array_slice($idle, $turnOffset);
         $questions = $this->mapForms($forms);
         $currentTurn = $this->currentTurn($assistant, $idle, $turnOffset);
-        $error = $this->lastError($currentTurnIdle, $currentTurn);
+        $settledIdle = $this->settledIdle($page['messages'], $currentTurnIdle);
+        $error = $this->lastError($settledIdle, $currentTurn);
 
         return new HarnessTick(
             status: $this->resolveStatus(
                 $assistant,
-                $this->settledIdle($page['messages'], $currentTurnIdle),
+                $settledIdle,
                 $permissions,
                 $questions,
                 $error
@@ -402,13 +403,6 @@ class OpenCodeHarness implements CodingHarness
     }
 
     /**
-     * @param list<array<string, mixed>> $assistant
-     * @param list<array<string, mixed>> $idle
-     * @param list<array<string, mixed>> $permissions
-     * @param list<HarnessQuestion>      $questions   already mapped: an unreadable question must not
-     *                                                park the session with nothing to answer
-     */
-    /**
      * The current turn's idles, or none while a prompt or step is newer than the last of them: a message
      * that reaches the runtime after a turn's `idle` starts another turn, and that idle must not end it,
      * or the chat delivers the old reply and stops polling the turn still running.
@@ -429,6 +423,13 @@ class OpenCodeHarness implements CodingHarness
         return $workAfterIt === [] ? $currentTurnIdle : [];
     }
 
+    /**
+     * @param list<array<string, mixed>> $assistant
+     * @param list<array<string, mixed>> $idle
+     * @param list<array<string, mixed>> $permissions
+     * @param list<HarnessQuestion>      $questions   already mapped: an unreadable question must not
+     *                                                park the session with nothing to answer
+     */
     private function resolveStatus(
         array $assistant,
         array $idle,
@@ -682,26 +683,22 @@ class OpenCodeHarness implements CodingHarness
      * and appears only in the container log. Absence of an error here is not evidence of health — the
      * poller's wall clock is what catches the rest.
      *
+     * Only the newest idle decides: a turn the person stopped, followed by one that succeeded, succeeded.
+     *
      * @param list<array<string, mixed>> $idle      the current turn's idle messages
      * @param list<array<string, mixed>> $assistant the current turn's assistant messages
      */
     private function lastError(array $idle, array $assistant): ?string
     {
-        $error = null;
+        $outcome = $idle === [] ? null : ($idle[array_key_last($idle)]['outcome'] ?? null);
 
-        foreach ($idle as $message) {
-            $outcome = $message['outcome'] ?? null;
-
-            if (! is_string($outcome) || $outcome === 'succeeded') {
-                continue;
-            }
-
-            $error = $this->describeError($message['error'] ?? null)
-                ?? $this->lastAssistantError($assistant)
-                ?? 'the run ended as "' . $outcome . '"';
+        if (! is_string($outcome) || $outcome === 'succeeded') {
+            return null;
         }
 
-        return $error;
+        return $this->describeError($idle[array_key_last($idle)]['error'] ?? null)
+            ?? $this->lastAssistantError($assistant)
+            ?? 'the run ended as "' . $outcome . '"';
     }
 
     /**

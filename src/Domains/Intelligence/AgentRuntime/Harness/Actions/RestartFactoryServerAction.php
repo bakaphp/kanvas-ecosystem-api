@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Actions;
 
 use Closure;
-use Kanvas\Connectors\OpenCode\Services\FactoryServeClient;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\RuntimeNotListeningException;
+use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 
 /**
@@ -44,7 +44,7 @@ class RestartFactoryServerAction
 
     public function execute(): void
     {
-        $factory = FactoryServeClient::forSession($this->session)
+        $factory = HarnessFactory::codingFactoryFor($this->session)
             ?? throw new HarnessTransportException('The chat lost its machine or agent, so the factory server cannot be restarted.');
 
         $factory->start();

@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Services;
 
 use Illuminate\Support\Facades\Cache;
-use Kanvas\Connectors\OpenCode\Concerns\ResolvesAgentMachine;
-use Kanvas\Connectors\OpenCode\Services\FactoryServeClient;
-use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Throwable;
 
@@ -18,8 +16,6 @@ use Throwable;
  */
 class CodingChatCheckouts
 {
-    use ResolvesAgentMachine;
-
     private const int CACHE_SECONDS = 300;
 
     public function __construct(
@@ -72,11 +68,11 @@ class CodingChatCheckouts
     protected function fetch(): array
     {
         try {
-            $machine = $this->machineFor($this->agent, $this->agent->app, $this->agent->company);
+            $machine = HarnessFactory::codingMachineFor($this->agent);
 
             return $machine === null
                 ? []
-                : new FactoryServeClient($machine, CodingChatSettingEnum::factoryDirFor($this->agent))->repos();
+                : HarnessFactory::codingFactoryOn($machine, $this->agent)->repos();
         } catch (Throwable) {
             return [];
         }

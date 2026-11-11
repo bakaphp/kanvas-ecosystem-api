@@ -40,7 +40,7 @@ class DeliverCodingChatTurnAction
 
         new PostCodingChatMessageAction($this->session, $this->content())->execute();
 
-        // Chats opened before the watch existed pick it up here; for the rest this is a no-op.
+        // Unique per session, so this only starts a watch that is not already running.
         WatchCodingChatJob::dispatch($this->session->app, $this->session->getId());
     }
 

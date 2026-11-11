@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Actions;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Connectors\OpenCode\Services\FactoryServeClient;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\CodingOutcome;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
@@ -72,7 +71,7 @@ class CloseCodingChatAction
      */
     private function release(): ?array
     {
-        $factory = FactoryServeClient::forSession($this->session);
+        $factory = HarnessFactory::codingFactoryFor($this->session);
 
         if ($factory === null || $this->session->repo_slug === null) {
             return null;

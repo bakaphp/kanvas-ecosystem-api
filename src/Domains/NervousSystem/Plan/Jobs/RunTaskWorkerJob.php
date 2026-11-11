@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\OpenCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
@@ -235,16 +236,27 @@ class RunTaskWorkerJob implements ShouldQueue
             );
         }
 
-        new OpenCodingChatAction(
-            agent: $agent,
-            chat: $this->workerSession(),
-            repo: $repo,
-            instruction: $this->factoryBrief(),
-            requestedBy: $owner,
-            parentTask: $this->task,
-        )->execute();
+        // Two assigns can queue two of these jobs before either has created the run, and two runs would
+        // work one ticket on one branch. Under the lock the second sees the first's run and waits on it.
+        return Cache::lock('factory-run:task-' . $this->task->getId(), 120)->block(
+            30,
+            function () use ($agent, $owner, $repo): string {
+                if ($this->task->children()->open()->exists()) {
+                    return 'Already in the factory.';
+                }
 
-        return 'Handed to the factory: working in ' . $repo . '.';
+                new OpenCodingChatAction(
+                    agent: $agent,
+                    chat: $this->workerSession(),
+                    repo: $repo,
+                    instruction: $this->factoryBrief(),
+                    requestedBy: $owner,
+                    parentTask: $this->task,
+                )->execute();
+
+                return 'Handed to the factory: working in ' . $repo . '.';
+            }
+        );
     }
 
     /**

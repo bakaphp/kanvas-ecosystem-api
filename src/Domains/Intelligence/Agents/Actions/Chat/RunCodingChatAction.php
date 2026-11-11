@@ -15,6 +15,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPrompt;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\PermissionDecisionEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\PollHarnessSessionJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
@@ -246,7 +247,10 @@ class RunCodingChatAction
         try {
             return RestartFactoryServerAction::retrying($live, fn (): string => $this->deliver($live, $text));
         } catch (Throwable $e) {
-            report($e);
+            // A Mac that is off or unreachable is told to the person right here; only a fault is tracked.
+            if (! $e instanceof HarnessTransportException) {
+                report($e);
+            }
 
             return '⚠️ That did not reach the coding agent: ' . $e->getMessage();
         }
@@ -270,25 +274,29 @@ class RunCodingChatAction
     }
 
     /**
-     * Held for the launch to hand over when the agent starts. The launch takes what is held only after
-     * the row stops saying STARTING, so the row is read again here: a message that landed after that
-     * hand-over would otherwise wait for a launch that already happened.
+     * Held for the launch to hand over when the agent starts. Holding and reading the row happen under the
+     * launch's hand-over lock, so a message is either held before the launch takes the list, or finds the
+     * row already started and is relayed from here: never lost, never delivered twice.
      */
     private function holdUntilStarted(AgentTaskSession $live, string $text): string
     {
-        HeldChatMessages::hold($live, $text);
-        $live->refresh();
+        $handedBack = HeldChatMessages::handOver(
+            $live,
+            static function () use ($live, $text): ?array {
+                HeldChatMessages::hold($live, $text);
+                $live->refresh();
+                $started = $live->harnessStatus() !== HarnessStatusEnum::STARTING && $live->isProvisioned();
+
+                return ! $live->isLive() || $started ? HeldChatMessages::take($live) : null;
+            }
+        );
 
         if (! $live->isLive()) {
-            HeldChatMessages::take($live);
-
             return '**' . $live->repo_slug . '** could not be opened; the message above says why.';
         }
 
-        if ($live->harnessStatus() !== HarnessStatusEnum::STARTING && $live->isProvisioned()) {
-            $held = HeldChatMessages::take($live);
-
-            return $held === [] ? '⏳ On it.' : $this->relay($live, implode("\n\n", $held));
+        if ($handedBack !== null) {
+            return $handedBack === [] ? '⏳ On it.' : $this->relay($live, implode("\n\n", $handedBack));
         }
 
         return '⏳ Still opening **' . $live->repo_slug . '** (started ' . $live->created_at?->diffForHumans()
@@ -297,9 +305,7 @@ class RunCodingChatAction
 
     private function nextTurn(AgentTaskSession $live, string $text): string
     {
-        $live->status = HarnessStatusEnum::RUNNING->value;
-        $live->touchHeartbeat();
-        $live->saveOrFail();
+        $this->markRunning($live);
 
         try {
             // A checkout opened without an instruction has no opencode session yet; the first message makes it.

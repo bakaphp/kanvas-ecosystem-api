@@ -210,6 +210,13 @@ go through those two (plan-owner wakes, `VerifyPlanAction`, receivers, "run agen
 factory-aware, and **@mentions never reach the factory**: `RespondToMentionJob` calls Neuron directly.
 
 Things that bite:
+- **The domain reaches the factory through `Contracts\CodingFactory`**, built by `HarnessFactory`
+  (`codingFactoryFor($session)`, `codingFactoryOn($machine, $agent)`, `codingMachineFor($agent)`); never
+  import `FactoryServeClient` from Harness code. Tests bind a fake on `FactoryServeClient::class`.
+- **Held messages change hands under `HeldChatMessages::handOver()`.** The launch takes the held list and
+  flips the row, the chat holds a message and reads the row: both under the same lock, or a message is
+  lost, delivered twice, or starts a second opencode session in one checkout. A launch re-reads its row
+  after `open` (minutes of baseline): a chat ended meanwhile is released, never written back live.
 - **A running chat turn says so every minute.** Narration goes to the plan board, not the chat, so a long
   turn showed only "On it" until it ended. `PostCodingChatProgressAction` (from the poller, on RUNNING)
   posts "⏳ Still working · N min · <latest step>" plus the agent's latest note; quiet for the first 45s,

@@ -27,6 +27,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Enums\LaunchStageEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\CheckoutInUseException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\RuntimeNotListeningException;
+use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\LaunchCodingChatJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\PollHarnessSessionJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\WatchCodingChatJob;
@@ -513,6 +514,61 @@ class CodingChatTest extends TestCase
                 && str_contains($job->instruction, 'Task: Build the login screen in SecondLook-app')
                 && str_contains($job->instruction, 'START YOUR REPLY WITH THE WORD BLOCKED')
         );
+    }
+
+    public function testASecondWorkerForTheSameTaskWaitsOnTheRunInsteadOfStartingAnother(): void
+    {
+        Queue::fake();
+        $task = $this->factoryTask($this->factoryAgent(), 'Build the login screen in SecondLook-app');
+        $assigned = $task->status;
+
+        new RunTaskWorkerJob($task)->handle();
+        // A second assign queued its own worker before the first had created the run.
+        $task->status = $assigned;
+        $task->saveOrFail();
+        new RunTaskWorkerJob($task->refresh())->handle();
+
+        $this->assertSame(1, Task::query()->where('parent_task_id', $task->getId())->count());
+        $this->assertSame(TaskStatusEnum::WAITING->value, $task->refresh()->status);
+    }
+
+    public function testALaunchWhoseChatClosedWhileTheCheckoutOpenedReleasesItAndStaysClosed(): void
+    {
+        Queue::fake();
+        [$agent, $chat] = $this->chatAgent();
+        $live = $this->liveChatOnAMachine($agent, $chat, HarnessStatusEnum::STARTING);
+        $factory = new class ($live) extends FactoryServeClient {
+            /** @var list<string> */
+            public array $commands = [];
+
+            public function __construct(
+                private readonly AgentTaskSession $chat,
+            ) {
+                parent::__construct(new AgentMachine(), CodingChatSettingEnum::DEFAULT_FACTORY_DIR);
+            }
+
+            #[Override]
+            protected function run(string $command, int $timeout): string
+            {
+                $this->commands[] = $command;
+
+                if (! str_contains($command, "'open'")) {
+                    return '{"released":"true"}';
+                }
+
+                // `/end` lands while the baseline runs.
+                AgentTaskSession::query()->whereKey($this->chat->getId())->update(['status' => HarnessStatusEnum::COMPLETED->value]);
+
+                return '{"repo":"Quorum-app","directory":"/x","branch":"b","port":"4097","password":"p","provider":"p","model":"m"}';
+            }
+        };
+        $this->app->bind(FactoryServeClient::class, static fn (): FactoryServeClient => $factory);
+
+        new LaunchCodingChatJob(app(Apps::class), $live->getId(), 'fix the login spinner')->handle();
+
+        $this->assertSame(HarnessStatusEnum::COMPLETED->value, $live->refresh()->status, 'the closed chat stays closed');
+        $this->assertStringContainsString("'release'", $factory->commands[1]);
+        Queue::assertNotPushed(PollHarnessSessionJob::class);
     }
 
     public function testTheFactoryRunsAnswerBecomesTheResultOfTheTaskThatStartedIt(): void
@@ -1030,10 +1086,10 @@ class CodingChatTest extends TestCase
         [$agent, $chat] = $this->chatAgent();
         $live = $this->liveChatOnAMachine($agent, $chat, HarnessStatusEnum::IDLE);
 
-        $this->assertInstanceOf(FactoryServeClient::class, FactoryServeClient::forSession($live));
+        $this->assertInstanceOf(FactoryServeClient::class, HarnessFactory::codingFactoryFor($live));
 
         $live->agent_machine_id = null;
-        $this->assertNull(FactoryServeClient::forSession($live->unsetRelation('machine')));
+        $this->assertNull(HarnessFactory::codingFactoryFor($live->unsetRelation('machine')));
     }
 
     public function testAnythingButADecisionLeavesThePermissionPending(): void
@@ -1372,7 +1428,12 @@ class CodingChatTest extends TestCase
             }
 
             #[Override]
-            public function request(string $method, string $path, ?array $body = null, int $timeout = 30): array
+            public function request(
+                string $method,
+                string $path,
+                ?array $body = null,
+                int $timeout = 30
+            ): array
             {
                 $this->requests[] = [$method, $path, $body];
                 $route = basename((string) parse_url($path, PHP_URL_PATH));
@@ -1392,7 +1453,7 @@ class CodingChatTest extends TestCase
     }
 
     /**
-     * The factory every job and action reaches through `FactoryServeClient::forSession()`.
+     * The factory every job and action reaches through `HarnessFactory::codingFactoryFor()`.
      */
     private function bindFactory(string $output): FactoryServeClient
     {
@@ -1419,7 +1480,12 @@ class CodingChatTest extends TestCase
             }
 
             #[Override]
-            public function request(string $method, string $path, ?array $body = null, int $timeout = 30): array
+            public function request(
+                string $method,
+                string $path,
+                ?array $body = null,
+                int $timeout = 30
+            ): array
             {
                 if ($this->down) {
                     $this->down = false;
@@ -1429,7 +1495,12 @@ class CodingChatTest extends TestCase
 
                 $this->requests[] = [$method, $path, $body];
 
-                return $this->transport->request($method, $path, $body, $timeout);
+                return $this->transport->request(
+                    $method,
+                    $path,
+                    $body,
+                    $timeout
+                );
             }
         };
     }

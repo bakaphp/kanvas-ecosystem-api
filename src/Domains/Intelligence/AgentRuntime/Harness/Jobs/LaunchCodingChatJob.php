@@ -12,7 +12,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\OpenCode\Services\FactoryServeClient;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\CloseCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\PostCodingChatMessageAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\RestartFactoryServerAction;
@@ -21,6 +20,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\LaunchStageEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\CheckoutInUseException;
+use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CheckoutHolderNotice;
@@ -81,13 +81,22 @@ class LaunchCodingChatJob implements ShouldQueue
         }
 
         try {
-            $opened = FactoryServeClient::forSession($session)->open(
+            $factory = HarnessFactory::codingFactoryFor($session);
+            $opened = $factory->open(
                 repo: $session->repo_slug,
                 owner: $session->uuid,
                 name: $agent->name,
                 persona: CodingChatSettingEnum::personaFor($agent),
                 worktreeBranch: $session->taskRunBranch(),
             );
+
+            // `open` runs the baseline, for minutes. A chat ended or switched meanwhile was closed under
+            // this job; writing to the row it holds would bring it back live on a checkout already released.
+            if (! $session->fresh()?->isLive()) {
+                $factory->release($session->repo_slug, $session->uuid);
+
+                return;
+            }
 
             $session->port = $opened['port'];
             $session->server_password = $opened['password'];
@@ -101,13 +110,22 @@ class LaunchCodingChatJob implements ShouldQueue
             $instruction = trim($this->instruction);
 
             if ($instruction === '') {
-                // Opened by `/repo <App>` alone: the opencode session is created by the first message.
-                $session->status = HarnessStatusEnum::IDLE->value;
-                $session->markLaunchStage(null);
+                // Opened by `/repo <App>` alone: the opencode session is created by the first message. With
+                // nothing held the row goes idle and that message starts it; with something held the row
+                // stays starting, so a message arriving now is held too instead of starting a second session.
+                $instruction = HeldChatMessages::handOver(
+                    $session,
+                    static function () use ($session): string {
+                        $held = implode("\n\n", HeldChatMessages::take($session));
 
-                // Taken only once the row says IDLE: a message arriving after this sees the chat open and
-                // goes to the agent directly, so nothing falls between the two.
-                $instruction = implode("\n\n", HeldChatMessages::take($session));
+                        if ($held === '') {
+                            $session->status = HarnessStatusEnum::IDLE->value;
+                            $session->markLaunchStage(null);
+                        }
+
+                        return $held;
+                    }
+                );
 
                 if ($instruction === '') {
                     new PostCodingChatMessageAction(
@@ -133,7 +151,7 @@ class LaunchCodingChatJob implements ShouldQueue
                 static fn () => $harness->start($session, new HarnessPrompt(task: $instruction, policy: ''))
             );
 
-            foreach (HeldChatMessages::take($session) as $held) {
+            foreach (HeldChatMessages::handOver($session, static fn (): array => HeldChatMessages::take($session)) as $held) {
                 $harness->steer($session, $held);
             }
         } catch (CheckoutInUseException $e) {
@@ -141,6 +159,11 @@ class LaunchCodingChatJob implements ShouldQueue
 
             return;
         } catch (Throwable $e) {
+            // An unreachable or refusing Mac is said in the chat; anything else is a fault worth tracking.
+            if (! $e instanceof HarnessTransportException) {
+                report($e);
+            }
+
             new CloseCodingChatAction($session, 'Could not start: ' . $e->getMessage(), HarnessStatusEnum::FAILED)->execute();
 
             return;

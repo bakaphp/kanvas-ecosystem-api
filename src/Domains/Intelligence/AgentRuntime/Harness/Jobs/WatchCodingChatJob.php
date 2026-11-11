@@ -13,10 +13,10 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\OpenCode\Services\FactoryServeClient;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\ReportFactoryProblemsAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\RestartFactoryServerAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
+use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 
 /**
@@ -63,7 +63,7 @@ class WatchCodingChatJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
             return;
         }
 
-        $factory = FactoryServeClient::forSession($session);
+        $factory = HarnessFactory::codingFactoryFor($session);
 
         if ($factory === null) {
             return;

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Actions;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Connectors\OpenCode\Concerns\ResolvesAgentMachine;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\LaunchStageEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\LaunchCodingChatJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -25,8 +25,6 @@ use Kanvas\Users\Models\Users;
  */
 class OpenCodingChatAction
 {
-    use ResolvesAgentMachine;
-
     public const string PLAN_TYPE = 'coding_chat';
 
     public function __construct(
@@ -45,7 +43,7 @@ class OpenCodingChatAction
 
     public function execute(): AgentTaskSession
     {
-        $machine = $this->machineFor($this->agent, $this->agent->app, $this->agent->company);
+        $machine = HarnessFactory::codingMachineFor($this->agent);
 
         if ($machine === null) {
             throw new ValidationException(
