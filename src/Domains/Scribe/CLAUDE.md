@@ -80,7 +80,10 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
   AR/AP agent a general email or WhatsApp tool, which would send a document outside it. A person may still generate
   the PDF and send it by hand. Never use an e-CF or bank provider's own email (untracked). An e-CF invoice is not sent before
   DGII accepted it. The public page renders `Engagement.document_page` (`toTemplateData()`), never the
-  row; customer answers come back through `respondToDocumentEngagement` → `RecordDocumentResponseAction`
+  row; the engagement's `message.data` also carries `document_number`, `name` and `html` (`DocumentHtmlService`:
+  the string the PDF is printed from, the SOW layout for `sign-sow`, the legal e-CF representation once DGII
+  accepted and no `html` before), rewritten on every open so a reused link shows the document as it is now;
+  `html` is for display, the actions (accept, sign, pay, QR) stay on `document_page`; customer answers come back through `respondToDocumentEngagement` → `RecordDocumentResponseAction`
   (accept = `AcceptQuoteAction`, decline = `RejectQuoteAction`), and paid closes the thread from
   `MarkInvoicePaidAction`. Dunning is the follow-up engine's Invoice executor
   (`Intelligence/FollowUp/Actions/FollowUpInvoiceAction`, company setting `scribe_dunning_schedule`).
