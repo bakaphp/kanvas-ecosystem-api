@@ -30,6 +30,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\System\FindTeammateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadEntityContextTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadMyLedgerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadUserActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendEmailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendEmailToUserTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendSlackDirectMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\WhoIsUserTool;
@@ -337,6 +338,12 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
 
         $tools = [
             new FindTeammateTool()->withContext(
+                $this->app,
+                $this->company,
+                $human,
+                $agent,
+            ),
+            new SendEmailTool($agent, $this->session)->withContext(
                 $this->app,
                 $this->company,
                 $human,

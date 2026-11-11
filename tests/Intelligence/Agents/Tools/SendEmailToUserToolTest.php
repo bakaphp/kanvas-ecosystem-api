@@ -183,6 +183,7 @@ final class SendEmailToUserToolTest extends TestCase
         );
 
         $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('use send_email instead', $result['message']);
         Mail::assertNothingSent();
     }
 

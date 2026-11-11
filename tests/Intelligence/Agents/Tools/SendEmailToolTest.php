@@ -5,17 +5,26 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Agents\Tools;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendEmailTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendEmailTool as SystemSendEmailTool;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\NervousSystem\Ledger\Models\Event;
+use Kanvas\Notifications\KanvasMailable;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -23,6 +32,10 @@ use Tests\TestCase;
 
 class SendEmailToolTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'crm', 'social', 'intelligence'];
+
     /**
      * The Lead factory seeds the people with a faker email, so every test starts from a lead with no
      * email on file and adds back exactly the contacts it wants to exercise.
@@ -53,6 +66,21 @@ class SendEmailToolTest extends TestCase
         $user = auth()->user();
 
         return new SendEmailTool()->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
+    }
+
+    private function systemTool(?Agent $agent = null): SystemSendEmailTool
+    {
+        return new SystemSendEmailTool($agent ?? $this->makeAgent());
+    }
+
+    private function makeAgent(): Agent
+    {
+        $user = auth()->user();
+
+        return Agent::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId($user->getCurrentCompany()->getId())
+            ->create(['name' => 'Email agent ' . Str::random(8), 'user_id' => $user->getId()]);
     }
 
     public function testSendEmailSendsToTheAddressOnFileAndLogsTheLead(): void
@@ -493,5 +521,172 @@ class SendEmailToolTest extends TestCase
         $this->assertSame('success', $result['status']);
         $this->assertSame([], $result['cc']);
         $this->assertSame([], $result['cc_rejected']);
+    }
+
+    public function testEmailsExternalRecipientViaSmtpFallback(): void
+    {
+        Mail::fake();
+        $agent = $this->makeAgent();
+
+        $result = $this->systemTool($agent)->__invoke(
+            to: ' client@example.com ',
+            subject: '  Payment reminder  ',
+            body: '  Please review **invoice 42**.  ',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('client@example.com', $result['to']);
+        $this->assertSame('Payment reminder', $result['subject']);
+        $this->assertSame([], $result['cc']);
+        $this->assertNotEmpty($result['from']);
+        Mail::assertSent(
+            KanvasMailable::class,
+            fn (KanvasMailable $mail): bool => $mail->hasTo('client@example.com')
+                && $mail->subject === 'Payment reminder',
+        );
+    }
+
+    public function testEmailsExternalRecipientWithCc(): void
+    {
+        Mail::fake();
+
+        $result = $this->systemTool()->__invoke(
+            to: 'client@example.com',
+            subject: 'Account update',
+            body: 'The account is current.',
+            cc: ' copy@example.com, invalid, copy@example.com, , another@example.com ',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame(['copy@example.com', 'another@example.com'], $result['cc']);
+        $this->assertSame(
+            'Email sent to client@example.com (cc: copy@example.com, another@example.com).',
+            $result['message'],
+        );
+        Mail::assertSent(
+            KanvasMailable::class,
+            fn (KanvasMailable $mail): bool => $mail->hasTo('client@example.com')
+                && $mail->hasCc('copy@example.com')
+                && $mail->hasCc('another@example.com'),
+        );
+    }
+
+    public function testEmailsExternalRecipientViaAgentMailbox(): void
+    {
+        Mail::fake();
+        config([
+            'services.mailgun.secret' => 'key-test',
+            'services.mailgun.domain' => 'agents.kanvas.test',
+        ]);
+        Http::fake([
+            'api.mailgun.net/v3/*/messages' => Http::response(['id' => '<sent@agents.kanvas.test>']),
+        ]);
+        $agent = $this->makeAgent();
+        $address = Str::slug($agent->name) . '@agents.kanvas.test';
+        $agent->set(CustomFieldEnum::MAILBOX_ADDRESS->value, $address);
+
+        $result = $this->systemTool($agent)->__invoke(
+            to: 'client@example.com',
+            subject: 'Mailbox test',
+            body: 'Hello from the agent.',
+            cc: 'copy@example.com',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame($address, $result['from']);
+        Http::assertSent(
+            fn ($request): bool => $request->method() === 'POST'
+                && str_contains($request->url(), '/messages')
+                && str_contains((string) $request->body(), 'client@example.com')
+                && str_contains((string) $request->body(), 'copy@example.com'),
+        );
+        Mail::assertNothingSent();
+    }
+
+    public function testRejectsInvalidEmailAddress(): void
+    {
+        Mail::fake();
+
+        $result = $this->systemTool()->__invoke(
+            to: 'not-an-email',
+            subject: 'Hello',
+            body: 'Hello there.',
+        );
+
+        $this->assertSame('error', $result['status']);
+        $this->assertSame("The recipient email address 'not-an-email' is invalid.", $result['message']);
+        Mail::assertNothingSent();
+    }
+
+    public function testRejectsEmptySubjectOrBody(): void
+    {
+        Mail::fake();
+        $tool = $this->systemTool();
+
+        $emptySubject = $tool->__invoke(
+            to: 'client@example.com',
+            subject: '  ',
+            body: 'A body.',
+        );
+        $emptyBody = $tool->__invoke(
+            to: 'client@example.com',
+            subject: 'A subject.',
+            body: '  ',
+        );
+        $emptyRecipient = $tool->__invoke(
+            to: '  ',
+            subject: 'A subject.',
+            body: 'A body.',
+        );
+
+        $this->assertSame('error', $emptySubject['status']);
+        $this->assertSame('error', $emptyBody['status']);
+        $this->assertSame('error', $emptyRecipient['status']);
+        Mail::assertNothingSent();
+    }
+
+    public function testErrorsWithoutAgentInScope(): void
+    {
+        Mail::fake();
+
+        $result = new SystemSendEmailTool()->__invoke(
+            to: 'client@example.com',
+            subject: 'Hello',
+            body: 'Hello there.',
+        );
+
+        $this->assertSame('error', $result['status']);
+        $this->assertSame('No agent is in scope, so I cannot send an email.', $result['message']);
+        Mail::assertNothingSent();
+    }
+
+    public function testSentEmailIsRecordedInAgentLedger(): void
+    {
+        Mail::fake();
+        $agent = $this->makeAgent();
+
+        $result = $this->systemTool($agent)->__invoke(
+            to: 'client@example.com',
+            subject: 'Invoice reminder',
+            body: 'Invoice 42 is due.',
+            cc: 'copy@example.com',
+        );
+
+        $event = Event::query()
+            ->where('apps_id', app(Apps::class)->getId())
+            ->where('companies_id', auth()->user()->getCurrentCompany()->getId())
+            ->where('event_type', SystemSendEmailTool::LEDGER_EVENT)
+            ->where('actor_type', 'Agent')
+            ->where('actor_id', $agent->getId())
+            ->latest('id')
+            ->first();
+
+        $this->assertSame('success', $result['status']);
+        $this->assertNotNull($event);
+        $this->assertSame('Intelligence', $event->source_domain);
+        $this->assertSame('client@example.com', $event->payload['to']);
+        $this->assertSame(['copy@example.com'], $event->payload['cc']);
+        $this->assertSame('Invoice reminder', $event->payload['subject']);
+        $this->assertSame('Invoice 42 is due.', $event->payload['body']);
     }
 }
