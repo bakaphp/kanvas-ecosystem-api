@@ -30,6 +30,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\WatchCodingChatJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CheckoutHolderNotice;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CodingChatCheckouts;
+use Kanvas\Intelligence\AgentRuntime\Harness\Services\HeldChatMessages;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunCodingChatAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -46,6 +47,7 @@ use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\Users\Models\Users;
 use Override;
+use RuntimeException;
 use Tests\Intelligence\Integration\Harness\Concerns\CreatesTaskSessions;
 use Tests\TestCase;
 use Tests\Traits\MakesPlans;
@@ -642,6 +644,46 @@ class CodingChatTest extends TestCase
         $this->assertStringContainsString('Send `/take Quorum-app` here', $message);
         $this->assertStringContainsString('branch `opencode/20261110-1200`', $message);
         $this->assertStringNotContainsString($holder->uuid, $message, 'a session id means nothing to a person');
+    }
+
+    public function testTheHolderNoticeWorksOnTheQueueWhereNobodyIsLoggedIn(): void
+    {
+        [$agent, $first] = $this->chatAgent();
+        $holder = $this->liveChat(
+            agent: $agent,
+            chat: $first,
+            status: HarnessStatusEnum::IDLE,
+            userId: $this->user()->getId(),
+        );
+        $refused = $this->refusedChat($agent, $this->user()->getId());
+        app('auth')->forgetGuards();
+
+        $message = new CheckoutHolderNotice($refused, $holder->uuid)->message();
+
+        $this->assertStringContainsString('already open in another conversation of yours', $message);
+    }
+
+    public function testAMessageSentWhileTheCheckoutOpensIsHeldForTheAgentNotRefused(): void
+    {
+        [$agent, $chat] = $this->chatAgent();
+        $live = $this->liveChat($agent, $chat, HarnessStatusEnum::STARTING);
+
+        $reply = $this->say($agent, $chat, 'you remember how to run it, right?');
+
+        $this->assertStringContainsString('I will pass this to the agent as soon as it starts', $reply);
+        $this->assertSame(['you remember how to run it, right?'], HeldChatMessages::take($live));
+    }
+
+    public function testALaunchThatCrashesClosesItsSessionInsteadOfLeavingItOpening(): void
+    {
+        [$agent, $chat] = $this->chatAgent();
+        $live = $this->liveChat($agent, $chat, HarnessStatusEnum::STARTING);
+
+        new LaunchCodingChatJob(app(Apps::class), $live->getId(), '')->failed(new RuntimeException('boom'));
+
+        $live->refresh();
+        $this->assertSame(HarnessStatusEnum::FAILED->value, $live->status);
+        $this->assertStringContainsString('boom', (string) $live->error_message);
     }
 
     public function testACheckoutHeldBySomeoneElseNamesThemAndOffersNoTake(): void

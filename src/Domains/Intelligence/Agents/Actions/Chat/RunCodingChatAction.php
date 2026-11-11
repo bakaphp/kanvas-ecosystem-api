@@ -18,6 +18,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\PollHarnessSessionJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CodingChatCheckouts;
+use Kanvas\Intelligence\AgentRuntime\Harness\Services\HeldChatMessages;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -240,7 +241,7 @@ class RunCodingChatAction
         $status = $live->harnessStatus();
 
         if ($status === HarnessStatusEnum::STARTING || ! $live->isProvisioned()) {
-            return 'Still opening **' . $live->repo_slug . '**. Send that again once I say the agent has started.';
+            return $this->holdUntilStarted($live, $text);
         }
 
         try {
@@ -256,6 +257,32 @@ class RunCodingChatAction
 
             return '⚠️ That did not reach the coding agent: ' . $e->getMessage();
         }
+    }
+
+    /**
+     * Held for the launch to hand over when the agent starts. The launch takes what is held only after
+     * the row stops saying STARTING, so the row is read again here: a message that landed after that
+     * hand-over would otherwise wait for a launch that already happened.
+     */
+    private function holdUntilStarted(AgentTaskSession $live, string $text): string
+    {
+        HeldChatMessages::hold($live, $text);
+        $live->refresh();
+
+        if (! $live->isLive()) {
+            HeldChatMessages::take($live);
+
+            return '**' . $live->repo_slug . '** could not be opened; the message above says why.';
+        }
+
+        if ($live->harnessStatus() !== HarnessStatusEnum::STARTING && $live->isProvisioned()) {
+            $held = HeldChatMessages::take($live);
+
+            return $held === [] ? '⏳ On it.' : $this->relay($live, implode("\n\n", $held));
+        }
+
+        return '⏳ Still opening **' . $live->repo_slug . '** (started ' . $live->created_at?->diffForHumans()
+            . '). I will pass this to the agent as soon as it starts.';
     }
 
     private function nextTurn(AgentTaskSession $live, string $text): string

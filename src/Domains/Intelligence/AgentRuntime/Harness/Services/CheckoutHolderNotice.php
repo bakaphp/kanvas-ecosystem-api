@@ -53,11 +53,13 @@ class CheckoutHolderNotice
 
     private function holder(): ?AgentTaskSession
     {
+        // Plain columns, not fromApp()/fromCompany(): given an id, those resolve it through the logged-in
+        // user, and this runs on the coding queue where there is none.
         /** @var AgentTaskSession|null */
         return AgentTaskSession::query()
             ->where('uuid', $this->holderUuid)
-            ->fromApp($this->refused->apps_id)
-            ->fromCompany($this->refused->companies_id)
+            ->where('apps_id', $this->refused->apps_id)
+            ->where('companies_id', $this->refused->companies_id)
             ->first();
     }
 

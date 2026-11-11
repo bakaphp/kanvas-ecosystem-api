@@ -22,6 +22,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\CheckoutInUseException;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CheckoutHolderNotice;
+use Kanvas\Intelligence\AgentRuntime\Harness\Services\HeldChatMessages;
 use Throwable;
 
 /**
@@ -87,17 +88,25 @@ class LaunchCodingChatJob implements ShouldQueue
             $session->model = $opened['model'];
             WatchCodingChatJob::dispatch($this->app, $session->getId());
 
-            if (trim($this->instruction) === '') {
+            $instruction = trim($this->instruction);
+
+            if ($instruction === '') {
                 // Opened by `/repo <App>` alone: the opencode session is created by the first message.
                 $session->status = HarnessStatusEnum::IDLE->value;
                 $session->markLaunchStage(null);
 
-                new PostCodingChatMessageAction(
-                    $session,
-                    '📂 Ready in **' . $session->repo_slug . '** on branch `' . $session->branch . '`. What should I do?'
-                )->execute();
+                // Taken only once the row says IDLE: a message arriving after this sees the chat open and
+                // goes to the agent directly, so nothing falls between the two.
+                $instruction = implode("\n\n", HeldChatMessages::take($session));
 
-                return;
+                if ($instruction === '') {
+                    new PostCodingChatMessageAction(
+                        $session,
+                        '📂 Ready in **' . $session->repo_slug . '** on branch `' . $session->branch . '`. What should I do?'
+                    )->execute();
+
+                    return;
+                }
             }
 
             $session->markLaunchStage(LaunchStageEnum::PROMPTING);
@@ -108,7 +117,12 @@ class LaunchCodingChatJob implements ShouldQueue
                 . 'I will post here when this turn is done.'
             )->execute();
 
-            HarnessFactory::forSession($session)->start($session, new HarnessPrompt(task: $this->instruction, policy: ''));
+            $harness = HarnessFactory::forSession($session);
+            $harness->start($session, new HarnessPrompt(task: $instruction, policy: ''));
+
+            foreach (HeldChatMessages::take($session) as $held) {
+                $harness->steer($session, $held);
+            }
         } catch (CheckoutInUseException $e) {
             $this->refuseHeldCheckout($session, $e);
 
@@ -121,6 +135,26 @@ class LaunchCodingChatJob implements ShouldQueue
 
         $session->markLaunchStage(null);
         PollHarnessSessionJob::dispatch($this->app, $session->getId());
+    }
+
+    /**
+     * A launch that dies outside its own catch would leave the session STARTING, and the chat answering
+     * "still opening" to every message until the sweeper reaps it ten minutes later.
+     */
+    public function failed(Throwable $e): void
+    {
+        try {
+            $this->overwriteAppService($this->app);
+
+            /** @var AgentTaskSession|null $session */
+            $session = AgentTaskSession::query()->where('id', $this->sessionId)->fromApp($this->app)->first();
+
+            if ($session !== null && $session->isLive()) {
+                new CloseCodingChatAction($session, 'Could not start: ' . $e->getMessage(), HarnessStatusEnum::FAILED)->execute();
+            }
+        } catch (Throwable $closing) {
+            report($closing);
+        }
     }
 
     /**
