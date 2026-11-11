@@ -56,8 +56,7 @@ class LaunchCodingChatJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
-        /** @var AgentTaskSession|null $session */
-        $session = AgentTaskSession::query()->where('id', $this->sessionId)->fromApp($this->app)->first();
+        $session = AgentTaskSession::findInApp($this->sessionId, $this->app);
 
         if ($session === null || ! $session->isLive()) {
             return;
@@ -186,6 +185,7 @@ class LaunchCodingChatJob implements ShouldQueue
             ->whereNotNull('chat_session_id')
             ->notDeleted()
             ->live()
+            ->with('task')
             ->get()
             ->filter(static fn (AgentTaskSession $other): bool => $other->isTaskRun());
 
@@ -218,8 +218,7 @@ class LaunchCodingChatJob implements ShouldQueue
         try {
             $this->overwriteAppService($this->app);
 
-            /** @var AgentTaskSession|null $session */
-            $session = AgentTaskSession::query()->where('id', $this->sessionId)->fromApp($this->app)->first();
+            $session = AgentTaskSession::findInApp($this->sessionId, $this->app);
 
             if ($session !== null && $session->isLive()) {
                 new CloseCodingChatAction($session, 'Could not start: ' . $e->getMessage(), HarnessStatusEnum::FAILED)->execute();

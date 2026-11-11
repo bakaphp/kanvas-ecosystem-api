@@ -690,13 +690,14 @@ class OpenCodeHarness implements CodingHarness
      */
     private function lastError(array $idle, array $assistant): ?string
     {
-        $outcome = $idle === [] ? null : ($idle[array_key_last($idle)]['outcome'] ?? null);
+        $newest = $idle === [] ? [] : $idle[array_key_last($idle)];
+        $outcome = $newest['outcome'] ?? null;
 
         if (! is_string($outcome) || $outcome === 'succeeded') {
             return null;
         }
 
-        return $this->describeError($idle[array_key_last($idle)]['error'] ?? null)
+        return $this->describeError($newest['error'] ?? null)
             ?? $this->lastAssistantError($assistant)
             ?? 'the run ended as "' . $outcome . '"';
     }

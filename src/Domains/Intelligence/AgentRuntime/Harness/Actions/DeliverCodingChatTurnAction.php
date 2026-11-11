@@ -65,11 +65,12 @@ class DeliverCodingChatTurnAction
     private function content(): string
     {
         $reply = $this->tick->turnReply;
-        $said = $reply !== null ? "\n\n" . $reply : '';
 
         if ($this->tick->status !== HarnessStatusEnum::FAILED) {
             return $reply ?? '✅ Done — nothing to report this turn.';
         }
+
+        $said = $reply !== null ? "\n\n" . $reply : '';
 
         if (str_contains((string) $this->tick->error, '"interrupted"')) {
             return '⏹ Turn stopped.' . $said;

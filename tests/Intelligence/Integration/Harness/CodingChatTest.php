@@ -1030,7 +1030,12 @@ class CodingChatTest extends TestCase
         $factory = $this->bindFactory('{"running":"true","port":"4097"}');
         $transport = $this->downOnce($this->transport());
 
-        $reply = $this->say($agent, $chat, 'now add a test', $transport);
+        $reply = $this->say(
+            $agent,
+            $chat,
+            'now add a test',
+            $transport
+        );
 
         $this->assertSame('⏳ On it.', $reply);
         $this->assertStringEndsWith("'start' 2>/dev/null", $factory->commands[0]);
@@ -1048,7 +1053,12 @@ class CodingChatTest extends TestCase
         $live = $this->liveChatOnAMachine($agent, $chat, HarnessStatusEnum::IDLE);
         $this->bindFactory('{"error":"joseceron is not logged in on the Mac\'s screen; log in and retry"}');
 
-        $reply = $this->say($agent, $chat, 'now add a test', $this->downOnce($this->transport()));
+        $reply = $this->say(
+            $agent,
+            $chat,
+            'now add a test',
+            $this->downOnce($this->transport())
+        );
 
         $this->assertStringContainsString('not logged in on the Mac', $reply);
         $this->assertSame(HarnessStatusEnum::IDLE->value, $live->refresh()->status);
@@ -1433,8 +1443,7 @@ class CodingChatTest extends TestCase
                 string $path,
                 ?array $body = null,
                 int $timeout = 30
-            ): array
-            {
+            ): array {
                 $this->requests[] = [$method, $path, $body];
                 $route = basename((string) parse_url($path, PHP_URL_PATH));
 
@@ -1485,8 +1494,7 @@ class CodingChatTest extends TestCase
                 string $path,
                 ?array $body = null,
                 int $timeout = 30
-            ): array
-            {
+            ): array {
                 if ($this->down) {
                     $this->down = false;
 
