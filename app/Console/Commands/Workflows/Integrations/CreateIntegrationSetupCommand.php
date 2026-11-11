@@ -53,7 +53,7 @@ class CreateIntegrationSetupCommand extends Command
         $config = [];
 
         if ($hasConfig) {
-            $this->info("Add the fields of the configuration. Leave the name blank to end.");
+            $this->info('Add the fields of the configuration. Leave the name blank to end.');
 
             while (true) {
                 // Paso 3.1: Ask for field name
@@ -71,7 +71,7 @@ class CreateIntegrationSetupCommand extends Command
                 // Add configuration fields
                 $config[$fieldName] = [
                     'type' => $fieldType,
-                    'required' => $isRequired
+                    'required' => $isRequired,
                 ];
 
                 $this->info("Field '$fieldName' added.");
@@ -81,7 +81,7 @@ class CreateIntegrationSetupCommand extends Command
         $integrationData = [
             'name' => $name,
             'config' => $config,
-            'handler' => $handler
+            'handler' => $handler,
         ];
 
         $integration = Integrations::firstOrCreate([
@@ -118,7 +118,7 @@ class CreateIntegrationSetupCommand extends Command
                     }
 
                     $fieldType = $this->choice('Data type', [
-                        'string', 'integer', 'boolean', 'array', 'email', 'url'
+                        'string', 'integer', 'boolean', 'array', 'email', 'url',
                     ], 0);
 
                     $isRequired = $this->confirm('Required?', true);
@@ -129,12 +129,12 @@ class CreateIntegrationSetupCommand extends Command
                         'boolean' => 'boolean',
                         'array' => 'array',
                         'email' => 'email',
-                        'url' => 'url'
+                        'url' => 'url',
                     ];
 
                     $config[$fieldName] = [
                         'type' => $fieldType,
-                        'required' => $isRequired
+                        'required' => $isRequired,
                     ];
 
                     $this->info("Field '$fieldName' added.");
@@ -148,7 +148,7 @@ class CreateIntegrationSetupCommand extends Command
                 'apps_id' => $appId,
                 'name' => $name,
                 'verb' => $verb,
-                'template' => json_encode($config)
+                'template' => json_encode($config),
             ]);
             (new CreateMessageTypeAction($messageTypeDto))->execute();
         }

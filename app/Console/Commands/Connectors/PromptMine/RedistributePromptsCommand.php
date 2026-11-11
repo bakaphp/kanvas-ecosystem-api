@@ -71,7 +71,7 @@ class RedistributePromptsCommand extends Command
                     'prompt_id',
                     'user_id',
                     'category',
-                    'displayname'
+                    'displayname',
                 ];
 
                 foreach ($values as $row) {
@@ -84,11 +84,12 @@ class RedistributePromptsCommand extends Command
                     $redistributeCollection[] = $redistributeArray;
                 }
             } else {
-                echo "No data found.";
+                echo 'No data found.';
             }
 
             if ($skipSheet) {
                 echo "Skipping sheet $sheetName due to null or empty required values.\n";
+
                 continue;
             }
 
@@ -167,7 +168,6 @@ class RedistributePromptsCommand extends Command
             }
         }
     }
-
 
     private function createTags(string $tagName, int $userId, int $appId, int $companyId): int
     {

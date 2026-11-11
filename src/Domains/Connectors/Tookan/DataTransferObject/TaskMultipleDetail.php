@@ -43,9 +43,9 @@ class TaskMultipleDetail extends Data
             'has_delivery' => $this->has_delivery ? 1 : 0,
             'meta_data' => $this->meta_data,
             'auto_assignment' => $this->auto_assignment ? 1 : 0,
-            "layout_type" => 0,
-            "geofence" => 0,
-            "tags" => "",
+            'layout_type' => 0,
+            'geofence' => 0,
+            'tags' => '',
         ], fn ($value) => $value !== null && $value !== []);
     }
 }

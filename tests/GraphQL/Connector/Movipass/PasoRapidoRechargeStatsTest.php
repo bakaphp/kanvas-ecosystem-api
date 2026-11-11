@@ -56,8 +56,8 @@ class PasoRapidoRechargeStatsTest extends TestCase
         ', [
             'metadata' => [
                 'custom_title' => 'Reporte de Recargas',
-                'subtitle'     => 'Paso Rápido',
-                'headerColor'  => '#5D8A66',
+                'subtitle' => 'Paso Rápido',
+                'headerColor' => '#5D8A66',
             ],
         ])->assertSuccessful()
           ->assertJson([
@@ -99,7 +99,7 @@ class PasoRapidoRechargeStatsTest extends TestCase
           ->assertJsonStructure([
               'data' => [
                   'orders' => [
-                      'data'          => [],
+                      'data' => [],
                       'paginatorInfo' => ['total', 'currentPage', 'lastPage'],
                   ],
               ],

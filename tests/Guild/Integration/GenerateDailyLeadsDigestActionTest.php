@@ -80,6 +80,7 @@ final class GenerateDailyLeadsDigestActionTest extends TestCase
         $company = auth()->user()->getCurrentCompany();
 
         Carbon::setTestNow(now()->addYears(10));
+
         try {
             $result = new GenerateDailyLeadsDigestAction($app, $company, 1)->execute();
 

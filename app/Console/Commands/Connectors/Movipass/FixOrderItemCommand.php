@@ -51,6 +51,7 @@ class FixOrderItemCommand extends Command
         // Validate required parameters - either date range OR order IDs
         if (! $orderIds && (! $startDate || ! $endDate)) {
             $this->error('Either --order-ids OR both --start-date and --end-date options are required');
+
             return;
         }
 
@@ -61,11 +62,13 @@ class FixOrderItemCommand extends Command
                 $endDate = Carbon::createFromFormat('Y-m-d', $endDate)->endOfDay();
             } catch (\Exception $e) {
                 $this->error('Invalid date format. Please use Y-m-d format (e.g., 2024-01-15)');
+
                 return;
             }
 
             if ($startDate->gt($endDate)) {
                 $this->error('Start date must be before or equal to end date');
+
                 return;
             }
         }
@@ -79,6 +82,7 @@ class FixOrderItemCommand extends Command
             $parts = array_map('trim', explode(',', $substituteItem));
             if (count($parts) !== 2) {
                 $this->error('Substitute item format must be "old_id,new_id"');
+
                 return;
             }
             $substitution = ['old' => (int) $parts[0], 'new' => (int) $parts[1]];
@@ -88,7 +92,7 @@ class FixOrderItemCommand extends Command
         if ($orderIds) {
             // Process specific order IDs
             $orderIdsArray = array_map('trim', explode(',', $orderIds));
-            $this->info("Processing specific orders: " . implode(', ', $orderIdsArray));
+            $this->info('Processing specific orders: ' . implode(', ', $orderIdsArray));
 
             if ($isDryRun) {
                 $this->warn('DRY RUN MODE - No changes will be made');
@@ -102,7 +106,7 @@ class FixOrderItemCommand extends Command
             $startDate = $startDate->setTimezone($appTimeZone);
             $endDate = $endDate->setTimezone($appTimeZone);
 
-            $this->info("Date Range Details:");
+            $this->info('Date Range Details:');
             $this->info("  Timezone: {$appTimeZone}  Start Date: {$startDate->toDateTimeString()}  End Date: {$endDate->toDateTimeString()}");
 
             if ($isDryRun) {
@@ -191,12 +195,14 @@ class FixOrderItemCommand extends Command
 
         if ($isDryRun) {
             $this->line("Would substitute {$itemsToReplace->count()} items in order {$order->id}: variant {$oldVariantId} → {$newVariantId}");
+
             return true;
         }
 
         $newVariant = ModelsVariants::find($newVariantId);
         if (! $newVariant) {
             $this->error("New variant {$newVariantId} not found");
+
             return false;
         }
 
@@ -219,10 +225,10 @@ class FixOrderItemCommand extends Command
         $order->addItem($orderItem);
 
         $order->metadata = [
-            "data" => [
-                ...($order->metadata["data"] ?? []),
-                "updated_by_system_at" => now()->toDateTimeString(),
-            ]
+            'data' => [
+                ...($order->metadata['data'] ?? []),
+                'updated_by_system_at' => now()->toDateTimeString(),
+            ],
         ];
 
         $order->calculateTotal(false);

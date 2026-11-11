@@ -82,7 +82,7 @@ class MailUserListCommand extends Command
 
         $totalRows = count($csv);
         if ($skip > 0) {
-            $this->info("Skipping first {$skip} rows, sending to remaining " . ($totalRows - $skip) . " recipients.");
+            $this->info("Skipping first {$skip} rows, sending to remaining " . ($totalRows - $skip) . ' recipients.');
         }
         $this->output->progressStart($totalRows - $skip);
 

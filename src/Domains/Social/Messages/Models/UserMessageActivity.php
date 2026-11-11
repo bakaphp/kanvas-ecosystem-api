@@ -25,7 +25,6 @@ class UserMessageActivity extends BaseModel
 
     /**
      * userMessage
-     *
      */
     public function userMessage(): BelongsTo
     {

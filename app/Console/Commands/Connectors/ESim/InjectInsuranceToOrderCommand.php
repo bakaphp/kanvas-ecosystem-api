@@ -353,6 +353,7 @@ class InjectInsuranceToOrderCommand extends Command
 
         if ($existingItem) {
             $this->comment("  Order item for variant {$variant->getId()} already exists. Skipping creation.");
+
             return;
         }
 
@@ -388,6 +389,7 @@ class InjectInsuranceToOrderCommand extends Command
 
         if (! isset($metadata['esims'][$esimIndex]['message_id'])) {
             $this->warn("  No message_id found for eSIM #{$esimIndex}. Skipping message injection.");
+
             return;
         }
 
@@ -397,6 +399,7 @@ class InjectInsuranceToOrderCommand extends Command
             $message = Message::getById($messageId);
         } catch (\Exception $e) {
             $this->warn("  Message {$messageId} not found. Skipping message injection.");
+
             return;
         }
 
@@ -405,6 +408,7 @@ class InjectInsuranceToOrderCommand extends Command
         // Inject to eSimDetails.insurance (root level of message)
         if (isset($messageData['eSimDetails']['insurance']) && ! is_null($messageData['eSimDetails']['insurance'])) {
             $this->comment("  Insurance already exists in eSimDetails for message {$messageId}. Skipping message injection.");
+
             return;
         }
 

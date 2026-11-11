@@ -35,7 +35,7 @@ class SystemModulesAddFieldsCommand extends Command
         $systemModuleId = $this->argument('system_module_id');
         $systemModule = SystemModules::getById((int) $systemModuleId);
 
-        $this->info("Add the fields of the configuration. Leave the name blank to end.");
+        $this->info('Add the fields of the configuration. Leave the name blank to end.');
         $config = [];
 
         while (true) {
@@ -50,7 +50,7 @@ class SystemModulesAddFieldsCommand extends Command
 
             // Add configuration fields
             $config[$fieldName] = [
-                'required' => $isRequired
+                'required' => $isRequired,
             ];
 
             $this->info("Field '$fieldName' added.");

@@ -17,7 +17,6 @@ trait HasJwtToken
 {
     /**
      * Create a new personal access token for the user.
-     *
      */
     public function createToken(
         string $name,

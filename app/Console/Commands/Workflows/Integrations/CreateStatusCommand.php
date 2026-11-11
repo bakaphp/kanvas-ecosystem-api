@@ -54,28 +54,28 @@ class CreateStatusCommand extends Command
             'name' => StatusEnum::ACTIVE->value,
             'apps_id' => $appId,
         ], [
-            'slug' => Str::slug(StatusEnum::ACTIVE->value)
+            'slug' => Str::slug(StatusEnum::ACTIVE->value),
         ]);
 
         Status::firstOrCreate([
             'name' => StatusEnum::CONNECTED->value,
             'apps_id' => $appId,
         ], [
-            'slug' => Str::slug(StatusEnum::CONNECTED->value)
+            'slug' => Str::slug(StatusEnum::CONNECTED->value),
         ]);
 
         Status::firstOrCreate([
             'name' => StatusEnum::FAILED->value,
             'apps_id' => $appId,
         ], [
-            'slug' => Str::slug(StatusEnum::FAILED->value)
+            'slug' => Str::slug(StatusEnum::FAILED->value),
         ]);
 
         Status::firstOrCreate([
             'name' => StatusEnum::OFFLINE->value,
             'apps_id' => $appId,
         ], [
-            'slug' => Str::slug(StatusEnum::OFFLINE->value)
+            'slug' => Str::slug(StatusEnum::OFFLINE->value),
         ]);
 
         info('Integration status created successfully for app - ' . $appId);

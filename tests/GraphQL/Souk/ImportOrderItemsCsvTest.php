@@ -276,7 +276,6 @@ class ImportOrderItemsCsvTest extends TestCase
         $this->assertStringContainsString($variantResponse['name'], $message);
     }
 
-
     public function testImportOrderItemsWithStockValidationDisabled(): void
     {
         $freshUser = $this->createUser();

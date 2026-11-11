@@ -14,7 +14,6 @@ class UpdateAppsAction
 {
     /**
      * Construct function.
-     *
      */
     public function __construct(
         protected AppInput $data,
@@ -24,7 +23,6 @@ class UpdateAppsAction
 
     /**
      * Invoke function.
-     *
      */
     public function execute(string $id): Apps
     {
@@ -43,7 +41,7 @@ class UpdateAppsAction
             'ecosystem_auth' => $this->data->ecosystem_auth,
             'payments_active' => $this->data->payments_active,
             'is_public' => $this->data->is_public,
-            'domain_based' => $this->data->domain_based
+            'domain_based' => $this->data->domain_based,
         ]);
         $app->saveOrFail();
 

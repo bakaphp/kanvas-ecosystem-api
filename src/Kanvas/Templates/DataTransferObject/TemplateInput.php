@@ -16,7 +16,6 @@ class TemplateInput extends Data
 {
     /**
      * Constructs function.
-     *
      */
     public function __construct(
         public Apps $app,

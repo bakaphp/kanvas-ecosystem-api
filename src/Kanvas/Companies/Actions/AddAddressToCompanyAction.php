@@ -49,7 +49,6 @@ class AddAddressToCompanyAction
         return $address;
     }
 
-
     public function fromNetSuite(array $address): CompaniesAddress
     {
         return $this->execute(new Address(

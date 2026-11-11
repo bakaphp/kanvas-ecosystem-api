@@ -64,6 +64,7 @@ class OrderItemService
 
             if (empty($variant)) {
                 $errors[] = "<b>({$orderItem['variant_ean']})</b>: Product does not exist in our inventory.";
+
                 continue;
             }
 

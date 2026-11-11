@@ -29,6 +29,7 @@ class SubscriptionUpdatedEvent implements ShouldBroadcast
     public function broadcastWith(): array
     {
         $userCurrentSubscription = (new UserType())->currentSubscription($this->users, []);
+
         return [
             'apps_stripe_customer_id' => $this->appsStripeCustomer->id,
             'users_id' => $this->users->id,

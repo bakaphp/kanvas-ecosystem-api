@@ -120,7 +120,7 @@ class VoucherService
     public function generateVoucherPdf(string $voucherNumber): array
     {
         return $this->client->generatePdf([
-            'NumeroVoucher' => $voucherNumber
+            'NumeroVoucher' => $voucherNumber,
         ]);
     }
 
@@ -134,6 +134,7 @@ class VoucherService
         if (! $sex) {
             // Try to infer from courtesy title or name
             $title = $this->getCourtesyTitle($person);
+
             return in_array($title, ['Sr.', 'Dr.']) ? 'M' : 'F';
         }
 
@@ -153,6 +154,7 @@ class VoucherService
 
         // Default based on gender
         $sex = $this->getGenderFromPerson($person);
+
         return $sex === 'M' ? 'Sr.' : 'Sra.';
     }
 

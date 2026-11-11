@@ -49,6 +49,6 @@ return $config
     ])
     ->setFinder(
         PhpCsFixer\Finder::create()
-        ->exclude('vendor')
+        ->exclude(['vendor', 'node_modules', 'storage', 'bootstrap/cache', 'docs'])
         ->in(__DIR__)
     );
