@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Roles;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\CreateAbilitiesByModule;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
 
 class RoleAbilitiesTest extends TestCase
@@ -285,14 +287,144 @@ class RoleAbilitiesTest extends TestCase
         $this->assertEquals(4, $grantedCount);
     }
 
-    private function createTestRoleWithPermissions(array $permissions): array
+    public function testUpdateRoleKeepsPermissionsThatHaveNoModel(): void
+    {
+        $title = 'Custom Access ' . uniqid();
+        $role = $this->createTestRoleWithPermissions(
+            [
+                [
+                    'model_name' => 'Kanvas\\Guild\\Leads\\Models\\Lead',
+                    'permission' => ['view', 'edit'],
+                    'module_permissions' => [],
+                ],
+            ],
+            $title
+        );
+        Bouncer::scope()->onceTo(
+            RolesEnums::getScope($this->apps),
+            fn () => Bouncer::allow($role['name'])->to('download-orders')
+        );
+        $this->assertTrue($this->roleHasAbility((int) $role['id'], 'download-orders', null));
+        $this->assertTrue($this->roleHasAbility((int) $role['id'], 'edit', 'Kanvas\\Guild\\Leads\\Models\\Lead'));
+
+        $this->updateRole($role, $title, [
+            [
+                'model_name' => 'Kanvas\\Guild\\Leads\\Models\\Lead',
+                'permission' => ['view'],
+                'module_permissions' => [],
+            ],
+        ]);
+
+        $this->assertTrue($this->roleHasAbility((int) $role['id'], 'download-orders', null));
+        $this->assertTrue($this->roleHasAbility((int) $role['id'], 'view', 'Kanvas\\Guild\\Leads\\Models\\Lead'));
+        $this->assertFalse($this->roleHasAbility((int) $role['id'], 'edit', 'Kanvas\\Guild\\Leads\\Models\\Lead'));
+    }
+
+    public function testUpdateRoleRevokesItsOwnPermissionsWhenAnotherRoleSharesTheTitle(): void
+    {
+        $title = 'Shared Title ' . uniqid();
+        $this->createTestRoleWithPermissions(
+            [
+                [
+                    'model_name' => 'Kanvas\\Guild\\Leads\\Models\\Lead',
+                    'permission' => ['view'],
+                    'module_permissions' => [],
+                ],
+            ],
+            $title
+        );
+        $role = $this->createTestRoleWithPermissions(
+            [
+                [
+                    'model_name' => 'Kanvas\\Guild\\Leads\\Models\\Lead',
+                    'permission' => ['view', 'edit'],
+                    'module_permissions' => [],
+                ],
+            ],
+            $title
+        );
+        $this->assertTrue($this->roleHasAbility((int) $role['id'], 'edit', 'Kanvas\\Guild\\Leads\\Models\\Lead'));
+
+        $this->updateRole($role, $title, [
+            [
+                'model_name' => 'Kanvas\\Guild\\Leads\\Models\\Lead',
+                'permission' => ['view'],
+                'module_permissions' => [],
+            ],
+        ]);
+
+        $this->assertFalse($this->roleHasAbility((int) $role['id'], 'edit', 'Kanvas\\Guild\\Leads\\Models\\Lead'));
+    }
+
+    public function testRemovePermissionToRoleRevokesThePermission(): void
+    {
+        $role = $this->createTestRoleWithPermissions([
+            [
+                'model_name' => 'Kanvas\\Guild\\Leads\\Models\\Lead',
+                'permission' => ['view', 'edit'],
+                'module_permissions' => [],
+            ],
+        ]);
+
+        $this->graphQL(
+            query: '
+                mutation removePermissionToRole($role: String!, $permission: String!, $systemModule: String!) {
+                    removePermissionToRole(role: $role, permission: $permission, systemModule: $systemModule)
+                }
+            ',
+            variables: [
+                'role' => $role['name'],
+                'permission' => 'edit',
+                'systemModule' => 'Kanvas\\Guild\\Leads\\Models\\Lead',
+            ],
+            headers: $this->appKeyHeader
+        )->assertSuccessful()->assertJsonMissingPath('errors');
+
+        $this->assertFalse($this->roleHasAbility((int) $role['id'], 'edit', 'Kanvas\\Guild\\Leads\\Models\\Lead'));
+        $this->assertTrue($this->roleHasAbility((int) $role['id'], 'view', 'Kanvas\\Guild\\Leads\\Models\\Lead'));
+    }
+
+    private function updateRole(array $role, string $title, array $permissions): void
+    {
+        $this->graphQL(
+            query: '
+                mutation updateRole($id: ID!, $input: RoleInput) {
+                    updateRole(id: $id, input: $input) {
+                        name
+                    }
+                }
+            ',
+            variables: [
+                'id' => $role['id'],
+                'input' => [
+                    'name' => $role['name'],
+                    'title' => $title,
+                    'permissions' => $permissions,
+                ],
+            ],
+            headers: $this->appKeyHeader
+        )->assertSuccessful()->assertJsonMissingPath('errors');
+    }
+
+    private function roleHasAbility(int $roleId, string $ability, ?string $entityType): bool
+    {
+        return DB::table('permissions')
+            ->join('abilities', 'permissions.ability_id', 'abilities.id')
+            ->where('permissions.entity_type', 'roles')
+            ->where('permissions.entity_id', $roleId)
+            ->where('abilities.name', $ability)
+            ->where('abilities.entity_type', $entityType)
+            ->exists();
+    }
+
+    private function createTestRoleWithPermissions(array $permissions, string $title = 'Test Role'): array
     {
         $user = auth()->user();
         $user->assign(RolesEnums::OWNER->value);
 
         $input = [
             'name' => 'TestRole_' . fake()->unique()->word() . '_' . time(),
-            'title' => 'Test Role',
+            'title' => $title,
             'permissions' => $permissions,
         ];
 

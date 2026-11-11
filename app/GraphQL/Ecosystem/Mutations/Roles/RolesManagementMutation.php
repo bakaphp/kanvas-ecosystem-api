@@ -234,19 +234,20 @@ class RolesManagementMutation
             $input['name'] ?? null,
             $input['title'] ?? null
         );
-        $title = key_exists('title', $input) ? $input['title'] : null;
-        $permissions = RolesRepository::getPermissions($input['name'], $title);
+        $permissions = RolesRepository::getPermissions($existingRole);
         $role = $role->execute(auth()->user()->getCurrentCompany());
 
-        // Remove existing entity permissions
         foreach ($permissions as $permission) {
-            Bouncer::disallow($input['name'])->to(
+            if ($permission->entity_type === null) {
+                continue;
+            }
+
+            Bouncer::disallow($role->name)->to(
                 $permission->name,
                 $permission->entity_type
             );
         }
 
-        // Remove existing module permissions
         $modulePermissionNames = ModulesRepositories::getAllModulePermissionNames();
         foreach ($modulePermissionNames as $modulePermission) {
             Bouncer::disallow($role->name)->to($modulePermission);
