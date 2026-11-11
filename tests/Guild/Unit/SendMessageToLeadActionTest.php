@@ -13,6 +13,7 @@ use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
@@ -28,6 +29,7 @@ use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
+use RuntimeException;
 use Tests\TestCaseUnit;
 use Twilio\Exceptions\RestException;
 use Twilio\Http\Client as TwilioHttpClient;
@@ -426,6 +428,44 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
                 $this->guardSmsDestination($cellphone, $from);
             }
         };
+    }
+
+    public function testVideoGoesOutAsAPlainFileWhenItsEngagementCannotBeCreated(): void
+    {
+        Exceptions::fake();
+
+        $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('getAttribute')->with('app')->andThrow(new RuntimeException('no engagement'));
+
+        $action = new class ($lead) extends SendMessageToLeadAction {
+            public function createVideoEngagementsForTest(array $processedFiles): array
+            {
+                $this->processedFiles = $processedFiles;
+                $this->createVideoEngagements();
+
+                return $this->processedFiles;
+            }
+        };
+
+        $video = [
+            'url' => 'https://cdn.example.com/clip.mp4',
+            'name' => 'clip.mp4',
+            'type' => MediaTypeEnum::VIDEO,
+            'file_type' => 'mp4',
+            'filesystem' => Mockery::mock(Filesystem::class),
+        ];
+
+        $processedFiles = $action->createVideoEngagementsForTest([
+            [
+                'is_processed_video' => true,
+                'video' => $video,
+                'gif' => ['url' => 'https://cdn.example.com/clip.gif'],
+            ],
+        ]);
+
+        $this->assertSame([$video], $processedFiles);
+        $this->assertSame([], $action->getVideoEngagements());
+        Exceptions::assertReported(RuntimeException::class);
     }
 
     public function testTwilioMediaUrlsIncludeDocuments(): void
