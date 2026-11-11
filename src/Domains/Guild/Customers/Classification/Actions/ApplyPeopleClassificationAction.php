@@ -35,9 +35,13 @@ class ApplyPeopleClassificationAction
         $previousArea = $this->people->get(FieldEnum::AREA->value);
         $changed = $previousLevel !== $this->level || $previousArea !== $this->area;
 
-        $this->write(FieldEnum::LEVEL, $this->level);
-        $this->write(FieldEnum::AREA, $this->area);
-        $this->people->set(FieldEnum::SOURCE->value, $this->source->value);
+        // Bookkeeping, not an edit: these writes must not reach rules on CREATE_CUSTOM_FIELD (the SIPGO
+        // sync request rule); PEOPLE_CLASSIFIED below is the event this action owns.
+        $this->people->withoutWorkflows(function (): void {
+            $this->write(FieldEnum::LEVEL, $this->level);
+            $this->write(FieldEnum::AREA, $this->area);
+            $this->people->set(FieldEnum::SOURCE->value, $this->source->value);
+        });
 
         $settings = PeopleClassificationSettings::for($this->people->app, $this->people->company);
 

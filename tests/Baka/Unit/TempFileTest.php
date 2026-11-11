@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Baka\Unit;
 
+use Baka\Http\SafeUrlFetcher;
 use Baka\Support\TempFile;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -82,5 +86,57 @@ final class TempFileTest extends TestCase
         TempFile::delete(null, '', TempFile::path('missing'), $existing);
 
         $this->assertFileDoesNotExist($existing);
+    }
+
+    #[DataProvider('downloadOutcomes')]
+    public function testDownloadedFileLeavesNoTemporaryFiles(string $outcome): void
+    {
+        $prefix = 'download-test-' . bin2hex(random_bytes(4)) . '-';
+        $pattern = sys_get_temp_dir() . '/' . $prefix . '*';
+        $reader = new class () {
+            use ResolvesFilesystemForTool {
+                withDownloadedFile as public readFile;
+            }
+        };
+        $file = new Filesystem();
+        $file->url = 'https://example.test/statement.csv';
+        SafeUrlFetcher::fake(static fn (): string => $outcome === 'download'
+            ? throw new RuntimeException('download failed')
+            : 'date,amount');
+
+        try {
+            try {
+                $result = $reader->readFile(
+                    $file,
+                    $prefix,
+                    'csv',
+                    function (string $path) use ($outcome): string {
+                        $this->assertFileExists($path);
+                        $this->assertStringEndsWith('.csv', $path);
+                        $this->assertSame('date,amount', file_get_contents($path));
+
+                        if ($outcome === 'parse') {
+                            throw new RuntimeException('parse failed');
+                        }
+
+                        return 'parsed';
+                    },
+                );
+                $this->assertSame('success', $outcome);
+                $this->assertSame('parsed', $result);
+            } catch (RuntimeException $exception) {
+                $this->assertNotSame('success', $outcome);
+                $this->assertSame($outcome . ' failed', $exception->getMessage());
+            }
+
+            $this->assertSame([], glob($pattern), 'Both the reservation and downloaded copy must be removed.');
+        } finally {
+            TempFile::delete(...(glob($pattern) ?: []));
+        }
+    }
+
+    public static function downloadOutcomes(): array
+    {
+        return [['success'], ['download'], ['parse']];
     }
 }

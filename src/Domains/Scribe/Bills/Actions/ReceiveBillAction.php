@@ -74,7 +74,7 @@ class ReceiveBillAction
                 eventType: 'scribe.bill.received',
                 payload: [
                     'bill_number' => $bill->bill_number,
-                                        'vendor_id' => $bill->vendor_organization_id,
+                    'vendor_id' => $bill->vendor_organization_id,
                     'vendor_display_name' => $bill->vendor_display_name,
                     'currency' => $bill->currency,
                     'total_native' => (float) $bill->total_native,

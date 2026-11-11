@@ -8,12 +8,13 @@ use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Illuminate\Database\Query\Builder as QueryBuilder;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum as ApolloConfigurationEnum;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Intras\Enums\SipgoEntityEnum;
 use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
+use Kanvas\Connectors\Intras\Support\LegacyIdMap;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Guild\Customers\Classification\Jobs\ClassifyPeopleJob;
 use Kanvas\Guild\Customers\Classification\Services\PeopleClassificationSettings;
@@ -43,12 +44,16 @@ class PullParticipantsFromIntrasAction
     /** @var array<int|string, int> intras events_id => kanvas event id */
     protected array $eventIdMap = [];
 
+    /**
+     * @param list<int>|null $onlyParticipantIds pull just these legacy participants (on-demand refresh)
+     */
     public function __construct(
         protected AppInterface $app,
         protected Companies $company,
         protected UserInterface $user,
         protected ?string $lastSyncAt = null,
-        protected ?int $agencyId = null
+        protected ?int $agencyId = null,
+        protected ?array $onlyParticipantIds = null
     ) {
     }
 
@@ -84,8 +89,12 @@ class PullParticipantsFromIntrasAction
             $query->where('p.updated_at', '>=', $this->lastSyncAt);
         }
 
+        if ($this->onlyParticipantIds !== null) {
+            $query->whereIn('p.id', $this->onlyParticipantIds);
+        }
+
         $participantType = PeopleType::firstOrCreate([
-            'name' => 'Participant',
+            'name' => ParticipantMapper::PARTICIPANT_PEOPLE_TYPE,
             'apps_id' => $this->app->getId(),
             'companies_id' => $this->company->getId(),
         ], [
@@ -111,15 +120,7 @@ class PullParticipantsFromIntrasAction
         $this->preloadParticipantIdMap();
 
         // Events-of-interest are stored as Kanvas event ids, so the legacy ids need translating.
-        $this->eventIdMap = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
-            ->where('companies_id', $this->company->getId())
-            ->where('model_name', Event::class)
-            ->where('name', CustomFieldEnum::INTRAS_EVENT_ID->value)
-            ->where('is_deleted', 0)
-            ->pluck('entity_id', 'value')
-            ->map(fn ($id) => (int) $id)
-            ->all();
+        $this->eventIdMap = LegacyIdMap::load(Event::class, CustomFieldEnum::INTRAS_EVENT_ID, $this->company);
 
         $lookupNames = self::loadLookupNames($client);
 
@@ -151,6 +152,9 @@ class PullParticipantsFromIntrasAction
                     $mapped,
                     $row->is_key_participant ? $keyContactType : $participantType,
                 );
+                // An import is not an edit: every set() below would otherwise fire CREATE_CUSTOM_FIELD
+                // into the SIPGO sync rules (docs/sipgo/sipgo-push-back-spec.md).
+                $people->disableWorkflows();
 
                 // A People column rather than a custom field, so it is written on the model.
                 if (($mapped['dob'] ?? null) !== null && $people->dob !== $mapped['dob']) {
@@ -253,25 +257,7 @@ class PullParticipantsFromIntrasAction
      */
     public static function loadParticipantContacts(Client $client, array $participantIds): array
     {
-        if ($participantIds === []) {
-            return [];
-        }
-
-        $rows = $client->table('participants_custom_fields as pcf')
-            ->join('custom_fields as cf', 'cf.id', '=', 'pcf.custom_fields_id')
-            ->whereIn('pcf.participants_id', $participantIds)
-            ->whereIn('cf.name', ParticipantMapper::contactFieldNames())
-            ->whereNotNull('pcf.value')
-            ->where('pcf.value', '!=', '')
-            ->select('pcf.participants_id', 'cf.name', 'pcf.value')
-            ->get();
-
-        $map = [];
-        foreach ($rows as $row) {
-            $map[(int) $row->participants_id][$row->name] = (string) $row->value;
-        }
-
-        return $map;
+        return SipgoEntityEnum::PARTICIPANT->loadCustomFields($client, $participantIds, ParticipantMapper::contactFieldNames());
     }
 
     /**
@@ -394,7 +380,12 @@ class PullParticipantsFromIntrasAction
                 ->first();
 
             if ($existing !== null) {
-                return $existing;
+                return $this->refreshName(
+                    $existing,
+                    $mapped['firstname'],
+                    $mapped['lastname'],
+                    $name
+                );
             }
         }
 
@@ -417,6 +408,31 @@ class PullParticipantsFromIntrasAction
         $people->generateUuidIfMissing()->saveQuietly();
 
         $this->participantIdMap[$legacyId] = $people->getId();
+
+        return $people;
+    }
+
+    /**
+     * SIPGO is the record while the two run side by side, so a name corrected there (a missing
+     * accent, a surname typed in caps) has to reach the row Kanvas already holds. A Kanvas edit that
+     * is still awaiting approval is protected one level up: `SyncSipgoRecordAction` leaves that
+     * person out of the pull.
+     */
+    protected function refreshName(
+        People $people,
+        string $firstname,
+        string $lastname,
+        string $name
+    ): People {
+        if ($people->firstname === $firstname && $people->lastname === $lastname) {
+            return $people;
+        }
+
+        $people->disableWorkflows();
+        $people->firstname = $firstname;
+        $people->lastname = $lastname;
+        $people->name = $name;
+        $people->saveQuietly();
 
         return $people;
     }
@@ -637,27 +653,11 @@ class PullParticipantsFromIntrasAction
      */
     protected function preloadParticipantIdMap(): void
     {
-        $this->participantIdMap = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
-            ->where('companies_id', $this->company->getId())
-            ->where('model_name', People::class)
-            ->where('name', CustomFieldEnum::INTRAS_PARTICIPANT_ID->value)
-            ->where('is_deleted', 0)
-            ->pluck('entity_id', 'value')
-            ->mapWithKeys(fn ($peopleId, $legacyId) => [(int) $legacyId => (int) $peopleId])
-            ->all();
+        $this->participantIdMap = LegacyIdMap::load(People::class, CustomFieldEnum::INTRAS_PARTICIPANT_ID, $this->company);
     }
 
     protected function preloadOrganizationMap(): void
     {
-        $this->organizationIdMap = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
-            ->where('companies_id', $this->company->getId())
-            ->where('model_name', Organization::class)
-            ->where('name', CustomFieldEnum::INTRAS_COMPANY_ID->value)
-            ->where('is_deleted', 0)
-            ->pluck('entity_id', 'value')
-            ->map(fn ($id) => (int) $id)
-            ->all();
+        $this->organizationIdMap = LegacyIdMap::load(Organization::class, CustomFieldEnum::INTRAS_COMPANY_ID, $this->company);
     }
 }

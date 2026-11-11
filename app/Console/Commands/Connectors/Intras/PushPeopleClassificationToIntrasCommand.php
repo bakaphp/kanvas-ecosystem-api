@@ -8,7 +8,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Intras\Actions\PushPeopleToIntrasAction;
+use Kanvas\Connectors\Intras\Actions\PushToIntrasAction;
 use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
 use Kanvas\Guild\Customers\Models\People;
 use Throwable;
@@ -53,13 +53,13 @@ class PushPeopleClassificationToIntrasCommand extends Command
 
                     $changes = ParticipantMapper::classificationChanges($people);
 
-                    if ($changes === [] || ParticipantMapper::participantId($people) === null) {
+                    if ($changes === []) {
                         continue;
                     }
 
                     try {
                         if (! $dryRun) {
-                            new PushPeopleToIntrasAction($people, $changes)->execute();
+                            new PushToIntrasAction($people, $changes)->execute();
                         }
 
                         $pushed++;

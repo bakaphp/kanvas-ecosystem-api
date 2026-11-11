@@ -28,6 +28,24 @@ final class RenderArtifactToolTest extends TestCase
         );
     }
 
+    /** The model sent 7 and 8 entity fields against a cap of 6 three times in one evening; each refusal cost a round. */
+    public function testAListOverItsCapIsTrimmedAndSaidSoInsteadOfRefused(): void
+    {
+        $fields = array_map(fn (int $i): array => ['key' => "Field {$i}", 'value' => "v{$i}"], range(1, 8));
+
+        $result = new RenderArtifactTool()(
+            component: 'entity',
+            props: json_encode(['id' => 24325, 'type' => 'deal', 'title' => 'Invoice 24325', 'fields' => $fields]),
+        );
+
+        $this->assertTrue($result['success'], json_encode($result));
+        $this->assertSame(['props.fields had 8 entries; the first 6 were kept, say the rest in prose'], $result['truncated']);
+        $this->assertStringContainsString('the first 6 were kept', $result['note']);
+        $block = json_decode(trim(str_replace(['```kanvas-artifact', '```'], '', $result['block'])), true);
+        $this->assertCount(6, $block['props']['fields']);
+        $this->assertSame('Field 6', $block['props']['fields'][5]['key']);
+    }
+
     /**
      * A Q3 report rendered 10 distinct blocks, then the 11th (a "Next steps" actions block) aborted
      * the turn with ToolRunsExceededException (KANVAS-ECOSYSTEM-6H4).
@@ -113,7 +131,7 @@ final class RenderArtifactToolTest extends TestCase
         $this->assertSame('props is not a valid JSON object.', $result['error']);
     }
 
-    public function testOverTheLimitAsksToTruncate(): void
+    public function testOverTheLimitIsTrimmedToTheCap(): void
     {
         $items = array_map(
             fn (int $i): array => ['label' => 'Metric ' . $i, 'value' => $i],
@@ -122,8 +140,9 @@ final class RenderArtifactToolTest extends TestCase
 
         $result = new RenderArtifactTool()(component: 'stats', props: json_encode(['items' => $items]));
 
-        $this->assertFalse($result['success']);
-        $this->assertStringContainsString('props.items has 7 entries; it needs 1 to 6', $result['error']);
+        $this->assertTrue($result['success']);
+        $this->assertSame(['props.items had 7 entries; the first 6 were kept, say the rest in prose'], $result['truncated']);
+        $this->assertStringNotContainsString('Metric 7', $result['block']);
     }
 
     public function testEnumValuesAreChecked(): void
@@ -354,6 +373,53 @@ final class RenderArtifactToolTest extends TestCase
         $reply = "Texto.\n\n```kanvas-artifact\n{$block}\n```\n\nFin.";
 
         $this->assertSame($reply, new ArtifactBlockService()->stripInvalidBlocks($reply));
+    }
+
+    public function testACardTheToolReturnedThisTurnIsKept(): void
+    {
+        $result = new RenderArtifactTool()(component: 'keyvalue', props: json_encode(['items' => [['key' => 'Invoice', 'value' => '22836']]]));
+        $reply = "Done.\n\n" . $result['block'] . "\n\nAnything else?";
+        $toolResults = [['name' => 'render_artifact', 'result' => json_encode($result)]];
+
+        $this->assertSame($reply, new ArtifactBlockService()->stripUnissuedBlocks($reply, $toolResults));
+    }
+
+    public function testACardTheToolReturnedSurvivesBeingRepastedWithOtherWhitespace(): void
+    {
+        $result = new RenderArtifactTool()(component: 'keyvalue', props: json_encode(['items' => [['key' => 'Total', 'value' => '10']]]));
+        $json = json_encode(json_decode(trim(str_replace(['```kanvas-artifact', '```'], '', $result['block'])), true), JSON_PRETTY_PRINT);
+        $reply = "```kanvas-artifact\n{$json}\n```";
+
+        $kept = new ArtifactBlockService()->stripUnissuedBlocks($reply, [['result' => $result]]);
+
+        $this->assertSame($reply, $kept);
+    }
+
+    /**
+     * A turn that called no tool wrote an "AR Invoice Created" card for an invoice that never existed.
+     */
+    public function testAHandWrittenCardNoToolReturnedIsRemovedAndTheReplySaysSo(): void
+    {
+        $card = json_encode([
+            'version' => 1,
+            'component' => 'entity',
+            'title' => 'AR Invoice Created',
+            'props' => ['id' => 23026, 'type' => 'deal', 'title' => 'Invoice #23026', 'fields' => [['key' => 'Status', 'value' => 'Draft']]],
+        ]);
+        $reply = "Here it is.\n\n```kanvas-artifact\n{$card}\n```";
+
+        $stripped = new ArtifactBlockService()->stripUnissuedBlocks($reply, []);
+
+        $this->assertStringNotContainsString('kanvas-artifact', $stripped);
+        $this->assertStringContainsString('Here it is.', $stripped);
+        $this->assertStringEndsWith(ArtifactBlockService::UNISSUED_NOTICE, $stripped);
+    }
+
+    public function testAReplyWithoutCardsIsUntouched(): void
+    {
+        $reply = 'Quote 3569 is still a draft. Did the customer accept it?';
+
+        $this->assertSame($reply, new ArtifactBlockService()->stripUnissuedBlocks($reply, []));
     }
 
     /**

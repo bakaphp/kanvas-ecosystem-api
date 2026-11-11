@@ -71,4 +71,7 @@ enum IntegrationsEnum: string
     case BRUSHCRAZY = 'brushcrazy';
     case META_WHATSAPP = 'meta_whatsapp';
     case VAUTO = 'vauto';
+    case ALANUBE = 'alanube';
+    case WEBPOS = 'webpos';
+    case SHORTIO = 'shortio';
 }

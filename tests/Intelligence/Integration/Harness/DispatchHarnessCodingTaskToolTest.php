@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Integration\Harness;
 
-use Baka\Contracts\CompanyInterface;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
-use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\DispatchHarnessCodingTaskTool;
-use Kanvas\Users\Models\Users;
 use PHPUnit\Framework\Attributes\Group;
+use Tests\Intelligence\Integration\Harness\Concerns\CreatesHarnessAgents;
 use Tests\TestCase;
 
 /**
@@ -26,6 +23,7 @@ use Tests\TestCase;
 #[Group('serial')]
 final class DispatchHarnessCodingTaskToolTest extends TestCase
 {
+    use CreatesHarnessAgents;
     use DatabaseTransactions;
 
     protected $connectionsToTransact = ['mysql', 'ecosystem', 'intelligence', 'social'];
@@ -82,27 +80,5 @@ final class DispatchHarnessCodingTaskToolTest extends TestCase
 
         $this->assertFalse($result['success']);
         $this->assertSame('A coding task needs a description', $result['error']);
-    }
-
-    private function makeAgent(Apps $app, CompanyInterface $company, Users $user): Agent
-    {
-        return Agent::factory()
-            ->withAppId($app->getId())
-            ->withCompanyId($company->getId())
-            ->create([
-                'user_id' => $user->getId(),
-                'is_active' => true,
-            ]);
-    }
-
-    /**
-     * @return array{0: Apps, 1: CompanyInterface, 2: Users}
-     */
-    private function context(): array
-    {
-        /** @var Users $user */
-        $user = auth()->user();
-
-        return [app(Apps::class), $user->getCurrentCompany(), $user];
     }
 }

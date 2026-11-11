@@ -51,7 +51,10 @@ trait UsesGitCredential
         $client->writeFile($path, 'https://x-access-token:' . $token . '@' . $host . "\n");
         $client->exec('chmod 600 ' . escapeshellarg($path), 30);
 
-        return ' -c ' . escapeshellarg('credential.helper=store --file=' . $path);
+        // The empty helper first clears whatever the host's own gitconfig registered. On a Mac that is
+        // `osxkeychain`, which an SSH session cannot unlock: git then reports keychain error -25308 ahead
+        // of the real answer, and may prompt instead of reading ours.
+        return ' -c credential.helper= -c ' . escapeshellarg('credential.helper=store --file=' . $path);
     }
 
     /**

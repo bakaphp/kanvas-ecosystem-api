@@ -329,6 +329,25 @@ class ZohoService
         return $this->zohoCrm->leads->get($leadId);
     }
 
+    /**
+     * Zoho leaves a converted lead out of a plain fetch by id; only `converted=both` returns it.
+     * Null when the lead is missing or still a lead.
+     *
+     * @return array<string, mixed>|null the `$converted_detail` map: deal, contact, account, convert_date
+     */
+    public function getConvertedLeadDetail(string $leadId): ?array
+    {
+        $record = $this->zohoCrm->leads->get($leadId, ['converted' => 'both'])->getData();
+
+        if (($record['$converted'] ?? false) !== true) {
+            return null;
+        }
+
+        $detail = $record['$converted_detail'] ?? null;
+
+        return is_array($detail) ? $detail : null;
+    }
+
     public function deleteLead(Lead $lead): void
     {
         $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value);

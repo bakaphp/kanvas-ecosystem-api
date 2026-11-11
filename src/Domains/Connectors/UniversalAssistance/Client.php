@@ -75,7 +75,7 @@ class Client
             'ssl' => [
                 'verify_peer' => false,
                 'verify_peer_name' => false,
-            ]
+            ],
         ]);
 
         $wsdlContent = file_get_contents($s3Url, false, $context);
@@ -108,7 +108,7 @@ class Client
             'inclusion' => $baseControlNumber . '-' . $this->getControlNumberSuffixForQuotationType('inclusion'),         // Inclusión (base quotation)
             'cross_selling' => $baseControlNumber . '-' . $this->getControlNumberSuffixForQuotationType('cross_selling'), // Cross Selling (additional offer)
             'base' => $baseControlNumber,
-            'sequence' => $sequentialNumber
+            'sequence' => $sequentialNumber,
         ];
 
         // Store in order metadata if order is provided
@@ -219,7 +219,7 @@ class Client
             'cross_selling' => 'C1',          // Cross Selling
             'cross_selling_ii' => 'C2',       // Cross Selling II
             'stand_alone' => 'SA',            // Stand Alone
-            'default' => 'XX'                 // Fallback
+            'default' => 'XX',                 // Fallback
         ];
 
         return $suffixes[$type] ?? $suffixes['default'];
@@ -300,7 +300,7 @@ class Client
                 'origin_country_name' => $originCountryName,
                 'destination_name' => $destinationName,
                 'quote_response' => $quoteResult,      // Detailed quote information
-                'response' => $quoteResult             // Main response with all details for Excel
+                'response' => $quoteResult,             // Main response with all details for Excel
             ];
 
             // Note: Individual quotations in quote-only mode don't create vouchers
@@ -308,7 +308,7 @@ class Client
             if (! $quoteOnly) {
                 // For voucher creation, we need proper voucher data structure
                 // This would need to be handled differently for individual quotations
-                throw new ValidationException("Voucher creation from individual quotations not implemented in this context");
+                throw new ValidationException('Voucher creation from individual quotations not implemented in this context');
             }
 
             // Store in order metadata if provided
@@ -369,8 +369,8 @@ class Client
             'destination_country_code' => $destinationCountryCode,
             'created_at' => now()->toISOString(),
             'response_summary' => [
-                'success' => isset($result['response']) || ! empty($result)
-            ]
+                'success' => isset($result['response']) || ! empty($result),
+            ],
         ];
 
         $order->metadata = $metadata;
@@ -418,7 +418,7 @@ class Client
                                 'Connection: Keep-Alive',
                                 'Cache-Control: no-cache',
                             ],
-                        ]
+                        ],
                     ]),
                 ]);
             } catch (SoapFault $e) {
@@ -439,7 +439,6 @@ class Client
                 // Download WSDL from S3 to temp file and use locally
                 $s3WsdlUrl = 'http://cdn2.kanvas.dev/http___siebel.com_CustomUI_UA%20Operaciones%20Voucher%20WS_26SEP2025.WSDL';
                 $wsdlUrl = $this->downloadWsdlToTemp($s3WsdlUrl, 'operaciones_voucher.wsdl');
-
 
                 $this->voucherClient = new SoapClient($wsdlUrl, [
                     'trace' => true,
@@ -463,7 +462,7 @@ class Client
                             'user_agent' => 'PHP-SOAP/8.0 Universal-Assistance-Client',
                             'method' => 'POST',
                             'protocol_version' => 1.1,
-                        ]
+                        ],
                     ]),
                 ]);
             } catch (SoapFault $e) {
@@ -485,7 +484,6 @@ class Client
                 $s3WsdlUrl = 'https://cdn2.kanvas.dev/http___siebel.com_CustomUI_UA QueryVoucherPortal WS.WSDL';
                 $wsdlUrl = $this->downloadWsdlToTemp($s3WsdlUrl, 'query_voucher_portal.wsdl');
 
-
                 $this->queryClient = new SoapClient($wsdlUrl, [
                     'trace' => true,
                     'exceptions' => true,
@@ -503,7 +501,7 @@ class Client
                         'http' => [
                             'timeout' => 60,
                             'user_agent' => 'PHP-SOAP/7.4',
-                        ]
+                        ],
                     ]),
                 ]);
             } catch (SoapFault $e) {
@@ -614,6 +612,7 @@ class Client
                     return true;
                 }
             }
+
             return false;
         } catch (Exception $e) {
             return false;
@@ -633,8 +632,8 @@ class Client
                 // Use raw QA data without transformation for testing
                 $parameters = [
                     'UALeadCotizadorReq' => [
-                        'DatosLeadCotizadorIn' => $leadData
-                    ]
+                        'DatosLeadCotizadorIn' => $leadData,
+                    ],
                 ];
             } else {
                 // Use standard field mapping
@@ -665,8 +664,8 @@ class Client
                             'Edad10' => $leadData['edad10'] ?? $leadData['Edad10'] ?? '',
                             'Categoria' => $leadData['categoria'] ?? $leadData['Categoria'] ?? '',
                             'Precompras' => $leadData['precompras'] ?? $leadData['Precompras'] ?? '',
-                        ]
-                    ]
+                        ],
+                    ],
                 ];
             }
 
@@ -691,7 +690,6 @@ class Client
             );
 
             $client->__setSoapHeaders([$securityHeader]);
-
 
             $response = $client->__soapCall('LeadCotizadorOper', [$parameters]);
 
@@ -720,8 +718,8 @@ class Client
             if ($useRawData) {
                 $parameters = [
                     'UAAltaVoucheMinRequest' => [
-                        'DatosVoucher' => $voucherData
-                    ]
+                        'DatosVoucher' => $voucherData,
+                    ],
                 ];
 
                 // Debug: Log the exact parameters being sent
@@ -774,8 +772,8 @@ class Client
                                 'CorreoElectronicoSolicitante' => $voucherData['correoElectronicoSolicitante'] ?? 'test@test.com',
                                 'TituloCortesiaSolicitante' => $voucherData['tituloCortesiaSolicitante'] ?? 'Sr.',
                             ],
-                        ]
-                    ]
+                        ],
+                    ],
                 ];
             }
 
@@ -822,7 +820,7 @@ class Client
                 'Password' => $this->password,
                 'OrganizacionEmisora' => $this->organization,
                 'IdLead' => $leadId,
-                'ReasonCode' => $reasonCode
+                'ReasonCode' => $reasonCode,
             ];
 
             $response = $client->__soapCall('LeadServiceRetireLead', [$parameters]);
@@ -849,10 +847,9 @@ class Client
                 // Standard field mapping for voucher query - WSDL only requires VoucherNumber and Organization
                 $parameters = [
                     'VoucherNumber' => $queryParams['VoucherNumber'] ?? $queryParams['voucherNumber'] ?? $queryParams['idVoucher'] ?? '',
-                    'Organization' => $queryParams['Organization'] ?? $this->organization
+                    'Organization' => $queryParams['Organization'] ?? $this->organization,
                 ];
             }
-
 
             // Set SOAP headers for authentication
             $client->__setSoapHeaders(null);
@@ -872,10 +869,8 @@ class Client
 
             $client->__setSoapHeaders([$securityHeader]);
 
-
             // Call the correct SOAP method according to WSDL - use single parameter object like other methods
             $response = $client->QueryVoucherPortalOper($parameters);
-
 
             return (array) $response;
         } catch (\SoapFault $e) {
@@ -897,7 +892,7 @@ class Client
                 'Username' => $this->username,
                 'Password' => $this->password,
                 'OrganizacionEmisora' => $this->organization,
-                ...$pdfParams
+                ...$pdfParams,
             ];
 
             $response = $client->__soapCall('SendReportOper', [$parameters]);
@@ -954,7 +949,7 @@ class Client
                     'Language' => $reportData['Language'] ?? $reportData['language'] ?? 'Spanish',
                     'VoucherNumber' => $reportData['VoucherNumber'] ?? $reportData['voucherNumber'] ?? '',
                     'Tarifa' => 'N', // Always N - no PDF generation
-                    'Organization' => $reportData['Organization'] ?? $this->organization
+                    'Organization' => $reportData['Organization'] ?? $this->organization,
                 ];
             }
 
@@ -988,7 +983,6 @@ class Client
                 $parameters['Tarifa'],
                 $parameters['Organization']
             );
-
 
             return (array) $response;
         } catch (\SoapFault $e) {
@@ -1028,7 +1022,7 @@ class Client
                         'http' => [
                             'timeout' => 60,
                             'user_agent' => 'PHP-SOAP/7.4',
-                        ]
+                        ],
                     ]),
                 ]);
             } catch (SoapFault $e) {
@@ -1057,11 +1051,10 @@ class Client
                         'ConsultaDatosVoucherReq' => [
                             'OrganizacionRegistradoraConsulta' => $consultaData['agencia'] ?? $this->organization,
                             'NroControlConsulta' => $consultaData['voucherNumber'] ?? '',
-                        ]
-                    ]
+                        ],
+                    ],
                 ];
             }
-
 
             // Set SOAP headers for authentication
             $client->__setSoapHeaders(null);
@@ -1081,10 +1074,8 @@ class Client
 
             $client->__setSoapHeaders([$securityHeader]);
 
-
             // Call the correct SOAP method according to WSDL with proper structure
             $response = $client->Consulta_Voucher_Operation($parameters);
-
 
             return (array) $response;
         } catch (\SoapFault $e) {
@@ -1115,7 +1106,6 @@ class Client
                 ];
             }
 
-
             // Set SOAP headers for authentication
             $client->__setSoapHeaders(null);
 
@@ -1134,10 +1124,8 @@ class Client
 
             $client->__setSoapHeaders([$securityHeader]);
 
-
             // Call the correct SOAP method according to WSDL with single parameter object like consulta
             $response = $client->Anula_Voucher_Operation($parameters);
-
 
             return (array) $response;
         } catch (\SoapFault $e) {
@@ -1197,6 +1185,7 @@ class Client
                 'moneda_lista' => $product['MonedaLista'] ?? '',
             ];
         }
+
         return $result;
     }
 
@@ -1208,6 +1197,7 @@ class Client
         // Try to get origin country from DatosSolicitante (person's residence country)
         if (isset($voucherData['DatosSolicitante']['PaisResidenciaSolicitante'])) {
             $countryName = $voucherData['DatosSolicitante']['PaisResidenciaSolicitante'];
+
             return $this->countryCodeToName($countryName);
         }
 
@@ -1705,7 +1695,6 @@ class Client
         // CRITICAL: Always preserve the quotation data structure that comes from buildGroupQuotationData
         // This ensures family groups maintain ALL person data (ages, count) for proper Universal Assistance pricing
         // Whether it's 1 person or 10 people, this structure must be preserved exactly as built
-
 
         $leadData = [
             'IdLead' => $voucherData['IdLead'] ?? '',

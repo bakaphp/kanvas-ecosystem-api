@@ -151,7 +151,7 @@ class ProductFileImportTest extends TestCase
         $csv = tempnam(sys_get_temp_dir(), 'global-type-csv-');
         $jsonl = tempnam(sys_get_temp_dir(), 'global-type-jsonl-');
         $sku = 'global-vehicle-' . uniqid();
-        file_put_contents($csv, "Slug,Name,Plate\n" . $sku . ",Global vehicle," . $sku . "\n");
+        file_put_contents($csv, "Slug,Name,Plate\n" . $sku . ',Global vehicle,' . $sku . "\n");
 
         try {
             new ImportProductFromFilesystemAction($import)->streamCsvFileToJsonlFile($csv, $jsonl);

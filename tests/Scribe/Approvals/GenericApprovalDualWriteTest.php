@@ -7,21 +7,13 @@ namespace Tests\Scribe\Approvals;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Actions\ApproveAction;
 use Kanvas\Approvals\Enums\ApprovalStatusEnum;
-use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Exceptions\ApprovalRequiredException;
-use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
-use Kanvas\Connectors\Acumatica\Approvals\ApproveAndPushBillHandler;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Scribe\Approvals\Actions\ResolveApprovalAction;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
-use Kanvas\Scribe\Bills\Actions\CreateBillAction;
-use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
-use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
-use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Expenses\Actions\CreateExpenseAction;
@@ -33,10 +25,10 @@ use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use ReflectionMethod;
 use Spatie\LaravelData\DataCollection;
+use Tests\Scribe\Approvals\Concerns\SeedsBillApprovals;
 use Tests\Scribe\ScribeTestCase;
 use Throwable;
 
@@ -47,6 +39,8 @@ use Throwable;
  */
 class GenericApprovalDualWriteTest extends ScribeTestCase
 {
+    use SeedsBillApprovals;
+
     public function test_a_tenant_with_no_policy_is_completely_unaffected(): void
     {
         $bill = $this->submitBill($this->seedTestOrganization('No Policy Vendor'));
@@ -397,7 +391,7 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
         $this->assertSame('bill', $result['target_type']);
     }
 
-    public function test_the_agent_tool_tells_the_agent_not_to_update_the_sheet_before_quorum(): void
+    public function test_the_agent_tool_reports_a_recorded_vote_before_quorum(): void
     {
         $vendor = $this->seedTestOrganization('Tool Quorum Vendor');
         $one = $this->linkApprover($vendor, 'quorum-one');
@@ -418,7 +412,7 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
         $this->assertFalse($result['approved']);
         $this->assertTrue($result['recorded']);
         $this->assertSame('awaiting_quorum', $result['reason']);
-        $this->assertStringContainsString('Do not update the tracking sheet', $result['message']);
+        $this->assertStringContainsString('needs 2 approvals and has 1', $result['message']);
     }
 
     /**
@@ -460,7 +454,7 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
         $this->assertTrue(true);
     }
 
-    public function test_a_handler_error_tells_the_agent_not_to_mark_the_sheet_approved(): void
+    public function test_a_handler_error_tells_the_agent_not_to_report_it_approved(): void
     {
         $nextStep = new ReflectionMethod(ApprovePendingItemTool::class, 'approvalNextStep');
         $tool = new ApprovePendingItemTool();
@@ -469,8 +463,8 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
         $clean = $nextStep->invoke($tool, ['target_type' => 'bill']);
 
         $this->assertStringContainsString('downstream exploded', $failed);
-        $this->assertStringContainsString('Do NOT mark the sheet Approved', $failed);
-        $this->assertStringNotContainsString('Do NOT', $clean);
+        $this->assertStringContainsString('Do not report it as approved', $failed);
+        $this->assertStringNotContainsString('Do not', $clean);
     }
 
     public function test_approval_result_is_persisted_without_a_synchronous_push_outcome(): void
@@ -491,45 +485,6 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
         $this->assertSame($result, $request->ledgerPayload()['result']);
     }
 
-    private function seedBillPolicy(): ApprovalPolicy
-    {
-        return $this->seedPolicy(Bill::class, 'approve_bill', 'vendor', ApproveAndPushBillHandler::class);
-    }
-
-    private function seedPolicy(
-        string $model,
-        string $approvalType,
-        string $relation,
-        string $handler,
-        ?string $fallbackResolver = null,
-        bool $allowAuthorityOverride = false,
-    ): ApprovalPolicy {
-        return ApprovalPolicy::create([
-            'apps_id' => $this->kanvasApp->getId(),
-            'companies_id' => $this->company->getId(),
-            'system_modules_id' => SystemModulesRepository::getByModelName($model, $this->kanvasApp)->getId(),
-            'approval_type' => $approvalType,
-            'steps' => [[
-                'step' => 1,
-                'resolver' => 'organization_approver',
-                'config' => ['relation' => $relation],
-                'required_approvals' => 1,
-            ]],
-            'handler' => $handler,
-            'fallback_resolver' => $fallbackResolver,
-            'allow_authority_override' => $allowAuthorityOverride,
-            'trigger' => ApprovalTriggerEnum::MANUAL,
-        ]);
-    }
-
-    private function linkApprover(Organization $vendor, string $prefix = 'ap-approver'): Users
-    {
-        $user = Users::factory()->create(['email' => $prefix . '-' . uniqid() . '@example.test']);
-        new AddApproverToOrganizationAction($vendor, $user)->execute();
-
-        return $user;
-    }
-
     private function legacyQueueItem(Bill $bill): ?ApprovalQueueItem
     {
         return ApprovalQueueItem::query()
@@ -537,30 +492,5 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
             ->where('target_type', 'bill')
             ->where('target_id', $bill->getId())
             ->first();
-    }
-
-    private function submitBill(Organization $vendor): Bill
-    {
-        $bill = new CreateBillAction(
-            new BillData(
-                app: $this->kanvasApp,
-                company: $this->company,
-                vendor: $vendor,
-                lines: new DataCollection(BillLineData::class, [
-                    new BillLineData(
-                        description: 'Raw materials',
-                        quantity: 1,
-                        unit_price_native: 500.0,
-                        expense_account_id: $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS),
-                    ),
-                ]),
-                currency: 'USD',
-                fx_rate_to_base: 1.0,
-                bill_date: Carbon::parse('2026-06-15'),
-            ),
-            static::$cachedUser,
-        )->execute();
-
-        return new SubmitBillForApprovalAction($bill, static::$cachedUser)->execute();
     }
 }

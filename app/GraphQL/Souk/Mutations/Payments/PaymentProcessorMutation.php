@@ -107,7 +107,12 @@ class PaymentProcessorMutation
             $amount = isset($request['amount']) ? (float) $request['amount'] : null;
 
             $processor = ProcessorFactory::make($payment->paymentMethod?->processor, $app, $payment->company);
-            $result = $processor->refund($payment, $order, $amount);
+            $result = $processor->refund($payment, $order, $amount, [
+                'user' => $user,
+                'reason' => $request['reason'] ?? null,
+                'note' => $request['note'] ?? null,
+                'idempotency_key' => $request['idempotency_key'] ?? null,
+            ]);
 
             return [
                 'status' => $result->success ? 'success' : 'error',

@@ -35,6 +35,7 @@ class KanvasStatusCommand extends Command
         'broadcasts',
         'ledger',
         'agent-runtime',
+        'coding',
         'agent-chat',
         'agent-task-worker',
         'nervous-system-project',
@@ -47,6 +48,7 @@ class KanvasStatusCommand extends Command
         'scribe-pdf-ingest',
         'lead_follow_ups',
         'reporting',
+        'souk-tax',
     ];
 
     private const array DATABASE_CONNECTIONS = [

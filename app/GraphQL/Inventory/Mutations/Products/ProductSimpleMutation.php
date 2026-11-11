@@ -95,6 +95,7 @@ class ProductSimpleMutation
 
         // Get the existing product
         $product = ProductsRepository::getById((int) $args['id'], $company);
+        $input['name'] ??= $product->name;
 
         $this->resolveProductType(
             $input,

@@ -10,6 +10,7 @@ return [
     'app' => [
         'id' => env('KANVAS_APP_ID'),
         'frontend_url' => env('KANVAS_FRONTEND_URL'),
+        'console_url' => env('KANVAS_CONSOLE_URL'),
         'google' => [
             'google_play_credentials_json' => env('GOOGLE_PLAY_CREDENTIALS'),
         ],
@@ -69,6 +70,11 @@ return [
         // Cost ceiling on replayed chat history, applied after the model-ceiling sizing. The history is
         // re-sent on every tool-loop step, so a wide window multiplies input spend per turn.
         'max_history_tokens' => (int) env('AGENT_MAX_HISTORY_TOKENS', 50_000),
+        // A turn at or over this many milliseconds logs where its time went ('Slow agent turn'). 0 turns it off.
+        'slow_turn_log_ms' => (int) env('AGENT_SLOW_TURN_LOG_MS', 30_000),
+        // A successful provider HTTP attempt at or over this many milliseconds is logged; 0 turns that off.
+        // Failed attempts are always logged.
+        'slow_llm_call_log_ms' => (int) env('AGENT_SLOW_LLM_CALL_LOG_MS', 30_000),
         // A new app with no Gemini key of its own runs on the platform GEMINI_API_KEY for this many
         // days after creation, on this model. 0 turns the trial off.
         'trial_llm_days' => (int) env('AGENT_TRIAL_LLM_DAYS', 14),

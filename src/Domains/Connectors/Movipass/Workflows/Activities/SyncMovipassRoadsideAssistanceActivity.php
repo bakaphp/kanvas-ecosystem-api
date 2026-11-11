@@ -148,7 +148,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         $currentStatusSlug = $order->orderStatus?->slug;
         $assistanceCase = $this->assistanceCaseFrom($order);
 
-        $assignMechanicId = (int) ($assistanceCase['assign_mechanic_id'] ?? 0);
+        // The admin may write the request into either copy of the case and the order update merges
+        // them independently, so the root copy alone can miss an assignment sent under `data`.
+        $assignMechanicId = (int) ($assistanceCase['assign_mechanic_id']
+            ?? $order->metadata['data']['assistance_case']['assign_mechanic_id']
+            ?? 0);
         if ($assignMechanicId > 0 && $currentStatusSlug === MovipassOrderStatusEnum::AWAITING_OPERATOR->slug()) {
             $mechanic = $this->resolveCaseUser($assignMechanicId);
             $user = $this->resolveCaseUser($order->users_id);
@@ -165,14 +169,22 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 ]);
             }
 
-            new AssignMechanicToOrderAction($order, $user, $mechanic)->execute();
+            try {
+                new AssignMechanicToOrderAction($order, $user, $mechanic)->execute();
+            } catch (ValidationException $exception) {
+                return $this->failWorkflow([
+                    'order' => $order->getId(),
+                    'status' => 'error',
+                    'message' => 'Cannot assign mechanic: ' . $exception->getMessage(),
+                ]);
+            }
 
             $order->refresh();
 
             return [
                 'order' => $order->getId(),
                 'status' => 'success',
-                'message' => 'Mechanic assigned and order transitioned to provider_assigned',
+                'message' => 'Mechanic assigned and order transitioned to dispatched',
                 'data' => $order->toArray(),
                 'response' => $order->toArray(),
             ];

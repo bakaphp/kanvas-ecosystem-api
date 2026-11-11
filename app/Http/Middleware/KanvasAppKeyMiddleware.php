@@ -29,13 +29,14 @@ class KanvasAppKeyMiddleware
             return response()->json(['message' => 'No App configured with this key: ' . $appIdentifier], 500);
         }
 
-        // The first refusal ends the request. The app key goes first because it can switch the app the
-        // branch has to belong to.
-        $refused = $this->handleAppKey($request)
-            ?? $this->handleCompanyBranch($request)
-            ?? $this->handleKanvasIdentifier($request);
+        // The app key goes first because it can switch the app the branch has to belong to.
+        if ($refused = $this->handleAppKey($request)) {
+            return $refused;
+        }
 
-        return $refused ?? $next($request);
+        $this->handleCompanyBranch($request);
+
+        return $this->handleKanvasIdentifier($request) ?? $next($request);
     }
 
     private function registerApp(string $appIdentifier): bool
@@ -50,21 +51,27 @@ class KanvasAppKeyMiddleware
         }
     }
 
-    private function handleCompanyBranch(Request $request): ?Response
+    /**
+     * Clients keep the last location after a logout or app switch and send it on every request, so a
+     * branch that is gone or outside this app is dropped rather than refused: it is never bound, and
+     * the request runs in the user's own company.
+     */
+    private function handleCompanyBranch(Request $request): void
     {
-        $companyBranchHeader = AppEnums::KANVAS_APP_BRANCH_HEADER->getValue();
+        $companyBranchKey = $request->header(AppEnums::KANVAS_APP_BRANCH_HEADER->getValue());
 
-        if (! empty($companyBranchKey = $request->header($companyBranchHeader))) {
-            try {
-                $companyBranch = CompaniesBranches::getByUuid($companyBranchKey);
-                CompaniesRepository::hasAccessToThisApp($companyBranch->company, app(Apps::class));
-                app()->scoped(CompaniesBranches::class, fn () => $companyBranch);
-            } catch (Throwable $e) {
-                return response()->json(['message' => 'No Company Branch configured with this key: ' . $companyBranchKey], 500);
-            }
+        if (empty($companyBranchKey)) {
+            return;
         }
 
-        return null;
+        try {
+            $companyBranch = CompaniesBranches::getByUuid($companyBranchKey);
+            CompaniesRepository::hasAccessToThisApp($companyBranch->company, app(Apps::class));
+        } catch (Throwable) {
+            return;
+        }
+
+        app()->scoped(CompaniesBranches::class, fn () => $companyBranch);
     }
 
     public function handleKanvasIdentifier(Request $request): ?Response

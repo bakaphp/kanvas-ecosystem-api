@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Models;
 
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
@@ -74,5 +75,15 @@ class AppModuleMessage extends BaseModel
     public function resolveEntity(): Model
     {
         return $this->entityClass()::getById($this->entity_id);
+    }
+
+    /**
+     * The rows attached to one record, whatever its module.
+     */
+    public function scopeForEntity(Builder $query, Model $entity): Builder
+    {
+        return $query
+            ->where('system_modules', $entity::class)
+            ->where('entity_id', $entity->getKey());
     }
 }

@@ -13,6 +13,7 @@ use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Bills\Services\BillAddresseeService;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -59,6 +60,8 @@ class ApproveBillAction
 
             return $bill;
         });
+
+        new BillAddresseeService()->rememberApproved($bill);
 
         // Generic event so a workflow rule routes the approved bill to whichever ERP-push activity
         // it's wired to — the approval never hardcodes a connector.

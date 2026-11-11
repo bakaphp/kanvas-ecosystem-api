@@ -34,7 +34,6 @@ class ShopifyInventoryLevelDownloadCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {

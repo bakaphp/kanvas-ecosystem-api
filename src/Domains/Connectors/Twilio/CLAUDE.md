@@ -38,6 +38,9 @@ activity that already owns the AI-mode guards and the support-mode handoff).
 - **Correlation key is the sender's number.** SMS has no album id or thread id, so one burst per
   sender per channel is the whole of it.
 - The agent receives `burst_text` — every body joined by a blank line — not just the head's.
+- **An MMS reaches the agent as a picture.** The responder passes the head message's files to the
+  kernel through `inboundContent()`, which also supplies text for a textless MMS so Gemini has
+  the required text part beside the image (KANVAS-ECOSYSTEM-6QC).
 - **Outbound (`From === To`) never bursts.** It has no flurry to collapse, and rules listening for the
   company's own messages expect them without a delay.
 

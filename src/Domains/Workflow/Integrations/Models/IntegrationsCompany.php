@@ -12,6 +12,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Models\Integrations;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 
 /**
  * @property int $id
@@ -25,6 +26,11 @@ use Kanvas\Workflow\Models\Integrations;
  */
 class IntegrationsCompany extends BaseModel
 {
+    /**
+     * Config key an OAuth handler stores its receiver's uuid under, from persistedConfig().
+     */
+    public const string OAUTH_RECEIVER = 'oauth_receiver_uuid';
+
     protected $table = 'integration_companies';
 
     protected $fillable = [
@@ -66,6 +72,30 @@ class IntegrationsCompany extends BaseModel
     public function history(): HasMany
     {
         return $this->hasMany(EntityIntegrationHistory::class, 'integrations_company_id');
+    }
+
+    /**
+     * The receiver an OAuth integration's consent starts from, when its handler created one.
+     */
+    public function getOAuthReceiver(): ?ReceiverWebhook
+    {
+        $uuid = $this->config[self::OAUTH_RECEIVER] ?? null;
+        $company = $this->company;
+
+        if (! is_string($uuid) || $uuid === '' || ! $company instanceof Companies) {
+            return null;
+        }
+
+        return ReceiverWebhook::query()
+            ->where('uuid', $uuid)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->first();
+    }
+
+    public function getOAuthUrl(): ?string
+    {
+        return $this->getOAuthReceiver()?->getOAuthUrl();
     }
 
     public function setStatus(Status $status): void

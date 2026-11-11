@@ -33,6 +33,8 @@ final class TypesenseKnowledgeStore
     private const array LATER_FIELDS = [
         ['name' => 'agent_id', 'type' => 'int64', 'facet' => true, 'optional' => true],
         ['name' => 'users_id', 'type' => 'int64', 'facet' => true, 'optional' => true],
+        ['name' => 'inbound_message_id', 'type' => 'int64', 'facet' => true, 'optional' => true],
+        ['name' => 'reply_message_id', 'type' => 'int64', 'facet' => true, 'optional' => true],
     ];
 
     /**
@@ -198,6 +200,41 @@ final class TypesenseKnowledgeStore
         return array_values(array_filter($hits, static fn (array $hit): bool => $hit['score'] >= $minScore));
     }
 
+    /**
+     * A connector writes its reply row after the turn, so the memory of that turn learns the reply's
+     * Social id only then. Matched by the inbound message the turn answered, inside one tenant.
+     */
+    public function stampReplyMessageId(
+        int $appId,
+        int $companyId,
+        int $inboundMessageId,
+        int $replyMessageId
+    ): void {
+        if ($inboundMessageId <= 0 || $replyMessageId <= 0 || ! $this->collectionExists()) {
+            return;
+        }
+
+        $this->client->collections[$this->collection]->documents->update(
+            ['reply_message_id' => $replyMessageId],
+            ['filter_by' => sprintf('apps_id:=%d && companies_id:=%d && inbound_message_id:=%d', $appId, $companyId, $inboundMessageId)],
+        );
+    }
+
+    public function countByFilter(string $filterBy): int
+    {
+        if ($filterBy === '' || ! $this->collectionExists()) {
+            return 0;
+        }
+
+        $result = $this->client->collections[$this->collection]->documents->search([
+            'q' => '*',
+            'filter_by' => $filterBy,
+            'per_page' => 0,
+        ]);
+
+        return (int) ($result['found'] ?? 0);
+    }
+
     public function deleteByFilter(string $filterBy): void
     {
         if ($filterBy === '' || ! $this->collectionExists()) {
@@ -226,6 +263,8 @@ final class TypesenseKnowledgeStore
             'channel_names' => (string) ($metadata['channel_names'] ?? ''),
             'agent_id' => (int) ($metadata['agent_id'] ?? 0),
             'users_id' => (int) ($metadata['users_id'] ?? 0),
+            'inbound_message_id' => (int) ($metadata['inbound_message_id'] ?? 0),
+            'reply_message_id' => (int) ($metadata['reply_message_id'] ?? 0),
             'created_at' => (int) ($metadata['created_at'] ?? 0),
         ];
     }

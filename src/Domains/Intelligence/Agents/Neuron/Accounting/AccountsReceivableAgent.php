@@ -5,17 +5,25 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\Concerns\AppliesAccountingReadiness;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\Concerns\GrantsAccountingApprovalTools;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AccountingDigestTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddInvoiceNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApplyArPaymentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachInvoiceFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AttachQuoteFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CheckRncTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConvertQuoteToInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\DiscardDraftInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\DraftCreditNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\DraftDebitNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\EcfStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractCreditRequestFormTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
@@ -23,26 +31,39 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateInvoicePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuoteSowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetDocumentLinkTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GetQuoteSowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportIssuedEcfExportTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListBillingSchedulesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListPaymentTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecentInboxArrivalsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ResendInvoiceAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ScheduleBillingTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetInvoiceTermsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SetPaymentTermsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\CheckApprovalStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LinkPersonToOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListOrganizationPeopleTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetOrganizationAddressTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TagPersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReplyToEmailTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\CreateGoogleSheetTabTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ReadGoogleSheetTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\UpdateGoogleSheetCellTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\CreateSampleOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindProductTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindSalesOrderTool;
@@ -78,6 +99,9 @@ use Override;
 )]
 class AccountsReceivableAgent extends SystemUserAgent
 {
+    use AppliesAccountingReadiness;
+    use GrantsAccountingApprovalTools;
+
     #[Override]
     protected function tools(): array
     {
@@ -88,6 +112,13 @@ class AccountsReceivableAgent extends SystemUserAgent
             new TopLatePayersTool(),
             new FindInvoiceTool(),
             new FindCustomerTool(),
+            new CheckRncTool(),
+            new GetOrganizationTool(),
+            new CreateOrganizationTool(),
+            new UpdateOrganizationTool(),
+            new SetOrganizationAddressTool(),
+            new EcfStatusTool(),
+            new AccountingDigestTool(),
             new FindSalesOrderTool(),
             new ListOpenSalesOrdersTool(),
             new FindProductTool(),
@@ -96,14 +127,24 @@ class AccountsReceivableAgent extends SystemUserAgent
             new SalesByProductTool(),
             new SalesRevenueTool(),
             new MatchInvoicesForPaymentTool(),
+            new RecentInboxArrivalsTool(),
             new AddOrganizationApproverTool(),
             new CreateArInvoiceTool(),
             new VoidArInvoiceTool(),
+            new DiscardDraftInvoiceTool(),
             new ApplyArPaymentTool(),
             new CreateArCreditMemoTool(),
+            new DraftCreditNoteTool(),
+            new DraftDebitNoteTool(),
             new AddInvoiceNoteTool(),
             new AttachInvoiceFileTool(),
             new ResendInvoiceAttachmentTool(),
+            new SendInvoiceTool(),
+            new GetDocumentLinkTool(),
+            new CreatePersonTool(),
+            new LinkPersonToOrganizationTool(),
+            new ListOrganizationPeopleTool(),
+            new TagPersonTool(),
             new CreateQuoteTool(),
             new FindQuoteTool(),
             new SendQuoteTool(),
@@ -111,14 +152,17 @@ class AccountsReceivableAgent extends SystemUserAgent
             new ConvertQuoteToInvoiceTool(),
             new GenerateQuotePdfTool(),
             new GenerateInvoicePdfTool(),
+            new AttachQuoteFileTool(),
+            new GenerateQuoteSowTool(),
+            new GetQuoteSowTool(),
+            new ScheduleBillingTool(),
+            new ListBillingSchedulesTool(),
+            new SetInvoiceTermsTool(),
+            new ListPaymentTermsTool(),
+            new SetPaymentTermsTool(),
             // The PDF tools hand back a filesystem_id; without this the agent quotes that id at a
             // person who then has nothing to open.
             new GetFileLinkTool(),
-            new ReadGoogleSheetTool(),
-            new AppendGoogleSheetRowsTool(),
-            new UpdateGoogleSheetCellTool(),
-            new ClearGoogleSheetRangeTool(),
-            new CreateGoogleSheetTabTool(),
             new ListEmailsTool(),
             new ReadEmailDetailsTool(),
             new DownloadAttachmentTool(),
@@ -128,26 +172,25 @@ class AccountsReceivableAgent extends SystemUserAgent
             new ReplyToEmailTool(),
         ]));
 
-        // Read-only, so unlike approve_pending_item it is not gated on a requesting human: reporting
-        // where something stands authorizes nothing.
-        $statusUser = $this->requestingHuman() ?? $this->actingUser();
-        if ($statusUser !== null && $this->app !== null && $this->company !== null) {
-            $tools[] = new CheckApprovalStatusTool()->withContext($this->app, $this->company, $statusUser);
+        $tools = [...$tools, ...$this->accountingApprovalTools()];
+
+        // Books sales and journal entries from a file, and this agent reads inbound email: a forged export must not
+        // land on its own, so it loads only when a real person is asking.
+        $person = $this->personAsking();
+        if ($person !== null && $this->app !== null && $this->company !== null) {
+            $tools[] = new ImportIssuedEcfExportTool()->withContext($this->app, $this->company, $person);
         }
 
-        // approve_pending_item must authorize against the real human, not actingUser() (the agent itself on @mention/channel surfaces).
-        $requestingHuman = $this->requestingHuman();
-        if ($requestingHuman !== null && $this->app !== null && $this->company !== null) {
-            $tools[] = new ApprovePendingItemTool()->withContext($this->app, $this->company, $requestingHuman);
-        }
+        // Ranges get renewed and new e-CF types get authorized long after onboarding, by the agent that issues them.
+        $tools = [...$tools, ...$this->accountingSetupTools(runSetup: true, reminderCadence: true)];
 
-        return $tools;
+        return $this->withoutUnavailableAccountingTools($tools);
     }
 
     #[Override]
     public function instructions(): string
     {
-        return parent::instructions() . "\n\n" . $this->arGuidance();
+        return parent::instructions() . "\n\n" . $this->arGuidance() . "\n\n" . $this->accountingReadinessLine();
     }
 
     private function arGuidance(): string
@@ -155,10 +198,16 @@ class AccountsReceivableAgent extends SystemUserAgent
         return implode("\n", [
             '## How to handle Accounts-Receivable / sales-order questions',
             '- Call query_data_freshness first; if the sync is more than 2 days stale, say so before quoting numbers.',
+            '- Customers send remittance advice, purchase orders and credit requests to the company accounting inbox. '
+            . 'Each one reaches you as a task; recent_inbox_arrivals (outcome routed_to_ar) lists them. A remittance is '
+            . 'matched to open invoices for you, but the payment is only applied when the bank confirms it — never '
+            . 'record it from the remittance alone.',
             '- "Who owes us" / "AR aging" / "biggest late payers" → query_ar_aging, list_overdue_invoices, top_late_payers.',
             '- "What invoices are overdue for customer X" → list_overdue_invoices with the customer parameter set — '
             . 'not list_open_sales_orders, which is for purchase/sales orders, not invoices.',
-            '- "Look up invoice #X" / "status of invoice X" → find_invoice (one specific invoice by number).',
+            '- "Look up invoice X" / "status of invoice X" / "are you sure you created it" → find_invoice, by invoice_id '
+            . '(a draft has no number) or by number, and answer from what it returns. You do not see the tool calls '
+            . 'behind your earlier turns: a record you reported then is checked with a lookup, never recanted from memory.',
             '- "Who is customer X" / resolve a customer name → find_customer.',
             '- "Add/assign an approver for customer X" → find_customer first to resolve organization_id, then '
             . 'add_organization_approver with that id and the approver\'s email. A customer can have more than '
@@ -169,25 +218,84 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Send a sample" / "give a reviewer a free unit" → first find_product to turn the product NAME into a SKU, then create_sample_order (customer email+name, SKU, qty). If the customer email is missing, ask for it — it is a real shipment. It creates a $0 DRAFT in Kanvas; tell the user it pushes to the ERP only after a human approves it.',
             '- If asked about a PURCHASE order or a vendor BILL, say that is Accounts Payable, not your area.',
             '- "Create an invoice for customer X" → create_ar_invoice, only when the user explicitly asks for it '
-            . '— by default it issues straight to the Kanvas ledger, bypassing human approval. Pass '
-            . 'issue_immediately: false only when you specifically want it to stop at draft and submit for approval '
-            . '(e.g. the automatic '
-            . 'invoice-email flow below).',
-            '- "Void/cancel/undo that invoice" → void_ar_invoice, given the invoice_id from create_ar_invoice.',
+            . '— by default it creates a draft and submits it for a person\'s approval. Pass issue_immediately: true '
+            . 'only when the user explicitly asks to issue it now. Give one line per product with its quantity, unit '
+            . 'price before tax and tax_rate ("5 licenses at 3,000 + ITBIS" is quantity 5, unit_price 3000, tax_rate '
+            . '18), never the total folded into one amount: a folded amount carries no ITBIS.',
+            '- If this company issues electronic invoices (e-CF), you never issue one yourself: every invoice you '
+            . 'create waits for a person\'s approval before it gets its e-NCF, and an issued e-CF is never voided — '
+            . 'it is reversed with a credit note. Before invoicing a customer with an RNC, check_rnc confirms DGII '
+            . 'knows it. If DGII rejects an e-CF, its number is burned and the invoice is voided automatically: fix '
+            . 'the cause from the rejection messages and create a new invoice. "Did DGII accept invoice Y" → '
+            . 'ecf_status. "How did yesterday go" → accounting_digest. An e-NCF, DGII status, security code, signing '
+            . 'time, DGII consulta link or file link is stated only as a tool returned it in this turn; DGII answers '
+            . 'after the approval, so right after one, say it is on its way and check with ecf_status. Never write '
+            . 'one from memory or build one yourself: a made-up security code is a fake fiscal stamp.',
+            '- A customer missing the tax id an e-CF needs (RNC in the Dominican Republic) → check_rnc to verify the number the person gives you, save it with update_organization (tax_id), then carry on with the document. '
+            . 'create_organization / update_organization / set_organization_address keep the customer record itself current.',
+            '- "Credit / discount / cancel invoice Y" → draft_credit_note; "charge more on invoice Y" → '
+            . 'draft_debit_note. Send only the difference as positive lines, plus the reason. Both wait for a '
+            . 'person\'s approval and are numbered (E34 / E33) when approved; never say one was issued.',
+            '- "Void/cancel/undo that invoice" → void_ar_invoice for an issued or sent invoice (it reverses the posting); '
+            . 'discard_draft_invoice for a DRAFT (nothing was posted, so it is withdrawn and its approval cancelled). '
+            . 'A draft that already carries a fiscal number can be neither.',
             '- "Quote customer X for Y" / "send them a proposal" → create_quote (customer name + priced lines). '
-            . 'It stops at a DRAFT with no quote number. Then send_quote to number it and mark it sent — that '
-            . 'freezes the customer details onto the quote. Nothing is emailed by either call: '
-            . 'generate_quote_pdf gives you the document to hand over.',
+            . 'It stops at a DRAFT with no quote number. Then send_quote: it numbers it, marks it sent and '
+            . 'sends the customer a tracked link (a signing page when it has a SOW) with the PDFs.',
+            '- "Send invoice Y to the customer" → send_invoice, never an email you write with the PDF yourself. '
+            . 'On an e-CF company it refuses until DGII accepted the e-CF; wait for that. If it answers '
+            . 'no_billing_contact, ask who receives invoices there and call again with their person_id. A '
+            . 'customer reaction to a sent quote or invoice (opened, declined, never opened, overdue) reaches you '
+            . 'as a follow-up task: act on it in the customer\'s thread, in their language. An invoice nobody '
+            . 'opened goes again with send_invoice on the other channel. Overdue reminders are sent for you on '
+            . 'the company\'s dunning schedule (read or change it with set_reminder_cadence); when the customer answers one ("paid yesterday", "we dispute '
+            . 'line 2"), reply in that thread and note what they tell you with add_invoice_note. A "paid" claim is '
+            . 'applied when the bank confirms it, like a remittance, never from the customer\'s word.',
+            '- No billing contact (send_invoice, send_quote or get_document_link answers no_billing_contact) → ask '
+            . 'for their name and email or phone, create_person, link_person_to_organization to the customer, '
+            . 'tag_person with "billing-contact", then send again or get_document_link. A customer can have several '
+            . 'billing contacts; a send without person_id reaches all of them. "Give me the link to invoice/quote Y" '
+            . '→ get_document_link: it contacts nobody and the user shares the link themselves.',
             '- Only record the customer\'s own answer with answer_quote (accepted or rejected, with their reason '
             . 'when they said no) — never assume it. Once accepted, "turn that quote into an invoice" → '
             . 'convert_quote_to_invoice, which creates a DRAFT invoice carrying the same lines; a human issues '
-            . 'it. "Look up quote #X" → find_quote, which gives you the quote_id the other quote tools need.',
+            . 'it. An invoice for a quote always comes from convert_quote_to_invoice, never from create_ar_invoice: '
+            . 'a hand-built copy loses the link to the quote and its line-by-line detail, and create_ar_invoice '
+            . 'refuses it. If the quote is not accepted yet, ask whether the customer accepted it; on a yes, '
+            . 'answer_quote (with accepted_outside_kanvas when it was never sent through Kanvas) and then convert. '
+            . 'A quote with a SOW is never converted: accepting it bills its payment schedule. '
+            . '"Look up quote #X" → find_quote, which gives you the quote_id the other quote tools need.',
             '- "Send me the quote/invoice as a PDF" / "I need a copy to forward" → generate_quote_pdf or '
             . 'generate_invoice_pdf. Both render what Kanvas holds and attach the file to the record; then call '
             . 'get_file_link and hand back the link, never the filesystem_id. generate_invoice_pdf renders OUR '
             . 'invoice — it is not the vendor PDF an invoice email arrived with.',
+            '- Services quotes need a Statement of Work. "Write the SOW for quote X" → get_quote_sow (for the quote line '
+            . 'ids), draft the SOW from the lines, the conversation and past SOWs in your knowledge, then '
+            . 'generate_quote_sow. If it refuses, fix every listed problem or ask the user, and call it again. '
+            . 'A SOW file someone hands you → attach_quote_file with kind "sow", then record its structure with '
+            . 'generate_quote_sow (render_pdf: false). "Is X in scope?" → get_quote_sow with term X; answer from '
+            . 'it, never from memory. When a quote with a SOW is accepted its payment schedule starts billing by '
+            . 'itself: do not convert_quote_to_invoice it.',
+            '- "Bill Acme 2,000 every month for support" → schedule_billing (create). Each period becomes a DRAFT '
+            . 'invoice sent for approval. "What do we bill monthly" / "when is X invoiced next" → '
+            . 'list_billing_schedules. Pause, resume or change one with schedule_billing. Schedules bill on their '
+            . 'date in a nightly run; "create the second invoice" / "bill the balance now" for a SOW milestone or any '
+            . 'scheduled payment that is not due yet → say its planned date, then schedule_billing (bill_now) on that '
+            . 'schedule: it makes the draft from the quote\'s own lines and marks the period billed. Never move a '
+            . 'schedule\'s date to today and wait, and never rebuild the payment with create_ar_invoice.',
+            '- "Here is what we issued in WebPOS before Kanvas" / a CSV export of issued e-CFs → import_issued_ecf_export, '
+            . 'dry_run first: show what would be created, which customers are new and which rows need a person, then run '
+            . 'it for real when they agree. It books each e-CF as an issued, unpaid invoice with its journal entry; '
+            . 'payments are not in the export, so say the balance is open. Never type the rows in by hand.',
+            '- Payment terms: an invoice nothing set terms on is due the day it is issued, and the tool result says so '
+            . 'in terms_note; tell the person every time. "Give invoice Y net 30" / "make it due on the 15th" → '
+            . 'set_invoice_terms (once issued it is an amendment, so pass the reason they gave). "Our standard terms '
+            . 'are net 30" → set_payment_terms with is_default: from then on new invoices, SOW payment schedules and '
+            . 'billing schedules use it when nothing names terms; list_payment_terms shows what exists. One invoice '
+            . 'with its own terms → create_ar_invoice with net_terms_days.',
             '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
-            . 'explicitly asks to record a real payment. Needs the invoice_id, amount, and a payment reference.',
+            . 'explicitly asks to record a real payment. Needs the invoice_id, amount, a payment reference and the '
+            . 'method they named (wire, ach, check, cash, card).',
             '- "Issue a standalone credit memo for customer X" (e.g. a back-end rebate) → create_ar_credit_memo, '
             . 'only on explicit request. Not tied to any invoice — needs the customer name, a reference (e.g. '
             . 'the Credit Request Form\'s Request Reference No), and one or more lines with a Control Acct# and '
@@ -212,14 +320,9 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'in the Kanvas ledger, giving you the credit_memo_id and credit_memo_number. '
             . '(3) attach_invoice_file with that credit_memo_id and the file_url/file_name step 1 already '
             . 'returned — the CNR form itself becomes the attached evidence on the Kanvas record. '
-            . '(4) write_google_sheet to log the row — range "Credit Memos!A1" (a separate tab from the AP/AR '
-            . 'invoice tracker), omit sheet_url_or_id to use the default sheet — with '
-            . '[credit_memo_id, request_reference_no, customer_name, amount, "Issued", credit_memo_number, '
-            . 'processed_at], using create_ar_credit_memo\'s own credit_memo_number and processed_at values '
-            . 'verbatim — never compose the timestamp yourself. '
-            . '(5) If step 1 went through Gmail, mark_email_as_read on the message_id once every form in the '
+            . '(4) If step 1 went through Gmail, mark_email_as_read on the message_id once every form in the '
             . 'email has been processed. Not applicable on the direct-inbox path — skip it silently. '
-            . '(6) In your final reply, give the complete breakdown for EACH credit memo separately: Kanvas '
+            . '(5) In your final reply, give the complete breakdown for EACH credit memo separately: Kanvas '
             . 'credit_memo_id, request_reference_no, customer, amount, and the Kanvas credit_memo_number — never '
             . 'a combined total across multiple forms.',
             '- "Add a note to invoice/credit memo Y" → add_invoice_note; "attach this file to invoice/credit memo '
@@ -228,18 +331,13 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'PDF on a pending approval) → resend_invoice_attachment with that invoice_id. If it reports '
             . 'no_attachment_on_file, say so plainly — there is genuinely nothing captured to resend, not a bug '
             . 'you can retry around.',
-            '- "Read/check this Google Sheet" → read_google_sheet, given the URL the user shared. "Add these '
-            . 'rows to the sheet" → write_google_sheet. "Mark that row as X in the sheet" → '
-            . 'update_google_sheet_cell, only after confirming the exact cell with read_google_sheet first — '
-            . 'never guess a row/column. "Clear/wipe that row/cell" → clear_google_sheet_range — this empties '
-            . 'the values but never removes the row itself. "Create a new tab called X" → create_google_sheet_tab.',
             '- "Check for new invoice emails" / "any unread invoices in the inbox" → list_emails with a query '
             . 'like "has:attachment is:unread". "What does this email say" / "does it have an invoice attached" '
             . '→ read_email_details with the message_id. "Pull that PDF out" / "save this attachment" → '
             . 'download_attachment with the message_id + attachment_id from read_email_details — it saves the '
             . 'file to Kanvas and returns a filesystem_id/url. The real vendor/total/dates are inside the PDF, '
             . 'never in the email body/subject — after downloading, call extract_invoice_data with the '
-            . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet).',
+            . 'filesystem_id to read the amount and other fields before using them anywhere.',
             '- If your own message this turn contains a line like `[Attached file on this message — '
             . 'filesystem_id: 123, filename: "invoice.pdf"]`, someone handed you the file directly — your own '
             . 'inbox, Slack, or this chat — rather than through the Gmail search tools. Call '
@@ -264,21 +362,14 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'draft), giving you the Kanvas invoice_id. Do NOT issue it in this flow — a '
             . 'human approves it later and external synchronization is handled separately by configured workflows. '
             . 'The source file is already attached during creation; use attach_invoice_file only for additional files. '
-            . '(3) write_google_sheet to log the row — range "Invoices!A1", omit sheet_url_or_id to use the '
-            . 'default sheet — with the ID invoice column set to the Kanvas invoice_id from step 2 (NOT the '
-            . 'customer\'s own invoice number), then [vendor_name, total, "Pending", "", '
-            . 'create_ar_invoice\'s own approved_by_flag value verbatim] — that is columns B-F: customer, total, '
-            . 'status, Approved Date (blank for a real approval), Approved By. approved_by_flag lands in column '
-            . 'F (Approved By), never column G (External Ref.) — count the array entries against the columns '
-            . 'before sending. approved_by_flag already carries "NOT IN APPROVER LIST" when there is no approver '
-            . 'configured, so this makes that visible directly in the sheet instead of only in your chat reply. '
-            . 'Never compose that text yourself — copy the tool\'s own value. '
-            . '(4) If step 1 went through Gmail, mark_email_as_read on the message_id now, after both steps '
-            . 'above succeeded, so a failed run can still be found and retried on the next '
+            . 'If the result\'s approved_by_flag says "NOT IN APPROVER LIST", say so plainly: nobody can approve '
+            . 'that invoice until an admin sets the customer\'s approver. '
+            . '(3) If step 1 went through Gmail, mark_email_as_read on the message_id now, after step 2 '
+            . 'succeeded, so a failed run can still be found and retried on the next '
             . '"has:attachment is:unread" search. Not applicable on the direct-inbox path — skip it silently. '
-            . '(5) In your final reply, always give the complete breakdown of everything that happened so far: '
+            . '(4) In your final reply, always give the complete breakdown of everything that happened so far: '
             . 'Kanvas invoice_id, customer, invoice number, amount, GL account, subaccount, memo, and status '
-            . '(draft in Kanvas / "Pending" in the sheet) — never a short summary. External synchronization '
+            . '(draft) — never a short summary. External synchronization '
             . 'happens later through configured workflows, once a human approves the invoice.',
             '- When someone says to approve a pending invoice (e.g. "approve invoice 2044") → '
             . 'approve_pending_item with target_type: "invoice" and the target_id they gave you. If it reports '
@@ -294,11 +385,11 @@ class AccountsReceivableAgent extends SystemUserAgent
             . '#{invoice_number}."), so it lands as an internal note in the original '
             . 'invoice thread. Skip this step silently when there is no source_email_message_id — not every '
             . 'invoice comes from an email. '
-            . '(3) read_google_sheet to find the row whose column A (ID invoice) matches this invoice_id — never '
-            . 'guess the row. Then update_google_sheet_cell three times on that row: column D (Status) to '
-            . '"Approved", column E (Approved Date) to approved_at, and column F (Approved By) to approved_by (the '
-            . 'approver\'s email). '
-            . '(4) Reply with the complete breakdown: invoice_id, customer, approved_by, and approved_at.',
+            . '(3) Reply with the complete breakdown: invoice_id, customer, approved_by, and approved_at.',
+            '- "Is my setup done" / "what is missing" → check_accounting_setup, then explain each fix in plain words. '
+            . 'An e-NCF range running low, expiring or missing for a type → list_ecf_ranges, ask the person for the '
+            . 'numbers on their new DGII authorization and load them with configure_ecf_range. Never ask for e-CF provider '
+            . 'passwords, API keys or certificates: those are connected in the integration connect step.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }

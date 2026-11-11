@@ -2386,13 +2386,13 @@ class InsuranceWorkflowService
                 // Single person - treat as titular only (group of 1)
                 $restructuredData = [
                     'titular' => $groupedPersonsData[0],
-                    'dependents' => [] // No dependents for single person
+                    'dependents' => [], // No dependents for single person
                 ];
             } else {
                 // Multiple people - first is titular, rest are dependents
                 $restructuredData = [
                     'titular' => $groupedPersonsData[0], // First person is titular
-                    'dependents' => array_slice($groupedPersonsData, 1) // Rest are dependents
+                    'dependents' => array_slice($groupedPersonsData, 1), // Rest are dependents
                 ];
             }
 
@@ -2734,13 +2734,13 @@ class InsuranceWorkflowService
             'inclusion' => [
                 'type' => 'inclusion',
                 'success' => false,
-                'error' => 'No inclusion quotation performed'
+                'error' => 'No inclusion quotation performed',
             ],
             'cross_selling' => [
                 'type' => 'cross_selling',
                 'success' => false,
-                'error' => 'No cross_selling quotation performed'
-            ]
+                'error' => 'No cross_selling quotation performed',
+            ],
         ];
 
         // Process inclusion quotation
@@ -2758,7 +2758,7 @@ class InsuranceWorkflowService
                     'convenio' => $dualQuotationResult['inclusion']['convenio'] ?? '',
                     'target_plan' => $dualQuotationResult['inclusion']['target_plan'] ?? '',
                     'variant' => $dualQuotationResult['inclusion']['variant'] ?? '',
-                    'quote_response' => $inclusionQuote
+                    'quote_response' => $inclusionQuote,
                 ];
             }
         }
@@ -2778,7 +2778,7 @@ class InsuranceWorkflowService
                     'convenio' => $dualQuotationResult['cross_selling']['convenio'] ?? '',
                     'target_plan' => $dualQuotationResult['cross_selling']['target_plan'] ?? '',
                     'variant' => $dualQuotationResult['cross_selling']['variant'] ?? '',
-                    'quote_response' => $crossSellingQuote
+                    'quote_response' => $crossSellingQuote,
                 ];
             }
         }
@@ -2787,7 +2787,7 @@ class InsuranceWorkflowService
         $simplified['summary'] = [
             'inclusion_success' => $simplified['inclusion']['success'] ?? false,
             'cross_selling_success' => $simplified['cross_selling']['success'] ?? false,
-            'total_successful' => (int)($simplified['inclusion']['success'] ?? false) + (int)($simplified['cross_selling']['success'] ?? false)
+            'total_successful' => (int)($simplified['inclusion']['success'] ?? false) + (int)($simplified['cross_selling']['success'] ?? false),
         ];
 
         return $simplified;

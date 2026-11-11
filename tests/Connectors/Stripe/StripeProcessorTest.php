@@ -570,6 +570,30 @@ class StripeProcessorTest extends TestCase
         $this->assertSame(PaymentStatusEnum::PAID->value, $payment->status);
     }
 
+    public function testRetryAfterFailedRefundSendsANewStripeIdempotencyKey(): void
+    {
+        $payment = $this->persistPayment(100.00, 'pi_ref_retry', 'ch_ref_retry');
+        $context = ['idempotency_key' => 'admin-retry-1'];
+
+        $client = new FakeStripeClient();
+        $client->getRefunds()->queueResponse('create', $this->stripeError('refund failed'));
+        $client->getRefunds()->queueResponse('create', Refund::constructFrom([
+            'id' => 're_retry',
+            'object' => 'refund',
+            'status' => 'succeeded',
+        ]));
+
+        $this->assertFalse($this->processor($client)->refund($payment, $this->buildOrderMock(), 30.00, $context)->success);
+        $this->assertTrue($this->processor($client)->refund($payment, $this->buildOrderMock(), 30.00, $context)->success);
+
+        $keys = array_column(array_column($client->getRefunds()->getCalls('create'), 'options'), 'idempotency_key');
+        $this->assertSame([
+            'refund:' . $payment->getId() . ':admin-retry-1:1',
+            'refund:' . $payment->getId() . ':admin-retry-1:2',
+        ], $keys);
+        $this->assertSame(1, PaymentRefund::where('payments_id', $payment->getId())->count());
+    }
+
     private function persistPayment(float $amount, string $intentId, string $chargeId): Payments
     {
         $payment = new Payments();

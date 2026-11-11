@@ -1,0 +1,56 @@
+{
+  "data": [
+    {
+      "id": "msg_1a17abdc5001mLb3K63rOaAmQX",
+      "time": {
+        "created": 1793710538260
+      },
+      "text": "Run the shell command ls -la and tell me what it printed.",
+      "type": "user"
+    },
+    {
+      "id": "msg_1a17abe1b001XFtYl6qcwGJLvT",
+      "time": {
+        "created": 1793710538274,
+        "streamed": 1793710539580
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "oai",
+        "variant": "default"
+      },
+      "content": [
+        {
+          "type": "tool",
+          "id": "call_GGNNYrU1ijBmjfKvH4pWlhDh",
+          "name": "shell",
+          "executed": false,
+          "native": {
+            "itemId": "fc_07f52ad03b881848016ae9d9cb6af087d1b56ad1859ddec889"
+          },
+          "state": {
+            "status": "running",
+            "input": {
+              "command": "ls -la",
+              "workdir": "/workspaces/t2"
+            },
+            "metadata": {}
+          },
+          "time": {
+            "created": 1793710539407,
+            "ran": 1793710539573
+          }
+        }
+      ],
+      "snapshot": {
+        "start": "4b22c1551fb938d512786b314927bdae78fe77d4"
+      }
+    }
+  ],
+  "cursor": {
+    "previous": "eyJpZCI6Im1zZ18xYTE3YWJkYzUwMDFtTGIzSzYzck9hQW1RWCIsIm9yZGVyIjoiYXNjIiwiZGlyZWN0aW9uIjoicHJldmlvdXMifQ",
+    "next": "eyJpZCI6Im1zZ18xYTE3YWJlMWIwMDFYRnRZbDZxY3dHSkx2VCIsIm9yZGVyIjoiYXNjIiwiZGlyZWN0aW9uIjoibmV4dCJ9"
+  }
+}

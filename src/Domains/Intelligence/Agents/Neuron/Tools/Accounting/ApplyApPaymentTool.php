@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Scribe\Bills\Actions\AllocateBillPaymentAction;
 use Kanvas\Scribe\Bills\Models\Bill;
-use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Models\BaseModel;
+use Kanvas\Scribe\Payments\Actions\RecordBillPaymentAction;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
+use Kanvas\Scribe\Payments\Enums\PaymentRecordedViaEnum;
 use Kanvas\Scribe\Payments\Models\Payment;
 use Override;
 
@@ -26,9 +26,18 @@ class ApplyApPaymentTool extends AbstractApplyPaymentTool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $bill_id, float $amount, string $reference): array
-    {
-        return $this->applyPayment($bill_id, $amount, $reference);
+    public function __invoke(
+        int $bill_id,
+        float $amount,
+        string $reference,
+        ?string $method = null
+    ): array {
+        return $this->applyPayment(
+            $bill_id,
+            $amount,
+            $reference,
+            $method
+        );
     }
 
     #[Override]
@@ -44,19 +53,24 @@ class ApplyApPaymentTool extends AbstractApplyPaymentTool
             ->where('id', $id)
             ->where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
+            ->notDeleted()
             ->first();
     }
 
     #[Override]
-    protected function allocatePayment(BaseModel $document, float $amount, string $reference): Payment
-    {
+    protected function allocatePayment(
+        BaseModel $document,
+        float $amount,
+        string $reference,
+        PaymentMethodEnum $method
+    ): Payment {
         /** @var Bill $document */
-        return new AllocateBillPaymentAction(
+        return new RecordBillPaymentAction(
             bill: $document,
             amountNative: $amount,
-            method: PaymentMethodEnum::CHECK,
-            cashAccountSubType: AccountSubTypeEnum::CASH_CHECKING,
+            recordedVia: PaymentRecordedViaEnum::AGENT,
             reference: $reference,
+            method: $method,
             user: $this->user,
         )->execute()->payment;
     }

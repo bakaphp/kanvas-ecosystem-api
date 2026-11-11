@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Communication\Messages\Models\Delivery;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
@@ -38,6 +39,12 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
     private Users $user;
 
     /**
+     * Unique per test: this suite runs without DatabaseTransactions, and the send files a delivery
+     * attempt under this id, so a fixed one would collide with the attempt an earlier run left behind.
+     */
+    private string $mailgunId;
+
+    /**
      * Credentials go on `config`, not on the app or the company: LeadObserver creates a channel and
      * needs Bouncer roles, which only the seeded app has, so the lead cannot move to an app of its
      * own — and writing Mailgun settings onto the SHARED app/company would leak into every sibling
@@ -57,8 +64,9 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
             'services.mailgun.domain' => self::DOMAIN,
         ]);
 
+        $this->mailgunId = 'sent-' . Str::lower(Str::random(12)) . '@' . self::DOMAIN;
         Http::fake([
-            'api.mailgun.net/v3/*/messages' => Http::response(['id' => '<sent@' . self::DOMAIN . '>']),
+            'api.mailgun.net/v3/*/messages' => Http::response(['id' => '<' . $this->mailgunId . '>']),
             '*' => Http::response([]),
         ]);
     }
@@ -97,6 +105,33 @@ final class AgentMailboxOutboundLeadEmailTest extends TestCase
 
         // The company SMTP identity is the thing being replaced, not doubled up on.
         Notification::assertNothingSent();
+    }
+
+    public function testTheSendIsFiledAsADeliveryForTheLeadsPerson(): void
+    {
+        $agent = $this->agentWithMailbox();
+        $lead = $this->leadWithEmail('prospect@example.com');
+
+        $result = new SendMessageToLeadAction($lead)->execute(
+            channel: LeadCommunicationChannelEnum::EMAIL->value,
+            message: 'Here is the quote.',
+            title: 'Your quote',
+            to: 'prospect@example.com',
+            fromAgent: $agent,
+        );
+
+        // The id the delivery webhook matches on, without the angle brackets the send API wraps it in.
+        $this->assertSame('mailgun', $result['provider']);
+        $this->assertSame($this->mailgunId, $result['provider_message_id']);
+
+        $delivery = Delivery::query()
+            ->where('provider', 'mailgun')
+            ->where('external_id', $result['provider_message_id'])
+            ->firstOrFail();
+        $this->assertSame('accepted', $delivery->status->value);
+        $this->assertSame('prospect@example.com', $delivery->to_address);
+        $this->assertSame($lead->people->getId(), (int) $delivery->request->people_id);
+        $this->assertSame($result['attempt_uuid'], $delivery->uuid);
     }
 
     public function testTheAgentAddressIsAlsoTheReplyTo(): void

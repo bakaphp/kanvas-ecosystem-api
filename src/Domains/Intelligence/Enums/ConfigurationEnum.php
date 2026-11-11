@@ -34,6 +34,7 @@ enum ConfigurationEnum: string
     case AGENT_HAND_OFF_TYPE = 'agent_hand_off_type';
     case AGENT_CHANNEL_TYPE = 'agent_channel_type';
     case LEAD_CONTEXT_INFO = 'lead_ai_agent_context_info';
+    case LEAD_CONTACT_HISTORY = 'lead_ai_agent_contact_history';
     case LAST_MESSAGE_TIME = 'last_message_time';
     case LAST_MESSAGE = 'last_message';
     case MUTE_AI_AGENT = 'ai_control';

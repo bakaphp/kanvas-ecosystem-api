@@ -43,6 +43,8 @@ type LeadCampaignRecipient {
     status: String!
     reason: String
     destination: String
+    attachment_urls: [String!]
+    variables: Mixed
     sent_at: DateTime
     opened_at: DateTime
     open_count: Int!

@@ -34,11 +34,10 @@ class AddNoteToLeadAction
 
     protected function getNote(array $message): ?string
     {
-        /** @var string $linkPreview */
         $linkPreview = '';
 
         try {
-            $linkPreview = Url::getShortUrl($message['link'] ?? '', $this->lead->app);
+            $linkPreview = Url::getShortUrl($message['link'] ?? '', $this->lead->app, company: $this->lead->company);
         } catch (Throwable $e) {
             $linkPreview = $message['link'] ?? '';
         }
@@ -49,13 +48,8 @@ class AddNoteToLeadAction
             $linkPreview = $newLink;
         }
 
-        /** @var string $linkPreview */
-
-        // Get the message from the engagement service
-        // This is the parent msg engagement
         try {
             $parentEngagement = $this->message->getEngagement();
-            // Need to look for the current engagement via status
             $currentEngagement = EngagementRepository::findEngagementForLeadAndEntity(
                 $this->lead,
                 $message['verb'],

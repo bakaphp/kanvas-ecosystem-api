@@ -25,6 +25,9 @@ use const PHP_INT_MAX;
  */
 class KanvasChatHistory extends ChatHistory
 {
+    /** @var list<string>|null row ids the store returned on load, before fold and cut */
+    private ?array $loadedIds = null;
+
     /**
      * @return list<Message>
      */
@@ -33,11 +36,29 @@ class KanvasChatHistory extends ChatHistory
     {
         if ($this->messages === null) {
             $loaded = $this->store->loadActive($this->threadId);
+            $this->loadedIds = array_map(static fn (Message $m): string => KanvasMessageStore::bareId($m->getId()), $loaded);
             $this->messages = $this->trimmer->trim($loaded, $this->contextWindow);
             $this->archiveDropped($loaded, $this->messages);
         }
 
         return $this->messages;
+    }
+
+    /**
+     * What the load kept, by row id: every loaded row and every row still in the window, a folded-in row
+     * counted as kept. A fold past its cap drops a row from the middle, so "the oldest kept row" cannot
+     * stand in for this.
+     *
+     * @return array{loaded: list<string>, retained: list<string>}
+     */
+    public function window(): array
+    {
+        $retained = self::survivingIds($this->getMessages());
+
+        return [
+            'loaded' => $this->loadedIds ?? [],
+            'retained' => array_values(array_intersect($this->loadedIds ?? [], $retained)),
+        ];
     }
 
     #[Override]

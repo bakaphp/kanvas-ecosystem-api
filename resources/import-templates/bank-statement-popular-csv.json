@@ -1,0 +1,19 @@
+{
+    "key": "bank_statement_popular_csv",
+    "version": 1,
+    "name": "Bank statement — Banco Popular Dominicano (CSV)",
+    "description": "UNVERIFIED placeholder layout for the Popular en Línea movements export: one signed-by-type amount column plus a DB/CR type column. Replace with a real export header and bump version.",
+    "system_module": "Kanvas\\Scribe\\Banking\\Models\\BankTransaction",
+    "required_columns": ["Fecha Posteo", "Monto Transacción", "Tipo"],
+    "file_header": ["Fecha Posteo", "No. Referencia", "Descripción Corta", "Tipo", "Monto Transacción", "Balance"],
+    "mapping": {
+        "date": "Fecha Posteo",
+        "reference": "No. Referencia",
+        "description": "Descripción Corta",
+        "amount": "Monto Transacción",
+        "direction": { "$map": "Tipo", "values": { "DB": "debit", "CR": "credit", "Débito": "debit", "Crédito": "credit" } },
+        "running_balance": "Balance",
+        "date_format": "_d/m/Y",
+        "decimal_separator": "_."
+    }
+}

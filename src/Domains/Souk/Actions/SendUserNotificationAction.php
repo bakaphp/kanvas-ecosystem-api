@@ -49,6 +49,7 @@ class SendUserNotificationAction
                 'template' => $templateName,
             ])->name);
             $notification->channels = ['mail', 'database'];
+
             try {
                 UserRoleNotificationService::notify(
                     RolesEnums::OWNER->value,

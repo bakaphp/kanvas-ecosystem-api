@@ -28,7 +28,6 @@ class AddCompanyAdminsCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
@@ -49,6 +48,7 @@ class AddCompanyAdminsCommand extends Command
         $adminUser = $app->keys()->firstOrFail()->user;
 
         (new AddAdminsToCompanyAction($app, $adminUser, $company, $branch))->execute();
+
         return;
     }
 }

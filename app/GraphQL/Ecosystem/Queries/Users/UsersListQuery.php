@@ -13,7 +13,6 @@ class UsersListQuery
 {
     /**
      * Get user from the current company.
-     *
      */
     public function getFromCurrentCompany($rootValue, array $request): Users
     {

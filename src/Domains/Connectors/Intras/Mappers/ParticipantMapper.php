@@ -5,17 +5,24 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Intras\Mappers;
 
 use Baka\Support\Str;
-use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Intras\Enums\SipgoEntityEnum;
+use Kanvas\Connectors\Intras\Mappers\Concerns\MapsContactSlots;
 use Kanvas\Guild\Customers\Classification\Enums\PeopleClassificationFieldEnum;
 use Kanvas\Guild\Customers\Classification\Enums\PeopleClassificationSourceEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Customers\Models\Contact;
-use Kanvas\Guild\Customers\Models\ContactType;
 use Kanvas\Guild\Customers\Models\People;
 use stdClass;
 
 class ParticipantMapper
 {
+    use MapsContactSlots;
+
+    /** The People type the pull assigns; only this type is proposed as a new SIPGO participant. */
+    public const string PARTICIPANT_PEOPLE_TYPE = 'Participant';
+
+    /** `participants_statuses.name` a new participant gets when Kanvas holds no `estatus`. */
+    public const string DEFAULT_STATUS = 'ACTIVO';
+
     /**
      * `custom_fields.name` is not unique in SIPGO — `email_oficina` exists under modules 2, 3 and 4 —
      * and every participants_custom_fields row points at module 4. A write that resolved the field by
@@ -92,9 +99,7 @@ class ParticipantMapper
      * `participants` column → People custom field, stored verbatim.
      *
      * `departments_id` is named like an FK but the legacy column is VARCHAR(254) free text — the
-     * `belongsTo` is commented out in the SIPGO model and the Gestor filters it with LIKE. It used
-     * to sit in LOOKUP_FIELD_MAP, where the (int) cast turned every value into 0 and the field was
-     * silently never set.
+     * Gestor filters it with LIKE, so it must bypass catalog-id resolution.
      */
     public const array DIRECT_FIELD_MAP = [
         'departments_id' => 'department',
@@ -145,57 +150,104 @@ class ParticipantMapper
 
     public static function participantId(People $people): ?int
     {
-        $id = (int) $people->get(CustomFieldEnum::INTRAS_PARTICIPANT_ID->value);
-
-        return $id > 0 ? $id : null;
+        return SipgoEntityEnum::PARTICIPANT->legacyIdOf($people);
     }
 
     /**
-     * The values SIPGO should hold for this People, given what it holds now. Lookup fields (nivel,
-     * área, ...) and the office address are not pushed: they are SIPGO catalog ids, and Kanvas only
-     * keeps their names.
+     * The values SIPGO should hold for this People, given what it holds now. Catalog columns (nivel,
+     * área, ...) come out as names under `catalog`; SipgoChangeSet resolves them to ids. The office
+     * address is not pushed: it is a `companies_offices` row shared by everyone in the company.
      *
      * @param array<string, string> $current custom_fields.name => value, as loadParticipantContacts() returns
      *
-     * @return array{participant: array<string, string>, custom_fields: array<string, string>}
+     * @return array{row: array<string, string>, custom_fields: array<string, string>, catalog: array<string, array{table: string, name: string}>}
      */
     public static function toIntras(People $people, array $current = []): array
     {
         $firstname = Str::trimToNull((string) $people->firstname);
         $lastname = Str::trimToNull((string) $people->lastname);
 
-        $participant = array_filter([
+        $row = array_filter([
             'first_name' => $firstname,
             'last_name' => $lastname,
             'full_name' => Str::trimToNull($firstname . ' ' . $lastname),
             'position' => Str::trimToNull((string) $people->get('position')),
             'identification' => Str::trimToNull((string) $people->get('identification')),
+            ...self::customFieldValues($people, array_flip(self::DIRECT_FIELD_MAP)),
         ], fn ($value) => $value !== null);
 
-        $customFields = [];
+        $catalog = [];
 
-        foreach (self::EXTRA_CUSTOM_FIELD_MAP as $legacyName => $kanvasName) {
-            $value = Str::trimToNull((string) $people->get($kanvasName));
-            if ($value !== null) {
-                $customFields[$legacyName] = $value;
+        foreach (self::LOOKUP_FIELD_MAP as $column => $spec) {
+            $name = Str::trimToNull((string) $people->get($spec['custom_field']));
+            if ($name !== null) {
+                $catalog[$column] = ['table' => $spec['table'], 'name' => $name];
             }
         }
 
         return [
-            'participant' => $participant,
-            'custom_fields' => [...$customFields, ...self::contactSlots($people, $current)],
+            'row' => $row,
+            'custom_fields' => [
+                ...self::customFieldValues($people, array_flip(self::EXTRA_CUSTOM_FIELD_MAP)),
+                ...self::contactSlots($people, $current, self::CONTACT_FIELD_MAP),
+            ],
+            'catalog' => $catalog,
         ];
     }
 
     /**
-     * The applied classification in PushPeopleToIntrasAction's change-set shape. Empty when the person
-     * is waiting on review.
+     * Everything a new `participants` row needs that the update mapping does not carry: the SIPGO
+     * company (required for the Gestor to show the person) and a status, which is NOT NULL.
      *
-     * @return array{custom_fields?: array<string, array{from: null, to: string}>}
+     * @return array{row: array<string, string>, custom_fields: array<string, string>, catalog: array<string, array{table: string, name: string}>}
+     */
+    public static function toIntrasForCreate(People $people, int $companyId): array
+    {
+        $desired = self::toIntras($people);
+        $desired['row']['companies_id'] = (string) $companyId;
+        $desired['catalog']['participants_statuses_id'] ??= ['table' => 'participants_statuses', 'name' => self::DEFAULT_STATUS];
+
+        return $desired;
+    }
+
+    public static function isParticipant(People $people): bool
+    {
+        return $people->peopleType?->name === self::PARTICIPANT_PEOPLE_TYPE;
+    }
+
+    /**
+     * @param array<string, string> $map Kanvas custom field => SIPGO name
+     *
+     * @return array<string, string>
+     */
+    private static function customFieldValues(People $people, array $map): array
+    {
+        $values = [];
+
+        foreach ($map as $kanvasName => $legacyName) {
+            $value = Str::trimToNull((string) $people->get($kanvasName));
+            if ($value !== null) {
+                $values[$legacyName] = $value;
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * The applied classification as PushToIntrasAction items. Empty when the person is waiting
+     * on review or is not a SIPGO participant.
+     *
+     * @return list<array{kind: string, legacy_id: int, changes: array{custom_fields: array<string, array{from: null, to: string}>}}>
      */
     public static function classificationChanges(People $people): array
     {
-        if ($people->get(PeopleClassificationFieldEnum::SOURCE->value) === PeopleClassificationSourceEnum::PENDING_REVIEW->value) {
+        $participantId = self::participantId($people);
+
+        if (
+            $participantId === null
+            || $people->get(PeopleClassificationFieldEnum::SOURCE->value) === PeopleClassificationSourceEnum::PENDING_REVIEW->value
+        ) {
             return [];
         }
 
@@ -209,92 +261,7 @@ class ParticipantMapper
             }
         }
 
-        return $changes === [] ? [] : ['custom_fields' => $changes];
-    }
-
-    /**
-     * Which SIPGO slot each Kanvas contact goes in. A value SIPGO already holds keeps its slot and its
-     * SIPGO formatting (Kanvas stores phones as their last 10 digits). A new value takes a slot that is
-     * empty or holds a value Kanvas no longer has. Nothing is blanked: a contact deleted in Kanvas with
-     * nothing to replace it stays in SIPGO.
-     *
-     * @param array<string, string> $current
-     *
-     * @return array<string, string>
-     */
-    private static function contactSlots(People $people, array $current): array
-    {
-        $contacts = $people->contacts()->orderBy('weight')->orderBy('id')->get();
-        $slotsByType = [];
-
-        foreach (self::CONTACT_FIELD_MAP as $slot => $spec) {
-            $slotsByType[$spec['type']->value][] = $slot;
-        }
-
-        $assigned = [];
-
-        foreach ($slotsByType as $type => $slots) {
-            $typeId = ContactType::getByName(ContactTypeEnum::from($type)->getName())->getId();
-            $normalize = fn (string $value) => Contact::normalizeValue($value, $typeId);
-
-            $wanted = [];
-            foreach ($contacts->where('contacts_types_id', $typeId) as $contact) {
-                $wanted[$normalize((string) $contact->value)] ??= trim((string) $contact->value);
-            }
-            unset($wanted['']);
-
-            $freeSlots = [];
-            foreach ($slots as $slot) {
-                $held = $normalize((string) ($current[$slot] ?? ''));
-
-                if ($held !== '' && isset($wanted[$held])) {
-                    unset($wanted[$held]);
-
-                    continue;
-                }
-
-                $freeSlots[] = $slot;
-            }
-
-            foreach ($freeSlots as $slot) {
-                if ($wanted === []) {
-                    break;
-                }
-
-                $assigned[$slot] = array_shift($wanted);
-            }
-        }
-
-        return $assigned;
-    }
-
-    /**
-     * Only what differs, as from → to. Empty when SIPGO already matches.
-     *
-     * @param array{participant: array<string, string>, custom_fields: array<string, string>} $desired
-     * @param array<string, string> $current
-     *
-     * @return array{participant?: array<string, array{from: ?string, to: string}>, custom_fields?: array<string, array{from: ?string, to: string}>}
-     */
-    public static function changes(array $desired, stdClass $row, array $current): array
-    {
-        $changes = ['participant' => [], 'custom_fields' => []];
-
-        foreach ($desired['participant'] as $column => $value) {
-            $from = Str::trimToNull((string) ($row->{$column} ?? ''));
-            if ($from !== $value) {
-                $changes['participant'][$column] = ['from' => $from, 'to' => $value];
-            }
-        }
-
-        foreach ($desired['custom_fields'] as $name => $value) {
-            $from = Str::trimToNull($current[$name] ?? null);
-            if ($from !== $value) {
-                $changes['custom_fields'][$name] = ['from' => $from, 'to' => $value];
-            }
-        }
-
-        return array_filter($changes);
+        return $changes === [] ? [] : [SipgoEntityEnum::PARTICIPANT->item($participantId, ['custom_fields' => $changes])];
     }
 
     /**
@@ -361,31 +328,6 @@ class ParticipantMapper
     public static function lookupTables(): array
     {
         return array_values(array_unique(array_column(self::LOOKUP_FIELD_MAP, 'table')));
-    }
-
-    /**
-     * @param array<string, string> $contactRows
-     *
-     * @return list<array{type: ContactTypeEnum, value: string, weight: int}>
-     */
-    public static function contactsFromCustomFields(array $contactRows): array
-    {
-        $contacts = [];
-
-        foreach (self::CONTACT_FIELD_MAP as $name => $spec) {
-            $value = trim((string) ($contactRows[$name] ?? ''));
-            if ($value === '') {
-                continue;
-            }
-
-            $contacts[] = [
-                'type' => $spec['type'],
-                'value' => $value,
-                'weight' => $spec['weight'],
-            ];
-        }
-
-        return $contacts;
     }
 
     /**

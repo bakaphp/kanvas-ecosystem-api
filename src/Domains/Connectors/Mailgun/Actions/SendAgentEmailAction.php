@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Mailgun\Actions;
 
 use Illuminate\Support\Facades\Notification;
+use Kanvas\Communication\Messages\DataTransferObject\Content;
+use Kanvas\Communication\Messages\DataTransferObject\Sender;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
@@ -48,9 +50,9 @@ class SendAgentEmailAction
 
         $entity = $message->preferredEntity(Lead::class);
         $subject = $this->resolveSubject($entity, $content);
-        $agent = $this->resolveAgentMailboxOwner();
+        $agent = $this->resolveAgent();
 
-        if ($agent !== null) {
+        if ($agent !== null && new AgentMailboxService()->hasMailbox($agent)) {
             new SendMailboxEmailAction($agent, $message, $subject)->execute();
 
             return;
@@ -70,6 +72,18 @@ class SendAgentEmailAction
 
         $notification->setFromUser($message->user);
         $notification->setSubject($subject);
+
+        if (FileEmailDeliveryAction::sendsOnMailgunSmtp($message->app, $message->company)) {
+            new FileEmailDeliveryAction(
+                app: $message->app,
+                company: $message->company,
+                sender: Sender::speaking($agent, $message->user),
+                to: $recipient,
+                content: Content::text($content)->withSubject($subject),
+                people: $entity instanceof Lead ? $entity->people : ($entity instanceof People ? $entity : null),
+                message: $message,
+            )->sending($notification);
+        }
 
         Notification::route('mail', $recipient)->notify($notification);
     }
@@ -105,10 +119,10 @@ class SendAgentEmailAction
     }
 
     /**
-     * The agent that wrote this reply, when it has a mailbox of its own. A missing or deleted agent
-     * is not an error here — it just means the send falls back to the company identity.
+     * A missing or deleted agent is not an error here — it just means the send goes out on the
+     * company identity.
      */
-    private function resolveAgentMailboxOwner(): ?Agent
+    private function resolveAgent(): ?Agent
     {
         $agentId = (int) ($this->outboundMessage->message['agent_id'] ?? 0);
 
@@ -123,6 +137,6 @@ class SendAgentEmailAction
             return null;
         }
 
-        return new AgentMailboxService()->hasMailbox($agent) ? $agent : null;
+        return $agent;
     }
 }

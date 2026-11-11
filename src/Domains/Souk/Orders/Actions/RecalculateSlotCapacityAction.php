@@ -36,10 +36,10 @@ class RecalculateSlotCapacityAction
 
         if ($this->order->orderType?->isExpirable()) {
             $allVariants = $product->variants()->get();
-            $totalMax       = 0;
-            $totalOccupied  = 0;
+            $totalMax = 0;
+            $totalOccupied = 0;
             $totalAvailable = 0;
-            $currentVariantSlotData  = null;
+            $currentVariantSlotData = null;
             $currentVariantWarehouse = null;
 
             foreach ($allVariants as $v) {
@@ -49,12 +49,12 @@ class RecalculateSlotCapacityAction
                 }
 
                 $vData = new GetSlotAvailabilityAction($v, $this->app)->execute();
-                $totalMax       += $vData->maxCapacity;
-                $totalOccupied  += $vData->occupiedCapacity;
+                $totalMax += $vData->maxCapacity;
+                $totalOccupied += $vData->occupiedCapacity;
                 $totalAvailable += $vData->availableCapacity;
 
                 if ($v->getId() === $variant->getId()) {
-                    $currentVariantSlotData  = $vData;
+                    $currentVariantSlotData = $vData;
                     $currentVariantWarehouse = $variantWarehouseRecord->warehouse ?? null;
                 }
             }
@@ -64,9 +64,9 @@ class RecalculateSlotCapacityAction
             }
 
             $product->addAttribute('capacity', [
-                'occupiedParkingSpaces'  => $totalOccupied,
+                'occupiedParkingSpaces' => $totalOccupied,
                 'availableParkingSpaces' => $totalAvailable,
-                'totalParkingSpaces'     => $totalMax,
+                'totalParkingSpaces' => $totalMax,
             ]);
             $product->save();
         } else {
@@ -85,9 +85,9 @@ class RecalculateSlotCapacityAction
             $available = $slots - $activeOrders;
             $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
             $product->addAttribute('capacity', [
-                'occupiedParkingSpaces'  => $activeOrders,
+                'occupiedParkingSpaces' => $activeOrders,
                 'availableParkingSpaces' => $available,
-                'totalParkingSpaces'     => $slots,
+                'totalParkingSpaces' => $slots,
             ]);
             $product->addAttribute('slots', $slots);
             $product->save();

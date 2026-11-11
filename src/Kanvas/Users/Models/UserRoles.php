@@ -31,7 +31,7 @@ class UserRoles extends BaseModel
         'users_id',
         'apps_id',
         'roles_id',
-        'companies_id'
+        'companies_id',
     ];
 
     /**

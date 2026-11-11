@@ -65,7 +65,8 @@ class CreateAppsAction
                 $app,
                 $this->user
             )))->execute();
-            $this->user->assign(RolesEnums::OWNER->value);
+            // createOwnerCompany() leaves the caller's scope current; Owner must land in the new app's.
+            $this->user->assignOwnerOf($app);
 
             //@todo
             $syncEmailTemplate = new SyncEmailTemplateAction($app, $this->user);

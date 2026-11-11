@@ -20,15 +20,15 @@ use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
 use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Providers\AIProviderInterface;
+use NeuronAI\Providers\AWS\BedrockRuntime;
+use NeuronAI\Providers\Gemini\Gemini;
+use NeuronAI\Providers\Mistral\Mistral;
 use Throwable;
 
 /**
- * Turns an attachment (image / audio / PDF) into one short text description using the SAME
- * provider/model the agent runs on, so the agent's text-only chat history can "remember" what an
- * attachment was on later turns (the live turn sees the real bytes via a content block; rebuilt
- * history only carries text). One raw provider->chat() call — no tools, no agent system prompt —
- * keeps it cheap and side-effect free. The description is type-tailored: caption an image,
- * transcribe audio, summarize a PDF.
+ * Describes attachments for text-only history and transcribes voice notes for live turns.
+ * Uses the agent's provider, with an audio-capable fallback when needed. Raw provider calls
+ * carry no agent tools or system prompt.
  */
 class AttachmentDescriptionService
 {
@@ -41,10 +41,27 @@ class AttachmentDescriptionService
      */
     public const int MAX_TEXT_ATTACHMENT_BYTES = 200_000;
 
+    /**
+     * Container key a test binds a fake transcriber to; production resolves it from the agent.
+     */
+    public const string AUDIO_PROVIDER_BINDING = 'kanvas.agents.audio_provider';
+
     public function __construct(
         private readonly AIProviderInterface $provider,
         private readonly bool $allowStructuredText = true,
+        private readonly ?AIProviderInterface $audioProvider = null,
     ) {
+    }
+
+    /**
+     * Whether a provider takes an audio block inline. Anthropic and OpenAI chat drop it on the floor,
+     * so a voice note on those is transcribed by the audio provider first.
+     */
+    public static function providerHearsAudio(AIProviderInterface $provider): bool
+    {
+        return $provider instanceof Gemini
+            || $provider instanceof Mistral
+            || $provider instanceof BedrockRuntime;
     }
 
     /**
@@ -67,7 +84,21 @@ class AttachmentDescriptionService
 
         $handler->setConfiguration(agent: $agent, user: $user);
 
-        return new self($handler->getProvider(), ! $handler instanceof ConversesWithCustomer);
+        return self::forHandler($handler, $agent);
+    }
+
+    /**
+     * For a caller already holding the configured handler (the chat runner), so the provider is not
+     * built a second time just to describe one attachment.
+     */
+    public static function forHandler(BehavesAsKanvasAgent $handler, Agent $agent): self
+    {
+        $provider = $handler->getProvider();
+        $audioProvider = app()->bound(self::AUDIO_PROVIDER_BINDING)
+            ? app(self::AUDIO_PROVIDER_BINDING)
+            : AgentProviderService::audioProvider($agent, $provider);
+
+        return new self($provider, ! $handler instanceof ConversesWithCustomer, $audioProvider);
     }
 
     /**
@@ -215,32 +246,64 @@ class AttachmentDescriptionService
             return '';
         }
 
+        return $this->describeBinary($binary, FilesystemServices::detectMimeTypeFromBytes($binary), $filename);
+    }
+
+    public function describeBinary(string $binary, string $mimeType, ?string $filename = null): string
+    {
+        $description = $this->normalize($this->ask($binary, $mimeType));
+
+        if ($description === '') {
+            return '';
+        }
+
+        // Lead with the type (and filename when known) so the agent can tell an image from a
+        // PDF and reference "the file you sent" — e.g. `PDF "receipt.pdf": <summary>`.
+        return $this->label($mimeType, $filename) . ': ' . $description;
+    }
+
+    /**
+     * The words in a voice note, with no label, for a turn whose model cannot listen. Empty when
+     * nothing could hear it.
+     */
+    public function transcribeAudio(string $binary, string $mimeType): string
+    {
+        return trim($this->ask($binary, $mimeType));
+    }
+
+    private function ask(string $binary, string $mimeType): string
+    {
         try {
-            $mimeType = FilesystemServices::detectMimeTypeFromBytes($binary);
             $block = self::contentBlockFor($binary, $mimeType, allowStructuredText: $this->allowStructuredText);
 
             if ($block === null) {
                 return '';
             }
 
-            $message = new UserMessage($this->promptFor($mimeType));
-            $message->addContent($block);
+            $provider = $this->providerFor($mimeType);
 
-            $response = $this->provider->chat($message);
-            $description = $this->normalize((string) ($response->message()->getContent() ?? ''));
-
-            if ($description === '') {
+            if ($provider === null) {
                 return '';
             }
 
-            // Lead with the type (and filename when known) so the agent can tell an image from a
-            // PDF and reference "the file you sent" — e.g. `PDF "receipt.pdf": <summary>`.
-            return $this->label($mimeType, $filename) . ': ' . $description;
+            $message = new UserMessage($this->promptFor($mimeType));
+            $message->addContent($block);
+
+            return (string) ($provider->chat($message)->message()->getContent() ?? '');
         } catch (Throwable $e) {
             report($e);
 
             return '';
         }
+    }
+
+    private function providerFor(string $mimeType): ?AIProviderInterface
+    {
+        if (self::nativeKind($mimeType) !== 'audio' || self::providerHearsAudio($this->provider)) {
+            return $this->provider;
+        }
+
+        return $this->audioProvider;
     }
 
     private function label(string $mimeType, ?string $filename): string

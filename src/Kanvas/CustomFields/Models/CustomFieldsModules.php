@@ -32,12 +32,11 @@ class CustomFieldsModules extends BaseModel
         'model_name',
         'companies_id',
         'name',
-        'apps_id'
+        'apps_id',
     ];
 
     /**
      * Belongs to app.
-     *
      */
     public function app(): BelongsTo
     {

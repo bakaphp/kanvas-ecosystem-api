@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Guild\Organizations\Enums\TaxIdTypeEnum;
 use Kanvas\Guild\Organizations\Models\Organization;
 
 /**
@@ -17,20 +18,16 @@ use Kanvas\Guild\Organizations\Models\Organization;
  * vendor already linked, and any duplicates are cleaned up later via MergeOrganizationsAction.
  *
  * Match precedence (high → low):
- *   1. email exact match     (organizations.email — near-zero false positives)
- *   2. name exact match      (trimmed, case-insensitive)
- *   3. name fuzzy match      (similar_text ≥ 90 %, but only when shorter input ≥ 4 chars)
+ *   1. tax id exact match    (organizations.tax_id — the legal identity)
+ *   2. email exact match     (organizations.email — near-zero false positives)
+ *   3. name exact match      (trimmed, case-insensitive)
+ *   4. name fuzzy match      (similar_text ≥ 90 %, but only when shorter input ≥ 4 chars)
  *
- * No match → CREATE a new Organization with the payload data and return it.
- *
- * NOTE on `vendor_tax_id`: the LLM extracts it and we pass it through to the snapshot fields,
- * but there's no first-class `organizations.tax_id` column today (it lives in custom-field
- * settings with a different storage shape per tenant). We persist tax_id on the create payload's
- * snapshot fields but don't use it as a match key here — the email + name signals are strong enough
- * that adding tax_id complexity isn't worth the cross-tenant variance in custom-field plumbing.
+ * No match → CREATE a new Organization with the payload data (tax id included) and return it.
  *
  * The payload shape mirrors the Gemini classifier extraction:
  *   ['vendor_name' => string, 'vendor_email' => ?string, 'vendor_tax_id' => ?string, ...]
+ * plus an optional `vendor_tax_id_type` (TaxIdTypeEnum) when the caller knows the id's kind.
  *
  * Caller is responsible for providing a fallback `vendor_name` when the LLM extraction is empty
  * (this Action will not create an Org with a blank name — it returns null in that case).
@@ -53,8 +50,10 @@ class ResolveOrCreateOrganizationFromVendorPayloadAction
     {
         $name = $this->trimmedString($this->payload['vendor_name'] ?? null);
         $email = $this->trimmedString($this->payload['vendor_email'] ?? null);
+        $taxId = Str::normalizeTaxId(is_scalar($this->payload['vendor_tax_id'] ?? null) ? (string) $this->payload['vendor_tax_id'] : null);
 
-        $existing = $this->findExistingByEmail($email)
+        $existing = Organization::findByTaxId($this->app, $this->company, $taxId)
+            ?? $this->findExistingByEmail($email)
             ?? $this->findExistingByName($name)
             ?? $this->findExistingByFuzzyName($name);
 
@@ -66,7 +65,7 @@ class ResolveOrCreateOrganizationFromVendorPayloadAction
             return null;
         }
 
-        return $this->createOrganization($name, $email);
+        return $this->createOrganization($name, $email, $taxId);
     }
 
     private function findExistingByEmail(?string $email): ?Organization
@@ -126,7 +125,7 @@ class ResolveOrCreateOrganizationFromVendorPayloadAction
             : Organization::query()->where('id', $bestId)->first();
     }
 
-    private function createOrganization(string $name, ?string $email): Organization
+    private function createOrganization(string $name, ?string $email, ?string $taxId): Organization
     {
         return Organization::create([
             'apps_id' => $this->app->getId(),
@@ -134,6 +133,10 @@ class ResolveOrCreateOrganizationFromVendorPayloadAction
             'users_id' => $this->user->getId(),
             'name' => Str::limit($name, 128, ''),
             'email' => $email,
+            'tax_id' => $taxId,
+            'tax_id_type' => ($this->payload['vendor_tax_id_type'] ?? null) instanceof TaxIdTypeEnum
+                ? $this->payload['vendor_tax_id_type']
+                : null,
             'address' => '',
             'total_employees' => 0,
         ]);

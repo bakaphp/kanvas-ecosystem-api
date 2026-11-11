@@ -249,7 +249,12 @@ class SendDelayMessageCommand extends Command
         $title = $message->get('title');
 
         try {
-            $providerResponse = new SendMessageToLeadAction($lead)->execute(
+            $action = new SendMessageToLeadAction($lead);
+            if ($message->hasTag(['agent-reach-out-delayed'])) {
+                $action->withEmailTemplate(AgentReachOutConfigEnum::EMAIL_TEMPLATE);
+            }
+
+            $providerResponse = $action->execute(
                 $communicationChannel,
                 $messageContent,
                 $fromNumber,

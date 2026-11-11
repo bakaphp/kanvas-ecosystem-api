@@ -65,9 +65,13 @@ return [
         | tool) — it is durable by design and MUST survive the sweep, since the
         | whole point is recall long after emission.
         */
-        'preserve_event_types' => array_values(array_filter(array_map(
+        // scribe.invoice.amended is the invoice's amendment record, so it is kept even when the env list is overridden.
+        'preserve_event_types' => array_values(array_unique(array_filter(array_map(
             'trim',
-            explode(',', (string) env('NERVOUS_SYSTEM_PRESERVE_EVENT_TYPES', 'people.enriched,people.email_validated,agent.knowledge.saved')),
-        ))),
+            [
+                ...explode(',', (string) env('NERVOUS_SYSTEM_PRESERVE_EVENT_TYPES', 'people.enriched,people.email_validated,agent.knowledge.saved')),
+                'scribe.invoice.amended',
+            ],
+        )))),
     ],
 ];

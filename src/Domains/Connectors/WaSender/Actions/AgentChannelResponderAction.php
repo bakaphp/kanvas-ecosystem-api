@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\WaSender\Actions;
 
 use Baka\Support\Str;
+use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -23,9 +24,10 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
     #[Override]
     public function execute(array $params = []): array
     {
-        $messageConversation = $this->message->message['raw_data']['message']['conversation']
-            ?? $this->message->message['raw_data']['message']['extendedTextMessage']['text']
-            ?? null;
+        // Captions included: a photo with "is this the one?" under it is a question about the photo.
+        $messageConversation = MessageTypeEnum::extractText(
+            (array) ($this->message->message['raw_data']['message'] ?? [])
+        );
 
         $channelId = Str::replace('@s.whatsapp.net', '', $this->hijackMessagePhone($this->message->message['chat_jid']));
 
@@ -44,14 +46,12 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
                 . 'later and return the msg id so the I know about it';
         }
 
-        if ($messageConversation === null) {
-            throw new ValidationException('No conversation found');
-        }
-
         $entity = $this->message->preferredEntity(Lead::class);
         if ($entity === null) {
             throw new ValidationException('No entity found');
         }
+
+        ['text' => $messageConversation, 'images' => $images, 'documents' => $documents] = $this->inboundContent($messageConversation);
 
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
@@ -59,6 +59,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             message: $messageConversation,
             user: $this->message->company->getAiAgentUserOrFail(),
             currentLead: $entity instanceof Lead ? $entity : null,
+            images: $images,
+            documents: $documents,
             sourceChannel: $this->channel,
             sourceMessage: $this->message,
             persistConversation: false,

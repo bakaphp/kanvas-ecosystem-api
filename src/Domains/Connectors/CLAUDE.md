@@ -10,6 +10,9 @@ Per-connector `CLAUDE.md` (load when working in that connector's tree):
 - [`UniversalSeguros/CLAUDE.md`](UniversalSeguros/CLAUDE.md) — auto-insurance SDK + its `Providers/UniversalSegurosProvider` implementation of the `Kanvas\Insurance` contracts. Per-product emit scopes, QA chassis blocker, problem+json error shape.
 - [`WaSender/CLAUDE.md`](WaSender/CLAUDE.md) — inbound WhatsApp: the three conversation shapes (lead DM / assistant DM / group) and how they route, the full `receiver_webhooks.configuration` key table, burst debouncing, which entity each workflow event carries (and why group traffic must never hit the DM event), and the lid-addressing + `slug`-vs-`uuid` foot-guns.
 - [`TypeSafe/CLAUDE.md`](TypeSafe/CLAUDE.md) — TypeSafe Jev "System One": calibrated typed decisions (Noul/Choice/Score) standing in front of an LLM that stays as the fallback. The per-decision `OFF|SHADOW|LIVE` rollout switch, the jaggedness rules that decide what may and may not be asked (no math, no text, one judgement per question, adversarial inbound text), Noul-vs-Choice, and why the model id is pinned.
+- [`Mailgun/CLAUDE.md`](Mailgun/CLAUDE.md) — outbound email events: the opened vs delivery receivers, how an
+  event finds its email (Message-Id → a Communication delivery, tenant from the delivery), and what a
+  bounce, complaint or unsubscribe does.
 - [`Twilio/CLAUDE.md`](Twilio/CLAUDE.md) — inbound SMS/MMS: the consent halt, the shared burst debounce and its
   config table, why nothing in the webhook replies, and the support-mode delayed turn.
 - [`SalesAssist/CLAUDE.md`](SalesAssist/CLAUDE.md) — dealer CRM lead notes (VinSolution, Elead, Reynolds, DealerSocket, DriveCentric): the two
@@ -190,3 +193,14 @@ VALUES ('{name}', UUID(), 0, '{"api_key": {"type": "text", "required": true}}', 
 ### Register workflow activities
 
 Add `#[WorkflowAction]` (from `Kanvas\Workflow\Attributes\WorkflowAction`) on the class. The `kanvas:workflow-sync-actions` command (runs on deploy) auto-discovers every class that carries the attribute via `WorkflowActionDiscoveryService` — no manual registration needed. If the basename collides with another activity in a different connector, pass `#[WorkflowAction(name: 'Human Name')]` to disambiguate. A coverage test (`tests/Workflow/Integration/WorkflowActionCoverageTest.php`) fails if any `KanvasActivity` / `ProcessWebhookJob` subclass is missing the attribute.
+
+## Intras (SIPGO) write-back
+
+Kanvas → SIPGO goes through the Approvals domain only: an edit to a linked People / Organization
+fires a request activity that freezes a from → to change set (`Support/SipgoChangeSet`), the company
+owner approves, and `WriteSipgoChangeSetAction` writes exactly that set. Catalog columns (nivel,
+sector, ...) are resolved by name through `Support/SipgoCatalog`, which refuses unknown or ambiguous
+names rather than guessing. Every `Pull*FromIntrasAction` calls `disableWorkflows()` on what it
+writes: an import is not an edit, and each `set()` would otherwise fire the sync rules. Wiring:
+`kanvas:intras-setup-sync-rules`. Spec and rollout: `docs/sipgo/sipgo-push-back-spec.md`.
+

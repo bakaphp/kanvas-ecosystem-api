@@ -12,6 +12,8 @@ enum ActionStatusEnum: string
     case SUBMITTED = 'submitted';
     case SENT = 'sent';
     case OPEN = 'opened';
+    case DECLINED = 'declined';
+    case COMPLETED = 'completed';
     case ORDER_ASC = 'ASC';
     case ORDER_DESC = 'DESC';
 
@@ -22,6 +24,8 @@ enum ActionStatusEnum: string
             self::SUBMITTED->value,
             self::SENT->value,
             self::OPEN->value,
+            self::DECLINED->value,
+            self::COMPLETED->value,
         ]);
     }
 
@@ -32,6 +36,8 @@ enum ActionStatusEnum: string
             'submitted' => self::SUBMITTED,
             'sent' => self::SENT,
             'opened' => self::OPEN,
+            'declined' => self::DECLINED,
+            'completed' => self::COMPLETED,
             default => throw new InvalidArgumentException("Invalid status name: $name"),
         };
     }

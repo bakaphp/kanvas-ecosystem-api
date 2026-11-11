@@ -56,7 +56,7 @@ class EventVersionBuilder
 
         $root->select([
             'peoples.*',
-            'peoples.id as id'
+            'peoples.id as id',
         ])
         ->join($participant, 'peoples.id', '=', $participant . '.people_id')
         ->join($eventVersionParticipant, $participant . '.id', '=', $eventVersionParticipant . '.participant_id')
@@ -75,6 +75,7 @@ class EventVersionBuilder
                 }
             }
         }
+
         return $root;
     }
 }

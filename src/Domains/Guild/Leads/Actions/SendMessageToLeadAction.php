@@ -13,6 +13,9 @@ use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\Communication\Messages\DataTransferObject\Content;
+use Kanvas\Communication\Messages\DataTransferObject\Sender;
+use Kanvas\Connectors\Mailgun\Actions\FileEmailDeliveryAction;
 use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
@@ -26,6 +29,7 @@ use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
 use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum as WaSenderConfigurationEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService;
+use Kanvas\Exceptions\ModelNotFoundException as TemplateNotFoundException;
 use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -41,7 +45,9 @@ use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Support\UserEmailSignature;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Templates\Repositories\TemplatesRepository;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Ramsey\Uuid\Uuid;
 use Throwable;
@@ -71,18 +77,29 @@ class SendMessageToLeadAction
      */
     private const int DEFAULT_MMS_MAX_TOTAL_MEDIA = 30;
 
+    private const string DEFAULT_EMAIL_TEMPLATE = 'first-time-agent-engagement';
+
     protected array $processedFiles = [];
     protected array $videoEngagements = [];
     protected string $attemptUuid;
     protected ?string $attemptedFrom = null;
     protected ?string $attemptedTo = null;
+    protected ?string $attemptedProvider = null;
     protected bool $isOptOutConfirmation = false;
     protected ?Users $signatureOwner = null;
     protected ?CampaignRecipient $campaignRecipient = null;
+    protected string $emailTemplate = self::DEFAULT_EMAIL_TEMPLATE;
 
     public function withSignatureOwner(?Users $user): self
     {
         $this->signatureOwner = $user;
+
+        return $this;
+    }
+
+    public function withEmailTemplate(string $template): self
+    {
+        $this->emailTemplate = $template;
 
         return $this;
     }
@@ -186,6 +203,7 @@ class SendMessageToLeadAction
             'account_sid' => $this->lead->company?->get(TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value),
             'from' => $this->attemptedFrom,
             'to' => $this->attemptedTo,
+            'provider' => $this->attemptedProvider,
         ], $classification);
 
         if ($channel === LeadCommunicationChannelEnum::SMS->value) {
@@ -954,7 +972,8 @@ class SendMessageToLeadAction
             : null;
 
         if ($mailboxAddress !== null) {
-            new SendAsAgentMailboxAction(
+            $this->attemptedProvider = IntegrationsEnum::MAILGUN->value;
+            $mailgunMessageId = new SendAsAgentMailboxAction(
                 agent: $fromAgent,
                 to: $leadEmail,
                 subject: $subject,
@@ -965,6 +984,7 @@ class SendMessageToLeadAction
                 trackingPerson: $this->lead->people,
                 trackingLead: $this->lead,
                 trackingCampaignRecipient: $this->campaignRecipient,
+                attemptUuid: $this->attemptUuid,
             )->execute();
 
             return $this->emailResult(
@@ -976,14 +996,20 @@ class SendMessageToLeadAction
                 template: 'agent-mailbox',
                 signature: false,
                 from: $mailboxAddress,
-            );
+            ) + [
+                'provider' => $this->attemptedProvider,
+                'provider_message_id' => FileEmailDeliveryAction::normalizeMessageId($mailgunMessageId),
+                'attempt_uuid' => $this->attemptUuid,
+            ];
         }
 
+        $markdownBody = $message;
         // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
         $message = MarkdownEmailRenderer::toEmailHtml($message);
+        $template = $this->resolveEmailTemplate();
 
         $notification = new Blank(
-            'first-time-agent-engagement',
+            $template,
             [
                 'content' => $message,
                 'lead' => $this->lead,
@@ -1001,17 +1027,62 @@ class SendMessageToLeadAction
         if ($ccList !== []) {
             $notification->setCc($ccList);
         }
+
+        $delivery = FileEmailDeliveryAction::sendsOnMailgunSmtp($this->lead->app, $this->lead->company)
+            ? new FileEmailDeliveryAction(
+                app: $this->lead->app,
+                company: $this->lead->company,
+                sender: Sender::speaking($fromAgent, $this->signatureOwner),
+                to: $leadEmail,
+                content: Content::text($markdownBody)->withSubject($subject),
+                people: $this->lead->people,
+                campaignRecipient: $this->campaignRecipient,
+                uuid: $this->attemptUuid,
+            )->sending($notification)
+            : null;
+
         Notification::route('mail', $leadEmail)->notify($notification);
 
-        return $this->emailResult(
+        $result = $this->emailResult(
             to: $leadEmail,
             ccList: $ccList,
             body: $message,
             attachments: $attachments,
             engagementUrls: $engagementUrls,
-            template: 'first-time-agent-engagement',
+            template: $template,
             signature: $signature,
         );
+
+        if ($delivery === null) {
+            return $result;
+        }
+
+        $this->attemptedProvider = IntegrationsEnum::MAILGUN->value;
+
+        return $result + [
+            'provider' => $this->attemptedProvider,
+            'provider_message_id' => $delivery->external_id,
+            'attempt_uuid' => $this->attemptUuid,
+        ];
+    }
+
+    /**
+     * Resolved here, not in the queued notification: a company that never got the requested
+     * template would otherwise lose the email in the worker instead of sending the default one.
+     */
+    private function resolveEmailTemplate(): string
+    {
+        if ($this->emailTemplate === self::DEFAULT_EMAIL_TEMPLATE) {
+            return self::DEFAULT_EMAIL_TEMPLATE;
+        }
+
+        try {
+            TemplatesRepository::getByName($this->emailTemplate, $this->lead->app, $this->lead->company);
+        } catch (TemplateNotFoundException) {
+            return self::DEFAULT_EMAIL_TEMPLATE;
+        }
+
+        return $this->emailTemplate;
     }
 
     /**

@@ -8,120 +8,148 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\Microsoft\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Microsoft\Support\MicrosoftScopes;
+use Kanvas\Connectors\Microsoft\Support\MicrosoftTokenStore;
 use Kanvas\Exceptions\ValidationException;
 
 class Client
 {
     /**
-     * Get a valid access token for a company, refreshing if expired.
+     * A company's mail connection (Outlook).
      */
     public static function getValidAccessToken(AppInterface $app, CompanyInterface $company): string
     {
-        $configPrefix = '-' . $app->getId() . '-' . $company->getId();
+        return self::validAccessToken(MicrosoftTokenStore::forCompanyMail($app, $company));
+    }
 
-        $accessToken = (string) $company->get(ConfigurationEnum::ACCESS_TOKEN->value . $configPrefix);
-        $refreshToken = (string) $company->get(ConfigurationEnum::REFRESH_TOKEN->value . $configPrefix);
-        $expiresAt = (string) $company->get(ConfigurationEnum::TOKEN_EXPIRES_AT->value . $configPrefix);
+    /**
+     * The stored access token, refreshed first when it has expired.
+     */
+    public static function validAccessToken(MicrosoftTokenStore $store): string
+    {
+        $accessToken = $store->get(ConfigurationEnum::ACCESS_TOKEN);
+        $refreshToken = $store->get(ConfigurationEnum::REFRESH_TOKEN);
+        $expiresAt = $store->get(ConfigurationEnum::TOKEN_EXPIRES_AT);
 
         if ($accessToken === '' || $refreshToken === '') {
-            throw new ValidationException('Microsoft OAuth tokens not configured for this company');
+            throw new ValidationException('Microsoft OAuth tokens are not configured');
         }
 
         if ($expiresAt !== '' && Carbon::parse($expiresAt)->isFuture()) {
             return $accessToken;
         }
 
-        $clientId = (string) ($company->get(ConfigurationEnum::CLIENT_ID->value) ?? $app->get(ConfigurationEnum::CLIENT_ID->value));
-        $clientSecret = (string) ($company->get(ConfigurationEnum::CLIENT_SECRET->value) ?? $app->get(ConfigurationEnum::CLIENT_SECRET->value));
-        $tenantId = (string) ($company->get(ConfigurationEnum::TENANT_ID->value) ?? $app->get(ConfigurationEnum::TENANT_ID->value));
-
-        $tokenData = self::refreshAccessToken($clientId, $clientSecret, $tenantId, $refreshToken);
-
-        $company->set(ConfigurationEnum::ACCESS_TOKEN->value . $configPrefix, $tokenData['access_token']);
-        $company->set(ConfigurationEnum::REFRESH_TOKEN->value . $configPrefix, $tokenData['refresh_token']);
-        $company->set(
-            ConfigurationEnum::TOKEN_EXPIRES_AT->value . $configPrefix,
-            Carbon::now()->addSeconds($tokenData['expires_in'])->toIso8601String()
+        $tokenData = self::refreshAccessToken(
+            $store->credential(ConfigurationEnum::CLIENT_ID),
+            $store->credential(ConfigurationEnum::CLIENT_SECRET),
+            $store->credential(ConfigurationEnum::TENANT_ID),
+            $refreshToken,
+            MicrosoftScopes::forRefresh($store->get(ConfigurationEnum::GRANTED_SCOPES))
         );
+
+        self::storeTokens($store, $tokenData);
 
         return $tokenData['access_token'];
     }
 
     /**
+     * An empty scope leaves the stored grant as it was: refresh builds its scopes from it.
+     *
+     * @param array{access_token: string, refresh_token: string, expires_in: int, scope: string} $tokenData
+     */
+    public static function storeTokens(MicrosoftTokenStore $store, array $tokenData): void
+    {
+        $store->set(ConfigurationEnum::ACCESS_TOKEN, $tokenData['access_token']);
+        $store->set(ConfigurationEnum::REFRESH_TOKEN, $tokenData['refresh_token']);
+        $store->set(
+            ConfigurationEnum::TOKEN_EXPIRES_AT,
+            Carbon::now()->addSeconds($tokenData['expires_in'])->toIso8601String()
+        );
+
+        if ($tokenData['scope'] !== '') {
+            $store->set(ConfigurationEnum::GRANTED_SCOPES, $tokenData['scope']);
+        }
+    }
+
+    /**
      * Exchange an authorization code for access and refresh tokens.
      *
-     * @return array{access_token: string, refresh_token: string, expires_in: int}
+     * @return array{access_token: string, refresh_token: string, expires_in: int, scope: string}
      */
     public static function exchangeCodeForToken(
         string $clientId,
         string $clientSecret,
         string $tenantId,
         string $redirectUri,
-        string $code
+        string $code,
+        string $scopes
     ): array {
-        $client = new GuzzleClient();
-
-        $response = $client->post("https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/token", [
-            'form_params' => [
-                'client_id' => $clientId,
-                'client_secret' => $clientSecret,
-                'code' => $code,
-                'redirect_uri' => $redirectUri,
-                'grant_type' => 'authorization_code',
-                'scope' => 'offline_access Mail.Read Mail.Send Mail.ReadWrite',
-            ],
-        ]);
-
-        /** @var array{access_token?: string, refresh_token?: string, expires_in?: int} $data */
-        $data = json_decode($response->getBody()->getContents(), true);
-
-        if (! isset($data['access_token']) || $data['access_token'] === '') {
-            throw new ValidationException('Failed to exchange code for Microsoft access token');
-        }
+        $data = self::requestToken($tenantId, [
+            'client_id' => $clientId,
+            'client_secret' => $clientSecret,
+            'code' => $code,
+            'redirect_uri' => $redirectUri,
+            'grant_type' => 'authorization_code',
+            'scope' => $scopes,
+        ], 'Failed to exchange code for Microsoft access token');
 
         return [
             'access_token' => $data['access_token'],
             'refresh_token' => $data['refresh_token'] ?? '',
             'expires_in' => $data['expires_in'] ?? 3600,
+            'scope' => $data['scope'] ?? '',
         ];
     }
 
     /**
      * Refresh an access token using a refresh token.
      *
-     * @return array{access_token: string, refresh_token: string, expires_in: int}
+     * @return array{access_token: string, refresh_token: string, expires_in: int, scope: string}
      */
     public static function refreshAccessToken(
         string $clientId,
         string $clientSecret,
         string $tenantId,
-        string $refreshToken
+        string $refreshToken,
+        string $scopes
     ): array {
-        $client = new GuzzleClient();
-
-        $response = $client->post("https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/token", [
-            'form_params' => [
-                'client_id' => $clientId,
-                'client_secret' => $clientSecret,
-                'refresh_token' => $refreshToken,
-                'grant_type' => 'refresh_token',
-                'scope' => 'offline_access Mail.Read Mail.Send Mail.ReadWrite',
-            ],
-        ]);
-
-        /** @var array{access_token?: string, refresh_token?: string, expires_in?: int} $data */
-        $data = json_decode($response->getBody()->getContents(), true);
-
-        if (! isset($data['access_token']) || $data['access_token'] === '') {
-            throw new ValidationException('Failed to refresh Microsoft access token');
-        }
+        $data = self::requestToken($tenantId, [
+            'client_id' => $clientId,
+            'client_secret' => $clientSecret,
+            'refresh_token' => $refreshToken,
+            'grant_type' => 'refresh_token',
+            'scope' => $scopes,
+        ], 'Failed to refresh Microsoft access token');
 
         return [
             'access_token' => $data['access_token'],
             'refresh_token' => $data['refresh_token'] ?? $refreshToken,
             'expires_in' => $data['expires_in'] ?? 3600,
+            'scope' => $data['scope'] ?? '',
         ];
+    }
+
+    /**
+     * @param array<string, string> $form
+     *
+     * @return array{access_token: string, refresh_token?: string, expires_in?: int, scope?: string}
+     */
+    private static function requestToken(string $tenantId, array $form, string $failureMessage): array
+    {
+        $response = Http::asForm()
+            ->throw()
+            ->post("https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/token", $form);
+
+        /** @var array{access_token?: string, refresh_token?: string, expires_in?: int, scope?: string} $data */
+        $data = $response->json() ?? [];
+
+        if (! isset($data['access_token']) || $data['access_token'] === '') {
+            throw new ValidationException($failureMessage);
+        }
+
+        return $data;
     }
 
     /**
@@ -131,17 +159,12 @@ class Client
      */
     public static function getUserProfile(string $accessToken): array
     {
-        $client = new GuzzleClient();
-
-        $response = $client->get('https://graph.microsoft.com/v1.0/me', [
-            'headers' => [
-                'Authorization' => 'Bearer ' . $accessToken,
-                'Accept' => 'application/json',
-            ],
-        ]);
-
         /** @var array{id: string, displayName: string, mail: string, userPrincipalName: string} $data */
-        $data = json_decode($response->getBody()->getContents(), true);
+        $data = Http::withToken($accessToken)
+            ->acceptJson()
+            ->throw()
+            ->get('https://graph.microsoft.com/v1.0/me')
+            ->json() ?? [];
 
         return $data;
     }

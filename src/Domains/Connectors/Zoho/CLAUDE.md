@@ -190,3 +190,59 @@ private note is also left on the lead, because Zoho will not retry the step:
 - **Hours.** Zoho's schedule owns send hours; nothing in Kanvas enforces them on this path.
 - **A skipped touch is not retried.** The next attempt is Zoho's next step.
 - **Reply detection needs a person.** A lead with no `people_id` has no inbound history, so a reply cannot be seen.
+
+## Get Docs moves the lead to a status (e.g. "Hot")
+
+A company that wants a lead marked once the customer uploads paperwork sets **one company setting**,
+`ZOHO_GET_DOCS_LEAD_STATUS`, to the Zoho `Lead_Status` picklist label, e.g. `Hot`. Nothing happens for a
+company without it. The `Zoho Push Lead Notes` rule on message submitted must already be in place; it is
+the same rule that uploads the files.
+
+What runs (`PushLeadNotesActivity` → `PushGetDocsLeadStatusAction`), only when the Get Docs submission
+carried at least one file:
+
+1. Zoho gets `Lead_Status = <label>` first; a rejected write leaves Kanvas untouched and the retry redoes
+   the step.
+2. The Kanvas lead moves to the matching `LeadStatus`: the company's own open row by name, else a shared
+   open one, else a new company-owned open row. That row gets `ZOHO_STATUS_NAME = <label>` if it has none.
+
+Why both sides move: every lead push rebuilds `Lead_Status` from the Kanvas status row
+(`ZohoLead::fromLead`, `ZOHO_STATUS_NAME` or "New Lead"). A Zoho-only write is undone by the next edit.
+
+What it never does: reopen a closed lead (Sold, Closed - Not Sold), reuse a status row flagged closed,
+touch a lead Zoho does not have yet, write to a converted lead, or change a deal's Stage. A second
+submission is a no-op. Every skip is in the activity result as `leadStatus.reason`: `not_configured`,
+`lead_not_in_zoho`, `lead_converted`, `lead_closed`, `already_set`.
+
+The label must exist in the tenant's Zoho `Lead_Status` picklist, or Zoho rejects the write.
+
+## Get Docs on a lead Zoho already converted to a deal
+
+A converted lead is read-only in Zoho and is left out of a plain fetch by id (`leads->get($id)` returns
+nothing); only `converted=both` returns it, with `$converted_detail` holding the deal, contact and account
+ids. Uploading to it fails, so the documents would land nowhere. The deal webhook that would have created
+the Kanvas deal is optional per tenant and often not wired.
+
+So when a Get Docs submission lands on a lead with no Kanvas deal carrying a `ZOHO_DEAL_ID`,
+`PushLeadNotesActivity` runs `PullConvertedLeadDealAction` first:
+
+1. Ask Zoho for the lead with `converted=both`. Not converted: nothing changes, the lead is the target.
+2. Converted: store `$converted_detail` on the lead as `ZOHO_LEAD_CONVERTED_DETAIL`, then run
+   `PullZohoDealAction` for its deal with the lead handed in, so the link does not depend on the client's
+   `ZCRM_Lead_ID` custom field. The pull also brings the deal's existing Zoho attachments down and fires
+   the deal created workflow, as the webhook would.
+3. The files fan out over the lead's deals as before; the marked lead is never a target again, on this
+   activity or on `Zoho Push Deal Notes`, and the status move skips with `lead_converted`.
+4. Every file that reaches a Zoho deal is also attached to the Kanvas deal (`mirrorUploadedFilesOnDeal`):
+   the same `filesystem` row, under the name Zoho got. It is recorded in `ZOHO_DEAL_SYNC_FILES` before the
+   attach so the deal push never sends it up again, and the next deal pull skips it by name instead of
+   downloading it back. The Kanvas deal therefore shows the file in the same request, with one S3 object.
+
+The mark is read before Zoho, so a lead is looked up once. A lead that is not converted and has no deal
+costs one Zoho read per submission.
+
+Files added to the lead itself in Kanvas travel on `Zoho Push Lead` (`SyncLeadToZohoAction`), not on Get
+Docs. That push reads the lead back from Zoho before updating it, and Zoho answers empty both for a deleted
+lead and for a converted one. The push asks whether the lead was converted before treating the lead as gone:
+if so the deal is pulled the same way, the lead's files go to that deal (still tracked on the lead as
+`ZOHO_LEAD_SYNC_FILES`), and the Kanvas lead keeps its status. Only a lead Zoho has no record of is closed.

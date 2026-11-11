@@ -70,7 +70,7 @@ final class OnboardingFlowTest extends TestCase
         '), 'selectOnboardingAreas');
         $this->assertSame('AREAS_SELECTED', $selected['status']);
         $this->assertSame(
-            ['accounts_payable', 'approvals', 'sally', 'first_message', 'follow_up', 'voice', 'sales_manager', 'pipeline'],
+            ['accounts_payable', 'approvals', 'setup_accounting', 'sally', 'first_message', 'follow_up', 'voice', 'sales_manager', 'pipeline'],
             array_column(array_column($selected['items'], 'template'), 'slug'),
         );
 
@@ -127,7 +127,7 @@ final class OnboardingFlowTest extends TestCase
         $this->assertSame('COMPLETED', $completed['status']);
         $this->assertSame('Set up Pay my suppliers\' bills on time', $completed['setup_plan']['title']);
         $this->assertSame('Ginny', $completed['setup_plan']['agent']['name']);
-        $this->assertCount(5, $completed['setup_plan']['tasks']);
+        $this->assertCount(6, $completed['setup_plan']['tasks'], 'the AP steps outside the Dominican Republic: no e-CF steps');
         $this->assertNotEmpty($completed['setup_session_id']);
         Queue::assertPushed(WakeAgentInSessionJob::class);
 

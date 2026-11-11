@@ -135,6 +135,51 @@ class OrganizationTest extends TestCase
         ]);
     }
 
+    public function testCreateAndUpdateOrganizationTaxId(): void
+    {
+        $fields = 'id tax_id tax_id_type tax_id_label';
+
+        $created = $this->graphQL('
+            mutation($input: OrganizationInput!) {
+                createOrganization(input: $input) { ' . $fields . ' }
+            }
+        ', ['input' => [
+            'name' => $this->uniqueOrganizationName(),
+            'tax_id' => '12-3456789',
+            'tax_id_type' => 'US_EIN',
+        ]])->assertJson(['data' => ['createOrganization' => [
+            'tax_id' => '123456789',
+            'tax_id_type' => 'US_EIN',
+            'tax_id_label' => 'EIN',
+        ]]])->json('data.createOrganization');
+
+        $update = fn (array $input) => $this->graphQL('
+            mutation($id: ID!, $input: OrganizationInput!) {
+                updateOrganization(id: $id, input: $input) { ' . $fields . ' }
+            }
+        ', ['id' => $created['id'], 'input' => ['name' => $this->uniqueOrganizationName(), ...$input]]);
+
+        $update(['tax_id' => '001-1234567-8', 'tax_id_type' => 'DO_CEDULA'])
+            ->assertJson(['data' => ['updateOrganization' => [
+                'tax_id' => '00112345678',
+                'tax_id_type' => 'DO_CEDULA',
+                'tax_id_label' => 'Cédula',
+            ]]]);
+
+        $update([])->assertJson(['data' => ['updateOrganization' => ['tax_id' => '00112345678']]]);
+
+        $this->assertStringContainsString(
+            'is not a valid RNC',
+            json_encode($update(['tax_id' => '00112345678', 'tax_id_type' => 'DO_RNC'])->json('errors'))
+        );
+
+        $update(['tax_id' => null])->assertJson(['data' => ['updateOrganization' => [
+            'tax_id' => null,
+            'tax_id_type' => null,
+            'tax_id_label' => null,
+        ]]]);
+    }
+
     public function testDeleteOrganization()
     {
         $user = auth()->user();

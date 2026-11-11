@@ -7,6 +7,8 @@ namespace Kanvas\Scribe\Quotes\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\BillingSchedules\Actions\CreateBillingSchedulesFromQuoteAction;
+use Kanvas\Scribe\BillingSchedules\Jobs\RunBillingScheduleJob;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\Quotes\Services\QuoteStateMachineService;
@@ -14,7 +16,12 @@ use Kanvas\Scribe\Quotes\Services\QuoteStateMachineService;
 /**
  * Customer accepted the quote — flips status to ACCEPTED + stamps accepted_at.
  *
- * Next step is typically ConvertQuoteToInvoiceAction (the only valid transition out of ACCEPTED).
+ * A quote with a SOW is billed from the SOW's payment schedule instead of being converted whole:
+ * acceptance creates one billing schedule per payment line and bills the `on_signature` ones right
+ * away. Re-accepting runs the same idempotent step, so a schedule missed by a failed first attempt is
+ * still created and nothing is created twice; a schedule that already existed is left to the daily run.
+ *
+ * A quote without a SOW goes on to ConvertQuoteToInvoiceAction.
  */
 class AcceptQuoteAction
 {
@@ -29,17 +36,28 @@ class AcceptQuoteAction
     {
         $this->stateMachine->assertTransition($this->quote, QuoteStatusEnum::ACCEPTED);
 
-        if ($this->quote->status === QuoteStatusEnum::ACCEPTED) {
-            return $this->quote;
+        if ($this->quote->status !== QuoteStatusEnum::ACCEPTED) {
+            DB::connection('accounting')->transaction(function (): void {
+                $this->quote->status = QuoteStatusEnum::ACCEPTED;
+                $this->quote->accepted_at = Carbon::now();
+                $this->quote->save();
+            });
         }
 
-        return DB::connection('accounting')->transaction(function (): Quote {
-            $quote = $this->quote;
-            $quote->status = QuoteStatusEnum::ACCEPTED;
-            $quote->accepted_at = Carbon::now();
-            $quote->save();
+        $this->startBilling();
 
-            return $quote->refresh();
-        });
+        return $this->quote->refresh();
+    }
+
+    private function startBilling(): void
+    {
+        $schedules = new CreateBillingSchedulesFromQuoteAction($this->quote, $this->user)->execute();
+        $today = Carbon::today();
+
+        foreach ($schedules as $schedule) {
+            if ($schedule->wasRecentlyCreated && $schedule->isDue($today)) {
+                RunBillingScheduleJob::dispatch($schedule, $today->toDateString())->afterCommit();
+            }
+        }
     }
 }

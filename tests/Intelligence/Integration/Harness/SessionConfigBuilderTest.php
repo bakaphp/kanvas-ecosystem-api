@@ -71,6 +71,12 @@ class SessionConfigBuilderTest extends TestCase
 
         $this->assertSame('deny', $bash['*']);
         $this->assertSame('allow', $bash['git *']);
+
+        // A JavaScript repository's toolchain is whichever package manager it uses: a job on a yarn
+        // repository was denied `yarn test` while `npm test` would have run (job 2403, 2026-11-05).
+        foreach (['npm *', 'npx *', 'yarn *', 'pnpm *'] as $packageManager) {
+            $this->assertSame('allow', $bash[$packageManager], $packageManager);
+        }
     }
 
     public function testProviderIsDeclaredOpenAiCompatibleAndTheApiKeyNeverReachesTheFile(): void
@@ -112,6 +118,57 @@ class SessionConfigBuilderTest extends TestCase
 
         $this->assertSame('deny', $bash['* .github/*']);
         $this->assertSame('deny', $bash['* config/*']);
+    }
+
+    public function testXcodeToolsExtendTheBashAllowListAndPreAnswerDotenvReads(): void
+    {
+        $permission = new SessionConfigBuilder(app(Apps::class), hostTools: ['xcode'])->toArray()['permission'];
+        $bash = $permission['bash'];
+
+        $this->assertSame('*', array_key_first($bash));
+        $this->assertSame('deny', $bash['*']);
+        $this->assertSame('allow', $bash['xcrun *']);
+        $this->assertSame('allow', $bash['xcodebuild *']);
+        $this->assertSame('allow', $bash['open -a *Device*Hub*']);
+        $this->assertSame('allow', $permission['read']['**/.xcode.env*']);
+
+        foreach (['brew *', 'sudo *', 'osascript *', 'launchctl *'] as $escape) {
+            $this->assertArrayNotHasKey($escape, $bash);
+        }
+    }
+
+    public function testNoHostToolsLeavesPermissionsUnchanged(): void
+    {
+        $permission = new SessionConfigBuilder(app(Apps::class))->toArray()['permission'];
+
+        $this->assertArrayNotHasKey('read', $permission);
+        $this->assertArrayNotHasKey('xcrun *', $permission['bash']);
+    }
+
+    /**
+     * opencode takes the LAST matching rule, so a protected path's deny has to come after the allows
+     * a host tool set adds, or `xcrun … credentials/…` walks straight through.
+     */
+    public function testProtectedPathsStayDeniedWithXcodeTools(): void
+    {
+        $repository = new CodingRepository(
+            slug: 'quorum',
+            cloneUrl: 'https://git.example.test/acme/quorum.git',
+            protectedPaths: ['credentials/'],
+        );
+
+        $permission = new SessionConfigBuilder(app(Apps::class), $repository, hostTools: ['xcode'])->toArray()['permission'];
+        $bash = $permission['bash'];
+        $keys = array_keys($bash);
+
+        $this->assertSame('deny', $bash['* credentials/*']);
+        $this->assertGreaterThan(array_search('xcrun *', $keys, true), array_search('* credentials/*', $keys, true));
+
+        // The dotenv allow must not reopen `credentials/.env` to the read tool.
+        $read = $permission['read'];
+        $readKeys = array_keys($read);
+        $this->assertSame('deny', $read['*credentials/*']);
+        $this->assertGreaterThan(array_search('**/.env*', $readKeys, true), array_search('*credentials/*', $readKeys, true));
     }
 
     /**

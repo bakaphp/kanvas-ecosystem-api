@@ -51,6 +51,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     protected ?UserInterface $toUser = null;
     protected ?CompanyInterface $company = null;
     protected array $cc = [];
+    protected ?string $messageId = null;
     public ?array $pathAttachment = null;
     protected bool $important = false;
 
@@ -116,6 +117,24 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     public function getCc(): array
     {
         return $this->cc;
+    }
+
+    /**
+     * Fixes the mail's Message-ID instead of letting the mailer generate one at send time, so a caller
+     * can file the email under the id the provider's events will carry before the queued send runs.
+     *
+     * @param string $messageId the bare `local@domain` form, without angle brackets
+     */
+    public function setMessageId(string $messageId): self
+    {
+        $this->messageId = $messageId;
+
+        return $this;
+    }
+
+    public function getMessageId(): ?string
+    {
+        return $this->messageId;
     }
 
     /**

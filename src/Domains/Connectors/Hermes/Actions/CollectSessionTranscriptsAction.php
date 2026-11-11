@@ -39,10 +39,12 @@ class CollectSessionTranscriptsAction extends BaseCollectSessionTranscriptsActio
             // not in the middle of the base action's persist loop.
             $this->probeStateDb($ssh);
             $this->usedFallback = false;
+
             return $reader;
         } catch (Throwable $e) {
             $this->reportStateDbUnavailable($e);
             $this->usedFallback = true;
+
             return new HermesJsonlFallbackReaderService($ssh);
         }
     }
@@ -75,6 +77,7 @@ class CollectSessionTranscriptsAction extends BaseCollectSessionTranscriptsActio
             return $this->sshClient;
         }
         $this->sshClient = SshClient::fromMachine($this->deployment->machine);
+
         return $this->sshClient;
     }
 

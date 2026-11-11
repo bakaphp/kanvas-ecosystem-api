@@ -6,9 +6,11 @@ namespace Kanvas\Workflow\Rules\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Workflow\Rules\Enums\RuleConditionOperatorEnum;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleAction;
+use Kanvas\Workflow\Rules\Models\RuleCondition;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
 
@@ -16,6 +18,10 @@ use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
  * Idempotently wires "when {event} fires on {entity}, run {activity}" for an app (and optionally one
  * company). Returns null when the activity has no Action row yet: `kanvas:workflow-sync-actions`
  * creates those on deploy, and a setup command must say so rather than create a dangling rule.
+ *
+ * `$conditions` is a list of `['attribute_name' => string, 'operator' => RuleConditionOperatorEnum|string,
+ * 'value' => string]`. The pattern stays `1`: with no conditions it is a literal true, with one it is
+ * condition #1, so a caller needing `1 and 2` passes the conditions and sets the pattern itself.
  */
 final class WireRuleAction
 {
@@ -29,6 +35,7 @@ final class WireRuleAction
         private readonly string $activityClass,
         private readonly string $name,
         private readonly string $description,
+        private readonly array $conditions = [],
     ) {
     }
 
@@ -54,9 +61,23 @@ final class WireRuleAction
                 'description' => $this->description,
                 // pattern '1' with no conditions evaluates truthy — the activity self-guards on entity/type.
                 'pattern' => 1,
+                'params' => [],
                 'is_deleted' => 0,
             ]
         );
+
+        foreach ($this->conditions as $condition) {
+            $operator = $condition['operator'] instanceof RuleConditionOperatorEnum
+                ? $condition['operator']->value
+                : (string) $condition['operator'];
+
+            RuleCondition::firstOrCreate([
+                'rules_id' => $rule->getId(),
+                'attribute_name' => $condition['attribute_name'],
+                'operator' => $operator,
+                'value' => $condition['value'],
+            ]);
+        }
 
         $ruleWorkflowAction = RuleWorkflowAction::firstOrCreate(
             [

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Contracts\EngageableInterface;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -43,6 +45,7 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\FollowUp\Concerns\HasManualFollowUpPlan;
 use Kanvas\Intelligence\FollowUp\Traits\HasFollowUpState;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -90,7 +93,7 @@ use Throwable;
  * @property bool $is_deleted
  * @property Carbon|null $closed_at
  */
-class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentContext
+class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentContext, EngageableInterface
 {
     use HasAdminLink;
     use UuidTrait;
@@ -103,6 +106,7 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     use HasLightHouseCache;
     use HasEventResources;
     use HasFollowUpState;
+    use HasManualFollowUpPlan;
     use EmitsLedgerEventsForEntity;
     use TracksClosedAt;
 
@@ -135,6 +139,34 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
     public function getGraphTypeName(): string
     {
         return 'Lead';
+    }
+
+    #[Override]
+    public function getEngagementApp(): AppInterface
+    {
+        return $this->app;
+    }
+
+    #[Override]
+    public function getEngagementCompany(): CompanyInterface
+    {
+        return $this->company;
+    }
+
+    #[Override]
+    public function getEngagementChannelSlug(): string
+    {
+        return (string) $this->uuid;
+    }
+
+    /**
+     * Exactly what PlainData rendered for a Lead before Lead implemented the contract, so every
+     * existing lead template keeps reading the same keys.
+     */
+    #[Override]
+    public function toTemplateData(): array
+    {
+        return array_merge($this->attributesToArray(), $this->getRelations());
     }
 
     #[Override]
@@ -916,6 +948,24 @@ class Lead extends BaseModel implements EventResourceInterface, ProvidesAgentCon
         }
 
         return $query;
+    }
+
+    /**
+     * LEAD_CONTEXT_INFO is the BDC pipeline's array context, but legacy voice captures left a
+     * plain string in it, which array_merge() and indexing readers can't take. A string comes
+     * back under `voice_context`.
+     *
+     * @return array<string, mixed>
+     */
+    public function getAiContextInfo(): array
+    {
+        $value = $this->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value);
+
+        return match (true) {
+            is_array($value) => $value,
+            is_string($value) && trim($value) !== '' => ['voice_context' => trim($value)],
+            default => [],
+        };
     }
 
     public function getCurrentPipelineStage(): ?PipelineStage

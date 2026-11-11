@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Support;
 
+use Baka\Support\Str;
 use Kanvas\Connectors\VinSolution\Enums\AddressEnum;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
@@ -44,7 +45,7 @@ class Address
             'StreetAddress' => $this->getValue($this->address->address),
             'StreetAddress2' => null,
             'City' => $this->getCity(),
-            'PostalCode' => $this->getValue($this->address->zip),
+            'PostalCode' => $this->getValue(Str::digitsOnly($this->address->zip)),
             'County' => $this->getValue($this->address->county),
             'State' => $this->getState(),
             'Duration' => null,
