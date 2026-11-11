@@ -93,6 +93,26 @@ class PlaceVoiceTestCallAction
             );
         }
 
-        return $response->json() ?? [];
+        $call = $response->json() ?? [];
+        $this->recordTestCall($call);
+
+        return $call;
+    }
+
+    /**
+     * The readiness check reads this. A quiet write: it is system metadata, not an edit of the agent.
+     *
+     * @param array<string, mixed> $call
+     */
+    private function recordTestCall(array $call): void
+    {
+        $voice = $this->agent->voice_config ?? [];
+        $voice['last_test_call'] = [
+            'at' => now()->toIso8601String(),
+            'call_id' => $call['call_id'] ?? null,
+        ];
+
+        $this->agent->voice_config = $voice;
+        $this->agent->saveQuietly();
     }
 }

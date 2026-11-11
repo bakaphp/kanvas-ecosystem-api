@@ -425,7 +425,7 @@ class AgentInboundWebhookTest extends TestCase
             }
         }->account();
 
-        $this->assertSame(['sid_suffix' => 'fake', 'friendly_name' => null], $account);
+        $this->assertSame(['sid_suffix' => 'fake', 'friendly_name' => null, 'status' => null, 'type' => null], $account);
     }
 
     public function testThePickerSourceSaysWhichCompanyAndAccountOrWhyNot(): void

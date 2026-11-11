@@ -5,3 +5,41 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Connector\\Twilio\\Mutations\\TwilioMessageMutation@resend"
         )
 }
+
+type CompanyTwilioProblem {
+    "status | trial | balance | from_number"
+    key: String!
+    "error: calls or texts fail until it is fixed. warning: they work, with a catch."
+    severity: String!
+    message: String!
+}
+
+"The acting company's Twilio connection: which account, and whether it can place calls and send texts."
+type CompanyTwilio {
+    connected: Boolean!
+    "The company whose settings hold the credentials; a wrong company is the usual reason for wrong numbers."
+    company_name: String!
+    account_name: String
+    "Last 4 characters of the Twilio account SID."
+    account_sid_suffix: String
+    "active | suspended | closed"
+    status: String
+    "Trial | Full"
+    type: String
+    "Null when Twilio didn't report it."
+    balance: Float
+    currency: String
+    number_count: Int!
+    "The company's default From number (twilio_from_phone_number)."
+    from_number: String
+    problems: [CompanyTwilioProblem!]!
+    "Why the account could not be read (not connected, credentials rejected), when it failed."
+    error: String
+}
+
+extend type Query @guard {
+    companyTwilio: CompanyTwilio!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Twilio\\Queries\\CompanyTwilioQuery"
+        )
+}

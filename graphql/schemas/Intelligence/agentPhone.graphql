@@ -33,6 +33,23 @@ type AgentPhoneNumberSource {
     error: String
 }
 
+type VoiceAgentReadinessCheck {
+    "runtime | twilio | balance | phone_number | inbound | prompt | call_model | voice | greeting | test_call"
+    key: String!
+    label: String!
+    "ok | warning | error. error: calls fail until it is fixed."
+    status: String!
+    message: String!
+    "What fixes it: connect_twilio | pick_number | rewire_number | edit_prompt | edit_voice | test_call. Null when the admin can't fix it here."
+    action: String
+}
+
+type VoiceAgentReadiness {
+    "No check is an error."
+    ready: Boolean!
+    checks: [VoiceAgentReadinessCheck!]!
+}
+
 type AgentTestCallResult {
     call_id: String
     twilio_sid: String
@@ -51,6 +68,11 @@ extend type Query @guard {
     agentPhoneNumberSource: AgentPhoneNumberSource!
         @field(
             resolver: "App\\GraphQL\\Connector\\Twilio\\Queries\\TwilioPhoneNumbersQuery@source"
+        )
+    "Whether a voice agent can take and place calls, checked live against Twilio and the voice runtime, with what to fix."
+    voiceAgentReadiness(id: ID!): VoiceAgentReadiness!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentReadinessQuery"
         )
 }
 
