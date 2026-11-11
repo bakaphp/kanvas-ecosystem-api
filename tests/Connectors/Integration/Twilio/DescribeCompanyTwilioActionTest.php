@@ -88,6 +88,26 @@ class DescribeCompanyTwilioActionTest extends TestCase
         $this->assertSame([], $this->describe(new FakeTwilioAccountClient())['problems']);
     }
 
+    public function testTheQueryDescribesTheActingCompany(): void
+    {
+        $response = $this->graphQL('
+            query {
+                companyTwilio {
+                    connected
+                    company_name
+                    problems { key severity message }
+                    error
+                }
+            }
+        ');
+
+        $this->assertNull($response->json('errors'), (string) json_encode($response->json('errors')));
+        $twilio = $response->json('data.companyTwilio');
+        $this->assertSame(auth()->user()->getCurrentCompany()->name, $twilio['company_name']);
+        // Either the account answered or the reason it didn't is reported.
+        $this->assertTrue($twilio['connected'] === ($twilio['error'] === null));
+    }
+
     /**
      * @return array<string, mixed>
      */

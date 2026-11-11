@@ -28,7 +28,12 @@ class GetVoiceAgentTwilioCredentialsAction
             throw new ValidationException('This agent has no voice configuration.');
         }
 
-        [$accountSid, $authToken] = TwilioClient::getKeysFromCompany($this->agent->company);
+        $company = $this->agent->company;
+        if ($company === null) {
+            throw new ValidationException('This agent has no company to read Twilio credentials from.');
+        }
+
+        [$accountSid, $authToken] = TwilioClient::getKeysFromCompany($company);
 
         logger()->info("voice runtime read the Twilio credentials of company {$this->agent->companies_id} for agent {$this->agent->uuid}");
 

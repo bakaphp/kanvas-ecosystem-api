@@ -69,6 +69,16 @@ class VoiceAgentTwilioTest extends TestCase
         new GetVoiceAgentTwilioCredentialsAction($this->agent())->execute();
     }
 
+    public function testAnAgentWithoutACompanyGetsNothing(): void
+    {
+        $agent = $this->agent();
+        $agent->companies_id = 0;
+
+        $this->expectException(ValidationException::class);
+
+        new GetVoiceAgentTwilioCredentialsAction($agent)->execute();
+    }
+
     public function testOnlyTheRuntimesTokenIsAccepted(): void
     {
         $this->assertTrue(VoiceRuntimeConfig::acceptsToken(self::TOKEN));
