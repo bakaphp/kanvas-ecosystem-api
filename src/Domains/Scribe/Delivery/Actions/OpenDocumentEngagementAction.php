@@ -55,7 +55,7 @@ class OpenDocumentEngagementAction
             throw $this->notSetUp();
         }
 
-        // Without a base URL the page link comes out as a bare "/invoice/{uuid}" a customer cannot open.
+        // Without a base URL the page link comes out as a bare "/view/{uuid}" a customer cannot open.
         if (! str_starts_with(ShortIoConfigurationService::linkPageBaseUrl($this->document->app, $this->document->company), 'https://')) {
             throw new DocumentDeliveryException(
                 DocumentDeliveryException::NOT_SET_UP,
