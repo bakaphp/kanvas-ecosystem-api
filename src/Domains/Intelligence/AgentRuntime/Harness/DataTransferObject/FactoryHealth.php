@@ -22,6 +22,9 @@ class FactoryHealth extends Data
      *                                                                                       when adb itself did not answer
      * @param list<string>                                                        $emulators running Android AVDs
      * @param list<array{process: string, count: int, last: int, reason: string}> $crashes   since the snapshot asked for
+     * @param bool|null                                                           $server    whether the factory's opencode
+     *                                                                                       server answers; null from a
+     *                                                                                       factory too old to say
      */
     public function __construct(
         public readonly int $at,
@@ -30,6 +33,7 @@ class FactoryHealth extends Data
         public readonly array $emulators = [],
         public readonly bool $metro = false,
         public readonly array $crashes = [],
+        public readonly ?bool $server = null,
     ) {
     }
 

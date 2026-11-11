@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenCode\Services;
 
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\FactoryHealth;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\CheckoutInUseException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
+use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
 
@@ -22,10 +24,29 @@ class FactoryServeClient
 
     private const int RELEASE_TIMEOUT_SECONDS = 60;
 
+    /** `start` over SSH hands the start to the Mac's desktop login and waits up to a minute for it. */
+    private const int START_TIMEOUT_SECONDS = 120;
+
     public function __construct(
         private readonly AgentMachine $machine,
         private readonly string $factoryDir,
     ) {
+    }
+
+    /**
+     * The factory a coding chat runs on, or null when the session lost its machine or agent. Resolved
+     * through the container so a test can bind a fake for the jobs that build it themselves.
+     */
+    public static function forSession(AgentTaskSession $session): ?self
+    {
+        $machine = $session->machine;
+        $agent = $session->agent;
+
+        if ($machine === null || $agent === null) {
+            return null;
+        }
+
+        return app(self::class, ['machine' => $machine, 'factoryDir' => CodingChatSettingEnum::factoryDirFor($agent)]);
     }
 
     /**
@@ -94,6 +115,18 @@ class FactoryServeClient
     public function release(string $repo, string $owner): array
     {
         return $this->call(['release', $repo, $owner], self::RELEASE_TIMEOUT_SECONDS);
+    }
+
+    /**
+     * Starts the factory's opencode server when it is down; a no-op when it already answers.
+     */
+    public function start(): void
+    {
+        $result = $this->call(['start'], self::START_TIMEOUT_SECONDS);
+
+        if (($result['running'] ?? null) !== 'true') {
+            throw new HarnessTransportException('The factory server on ' . $this->machine->name . ' did not start.');
+        }
     }
 
     /**

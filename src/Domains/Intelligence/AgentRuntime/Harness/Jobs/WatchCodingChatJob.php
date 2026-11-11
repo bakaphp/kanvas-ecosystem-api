@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\Services\FactoryServeClient;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\ReportFactoryProblemsAction;
-use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\RestartFactoryServerAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 
@@ -63,16 +63,19 @@ class WatchCodingChatJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
             return;
         }
 
-        $machine = $session->machine;
-        $agent = $session->agent;
+        $factory = FactoryServeClient::forSession($session);
 
-        if ($machine === null || $agent === null) {
+        if ($factory === null) {
             return;
         }
 
         try {
-            $health = new FactoryServeClient($machine, CodingChatSettingEnum::factoryDirFor($agent))
-                ->health(ReportFactoryProblemsAction::since($session));
+            $health = $factory->health(ReportFactoryProblemsAction::since($session));
+
+            // Repaired before anyone writes: a message sent meanwhile would otherwise fail first.
+            if ($health->server === false) {
+                new RestartFactoryServerAction($session)->execute();
+            }
 
             new ReportFactoryProblemsAction($session, $health)->execute();
         } catch (HarnessTransportException) {

@@ -15,6 +15,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\Services\FactoryServeClient;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\CloseCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\PostCodingChatMessageAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\RestartFactoryServerAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPrompt;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
@@ -80,7 +81,7 @@ class LaunchCodingChatJob implements ShouldQueue
         }
 
         try {
-            $opened = new FactoryServeClient($machine, CodingChatSettingEnum::factoryDirFor($agent))->open(
+            $opened = FactoryServeClient::forSession($session)->open(
                 repo: $session->repo_slug,
                 owner: $session->uuid,
                 name: $agent->name,
@@ -127,7 +128,10 @@ class LaunchCodingChatJob implements ShouldQueue
             )->execute();
 
             $harness = HarnessFactory::forSession($session);
-            $harness->start($session, new HarnessPrompt(task: $instruction, policy: ''));
+            RestartFactoryServerAction::retrying(
+                $session,
+                static fn () => $harness->start($session, new HarnessPrompt(task: $instruction, policy: ''))
+            );
 
             foreach (HeldChatMessages::take($session) as $held) {
                 $harness->steer($session, $held);

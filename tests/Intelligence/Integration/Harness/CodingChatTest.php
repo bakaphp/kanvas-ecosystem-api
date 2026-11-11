@@ -25,6 +25,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\LaunchStageEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\CheckoutInUseException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
+use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\RuntimeNotListeningException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\LaunchCodingChatJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\PollHarnessSessionJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\WatchCodingChatJob;
@@ -910,6 +911,76 @@ class CodingChatTest extends TestCase
         $this->assertStringEndsWith("'health' '1794340000' 2>/dev/null", $client->commands[0]);
     }
 
+    public function testAMessageToAStoppedFactoryServerRestartsItAndStillReachesTheAgent(): void
+    {
+        Queue::fake();
+        [$agent, $chat] = $this->chatAgent();
+        $live = $this->liveChatOnAMachine($agent, $chat, HarnessStatusEnum::IDLE);
+        $factory = $this->bindFactory('{"running":"true","port":"4097"}');
+        $transport = $this->downOnce($this->transport());
+
+        $reply = $this->say($agent, $chat, 'now add a test', $transport);
+
+        $this->assertSame('⏳ On it.', $reply);
+        $this->assertStringEndsWith("'start' 2>/dev/null", $factory->commands[0]);
+        $this->assertSame(HarnessStatusEnum::RUNNING->value, $live->refresh()->status);
+        $this->assertSame(
+            ['POST', '/api/session/ses_chat/prompt', ['text' => 'now add a test', 'delivery' => 'queue']],
+            $transport->requests[0]
+        );
+    }
+
+    public function testAFactoryServerThatWillNotStartSaysWhyAndLeavesTheChatReadyForTheNextMessage(): void
+    {
+        Queue::fake();
+        [$agent, $chat] = $this->chatAgent();
+        $live = $this->liveChatOnAMachine($agent, $chat, HarnessStatusEnum::IDLE);
+        $this->bindFactory('{"error":"joseceron is not logged in on the Mac\'s screen; log in and retry"}');
+
+        $reply = $this->say($agent, $chat, 'now add a test', $this->downOnce($this->transport()));
+
+        $this->assertStringContainsString('not logged in on the Mac', $reply);
+        $this->assertSame(HarnessStatusEnum::IDLE->value, $live->refresh()->status);
+    }
+
+    public function testTheWatcherRestartsAFactoryServerItFindsStoppedBeforeAnyoneWrites(): void
+    {
+        Queue::fake();
+        [$agent, $chat] = $this->chatAgent();
+        $live = $this->liveChatOnAMachine($agent, $chat, HarnessStatusEnum::IDLE);
+        // One line answers both calls: `health` reads the snapshot, `start` reads `running`.
+        $factory = $this->bindFactory('{"at":100,"server":false,"metro":false,"running":"true"}');
+
+        new WatchCodingChatJob(app(Apps::class), $live->getId())->handle();
+
+        $this->assertCount(2, $factory->commands);
+        $this->assertStringContainsString("'health'", $factory->commands[0]);
+        $this->assertStringEndsWith("'start' 2>/dev/null", $factory->commands[1]);
+    }
+
+    public function testTheWatcherLeavesARunningOrUnreportedServerAlone(): void
+    {
+        Queue::fake();
+        [$agent, $chat] = $this->chatAgent();
+        $live = $this->liveChatOnAMachine($agent, $chat, HarnessStatusEnum::IDLE);
+        $factory = $this->bindFactory('{"at":100,"metro":false}');
+
+        new WatchCodingChatJob(app(Apps::class), $live->getId())->handle();
+
+        $this->assertCount(1, $factory->commands);
+    }
+
+    public function testTheFactoryForASessionIsBuiltFromItsOwnMachineAndAgent(): void
+    {
+        [$agent, $chat] = $this->chatAgent();
+        $live = $this->liveChatOnAMachine($agent, $chat, HarnessStatusEnum::IDLE);
+
+        $this->assertInstanceOf(FactoryServeClient::class, FactoryServeClient::forSession($live));
+
+        $live->agent_machine_id = null;
+        $this->assertNull(FactoryServeClient::forSession($live->unsetRelation('machine')));
+    }
+
     public function testAnythingButADecisionLeavesThePermissionPending(): void
     {
         [$agent, $chat] = $this->chatAgent();
@@ -1252,6 +1323,58 @@ class CodingChatTest extends TestCase
                 $route = basename((string) parse_url($path, PHP_URL_PATH));
 
                 return $this->payloads[$route] ?? [];
+            }
+        };
+    }
+
+    private function liveChatOnAMachine(Agent $agent, Session $chat, HarnessStatusEnum $status): AgentTaskSession
+    {
+        $live = $this->liveChat($agent, $chat, $status);
+        $live->agent_machine_id = $this->machine()->getId();
+        $live->saveOrFail();
+
+        return $live;
+    }
+
+    /**
+     * The factory every job and action reaches through `FactoryServeClient::forSession()`.
+     */
+    private function bindFactory(string $output): FactoryServeClient
+    {
+        $factory = $this->factory($output);
+        $this->app->bind(FactoryServeClient::class, static fn (): FactoryServeClient => $factory);
+
+        return $factory;
+    }
+
+    /**
+     * Refuses the first request the way a stopped server does, then answers like `$transport`.
+     */
+    private function downOnce(HarnessTransport $transport): HarnessTransport
+    {
+        return new class ($transport) implements HarnessTransport {
+            /** @var list<array{0: string, 1: string, 2: array<string, mixed>|null}> */
+            public array $requests = [];
+
+            private bool $down = true;
+
+            public function __construct(
+                private readonly HarnessTransport $transport,
+            ) {
+            }
+
+            #[Override]
+            public function request(string $method, string $path, ?array $body = null, int $timeout = 30): array
+            {
+                if ($this->down) {
+                    $this->down = false;
+
+                    throw new RuntimeNotListeningException('The runtime is not listening (' . $method . ' ' . $path . ')');
+                }
+
+                $this->requests[] = [$method, $path, $body];
+
+                return $this->transport->request($method, $path, $body, $timeout);
             }
         };
     }

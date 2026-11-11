@@ -8,7 +8,6 @@ use Illuminate\Support\Carbon;
 use Kanvas\Connectors\OpenCode\Services\FactoryServeClient;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\CodingOutcome;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
-use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
@@ -73,18 +72,16 @@ class CloseCodingChatAction
      */
     private function release(): ?array
     {
-        $machine = $this->session->machine;
-        $agent = $this->session->agent;
+        $factory = FactoryServeClient::forSession($this->session);
 
-        if ($machine === null || $agent === null || $this->session->repo_slug === null) {
+        if ($factory === null || $this->session->repo_slug === null) {
             return null;
         }
 
         // Always attempted, even for a launch that failed: `open` takes the lock before anything else can
         // fail, and only this releases it. A refusal (the lock belongs to someone else) is expected.
         try {
-            return new FactoryServeClient($machine, CodingChatSettingEnum::factoryDirFor($agent))
-                ->release($this->session->repo_slug, $this->session->uuid);
+            return $factory->release($this->session->repo_slug, $this->session->uuid);
         } catch (HarnessTransportException) {
             return null;
         } catch (Throwable $e) {

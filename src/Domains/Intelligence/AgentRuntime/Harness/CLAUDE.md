@@ -210,6 +210,12 @@ go through those two (plan-owner wakes, `VerifyPlanAction`, receivers, "run agen
 factory-aware, and **@mentions never reach the factory**: `RespondToMentionJob` calls Neuron directly.
 
 Things that bite:
+- **A stopped factory server is Kanvas's to restart, never the agent's** (the agent runs inside it).
+  `RestartFactoryServerAction::retrying()` wraps every call that reaches it (the chat relay, the launch's
+  first prompt): on `RuntimeNotListeningException` it runs `serve.sh start`, posts "⚙️ restarted" and
+  retries once. `WatchCodingChatJob` does the same within a minute when `health` reports `server: false`.
+  Everything on the device side (emulator, adb, Metro, builds) the agent repairs itself with the factory's
+  `.kanvas/device`; its chat rules tell it to, and to only report what it fixed.
 - **A task run never touches the shared checkout.** `open --worktree <branch>` gives it its own worktree
   on `<agent name>/task-<task id>-<slug>` (e.g. `akira/task-42-login-screen`), cut from the app's base branch (`develop`, else `main`), with
   `node_modules` linked from the checkout; `release` commits anything left uncommitted on that branch

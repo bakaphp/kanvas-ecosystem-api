@@ -8,6 +8,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\CloseCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\OpenCodingChatAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\PostCodingChatMessageAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Actions\RestartFactoryServerAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\AgentHarness;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\HarnessTransport;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPrompt;
@@ -238,25 +239,34 @@ class RunCodingChatAction
 
     private function relay(AgentTaskSession $live, string $text): string
     {
-        $status = $live->harnessStatus();
-
-        if ($status === HarnessStatusEnum::STARTING || ! $live->isProvisioned()) {
+        if ($live->harnessStatus() === HarnessStatusEnum::STARTING || ! $live->isProvisioned()) {
             return $this->holdUntilStarted($live, $text);
         }
 
         try {
-            return match ($status) {
-                HarnessStatusEnum::AWAITING_PERMISSION => $this->answerPermission($live, $text),
-                HarnessStatusEnum::AWAITING_ANSWER => $this->answerQuestion($live, $text),
-                HarnessStatusEnum::IDLE => $this->nextTurn($live, $text),
-                HarnessStatusEnum::RUNNING => $this->steer($live, $text),
-                default => 'The coding agent is busy (' . $status->value . '). Try again in a moment.',
-            };
+            return RestartFactoryServerAction::retrying($live, fn (): string => $this->deliver($live, $text));
         } catch (Throwable $e) {
             report($e);
 
             return '⚠️ That did not reach the coding agent: ' . $e->getMessage();
         }
+    }
+
+    /**
+     * Reads the status each time: a turn that failed on a stopped server has put the row back to idle
+     * before the retry.
+     */
+    private function deliver(AgentTaskSession $live, string $text): string
+    {
+        $status = $live->harnessStatus();
+
+        return match ($status) {
+            HarnessStatusEnum::AWAITING_PERMISSION => $this->answerPermission($live, $text),
+            HarnessStatusEnum::AWAITING_ANSWER => $this->answerQuestion($live, $text),
+            HarnessStatusEnum::IDLE => $this->nextTurn($live, $text),
+            HarnessStatusEnum::RUNNING => $this->steer($live, $text),
+            default => 'The coding agent is busy (' . $status->value . '). Try again in a moment.',
+        };
     }
 
     /**
