@@ -468,7 +468,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         Exceptions::assertReported(RuntimeException::class);
     }
 
-    public function testTwilioMediaUrlsIncludeDocuments(): void
+    public function testTwilioMediaUrlsIncludeDocumentsButNeverAVideoOrItsGif(): void
     {
         $app = Mockery::mock();
         $app->shouldReceive('get')
@@ -498,10 +498,15 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         };
 
         $action->setVideoEngagementsForTest([
-            ['gif_url' => 'https://cdn.example.com/video-preview.gif'],
+            ['url' => 'https://salink.app/abc123'],
         ]);
 
         $action->setProcessedFilesForTest([
+            [
+                'is_processed_video' => true,
+                'video' => ['url' => 'https://cdn.example.com/clip.mp4'],
+                'gif' => ['url' => 'https://cdn.example.com/video-preview.gif'],
+            ],
             [
                 'url' => 'https://cdn.example.com/image.jpg',
                 'type' => MediaTypeEnum::IMAGE,
@@ -517,7 +522,6 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         ]);
 
         $this->assertSame([
-            'https://cdn.example.com/video-preview.gif',
             'https://cdn.example.com/image.jpg',
             'https://cdn.example.com/voice.mp3',
             'https://cdn.example.com/contract.pdf',
