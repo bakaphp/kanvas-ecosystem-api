@@ -614,8 +614,8 @@ class CreateEngagementAction
     }
 
     /**
-     * A company action's pipeline is slugged from its display name ("Video Link" → video-link), so it
-     * need not match the action slug the lookup uses.
+     * The slug lookup only sees this company's and app's pipelines, and a pipeline is slugged from the
+     * company action's display name, so the one the company action points to can miss on either count.
      */
     protected function resolvePipeline(): Pipeline
     {
