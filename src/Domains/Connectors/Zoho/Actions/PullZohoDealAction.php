@@ -10,6 +10,7 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
+use Kanvas\Connectors\Zoho\Actions\Concerns\ResolvesZohoOwner;
 use Kanvas\Connectors\Zoho\Actions\Concerns\SyncsZohoPerson;
 use Kanvas\Connectors\Zoho\Actions\Concerns\TracksZohoSyncedFiles;
 use Kanvas\Connectors\Zoho\Client;
@@ -26,6 +27,7 @@ use Kanvas\Guild\Deals\Actions\UpdateDealAction;
 use Kanvas\Guild\Deals\DataTransferObject\Deal as DealData;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
@@ -37,6 +39,7 @@ use Webleit\ZohoCrmApi\ZohoCrm;
  */
 class PullZohoDealAction
 {
+    use ResolvesZohoOwner;
     use SyncsZohoPerson;
     use TracksZohoSyncedFiles;
 
@@ -106,6 +109,7 @@ class PullZohoDealAction
             description: isset($zohoDealInfo['Description']) ? (string) $zohoDealInfo['Description'] : null,
             lead: $lead,
             people: $people,
+            owner: $this->resolveOwner($zohoDealInfo, $lead, $existing),
         );
 
         // The push activity listens on created/updated; it skips a change that carries zoho_payload,
@@ -128,6 +132,21 @@ class PullZohoDealAction
         );
 
         return $deal;
+    }
+
+    /**
+     * The lead's owner only stands in on a create: on an update it would undo a reassignment made
+     * in Kanvas every time Zoho names an owner nobody here matches.
+     */
+    protected function resolveOwner(array $zohoDealInfo, ?Lead $lead, ?Deal $existing): ?Users
+    {
+        $owner = $this->resolveZohoOwner($this->app, $zohoDealInfo['Owner'] ?? null);
+
+        if ($owner !== null || $existing !== null) {
+            return $owner;
+        }
+
+        return $lead?->owner;
     }
 
     protected function fetchDeal(): array
