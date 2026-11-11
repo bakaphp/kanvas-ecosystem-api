@@ -277,10 +277,13 @@ class RunTaskWorkerJob implements ShouldQueue
         return implode("\n\n", array_filter([
             'You are working ONE task of the plan "' . $plan->title . '", handed to you by '
             . ($plan->agent?->name ?? 'the team') . '. You are working unattended: nobody will answer a '
-            . 'question, so do not ask one. The task\'s instructions count as the person\'s request, '
-            . 'including committing, pushing and opening a pull request when the task asks for them.',
+            . 'question, so do not ask one. The task\'s instructions count as the person\'s request.',
             'Task: ' . $this->task->title,
             Str::trimToNull((string) $this->task->description) !== null ? 'Detail: ' . $this->task->description : null,
+            'You are in a worktree of your own, on a branch made for this task from the app\'s base branch '
+            . '(usually develop). Finish the task end to end: commit your work with Conventional Commit '
+            . 'messages, and once the checks pass, push the branch and open a draft pull request into that '
+            . 'base branch, unless the task says otherwise.',
             'When you finish, reply with what you did and where it is: branch, commits, pull request link, '
             . 'reports. IF YOU COULD NOT DO IT, START YOUR REPLY WITH THE WORD BLOCKED, then say exactly '
             . 'what stopped you and what someone has to do.',

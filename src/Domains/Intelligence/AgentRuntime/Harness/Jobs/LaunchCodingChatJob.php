@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\Services\FactoryServeClient;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\CloseCodingChatAction;
@@ -23,6 +24,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\CheckoutHolderNotice;
 use Kanvas\Intelligence\AgentRuntime\Harness\Services\HeldChatMessages;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Throwable;
 
 /**
@@ -36,6 +38,8 @@ class LaunchCodingChatJob implements ShouldQueue
     use KanvasJobsTrait;
     use Queueable;
     use SerializesModels;
+
+    private const int TURN_CHECK_SECONDS = 60;
 
     public int $tries = 1;
 
@@ -71,12 +75,17 @@ class LaunchCodingChatJob implements ShouldQueue
             return;
         }
 
+        if ($session->isTaskRun() && $this->waitsForItsTurn($session, $agent)) {
+            return;
+        }
+
         try {
             $opened = new FactoryServeClient($machine, CodingChatSettingEnum::factoryDirFor($agent))->open(
                 repo: $session->repo_slug,
                 owner: $session->uuid,
                 name: $agent->name,
                 persona: CodingChatSettingEnum::personaFor($agent),
+                worktreeBranch: $session->taskRunBranch(),
             );
 
             $session->port = $opened['port'];
@@ -135,6 +144,42 @@ class LaunchCodingChatJob implements ShouldQueue
 
         $session->markLaunchStage(null);
         PollHarnessSessionJob::dispatch($this->app, $session->getId());
+    }
+
+    /**
+     * Workflow task runs take turns on the Mac, first come first served: each has its own worktree, but
+     * the simulator, the emulator and Metro's port are one per machine. A run whose turn has not come
+     * stays queued and asks again in a minute — waiting is never a failure, so the task never blocks for it.
+     */
+    private function waitsForItsTurn(AgentTaskSession $session, Agent $agent): bool
+    {
+        $others = AgentTaskSession::query()
+            ->where('agent_machine_id', $session->agent_machine_id)
+            ->where('id', '!=', $session->getId())
+            ->whereNotNull('chat_session_id')
+            ->notDeleted()
+            ->live()
+            ->get()
+            ->filter(static fn (AgentTaskSession $other): bool => $other->isTaskRun());
+
+        $running = $others->filter(static fn (AgentTaskSession $other): bool => $other->isProvisioned())->count();
+        $aheadInLine = $others->contains(
+            static fn (AgentTaskSession $other): bool => ! $other->isProvisioned() && $other->getId() < $session->getId()
+        );
+
+        if ($running < CodingChatSettingEnum::maxTaskRunsFor($agent) && ! $aheadInLine) {
+            if ($session->launchStage() === LaunchStageEnum::WAITING_FOR_FACTORY) {
+                $session->markLaunchStage(LaunchStageEnum::PREPARING_WORKTREE);
+            }
+
+            return false;
+        }
+
+        $session->markLaunchStage(LaunchStageEnum::WAITING_FOR_FACTORY);
+        self::dispatch($this->app, $this->sessionId, $this->instruction)
+            ->delay(Carbon::now()->addSeconds(self::TURN_CHECK_SECONDS));
+
+        return true;
     }
 
     /**

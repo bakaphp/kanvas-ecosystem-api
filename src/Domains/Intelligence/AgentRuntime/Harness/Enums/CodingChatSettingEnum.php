@@ -22,6 +22,12 @@ enum CodingChatSettingEnum: string
     /** The checkout a message opens when the conversation has none yet; `/repo <App>` switches away. */
     case DEFAULT_REPO = 'CODING_CHAT_DEFAULT_REPO';
 
+    /**
+     * Workflow task runs at once on the agent's Mac. Each has its own worktree, but the simulator, the
+     * emulator and Metro's port are one per machine, so one by default; raise it for code-only work.
+     */
+    case MAX_TASK_RUNS = 'CODING_CHAT_MAX_TASK_RUNS';
+
     public const string DEFAULT_FACTORY_DIR = 'Documents/Projects/opencode-factory';
 
     public static function isEnabledFor(Agent $agent): bool
@@ -32,6 +38,11 @@ enum CodingChatSettingEnum: string
     public static function defaultRepoFor(Agent $agent): ?string
     {
         return Str::trimToNull((string) $agent->get(self::DEFAULT_REPO->value));
+    }
+
+    public static function maxTaskRunsFor(Agent $agent): int
+    {
+        return max(1, (int) $agent->get(self::MAX_TASK_RUNS->value));
     }
 
     public static function factoryDirFor(Agent $agent): string

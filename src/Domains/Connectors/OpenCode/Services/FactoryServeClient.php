@@ -32,15 +32,23 @@ class FactoryServeClient
      * `$name` and `$persona` replace the factory's own agent name and "Who you are" section for this
      * checkout. They travel base64-encoded: free text from a tenant, one argument each.
      *
+     * `$worktreeBranch` is for a workflow task: it works in its own worktree on that branch, cut from the
+     * app's base branch, instead of the shared checkout a chat holds the lock on.
+     *
      * @return array{repo: string, directory: string, branch: string, port: int, password: string, provider: string, model: string}
      */
     public function open(
         string $repo,
         string $owner,
         ?string $name = null,
-        ?string $persona = null
+        ?string $persona = null,
+        ?string $worktreeBranch = null
     ): array {
         $args = ['open', $repo, $owner];
+
+        if ($worktreeBranch !== null) {
+            array_push($args, '--worktree', $worktreeBranch);
+        }
 
         if ($name !== null) {
             array_push($args, '--name', base64_encode($name));

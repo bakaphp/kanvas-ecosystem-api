@@ -210,7 +210,13 @@ go through those two (plan-owner wakes, `VerifyPlanAction`, receivers, "run agen
 factory-aware, and **@mentions never reach the factory**: `RespondToMentionJob` calls Neuron directly.
 
 Things that bite:
-- **One lock per checkout, on the Mac.** `open` takes `locks/<App>`; every environment pointing at the
+- **A task run never touches the shared checkout.** `open --worktree <branch>` gives it its own worktree
+  on `opencode/task-<task id>-<slug>`, cut from the app's base branch (`develop`, else `main`), with
+  `node_modules` linked from the checkout; `release` commits anything left uncommitted on that branch
+  before removing the folder. Task runs still take turns per Mac (`CODING_CHAT_MAX_TASK_RUNS`, default 1,
+  first come first served) because the simulator, emulator and Metro's port are machine-wide; a run
+  whose turn has not come waits in `waiting_for_factory` and re-checks every minute — never a failure.
+- **One lock per checkout, on the Mac — for chats.** `open` takes `locks/<App>`; every environment pointing at the
   same Mac shares it, so a local test chat holds a checkout production then cannot open ("in use"). A
   refusal carries the lock's `holder` (`CheckoutInUseException`); `CheckoutHolderNotice` turns it into
   words, describing only a holder in the same app and company, and links the person's own conversation;

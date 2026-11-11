@@ -143,6 +143,22 @@ class AgentTaskSession extends BaseModel
         return $this->isChat() && $this->task?->parent_task_id !== null;
     }
 
+    /**
+     * One branch per ticket, named for the task it works so a person can find it from the board.
+     */
+    public function taskRunBranch(): ?string
+    {
+        $ticket = $this->isTaskRun() ? $this->task?->parent : null;
+
+        if ($ticket === null) {
+            return null;
+        }
+
+        $slug = trim(Str::limit(Str::slug((string) $ticket->title), 40, ''), '-');
+
+        return 'opencode/task-' . $ticket->getId() . ($slug !== '' ? '-' . $slug : '');
+    }
+
     public static function liveChatFor(Agent $agent, Session $chat): ?self
     {
         /** @var self|null */

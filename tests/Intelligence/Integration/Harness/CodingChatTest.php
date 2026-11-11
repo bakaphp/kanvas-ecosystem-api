@@ -22,6 +22,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessUsage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\CodingChatSettingEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\LaunchStageEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\CheckoutInUseException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\LaunchCodingChatJob;
@@ -569,6 +570,79 @@ class CodingChatTest extends TestCase
         $task->refresh();
         $this->assertSame(TaskStatusEnum::BLOCKED->value, $task->status);
         $this->assertStringContainsString('Expo access', (string) $task->blocked_reason);
+    }
+
+    public function testATaskRunWorksOnItsOwnBranchNamedForItsTicket(): void
+    {
+        Queue::fake();
+        [$agent, $chat] = $this->chatAgent();
+        $task = $this->factoryTask($this->factoryAgent(), 'Build the login screen');
+        $run = $this->startFactoryRun($task);
+
+        $this->assertSame('opencode/task-' . $task->getId() . '-build-the-login-screen', $run->taskRunBranch());
+        $this->assertNull(
+            $this->liveChat($agent, $chat, HarnessStatusEnum::IDLE)->taskRunBranch(),
+            'a chat works in the checkout as it is'
+        );
+    }
+
+    public function testTheFactoryClientAsksForAWorktreeForATaskRun(): void
+    {
+        $client = $this->factory(json_encode([
+            'directory' => '/Users/joseceron/Documents/Projects/opencode-factory/worktrees/Quorum-app-owner-1',
+            'branch' => 'opencode/task-7-build-the-login-screen',
+            'port' => '4097',
+            'password' => 'pw',
+            'provider' => 'kanvas-openrouter',
+            'model' => 'deepseek/deepseek-v4.1-flash-1017',
+        ]));
+
+        $client->open(
+            repo: 'Quorum-app',
+            owner: 'owner-1',
+            worktreeBranch: 'opencode/task-7-build-the-login-screen',
+        );
+
+        $this->assertStringContainsString("'--worktree' 'opencode/task-7-build-the-login-screen'", $client->commands[0]);
+    }
+
+    public function testATaskRunWaitsItsTurnWhileAnotherRunsOnTheMacWithoutFailingItsTask(): void
+    {
+        Queue::fake();
+        $akira = $this->factoryAgent();
+        $this->startFactoryRun($this->factoryTask($akira, 'Build the login screen'));
+        $second = $this->factoryTask($akira, 'Build the settings screen');
+        new RunTaskWorkerJob($second)->handle();
+        $waiting = $this->factoryRunOf($second);
+
+        new LaunchCodingChatJob(app(Apps::class), $waiting->getId(), 'the brief')->handle();
+
+        $waiting->refresh();
+        $this->assertSame(HarnessStatusEnum::STARTING->value, $waiting->status);
+        $this->assertSame(LaunchStageEnum::WAITING_FOR_FACTORY, $waiting->launchStage());
+        $this->assertSame(TaskStatusEnum::WAITING->value, $second->refresh()->status, 'waiting its turn is not a failure');
+        Queue::assertPushed(
+            LaunchCodingChatJob::class,
+            fn (LaunchCodingChatJob $job): bool => $job->sessionId === $waiting->getId() && $job->delay !== null
+        );
+    }
+
+    public function testATaskRunGoesStraightToTheMacWhenNothingElseRunsThere(): void
+    {
+        Queue::fake();
+        $task = $this->factoryTask($this->factoryAgent(), 'Build the login screen');
+        new RunTaskWorkerJob($task)->handle();
+        $run = $this->factoryRunOf($task);
+
+        new LaunchCodingChatJob(app(Apps::class), $run->getId(), 'the brief')->handle();
+
+        $run->refresh();
+        $this->assertNotSame(LaunchStageEnum::WAITING_FOR_FACTORY, $run->launchStage());
+        $this->assertStringContainsString(
+            'Could not start',
+            (string) $run->error_message,
+            'it went to the Mac, which a test cannot reach'
+        );
     }
 
     public function testATaskWithNoCheckoutToWorkInIsBlockedWithWhatToDo(): void
