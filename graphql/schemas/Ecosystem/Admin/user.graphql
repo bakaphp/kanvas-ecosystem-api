@@ -30,6 +30,10 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appActivateUser"
         )
+    appSwitchUserCompanyBranch(user_id: ID!, company_branch_id: Int!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appSwitchUserCompanyBranch"
+        )
     appRestoreDeletedUser(user_id: ID): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@restoreDeletedUser"
