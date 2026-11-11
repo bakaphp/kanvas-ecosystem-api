@@ -258,6 +258,16 @@ runs included, and the fan-out query never queues it. Unset, empty or unparseabl
 a typo in the setting never silences every lead. Read through
 `LeadConfigurationService::getFollowUpStartDate()` in both places.
 
+**A person turning follow-up on pins it** (`ai_follow_up_manual`, `LeadConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL`),
+the way `lead_ai_mode_is_manual` pins a hand-picked AI mode. The `FOLLOW_UP_ON` and `MANUAL_FON`
+triggers and the `set_lead_follow_up_enabled` tool set it through
+`LeadConfigurationService::setManualFollowUp()`; any "off" (a person, `MANUAL_OFF`, a closing lead)
+deletes the row. While it is set and `ai_follow_up` is on (`hasManualFollowUp()`), the start date and
+the lead-type default no longer hold the lead back, like a plan: an old lead someone switched on after
+the follow-up release is followed up. Without the pin the date governs. The fan-out finds pinned leads
+by the row's name alone (`leadIdsWithField()`), which is why "off" deletes it instead of writing false.
+Everything else still applies: open status, mute, `ai_mode_manual`, exhaustion, hand-off.
+
 `should_respond: false` + `advance_stage: false` from the LLM is treated as a **transient SKIP**, not a terminal exhaustion. The next cron tick re-evaluates the lead. The skip emits `lead.follow_up.skipped` with `reason: 'agent: <text>'` for ledger visibility — no `exhausted_at` set, no operator reset required.
 
 This was a real bug: the agent was using `should_respond: false` to mean "wait longer, customer is still digesting" and the action treated that as terminal exhaustion. Leads got stuck after a single agent timing-feedback decision. Fixed 2026-06-08.

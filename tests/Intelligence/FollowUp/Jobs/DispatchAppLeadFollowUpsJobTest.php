@@ -14,10 +14,13 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Actions\SetLeadFollowUpPlanAction;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
 use Kanvas\Intelligence\FollowUp\Jobs\DispatchAppLeadFollowUpsJob;
 use Kanvas\Intelligence\FollowUp\Jobs\LeadFollowUpJob;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -195,6 +198,55 @@ class DispatchAppLeadFollowUpsJobTest extends TestCase
             LeadFollowUpJob::class,
             fn (LeadFollowUpJob $job): bool => $job->lead->getId() === $oldLeadId,
         );
+    }
+
+    public function testAnOldLeadWhoseFollowUpAPersonTurnedOnIsQueuedPastTheStartDate(): void
+    {
+        Queue::fake();
+        $company = auth()->user()->getCurrentCompany();
+        $stage = $this->createStage(intervalMinutes: 60);
+        $pinned = $this->createLead($stage);
+        $untouched = $this->createLead($stage);
+
+        new ApplyLeadAiModeAction($pinned, TriggersEnum::FOLLOW_UP_ON->value)->execute();
+        $company->set(
+            IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value,
+            Carbon::now()->subDays(5)->toDateTimeString(),
+        );
+
+        try {
+            $this->dispatchFollowUps();
+        } finally {
+            $company->del(IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value);
+        }
+
+        $this->assertTrue((bool) $pinned->get(LeadConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value));
+        $this->assertQueued($pinned);
+        $this->assertNotQueued($untouched);
+    }
+
+    public function testTurningFollowUpOffDropsThePinSoTheStartDateGovernsAgain(): void
+    {
+        Queue::fake();
+        $company = auth()->user()->getCurrentCompany();
+        $lead = $this->createLead($this->createStage(intervalMinutes: 60));
+
+        new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
+        new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
+        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, 1);
+        $company->set(
+            IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value,
+            Carbon::now()->subDays(5)->toDateTimeString(),
+        );
+
+        try {
+            $this->dispatchFollowUps();
+        } finally {
+            $company->del(IntelligenceConfigurationEnum::LEAD_FOLLOW_UP_START_DATE->value);
+        }
+
+        $this->assertNull($lead->get(LeadConfigurationEnum::AI_FOLLOW_UP_IS_MANUAL->value));
+        $this->assertNotQueued($lead);
     }
 
     public function testLeadFollowedUpInsideTheStageIntervalIsNotQueued(): void
