@@ -10,7 +10,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Supervisor\Jobs\RunSupervisorReviewJob;
 use Kanvas\Connectors\SalesAssist\Supervisor\Neuron\SupervisorSaAgent;
-use Kanvas\Intelligence\Agents\Models\Agent;
 
 /**
  * Hourly entry point: one job per active Supervisor SA agent. The clock here is UTC; each job decides
@@ -26,13 +25,7 @@ class DispatchSupervisorReviewsCommand extends Command
 
     public function handle(): int
     {
-        $agents = Agent::query()
-            ->where('is_active', 1)
-            ->where('is_deleted', 0)
-            ->whereHas('type', fn ($query) => $query->where('handler', SupervisorSaAgent::class))
-            ->get();
-
-        foreach ($agents as $agent) {
+        foreach (SupervisorSaAgent::activeAgents() as $agent) {
             $app = Apps::getById($agent->apps_id);
             $this->overwriteAppService($app);
 

@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Supervisor\Services;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Ledger\Models\Event;
+use Kanvas\Social\Messages\Models\AppModuleMessage;
 
 /**
  * Findings live in the ledger: opened and resolved are events, and a finding is open while its latest
@@ -26,6 +29,8 @@ final class SupervisorFindingLedger
 
     public const string ORIGIN_CONFIGURATION = 'configuration';
     public const string ORIGIN_CONVERSATION = 'conversation';
+
+    private const int FIRST_REVIEW_HOURS = 24;
 
     public function __construct(
         private readonly Apps $app,
@@ -145,6 +150,21 @@ final class SupervisorFindingLedger
         return $until === null ? null : Carbon::parse($until);
     }
 
+    public function reviewSince(): Carbon
+    {
+        return $this->lastReviewedAt() ?? Carbon::now()->subHours(self::FIRST_REVIEW_HOURS);
+    }
+
+    public function leadMessagesSince(Carbon $since): Builder
+    {
+        return AppModuleMessage::query()
+            ->where('system_modules', Lead::class)
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('is_deleted', 0)
+            ->whereHas('message', fn ($query) => $query->where('is_deleted', 0)->where('created_at', '>', $since));
+    }
+
     public function markReviewed(Carbon $until): void
     {
         $this->append(self::EVENT_REVIEW_COMPLETED, ['reviewed_until' => $until->toIso8601String()]);
@@ -170,7 +190,7 @@ final class SupervisorFindingLedger
         ))->execute();
     }
 
-    private function events()
+    private function events(): Builder
     {
         return Event::query()
             ->where('apps_id', $this->app->getId())

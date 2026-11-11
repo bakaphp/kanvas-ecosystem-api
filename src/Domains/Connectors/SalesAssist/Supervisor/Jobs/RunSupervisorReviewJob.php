@@ -18,11 +18,9 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Supervisor\Services\SupervisorConfigurationAuditService;
 use Kanvas\Connectors\SalesAssist\Supervisor\Services\SupervisorFindingLedger;
 use Kanvas\Connectors\SalesAssist\Supervisor\Services\SupervisorScheduleService;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Chat\WakeAgentInSessionAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\Social\Messages\Models\AppModuleMessage;
 
 /**
  * One dealer's hourly tick. The audit always runs and costs no model. The agent only wakes inside the
@@ -37,7 +35,6 @@ class RunSupervisorReviewJob implements ShouldQueue, ShouldBeUnique
     use SerializesModels;
 
     private const string INSTRUCTION = 'Review the new conversations of this dealer and record what is wrong.';
-    private const int FIRST_REVIEW_HOURS = 24;
 
     public int $tries = 1;
     public int $uniqueFor = 3600;
@@ -69,9 +66,8 @@ class RunSupervisorReviewJob implements ShouldQueue, ShouldBeUnique
         }
 
         $until = Carbon::now();
-        $since = $ledger->lastReviewedAt() ?? $until->copy()->subHours(self::FIRST_REVIEW_HOURS);
 
-        if ($this->hasNewConversations($since)) {
+        if ($ledger->leadMessagesSince($ledger->reviewSince())->exists()) {
             new WakeAgentInSessionAction(
                 agent: $this->agent,
                 session: $this->session(),
@@ -81,17 +77,6 @@ class RunSupervisorReviewJob implements ShouldQueue, ShouldBeUnique
         }
 
         $ledger->markReviewed($until);
-    }
-
-    private function hasNewConversations(Carbon $since): bool
-    {
-        return AppModuleMessage::query()
-            ->where('system_modules', Lead::class)
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('is_deleted', 0)
-            ->whereHas('message', fn ($query) => $query->where('is_deleted', 0)->where('created_at', '>', $since))
-            ->exists();
     }
 
     private function session(): Session

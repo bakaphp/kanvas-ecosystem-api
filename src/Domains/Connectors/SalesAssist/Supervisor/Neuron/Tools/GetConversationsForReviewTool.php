@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Supervisor\Neuron\Tools;
 
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Kanvas\Connectors\SalesAssist\Supervisor\Services\SupervisorFindingLedger;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
@@ -31,7 +30,6 @@ class GetConversationsForReviewTool extends Tool
     private const int MAX_LEADS = 25;
     private const int MAX_ROWS = 1000;
     private const int MESSAGES_PER_LEAD = 30;
-    private const int FIRST_REVIEW_HOURS = 24;
     private const string OPT_OUT_PATTERN = '/\b(stop|unsubscribe|do not (contact|text|call|email)|remove me)\b/i';
 
     protected string $name = 'get_conversations_for_review';
@@ -63,15 +61,10 @@ class GetConversationsForReviewTool extends Tool
         }
 
         $limit = max(1, min($limit ?? self::DEFAULT_LEADS, self::MAX_LEADS));
-        $since = new SupervisorFindingLedger($this->app, $this->company)->lastReviewedAt()
-            ?? Carbon::now()->subHours(self::FIRST_REVIEW_HOURS);
+        $ledger = new SupervisorFindingLedger($this->app, $this->company);
+        $since = $ledger->reviewSince();
 
-        $rows = AppModuleMessage::query()
-            ->where('system_modules', Lead::class)
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('is_deleted', 0)
-            ->whereHas('message', fn ($query) => $query->where('is_deleted', 0)->where('created_at', '>', $since))
+        $rows = $ledger->leadMessagesSince($since)
             ->with(['message.messageType', 'message.user'])
             ->orderByDesc('message_id')
             ->limit(self::MAX_ROWS)

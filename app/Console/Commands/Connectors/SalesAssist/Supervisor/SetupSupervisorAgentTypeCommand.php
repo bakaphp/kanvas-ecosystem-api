@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\SalesAssist\Supervisor;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
@@ -32,8 +31,6 @@ class SetupSupervisorAgentTypeCommand extends Command
             'handler' => SupervisorSaAgent::class,
         ]);
 
-        $type->apps_id = $app->getId();
-        $type->uuid ??= Str::uuid()->toString();
         $type->name = SupervisorSaAgent::TYPE_NAME;
         $type->description = 'Read-only supervisor of a SalesAssist dealer: audits its configuration every hour and reviews its conversations against company policies.';
         $type->provider = 'neuron';
@@ -49,11 +46,7 @@ class SetupSupervisorAgentTypeCommand extends Command
         $type->save();
 
         try {
-            new CreateRoleAction(
-                name: RolesEnums::AGENT_DEVELOPER->value,
-                title: 'Agent Developer',
-                app: $app,
-            )->execute();
+            new CreateRoleAction(name: RolesEnums::AGENT_DEVELOPER->value, title: 'Agent Developer', app: $app)->execute();
         } catch (ValidationException $e) {
             if (! str_contains($e->getMessage(), 'has already been taken')) {
                 throw $e;

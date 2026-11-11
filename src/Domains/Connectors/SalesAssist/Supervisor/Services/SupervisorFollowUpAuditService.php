@@ -114,6 +114,8 @@ final class SupervisorFollowUpAuditService
         }
 
         $sentForType = Lead::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
             ->where('leads_types_id', $leadType->getId())
             ->whereIn('id', $sentLeadIds)
             ->exists();
@@ -155,12 +157,25 @@ final class SupervisorFollowUpAuditService
     private function overdue(Collection $leads): Collection
     {
         return $leads->filter(function (Lead $lead): bool {
-            $config = FollowUpConfig::fromStage($lead->stage);
+            $config = $this->eligibility->configFor($lead);
 
             return $this->eligibility->dispatchSkipReason($lead) === null
                 && ! $this->eligibility->isDueForExhaustion($lead, $config)
-                && $this->eligibility->silenceMinutes($lead) >= $config->timeBased->intervalMinutes + self::OVERDUE_GRACE_MINUTES;
+                && $this->minutesPastDue($lead, $config) >= self::OVERDUE_GRACE_MINUTES;
         });
+    }
+
+    /**
+     * The same due time tooSoonReason() gates on: a plan is due from its own schedule, a stage after
+     * its interval of silence.
+     */
+    private function minutesPastDue(Lead $lead, FollowUpConfig $config): int
+    {
+        if ($config->plan !== null) {
+            return (int) $config->plan->nextDueAt($lead->getFollowUpLastAt())->diffInMinutes(Carbon::now(), false);
+        }
+
+        return $this->eligibility->silenceMinutes($lead) - $config->timeBased->intervalMinutes;
     }
 
     /**

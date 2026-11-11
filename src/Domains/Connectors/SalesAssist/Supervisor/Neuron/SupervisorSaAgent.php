@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Supervisor\Neuron;
 
+use Illuminate\Support\Collection;
 use Kanvas\Connectors\SalesAssist\Supervisor\Neuron\Tools\AuditCompanyConfigurationTool;
 use Kanvas\Connectors\SalesAssist\Supervisor\Neuron\Tools\GetConversationsForReviewTool;
 use Kanvas\Connectors\SalesAssist\Supervisor\Neuron\Tools\RecordSupervisorFindingTool;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Override;
@@ -26,6 +28,24 @@ class SupervisorSaAgent extends SystemUserAgent
 
     public const string SOUL = 'You supervise one SalesAssist dealer. You are read-only: you find what is wrong, prove '
         . 'it, and report it for a human to decide.';
+
+    /**
+     * One per dealer: a second active agent on a company must not double its review or its digest.
+     *
+     * @return Collection<int, Agent>
+     */
+    public static function activeAgents(): Collection
+    {
+        return Agent::query()
+            ->where('is_active', 1)
+            ->where('is_deleted', 0)
+            ->whereHas('type', fn ($query) => $query->where('handler', self::class))
+            ->orderBy('id')
+            ->get()
+            ->unique(static fn (Agent $agent): string => "{$agent->apps_id}:{$agent->companies_id}")
+            ->values()
+            ->toBase();
+    }
 
     #[Override]
     public function instructions(): string

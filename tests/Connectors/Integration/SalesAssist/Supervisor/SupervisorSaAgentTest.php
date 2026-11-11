@@ -28,6 +28,8 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddLeadNoteTool;
+use Kanvas\Intelligence\FollowUp\Actions\SetLeadFollowUpPlanAction;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\ManualFollowUpPlan;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Workflow\Models\WorkflowAction;
@@ -290,6 +292,15 @@ final class SupervisorSaAgentTest extends TestCase
         $this->assertStringContainsString('conversation.x', $html);
     }
 
+    public function testASecondActiveAgentDoesNotDoubleTheDealer(): void
+    {
+        $type = AgentType::factory()->withAppId($this->kanvasApp->getId())->create(['handler' => SupervisorSaAgent::class]);
+        Agent::factory()->count(2)->withAppId($this->kanvasApp->getId())->withCompanyId($this->company->getId())
+            ->create(['agent_type_id' => $type->getId(), 'user_id' => auth()->user()->getId(), 'is_active' => 1]);
+
+        $this->assertCount(1, SupervisorSaAgent::activeAgents()->where('companies_id', $this->company->getId()));
+    }
+
     public function testAnActiveLeadTypeWithOverdueLeadsAndNoSendsIsReported(): void
     {
         $leadType = $this->leadType(true);
@@ -327,6 +338,34 @@ final class SupervisorSaAgentTest extends TestCase
         $lead->set('follow_up_state', ['last_at' => Carbon::now()->toIso8601String(), 'count' => 1]);
 
         $this->assertNull($this->followUpFinding("follow_up.lead_type_{$leadType->getId()}_not_sending"));
+    }
+
+    public function testAPlannedLeadIsJudgedByItsPlanNotItsStage(): void
+    {
+        $leadType = $this->leadType(true);
+        $stage = $this->followUpStage(true);
+        $stage->config = [];
+        $stage->save();
+        $lead = $this->overdueLead($leadType, $stage);
+
+        $startAt = Carbon::now()->subDays(2);
+        new SetLeadFollowUpPlanAction(
+            $lead,
+            new ManualFollowUpPlan(
+                channel: 'sms',
+                body: 'Still interested?',
+                intervalMinutes: 60,
+                maxAttempts: 3,
+                startAt: $startAt,
+                setAt: $startAt,
+                setByUsersId: auth()->user()->getId(),
+            ),
+            auth()->user(),
+        )->execute();
+
+        $finding = $this->followUpFinding("follow_up.lead_type_{$leadType->getId()}_not_sending");
+
+        $this->assertContains($lead->getId(), $finding['evidence']['sample_lead_ids']);
     }
 
     public function testOpenLeadsOutsideAnyFollowUpStageAreReported(): void

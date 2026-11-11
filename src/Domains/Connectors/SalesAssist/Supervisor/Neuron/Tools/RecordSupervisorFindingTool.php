@@ -36,12 +36,42 @@ class RecordSupervisorFindingTool extends Tool
     protected function properties(): array
     {
         return [
-            new ToolProperty('lead_id', PropertyType::INTEGER, 'The lead the conversation belongs to.', true),
-            new ToolProperty('category', PropertyType::STRING, 'Short kebab-case type, e.g. "opt-out-ignored".', true),
-            new ToolProperty('severity', PropertyType::STRING, 'One of: critical, high, medium.', true),
-            new ToolProperty('summary', PropertyType::STRING, 'One sentence: what is wrong and why it matters.', true),
-            new ToolProperty('message_ids', PropertyType::STRING, 'Comma-separated ids of the messages that prove it.', true),
-            new ToolProperty('policy_source', PropertyType::STRING, 'Name of the policy document, as search_knowledge labelled it.', false),
+            new ToolProperty(
+                name: 'lead_id',
+                type: PropertyType::INTEGER,
+                description: 'The lead the conversation belongs to.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'category',
+                type: PropertyType::STRING,
+                description: 'Short kebab-case type, e.g. "opt-out-ignored".',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'severity',
+                type: PropertyType::STRING,
+                description: 'One of: critical, high, medium.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'summary',
+                type: PropertyType::STRING,
+                description: 'One sentence: what is wrong and why it matters.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'message_ids',
+                type: PropertyType::STRING,
+                description: 'Comma-separated ids of the messages that prove it.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'policy_source',
+                type: PropertyType::STRING,
+                description: 'Name of the policy document, as search_knowledge labelled it.',
+                required: false,
+            ),
         ];
     }
 
@@ -73,11 +103,7 @@ class RecordSupervisorFindingTool extends Tool
 
         $category = Str::slug($category);
         $ledger = new SupervisorFindingLedger($this->app, $this->company);
-        $fingerprint = SupervisorFindingLedger::fingerprint(
-            SupervisorFindingLedger::ORIGIN_CONVERSATION,
-            (string) $lead_id,
-            $category,
-        );
+        $fingerprint = SupervisorFindingLedger::fingerprint(SupervisorFindingLedger::ORIGIN_CONVERSATION, (string) $lead_id, $category);
 
         if (isset($ledger->open()[$fingerprint])) {
             return ['status' => 'success', 'message' => 'Already open for this lead; not recorded again.'];

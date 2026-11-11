@@ -18,8 +18,8 @@ class AuditCompanyConfigurationTool extends Tool
 
     protected string $name = 'audit_company_configuration';
 
-    protected ?string $description = 'Read-only check of this dealer\'s settings, rules, agents, receivers and pipelines '
-        . 'against what SalesAssist needs to operate. Returns findings with severity and evidence ids. '
+    protected ?string $description = 'Read-only check of this dealer\'s settings, rules, agents, receivers, pipelines '
+        . 'and follow-up delivery against what SalesAssist needs to operate. Returns findings with severity and evidence ids. '
         . 'It never returns a setting value and changes nothing.';
 
     /**

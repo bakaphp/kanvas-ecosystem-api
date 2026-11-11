@@ -12,7 +12,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Supervisor\Neuron\SupervisorSaAgent;
 use Kanvas\Connectors\SalesAssist\Supervisor\Services\SupervisorFindingLedger;
 use Kanvas\Connectors\SalesAssist\Supervisor\Services\SupervisorFindingNotifier;
-use Kanvas\Intelligence\Agents\Models\Agent;
 
 /**
  * Daily summary of what opened in the last day and is still open, per dealer with a supervisor. A
@@ -28,13 +27,7 @@ class SendSupervisorDigestCommand extends Command
 
     public function handle(): int
     {
-        $agents = Agent::query()
-            ->where('is_active', 1)
-            ->where('is_deleted', 0)
-            ->whereHas('type', fn ($query) => $query->where('handler', SupervisorSaAgent::class))
-            ->get();
-
-        foreach ($agents as $agent) {
+        foreach (SupervisorSaAgent::activeAgents() as $agent) {
             $app = Apps::getById($agent->apps_id);
             $this->overwriteAppService($app);
 

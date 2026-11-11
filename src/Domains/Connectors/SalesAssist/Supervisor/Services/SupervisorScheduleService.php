@@ -39,15 +39,13 @@ final class SupervisorScheduleService
     {
         $window = (string) ($this->company->get(self::OVERNIGHT_WINDOW_SETTING) ?: self::DEFAULT_OVERNIGHT_WINDOW);
 
-        if (preg_match('/^(\d{2}:\d{2})-(\d{2}:\d{2})$/', $window, $parts) !== 1) {
-            [, $parts[1], $parts[2]] = [null, ...explode('-', self::DEFAULT_OVERNIGHT_WINDOW)];
-        }
+        [$start, $end] = explode('-', preg_match('/^\d{2}:\d{2}-\d{2}:\d{2}$/', $window) === 1 ? $window : self::DEFAULT_OVERNIGHT_WINDOW);
 
         $time = $localNow->format('H:i');
 
-        return $parts[1] <= $parts[2]
-            ? $time >= $parts[1] && $time < $parts[2]
-            : $time >= $parts[1] || $time < $parts[2];
+        return $start <= $end
+            ? $time >= $start && $time < $end
+            : $time >= $start || $time < $end;
     }
 
     private function isWorkHours(): bool

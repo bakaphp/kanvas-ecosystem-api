@@ -9,6 +9,7 @@ use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
 use Kanvas\Connectors\Mailgun\Workflows\AgentChannelResponderActivity as MailgunResponderActivity;
+use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
 use Kanvas\Connectors\Twilio\Workflows\AgentChannelResponderActivity as TwilioResponderActivity;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -31,7 +32,7 @@ final class SupervisorConfigurationAuditService
     public const string SEVERITY_HIGH = 'high';
     public const string SEVERITY_MEDIUM = 'medium';
 
-    /** Shorter names match ordinary words in a prompt ("Magic", "Serra" stay, "BMW" would not). */
+    /** Shorter names match ordinary words in a prompt. */
     private const int MIN_TENANT_NAME_LENGTH = 5;
 
     private const array REQUIRED_SETTINGS = [
@@ -46,8 +47,8 @@ final class SupervisorConfigurationAuditService
     ];
 
     private const array TWILIO_NUMBER_SETTINGS = [
-        'twilio_from_phone_number',
-        'twilio_phone_number',
+        TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value,
+        TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value,
     ];
 
     /** @var list<array{code: string, severity: string, summary: string, evidence: array<string, mixed>}> */
@@ -66,17 +67,19 @@ final class SupervisorConfigurationAuditService
     {
         $this->findings = [];
 
+        // Not fromCompany(): with an app key bound it widens to every company, and this compares tenants.
         $agents = Agent::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
             ->notDeleted()
             ->get();
+        $agentsById = $agents->keyBy('id')->all();
         $ruleClasses = $this->ruleActionClasses();
 
         $this->auditCompanyRecord();
         $this->auditRequiredSettings();
-        $this->auditAgentSettings($agents->keyBy('id')->all());
-        $this->auditReachOut($ruleClasses);
+        $this->auditAgentSettings($agentsById);
+        $this->auditReachOut($ruleClasses, $agentsById);
         $this->auditResponders($ruleClasses);
         $this->auditPipelines();
         $this->auditCrossTenantPrompts($agents->all());
@@ -102,9 +105,12 @@ final class SupervisorConfigurationAuditService
     {
         foreach (self::REQUIRED_SETTINGS as $key => $severity) {
             if (empty($this->company->get($key))) {
-                $this->add("setting.{$key}_missing", $severity, "Company setting {$key} is not configured.", [
-                    'setting' => $key,
-                ]);
+                $this->add(
+                    "setting.{$key}_missing",
+                    $severity,
+                    "Company setting {$key} is not configured.",
+                    ['setting' => $key],
+                );
             }
         }
     }
@@ -133,8 +139,9 @@ final class SupervisorConfigurationAuditService
      * contacts every new lead once the rule exists.
      *
      * @param array<int, list<class-string>> $ruleClasses
+     * @param array<int, Agent> $agents
      */
-    private function auditReachOut(array $ruleClasses): void
+    private function auditReachOut(array $ruleClasses, array $agents): void
     {
         $rules = $this->rulesRunning($ruleClasses, AgentReachOutActivity::class);
         if ($rules === []) {
@@ -142,11 +149,7 @@ final class SupervisorConfigurationAuditService
         }
 
         $agentId = (int) $this->company->get('agent_reach_out_default_agent_id');
-        $agent = $agentId === 0 ? null : Agent::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->find($agentId);
+        $agent = $agents[$agentId] ?? null;
 
         if ($agent === null || ! $agent->is_active) {
             $this->add(
@@ -166,12 +169,15 @@ final class SupervisorConfigurationAuditService
     {
         $twilioRules = $this->rulesRunning($ruleClasses, TwilioResponderActivity::class);
         if ($twilioRules !== []) {
-            if (array_filter(self::TWILIO_NUMBER_SETTINGS, fn (string $key): bool => empty($this->company->get($key))) !== []) {
+            // Both are needed: follow-ups read one and notifications the other.
+            $missing = array_values(array_filter(self::TWILIO_NUMBER_SETTINGS, fn (string $key): bool => empty($this->company->get($key))));
+
+            if ($missing !== []) {
                 $this->add(
                     'rule.twilio_responder_without_number',
                     self::SEVERITY_HIGH,
-                    'A Twilio responder rule exists but the company has no Twilio number configured.',
-                    ['rule_ids' => $twilioRules],
+                    'A Twilio responder rule exists but a Twilio number setting is missing.',
+                    ['rule_ids' => $twilioRules, 'settings' => $missing],
                 );
             }
 
