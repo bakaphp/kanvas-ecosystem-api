@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Traits;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
+use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -16,6 +19,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
 use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -301,5 +305,19 @@ trait HasFilesystemTrait
         });
 
         return $files;
+    }
+
+    public function processVideoAndGenerateGif(
+        string $videoUrl,
+        AppInterface $app,
+        CompanyInterface $company,
+        UserInterface $user
+    ): ?array {
+        return new ProcessVideoWithGifAction(
+            $app,
+            $company,
+            $user,
+            $videoUrl
+        )->execute();
     }
 }

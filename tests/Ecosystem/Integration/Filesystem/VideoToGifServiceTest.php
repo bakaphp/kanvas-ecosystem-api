@@ -8,8 +8,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
 use Kanvas\Filesystem\Services\VideoToGifService;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+#[Group('serial')]
 class VideoToGifServiceTest extends TestCase
 {
     // Settings land in Redis, which no test transaction rolls back.
