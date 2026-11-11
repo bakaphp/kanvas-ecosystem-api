@@ -56,6 +56,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LinkPersonToOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListOrganizationPeopleTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendPersonEmailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetOrganizationAddressTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TagPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateOrganizationTool;
@@ -142,6 +143,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new SendInvoiceTool(),
             new GetDocumentLinkTool(),
             new CreatePersonTool(),
+            new SendPersonEmailTool(),
             new LinkPersonToOrganizationTool(),
             new ListOrganizationPeopleTool(),
             new TagPersonTool(),
@@ -251,6 +253,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'the company\'s dunning schedule (read or change it with set_reminder_cadence); when the customer answers one ("paid yesterday", "we dispute '
             . 'line 2"), reply in that thread and note what they tell you with add_invoice_note. A "paid" claim is '
             . 'applied when the bank confirms it, like a remittance, never from the customer\'s word.',
+            '- "Email customer / send reminder / send note to client / email X@example.com" → send_email (to send directly to an email address) or send_person_email (to email a CRM contact by person_id). Use send_email when given an email address directly or when emailing external contacts.',
             '- No billing contact (send_invoice, send_quote or get_document_link answers no_billing_contact) → ask '
             . 'for their name and email or phone, create_person, link_person_to_organization to the customer, '
             . 'tag_person with "billing-contact", then send again or get_document_link. A customer can have several '

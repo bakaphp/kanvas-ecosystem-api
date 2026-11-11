@@ -41,7 +41,7 @@ class SendEmailToUserTool extends Tool implements RequiresSystemAgent
 
     protected ?string $description = 'Send an email to an internal teammate — a Kanvas user in this company — identified by '
         . 'their email address. Use it when someone asks you to email a colleague / staff member. The '
-        . 'recipient must be a member of this company; you cannot email arbitrary outside addresses. Only '
+        . 'recipient must be a member of this company; you cannot email arbitrary outside addresses (for external recipients, clients, or non-teammates, use send_email instead). Only '
         . 'have a name? find_teammate first. This is NOT for emailing a prospect/customer on a lead (use '
         . 'send_lead_email for that).';
 
@@ -136,7 +136,7 @@ class SendEmailToUserTool extends Tool implements RequiresSystemAgent
         if ($recipient === null) {
             return [
                 'status' => 'error',
-                'message' => "No teammate in this company has the email {$recipient_email}. Ask the user to confirm who to email.",
+                'message' => "No teammate in this company has the email {$recipient_email}. For external recipients, clients, or non-teammates, use send_email instead.",
             ];
         }
 

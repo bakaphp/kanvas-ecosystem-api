@@ -47,7 +47,10 @@ final class UniversalAgentToolsTest extends TestCase
         $handler = new SystemUserAgent();
         $handler->setConfiguration($this->makeAgent('neuron'), user: auth()->user());
 
-        $this->assertContains('get_current_time', $this->neuronToolNames($handler->getTools()));
+        $names = $this->neuronToolNames($handler->getTools());
+
+        $this->assertContains('get_current_time', $names);
+        $this->assertContains('send_email', $names);
     }
 
     public function testHardcodedToolAgentStillExposesCurrentTime(): void
@@ -113,6 +116,17 @@ final class UniversalAgentToolsTest extends TestCase
             1,
             count(array_filter($names, fn (string $name): bool => $name === 'create_ar_invoice')),
         );
+    }
+
+    public function testAccountsReceivableAgentIncludesOutboundEmailTools(): void
+    {
+        $handler = new AccountsReceivableAgent();
+        $handler->setConfiguration($this->makeAgent('neuron'), user: auth()->user());
+
+        $names = $this->neuronToolNames($handler->getTools());
+
+        $this->assertContains('send_email', $names);
+        $this->assertContains('send_person_email', $names);
     }
 
     /**
