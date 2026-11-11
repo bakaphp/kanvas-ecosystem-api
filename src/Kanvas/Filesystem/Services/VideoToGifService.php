@@ -151,10 +151,10 @@ class VideoToGifService
     }
 
     /**
-     * Check if video GIF generation is enabled for the company.
+     * On unless the company explicitly turns it off.
      */
     public function isEnabled(): bool
     {
-        return (bool) $this->company->get(ConfigurationEnum::ENABLE_VIDEO_GIF_GENERATION->value);
+        return $this->company->getBool(ConfigurationEnum::ENABLE_VIDEO_GIF_GENERATION->value, true);
     }
 }
