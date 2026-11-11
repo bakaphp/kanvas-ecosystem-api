@@ -30,13 +30,13 @@ class RefundOrderFromBrushCrazyJob implements ShouldQueue
 
     public $backoff = 60;
 
-    public $afterCommit = true;
-
     public function __construct(
         public readonly Apps $app,
         public readonly Order $order,
         public readonly string $refundKey,
     ) {
+        // Queueable owns $afterCommit, so it is set here rather than redeclared.
+        $this->afterCommit();
     }
 
     public function handle(): void
