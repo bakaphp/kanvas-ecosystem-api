@@ -77,6 +77,12 @@ return [
     ],
 
     // Official central-bank exchange rates (Banco Central RD buy rate), platform-wide.
+    'microsoft' => [
+        'client_id' => env('MICROSOFT_CLIENT_ID'),
+        'client_secret' => env('MICROSOFT_CLIENT_SECRET'),
+        'tenant_id' => env('MICROSOFT_TENANT_ID', 'common'),
+    ],
+
     'allratestoday' => [
         'key' => env('ALLRATESTODAY_API_KEY'),
     ],
