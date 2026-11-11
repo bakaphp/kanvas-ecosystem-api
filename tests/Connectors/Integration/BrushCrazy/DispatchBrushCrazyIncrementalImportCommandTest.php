@@ -43,7 +43,7 @@ final class DispatchBrushCrazyIncrementalImportCommandTest extends TestCase
 
     protected $connectionsToTransact = [null, 'workflow'];
 
-    private Apps $app;
+    private Apps $kanvasApp;
 
     private Companies $company;
 
@@ -63,16 +63,16 @@ final class DispatchBrushCrazyIncrementalImportCommandTest extends TestCase
             ['name' => 'BrushCrazy Mirror Webhook'],
         );
 
-        $this->app = app(Apps::class);
+        $this->kanvasApp = app(Apps::class);
         $this->company = auth()->user()->getCurrentCompany();
         $this->originalStudioId = $this->company->get(CustomFieldEnum::BRUSHCRAZY_STUDIO_ID->value);
         $this->originalSyncEnabled = $this->company->get(ConfigurationEnum::BRUSHCRAZY_SYNC_ENABLED->value);
 
         foreach (self::APP_SETTINGS as $key) {
-            $this->originalAppSettings[$key->value] = $this->app->get($key->value);
+            $this->originalAppSettings[$key->value] = $this->kanvasApp->get($key->value);
         }
 
-        $this->app->set(ConfigurationEnum::BRUSHCRAZY_TZ_CORRECTION_CUTOFF->value, '2026-10-01T00:00:00+00:00');
+        $this->kanvasApp->set(ConfigurationEnum::BRUSHCRAZY_TZ_CORRECTION_CUTOFF->value, '2026-10-01T00:00:00+00:00');
 
         $this->company->set(CustomFieldEnum::BRUSHCRAZY_STUDIO_ID->value, self::STUDIO_ID);
         $this->provisionReceiver();
@@ -85,7 +85,7 @@ final class DispatchBrushCrazyIncrementalImportCommandTest extends TestCase
         $this->restore(ConfigurationEnum::BRUSHCRAZY_SYNC_ENABLED->value, $this->originalSyncEnabled);
 
         foreach ($this->originalAppSettings as $key => $value) {
-            $value !== null ? $this->app->set($key, $value) : $this->app->del($key);
+            $value !== null ? $this->kanvasApp->set($key, $value) : $this->kanvasApp->del($key);
         }
 
         parent::tearDown();
@@ -97,23 +97,23 @@ final class DispatchBrushCrazyIncrementalImportCommandTest extends TestCase
      */
     public function testAppWithoutAPinnedCorrectionCutoffIsNotPulled(): void
     {
-        $this->app->del(ConfigurationEnum::BRUSHCRAZY_TZ_CORRECTION_CUTOFF->value);
+        $this->kanvasApp->del(ConfigurationEnum::BRUSHCRAZY_TZ_CORRECTION_CUTOFF->value);
 
-        $this->assertArrayNotHasKey($this->app->getId(), DispatchBrushCrazyIncrementalImportCommand::targets());
-        $this->assertNull(CorrectionCutoff::stored($this->app));
+        $this->assertArrayNotHasKey($this->kanvasApp->getId(), DispatchBrushCrazyIncrementalImportCommand::targets());
+        $this->assertNull(CorrectionCutoff::stored($this->kanvasApp));
     }
 
     public function testInactiveReceiverIsNotPulled(): void
     {
         ReceiverWebhook::query()
             ->forJob(ProcessBrushCrazyWebhookJob::class)
-            ->fromApp($this->app)
+            ->fromApp($this->kanvasApp)
             ->fromCompany($this->company)
             ->update(['is_active' => false]);
 
         $targets = DispatchBrushCrazyIncrementalImportCommand::targets();
 
-        $this->assertNotContains(self::STUDIO_ID, $targets[$this->app->getId()]['studios'] ?? []);
+        $this->assertNotContains(self::STUDIO_ID, $targets[$this->kanvasApp->getId()]['studios'] ?? []);
     }
 
     /**
@@ -123,13 +123,13 @@ final class DispatchBrushCrazyIncrementalImportCommandTest extends TestCase
     public function testAFailingImportIsReported(): void
     {
         Exceptions::fake();
-        $this->app->del(ConfigurationEnum::BRUSHCRAZY_DB_HOST->value);
-        $this->app->del(ConfigurationEnum::BRUSHCRAZY_DB_DATABASE->value);
+        $this->kanvasApp->del(ConfigurationEnum::BRUSHCRAZY_DB_HOST->value);
+        $this->kanvasApp->del(ConfigurationEnum::BRUSHCRAZY_DB_DATABASE->value);
 
         $this->artisan('kanvas:brushcrazy-incremental')->assertExitCode(DispatchBrushCrazyIncrementalImportCommand::FAILURE);
 
         Exceptions::assertReported(
-            fn (RuntimeException $e) => str_contains($e->getMessage(), 'failed for app ' . $this->app->getId())
+            fn (RuntimeException $e) => str_contains($e->getMessage(), 'failed for app ' . $this->kanvasApp->getId())
         );
     }
 
@@ -142,10 +142,10 @@ final class DispatchBrushCrazyIncrementalImportCommandTest extends TestCase
 
     public function testMirroredStudioIsTargetedAsAReceiverUser(): void
     {
-        $target = DispatchBrushCrazyIncrementalImportCommand::targets()[$this->app->getId()] ?? null;
+        $target = DispatchBrushCrazyIncrementalImportCommand::targets()[$this->kanvasApp->getId()] ?? null;
 
         $this->assertNotNull($target);
-        $this->assertSame($this->app->getId(), $target['app']->getId());
+        $this->assertSame($this->kanvasApp->getId(), $target['app']->getId());
         $this->assertContains(self::STUDIO_ID, $target['studios']);
         $this->assertContains($target['user']->getId(), $this->receiverUserIds());
     }
@@ -156,17 +156,17 @@ final class DispatchBrushCrazyIncrementalImportCommandTest extends TestCase
 
         $targets = DispatchBrushCrazyIncrementalImportCommand::targets();
 
-        $this->assertNotContains(self::STUDIO_ID, $targets[$this->app->getId()]['studios'] ?? []);
+        $this->assertNotContains(self::STUDIO_ID, $targets[$this->kanvasApp->getId()]['studios'] ?? []);
     }
 
     public function testAppPastCutoverIsNotPulled(): void
     {
         $now = Carbon::now('UTC');
-        $this->app->set(ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT->value, $now->copy()->addDay()->toIso8601String());
+        $this->kanvasApp->set(ConfigurationEnum::BRUSHCRAZY_CUTOVER_AT->value, $now->copy()->addDay()->toIso8601String());
 
-        $this->assertArrayHasKey($this->app->getId(), DispatchBrushCrazyIncrementalImportCommand::targets($now));
+        $this->assertArrayHasKey($this->kanvasApp->getId(), DispatchBrushCrazyIncrementalImportCommand::targets($now));
         $this->assertArrayNotHasKey(
-            $this->app->getId(),
+            $this->kanvasApp->getId(),
             DispatchBrushCrazyIncrementalImportCommand::targets($now->copy()->addDays(2))
         );
     }
@@ -174,7 +174,7 @@ final class DispatchBrushCrazyIncrementalImportCommandTest extends TestCase
     private function provisionReceiver(): void
     {
         new ProvisionBrushCrazyReceiverAction(
-            $this->app,
+            $this->kanvasApp,
             auth()->user(),
             new StudioContext(
                 bcStudioId: self::STUDIO_ID,
@@ -193,7 +193,7 @@ final class DispatchBrushCrazyIncrementalImportCommandTest extends TestCase
     {
         return ReceiverWebhook::query()
             ->forJob(ProcessBrushCrazyWebhookJob::class)
-            ->fromApp($this->app)
+            ->fromApp($this->kanvasApp)
             ->notDeleted()
             ->pluck('users_id')
             ->map(fn ($id) => (int) $id)
