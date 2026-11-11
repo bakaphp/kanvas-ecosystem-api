@@ -47,7 +47,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SettleFromSuspenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LinkPersonToOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListOrganizationPeopleTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendPersonEmailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetOrganizationAddressTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateOrganizationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
@@ -135,6 +139,9 @@ class AccountsPayableAgent extends SystemUserAgent
             new BuildPaymentRunTool(),
             new EcfStatusTool(),
             new AccountingDigestTool(),
+            new ListOrganizationPeopleTool(),
+            new CreatePersonTool(),
+            new LinkPersonToOrganizationTool(),
         ]));
 
         $tools = [...$tools, ...$this->accountingApprovalTools()];
@@ -149,6 +156,7 @@ class AccountsPayableAgent extends SystemUserAgent
             $tools[] = new SettleFromSuspenseTool()->withContext($this->app, $this->company, $person);
             $tools[] = new ReclassifySuspenseTool()->withContext($this->app, $this->company, $person);
             $tools[] = new RespondToVendorEcfTool()->withContext($this->app, $this->company, $person);
+            $tools[] = new SendPersonEmailTool()->withContext($this->app, $this->company, $person, $this->agent);
         }
 
         // Ranges get renewed and new e-CF types get authorized long after onboarding, by the agent that issues them.
@@ -171,6 +179,10 @@ class AccountsPayableAgent extends SystemUserAgent
             '- A vendor missing the tax id an e-CF needs (RNC in the Dominican Republic) → check_rnc to verify the number the person gives you, save it with update_organization (tax_id), then carry on with the document. '
             . 'create_organization / update_organization / set_organization_address keep the vendor record itself current.',
             '- "What do we owe" / "how much is overdue to vendors" → query_ap_aging.',
+            '- Writing to a vendor (ask for a statement, chase a missing invoice, confirm a payment, request a corrected '
+            . 'e-CF) → find_vendor, then list_organization_people for the contact (create_person + link_person_to_organization '
+            . 'when the contact is new), then send_person_email. Plain text only: a bill, PO or payment is referenced by '
+            . 'number, never attached. gmail_reply_to_thread only continues a thread already in the connected Gmail.',
             '- "What do we owe our own staff" / "who is waiting on an expense reimbursement" → '
             . 'query_due_to_employees. That money sits in Due to Employees, a different account from Accounts '
             . 'Payable, so it is NOT part of query_ap_aging — never add the two together into one "what we owe" '
