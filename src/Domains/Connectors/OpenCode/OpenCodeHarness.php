@@ -163,17 +163,29 @@ class OpenCodeHarness implements CodingHarness
      */
     private function turnStartedAt(array $currentTurn): ?int
     {
-        $first = null;
+        $times = self::createdTimes($currentTurn);
 
-        foreach ($currentTurn as $message) {
-            $createdAt = (int) ($message['time']['created'] ?? 0);
+        return $times === [] ? null : intdiv(min($times), 1000);
+    }
 
-            if ($createdAt > 0 && ($first === null || $createdAt < $first)) {
-                $first = $createdAt;
-            }
-        }
+    /**
+     * @param array<string, mixed> $message
+     */
+    private static function createdAt(array $message): int
+    {
+        return (int) ($message['time']['created'] ?? 0);
+    }
 
-        return $first === null ? null : intdiv($first, 1000);
+    /**
+     * @param list<array<string, mixed>> $messages
+     * @return list<int>
+     */
+    private static function createdTimes(array $messages): array
+    {
+        return array_values(array_filter(
+            array_map(self::createdAt(...), $messages),
+            static fn (int $at): bool => $at > 0
+        ));
     }
 
     /**
@@ -397,9 +409,9 @@ class OpenCodeHarness implements CodingHarness
      *                                                park the session with nothing to answer
      */
     /**
-     * The current turn's idles, or none while anything newer than the last of them exists. A message
-     * sent while a turn was ending arrives after its `idle` and starts another turn; read as finished,
-     * the chat delivered the old reply, stopped polling the new turn, and stayed a turn behind for good.
+     * The current turn's idles, or none while a prompt or step is newer than the last of them: a message
+     * that reaches the runtime after a turn's `idle` starts another turn, and that idle must not end it,
+     * or the chat delivers the old reply and stops polling the turn still running.
      *
      * @param list<array<string, mixed>> $messages
      * @param list<array<string, mixed>> $currentTurnIdle
@@ -407,12 +419,11 @@ class OpenCodeHarness implements CodingHarness
      */
     private function settledIdle(array $messages, array $currentTurnIdle): array
     {
-        $createdAt = static fn (array $message): int => (int) ($message['time']['created'] ?? 0);
-        $lastIdleAt = max([0, ...array_map($createdAt, $currentTurnIdle)]);
+        $lastIdleAt = max([0, ...self::createdTimes($currentTurnIdle)]);
         $workAfterIt = array_filter(
             $messages,
             static fn (array $message): bool => in_array($message['type'] ?? '', ['user', 'assistant'], true)
-                && $createdAt($message) > $lastIdleAt
+                && self::createdAt($message) > $lastIdleAt
         );
 
         return $workAfterIt === [] ? $currentTurnIdle : [];
@@ -486,13 +497,13 @@ class OpenCodeHarness implements CodingHarness
         $ordered = $assistant;
         usort(
             $ordered,
-            static fn (array $a, array $b): int => ((int) ($a['time']['created'] ?? 0)) <=> ((int) ($b['time']['created'] ?? 0))
+            static fn (array $a, array $b): int => self::createdAt($a) <=> self::createdAt($b)
         );
 
         $narration = [];
 
         foreach ($ordered as $message) {
-            $createdAt = (int) ($message['time']['created'] ?? 0);
+            $createdAt = self::createdAt($message);
 
             if ($lastMessageAt !== null && $createdAt <= $lastMessageAt) {
                 continue;
@@ -535,17 +546,9 @@ class OpenCodeHarness implements CodingHarness
      */
     private function newestMessageAt(array $assistant): ?int
     {
-        $newest = null;
+        $times = self::createdTimes($assistant);
 
-        foreach ($assistant as $message) {
-            $createdAt = (int) ($message['time']['created'] ?? 0);
-
-            if ($createdAt > 0 && ($newest === null || $createdAt > $newest)) {
-                $newest = $createdAt;
-            }
-        }
-
-        return $newest;
+        return $times === [] ? null : max($times);
     }
 
     /**
@@ -745,11 +748,11 @@ class OpenCodeHarness implements CodingHarness
      */
     private function currentTurn(array $messages, array $idle, int $turnOffset): array
     {
-        $turnStartedAt = (int) ($idle[$turnOffset - 1]['time']['created'] ?? 0);
+        $turnStartedAt = self::createdAt($idle[$turnOffset - 1] ?? []);
 
         return array_values(array_filter(
             $messages,
-            static fn (array $message): bool => (int) ($message['time']['created'] ?? 0) > $turnStartedAt
+            static fn (array $message): bool => self::createdAt($message) > $turnStartedAt
         ));
     }
 }
