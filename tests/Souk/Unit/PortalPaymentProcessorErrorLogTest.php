@@ -84,7 +84,13 @@ final class PortalPaymentProcessorErrorLogTest extends TestCaseUnit
         $action = Mockery::mock(LogPaymentEventAction::class);
         $action->shouldReceive('execute')
             ->once()
-            ->with($payment, 'payment_error', $context, Mockery::on(fn (PaymentFailure $failure) => $failure == $expected));
+            ->with(
+                $payment,
+                'payment_error',
+                $context,
+                Mockery::on(fn (PaymentFailure $failure) => $failure == $expected),
+                null
+            );
         $this->app->instance(LogPaymentEventAction::class, $action);
 
         $processor = new ReflectionClass(PortalPaymentProcessor::class)->newInstanceWithoutConstructor();
