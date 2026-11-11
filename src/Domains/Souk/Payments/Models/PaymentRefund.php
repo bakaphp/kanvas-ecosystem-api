@@ -12,6 +12,7 @@ use Kanvas\Souk\Payments\Actions\SyncPayablePaymentStatusAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
  * @property int $apps_id
@@ -81,6 +82,16 @@ class PaymentRefund extends BaseModel
             'amount' => $this->amount,
             'fully_refunded' => $payment->isFullyRefunded(),
         ]);
+
+        // Partial refunds change no status, so this is the one event a connector can hang on to
+        // hear about every completed refund.
+        if ($payment->payable !== null && method_exists($payment->payable, 'fireWorkflowAfterCommit')) {
+            $payment->payable->fireWorkflowAfterCommit(WorkflowEnum::AFTER_REFUND->value, [
+                'app' => $this->app,
+                'company' => $this->company,
+                'payment_refund_id' => $this->getId(),
+            ]);
+        }
     }
 
     public function markAsFailed(array $metadata = []): void

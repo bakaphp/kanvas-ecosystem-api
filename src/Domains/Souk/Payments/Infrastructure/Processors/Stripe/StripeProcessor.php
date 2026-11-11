@@ -175,7 +175,9 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
         try {
             $stripeRefund = $this->stripe->refunds->create(
                 $params,
-                ['idempotency_key' => 'refund:' . $payment->getId() . ':' . $amountCents],
+                // A caller refunding the same amount twice on purpose (two seats at one price)
+                // names each refund; otherwise Stripe would replay the first and move no money.
+                ['idempotency_key' => $context['idempotency_key'] ?? 'refund:' . $payment->getId() . ':' . $amountCents],
             );
         } catch (ApiErrorException $e) {
             $refund->markAsFailed(['error' => $e->getMessage()]);

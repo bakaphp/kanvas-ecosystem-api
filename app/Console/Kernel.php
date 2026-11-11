@@ -5,6 +5,7 @@ namespace App\Console;
 use App\Console\Commands\Analytics\Schedules\AnalyticsSchedule;
 use App\Console\Commands\Approvals\ExpireApprovalRequestsCommand;
 use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
+use App\Console\Commands\Connectors\BrushCrazy\Schedules\BrushCrazySchedule;
 use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
 use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
@@ -132,6 +133,9 @@ class Kernel extends ConsoleKernel
 
         // Analytics — weekly Engage usage leaderboard to each company's managers.
         AnalyticsSchedule::register($schedule);
+
+        // BrushCrazy — 15-minute incremental pull behind the mirror webhooks, per mirrored studio.
+        BrushCrazySchedule::register($schedule);
 
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()
