@@ -32,8 +32,6 @@ class VideoToGifService
     }
 
     /**
-     * Process a video URL and generate both uploaded video and GIF files.
-     *
      * @return array{video: Filesystem, gif: Filesystem}
      */
     public function processVideoUrl(string $videoUrl): array
@@ -53,9 +51,6 @@ class VideoToGifService
         }
     }
 
-    /**
-     * Download video from URL to temporary file.
-     */
     protected function downloadVideo(string $videoUrl): string
     {
         SafeUrl::assertSafe($videoUrl);
@@ -75,9 +70,6 @@ class VideoToGifService
         return $tempFile;
     }
 
-    /**
-     * Upload the video file to storage.
-     */
     protected function uploadVideoFile(string $tempVideoPath, string $originalUrl): Filesystem
     {
         $finfo = new finfo(FILEINFO_MIME_TYPE);
@@ -99,9 +91,6 @@ class VideoToGifService
         return $filesystem->upload($uploadedFile, $this->user);
     }
 
-    /**
-     * Generate GIF from video and upload to storage.
-     */
     protected function generateAndUploadGif(string $videoPath): Filesystem
     {
         $gifDuration = $this->getGifDuration();
@@ -140,9 +129,6 @@ class VideoToGifService
         }
     }
 
-    /**
-     * Get GIF duration from company configuration.
-     */
     protected function getGifDuration(): int
     {
         $configuredDuration = $this->company->get(ConfigurationEnum::GIF_DURATION_SECONDS->value);
@@ -151,10 +137,10 @@ class VideoToGifService
     }
 
     /**
-     * Check if video GIF generation is enabled for the company.
+     * On unless the company explicitly turns it off.
      */
     public function isEnabled(): bool
     {
-        return (bool) $this->company->get(ConfigurationEnum::ENABLE_VIDEO_GIF_GENERATION->value);
+        return $this->company->getBool(ConfigurationEnum::ENABLE_VIDEO_GIF_GENERATION->value, true);
     }
 }
